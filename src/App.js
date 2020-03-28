@@ -4,6 +4,7 @@ import CssBaseline from "@material-ui/core/CssBaseline";
 import * as colors from "@material-ui/core/colors";
 import { ReactQueryConfigProvider } from "react-query";
 import { Collapse } from "./components/transitions";
+import "./index.css";
 
 const Landing = React.lazy(() => import("./pages/Landing"));
 
