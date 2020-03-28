@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: yarn install
+      - name: format
+        run: yarn format:check
+      - name: lint
+        run: yarn lint
