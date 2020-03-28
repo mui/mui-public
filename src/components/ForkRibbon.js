@@ -59,7 +59,7 @@ const Ribbon = styled.a`
   }
 
   &:after {
-    content: "${props => props.children}";
+    content: "${(props) => props.children}";
 
     /* Set the text properties */
     color: #fff;
@@ -83,13 +83,13 @@ const Ribbon = styled.a`
 `;
 
 export default function ForkRibbon() {
-  return (
-    <Ribbon
-      class="github-fork-ribbon top-right"
-      data-ribbon="fork me on github"
-      href="https://github.com/eps1lon/mui-maintainer-dashboard"
-    >
-      Fork me on GitHub
-    </Ribbon>
-  );
+	return (
+		<Ribbon
+			class="github-fork-ribbon top-right"
+			data-ribbon="fork me on github"
+			href="https://github.com/eps1lon/mui-maintainer-dashboard"
+		>
+			Fork me on GitHub
+		</Ribbon>
+	);
 }
