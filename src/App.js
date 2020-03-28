@@ -7,6 +7,7 @@ import { Collapse } from "./components/transitions";
 import "./index.css";
 
 const Landing = React.lazy(() => import("./pages/Landing"));
+const ForkRibbon = React.lazy(() => import("./components/ForkRibbon.js"));
 
 function App() {
   const theme = React.useMemo(() => {
@@ -117,6 +118,7 @@ function App() {
       <CssBaseline />
       <ReactQueryConfigProvider config={queryConfig}>
         <React.Suspense fallback="landing">
+          <ForkRibbon />
           <Landing />
         </React.Suspense>
       </ReactQueryConfigProvider>
