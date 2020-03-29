@@ -8,7 +8,7 @@ import Link from "@material-ui/core/Link";
 import Skeleton from "@material-ui/lab/Skeleton";
 import Typography from "@material-ui/core/Typography";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import { useQuery } from "react-query";
+import { useInfiniteQuery } from "react-query";
 import styled from "styled-components";
 import ErrorBoundary from "../components/ErrorBoundary";
 
@@ -106,25 +106,40 @@ function CircleCIBuilds(props) {
 
 function useRecentBuilds(filter) {
 	const { branchName, workflowName } = filter;
-	const { data: builds } = useQuery(
+	const { data: groups, fetchMore } = useInfiniteQuery(
 		"circle-ci-builds",
-		fetchRecentCircleCIBuilds
+		fetchRecentCircleCIBuilds,
+		{
+			getFetchMore: (lastGroup, allGroups) => {
+				return allGroups.length;
+			},
+		}
 	);
-	React.useDebugValue(builds);
+	React.useDebugValue(groups);
 
-	return builds.filter((build) => {
-		console.log(build, branchName);
-		return (
-			build.workflows.workflow_name === workflowName &&
-			(branchName === undefined || build.branch === branchName)
-		);
-	});
+	const filteredBuilds = React.useMemo(() => {
+		return groups.flatMap((builds) => {
+			return builds.filter((build) => {
+				return (
+					build.workflows.workflow_name === workflowName &&
+					(branchName === undefined || build.branch === branchName)
+				);
+			});
+		});
+	}, [branchName, groups, workflowName]);
+
+	if (filteredBuilds.length === 0 && groups.length < 10) {
+		fetchMore();
+	}
+
+	return React.useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
 }
 
-async function fetchRecentCircleCIBuilds() {
+async function fetchRecentCircleCIBuilds(key, cursor = 0) {
 	const url = getCircleCIApiUrl("project/github/mui-org/material-ui", {
 		filter: "completed",
 		limit: 100,
+		offset: 100 * cursor,
 	});
 	const response = await fetch(url);
 	const builds = await response.json();
