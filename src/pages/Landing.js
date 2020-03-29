@@ -24,8 +24,8 @@ export default function Landing() {
 
 function CircleCIWorkflows() {
 	const workflows = [
-		{ name: "typescript-next", label: "typescript@next" },
 		{ name: "pipeline", label: "material-ui@master", branchName: "master" },
+		{ name: "typescript-next", label: "typescript@next" },
 		{ name: "react-next", label: "react@next" },
 	];
 	return (
