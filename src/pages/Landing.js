@@ -32,16 +32,18 @@ function CircleCIWorkflows() {
 		<React.SuspenseList revealOrder="forwards">
 			{workflows.map((workflow) => {
 				return (
-					<ErrorBoundary
-						fallback={
-							<p>Failed fetching CircleCI builds for {workflow.name}</p>
-						}
+					<React.Suspense
+						fallback={<Skeleton height={48} variant="rect" />}
 						key={workflow.name}
 					>
-						<React.Suspense fallback={<Skeleton height={48} variant="rect" />}>
+						<ErrorBoundary
+							fallback={
+								<p>Failed fetching CircleCI builds for {workflow.name}</p>
+							}
+						>
 							<CircleCIWorkflow workflow={workflow} />
-						</React.Suspense>
-					</ErrorBoundary>
+						</ErrorBoundary>
+					</React.Suspense>
 				);
 			})}
 		</React.SuspenseList>
