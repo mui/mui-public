@@ -36,9 +36,10 @@ function CircleCIWorkflows() {
 						fallback={
 							<p>Failed fetching CircleCI builds for {workflow.name}</p>
 						}
+						key={workflow.name}
 					>
 						<React.Suspense fallback={<Skeleton height={48} variant="rect" />}>
-							<CircleCIWorkflow key={workflow.name} workflow={workflow} />
+							<CircleCIWorkflow workflow={workflow} />
 						</React.Suspense>
 					</ErrorBoundary>
 				);
