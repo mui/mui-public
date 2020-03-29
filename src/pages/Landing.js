@@ -153,7 +153,7 @@ function RelativeTimeTillNow(props) {
 		return intl.format(Math.ceil(seconds), "second");
 	}
 	if (-seconds < 60 * 60) {
-		return intl.format(Math.ceil(seconds) / 60, "minute");
+		return intl.format(Math.ceil(seconds / 60), "minute");
 	}
 	if (-seconds < 60 * 60 * 24) {
 		return intl.format(Math.ceil(seconds / 60 / 60), "hour");
