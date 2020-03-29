@@ -84,11 +84,7 @@ const Ribbon = styled.a`
 
 export default function ForkRibbon() {
 	return (
-		<Ribbon
-			class="github-fork-ribbon top-right"
-			data-ribbon="fork me on github"
-			href="https://github.com/eps1lon/mui-maintainer-dashboard"
-		>
+		<Ribbon href="https://github.com/eps1lon/mui-maintainer-dashboard">
 			Fork me on GitHub
 		</Ribbon>
 	);
