@@ -12,13 +12,19 @@ import { usePaginatedQuery } from "react-query";
 import styled from "styled-components";
 import ErrorBoundary from "../components/ErrorBoundary";
 
+const Webpagetests = React.lazy(() => import("../components/Webpagetests"));
+
 export default function Landing() {
 	return (
-		<React.Fragment>
+		<React.SuspenseList revealOrder="forwards">
 			<Typography variant="h1">Maintainer Dashboard</Typography>
 			<Typography variant="h2">CircleCI workflows</Typography>
 			<CircleCIWorkflows />
-		</React.Fragment>
+			<Typography variant="h2">Webpagetests</Typography>
+			<React.Suspense fallback="loading webpagetests">
+				<Webpagetests />
+			</React.Suspense>
+		</React.SuspenseList>
 	);
 }
 
