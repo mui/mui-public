@@ -11,16 +11,21 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import { usePaginatedQuery } from "react-query";
 import styled from "styled-components";
 import ErrorBoundary from "../components/ErrorBoundary";
+import Heading from "../components/Heading";
 
 const Webpagetests = React.lazy(() => import("../components/Webpagetests"));
 
 export default function Landing() {
 	return (
 		<React.SuspenseList revealOrder="forwards">
-			<Typography variant="h1">Maintainer Dashboard</Typography>
-			<Typography variant="h2">CircleCI workflows</Typography>
+			<Heading level="1">Maintainer Dashboard</Heading>
+			<Heading level="2" id="circle-ci-workflows">
+				CircleCI workflows
+			</Heading>
 			<CircleCIWorkflows />
-			<Typography variant="h2">Webpagetests</Typography>
+			<Heading level="2" id="webpagetests">
+				Webpagetests
+			</Heading>
 			<React.Suspense fallback="loading webpagetests">
 				<Webpagetests />
 			</React.Suspense>
