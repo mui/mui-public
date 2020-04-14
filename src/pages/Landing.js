@@ -27,7 +27,9 @@ export default function Landing() {
 				Webpagetests
 			</Heading>
 			<React.Suspense fallback="loading webpagetests">
-				<Webpagetests />
+				<ErrorBoundary fallback="webpage tests crashed">
+					<Webpagetests />
+				</ErrorBoundary>
 			</React.Suspense>
 		</React.SuspenseList>
 	);
