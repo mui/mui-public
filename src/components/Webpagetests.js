@@ -12,7 +12,7 @@ function createTest({ label, url }) {
 	if (url === null) {
 		return Promise.resolve(null);
 	}
-	const apiUrl = new URL("http://www.webpagetest.org/runtest.php");
+	const apiUrl = new URL("https://www.webpagetest.org/runtest.php");
 	new URLSearchParams({
 		f: "json",
 		k: "A.e2187e86a47779375c33bd84385934e2",
