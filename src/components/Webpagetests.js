@@ -42,17 +42,17 @@ function Webpagetests() {
 
 	const [createSourceTest, { data: sourceTest }] = useMutation(createTest);
 	const [createTargetTest, { data: targetTest }] = useMutation(createTest);
+	const [startTestTransition, isTestPending] = React.useTransition({
+		timeoutMs: 300,
+	});
 	function handleSubmit(event) {
 		event.preventDefault();
 
-		createTargetTest({ label: `${targetValue}`, url: targetUrl });
-		createSourceTest({ label: `Pull Request #${prNumber}`, url: sourceUrl });
+		startTestTransition(() => {
+			createTargetTest({ label: `${targetValue}`, url: targetUrl });
+			createSourceTest({ label: `Pull Request #${prNumber}`, url: sourceUrl });
+		});
 	}
-
-	const comparisonUrl =
-		targetTest?.statusCode === 200 && sourceTest?.statusCode === 200
-			? `https://www.webpagetest.org/video/compare.php?tests=${sourceTest.data.testId},${targetTest.data.testId}`
-			: null;
 
 	return (
 		<form aria-label="webpagetests" onSubmit={handleSubmit}>
@@ -76,30 +76,59 @@ function Webpagetests() {
 				value={page}
 				variant="outlined"
 			/>
-			<Button type="submit">Submit</Button>
+			<Button disabled={isTestPending} type="submit">
+				{isTestPending ? "Submitting test..." : "Submit"}
+			</Button>
 			<Paper component="output">
-				{comparisonUrl !== null && (
-					<details>
-						<summary>
-							<Typography>
-								<Link href={comparisonUrl}>Visual comparison</Link> between{" "}
-								<Link href={sourceUrl}>{sourceUrl}</Link> and{" "}
-								<Link href={targetUrl}>{targetUrl}</Link>
-							</Typography>
-						</summary>
-						<dl>
-							<dt>source</dt>
-							<dd>
-								<pre>{JSON.stringify(sourceTest, null, 2)}</pre>
-							</dd>
-							<dt>target</dt>
-							<dd>
-								<pre>{JSON.stringify(targetTest, null, 2)}</pre>
-							</dd>
-						</dl>
-					</details>
-				)}
+				<WebpagetestResult
+					sourceTest={sourceTest}
+					sourceUrl={sourceUrl}
+					targetTest={targetTest}
+					targetUrl={targetUrl}
+				/>
 			</Paper>
 		</form>
+	);
+}
+
+function WebpagetestResult({ sourceTest, sourceUrl, targetTest, targetUrl }) {
+	if (sourceTest === undefined || targetTest === undefined) {
+		return null;
+	}
+
+	if (sourceTest.statusCode !== 200 || targetTest.statusCode !== 200) {
+		if (sourceTest.statusText === targetTest.statusText) {
+			return <p>Error: {sourceTest.statusText}</p>;
+		}
+		return (
+			<ul>
+				<li>source error: {sourceTest.statusText}</li>
+				<li>target error: {targetTest.statusText}</li>
+			</ul>
+		);
+	}
+
+	const comparisonUrl = `https://www.webpagetest.org/video/compare.php?tests=${sourceTest.data.testId},${targetTest.data.testId}`;
+
+	return (
+		<details>
+			<summary>
+				<Typography>
+					<Link href={comparisonUrl}>Visual comparison</Link> between{" "}
+					<Link href={sourceUrl}>{sourceUrl}</Link> and{" "}
+					<Link href={targetUrl}>{targetUrl}</Link>
+				</Typography>
+			</summary>
+			<dl>
+				<dt>source</dt>
+				<dd>
+					<pre>{JSON.stringify(sourceTest, null, 2)}</pre>
+				</dd>
+				<dt>target</dt>
+				<dd>
+					<pre>{JSON.stringify(targetTest, null, 2)}</pre>
+				</dd>
+			</dl>
+		</details>
 	);
 }
