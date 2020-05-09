@@ -23,7 +23,7 @@
 	},
 	"scripts": {
 		"start": "next dev",
-		"build": "next build && next export",
+		"build": "next build && next export -o build",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint \"src/**/*.js\"",
