@@ -102,8 +102,6 @@ function App() {
 		nextTheme.palette.background.level2 = "#333";
 		nextTheme.palette.background.level1 = nextTheme.palette.grey[900];
 
-		nextTheme.spacing = 4;
-
 		return nextTheme;
 	}, []);
 
