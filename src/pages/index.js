@@ -12,12 +12,13 @@ import { usePaginatedQuery } from "react-query";
 import styled from "styled-components";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
+import dynamic from "next/dynamic";
 
-const Webpagetests = React.lazy(() => import("../components/Webpagetests"));
+const Webpagetests = dynamic(() => import("../components/Webpagetests"));
 
 export default function Landing() {
 	return (
-		<React.unstable_SuspenseList revealOrder="forwards">
+		<React.SuspenseList revealOrder="forwards">
 			<Heading level="1">Maintainer Dashboard</Heading>
 			<Heading level="2" id="circle-ci-workflows">
 				CircleCI workflows
@@ -29,7 +30,7 @@ export default function Landing() {
 			<React.Suspense fallback="loading webpagetests">
 				<Webpagetests />
 			</React.Suspense>
-		</React.unstable_SuspenseList>
+		</React.SuspenseList>
 	);
 }
 
@@ -40,7 +41,7 @@ function CircleCIWorkflows() {
 		{ name: "react-next", label: "react@next" },
 	];
 	return (
-		<React.unstable_SuspenseList revealOrder="forwards">
+		<React.SuspenseList revealOrder="forwards">
 			{workflows.map((workflow) => {
 				return (
 					<React.Suspense
@@ -57,7 +58,7 @@ function CircleCIWorkflows() {
 					</React.Suspense>
 				);
 			})}
-		</React.unstable_SuspenseList>
+		</React.SuspenseList>
 	);
 }
 
