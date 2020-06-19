@@ -3,10 +3,12 @@ import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import * as colors from "@material-ui/core/colors";
 import { ReactQueryConfigProvider } from "react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Collapse } from "./components/transitions";
 import "./index.css";
 
 const Landing = React.lazy(() => import("./pages/Landing"));
+const SizeComparison = React.lazy(() => import("./pages/SizeComparison"));
 const ForkRibbon = React.lazy(() => import("./components/ForkRibbon.js"));
 
 function App() {
@@ -122,7 +124,12 @@ function App() {
 				</svg>
 				<React.Suspense fallback="landing">
 					<ForkRibbon />
-					<Landing />
+					<BrowserRouter>
+						<Routes>
+							<Route path="/" element={<Landing />} />
+							<Route path="/size-comparison" element={<SizeComparison />} />
+						</Routes>
+					</BrowserRouter>
 				</React.Suspense>
 			</ReactQueryConfigProvider>
 		</ThemeProvider>
