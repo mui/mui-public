@@ -1,7 +1,7 @@
 import * as React from "react";
-import ExpansionPanel from "@material-ui/core/ExpansionPanel";
-import ExpansionPanelDetails from "@material-ui/core/ExpansionPanelDetails";
-import ExpansionPanelSummary from "@material-ui/core/ExpansionPanelSummary";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import Link from "@material-ui/core/Link";
@@ -76,8 +76,8 @@ function CircleCIWorkflow(props) {
 	const [lastBuild] = sortedBuilds;
 
 	return (
-		<ExpansionPanel>
-			<ExpansionPanelSummary
+		<Accordion>
+			<AccordionSummary
 				aria-controls={`circleci-workflow-${workflow.name}-content`}
 				id={`circleci-workflow-${workflow.name}-header`}
 				expandIcon={<ExpandMoreIcon />}
@@ -86,11 +86,11 @@ function CircleCIWorkflow(props) {
 					{workflow.label}{" "}
 					{lastBuild === undefined ? "state unknown" : lastBuild.status}
 				</Typography>
-			</ExpansionPanelSummary>
-			<ExpansionPanelDetails>
+			</AccordionSummary>
+			<AccordionDetails>
 				<CircleCIBuilds builds={sortedBuilds} />
-			</ExpansionPanelDetails>
-		</ExpansionPanel>
+			</AccordionDetails>
+		</Accordion>
 	);
 }
 
