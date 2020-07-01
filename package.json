@@ -14,9 +14,6 @@
 		"react-router-dom": "^6.0.0-alpha.5",
 		"styled-components": "^5.1.0"
 	},
-	"resolutions": {
-		"**/react-transition-group": "npm:@material-ui/react-transition-group@^4.2.0"
-	},
 	"devDependencies": {
 		"@testing-library/jest-dom": "^4.2.4",
 		"@testing-library/react": "^9.3.2",

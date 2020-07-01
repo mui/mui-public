@@ -1,10 +1,12 @@
 import React from "react";
-import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
+import {
+	unstable_createMuiStrictModeTheme,
+	ThemeProvider,
+} from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import * as colors from "@material-ui/core/colors";
 import { ReactQueryConfigProvider } from "react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Collapse } from "./components/transitions";
 import "./index.css";
 
 const Landing = React.lazy(() => import("./pages/Landing"));
@@ -13,7 +15,7 @@ const ForkRibbon = React.lazy(() => import("./components/ForkRibbon.js"));
 
 function App() {
 	const theme = React.useMemo(() => {
-		const nextTheme = createMuiTheme({
+		const nextTheme = unstable_createMuiStrictModeTheme({
 			palette: {
 				background: { default: "#121212" },
 				primary: {
@@ -27,9 +29,6 @@ function App() {
 			props: {
 				MuiButton: {
 					size: "small",
-				},
-				MuiAccordion: {
-					TransitionComponent: Collapse,
 				},
 				MuiFilledInput: {
 					margin: "dense",
