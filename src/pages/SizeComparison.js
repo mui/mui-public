@@ -1,9 +1,9 @@
 import * as React from "react";
 import { useLocation } from "react-router";
 import { useQuery } from "react-query";
-import ExpansionPanel from "@material-ui/core/ExpansionPanel";
-import ExpansionPanelDetails from "@material-ui/core/ExpansionPanelDetails";
-import ExpansionPanelSummary from "@material-ui/core/ExpansionPanelSummary";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
 import Link from "@material-ui/core/Link";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
@@ -258,25 +258,25 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 
 	return (
 		<React.Fragment>
-			<ExpansionPanel defaultExpanded={true}>
-				<ExpansionPanelSummary>Modules</ExpansionPanelSummary>
-				<ExpansionPanelDetails>
+			<Accordion defaultExpanded={true}>
+				<AccordionSummary>Modules</AccordionSummary>
+				<AccordionDetails>
 					<CompareTable
 						entries={mainResults}
 						getBundleLabel={getMainBundleLabel}
 					/>
-				</ExpansionPanelDetails>
-			</ExpansionPanel>
-			<ExpansionPanel defaultExpanded={false}>
-				<ExpansionPanelSummary>Pages</ExpansionPanelSummary>
-				<ExpansionPanelDetails>
+				</AccordionDetails>
+			</Accordion>
+			<Accordion defaultExpanded={false}>
+				<AccordionSummary>Pages</AccordionSummary>
+				<AccordionDetails>
 					<CompareTable
 						entries={pageResults}
 						getBundleLabel={getPageBundleLabel}
 						renderBundleLabel={renderPageBundleLabel}
 					/>
-				</ExpansionPanelDetails>
-			</ExpansionPanel>
+				</AccordionDetails>
+			</Accordion>
 		</React.Fragment>
 	);
 }

@@ -28,7 +28,7 @@ function App() {
 				MuiButton: {
 					size: "small",
 				},
-				MuiExpansionPanel: {
+				MuiAccordion: {
 					TransitionComponent: Collapse,
 				},
 				MuiFilledInput: {
