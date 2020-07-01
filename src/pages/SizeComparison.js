@@ -207,10 +207,11 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 		const main = [];
 		const pages = [];
 		bundleKeys.forEach((bundle) => {
+			// current vs previous based off: https://github.com/mui-org/material-ui/blob/f1246e829f9c0fc9458ce951451f43c2f166c7d1/scripts/sizeSnapshot/loadComparison.js#L32
 			// if a bundle was added the change should be +inf
 			// if a bundle was removed the change should be -100%
-			const currentSize = baseSnapshot[bundle] || nullSnapshot;
-			const previousSize = targetSnapshot[bundle] || nullSnapshot;
+			const currentSize = targetSnapshot[bundle] || nullSnapshot;
+			const previousSize = baseSnapshot[bundle] || nullSnapshot;
 
 			const entry = [
 				bundle,
