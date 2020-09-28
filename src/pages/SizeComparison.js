@@ -12,18 +12,22 @@ import TableHead from "@material-ui/core/TableHead";
 import TableRow from "@material-ui/core/TableRow";
 import prettyBytes from "pretty-bytes";
 import styled from "styled-components";
+import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-function fetchArtifact(key, { buildId, artifactName }) {
-	return fetch(
+async function fetchArtifact(key, { buildId, artifactName }) {
+	const response = await fetch(
 		`https://dev.azure.com/mui-org/material-ui/_apis/build/builds/${buildId}/artifacts?api-version=5.1`
-	)
-		.then((response) => {
-			return response.json();
-		})
-		.then(({ value: artifacts }) => {
-			return artifacts.find((artifact) => artifact.name === artifactName);
-		});
+	);
+
+	const body = await response.json();
+
+	if (response.status === 200) {
+		const artifacts = body.value;
+		return artifacts.find((artifact) => artifact.name === artifactName);
+	}
+
+	throw new Error(`${body.typeKey}: ${body.message}`);
 }
 
 function downloadSnapshot(key, downloadUrl) {
@@ -295,6 +299,19 @@ function useComparisonParams() {
 	}, [search]);
 }
 
+function ComparisonErrorFallback({ prNumber }) {
+	return (
+		<p>
+			Could not load comparison for{" "}
+			<Link href={`https://github.com/mui-org/material-ui/pull/${prNumber}`}>
+				#{prNumber}
+			</Link>
+			. This can happen if the build in the Azure Pipeline didn't finish yet.{" "}
+			<Link href="">Reload this page</Link> once the Azure build has finished.
+		</p>
+	);
+}
+
 export default function SizeComparison() {
 	const { buildId, baseRef, baseCommit, prNumber } = useComparisonParams();
 
@@ -308,12 +325,23 @@ export default function SizeComparison() {
 					</p>
 				}
 			>
-				<Comparison
-					buildId={buildId}
-					baseRef={baseRef}
-					baseCommit={baseCommit}
-					prNumber={prNumber}
-				/>
+				<ErrorBoundary
+					fallback={
+						<ComparisonErrorFallback
+							buildId={buildId}
+							baseRef={baseRef}
+							baseCommit={baseCommit}
+							prNumber={prNumber}
+						/>
+					}
+				>
+					<Comparison
+						buildId={buildId}
+						baseRef={baseRef}
+						baseCommit={baseCommit}
+						prNumber={prNumber}
+					/>
+				</ErrorBoundary>
 			</React.Suspense>
 		</React.Fragment>
 	);
