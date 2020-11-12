@@ -179,8 +179,10 @@ function getAzurePipelinesAPIUrl(endpoint, params) {
 function CircleCIWorkflows() {
 	const workflows = [
 		{ name: "pipeline", label: "material-ui@master", branchName: "master" },
+		{ name: "pipeline", label: "material-ui@next", branchName: "next" },
 		{ name: "typescript-next", label: "typescript@next" },
 		{ name: "react-next", label: "react@next" },
+		{ name: "timezone-tests", label: "experimental-timezones" },
 	];
 	return (
 		<React.unstable_SuspenseList revealOrder="forwards">
