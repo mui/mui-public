@@ -1,4 +1,3 @@
-import * as React from "react";
 import styled from "styled-components";
 
 // port of https://github.com/simonwhitaker/github-fork-ribbon-css/blob/gh-pages/gh-fork-ribbon.css

@@ -1,4 +1,4 @@
-import * as React from "react";
+import { Fragment, memo, useCallback, useMemo, Suspense } from "react";
 import { useLocation } from "react-router";
 import { useQuery } from "react-query";
 import Accordion from "@material-ui/core/Accordion";
@@ -106,12 +106,12 @@ const BundleCell = styled(TableCell)`
 	max-width: 40ch;
 `;
 
-const CompareTable = React.memo(function CompareTable({
+const CompareTable = memo(function CompareTable({
 	entries,
 	getBundleLabel,
 	renderBundleLabel = getBundleLabel,
 }) {
-	const rows = React.useMemo(() => {
+	const rows = useMemo(() => {
 		return (
 			entries
 				.map(([bundleId, size]) => [
@@ -205,7 +205,7 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 	const baseSnapshot = useS3SizeSnapshot(baseRef, baseCommit);
 	const targetSnapshot = useAzureSizeSnapshot(buildId);
 
-	const { main: mainResults, pages: pageResults } = React.useMemo(() => {
+	const { main: mainResults, pages: pageResults } = useMemo(() => {
 		const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
 
 		const main = [];
@@ -245,7 +245,7 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 		return { main, pages };
 	}, [baseSnapshot, targetSnapshot]);
 
-	const renderPageBundleLabel = React.useCallback(
+	const renderPageBundleLabel = useCallback(
 		(bundleId) => {
 			// a page
 			if (bundleId.startsWith("docs:/")) {
@@ -261,7 +261,7 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 	);
 
 	return (
-		<React.Fragment>
+		<Fragment>
 			<Accordion defaultExpanded={true}>
 				<AccordionSummary>Modules</AccordionSummary>
 				<AccordionDetails>
@@ -281,13 +281,13 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 					/>
 				</AccordionDetails>
 			</Accordion>
-		</React.Fragment>
+		</Fragment>
 	);
 }
 
 function useComparisonParams() {
 	const { search } = useLocation();
-	return React.useMemo(() => {
+	return useMemo(() => {
 		const params = new URLSearchParams(search);
 
 		return {
@@ -316,9 +316,9 @@ export default function SizeComparison() {
 	const { buildId, baseRef, baseCommit, prNumber } = useComparisonParams();
 
 	return (
-		<React.Fragment>
+		<Fragment>
 			<Heading level="1">Size comparison</Heading>
-			<React.Suspense
+			<Suspense
 				fallback={
 					<p>
 						Loading comparison for build <em>{buildId}</em>
@@ -342,7 +342,7 @@ export default function SizeComparison() {
 						prNumber={prNumber}
 					/>
 				</ErrorBoundary>
-			</React.Suspense>
-		</React.Fragment>
+			</Suspense>
+		</Fragment>
 	);
 }
