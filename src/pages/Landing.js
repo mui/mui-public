@@ -1,4 +1,11 @@
-import * as React from "react";
+import {
+	lazy,
+	unstable_SuspenseList as SuspenseList,
+	Suspense,
+	useDebugValue,
+	useMemo,
+	useState,
+} from "react";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
@@ -13,11 +20,11 @@ import styled from "styled-components";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-const Webpagetests = React.lazy(() => import("../components/Webpagetests"));
+const Webpagetests = lazy(() => import("../components/Webpagetests"));
 
 export default function Landing() {
 	return (
-		<React.unstable_SuspenseList revealOrder="forwards">
+		<SuspenseList revealOrder="forwards">
 			<Heading level="1">Maintainer Dashboard</Heading>
 			<Heading level="2" id="circle-ci-workflows">
 				CircleCI workflows
@@ -30,10 +37,10 @@ export default function Landing() {
 			<Heading level="2" id="webpagetests">
 				Webpagetests
 			</Heading>
-			<React.Suspense fallback="loading webpagetests">
+			<Suspense fallback="loading webpagetests">
 				<Webpagetests />
-			</React.Suspense>
-		</React.unstable_SuspenseList>
+			</Suspense>
+		</SuspenseList>
 	);
 }
 
@@ -63,10 +70,10 @@ function AzurePipeline() {
 	];
 
 	return (
-		<React.unstable_SuspenseList revealOrder="forwards">
+		<SuspenseList revealOrder="forwards">
 			{buildGroups.map((buildGroup) => {
 				return (
-					<React.Suspense
+					<Suspense
 						fallback={<Skeleton height={48} variant="rect" />}
 						key={buildGroup.label}
 					>
@@ -80,10 +87,10 @@ function AzurePipeline() {
 								buildGroup={buildGroup}
 							/>
 						</ErrorBoundary>
-					</React.Suspense>
+					</Suspense>
 				);
 			})}
-		</React.unstable_SuspenseList>
+		</SuspenseList>
 	);
 }
 
@@ -147,9 +154,9 @@ function useRecentAzurePipelinesBuilds(filter) {
 		["azure-pipelines-builds", filter],
 		fetchRecentAzurePipelinesBuilds
 	);
-	React.useDebugValue(builds);
+	useDebugValue(builds);
 
-	return React.useMemo(() => builds.slice(0, 20), [builds]);
+	return useMemo(() => builds.slice(0, 20), [builds]);
 }
 
 async function fetchRecentAzurePipelinesBuilds(key, filter) {
@@ -185,10 +192,10 @@ function CircleCIWorkflows() {
 		{ name: "timezone-tests", label: "experimental-timezones" },
 	];
 	return (
-		<React.unstable_SuspenseList revealOrder="forwards">
+		<SuspenseList revealOrder="forwards">
 			{workflows.map((workflow) => {
 				return (
-					<React.Suspense
+					<Suspense
 						fallback={<Skeleton height={48} variant="rect" />}
 						key={workflow.name}
 					>
@@ -199,10 +206,10 @@ function CircleCIWorkflows() {
 						>
 							<CircleCIWorkflow workflow={workflow} />
 						</ErrorBoundary>
-					</React.Suspense>
+					</Suspense>
 				);
 			})}
-		</React.unstable_SuspenseList>
+		</SuspenseList>
 	);
 }
 
@@ -265,7 +272,7 @@ function CircleCIBuilds(props) {
 
 function useRecentBuilds(filter) {
 	const { branchName, workflowName } = filter;
-	const [page, setPage] = React.useState(0);
+	const [page, setPage] = useState(0);
 	const { resolvedData: builds } = usePaginatedQuery(
 		["circle-ci-builds", page],
 		fetchRecentCircleCIBuilds,
@@ -275,9 +282,9 @@ function useRecentBuilds(filter) {
 			},
 		}
 	);
-	React.useDebugValue(builds);
+	useDebugValue(builds);
 
-	const filteredBuilds = React.useMemo(() => {
+	const filteredBuilds = useMemo(() => {
 		return builds.filter((build) => {
 			return (
 				build.workflows.workflow_name === workflowName &&
@@ -290,7 +297,7 @@ function useRecentBuilds(filter) {
 		setPage(page + 1);
 	}
 
-	return React.useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
+	return useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
 }
 
 async function fetchRecentCircleCIBuilds(key, cursor = 0) {

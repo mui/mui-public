@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useMemo, useState, unstable_useTransition } from "react";
 import Button from "@material-ui/core/Button";
 import Link from "@material-ui/core/Link";
 import Paper from "@material-ui/core/Paper";
@@ -26,23 +26,23 @@ function createTest({ label, url }) {
 }
 
 function Webpagetests() {
-	const [prNumber, setPrNumber] = React.useState(20549); // TODO default to -1
-	const [targetValue, setTargetValue] = React.useState("master");
-	const [page, setPage] = React.useState("/");
+	const [prNumber, setPrNumber] = useState(20549); // TODO default to -1
+	const [targetValue, setTargetValue] = useState("master");
+	const [page, setPage] = useState("/");
 
-	const sourceUrl = React.useMemo(() => {
+	const sourceUrl = useMemo(() => {
 		if (prNumber >= 0) {
 			return `https://deploy-preview-${prNumber}--material-ui.netlify.com${page}`;
 		}
 		return null;
 	}, [page, prNumber]);
-	const targetUrl = React.useMemo(() => {
+	const targetUrl = useMemo(() => {
 		return `https://${targetValue}--material-ui.netlify.com${page}`;
 	}, [page, targetValue]);
 
 	const [createSourceTest, { data: sourceTest }] = useMutation(createTest);
 	const [createTargetTest, { data: targetTest }] = useMutation(createTest);
-	const [startTestTransition, isTestPending] = React.unstable_useTransition({
+	const [startTestTransition, isTestPending] = unstable_useTransition({
 		timeoutMs: 300,
 	});
 	function handleSubmit(event) {
