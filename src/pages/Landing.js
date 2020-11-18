@@ -17,10 +17,57 @@ import Typography from "@material-ui/core/Typography";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import { usePaginatedQuery, useQuery } from "react-query";
 import styled from "styled-components";
+import CheckCircleIcon from "@material-ui/icons/CheckCircle";
+import ErrorIcon from "@material-ui/icons/Error";
+import HelpIcon from "@material-ui/icons/Help";
+import { green, red } from "@material-ui/core/colors";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
 const Webpagetests = lazy(() => import("../components/Webpagetests"));
+
+function UnstyledPipelineStatusIcon(props) {
+	const { className, size, status, ...other } = props;
+	switch (status) {
+		case undefined:
+			return <HelpIcon aria-label="unknown" className={className} {...other} />;
+		case "success":
+			return (
+				<CheckCircleIcon
+					aria-label="success"
+					className={className}
+					{...other}
+				/>
+			);
+		case "failed":
+			return <ErrorIcon aria-label="failed" className={className} {...other} />;
+		default:
+			throw new Error(`Unknown pipeline status '${status}'.`);
+	}
+}
+
+const PipelineStatusIcon = styled(UnstyledPipelineStatusIcon)`
+	color: ${({ status }) => ({ success: green[300], failed: red[300] }[status])};
+	font-size: ${({ size }) => (size === "middle" ? "1.4em" : "1em")};
+	margin: 0 8px;
+	vertical-align: sub;
+`;
+
+function PipelineStatusUnstyled(props) {
+	const { children, size = "middle", status, ...other } = props;
+
+	return (
+		<Typography variant={size === "middle" ? "body1" : "body2"} {...other}>
+			<PipelineStatusIcon size="size" status={status} />
+			<span>{children}</span>
+		</Typography>
+	);
+}
+
+const PipelineStatus = styled(PipelineStatusUnstyled)`
+	align-items: center;
+	display: flex;
+`;
 
 export default function Landing() {
 	return (
@@ -234,10 +281,9 @@ function CircleCIWorkflow(props) {
 				id={`circleci-workflow-${workflow.name}-header`}
 				expandIcon={<ExpandMoreIcon />}
 			>
-				<Typography>
-					{workflow.label}{" "}
-					{lastBuild === undefined ? "state unknown" : lastBuild.status}
-				</Typography>
+				<PipelineStatus status={lastBuild?.status}>
+					{workflow.label}
+				</PipelineStatus>
 			</AccordionSummary>
 			<AccordionDetails>
 				<CircleCIBuilds builds={sortedBuilds} />
@@ -248,6 +294,7 @@ function CircleCIWorkflow(props) {
 
 const CircleCIBuild = styled(ListItem)`
 	display: inline-block;
+	padding: 0;
 `;
 
 function CircleCIBuilds(props) {
@@ -258,11 +305,13 @@ function CircleCIBuilds(props) {
 			{builds.map((build) => {
 				return (
 					<CircleCIBuild key={build.build_num}>
-						<Link href={build.build_url}>
-							{build.workflows.job_name}@{build.branch}
-						</Link>
-						{" finished "}
-						<RelativeTimeTillNow time={build.stop_time} />
+						<PipelineStatus size="small" status={build.status}>
+							<Link href={build.build_url}>
+								{build.workflows.job_name}@{build.branch}
+							</Link>
+							{" finished "}
+							<RelativeTimeTillNow time={build.stop_time} />
+						</PipelineStatus>
 					</CircleCIBuild>
 				);
 			})}
