@@ -239,7 +239,7 @@ function CircleCIWorkflows() {
 		{ name: "pipeline", label: "material-ui@next", branchName: "next" },
 		{ name: "typescript-next", label: "typescript@next" },
 		{ name: "react-next", label: "react@next" },
-		{ name: "timezone-tests", label: "experimental-timezones", minBuilds: 96 },
+		{ name: "timezone-tests", label: "experimental-timezones" },
 	];
 	return (
 		<SuspenseList revealOrder="forwards">
