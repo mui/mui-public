@@ -247,7 +247,7 @@ function CircleCIWorkflows() {
 				return (
 					<Suspense
 						fallback={<Skeleton height={48} variant="rect" />}
-						key={workflow.name}
+						key={`${workflow.name}${workflow.branchName}`}
 					>
 						<ErrorBoundary
 							fallback={
@@ -305,7 +305,7 @@ function CircleCIBuilds(props) {
 	const { builds } = props;
 
 	return (
-		<List>
+		<List component="ol">
 			{builds.map((build) => {
 				return (
 					<CircleCIBuild key={build.build_num}>
@@ -346,6 +346,7 @@ function useRecentBuilds(filter) {
 		});
 	}, [branchName, builds, workflowName]);
 
+	// Fetch as long as we didn't find a build but stop after X pages.
 	if (filteredBuilds.length === 0 && page < 10) {
 		setPage(page + 1);
 	}
