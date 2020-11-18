@@ -31,7 +31,8 @@ function UnstyledPipelineStatusIcon(props) {
 	switch (status) {
 		case undefined:
 			return <HelpIcon aria-label="unknown" className={className} {...other} />;
-		case "success":
+		case "success": // CircleCI
+		case "succeeded": // Azure
 			return (
 				<CheckCircleIcon
 					aria-label="success"
@@ -39,7 +40,7 @@ function UnstyledPipelineStatusIcon(props) {
 					{...other}
 				/>
 			);
-		case "failed":
+		case "failed": // CircleCI, Azure
 			return <ErrorIcon aria-label="failed" className={className} {...other} />;
 		default:
 			throw new Error(`Unknown pipeline status '${status}'.`);
@@ -47,7 +48,8 @@ function UnstyledPipelineStatusIcon(props) {
 }
 
 const PipelineStatusIcon = styled(UnstyledPipelineStatusIcon)`
-	color: ${({ status }) => ({ success: green[300], failed: red[300] }[status])};
+	color: ${({ status }) =>
+		({ success: green[300], succeeded: green[300], failed: red[300] }[status])};
 	font-size: ${({ size }) => (size === "middle" ? "1.4em" : "1em")};
 	margin: 0 8px;
 	vertical-align: sub;
@@ -157,12 +159,9 @@ function AzurePipelineBuildGroup(props) {
 				id={`circleci-workflow-${buildGroup.name}-header`}
 				expandIcon={<ExpandMoreIcon />}
 			>
-				<Typography>
-					{buildGroup.label}{" "}
-					<em>
-						{lastBuild === undefined ? "state unknown" : lastBuild.result}
-					</em>
-				</Typography>
+				<PipelineStatus status={lastBuild?.result}>
+					{buildGroup.label}
+				</PipelineStatus>
 			</AccordionSummary>
 			<AccordionDetails>
 				<AzurePipelineBuilds builds={builds} />
@@ -173,6 +172,8 @@ function AzurePipelineBuildGroup(props) {
 
 const AzurePipelineBuild = styled(ListItem)`
 	display: inline-block;
+	padding-top: 0;
+	padding-bottom: 0;
 `;
 
 function AzurePipelineBuilds(props) {
@@ -183,12 +184,14 @@ function AzurePipelineBuilds(props) {
 			{builds.map((build) => {
 				return (
 					<AzurePipelineBuild key={build.id}>
-						<Link href={build._links.web.href}>
-							#{build.buildNumber}@
-							{build.sourceBranch.replace(/^refs\/heads\//, "")}
-						</Link>
-						{" finished "}
-						<RelativeTimeTillNow time={build.finishTime} />
+						<PipelineStatus size="small" status={build.result}>
+							<Link href={build._links.web.href}>
+								#{build.buildNumber}@
+								{build.sourceBranch.replace(/^refs\/heads\//, "")}
+							</Link>
+							{" finished "}
+							<RelativeTimeTillNow time={build.finishTime} />
+						</PipelineStatus>
 					</AzurePipelineBuild>
 				);
 			})}
@@ -294,7 +297,8 @@ function CircleCIWorkflow(props) {
 
 const CircleCIBuild = styled(ListItem)`
 	display: inline-block;
-	padding: 0;
+	padding-top: 0;
+	padding-bottom: 0;
 `;
 
 function CircleCIBuilds(props) {
