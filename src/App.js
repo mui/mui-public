@@ -11,6 +11,7 @@ import "./index.css";
 
 const Landing = lazy(() => import("./pages/Landing"));
 const SizeComparison = lazy(() => import("./pages/SizeComparison"));
+const TestProfileAnalysis = lazy(() => import("./pages/TestProfileAnalysis"));
 const ForkRibbon = lazy(() => import("./components/ForkRibbon.js"));
 
 function App() {
@@ -127,6 +128,7 @@ function App() {
 						<Routes>
 							<Route path="/" element={<Landing />} />
 							<Route path="/size-comparison" element={<SizeComparison />} />
+							<Route path="/test-profile" element={<TestProfileAnalysis />} />
 						</Routes>
 					</BrowserRouter>
 				</Suspense>
