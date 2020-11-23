@@ -55,7 +55,7 @@ async function fetchTestProfileArtifacts(buildNumber) {
 
 	return {
 		statusCode: 200,
-		body: JSON.stringify(testProfileArtifacts, null, 2),
+		body: JSON.stringify(testProfileArtifacts),
 	};
 }
 
