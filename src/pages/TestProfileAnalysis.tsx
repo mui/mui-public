@@ -30,17 +30,7 @@ function useTestProfileParams() {
 	};
 }
 
-async function fetchTestProfiles(
-	queryKey: unknown,
-	buildNumber: number
-): Promise<TestProfiles> {
-	const response = await fetch(
-		`/.netlify/functions/test-profile-artifacts?buildNumber=${buildNumber}`
-	);
-	return response.json();
-}
-
-const TestProfilesContext = createContext<TestProfiles>(null);
+const TestProfilesContext = createContext<TestProfiles>(null!);
 
 interface TimingAnalysisProps {
 	timings: number[];
@@ -70,7 +60,16 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 	const { testId } = props;
 	const testProfiles = useContext(TestProfilesContext);
 
-	const profilesByBrowserName = {};
+	const profilesByBrowserName: Record<
+		string,
+		Array<{
+			phase: ProfilerReport["phase"];
+			actualDuration: ProfilerReport["actualDuration"][];
+			baseDuration: ProfilerReport["baseDuration"][];
+			startTime: ProfilerReport["startTime"][];
+			commitTime: ProfilerReport["commitTime"][];
+		}>
+	> = {};
 	testProfiles.forEach(({ browserName, profile }) => {
 		const testProfiles = profile[testId];
 		if (testProfiles?.length > 0) {
@@ -152,7 +151,11 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 		</table>
 	);
 }
-function ProfileAnalysis(props) {
+
+interface ProfileAnalysisProps {
+	testId: string;
+}
+function ProfileAnalysis(props: ProfileAnalysisProps) {
 	const { testId } = props;
 
 	return (
@@ -165,16 +168,103 @@ function ProfileAnalysis(props) {
 	);
 }
 
-function useTestProfiles(buildNumber): TestProfiles {
-	const testProfilesResponse = useQuery(
-		["profile-reports", buildNumber],
-		fetchTestProfiles
-	);
-	return testProfilesResponse.data;
+interface TestProfileArtifactsInfo {
+	browserName: string;
+	timestamp: number;
+	url: string;
 }
 
-function CircleCITestProfileAnalysis(props) {
-	const { buildNumber } = props;
+async function fetchCircleCIArtifactsInfos(
+	buildNumber: number
+): Promise<Array<{ pretty_path: string; url: string }>> {
+	const apiEndpoint = "https://circleci.com/api/v1.1/";
+	const endpoint = `project/github/mui-org/material-ui/${buildNumber}/artifacts`;
+	const url = `${apiEndpoint}${endpoint}`;
+	const response = await fetch(url);
+	const artifactsInfo = await response.json();
+
+	return artifactsInfo;
+}
+
+async function fetchTestProfileArtifactsInfos(
+	queryKey: unknown,
+	buildNumber: number
+): Promise<TestProfileArtifactsInfo[]> {
+	const infos = await fetchCircleCIArtifactsInfos(buildNumber);
+
+	return infos
+		.map((artifactInfo) => {
+			const match = artifactInfo.pretty_path.match(
+				/^react-profiler-report\/karma\/([^/]+)\/(\d+)\.json$/
+			);
+			if (match === null) {
+				return null;
+			}
+			const [, browserName, timestampRaw] = match;
+			const timestamp = parseInt(timestampRaw, 10);
+
+			return {
+				browserName,
+				timestamp,
+				url: artifactInfo.url,
+			};
+		})
+		.filter(
+			(
+				maybeTestProfileArtifact
+			): maybeTestProfileArtifact is TestProfileArtifactsInfo => {
+				return maybeTestProfileArtifact !== null;
+			}
+		);
+}
+
+function useTestProfileArtifactsInfos(
+	buildNumber: number
+): TestProfileArtifactsInfo[] {
+	const testProfileArtifactsInfosResponse = useQuery(
+		["test-profile-artifacts", buildNumber],
+		fetchTestProfileArtifactsInfos
+	);
+
+	return testProfileArtifactsInfosResponse.data!;
+}
+
+function fetchTestProfileArtifacts(
+	queryKey: unknown,
+	infos: TestProfileArtifactsInfo[]
+): Promise<TestProfile[]> {
+	return Promise.all(
+		infos.map(async (info) => {
+			const url = `/.netlify/functions/test-profile-artifact?url=${info.url}`;
+			const response = await fetch(url);
+			const testProfile: TestProfile["profile"] = await response.json();
+
+			return {
+				browserName: info.browserName,
+				profile: testProfile,
+			};
+		})
+	);
+}
+
+function useTestProfiles(buildNumber: number): TestProfiles {
+	const infos = useTestProfileArtifactsInfos(buildNumber);
+	const testProfileArtifactResponse = useQuery(
+		["profile-reports", infos],
+		fetchTestProfileArtifacts
+	);
+	return testProfileArtifactResponse.data!;
+}
+
+interface CircleCITestProfileAnalysisProps {
+	buildNumber: string | null;
+}
+
+function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
+	const buildNumber = parseInt(props.buildNumber!, 10);
+	if (Number.isNaN(buildNumber)) {
+		throw new Error(`Unable to convert '${props.buildNumber}' to a number`);
+	}
 
 	const testProfiles = useTestProfiles(buildNumber);
 	const testIdsWithProfilingData = Array.from(
@@ -185,7 +275,7 @@ function CircleCITestProfileAnalysis(props) {
 						return profile[testId].length > 0;
 					})
 				);
-			}, [])
+			}, [] as string[])
 		)
 	).sort((a, b) => {
 		return a.localeCompare(b);
