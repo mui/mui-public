@@ -23,19 +23,12 @@ async function fetchCircleCIPipelineDetails(pipelineId) {
 }
 
 /**
- * Downloads a test_profile artifact.
- *
- * We do this to circumvent CORS (from `fetch(artifact.url)`).
- * As a nice side-effect we can apply some better Cache-Control defaults.
- * CircleCI API does not send Cache-Control headers in their API.
+ * netlify function that wraps CircleCI API v2 which requires authentification.
  *
  * @param {*} event
  * @param {*} context
  */
-exports.handler = async function fetchTestProfileArtifactHandler(
-	event,
-	context
-) {
+exports.handler = async function fetchTestProfileDetails(event, context) {
 	const { queryStringParameters } = event;
 
 	const jobNumber = parseInt(queryStringParameters.jobNumber, 10);
