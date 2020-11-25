@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
+import Link from "@material-ui/core/Link";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
@@ -13,6 +14,7 @@ interface ProfilerReport {
 	baseDuration: number;
 	startTime: number;
 	commitTime: number;
+	interactions: { id: number; name: string }[];
 }
 
 interface TestProfile {
@@ -40,7 +42,7 @@ interface TimingAnalysisProps {
 function TimingAnalysis(props: TimingAnalysisProps) {
 	const { format, timings } = props;
 	const mean = timings.sort((a, b) => a - b)[timings.length >> 1];
-	console.log(timings);
+
 	return (
 		<Fragment>
 			mean: <em>{format(mean)}</em>
@@ -50,6 +52,34 @@ function TimingAnalysis(props: TimingAnalysisProps) {
 
 function formatMs(ms: number): string {
 	return ms.toFixed(2) + "ms";
+}
+
+function ProfilerInteractions(props: {
+	interactions: { id: number; name: string }[];
+}) {
+	const interactions = props.interactions.map((interaction) => {
+		const traceByStackMatch = interaction.name.match(
+			/^([^:]+):(\d+):\d+ \(([^)]+)\)$/
+		);
+		if (traceByStackMatch === null) {
+			return <li key={interaction.id}>{interaction.name}</li>;
+		}
+		const [, filename, lineNumber, interactionName] = traceByStackMatch;
+		return (
+			// TOOD: get PR for the current build
+			<li key={interaction.id}>
+				<Link
+					href={`https://github.com/eps1lon/material-ui/tree/test/benchmark/${filename}#L${lineNumber}`}
+					rel="noreferrer noopener"
+					target="_blank"
+				>
+					{interactionName}@L{lineNumber}
+				</Link>
+			</li>
+		);
+	});
+
+	return <ul>{interactions}</ul>;
 }
 
 interface ProfileAnalysisDetailsProps {
@@ -68,6 +98,7 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 			baseDuration: ProfilerReport["baseDuration"][];
 			startTime: ProfilerReport["startTime"][];
 			commitTime: ProfilerReport["commitTime"][];
+			interactions: ProfilerReport["interactions"];
 		}>
 	> = {};
 	testProfiles.forEach(({ browserName, profile }) => {
@@ -82,6 +113,7 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 						baseDuration: [testProfile.baseDuration],
 						startTime: [testProfile.startTime],
 						commitTime: [testProfile.commitTime],
+						interactions: testProfile.interactions,
 					};
 				});
 			} else {
@@ -109,8 +141,8 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 			<tbody>
 				<tr>
 					{Object.keys(profilesByBrowserName).map((browserName) => {
-						const interactions = profilesByBrowserName[browserName];
-						console.log(interactions);
+						const renders = profilesByBrowserName[browserName];
+						console.log(renders);
 						return (
 							<td key={browserName}>
 								<table>
@@ -119,23 +151,29 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 											<th>phase</th>
 											<th>actualDuration</th>
 											<th>baseDuration</th>
+											<th>interactions</th>
 										</tr>
 									</thead>
 									<tbody>
-										{interactions.map((interaction, interactionIndex) => {
+										{renders.map((render, interactionIndex) => {
 											return (
 												<tr key={interactionIndex}>
-													<td>{interaction.phase}</td>
+													<td>{render.phase}</td>
 													<td>
 														<TimingAnalysis
 															format={formatMs}
-															timings={interaction.actualDuration}
+															timings={render.actualDuration}
 														/>
 													</td>
 													<td>
 														<TimingAnalysis
 															format={formatMs}
-															timings={interaction.baseDuration}
+															timings={render.baseDuration}
+														/>
+													</td>
+													<td>
+														<ProfilerInteractions
+															interactions={render.interactions}
 														/>
 													</td>
 												</tr>
