@@ -142,7 +142,7 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 				<tr>
 					{Object.keys(profilesByBrowserName).map((browserName) => {
 						const renders = profilesByBrowserName[browserName];
-						console.log(renders);
+
 						return (
 							<td key={browserName}>
 								<table>
