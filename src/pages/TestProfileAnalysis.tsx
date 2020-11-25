@@ -172,6 +172,12 @@ function ProfileAnalysisDetails() {
 				testProfiles.forEach((testProfile, interactionIndex) => {
 					const interaction =
 						profilesByBrowserName[browserName][interactionIndex];
+					console.log(
+						"adding %f to %s #%d",
+						testProfile.actualDuration,
+						browserName,
+						interactionIndex
+					);
 					interaction.actualDuration.push(testProfile.actualDuration);
 					interaction.baseDuration.push(testProfile.baseDuration);
 					interaction.startTime.push(testProfile.startTime);
@@ -180,6 +186,7 @@ function ProfileAnalysisDetails() {
 			}
 		}
 	});
+	console.log(JSON.stringify(profilesByBrowserName, null, 2));
 
 	return (
 		<Fragment>
