@@ -139,14 +139,18 @@ function ProfileAnalysis(props) {
 	);
 }
 
-function CircleCITestProfileAnalysis(props) {
-	const { buildNumber } = props;
-
+function useTestProfiles(buildNumber) {
 	const testProfilesResponse = useQuery(
 		["profile-reports", buildNumber],
 		fetchTestProfiles
 	);
-	const { data: testProfiles } = testProfilesResponse;
+	return testProfilesResponse.data;
+}
+
+function CircleCITestProfileAnalysis(props) {
+	const { buildNumber } = props;
+
+	const testProfiles = useTestProfiles(buildNumber);
 	const testIdsWithProfilingData = Array.from(
 		new Set(
 			testProfiles.reduce((testIdsDuplicated, { profile }) => {
