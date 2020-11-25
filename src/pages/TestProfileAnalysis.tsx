@@ -20,19 +20,6 @@ import {
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-type CircleCIArtifactsInfos = Array<{ pretty_path: string; url: string }>;
-
-async function fetchCircleCIApi<Body = unknown>(
-	endpoint: string
-): Promise<Body> {
-	const apiEndpoint = `https://circleci.com/api/v1.1/`;
-	const url = `${apiEndpoint}project/github/mui-org/material-ui/${endpoint}`;
-
-	const response = await fetch(url);
-	const json = await response.json();
-	return json;
-}
-
 async function fetchTestProfileDetails(
 	queryKey: unknown,
 	jobNumber: number
@@ -41,12 +28,6 @@ async function fetchTestProfileDetails(
 	const response = await fetch(url);
 	const testProfileDetails = await response.json();
 	return testProfileDetails;
-}
-
-async function fetchCircleCIArtifactsInfos(
-	buildNumber: number
-): Promise<CircleCIArtifactsInfos> {
-	return fetchCircleCIApi<CircleCIArtifactsInfos>(`${buildNumber}/artifacts`);
 }
 
 const CircleCIJobContext = createContext<number>(null!);
@@ -316,6 +297,17 @@ interface TestProfileArtifactsInfo {
 	browserName: string;
 	timestamp: number;
 	url: string;
+}
+
+async function fetchCircleCIArtifactsInfos(
+	buildNumber: number
+): Promise<Array<{ pretty_path: string; url: string }>> {
+	const apiEndpoint = `https://circleci.com/api/v1.1/`;
+	const url = `${apiEndpoint}project/github/mui-org/material-ui/${buildNumber}/artifacts`;
+
+	const response = await fetch(url);
+	const json = await response.json();
+	return json;
 }
 
 async function fetchTestProfileArtifactsInfos(
