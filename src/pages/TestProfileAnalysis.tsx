@@ -1,12 +1,17 @@
 import { createContext, Fragment, Suspense, useContext } from "react";
-import { useLocation } from "react-router";
+import { useParams } from "react-router";
 import { useQuery } from "react-query";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import Link from "@material-ui/core/Link";
+import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
+import MuiLink, { LinkProps as MuiLinkProps } from "@material-ui/core/Link";
+import { Link as RouterLink, Route, Routes } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
+
+function Link(props: { to: string } & MuiLinkProps) {
+	const { to, ...other } = props;
+	return <MuiLink component={RouterLink} to={to} {...other} />;
+}
 
 interface ProfilerReport {
 	phase: "mount" | "update";
@@ -24,15 +29,10 @@ interface TestProfile {
 type TestProfiles = TestProfile[];
 
 function useTestProfileParams() {
-	const { search } = useLocation();
-	const params = new URLSearchParams(search);
-
-	return {
-		buildNumber: params.get("buildNumber"),
-	};
+	return useParams() as { buildNumber: string };
 }
 
-const TestProfilesContext = createContext<TestProfiles>(null!);
+const ProfiledTestsContext = createContext<TestProfiles>(null!);
 
 interface TimingAnalysisProps {
 	timings: number[];
@@ -67,28 +67,28 @@ function ProfilerInteractions(props: {
 		const [, filename, lineNumber, interactionName] = traceByStackMatch;
 		return (
 			// TOOD: get PR for the current build
-			<li key={interaction.id}>
-				<Link
+			<ListItem key={interaction.id}>
+				<MuiLink
 					href={`https://github.com/eps1lon/material-ui/tree/test/benchmark/${filename}#L${lineNumber}`}
 					rel="noreferrer noopener"
 					target="_blank"
 				>
 					{interactionName}@L{lineNumber}
-				</Link>
-			</li>
+				</MuiLink>
+			</ListItem>
 		);
 	});
 
-	return <ul>{interactions}</ul>;
+	return (
+		<List dense disablePadding>
+			{interactions}
+		</List>
+	);
 }
 
-interface ProfileAnalysisDetailsProps {
-	testId: string;
-}
-
-function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
-	const { testId } = props;
-	const testProfiles = useContext(TestProfilesContext);
+function ProfileAnalysisDetails() {
+	const { testId } = useParams();
+	const profiledTests = useContext(ProfiledTestsContext);
 
 	const profilesByBrowserName: Record<
 		string,
@@ -101,7 +101,7 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 			interactions: ProfilerReport["interactions"];
 		}>
 	> = {};
-	testProfiles.forEach(({ browserName, profile }) => {
+	profiledTests.forEach(({ browserName, profile }) => {
 		const testProfiles = profile[testId];
 		if (testProfiles?.length > 0) {
 			// squash {a: T, b: U}[] to {a: T[], b: U[]}
@@ -130,63 +130,69 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 	});
 
 	return (
-		<table>
-			<thead>
-				<tr>
-					{Object.keys(profilesByBrowserName).map((browserName) => {
-						return <th key={browserName}>{browserName}</th>;
-					})}
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					{Object.keys(profilesByBrowserName).map((browserName) => {
-						const renders = profilesByBrowserName[browserName];
+		<Fragment>
+			<Link to="../..">Back</Link>
+			<table>
+				<caption>
+					Profiles for <em>{testId}</em>
+				</caption>
+				<thead>
+					<tr>
+						{Object.keys(profilesByBrowserName).map((browserName) => {
+							return <th key={browserName}>{browserName}</th>;
+						})}
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						{Object.keys(profilesByBrowserName).map((browserName) => {
+							const renders = profilesByBrowserName[browserName];
 
-						return (
-							<td key={browserName}>
-								<table>
-									<thead>
-										<tr>
-											<th>phase</th>
-											<th>actualDuration</th>
-											<th>baseDuration</th>
-											<th>interactions</th>
-										</tr>
-									</thead>
-									<tbody>
-										{renders.map((render, interactionIndex) => {
-											return (
-												<tr key={interactionIndex}>
-													<td>{render.phase}</td>
-													<td>
-														<TimingAnalysis
-															format={formatMs}
-															timings={render.actualDuration}
-														/>
-													</td>
-													<td>
-														<TimingAnalysis
-															format={formatMs}
-															timings={render.baseDuration}
-														/>
-													</td>
-													<td>
-														<ProfilerInteractions
-															interactions={render.interactions}
-														/>
-													</td>
-												</tr>
-											);
-										})}
-									</tbody>
-								</table>
-							</td>
-						);
-					})}
-				</tr>
-			</tbody>
-		</table>
+							return (
+								<td key={browserName}>
+									<table>
+										<thead>
+											<tr>
+												<th>phase</th>
+												<th>actualDuration</th>
+												<th>baseDuration</th>
+												<th>interactions</th>
+											</tr>
+										</thead>
+										<tbody>
+											{renders.map((render, interactionIndex) => {
+												return (
+													<tr key={interactionIndex}>
+														<td>{render.phase}</td>
+														<td>
+															<TimingAnalysis
+																format={formatMs}
+																timings={render.actualDuration}
+															/>
+														</td>
+														<td>
+															<TimingAnalysis
+																format={formatMs}
+																timings={render.baseDuration}
+															/>
+														</td>
+														<td>
+															<ProfilerInteractions
+																interactions={render.interactions}
+															/>
+														</td>
+													</tr>
+												);
+											})}
+										</tbody>
+									</table>
+								</td>
+							);
+						})}
+					</tr>
+				</tbody>
+			</table>
+		</Fragment>
 	);
 }
 
@@ -197,12 +203,9 @@ function ProfileAnalysis(props: ProfileAnalysisProps) {
 	const { testId } = props;
 
 	return (
-		<Accordion component="li" TransitionProps={{ unmountOnExit: true }}>
-			<AccordionSummary>{testId}</AccordionSummary>
-			<AccordionDetails>
-				<ProfileAnalysisDetails testId={testId} />
-			</AccordionDetails>
-		</Accordion>
+		<li>
+			<Link to={`details/${encodeURIComponent(testId)}`}>{testId}</Link>
+		</li>
 	);
 }
 
@@ -285,7 +288,7 @@ function fetchTestProfileArtifacts(
 	);
 }
 
-function useTestProfiles(buildNumber: number): TestProfiles {
+function useProfiledTests(buildNumber: number): TestProfiles {
 	const infos = useTestProfileArtifactsInfos(buildNumber);
 	const testProfileArtifactResponse = useQuery(
 		["profile-reports", infos],
@@ -298,16 +301,12 @@ interface CircleCITestProfileAnalysisProps {
 	buildNumber: string | null;
 }
 
-function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
-	const buildNumber = parseInt(props.buildNumber!, 10);
-	if (Number.isNaN(buildNumber)) {
-		throw new Error(`Unable to convert '${props.buildNumber}' to a number`);
-	}
+function ProfiledTests() {
+	const profiledTests = useContext(ProfiledTestsContext);
 
-	const testProfiles = useTestProfiles(buildNumber);
 	const testIdsWithProfilingData = Array.from(
 		new Set(
-			testProfiles.reduce((testIdsDuplicated, { profile }) => {
+			profiledTests.reduce((testIdsDuplicated, { profile }) => {
 				return testIdsDuplicated.concat(
 					Object.keys(profile).filter((testId) => {
 						return profile[testId].length > 0;
@@ -320,13 +319,29 @@ function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
 	});
 
 	return (
-		<TestProfilesContext.Provider value={testProfiles}>
-			<ol>
-				{testIdsWithProfilingData.map((testId) => {
-					return <ProfileAnalysis key={testId} testId={testId} />;
-				})}
-			</ol>
-		</TestProfilesContext.Provider>
+		<ol>
+			{testIdsWithProfilingData.map((testId) => {
+				return <ProfileAnalysis key={testId} testId={testId} />;
+			})}
+		</ol>
+	);
+}
+
+function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
+	const buildNumber = parseInt(props.buildNumber!, 10);
+	if (Number.isNaN(buildNumber)) {
+		throw new Error(`Unable to convert '${props.buildNumber}' to a number`);
+	}
+
+	const profiledTests = useProfiledTests(buildNumber);
+
+	return (
+		<ProfiledTestsContext.Provider value={profiledTests}>
+			<Routes>
+				<Route path="" element={<ProfiledTests />} />
+				<Route path="details/:testId" element={<ProfileAnalysisDetails />} />
+			</Routes>
+		</ProfiledTestsContext.Provider>
 	);
 }
 
