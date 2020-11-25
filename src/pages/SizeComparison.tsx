@@ -15,12 +15,45 @@ import styled from "styled-components";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-async function fetchArtifact(key, { buildId, artifactName }) {
+/**
+ * https://docs.microsoft.com/en-us/rest/api/azure/devops/build/artifacts/list?view=azure-devops-rest-5.1#artifactresource
+ */
+interface AzureArtifactResource {
+	data: string;
+	downloadUrl: string;
+	properties: object;
+	type: string;
+	url: string;
+}
+
+/**
+ * https://docs.microsoft.com/en-us/rest/api/azure/devops/build/artifacts/get?view=azure-devops-rest-4.1&viewFallbackFrom=azure-devops-rest-5.1#buildartifact
+ */
+interface AzureBuildArtifact {
+	id: string;
+	name: string;
+	resource: AzureArtifactResource;
+}
+
+interface AzureApiBody<Response> {
+	value: Response;
+	message: unknown;
+	typeKey: unknown;
+}
+
+interface SizeSnapshot {
+	[bundleId: string]: { parsed: number; gzip: number };
+}
+
+async function fetchArtifact(
+	key: unknown,
+	{ buildId, artifactName }: { buildId: number; artifactName: string }
+): Promise<AzureBuildArtifact | undefined> {
 	const response = await fetch(
 		`https://dev.azure.com/mui-org/material-ui/_apis/build/builds/${buildId}/artifacts?api-version=5.1`
 	);
 
-	const body = await response.json();
+	const body: AzureApiBody<AzureBuildArtifact[]> = await response.json();
 
 	if (response.status === 200) {
 		const artifacts = body.value;
@@ -30,7 +63,7 @@ async function fetchArtifact(key, { buildId, artifactName }) {
 	throw new Error(`${body.typeKey}: ${body.message}`);
 }
 
-function downloadSnapshot(key, downloadUrl) {
+function downloadSnapshot(key: unknown, downloadUrl: string) {
 	return fetch(downloadUrl)
 		.then((response) => {
 			return response.json();
@@ -40,7 +73,7 @@ function downloadSnapshot(key, downloadUrl) {
 		});
 }
 
-function useAzureSizeSnapshot(buildId) {
+function useAzureSizeSnapshot(buildId: number): SizeSnapshot {
 	const { data: snapshotArtifact } = useQuery(
 		[
 			"azure-artifacts",
@@ -52,18 +85,18 @@ function useAzureSizeSnapshot(buildId) {
 		fetchArtifact
 	);
 
-	const downloadUrl = new URL(snapshotArtifact.resource.downloadUrl);
+	const downloadUrl = new URL(snapshotArtifact!.resource.downloadUrl);
 	downloadUrl.searchParams.set("format", "file");
 	downloadUrl.searchParams.set("subPath", "/size-snapshot.json");
 	const { data: sizeSnapshot } = useQuery(
-		["azure-snapshot-download", downloadUrl],
+		["azure-snapshot-download", downloadUrl.toString()],
 		downloadSnapshot
 	);
 
 	return sizeSnapshot;
 }
 
-function useS3SizeSnapshot(ref, commitId) {
+function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
 	const artifactServer =
 		"https://s3.eu-central-1.amazonaws.com/eps1lon-material-ui";
 
@@ -78,11 +111,15 @@ function useS3SizeSnapshot(ref, commitId) {
 
 /**
  * Generates a user-readable string from a percentage change
- * @param {number} change
- * @param {string} goodEmoji emoji on reduction
- * @param {string} badEmoji emoji on increase
+ * @param change
+ * @param goodEmoji emoji on reduction
+ * @param badEmoji emoji on increase
  */
-function addPercent(change, goodEmoji = "", badEmoji = ":small_red_triangle:") {
+function addPercent(
+	change: number,
+	goodEmoji: string = "",
+	badEmoji: string = ":small_red_triangle:"
+): string {
 	const formatted = (change * 100).toFixed(2);
 	if (/^-|^0(?:\.0+)$/.test(formatted)) {
 		return `${formatted}% ${goodEmoji}`;
@@ -90,7 +127,7 @@ function addPercent(change, goodEmoji = "", badEmoji = ":small_red_triangle:") {
 	return `+${formatted}% ${badEmoji}`;
 }
 
-function formatDiff(absoluteChange, relativeChange) {
+function formatDiff(absoluteChange: number, relativeChange: number): string {
 	if (absoluteChange === 0) {
 		return "--";
 	}
@@ -110,11 +147,15 @@ const CompareTable = memo(function CompareTable({
 	entries,
 	getBundleLabel,
 	renderBundleLabel = getBundleLabel,
+}: {
+	entries: [string, Size][];
+	getBundleLabel: (bundleId: string) => string;
+	renderBundleLabel?: (bundleId: string) => string;
 }) {
 	const rows = useMemo(() => {
 		return (
 			entries
-				.map(([bundleId, size]) => [
+				.map(([bundleId, size]): [string, Size & { id: string }] => [
 					getBundleLabel(bundleId),
 					{ ...size, id: bundleId },
 				])
@@ -171,7 +212,7 @@ const CompareTable = memo(function CompareTable({
 	);
 });
 
-function getMainBundleLabel(bundleId) {
+function getMainBundleLabel(bundleId: string): string {
 	if (
 		bundleId === "packages/material-ui/build/umd/material-ui.production.min.js"
 	) {
@@ -189,7 +230,7 @@ function getMainBundleLabel(bundleId) {
 	return bundleId.replace(/^@material-ui\/core\//, "").replace(/\.esm$/, "");
 }
 
-function getPageBundleLabel(bundleId) {
+function getPageBundleLabel(bundleId: string): string {
 	// a page
 	if (bundleId.startsWith("docs:/")) {
 		const page = bundleId.replace(/^docs:/, "");
@@ -200,16 +241,41 @@ function getPageBundleLabel(bundleId) {
 	return bundleId;
 }
 
+interface Size {
+	parsed: {
+		previous: number;
+		current: number;
+		absoluteDiff: number;
+		relativeDiff: number;
+	};
+	gzip: {
+		previous: number;
+		current: number;
+		absoluteDiff: number;
+		relativeDiff: number;
+	};
+}
+
 const nullSnapshot = { parsed: 0, gzip: 0 };
-function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
+function Comparison({
+	baseRef,
+	baseCommit,
+	buildId,
+	prNumber,
+}: {
+	baseRef: string;
+	baseCommit: string;
+	buildId: number;
+	prNumber: number;
+}) {
 	const baseSnapshot = useS3SizeSnapshot(baseRef, baseCommit);
 	const targetSnapshot = useAzureSizeSnapshot(buildId);
 
 	const { main: mainResults, pages: pageResults } = useMemo(() => {
 		const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
 
-		const main = [];
-		const pages = [];
+		const main: [string, Size][] = [];
+		const pages: [string, Size][] = [];
 		bundleKeys.forEach((bundle) => {
 			// current vs previous based off: https://github.com/mui-org/material-ui/blob/f1246e829f9c0fc9458ce951451f43c2f166c7d1/scripts/sizeSnapshot/loadComparison.js#L32
 			// if a bundle was added the change should be +inf
@@ -217,7 +283,7 @@ function Comparison({ baseRef, baseCommit, buildId, prNumber }) {
 			const currentSize = targetSnapshot[bundle] || nullSnapshot;
 			const previousSize = baseSnapshot[bundle] || nullSnapshot;
 
-			const entry = [
+			const entry: [string, Size] = [
 				bundle,
 				{
 					parsed: {
@@ -291,15 +357,15 @@ function useComparisonParams() {
 		const params = new URLSearchParams(search);
 
 		return {
-			baseCommit: params.get("baseCommit"),
-			baseRef: params.get("baseRef"),
-			buildId: +params.get("buildId"),
-			prNumber: +params.get("prNumber"),
+			baseCommit: params.get("baseCommit")!,
+			baseRef: params.get("baseRef")!,
+			buildId: +params.get("buildId")!,
+			prNumber: +params.get("prNumber")!,
 		};
 	}, [search]);
 }
 
-function ComparisonErrorFallback({ prNumber }) {
+function ComparisonErrorFallback({ prNumber }: { prNumber: number }) {
 	return (
 		<p>
 			Could not load comparison for{" "}
@@ -326,14 +392,7 @@ export default function SizeComparison() {
 				}
 			>
 				<ErrorBoundary
-					fallback={
-						<ComparisonErrorFallback
-							buildId={buildId}
-							baseRef={baseRef}
-							baseCommit={baseCommit}
-							prNumber={prNumber}
-						/>
-					}
+					fallback={<ComparisonErrorFallback prNumber={prNumber} />}
 				>
 					<Comparison
 						buildId={buildId}
