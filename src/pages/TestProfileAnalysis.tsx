@@ -7,6 +7,20 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
+interface ProfilerReport {
+	phase: "mount" | "update";
+	actualDuration: number;
+	baseDuration: number;
+	startTime: number;
+	commitTime: number;
+}
+
+interface TestProfile {
+	browserName: string;
+	profile: Record<string, ProfilerReport[]>;
+}
+type TestProfiles = TestProfile[];
+
 function useTestProfileParams() {
 	const { search } = useLocation();
 	const params = new URLSearchParams(search);
@@ -16,16 +30,24 @@ function useTestProfileParams() {
 	};
 }
 
-async function fetchTestProfiles(queryKey, buildNumber) {
+async function fetchTestProfiles(
+	queryKey: unknown,
+	buildNumber: number
+): Promise<TestProfiles> {
 	const response = await fetch(
 		`/.netlify/functions/test-profile-artifacts?buildNumber=${buildNumber}`
 	);
 	return response.json();
 }
 
-const TestProfilesContext = createContext(null);
+const TestProfilesContext = createContext<TestProfiles>(null);
 
-function TimingAnalysis(props) {
+interface TimingAnalysisProps {
+	timings: number[];
+	format: (n: number) => string;
+}
+
+function TimingAnalysis(props: TimingAnalysisProps) {
 	const { format, timings } = props;
 	const mean = timings.sort((a, b) => a - b)[timings.length >> 1];
 	console.log(timings);
@@ -36,11 +58,15 @@ function TimingAnalysis(props) {
 	);
 }
 
-function formatMs(ms) {
+function formatMs(ms: number): string {
 	return ms.toFixed(2) + "ms";
 }
 
-function ProfileAnalysisDetails(props) {
+interface ProfileAnalysisDetailsProps {
+	testId: string;
+}
+
+function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 	const { testId } = props;
 	const testProfiles = useContext(TestProfilesContext);
 
@@ -139,7 +165,7 @@ function ProfileAnalysis(props) {
 	);
 }
 
-function useTestProfiles(buildNumber) {
+function useTestProfiles(buildNumber): TestProfiles {
 	const testProfilesResponse = useQuery(
 		["profile-reports", buildNumber],
 		fetchTestProfiles

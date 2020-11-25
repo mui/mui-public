@@ -20,7 +20,15 @@ const useStyles = makeStyles(
 	{ name: "Heading" }
 );
 
-export default function Heading({ children, id, level }) {
+/**
+ *
+ * @param {object} props
+ * @param {string} [props.id]
+ * @param {string} props.level
+ * @param {React.ReactNode} props.children
+ */
+export default function Heading(props) {
+	const { children, id, level } = props;
 	const classes = useStyles();
 
 	return (
