@@ -1,5 +1,9 @@
 const crypto = require("crypto");
 const fetch = require("node-fetch");
+const util = require("util");
+const zlib = require("zlib");
+
+const gzip = util.promisify(zlib.gzip);
 
 /**
  * @param {string} string
@@ -152,14 +156,20 @@ exports.handler = async function fetchTestProfileArtifactsHandler(
 		})
 	);
 
+	const bodyRaw = JSON.stringify(testProfileArtifacts);
+	const bodyBuffer = await gzip(bodyRaw, { level: 9 });
+
 	return {
 		statusCode: 200,
-		body: JSON.stringify(testProfileArtifacts),
 		headers: {
 			// Even though the function implementation might change (making the response not immutable).
 			// Since this is a developer tool we can always advise to clear cache.
 			"Cache-Control": "immutable, max-age=86400",
+			"Content-Type": "application/json",
+			"Content-Encoding": "gzip",
 			ETag: etag,
 		},
+		body: bodyBuffer.toString("base64"),
+		isBase64Encoded: true,
 	};
 };
