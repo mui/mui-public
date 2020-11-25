@@ -9,7 +9,7 @@
 		"pretty-bytes": "^5.3.0",
 		"react": "experimental",
 		"react-dom": "experimental",
-		"react-query": "^1.3.4",
+		"react-query": "^2.0.0",
 		"react-router": "^6.0.0-alpha.5",
 		"react-router-dom": "^6.0.0-alpha.5",
 		"styled-components": "^5.1.0"
