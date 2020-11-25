@@ -96,7 +96,9 @@ function TimingAnalysisMean(props: TimingAnalysisProps) {
 	const { format, timings } = props;
 	const mean = timings.sort((a, b) => a - b)[timings.length >> 1];
 
-	return <Fragment>{format(mean)}</Fragment>;
+	const details = `mean:\n  ${mean}\nvalues:\n${timings.join("\n")}`;
+
+	return <span title={details}>{format(mean)}</span>;
 }
 
 function formatMs(ms: number): string {
