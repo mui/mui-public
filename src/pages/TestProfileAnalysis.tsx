@@ -20,6 +20,43 @@ import {
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
+async function fetchTestProfileDetails(
+	queryKey: unknown,
+	jobNumber: number
+): Promise<TestProfileDetails> {
+	const url = `/.netlify/functions/test-profile-details?jobNumber=${jobNumber}`;
+	const response = await fetch(url);
+	const testProfileDetails = await response.json();
+	return testProfileDetails;
+}
+
+const CircleCIJobContext = createContext<number>(null!);
+
+interface TestProfileDetails {
+	/**
+	 * Link to source on GitHub
+	 */
+	codeUrl: string;
+	pullRequestNumber: number;
+	/**
+	 * Link to review UI that created this profile
+	 */
+	reviewUrl: string;
+	/**
+	 * Link to CircleCI UI that created this profile.
+	 */
+	webUrl: string;
+}
+function useTestProfileDetails(): TestProfileDetails {
+	const buildId = useContext(CircleCIJobContext);
+	const testProfileDetailsResponse = useQuery(
+		["circleci-pipeline-details", buildId],
+		fetchTestProfileDetails
+	);
+
+	return testProfileDetailsResponse.data!;
+}
+
 function Link(
 	props: {
 		state?: RouterLinkProps["state"];
@@ -48,10 +85,6 @@ interface TestProfile {
 }
 type TestProfiles = TestProfile[];
 
-function useTestProfileParams() {
-	return useParams() as { buildNumber: string };
-}
-
 const ProfiledTestsContext = createContext<TestProfiles>(null!);
 
 interface TimingAnalysisProps {
@@ -73,6 +106,8 @@ function formatMs(ms: number): string {
 function ProfilerInteractions(props: {
 	interactions: { id: number; name: string }[];
 }) {
+	const testProfileDetails = useTestProfileDetails();
+
 	const interactions = props.interactions.map((interaction) => {
 		const traceByStackMatch = interaction.name.match(
 			/^([^:]+):(\d+):\d+ \(([^)]+)\)$/
@@ -82,10 +117,9 @@ function ProfilerInteractions(props: {
 		}
 		const [, filename, lineNumber, interactionName] = traceByStackMatch;
 		return (
-			// TOOD: get PR for the current build
 			<ListItem key={interaction.id}>
 				<Link
-					href={`https://github.com/eps1lon/material-ui/tree/test/benchmark/${filename}#L${lineNumber}`}
+					href={`${testProfileDetails.codeUrl}/${filename}#L${lineNumber}`}
 					rel="noreferrer noopener"
 					target="_blank"
 				>
@@ -268,13 +302,12 @@ interface TestProfileArtifactsInfo {
 async function fetchCircleCIArtifactsInfos(
 	buildNumber: number
 ): Promise<Array<{ pretty_path: string; url: string }>> {
-	const apiEndpoint = "https://circleci.com/api/v1.1/";
-	const endpoint = `project/github/mui-org/material-ui/${buildNumber}/artifacts`;
-	const url = `${apiEndpoint}${endpoint}`;
-	const response = await fetch(url);
-	const artifactsInfo = await response.json();
+	const apiEndpoint = `https://circleci.com/api/v1.1/`;
+	const url = `${apiEndpoint}project/github/mui-org/material-ui/${buildNumber}/artifacts`;
 
-	return artifactsInfo;
+	const response = await fetch(url);
+	const json = await response.json();
+	return json;
 }
 
 async function fetchTestProfileArtifactsInfos(
@@ -347,10 +380,6 @@ function useProfiledTests(buildNumber: number): TestProfiles {
 	return testProfileArtifactResponse.data!;
 }
 
-interface CircleCITestProfileAnalysisProps {
-	buildNumber: string | null;
-}
-
 function ProfiledTests() {
 	const profiledTests = useContext(ProfiledTestsContext);
 
@@ -378,35 +407,52 @@ function ProfiledTests() {
 		}
 	}, [location]);
 
+	const profileDetails = useTestProfileDetails();
+
 	return (
-		<ol>
-			{testIdsWithProfilingData.map((testId) => {
-				return <ProfileAnalysis key={testId} testId={testId} />;
-			})}
-		</ol>
+		<Fragment>
+			<Heading level="2">
+				Tests for{" "}
+				<Link
+					href={profileDetails.reviewUrl}
+					rel="noopener noreferrer"
+					target="_blank"
+				>
+					#{profileDetails.pullRequestNumber}
+				</Link>
+			</Heading>
+			<ol>
+				{testIdsWithProfilingData.map((testId) => {
+					return <ProfileAnalysis key={testId} testId={testId} />;
+				})}
+			</ol>
+		</Fragment>
 	);
 }
 
-function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
-	const buildNumber = parseInt(props.buildNumber!, 10);
-	if (Number.isNaN(buildNumber)) {
-		throw new Error(`Unable to convert '${props.buildNumber}' to a number`);
-	}
-
-	const profiledTests = useProfiledTests(buildNumber);
+function CircleCITestProfileAnalysis() {
+	const { buildNumber } = useParams();
+	const profiledTests = useProfiledTests(+buildNumber);
 
 	return (
-		<ProfiledTestsContext.Provider value={profiledTests}>
-			<Routes>
-				<Route path="" element={<ProfiledTests />} />
-				<Route path="details/:testId" element={<ProfileAnalysisDetails />} />
-			</Routes>
-		</ProfiledTestsContext.Provider>
+		<Suspense fallback="preparing view">
+			<CircleCIJobContext.Provider value={+buildNumber}>
+				<ProfiledTestsContext.Provider value={profiledTests}>
+					<Routes>
+						<Route path="" element={<ProfiledTests />} />
+						<Route
+							path="details/:testId"
+							element={<ProfileAnalysisDetails />}
+						/>
+					</Routes>
+				</ProfiledTestsContext.Provider>
+			</CircleCIJobContext.Provider>
+		</Suspense>
 	);
 }
 
 export default function TestProfileAnalysis() {
-	const { buildNumber } = useTestProfileParams();
+	const { buildNumber } = useParams();
 
 	return (
 		<Fragment>
@@ -414,7 +460,7 @@ export default function TestProfileAnalysis() {
 			<Suspense
 				fallback={
 					<p>
-						Loading comparison for build <em>{buildNumber}</em>
+						Loading test profile <em>{buildNumber}</em>
 					</p>
 				}
 			>
@@ -425,7 +471,7 @@ export default function TestProfileAnalysis() {
 						</p>
 					}
 				>
-					<CircleCITestProfileAnalysis buildNumber={buildNumber} />
+					<CircleCITestProfileAnalysis />
 				</ErrorBoundary>
 			</Suspense>
 		</Fragment>
