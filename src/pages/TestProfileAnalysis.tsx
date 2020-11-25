@@ -1,12 +1,37 @@
-import { createContext, Fragment, Suspense, useContext } from "react";
-import { useLocation } from "react-router";
+import {
+	createContext,
+	Fragment,
+	Suspense,
+	useContext,
+	useLayoutEffect,
+} from "react";
 import { useQuery } from "react-query";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import Link from "@material-ui/core/Link";
+import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
+import MuiLink, { LinkProps as MuiLinkProps } from "@material-ui/core/Link";
+import {
+	Link as RouterLink,
+	LinkProps as RouterLinkProps,
+	Route,
+	Routes,
+	useLocation,
+	useParams,
+} from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
+
+function Link(
+	props: {
+		state?: RouterLinkProps["state"];
+		to?: RouterLinkProps["to"];
+	} & MuiLinkProps
+) {
+	const { state, to, ...other } = props;
+	if (to === undefined) {
+		return <MuiLink {...other} />;
+	}
+	return <MuiLink component={RouterLink} state={state} to={to} {...other} />;
+}
 
 interface ProfilerReport {
 	phase: "mount" | "update";
@@ -24,34 +49,25 @@ interface TestProfile {
 type TestProfiles = TestProfile[];
 
 function useTestProfileParams() {
-	const { search } = useLocation();
-	const params = new URLSearchParams(search);
-
-	return {
-		buildNumber: params.get("buildNumber"),
-	};
+	return useParams() as { buildNumber: string };
 }
 
-const TestProfilesContext = createContext<TestProfiles>(null!);
+const ProfiledTestsContext = createContext<TestProfiles>(null!);
 
 interface TimingAnalysisProps {
 	timings: number[];
 	format: (n: number) => string;
 }
 
-function TimingAnalysis(props: TimingAnalysisProps) {
+function TimingAnalysisMean(props: TimingAnalysisProps) {
 	const { format, timings } = props;
 	const mean = timings.sort((a, b) => a - b)[timings.length >> 1];
 
-	return (
-		<Fragment>
-			mean: <em>{format(mean)}</em>
-		</Fragment>
-	);
+	return <Fragment>{format(mean)}</Fragment>;
 }
 
 function formatMs(ms: number): string {
-	return ms.toFixed(2) + "ms";
+	return ms.toFixed(2);
 }
 
 function ProfilerInteractions(props: {
@@ -67,7 +83,7 @@ function ProfilerInteractions(props: {
 		const [, filename, lineNumber, interactionName] = traceByStackMatch;
 		return (
 			// TOOD: get PR for the current build
-			<li key={interaction.id}>
+			<ListItem key={interaction.id}>
 				<Link
 					href={`https://github.com/eps1lon/material-ui/tree/test/benchmark/${filename}#L${lineNumber}`}
 					rel="noreferrer noopener"
@@ -75,20 +91,20 @@ function ProfilerInteractions(props: {
 				>
 					{interactionName}@L{lineNumber}
 				</Link>
-			</li>
+			</ListItem>
 		);
 	});
 
-	return <ul>{interactions}</ul>;
+	return (
+		<List dense disablePadding>
+			{interactions}
+		</List>
+	);
 }
 
-interface ProfileAnalysisDetailsProps {
-	testId: string;
-}
-
-function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
-	const { testId } = props;
-	const testProfiles = useContext(TestProfilesContext);
+function ProfileAnalysisDetails() {
+	const { testId } = useParams();
+	const profiledTests = useContext(ProfiledTestsContext);
 
 	const profilesByBrowserName: Record<
 		string,
@@ -101,7 +117,7 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 			interactions: ProfilerReport["interactions"];
 		}>
 	> = {};
-	testProfiles.forEach(({ browserName, profile }) => {
+	profiledTests.forEach(({ browserName, profile }) => {
 		const testProfiles = profile[testId];
 		if (testProfiles?.length > 0) {
 			// squash {a: T, b: U}[] to {a: T[], b: U[]}
@@ -130,65 +146,98 @@ function ProfileAnalysisDetails(props: ProfileAnalysisDetailsProps) {
 	});
 
 	return (
-		<table>
-			<thead>
-				<tr>
-					{Object.keys(profilesByBrowserName).map((browserName) => {
-						return <th key={browserName}>{browserName}</th>;
-					})}
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					{Object.keys(profilesByBrowserName).map((browserName) => {
-						const renders = profilesByBrowserName[browserName];
+		<Fragment>
+			<Link to="../..">Back</Link>
+			<table>
+				<caption>
+					Profiles for <em>{testId}</em>
+				</caption>
+				<thead>
+					<tr>
+						{Object.keys(profilesByBrowserName).map((browserName) => {
+							return <th key={browserName}>{browserName}</th>;
+						})}
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						{Object.keys(profilesByBrowserName).map((browserName) => {
+							const renders = profilesByBrowserName[browserName];
 
-						return (
-							<td key={browserName}>
-								<table>
-									<thead>
-										<tr>
-											<th>phase</th>
-											<th>actualDuration</th>
-											<th>baseDuration</th>
-											<th>interactions</th>
-										</tr>
-									</thead>
-									<tbody>
-										{renders.map((render, interactionIndex) => {
-											return (
-												<tr key={interactionIndex}>
-													<td>{render.phase}</td>
-													<td>
-														<TimingAnalysis
-															format={formatMs}
-															timings={render.actualDuration}
-														/>
-													</td>
-													<td>
-														<TimingAnalysis
-															format={formatMs}
-															timings={render.baseDuration}
-														/>
-													</td>
-													<td>
-														<ProfilerInteractions
-															interactions={render.interactions}
-														/>
-													</td>
-												</tr>
-											);
-										})}
-									</tbody>
-								</table>
-							</td>
-						);
-					})}
-				</tr>
-			</tbody>
-		</table>
+							return (
+								<td key={browserName}>
+									<table>
+										<thead>
+											<tr>
+												<th>phase</th>
+												<th>actual</th>
+												<th>base</th>
+												<th>interactions</th>
+											</tr>
+										</thead>
+										<tbody>
+											{renders.map((render, interactionIndex) => {
+												return (
+													<tr key={interactionIndex}>
+														<td>{render.phase}</td>
+														<td
+															align="right"
+															style={{ fontVariantNumeric: "tabular-nums" }}
+														>
+															<TimingAnalysisMean
+																format={formatMs}
+																timings={render.actualDuration}
+															/>
+														</td>
+														<td
+															align="right"
+															style={{ fontVariantNumeric: "tabular-nums" }}
+														>
+															<TimingAnalysisMean
+																format={formatMs}
+																timings={render.baseDuration}
+															/>
+														</td>
+														<td>
+															<ProfilerInteractions
+																interactions={render.interactions}
+															/>
+														</td>
+													</tr>
+												);
+											})}
+										</tbody>
+									</table>
+								</td>
+							);
+						})}
+					</tr>
+				</tbody>
+			</table>
+			<Heading level="2">Explainer</Heading>
+			<dl>
+				<dt>actual</dt>
+				<dd>mean actualDuration in ms</dd>
+				<dt>base</dt>
+				<dd>mean baseDuration in ms</dd>
+				<dt>interactions</dt>
+				<dd>traced interactions linking to the code that triggered it.</dd>
+			</dl>
+			<p>
+				For more information check{" "}
+				<Link
+					href="https://github.com/reactjs/rfcs/blob/master/text/0051-profiler.md#detailed-design"
+					rel="noreferrer noopener"
+					target="_blank"
+				>
+					React.Profiler RFC
+				</Link>
+			</p>
+		</Fragment>
 	);
 }
+
+let scrollYBeforeDetailsClick: null | number = null;
 
 interface ProfileAnalysisProps {
 	testId: string;
@@ -197,12 +246,16 @@ function ProfileAnalysis(props: ProfileAnalysisProps) {
 	const { testId } = props;
 
 	return (
-		<Accordion component="li" TransitionProps={{ unmountOnExit: true }}>
-			<AccordionSummary>{testId}</AccordionSummary>
-			<AccordionDetails>
-				<ProfileAnalysisDetails testId={testId} />
-			</AccordionDetails>
-		</Accordion>
+		<li>
+			<Link
+				onClick={() => {
+					scrollYBeforeDetailsClick = window.scrollY;
+				}}
+				to={`details/${encodeURIComponent(testId)}`}
+			>
+				{testId}
+			</Link>
+		</li>
 	);
 }
 
@@ -285,7 +338,7 @@ function fetchTestProfileArtifacts(
 	);
 }
 
-function useTestProfiles(buildNumber: number): TestProfiles {
+function useProfiledTests(buildNumber: number): TestProfiles {
 	const infos = useTestProfileArtifactsInfos(buildNumber);
 	const testProfileArtifactResponse = useQuery(
 		["profile-reports", infos],
@@ -298,16 +351,12 @@ interface CircleCITestProfileAnalysisProps {
 	buildNumber: string | null;
 }
 
-function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
-	const buildNumber = parseInt(props.buildNumber!, 10);
-	if (Number.isNaN(buildNumber)) {
-		throw new Error(`Unable to convert '${props.buildNumber}' to a number`);
-	}
+function ProfiledTests() {
+	const profiledTests = useContext(ProfiledTestsContext);
 
-	const testProfiles = useTestProfiles(buildNumber);
 	const testIdsWithProfilingData = Array.from(
 		new Set(
-			testProfiles.reduce((testIdsDuplicated, { profile }) => {
+			profiledTests.reduce((testIdsDuplicated, { profile }) => {
 				return testIdsDuplicated.concat(
 					Object.keys(profile).filter((testId) => {
 						return profile[testId].length > 0;
@@ -319,14 +368,40 @@ function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
 		return a.localeCompare(b);
 	});
 
+	const location = useLocation();
+	useLayoutEffect(() => {
+		// native scroll restoration does not work when e.g. navigating backwards.
+		// So we restore it manually.
+		if (scrollYBeforeDetailsClick !== null) {
+			window.scrollTo(0, scrollYBeforeDetailsClick);
+			scrollYBeforeDetailsClick = null;
+		}
+	}, [location]);
+
 	return (
-		<TestProfilesContext.Provider value={testProfiles}>
-			<ol>
-				{testIdsWithProfilingData.map((testId) => {
-					return <ProfileAnalysis key={testId} testId={testId} />;
-				})}
-			</ol>
-		</TestProfilesContext.Provider>
+		<ol>
+			{testIdsWithProfilingData.map((testId) => {
+				return <ProfileAnalysis key={testId} testId={testId} />;
+			})}
+		</ol>
+	);
+}
+
+function CircleCITestProfileAnalysis(props: CircleCITestProfileAnalysisProps) {
+	const buildNumber = parseInt(props.buildNumber!, 10);
+	if (Number.isNaN(buildNumber)) {
+		throw new Error(`Unable to convert '${props.buildNumber}' to a number`);
+	}
+
+	const profiledTests = useProfiledTests(buildNumber);
+
+	return (
+		<ProfiledTestsContext.Provider value={profiledTests}>
+			<Routes>
+				<Route path="" element={<ProfiledTests />} />
+				<Route path="details/:testId" element={<ProfileAnalysisDetails />} />
+			</Routes>
+		</ProfiledTestsContext.Provider>
 	);
 }
 

@@ -128,7 +128,10 @@ function App() {
 						<Routes>
 							<Route path="/" element={<Landing />} />
 							<Route path="/size-comparison" element={<SizeComparison />} />
-							<Route path="/test-profile" element={<TestProfileAnalysis />} />
+							<Route
+								path="/test-profile/:buildNumber/*"
+								element={<TestProfileAnalysis />}
+							/>
 						</Routes>
 					</BrowserRouter>
 				</Suspense>
