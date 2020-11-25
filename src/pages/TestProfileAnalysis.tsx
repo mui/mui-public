@@ -1,15 +1,17 @@
 import { createContext, Fragment, Suspense, useContext } from "react";
-import { useParams } from "react-router";
 import { useQuery } from "react-query";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import MuiLink, { LinkProps as MuiLinkProps } from "@material-ui/core/Link";
-import { Link as RouterLink, Route, Routes } from "react-router-dom";
+import { Link as RouterLink, Route, Routes, useParams } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-function Link(props: { to: string } & MuiLinkProps) {
+function Link(props: { to?: string } & MuiLinkProps) {
 	const { to, ...other } = props;
+	if (to === undefined) {
+		return <MuiLink {...other} />;
+	}
 	return <MuiLink component={RouterLink} to={to} {...other} />;
 }
 
@@ -39,19 +41,15 @@ interface TimingAnalysisProps {
 	format: (n: number) => string;
 }
 
-function TimingAnalysis(props: TimingAnalysisProps) {
+function TimingAnalysisMean(props: TimingAnalysisProps) {
 	const { format, timings } = props;
 	const mean = timings.sort((a, b) => a - b)[timings.length >> 1];
 
-	return (
-		<Fragment>
-			mean: <em>{format(mean)}</em>
-		</Fragment>
-	);
+	return <Fragment>{format(mean)}</Fragment>;
 }
 
 function formatMs(ms: number): string {
-	return ms.toFixed(2) + "ms";
+	return ms.toFixed(2);
 }
 
 function ProfilerInteractions(props: {
@@ -68,13 +66,13 @@ function ProfilerInteractions(props: {
 		return (
 			// TOOD: get PR for the current build
 			<ListItem key={interaction.id}>
-				<MuiLink
+				<Link
 					href={`https://github.com/eps1lon/material-ui/tree/test/benchmark/${filename}#L${lineNumber}`}
 					rel="noreferrer noopener"
 					target="_blank"
 				>
 					{interactionName}@L{lineNumber}
-				</MuiLink>
+				</Link>
 			</ListItem>
 		);
 	});
@@ -154,8 +152,8 @@ function ProfileAnalysisDetails() {
 										<thead>
 											<tr>
 												<th>phase</th>
-												<th>actualDuration</th>
-												<th>baseDuration</th>
+												<th>actual</th>
+												<th>base</th>
 												<th>interactions</th>
 											</tr>
 										</thead>
@@ -164,14 +162,20 @@ function ProfileAnalysisDetails() {
 												return (
 													<tr key={interactionIndex}>
 														<td>{render.phase}</td>
-														<td>
-															<TimingAnalysis
+														<td
+															align="right"
+															style={{ fontVariantNumeric: "tabular-nums" }}
+														>
+															<TimingAnalysisMean
 																format={formatMs}
 																timings={render.actualDuration}
 															/>
 														</td>
-														<td>
-															<TimingAnalysis
+														<td
+															align="right"
+															style={{ fontVariantNumeric: "tabular-nums" }}
+														>
+															<TimingAnalysisMean
 																format={formatMs}
 																timings={render.baseDuration}
 															/>
@@ -192,6 +196,25 @@ function ProfileAnalysisDetails() {
 					</tr>
 				</tbody>
 			</table>
+			<Heading level="2">Explainer</Heading>
+			<dl>
+				<dt>actual</dt>
+				<dd>mean actualDuration in ms</dd>
+				<dt>base</dt>
+				<dd>mean baseDuration in ms</dd>
+				<dt>interactions</dt>
+				<dd>traced interactions linking to the code that triggered it.</dd>
+			</dl>
+			<p>
+				For more information check{" "}
+				<Link
+					href="https://github.com/reactjs/rfcs/blob/master/text/0051-profiler.md#detailed-design"
+					rel="noreferrer noopener"
+					target="_blank"
+				>
+					React.Profiler RFC
+				</Link>
+			</p>
 		</Fragment>
 	);
 }
