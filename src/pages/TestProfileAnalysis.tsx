@@ -1,18 +1,36 @@
-import { createContext, Fragment, Suspense, useContext } from "react";
+import {
+	createContext,
+	Fragment,
+	Suspense,
+	useContext,
+	useLayoutEffect,
+} from "react";
 import { useQuery } from "react-query";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import MuiLink, { LinkProps as MuiLinkProps } from "@material-ui/core/Link";
-import { Link as RouterLink, Route, Routes, useParams } from "react-router-dom";
+import {
+	Link as RouterLink,
+	LinkProps as RouterLinkProps,
+	Route,
+	Routes,
+	useLocation,
+	useParams,
+} from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-function Link(props: { to?: string } & MuiLinkProps) {
-	const { to, ...other } = props;
+function Link(
+	props: {
+		state?: RouterLinkProps["state"];
+		to?: RouterLinkProps["to"];
+	} & MuiLinkProps
+) {
+	const { state, to, ...other } = props;
 	if (to === undefined) {
 		return <MuiLink {...other} />;
 	}
-	return <MuiLink component={RouterLink} to={to} {...other} />;
+	return <MuiLink component={RouterLink} state={state} to={to} {...other} />;
 }
 
 interface ProfilerReport {
@@ -219,6 +237,8 @@ function ProfileAnalysisDetails() {
 	);
 }
 
+let scrollYBeforeDetailsClick: null | number = null;
+
 interface ProfileAnalysisProps {
 	testId: string;
 }
@@ -227,7 +247,14 @@ function ProfileAnalysis(props: ProfileAnalysisProps) {
 
 	return (
 		<li>
-			<Link to={`details/${encodeURIComponent(testId)}`}>{testId}</Link>
+			<Link
+				onClick={() => {
+					scrollYBeforeDetailsClick = window.scrollY;
+				}}
+				to={`details/${encodeURIComponent(testId)}`}
+			>
+				{testId}
+			</Link>
 		</li>
 	);
 }
@@ -340,6 +367,16 @@ function ProfiledTests() {
 	).sort((a, b) => {
 		return a.localeCompare(b);
 	});
+
+	const location = useLocation();
+	useLayoutEffect(() => {
+		// native scroll restoration does not work when e.g. navigating backwards.
+		// So we restore it manually.
+		if (scrollYBeforeDetailsClick !== null) {
+			window.scrollTo(0, scrollYBeforeDetailsClick);
+			scrollYBeforeDetailsClick = null;
+		}
+	}, [location]);
 
 	return (
 		<ol>
