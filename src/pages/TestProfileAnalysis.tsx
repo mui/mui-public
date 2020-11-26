@@ -434,8 +434,6 @@ function ProfiledTests() {
 function CircleCITestProfileAnalysis() {
 	const { buildNumber } = useParams();
 	const profiledTests = useProfiledTests(+buildNumber);
-	console.log(JSON.stringify(profiledTests, null, 2));
-	console.log(profiledTests);
 
 	return (
 		<Suspense fallback="preparing view">
