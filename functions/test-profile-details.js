@@ -31,12 +31,13 @@ async function fetchCircleCIPipelineDetails(pipelineId) {
 exports.handler = async function fetchTestProfileDetails(event, context) {
 	const { queryStringParameters } = event;
 
-	const jobNumber = parseInt(queryStringParameters.jobNumber, 10);
+	const jobNumberParameter = queryStringParameters.jobNumber;
+	const jobNumber = parseInt(jobNumberParameter, 10);
 	if (Number.isNaN(jobNumber)) {
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Given query param jobNumber is not a number. Received '${queryStringParameters.buildNumber}'.`
+				`Given query param jobNumber is not a number. Received '${jobNumberParameter}'.`
 			),
 		};
 	}

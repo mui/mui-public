@@ -41,14 +41,15 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 ) {
 	const { queryStringParameters } = event;
 
+	const urlParameter = queryStringParameters.url;
 	let url = null;
 	try {
-		url = new URL(queryStringParameters.url);
+		url = new URL(urlParameter);
 	} catch (error) {
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Given query param \`url\` is not a valid URL. Received '${queryStringParameters.buildNumber}'.`
+				`Given query param \`url\` is not a valid URL. Received '${urlParameter}'.`
 			),
 		};
 	}
