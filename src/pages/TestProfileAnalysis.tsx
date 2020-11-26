@@ -366,6 +366,7 @@ function fetchTestProfileArtifacts(
 			return {
 				browserName: info.browserName,
 				profile: testProfile,
+				timestamp: info.timestamp,
 			};
 		})
 	);
