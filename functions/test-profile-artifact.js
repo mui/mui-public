@@ -48,7 +48,7 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Given query param buildNumber is not a number. Received '${queryStringParameters.buildNumber}'.`
+				`Given query param \`url\` is not a valid URL. Received '${queryStringParameters.buildNumber}'.`
 			),
 		};
 	}
