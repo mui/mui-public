@@ -22,7 +22,7 @@ function md5(string) {
 function computeEtag(context) {
 	const { url, version } = context;
 	const epoch = "v1";
-	return md5(`${epoch}v${version}-${url}}`);
+	return md5(`${epoch}v${version}-${url}`);
 }
 
 /**
@@ -58,6 +58,7 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		url,
 		version: context.functionVersion,
 	});
+	console.log(url, etag);
 
 	if (ifNoneMatch === etag) {
 		// No need to download every artifact again since they're immutable.
