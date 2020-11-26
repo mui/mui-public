@@ -21,7 +21,8 @@ function md5(string) {
  */
 function computeEtag(context) {
 	const { url, version } = context;
-	return md5(`v${version}-${url}}`);
+	const epoch = "v1";
+	return md5(`${epoch}v${version}-${url}}`);
 }
 
 /**
