@@ -40,6 +40,7 @@ exports.handler = async function fetchTestProfileDetails(event, context) {
 			),
 		};
 	}
+	console.log(`fetching details for job #${jobNumber}`);
 
 	const job = await fetchCircleCIJobDetails(jobNumber);
 	const pipeline = await fetchCircleCIPipelineDetails(job.pipeline.id);
