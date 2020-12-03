@@ -5,6 +5,11 @@ const util = require("util");
 const zlib = require("zlib");
 
 const gzip = util.promisify(zlib.gzip);
+/**
+ * Whether we sent Cache-Control headers.
+ * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138
+ */
+const enableCacheControl = process.env.NETLIFY !== "true";
 
 /**
  * @param {string} string
@@ -66,7 +71,9 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		return {
 			statusCode: 304,
 			headers: {
-				"Cache-Control": "immutable, max-age=86400",
+				"Cache-Control": enableCacheControl
+					? "immutable, max-age=86400"
+					: undefined,
 				ETag: etag,
 			},
 		};
@@ -92,7 +99,9 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		headers: {
 			// Even though the function implementation might change (making the response not immutable).
 			// Since this is a developer tool we can always advise to clear cache.
-			"Cache-Control": "immutable, max-age=86400",
+			"Cache-Control": enableCacheControl
+				? "immutable, max-age=86400"
+				: undefined,
 			"Content-Type": "application/json",
 			"Content-Encoding": "gzip",
 			ETag: etag,
