@@ -59,14 +59,18 @@ exports.handler = async function fetchTestProfileDetails(event, context) {
 		webUrl: job.web_url,
 	};
 
-	return {
+	const response = {
 		statusCode: 200,
 		headers: {
 			// Even though the function implementation might change (making the response not immutable).
 			// Since this is a developer tool we can always advise to clear cache.
-			"Cache-Control": enableCacheControl ? "immutable, max-age=86400" : false,
+			"Cache-Control": "immutable, max-age=86400",
 		},
-		// TODO: minify
-		body: JSON.stringify(details, null, 2),
+		body: JSON.stringify(details),
 	};
+	if (!enableCacheControl) {
+		delete response.headers["Cache-Control"];
+	}
+
+	return response;
 };

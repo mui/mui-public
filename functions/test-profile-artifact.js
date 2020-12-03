@@ -68,15 +68,18 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 
 	if (ifNoneMatch === etag) {
 		// No need to download every artifact again since they're immutable.
-		return {
+		const response = {
 			statusCode: 304,
 			headers: {
-				"Cache-Control": enableCacheControl
-					? "immutable, max-age=86400"
-					: undefined,
+				"Cache-Control": "immutable, max-age=86400",
 				ETag: etag,
 			},
 		};
+		if (!enableCacheControl) {
+			delete response.headers["Cache-Control"];
+		}
+
+		return response;
 	}
 
 	const testProfileArtifactResponse = await fetch(url);
@@ -94,14 +97,12 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 	const bodyRaw = JSON.stringify(testProfileArtifact);
 	const bodyBuffer = await gzip(bodyRaw, { level: 9 });
 
-	return {
+	const response = {
 		statusCode: 200,
 		headers: {
 			// Even though the function implementation might change (making the response not immutable).
 			// Since this is a developer tool we can always advise to clear cache.
-			"Cache-Control": enableCacheControl
-				? "immutable, max-age=86400"
-				: undefined,
+			"Cache-Control": "immutable, max-age=86400",
 			"Content-Type": "application/json",
 			"Content-Encoding": "gzip",
 			ETag: etag,
@@ -109,4 +110,10 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		body: bodyBuffer.toString("base64"),
 		isBase64Encoded: true,
 	};
+
+	if (!enableCacheControl) {
+		delete response.headers["Cache-Control"];
+	}
+
+	return response;
 };
