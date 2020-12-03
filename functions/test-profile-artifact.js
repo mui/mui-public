@@ -9,7 +9,7 @@ const gzip = util.promisify(zlib.gzip);
  * Whether we sent Cache-Control headers.
  * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138
  */
-const enableCacheControl = process.env.NETLIFY !== "true";
+const enableCacheControl = false;
 
 /**
  * @param {string} string

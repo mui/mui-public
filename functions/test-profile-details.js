@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
  * Whether we sent Cache-Control headers.
  * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138
  */
-const enableCacheControl = process.env.NETLIFY !== "true";
+const enableCacheControl = false;
 
 async function fetchCircleCIApiV2(endpoint) {
 	const apiEndpoint = `https://circleci.com/api/v2/`;
