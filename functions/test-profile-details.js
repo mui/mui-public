@@ -1,5 +1,11 @@
 const fetch = require("node-fetch");
 
+/**
+ * Whether we sent Cache-Control headers.
+ * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138
+ */
+const enableCacheControl = false;
+
 async function fetchCircleCIApiV2(endpoint) {
 	const apiEndpoint = `https://circleci.com/api/v2/`;
 	const url = `${apiEndpoint}${endpoint}`;
@@ -53,14 +59,18 @@ exports.handler = async function fetchTestProfileDetails(event, context) {
 		webUrl: job.web_url,
 	};
 
-	return {
+	const response = {
 		statusCode: 200,
 		headers: {
 			// Even though the function implementation might change (making the response not immutable).
 			// Since this is a developer tool we can always advise to clear cache.
 			"Cache-Control": "immutable, max-age=86400",
 		},
-		// TODO: minify
-		body: JSON.stringify(details, null, 2),
+		body: JSON.stringify(details),
 	};
+	if (!enableCacheControl) {
+		delete response.headers["Cache-Control"];
+	}
+
+	return response;
 };

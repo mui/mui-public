@@ -378,7 +378,9 @@ function useProfiledTests(buildNumber: number): TestProfiles {
 	const infos = useTestProfileArtifactsInfos(buildNumber);
 	const testProfileArtifactResponse = useQuery(
 		["profile-reports", infos],
-		fetchTestProfileArtifacts
+		fetchTestProfileArtifacts,
+		// TODO: Let netlify functions do the caching once https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138 is resolved.
+		{ cacheTime: 7 * 24 * 60 * 60, staleTime: 24 * 60 * 60 }
 	);
 	return testProfileArtifactResponse.data!;
 }

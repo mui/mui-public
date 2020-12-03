@@ -5,6 +5,11 @@ const util = require("util");
 const zlib = require("zlib");
 
 const gzip = util.promisify(zlib.gzip);
+/**
+ * Whether we sent Cache-Control headers.
+ * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138
+ */
+const enableCacheControl = false;
 
 /**
  * @param {string} string
@@ -63,13 +68,18 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 
 	if (ifNoneMatch === etag) {
 		// No need to download every artifact again since they're immutable.
-		return {
+		const response = {
 			statusCode: 304,
 			headers: {
 				"Cache-Control": "immutable, max-age=86400",
 				ETag: etag,
 			},
 		};
+		if (!enableCacheControl) {
+			delete response.headers["Cache-Control"];
+		}
+
+		return response;
 	}
 
 	const testProfileArtifactResponse = await fetch(url);
@@ -87,7 +97,7 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 	const bodyRaw = JSON.stringify(testProfileArtifact);
 	const bodyBuffer = await gzip(bodyRaw, { level: 9 });
 
-	return {
+	const response = {
 		statusCode: 200,
 		headers: {
 			// Even though the function implementation might change (making the response not immutable).
@@ -100,4 +110,10 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		body: bodyBuffer.toString("base64"),
 		isBase64Encoded: true,
 	};
+
+	if (!enableCacheControl) {
+		delete response.headers["Cache-Control"];
+	}
+
+	return response;
 };
