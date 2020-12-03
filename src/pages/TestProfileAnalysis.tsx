@@ -115,7 +115,15 @@ function ProfilerInteractions(props: {
 			/^([^:]+):(\d+):\d+ \(([^)]+)\)$/
 		);
 		if (traceByStackMatch === null) {
-			return <li key={interaction.id}>{interaction.name}</li>;
+			console.log(interaction.name);
+			const unknownLineMatch = interaction.name.match(
+				/^unknown line \(([^)]+)\)$/
+			);
+			return (
+				<ListItem key={interaction.id}>
+					{unknownLineMatch?.[1] ?? interaction.name}
+				</ListItem>
+			);
 		}
 		const [, filename, lineNumber, interactionName] = traceByStackMatch;
 		return (
