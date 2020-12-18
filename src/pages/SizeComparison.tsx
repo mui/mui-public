@@ -11,7 +11,7 @@ import TableCell from "@material-ui/core/TableCell";
 import TableHead from "@material-ui/core/TableHead";
 import TableRow from "@material-ui/core/TableRow";
 import prettyBytes from "pretty-bytes";
-import styled from "styled-components";
+import styled from "@emotion/styled";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 

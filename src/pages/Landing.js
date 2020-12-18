@@ -12,11 +12,11 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import Link from "@material-ui/core/Link";
-import Skeleton from "@material-ui/lab/Skeleton";
+import Skeleton from "@material-ui/core/Skeleton";
 import Typography from "@material-ui/core/Typography";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import { usePaginatedQuery, useQuery } from "react-query";
-import styled from "styled-components";
+import styled from "@emotion/styled";
 import CheckCircleIcon from "@material-ui/icons/CheckCircle";
 import ErrorIcon from "@material-ui/icons/Error";
 import HelpIcon from "@material-ui/icons/Help";
@@ -123,7 +123,7 @@ function AzurePipeline() {
 			{buildGroups.map((buildGroup) => {
 				return (
 					<Suspense
-						fallback={<Skeleton height={48} variant="rect" />}
+						fallback={<Skeleton height={48} variant="rectangular" />}
 						key={buildGroup.label}
 					>
 						<ErrorBoundary
@@ -246,7 +246,7 @@ function CircleCIWorkflows() {
 			{workflows.map((workflow) => {
 				return (
 					<Suspense
-						fallback={<Skeleton height={48} variant="rect" />}
+						fallback={<Skeleton height={48} variant="rectangular" />}
 						key={`${workflow.name}${workflow.branchName}`}
 					>
 						<ErrorBoundary

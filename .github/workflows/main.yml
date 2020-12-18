@@ -17,3 +17,5 @@ jobs:
         run: yarn format:check
       - name: lint
         run: yarn lint
+      - name: typecheck
+        run: yarn test:types
