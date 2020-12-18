@@ -1,8 +1,5 @@
 import { lazy, Suspense, useMemo } from "react";
-import {
-	unstable_createMuiStrictModeTheme,
-	ThemeProvider,
-} from "@material-ui/core/styles";
+import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import * as colors from "@material-ui/core/colors";
 import { QueryCache, ReactQueryCacheProvider } from "react-query";
@@ -24,7 +21,7 @@ const suspenseQueryCache = new QueryCache({
 
 function App() {
 	const theme = useMemo(() => {
-		const nextTheme = unstable_createMuiStrictModeTheme({
+		const nextTheme = createMuiTheme({
 			palette: {
 				background: { default: "#121212" },
 				primary: {
@@ -33,7 +30,7 @@ function App() {
 				secondary: {
 					main: colors.teal["300"],
 				},
-				type: "dark",
+				mode: "dark",
 			},
 			props: {
 				MuiButton: {
