@@ -16,7 +16,7 @@ import Skeleton from "@material-ui/core/Skeleton";
 import Typography from "@material-ui/core/Typography";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import { usePaginatedQuery, useQuery } from "react-query";
-import styled from "styled-components";
+import styled from "@emotion/styled";
 import CheckCircleIcon from "@material-ui/icons/CheckCircle";
 import ErrorIcon from "@material-ui/icons/Error";
 import HelpIcon from "@material-ui/icons/Help";

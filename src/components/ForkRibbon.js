@@ -1,7 +1,7 @@
-import styled from "styled-components";
+import styled from "@emotion/styled";
 
 // port of https://github.com/simonwhitaker/github-fork-ribbon-css/blob/gh-pages/gh-fork-ribbon.css
-// for styled-components
+// for @emotion/styled
 const Ribbon = styled.a`
   width: 12.1em;
   height: 12.1em;
