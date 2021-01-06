@@ -178,12 +178,26 @@ function ProfileAnalysisDetails() {
 				});
 			} else {
 				testProfiles.forEach((testProfile, interactionIndex) => {
-					const interaction =
+					let interaction =
 						profilesByBrowserName[browserName][interactionIndex];
-					interaction.actualDuration.push(testProfile.actualDuration);
-					interaction.baseDuration.push(testProfile.baseDuration);
-					interaction.startTime.push(testProfile.startTime);
-					interaction.commitTime.push(testProfile.commitTime);
+
+					if (interaction === undefined) {
+						// invariant number of interactions in
+						// 209850/details/<Accordion%20%2F>%20should%20be%20controlled in FireFox
+						profilesByBrowserName[browserName][interactionIndex] = {
+							phase: testProfile.phase,
+							actualDuration: [testProfile.actualDuration],
+							baseDuration: [testProfile.baseDuration],
+							startTime: [testProfile.startTime],
+							commitTime: [testProfile.commitTime],
+							interactions: testProfile.interactions,
+						};
+					} else {
+						interaction.actualDuration.push(testProfile.actualDuration);
+						interaction.baseDuration.push(testProfile.baseDuration);
+						interaction.startTime.push(testProfile.startTime);
+						interaction.commitTime.push(testProfile.commitTime);
+					}
 				});
 			}
 		}
