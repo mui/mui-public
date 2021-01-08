@@ -29,6 +29,40 @@ async function fetchCircleCIPipelineDetails(pipelineId) {
 }
 
 /**
+ * Computes a URL to github where the change relevant to this PR is reviewable.
+ *
+ * The relevant change is the full PR if the pipeline ran on a PR.
+ * Otherwise it's the commit associated with this pipeline.
+ *
+ * @param {object} pipeline
+ * @returns string
+ */
+function computeReviewUrl(pipeline) {
+	const { branch } = pipeline.vcs;
+	const pullMatch =
+		branch !== undefined ? branch.match(/pull\/(\d+)\/(head|merge)/) : null;
+
+	if (pullMatch === null) {
+		return `${pipeline.vcs.origin_repository_url}/commit/${pipeline.vcs.revision}/`;
+	}
+	return `${pipeline.vcs.origin_repository_url}/pull/${pullMatch[1]}/`;
+}
+
+function computeLabel(pipeline) {
+	const { branch, revision } = pipeline.vcs;
+	if (branch === undefined) {
+		return "Unknown";
+	}
+
+	const pullMatch = branch.match(/pull\/(\d+)\//);
+	if (pullMatch !== null) {
+		return `#${pullMatch[1]}`;
+	}
+
+	return `${branch} (${revision.slice(0, 8)})`;
+}
+
+/**
  * netlify function that wraps CircleCI API v2 which requires authentification.
  *
  * @param {*} event
@@ -54,8 +88,8 @@ exports.handler = async function fetchTestProfileDetails(event, context) {
 
 	const details = {
 		codeUrl: `${pipeline.vcs.origin_repository_url}/tree/${pipeline.vcs.revision}/`,
-		pullRequestNumber: +pipeline.vcs.review_id,
-		reviewUrl: pipeline.vcs.review_url,
+		label: computeLabel(pipeline),
+		reviewUrl: computeReviewUrl(pipeline),
 		webUrl: job.web_url,
 	};
 
@@ -65,6 +99,7 @@ exports.handler = async function fetchTestProfileDetails(event, context) {
 			// Even though the function implementation might change (making the response not immutable).
 			// Since this is a developer tool we can always advise to clear cache.
 			"Cache-Control": "immutable, max-age=86400",
+			"Content-Type": "application/json",
 		},
 		body: JSON.stringify(details),
 	};
