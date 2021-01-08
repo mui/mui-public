@@ -37,7 +37,7 @@ interface TestProfileDetails {
 	 * Link to source on GitHub
 	 */
 	codeUrl: string;
-	pullRequestNumber: number;
+	label: string;
 	/**
 	 * Link to review UI that created this profile
 	 */
@@ -445,7 +445,7 @@ function ProfiledTests() {
 					rel="noopener noreferrer"
 					target="_blank"
 				>
-					#{profileDetails.pullRequestNumber}
+					{profileDetails.label}
 				</Link>
 			</Heading>
 			<ol>
