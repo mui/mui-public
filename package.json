@@ -15,10 +15,6 @@
 		"react-router-dom": "^6.0.0-alpha.5"
 	},
 	"devDependencies": {
-		"@testing-library/jest-dom": "^4.2.4",
-		"@testing-library/react": "^9.3.2",
-		"@testing-library/user-event": "^7.1.2",
-		"@types/jest": "^26.0.15",
 		"@types/node": "^14.14.10",
 		"@types/react": "^17.0.0",
 		"@types/react-dom": "^17.0.0",
@@ -35,7 +31,7 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint \"src/**/*.{js,tsx}\"",
-		"test": "react-scripts test",
+		"test": "echo 'No tests yet' && exit 1",
 		"test:types": "tsc",
 		"eject": "react-scripts eject"
 	},
