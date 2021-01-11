@@ -3,6 +3,7 @@ import {
 	Fragment,
 	Suspense,
 	useContext,
+	useEffect,
 	useLayoutEffect,
 } from "react";
 import { useQuery } from "react-query";
@@ -203,6 +204,9 @@ function ProfileAnalysisDetails() {
 		}
 	});
 
+	const profileDetails = useTestProfileDetails();
+	useTitle(`${profileDetails.label}: ${testId}`);
+
 	return (
 		<Fragment>
 			<Link to="../..">Back</Link>
@@ -396,6 +400,20 @@ function fetchTestProfileArtifacts(
 	);
 }
 
+function useTitle(title: string): void {
+	useEffect(() => {
+		const originalTitle = document.title;
+
+		return () => {
+			document.title = originalTitle;
+		};
+	}, []);
+
+	useEffect(() => {
+		document.title = title;
+	}, [title]);
+}
+
 function useProfiledTests(buildNumber: number): TestProfiles {
 	const infos = useTestProfileArtifactsInfos(buildNumber);
 	const testProfileArtifactResponse = useQuery(
@@ -435,6 +453,8 @@ function ProfiledTests() {
 	}, [location]);
 
 	const profileDetails = useTestProfileDetails();
+
+	useTitle(`${profileDetails.label} | Profile Dashboard`);
 
 	return (
 		<Fragment>
