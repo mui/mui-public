@@ -8,9 +8,9 @@ Collection of helpers useful when working on [Material-UI](https://github.com/mu
 
 Bugfixes and feature suggestions are greatly appreciated. Though this project is highly opinionated so feature requests from will be rejected if no core member has a use for them
 
-#### netlify functions
+Copy `.env.example` to `.env` and fill in the values as instructed in the file.
 
 ```bash
 $ npx netlify login
-$ npx netlify init
+$ npx netlify dev
 ```
