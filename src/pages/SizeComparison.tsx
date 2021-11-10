@@ -98,7 +98,7 @@ function useAzureSizeSnapshot(buildId: number): SizeSnapshot {
 
 function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
 	const artifactServer =
-		"https://s3.eu-central-1.amazonaws.com/eps1lon-material-ui";
+		"https://s3.eu-central-1.amazonaws.com/mui-org-material-ui";
 
 	const downloadUrl = `${artifactServer}/artifacts/${ref}/${commitId}/size-snapshot.json`;
 	const { data: sizeSnapshot } = useQuery(
