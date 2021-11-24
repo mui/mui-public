@@ -61,7 +61,6 @@ async function fetchSizeSnapshotAzure(buildId: number): Promise<SizeSnapshot> {
 		const artifact = artifacts.find(
 			(artifact) => artifact.name === "size-snapshot"
 		);
-		console.log(artifact);
 
 		const downloadUrl = new URL(artifact!.resource.downloadUrl);
 		downloadUrl.searchParams.set("format", "file");
@@ -105,7 +104,6 @@ async function fetchSizeSnapshot(
 		circleCIBuildNumber,
 	}: { azureBuildId: number; circleCIBuildNumber: number }
 ): Promise<SizeSnapshot | undefined> {
-	console.log(azureBuildId, circleCIBuildNumber);
 	if (azureBuildId) {
 		return fetchSizeSnapshotAzure(azureBuildId);
 	}
@@ -116,7 +114,6 @@ function downloadSnapshot(
 	key: unknown,
 	downloadUrl: string
 ): Promise<SizeSnapshot> {
-	console.trace(downloadUrl);
 	return fetch(downloadUrl)
 		.then((response) => {
 			return response.json();
