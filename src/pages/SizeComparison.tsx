@@ -41,14 +41,15 @@ interface AzureApiBody<Response> {
 	typeKey: unknown;
 }
 
+interface CircleCIApiArtifacts {
+	items: ReadonlyArray<{ path: string; url: string }>;
+}
+
 interface SizeSnapshot {
 	[bundleId: string]: { parsed: number; gzip: number };
 }
 
-async function fetchArtifact(
-	key: unknown,
-	{ buildId, artifactName }: { buildId: number; artifactName: string }
-): Promise<AzureBuildArtifact | undefined> {
+async function fetchSizeSnapshotAzure(buildId: number): Promise<SizeSnapshot> {
 	const response = await fetch(
 		`https://dev.azure.com/mui-org/material-ui/_apis/build/builds/${buildId}/artifacts?api-version=5.1`
 	);
@@ -57,13 +58,62 @@ async function fetchArtifact(
 
 	if (response.status === 200) {
 		const artifacts = body.value;
-		return artifacts.find((artifact) => artifact.name === artifactName);
+		const artifact = artifacts.find(
+			(artifact) => artifact.name === "size-snapshot"
+		);
+
+		const downloadUrl = new URL(artifact!.resource.downloadUrl);
+		downloadUrl.searchParams.set("format", "file");
+		downloadUrl.searchParams.set("subPath", "/size-snapshot.json");
+		return downloadSnapshot("size-snapshot-azure", downloadUrl.toString());
 	}
 
 	throw new Error(`${body.typeKey}: ${body.message}`);
 }
 
-function downloadSnapshot(key: unknown, downloadUrl: string) {
+async function fetchSizeSnapshotCircleCI(
+	buildNumber: number
+): Promise<SizeSnapshot> {
+	const response = await fetch(
+		`https://circleci.com/api/v2/project/gh/mui-org/material-ui/${buildNumber}/artifacts`
+	);
+	const body: CircleCIApiArtifacts = await response.json();
+
+	if (response.status === 200) {
+		const artifacts = body.items;
+		const artifact = artifacts.find(
+			(artifact) => artifact.path === "size-snapshot.json"
+		);
+
+		const downloadURL = new URL(
+			"/.netlify/functions/test-profile-artifact",
+			document.baseURI
+		);
+		downloadURL.searchParams.set("url", artifact!.url);
+
+		return downloadSnapshot("size-snapshot-circleci", downloadURL.toString());
+	}
+
+	throw new Error(`${response.status}: ${response.statusText}`);
+}
+
+async function fetchSizeSnapshot(
+	key: unknown,
+	{
+		azureBuildId,
+		circleCIBuildNumber,
+	}: { azureBuildId: number; circleCIBuildNumber: number }
+): Promise<SizeSnapshot | undefined> {
+	if (azureBuildId) {
+		return fetchSizeSnapshotAzure(azureBuildId);
+	}
+	return fetchSizeSnapshotCircleCI(circleCIBuildNumber);
+}
+
+function downloadSnapshot(
+	key: unknown,
+	downloadUrl: string
+): Promise<SizeSnapshot> {
 	return fetch(downloadUrl)
 		.then((response) => {
 			return response.json();
@@ -73,27 +123,26 @@ function downloadSnapshot(key: unknown, downloadUrl: string) {
 		});
 }
 
-function useAzureSizeSnapshot(buildId: number): SizeSnapshot {
-	const { data: snapshotArtifact } = useQuery(
+function useAzureSizeSnapshot({
+	azureBuildId,
+	circleCIBuildNumber,
+}: {
+	azureBuildId: number;
+	circleCIBuildNumber: number;
+}): SizeSnapshot {
+	const { data: sizeSnapshot } = useQuery(
 		[
 			"azure-artifacts",
 			{
-				artifactName: "size-snapshot",
-				buildId,
+				azureBuildId,
+				circleCIBuildNumber,
 			},
 		],
-		fetchArtifact
+		fetchSizeSnapshot
 	);
 
-	const downloadUrl = new URL(snapshotArtifact!.resource.downloadUrl);
-	downloadUrl.searchParams.set("format", "file");
-	downloadUrl.searchParams.set("subPath", "/size-snapshot.json");
-	const { data: sizeSnapshot } = useQuery(
-		["azure-snapshot-download", downloadUrl.toString()],
-		downloadSnapshot
-	);
-
-	return sizeSnapshot;
+	// NonNullable due to Suspense
+	return sizeSnapshot!;
 }
 
 function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
@@ -106,7 +155,8 @@ function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
 		downloadSnapshot
 	);
 
-	return sizeSnapshot;
+	// NonNullable due to Suspense
+	return sizeSnapshot!;
 }
 
 /**
@@ -278,15 +328,20 @@ function Comparison({
 	baseRef,
 	baseCommit,
 	buildId,
+	circleCIBuildNumber,
 	prNumber,
 }: {
 	baseRef: string;
 	baseCommit: string;
 	buildId: number;
+	circleCIBuildNumber: number;
 	prNumber: number;
 }) {
 	const baseSnapshot = useS3SizeSnapshot(baseRef, baseCommit);
-	const targetSnapshot = useAzureSizeSnapshot(buildId);
+	const targetSnapshot = useAzureSizeSnapshot({
+		azureBuildId: buildId,
+		circleCIBuildNumber,
+	});
 
 	const { main: mainResults, pages: pageResults } = useMemo(() => {
 		const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
@@ -378,6 +433,7 @@ function useComparisonParams() {
 			baseRef: params.get("baseRef")!,
 			buildId: +params.get("buildId")!,
 			prNumber: +params.get("prNumber")!,
+			circleCIBuildNumber: +params.get("circleCIBuildNumber")!,
 		};
 	}, [search]);
 }
@@ -389,14 +445,20 @@ function ComparisonErrorFallback({ prNumber }: { prNumber: number }) {
 			<Link href={`https://github.com/mui-org/material-ui/pull/${prNumber}`}>
 				#{prNumber}
 			</Link>
-			. This can happen if the build in the Azure Pipeline didn't finish yet.{" "}
-			<Link href="">Reload this page</Link> once the Azure build has finished.
+			. This can happen if the build in the CI job didn't finish yet.{" "}
+			<Link href="">Reload this page</Link> once the CI job has finished.
 		</p>
 	);
 }
 
 export default function SizeComparison() {
-	const { buildId, baseRef, baseCommit, prNumber } = useComparisonParams();
+	const {
+		buildId,
+		baseRef,
+		baseCommit,
+		circleCIBuildNumber,
+		prNumber,
+	} = useComparisonParams();
 
 	return (
 		<Fragment>
@@ -404,7 +466,8 @@ export default function SizeComparison() {
 			<Suspense
 				fallback={
 					<p>
-						Loading comparison for build <em>{buildId}</em>
+						Loading comparison for build{" "}
+						<em>{buildId || circleCIBuildNumber}</em>
 					</p>
 				}
 			>
@@ -415,6 +478,7 @@ export default function SizeComparison() {
 						buildId={buildId}
 						baseRef={baseRef}
 						baseCommit={baseCommit}
+						circleCIBuildNumber={circleCIBuildNumber}
 						prNumber={prNumber}
 					/>
 				</ErrorBoundary>
