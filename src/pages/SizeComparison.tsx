@@ -110,17 +110,28 @@ async function fetchSizeSnapshot(
 	return fetchSizeSnapshotCircleCI(circleCIBuildNumber);
 }
 
-function downloadSnapshot(
+async function downloadSnapshot(
 	key: unknown,
 	downloadUrl: string
 ): Promise<SizeSnapshot> {
-	return fetch(downloadUrl)
-		.then((response) => {
-			return response.json();
-		})
-		.then((snapshot) => {
-			return snapshot;
-		});
+	const response = await fetch(downloadUrl);
+	if (!response.ok) {
+		throw new Error(
+			`Failed to fetch "${downloadUrl}", HTTP ${response.status}`
+		);
+	}
+	return response.json();
+}
+
+async function downloadS3Snapshot(key: unknown, downloadPath: string) {
+	const artifactServerLegacy =
+		"https://s3.eu-central-1.amazonaws.com/mui-org-material-ui";
+	const artifactServer = "https://s3.eu-central-1.amazonaws.com/mui-org-ci";
+	try {
+		return await downloadSnapshot(key, `${artifactServer}${downloadPath}`);
+	} catch (err) {
+		return downloadSnapshot(key, `${artifactServerLegacy}${downloadPath}`);
+	}
 }
 
 function useAzureSizeSnapshot({
@@ -146,13 +157,11 @@ function useAzureSizeSnapshot({
 }
 
 function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
-	const artifactServer =
-		"https://s3.eu-central-1.amazonaws.com/mui-org-material-ui";
+	const downloadPath = `/artifacts/${ref}/${commitId}/size-snapshot.json`;
 
-	const downloadUrl = `${artifactServer}/artifacts/${ref}/${commitId}/size-snapshot.json`;
 	const { data: sizeSnapshot } = useQuery(
-		["s3-snapshot-download", downloadUrl],
-		downloadSnapshot
+		["s3-snapshot-download", downloadPath],
+		downloadS3Snapshot
 	);
 
 	// NonNullable due to Suspense
