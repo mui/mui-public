@@ -6,7 +6,7 @@ Collection of helpers useful when working on [MUI](https://github.com/mui-org).
 
 ## Contributing
 
-Bugfixes and feature suggestions are greatly appreciated. Though this project is highly opinionated so feature requests from will be rejected if no core member has a use for them
+Bugfixes and feature suggestions are greatly appreciated. Though this project is highly opinionated so feature requests from external contributors likely won't be accepted if no core member has a use for them.
 
 Copy `.env.example` to `.env` and fill in the values as instructed in the file.
 
