@@ -75,7 +75,7 @@ async function fetchSizeSnapshotCircleCI(
 	buildNumber: number
 ): Promise<SizeSnapshot> {
 	const response = await fetch(
-		`https://circleci.com/api/v2/project/gh/mui-org/material-ui/${buildNumber}/artifacts`
+		`https://circleci.com/api/v2/project/gh/mui/material-ui/${buildNumber}/artifacts`
 	);
 	const body: CircleCIApiArtifacts = await response.json();
 
@@ -348,7 +348,7 @@ function Comparison({
 		const main: [string, Size][] = [];
 		const pages: [string, Size][] = [];
 		bundleKeys.forEach((bundle) => {
-			// current vs previous based off: https://github.com/mui-org/material-ui/blob/f1246e829f9c0fc9458ce951451f43c2f166c7d1/scripts/sizeSnapshot/loadComparison.js#L32
+			// current vs previous based off: https://github.com/mui/material-ui/blob/f1246e829f9c0fc9458ce951451f43c2f166c7d1/scripts/sizeSnapshot/loadComparison.js#L32
 			// if a bundle was added the change should be +inf
 			// if a bundle was removed the change should be -100%
 			const currentSize = targetSnapshot[bundle] || nullSnapshot;
@@ -441,7 +441,7 @@ function ComparisonErrorFallback({ prNumber }: { prNumber: number }) {
 	return (
 		<p>
 			Could not load comparison for{" "}
-			<Link href={`https://github.com/mui-org/material-ui/pull/${prNumber}`}>
+			<Link href={`https://github.com/mui/material-ui/pull/${prNumber}`}>
 				#{prNumber}
 			</Link>
 			. This can happen if the build in the CI job didn't finish yet.{" "}

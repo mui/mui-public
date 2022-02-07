@@ -19,9 +19,7 @@ async function fetchCircleCIApiV2(endpoint) {
 }
 
 async function fetchCircleCIJobDetails(jobNumber) {
-	return fetchCircleCIApiV2(
-		`project/github/mui-org/material-ui/job/${jobNumber}`
-	);
+	return fetchCircleCIApiV2(`project/github/mui/material-ui/job/${jobNumber}`);
 }
 
 async function fetchCircleCIPipelineDetails(pipelineId) {

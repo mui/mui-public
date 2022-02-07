@@ -331,7 +331,7 @@ async function fetchCircleCIArtifactsInfos(
 	buildNumber: number
 ): Promise<Array<{ pretty_path: string; url: string }>> {
 	const apiEndpoint = `https://circleci.com/api/v1.1/`;
-	const url = `${apiEndpoint}project/github/mui-org/material-ui/${buildNumber}/artifacts`;
+	const url = `${apiEndpoint}project/github/mui/material-ui/${buildNumber}/artifacts`;
 
 	const response = await fetch(url);
 	const json = await response.json();

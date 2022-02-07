@@ -355,7 +355,7 @@ function useRecentBuilds(filter) {
 }
 
 async function fetchRecentCircleCIBuilds(key, cursor = 0) {
-	const url = getCircleCIApiUrl("project/github/mui-org/material-ui", {
+	const url = getCircleCIApiUrl("project/github/mui/material-ui", {
 		filter: "completed",
 		limit: 100,
 		offset: 100 * cursor,
