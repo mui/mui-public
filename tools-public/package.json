@@ -1,0 +1,14 @@
+{
+  "name": "tools-public",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "toolpad dev",
+    "build": "toolpad build",
+    "start": "toolpad start"
+  },
+  "dependencies": {
+    "@mui/toolpad": "^0.1.0",
+    "@mui/toolpad-core": "^0.1.0"
+  }
+}
