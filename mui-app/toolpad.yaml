@@ -1,0 +1,116 @@
+nodes:
+  9q8eshxx:
+    name: Application
+    attributes: {}
+    id: 9q8eshxx
+    type: app
+    parentId: null
+    parentProp: null
+    parentIndex: null
+  9r8fshsf:
+    name: Page1
+    attributes:
+      title:
+        type: const
+        value: Page 1
+    id: 9r8fshsf
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a0
+  3u63h0h:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 3u63h0h
+    type: element
+    parentId: 9r8fshsf
+    parentProp: children
+    parentIndex: a0
+  kn53hyv:
+    name: DataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: |
+          PRsOpenandReviewedQuery.data
+      columns:
+        type: const
+        value:
+          - field: event_month
+            type: string
+          - field: reviewed_by
+            type: string
+            width: 165
+          - field: reviewed
+            type: number
+            width: 138
+          - field: opened
+            type: number
+            width: 151
+      rowIdField:
+        type: const
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: kn53hyv
+    type: element
+    parentId: 3u63h0h
+    parentProp: children
+    parentIndex: a0
+  bh03hv4:
+    attributes:
+      query:
+        type: const
+        value:
+          function: PRsOpenandReviewedQuery
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: PRsOpenandReviewedQuery
+    id: bh03hv4
+    type: query
+    parentId: 9r8fshsf
+    parentProp: queries
+    parentIndex: a2
+  6633hyv:
+    name: PageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 6633hyv
+    type: element
+    parentId: 9r8fshsf
+    parentProp: children
+    parentIndex: a2
+  0823hac:
+    name: codeComponent_Chart
+    props:
+      data:
+        type: jsExpression
+        value: |
+          PRsOpenandReviewedQuery.data
+    attributes:
+      component:
+        type: const
+        value: codeComponent.Chart
+    layout: {}
+    id: 0823hac
+    type: element
+    parentId: 6633hyv
+    parentProp: children
+    parentIndex: a0
+root: 9q8eshxx
+version: 6

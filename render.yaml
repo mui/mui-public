@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mui-app
+    env: node
+    rootDir: mui-app
+    buildCommand: yarn && yarn build
+    startCommand: yarn start
+    pullRequestPreviewsEnabled: true
+    plan: free
