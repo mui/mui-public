@@ -1,9 +1,11 @@
+previewsExpireAfterDays: 3
+
 services:
   - type: web
-    name: mui-app
+    name: tools-public
     env: node
-    rootDir: mui-app
+    rootDir: tools-public
     buildCommand: yarn && yarn build
     startCommand: yarn start
     pullRequestPreviewsEnabled: true
-    plan: free
+    plan: standard
