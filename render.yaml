@@ -11,3 +11,4 @@ services:
     plan: standard
     envVars:
       - fromGroup: MUI Store database
+      - fromGroup: GitHub public
