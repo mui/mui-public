@@ -36,13 +36,17 @@ nodes:
     props:
       rows:
         type: jsExpression
-        value: |
-          PRsOpenandReviewedQuery.data
+        value: >
+          PRsOpenandReviewedQuery.data.map((item) => ({
+            ...item, // use the spread operator to copy existing properties
+            ratio: Math.round((item.reviewed * 100) / item.opened) / 100, // add a new property to each object
+          }))
       columns:
         type: const
         value:
           - field: event_month
             type: string
+            width: 105
           - field: reviewed_by
             type: string
             width: 165
@@ -52,6 +56,9 @@ nodes:
           - field: opened
             type: number
             width: 151
+          - field: ratio
+            type: number
+            width: 141
       rowIdField:
         type: const
     attributes:
