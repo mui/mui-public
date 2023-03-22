@@ -9,9 +9,14 @@
   },
   "dependencies": {
     "@mui/toolpad": "^0.1.0",
-    "@mui/toolpad-core": "^0.1.0"
+    "@mui/toolpad-core": "^0.1.0",
+    "graphql": "^16.6.0",
+    "graphql-request": "^5.2.0"
   },
   "engines": {
     "node": "^16.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.5"
   }
 }

@@ -119,5 +119,121 @@ nodes:
     parentId: 6633hyv
     parentProp: children
     parentIndex: a0
+  lo33hck:
+    name: hEADCISuccessRate
+    attributes:
+      title:
+        type: const
+        value: Page2
+      parameters:
+        type: const
+        value:
+          - - repository
+            - mui-x
+    id: lo33hck
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a1
+  og53hlk:
+    attributes:
+      query:
+        type: const
+        value:
+          function: queryCommitStatuses
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: queryCommitStatuses
+    id: og53hlk
+    type: query
+    parentId: lo33hck
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - repository
+        - type: jsExpression
+          value: |
+            page.parameters.repository
+  jqf3hsr:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: jqf3hsr
+    type: element
+    parentId: lo33hck
+    parentProp: children
+    parentIndex: a0
+  uqe3h5c:
+    name: codeComponent_HealthBadge
+    props:
+      warning:
+        type: const
+        value: 75
+      problem:
+        type: const
+        value: 50
+      value:
+        type: jsExpression
+        value: >
+          Math.round(
+            (queryCommitStatuses.data.repository.defaultBranchRef.target.history.nodes.filter(
+              (commit) =>
+                commit.status &&
+                (commit.status.state === "SUCCESS" || commit.status.state === "PENDING")
+            ).length /
+              queryCommitStatuses.data.repository.defaultBranchRef.target.history.nodes
+                .length) *
+              100
+          )
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: uqe3h5c
+    type: element
+    parentId: jqf3hsr
+    parentProp: children
+    parentIndex: a0
+  sgp3hzb:
+    name: PageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: sgp3hzb
+    type: element
+    parentId: lo33hck
+    parentProp: children
+    parentIndex: a1
+  9uo3hez:
+    name: Text
+    props:
+      value:
+        type: jsExpression
+        value: >
+          `Based on the last 7 days
+          (${queryCommitStatuses.data.repository.defaultBranchRef.target.history.nodes.length}
+          commits)`
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 9uo3hez
+    type: element
+    parentId: sgp3hzb
+    parentProp: children
+    parentIndex: a0
 root: 9q8eshxx
 version: 6
