@@ -3,7 +3,6 @@ import { request } from "graphql-request";
 import mysql from 'mysql2/promise';
 import SSH2Promise from 'ssh2-promise';
 
-
 export const getRepositoryDetails = createQuery(
   async function getRepositoryDetails({ parameters }) {
     const res = await fetch(
@@ -27,7 +26,6 @@ export const getRepositoryDetails = createQuery(
     },
   }
 );
-
 
 export const PRsOpenandReviewedQuery = createQuery(
   async function PRsOpenandReviewedQuery ({ parameters }) {
@@ -132,7 +130,6 @@ export const PRsOpenandReviewedQuery = createQuery(
 }
 );
 
-
 export const queryCommitStatuses = createQuery(
 async function queryCommitStatuses({ parameters }) {
 
@@ -184,8 +181,6 @@ return response;
      },
   },
 })
-
-
 
 export const getRatio = createQuery(
   async function getRatio({ parameters }) {
