@@ -332,5 +332,553 @@ nodes:
     parentId: jb63icx
     parentProp: children
     parentIndex: a0
+  fn03hvq:
+    name: cICompletionTime
+    attributes:
+      title:
+        type: const
+        value: cICompletionTime
+      parameters:
+        type: const
+        value:
+          - - repository
+            - mui-x
+    id: fn03hvq
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a3
+  ii53hyb:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: jsExpression
+            value: >
+              `https://circleci.com/api/v2/insights/github/mui/${parameters.repository}/workflows/pipeline/summary?analytics-segmentation=web-ui-insights&reporting-window=last-7-days&workflow-name=pipeline`
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: queryInsights
+    id: ii53hyb
+    type: query
+    parentId: fn03hvq
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - repository
+        - type: jsExpression
+          value: |
+            page.parameters.repository
+  3x93hxi:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 3x93hxi
+    type: element
+    parentId: fn03hvq
+    parentProp: children
+    parentIndex: a0
+  ey83hg3:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: >
+          Math.round((queryInsights.data.metrics.duration_metrics.median / 60) *
+          100) /
+            100
+      warning:
+        type: const
+        value: 15
+      problem:
+        type: const
+        value: 20
+      unit:
+        type: const
+        value: minutes
+      lowerIsBetter:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: ey83hg3
+    type: element
+    parentId: 3x93hxi
+    parentProp: children
+    parentIndex: a0
+  a3b3h3f:
+    name: PageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: a3b3h3f
+    type: element
+    parentId: fn03hvq
+    parentProp: children
+    parentIndex: a1
+  taa3hus:
+    name: Text
+    props:
+      value:
+        type: jsExpression
+        value: >
+          `Based on the last 7 days (${queryInsights.data.metrics.total_runs}
+          runs)`
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: taa3hus
+    type: element
+    parentId: a3b3h3f
+    parentProp: children
+    parentIndex: a0
+  bse3h9c:
+    name: missingGitHubLabel
+    attributes:
+      title:
+        type: const
+        value: page
+    id: bse3h9c
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a4
+  38f3h2q:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/search/issues
+          searchParams:
+            - - q
+              - type: const
+                value: no:label is:open org:mui
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: queryNoLabels
+    id: 38f3h2q
+    type: query
+    parentId: bse3h9c
+    parentProp: queries
+    parentIndex: a0
+  srh3hct:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: srh3hct
+    type: element
+    parentId: bse3h9c
+    parentProp: children
+    parentIndex: a0
+  9lg3htp:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: |
+          queryNoLabels.data.items.length
+      warning:
+        type: const
+        value: 10
+      problem:
+        type: const
+        value: 20
+      unit:
+        type: const
+        value: issues or PRs
+      lowerIsBetter:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: 9lg3htp
+    type: element
+    parentId: srh3hct
+    parentProp: children
+    parentIndex: a0
+  39j3h6b:
+    name: openPRs
+    attributes:
+      title:
+        type: const
+        value: openPRs
+      parameters:
+        type: const
+        value:
+          - - repository
+            - material-ui
+    id: 39j3h6b
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a5
+  dlm3hqd:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/search/issues
+          searchParams:
+            - - q
+              - type: jsExpression
+                value: |
+                  `is:pull-request is:open repo:mui/${parameters.repository}`
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: openPRs
+    id: dlm3hqd
+    type: query
+    parentId: 39j3h6b
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - repository
+        - type: jsExpression
+          value: |
+            page.parameters.repository
+  fyq3hur:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: fyq3hur
+    type: element
+    parentId: 39j3h6b
+    parentProp: children
+    parentIndex: a0
+  xup3hw6:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: |
+          openPRs.data.total_count
+      unit:
+        type: const
+        value: " open PRs"
+      warning:
+        type: const
+        value: 50
+      problem:
+        type: const
+        value: 75
+      lowerIsBetter:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: xup3hw6
+    type: element
+    parentId: fyq3hur
+    parentProp: children
+    parentIndex: a0
+  9ou3hb2:
+    name: medianTimeToCompletion
+    attributes:
+      title:
+        type: const
+        value: page
+      parameters:
+        type: const
+        value:
+          - - repoId
+            - "23083156"
+    id: 9ou3hb2
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a6
+  4jx3hv9:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: jsExpression
+            value: >
+              `https://api.ossinsight.io/q/analyze-pull-request-open-to-merged?repoId=${parameters.repoId}`
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: pullRequestOpenToMerged
+    id: 4jx3hv9
+    type: query
+    parentId: 9ou3hb2
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - repoId
+        - type: jsExpression
+          value: |
+            page.parameters.repoId
+  e8113hoz:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: e8113hoz
+    type: element
+    parentId: 9ou3hb2
+    parentProp: children
+    parentIndex: a0
+  xv103hin:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: >
+          (() => {
+            const length = pullRequestOpenToMerged.data.data.length
+
+            return (
+              Math.round((pullRequestOpenToMerged.data.data[length - 1].p75 / 24) * 100) /
+              100
+            )
+          })()
+      warning:
+        type: const
+        value: 3
+      problem:
+        type: const
+        value: 0
+      unit:
+        type: const
+        value: days
+      lowerIsBetter:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: xv103hin
+    type: element
+    parentId: e8113hoz
+    parentProp: children
+    parentIndex: a0
+  fx133hja:
+    name: PageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: fx133hja
+    type: element
+    parentId: 9ou3hb2
+    parentProp: children
+    parentIndex: a1
+  34123hhe:
+    name: Text
+    props:
+      value:
+        type: jsExpression
+        value: |
+          (() => {
+            const length = pullRequestOpenToMerged.data.data.length
+
+            return `Based on the last 30 days (${
+              pullRequestOpenToMerged.data.data[length - 1].event_month
+            })`
+          })()
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 34123hhe
+    type: element
+    parentId: fx133hja
+    parentProp: children
+    parentIndex: a0
+  fo163htb:
+    name: issueFirstComment
+    attributes:
+      title:
+        type: const
+        value: issueFirstComment
+      parameters:
+        type: const
+        value:
+          - - repoId
+            - "23083156"
+    id: fo163htb
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a7
+  u3173h6i:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: jsExpression
+            value: >
+              `https://api.ossinsight.io/q/analyze-issue-open-to-first-responded?repoId=${parameters.repoId}`
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: issueOpenToFirstResponded
+    id: u3173h6i
+    type: query
+    parentId: fo163htb
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - repoId
+        - type: jsExpression
+          value: |
+            page.parameters.repoId
+  031b3h1p:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 031b3h1p
+    type: element
+    parentId: fo163htb
+    parentProp: children
+    parentIndex: a0
+  pr1a3h46:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: >
+          (() => {
+            const length = issueOpenToFirstResponded.data.data.length
+
+            return Math.round(issueOpenToFirstResponded.data.data[length - 1].p75)
+          })()
+      warning:
+        type: const
+        value: 8
+      problem:
+        type: const
+        value: 24
+      unit:
+        type: const
+        value: " hours"
+      lowerIsBetter:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: pr1a3h46
+    type: element
+    parentId: 031b3h1p
+    parentProp: children
+    parentIndex: a0
+  h01d3hsd:
+    name: PageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: h01d3hsd
+    type: element
+    parentId: fo163htb
+    parentProp: children
+    parentIndex: a1
+  6y1c3h9v:
+    name: Text
+    props:
+      value:
+        type: jsExpression
+        value: |
+          (() => {
+            const length = issueOpenToFirstResponded.data.data.length
+
+            return `Based on the last 30 days (since ${
+              issueOpenToFirstResponded.data.data[length - 1].event_month
+            })`
+          })()
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 6y1c3h9v
+    type: element
+    parentId: h01d3hsd
+    parentProp: children
+    parentIndex: a0
 root: 9q8eshxx
 version: 6
