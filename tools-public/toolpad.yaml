@@ -518,7 +518,7 @@ nodes:
         value: 20
       unit:
         type: const
-        value: issues or PRs
+        value: " issues or PRs"
       lowerIsBetter:
         type: const
         value: true
@@ -880,5 +880,108 @@ nodes:
     parentId: h01d3hsd
     parentProp: children
     parentIndex: a0
+  hj1i3hqe:
+    name: needTriage
+    attributes:
+      title:
+        type: const
+        value: needTriage
+      parameters:
+        type: const
+        value:
+          - - repository
+            - material-ui
+    id: hj1i3hqe
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a8
+  p91j3h86:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/search/issues
+          searchParams:
+            - - q
+              - type: jsExpression
+                value: >
+                  `is:issue is:open repo:mui/${parameters.repository} label:"status: needs
+                  triage" `
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: needTriage
+    id: p91j3h86
+    type: query
+    parentId: hj1i3hqe
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - repository
+        - type: jsExpression
+          value: |
+            page.parameters.repository
+  wb1p3h6g:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: wb1p3h6g
+    type: element
+    parentId: hj1i3hqe
+    parentProp: children
+    parentIndex: a0
+  hg1o3h4x:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: |
+          needTriage.data.total_count
+      warning:
+        type: const
+        value: 25
+      problem:
+        type: const
+        value: 50
+      unit:
+        type: const
+        value: " issues"
+      lowerIsBetter:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: hg1o3h4x
+    type: element
+    parentId: wb1p3h6g
+    parentProp: children
+    parentIndex: a0
+  xu1r3hzj:
+    name: zendeskFirstReply
+    attributes:
+      title:
+        type: const
+        value: zendeskFirstReply
+    id: xu1r3hzj
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a9
 root: 9q8eshxx
 version: 6
