@@ -8,7 +8,7 @@ nodes:
     parentProp: null
     parentIndex: null
   9r8fshsf:
-    name: Page1
+    name: communityMetrics_core
     attributes:
       title:
         type: const
@@ -120,7 +120,7 @@ nodes:
     parentProp: children
     parentIndex: a0
   lo33hck:
-    name: hEADCISuccessRate
+    name: headCISuccessRate
     attributes:
       title:
         type: const
@@ -233,6 +233,103 @@ nodes:
     id: 9uo3hez
     type: element
     parentId: sgp3hzb
+    parentProp: children
+    parentIndex: a0
+  8n03iat:
+    name: overdueRatio
+    attributes:
+      title:
+        type: const
+        value: overdueRatio
+    id: 8n03iat
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: a2
+  1t13irl:
+    attributes:
+      query:
+        type: const
+        value:
+          function: getRatio
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: getRatio
+    id: 1t13irl
+    type: query
+    parentId: 8n03iat
+    parentProp: queries
+    parentIndex: a0
+  e333iuo:
+    name: PageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: e333iuo
+    type: element
+    parentId: 8n03iat
+    parentProp: children
+    parentIndex: a0
+  y623ild:
+    name: codeComponent_HealthBadge
+    props:
+      warning:
+        type: const
+        value: 10
+      problem:
+        type: const
+        value: 15
+      lowerIsBetter:
+        type: const
+        value: true
+      value:
+        type: jsExpression
+        value: |
+          Math.round(getRatio.data.ratio * 10000) / 100
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout: {}
+    id: y623ild
+    type: element
+    parentId: e333iuo
+    parentProp: children
+    parentIndex: a0
+  jb63icx:
+    name: PageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: jb63icx
+    type: element
+    parentId: 8n03iat
+    parentProp: children
+    parentIndex: a1
+  rg53iur:
+    name: Text
+    props:
+      value:
+        type: const
+        value: Based on last 30 days invoices
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: rg53iur
+    type: element
+    parentId: jb63icx
     parentProp: children
     parentIndex: a0
 root: 9q8eshxx
