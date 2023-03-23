@@ -279,3 +279,5 @@ export const getRatio = createQuery(
   `)
 return ratio[0];
 })
+
+export * from './bundleSizeQueries';
