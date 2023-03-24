@@ -18,7 +18,6 @@ function getMainBundleLabel(bundleId: string): string {
   if (bundleId === "docs.landing") {
     return "docs:/";
   }
-  console.log(bundleId);
   return (
     bundleId
       // package renames
