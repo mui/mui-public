@@ -1057,7 +1057,7 @@ nodes:
       columns:
         type: const
         value:
-          - field: id
+          - field: name
             type: string
             headerName: Bundle
             width: 334

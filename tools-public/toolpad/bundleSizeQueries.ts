@@ -3,6 +3,41 @@
 import axios from "axios";
 import { createQuery } from "@mui/toolpad-core";
 
+function getMainBundleLabel(bundleId: string): string {
+  if (
+    bundleId === "packages/material-ui/build/umd/material-ui.production.min.js"
+  ) {
+    return "@mui/material[umd]";
+  }
+  if (bundleId === "@material-ui/core/Textarea") {
+    return "TextareaAutosize";
+  }
+  if (bundleId === "docs.main") {
+    return "docs:/_app";
+  }
+  if (bundleId === "docs.landing") {
+    return "docs:/";
+  }
+  console.log(bundleId);
+  return (
+    bundleId
+      // package renames
+      .replace(/^@material-ui\/core$/, "@mui/material")
+      .replace(/^@material-ui\/core.legacy$/, "@mui/material.legacy")
+      .replace(/^@material-ui\/icons$/, "@mui/material-icons")
+      .replace(/^@material-ui\/unstyled$/, "@mui/core")
+      // org rename
+      .replace(/^@material-ui\/([\w-]+)$/, "@mui/$1")
+      // path renames
+      .replace(
+        /^packages\/material-ui\/material-ui\.production\.min\.js$/,
+        "packages/mui-material/material-ui.production.min.js"
+      )
+      .replace(/^@material-ui\/core\//, "")
+      .replace(/\.esm$/, "")
+  );
+}
+
 async function getBaseSnapshot(baseRef: string, baseCommit: string) {
   const baseSnapshotUrl = new URL(
     `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(
@@ -75,7 +110,7 @@ export const getBundleSizes = createQuery(
 
       const entry = {
         id: bundle,
-        name: bundle,
+        name: getMainBundleLabel(bundle),
         ...getSizeInfo("parsed", currentSize, previousSize),
         ...getSizeInfo("gzip", currentSize, previousSize),
       };
