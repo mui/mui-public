@@ -48,14 +48,18 @@ async function getBaseSnapshot(baseRef: string, baseCommit: string) {
 }
 
 async function getTargetSnapshot(circleCIBuildNumber: string) {
-  const { data: artifacts } = await axios.get(
-    `https://circleci.com/api/v2/project/gh/mui/material-ui/${encodeURIComponent(
-      circleCIBuildNumber
-    )}/artifacts`
-  );
+  const artifactsUrl = `https://circleci.com/api/v2/project/gh/mui/material-ui/${encodeURIComponent(
+    circleCIBuildNumber
+  )}/artifacts`;
+  const { data: artifacts } = await axios.get(artifactsUrl);
   const entry = artifacts.items.find(
     (entry) => entry.path === "size-snapshot.json"
   );
+  if (!entry) {
+    throw new Error(
+      `No artifacts found for build ${circleCIBuildNumber} (${artifactsUrl})`
+    );
+  }
   const { data } = await axios.get(entry.url);
   return data;
 }
