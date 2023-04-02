@@ -130,6 +130,9 @@ nodes:
         value:
           - - repository
             - mui-x
+      display:
+        type: const
+        value: standalone
     id: lo33hck
     type: page
     parentId: 9q8eshxx
@@ -241,6 +244,9 @@ nodes:
       title:
         type: const
         value: overdueRatio
+      display:
+        type: const
+        value: standalone
     id: 8n03iat
     type: page
     parentId: 9q8eshxx
@@ -343,6 +349,9 @@ nodes:
         value:
           - - repository
             - mui-x
+      display:
+        type: const
+        value: standalone
     id: fn03hvq
     type: page
     parentId: 9q8eshxx
@@ -458,6 +467,9 @@ nodes:
       title:
         type: const
         value: page
+      display:
+        type: const
+        value: standalone
     id: bse3h9c
     type: page
     parentId: 9q8eshxx
@@ -543,6 +555,9 @@ nodes:
         value:
           - - repository
             - material-ui
+      display:
+        type: const
+        value: standalone
     id: 39j3h6b
     type: page
     parentId: 9q8eshxx
@@ -634,6 +649,9 @@ nodes:
         value:
           - - repoId
             - "23083156"
+      display:
+        type: const
+        value: standalone
     id: 9ou3hb2
     type: page
     parentId: 9q8eshxx
@@ -764,6 +782,9 @@ nodes:
         value:
           - - repoId
             - "23083156"
+      display:
+        type: const
+        value: standalone
     id: fo163htb
     type: page
     parentId: 9q8eshxx
@@ -891,6 +912,9 @@ nodes:
         value:
           - - repository
             - material-ui
+      display:
+        type: const
+        value: standalone
     id: hj1i3hqe
     type: page
     parentId: 9q8eshxx
