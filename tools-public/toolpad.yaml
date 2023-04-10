@@ -577,8 +577,8 @@ nodes:
           searchParams:
             - - q
               - type: jsExpression
-                value: |
-                  `is:pull-request is:open repo:mui/${parameters.repository}`
+                value: >
+                  `is:pull-request is:open -is:draft repo:mui/${parameters.repository}`
       connectionId:
         type: const
         value: null
@@ -718,7 +718,7 @@ nodes:
         value: 3
       problem:
         type: const
-        value: 0
+        value: 5
       unit:
         type: const
         value: days
@@ -935,8 +935,8 @@ nodes:
             - - q
               - type: jsExpression
                 value: >
-                  `is:issue is:open repo:mui/${parameters.repository} label:"status: needs
-                  triage" `
+                  `is:issue repo:mui/${parameters.repository} label:"status: needs triage"
+                  `
       connectionId:
         type: const
         value: null
@@ -997,7 +997,7 @@ nodes:
     parentProp: children
     parentIndex: a0
   xu1r3hzj:
-    name: zendeskFirstReply
+    name: WIP_zendeskFirstReply
     attributes:
       title:
         type: const
@@ -1169,5 +1169,478 @@ nodes:
     parentId: r413myq
     parentProp: children
     parentIndex: a0
+  hr03hdi:
+    name: WIP_zendeskSatisfactionScore
+    attributes:
+      title:
+        type: const
+        value: zendeskSatisfactionScore
+    id: hr03hdi
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aA
+  y923hoo:
+    name: WIP_issueWithoutProductScope
+    attributes:
+      title:
+        type: const
+        value: issueWithoutProductScope
+    id: y923hoo
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aC
+  xj43hyd:
+    name: WIP_labelActivity
+    attributes:
+      title:
+        type: const
+        value: labelActivity
+    id: xj43hyd
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aE
+  5h53h7v:
+    name: WIP_prWithoutLabels
+    attributes:
+      title:
+        type: const
+        value: prWithoutLabels
+    id: 5h53h7v
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aF
+  hl63hwf:
+    name: WIP_needtriageNotAssigned
+    attributes:
+      title:
+        type: const
+        value: needtriageNotAssigned
+    id: hl63hwf
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aG
+  uz73h0n:
+    name: WIP_openPrWithoutReviewer
+    attributes:
+      title:
+        type: const
+        value: openPrWithoutReviewer
+    id: uz73h0n
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aH
+  su83hun:
+    name: WIP_closedIssuesNoNeedtriage
+    attributes:
+      title:
+        type: const
+        value: issueWithoutProductScope1
+    id: su83hun
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aI
+  2413lvx:
+    id: 2413lvx
+    name: closedVsOpenedIssues2
+    type: page
+    parentId: 9q8eshxx
+    attributes:
+      title:
+        type: const
+        value: medianTimeToCompletion
+      parameters:
+        type: const
+        value:
+          - - repoId
+            - "23083156"
+      display:
+        type: const
+        value: shell
+    parentProp: pages
+    parentIndex: aJ
+  2423l17:
+    id: 2423l17
+    name: issuesOpenedVsClosedRatio
+    type: query
+    params:
+      - - repoId
+        - type: jsExpression
+          value: |
+            page.parameters.repoId
+    parentId: 2413lvx
+    attributes:
+      query:
+        type: const
+        value:
+          url:
+            type: jsExpression
+            value: >
+              `https://api.ossinsight.io/q/analyze-issue-opened-and-closed?repoId=${parameters.repoId}`
+          method: GET
+          headers: []
+      dataSource:
+        type: const
+        value: rest
+      connectionId:
+        type: const
+        value: null
+    parentProp: queries
+    parentIndex: a0
+  2533lph:
+    id: 2533lph
+    name: pageRow
+    type: element
+    props: {}
+    layout: {}
+    parentId: 2413lvx
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    parentProp: children
+    parentIndex: a0
+  2543lm3:
+    id: 2543lm3
+    name: codeComponent_HealthBadge
+    type: element
+    props:
+      unit:
+        type: const
+        value: ratio
+      value:
+        type: jsExpression
+        value: |
+          (() => {
+            const timeSpanInMonths = 3
+            let totalOpened = 0
+            let totalClosed = 0
+
+            for (let i = 0; i < timeSpanInMonths; i++) {
+              totalClosed = +issuesOpenedVsClosedRatio.data.data[i].closed
+              totalOpened = +issuesOpenedVsClosedRatio.data.data[i].opened
+            }
+
+            return (totalOpened / totalClosed).toFixed(2)
+          })()
+      problem:
+        type: const
+        value: 2
+      warning:
+        type: const
+        value: 1
+      lowerIsBetter:
+        type: const
+        value: true
+    layout: {}
+    parentId: 2533lph
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    parentProp: children
+    parentIndex: a0
+  2553lyp:
+    id: 2553lyp
+    name: pageRow1
+    type: element
+    props: {}
+    layout: {}
+    parentId: 2413lvx
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    parentProp: children
+    parentIndex: a1
+  2563lbg:
+    id: 2563lbg
+    name: text
+    type: element
+    props:
+      value:
+        type: jsExpression
+        value: |
+          (() => {
+            return "Based on the last 3 months"
+          })()
+    layout: {}
+    parentId: 2553lyp
+    attributes:
+      component:
+        type: const
+        value: Text
+    parentProp: children
+    parentIndex: a0
+  m023hp4:
+    name: npmVersion
+    attributes:
+      title:
+        type: const
+        value: npmVersion
+      display:
+        type: const
+        value: shell
+      parameters:
+        type: const
+        value:
+          - - package
+            - react-dom
+    id: m023hp4
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aK
+  n663hf8:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: n663hf8
+    type: element
+    parentId: m023hp4
+    parentProp: children
+    parentIndex: a0
+  ax53h8a:
+    name: text
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: >-
+          ## Downloads in the last 7 days
+
+
+          Same data as in https://www.npmjs.com/package/react-dom?activeTab=versions.
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: ax53h8a
+    type: element
+    parentId: n663hf8
+    parentProp: children
+    parentIndex: a0
+  w3a3h2f:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: w3a3h2f
+    type: element
+    parentId: m023hp4
+    parentProp: children
+    parentIndex: a1
+  m293ht1:
+    name: textField
+    props:
+      label:
+        type: const
+        value: Package
+      defaultValue:
+        type: jsExpression
+        value: |
+          page.parameters.package
+    attributes:
+      component:
+        type: const
+        value: TextField
+    layout: {}
+    id: m293ht1
+    type: element
+    parentId: w3a3h2f
+    parentProp: children
+    parentIndex: a0
+  2we3hq9:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 2we3hq9
+    type: element
+    parentId: m023hp4
+    parentProp: children
+    parentIndex: a2
+  tsd3hgn:
+    name: codeComponent_pieChart
+    props:
+      data:
+        type: jsExpression
+        value: |
+          Object.entries(
+            Object.entries(downloadsVersions.data.downloads)
+              .filter(([version]) => version.indexOf("0.0") !== 0)
+              .map((entry) => {
+                const groups = entry[0].split(".")
+                let group = `v${groups[0]}`
+
+                if (group === "v16" && parseInt(groups[1]) >= 8) {
+                  group = "v16.8"
+                }
+
+                return {
+                  version: entry[0],
+                  downloads: entry[1],
+                  group,
+                }
+              })
+              .reduce((acc, item) => {
+                acc[item.group] |= 0
+                acc[item.group] += item.downloads
+                return acc
+              }, {})
+          ).map((group) => ({ name: group[0], value: group[1] }))
+    attributes:
+      component:
+        type: const
+        value: codeComponent.pieChart
+    layout: {}
+    id: tsd3hgn
+    type: element
+    parentId: 2we3hq9
+    parentProp: children
+    parentIndex: a0
+  wrf3h26:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: jsExpression
+            value: |
+              `https://api.npmjs.org/versions/${encodeURIComponent(
+                parameters.package
+              )}/last-week`
+          transformEnabled: false
+          transform: return data;
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: downloadsVersions
+    id: wrf3h26
+    type: query
+    parentId: m023hp4
+    parentProp: queries
+    parentIndex: a0
+    params:
+      - - package
+        - type: jsExpression
+          value: |
+            textField.value
+  pr63h8i:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: pr63h8i
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: a0
+  9753hll:
+    name: dataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: |
+          queryMaterialUILabels.data.repository.pullRequests.nodes
+            .concat(queryMaterialUILabels.data.repository.issues.nodes)
+            .map((issue) => ({
+              ...issue,
+              timelineItems: issue.timelineItems.nodes.map((event) => ({
+                label: event.label.name,
+                actor: event.actor.login,
+              })),
+            }))
+      columns:
+        type: const
+        value:
+          - field: number
+            type: number
+          - field: title
+            type: string
+            width: 279
+          - field: url
+            type: link
+            width: 352
+          - field: timelineItems
+            type: json
+            width: 263
+      height:
+        type: const
+        value: 480
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: 9753hll
+    type: element
+    parentId: pr63h8i
+    parentProp: children
+    parentIndex: a0
+  9483h3c:
+    attributes:
+      query:
+        type: const
+        value:
+          function: queryMaterialUILabels
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: queryMaterialUILabels
+    id: 9483h3c
+    type: query
+    parentId: xj43hyd
+    parentProp: queries
+    parentIndex: a0
+  ffd3hys:
+    attributes:
+      query:
+        type: const
+        value:
+          function: queryMUIXLabels
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: queryMUIXLabels
+    id: ffd3hys
+    type: query
+    parentId: xj43hyd
+    parentProp: queries
+    parentIndex: a1
 root: 9q8eshxx
 version: 6

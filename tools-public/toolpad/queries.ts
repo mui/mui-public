@@ -281,3 +281,5 @@ return ratio[0];
 })
 
 export * from './bundleSizeQueries';
+export * from './queryMaterialUILabels';
+export * from './queryMUIXLabels';

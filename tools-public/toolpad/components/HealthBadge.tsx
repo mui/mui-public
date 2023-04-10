@@ -85,7 +85,7 @@ function Report(props: ReportProps) {
       </Stack>
       <Stack direction="row" spacing={1}>
         <Typography sx={{ width: 100 }}>Value:</Typography>
-        <Typography>{`${value}${unit}`}</Typography>
+        <Typography>{`${value} ${unit}`}</Typography>
       </Stack>
     </Stack>
   );
