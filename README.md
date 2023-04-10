@@ -3,6 +3,7 @@
 Mono-repository for the MUI organization with code that can be public.
 See https://github.com/mui/mui-private for code that needs to be private.
 
-## [/tools-public/](https://tools-public.onrender.com/)
+## Link to the app
+### [/tools-public/](https://tools-public.onrender.com/)
 
-Public tools use to run the operations of MUI, using https://github.com/mui/mui-toolpad.
+An internal app to run the operations of MUI, built using https://github.com/mui/mui-toolpad.
