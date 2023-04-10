@@ -9,3 +9,6 @@ services:
     startCommand: yarn start
     pullRequestPreviewsEnabled: true
     plan: standard
+    envVars:
+      - fromGroup: MUI Store database
+      - fromGroup: GitHub public
