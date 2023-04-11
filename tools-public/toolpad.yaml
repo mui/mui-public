@@ -997,7 +997,7 @@ nodes:
     parentProp: children
     parentIndex: a0
   xu1r3hzj:
-    name: WIP_zendeskFirstReply
+    name: WIP_zendeskSatisfactionScore
     attributes:
       title:
         type: const
@@ -1170,7 +1170,7 @@ nodes:
     parentProp: children
     parentIndex: a0
   hr03hdi:
-    name: WIP_zendeskSatisfactionScore
+    name: WIP_zendeskFirstReply
     attributes:
       title:
         type: const
@@ -1181,7 +1181,7 @@ nodes:
     parentProp: pages
     parentIndex: aA
   y923hoo:
-    name: WIP_issueWithoutProductScope
+    name: issueWithoutProductScope
     attributes:
       title:
         type: const
@@ -1202,17 +1202,6 @@ nodes:
     parentId: 9q8eshxx
     parentProp: pages
     parentIndex: aE
-  5h53h7v:
-    name: WIP_prWithoutLabels
-    attributes:
-      title:
-        type: const
-        value: prWithoutLabels
-    id: 5h53h7v
-    type: page
-    parentId: 9q8eshxx
-    parentProp: pages
-    parentIndex: aF
   hl63hwf:
     name: WIP_needtriageNotAssigned
     attributes:
@@ -1224,28 +1213,6 @@ nodes:
     parentId: 9q8eshxx
     parentProp: pages
     parentIndex: aG
-  uz73h0n:
-    name: WIP_openPrWithoutReviewer
-    attributes:
-      title:
-        type: const
-        value: openPrWithoutReviewer
-    id: uz73h0n
-    type: page
-    parentId: 9q8eshxx
-    parentProp: pages
-    parentIndex: aH
-  su83hun:
-    name: WIP_closedIssuesNoNeedtriage
-    attributes:
-      title:
-        type: const
-        value: issueWithoutProductScope1
-    id: su83hun
-    type: page
-    parentId: 9q8eshxx
-    parentProp: pages
-    parentIndex: aI
   2413lvx:
     id: 2413lvx
     name: closedVsOpenedIssues2
@@ -1582,8 +1549,6 @@ nodes:
       columns:
         type: const
         value:
-          - field: number
-            type: number
           - field: title
             type: string
             width: 279
@@ -1642,5 +1607,1406 @@ nodes:
     parentId: xj43hyd
     parentProp: queries
     parentIndex: a1
+  a6f3h9a:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/repos/mui/material-ui/issues
+          searchParams:
+            - - labels
+              - type: const
+                value: "status: needs triage"
+            - - per_page
+              - type: const
+                value: "100"
+            - - state
+              - type: const
+                value: all
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: materialUI
+    id: a6f3h9a
+    type: query
+    parentId: y923hoo
+    parentProp: queries
+    parentIndex: a0
+  3eg3h4p:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/repos/mui/mui-x/issues
+          searchParams:
+            - - labels
+              - type: const
+                value: "status: needs triage"
+            - - per_page
+              - type: const
+                value: "100"
+            - - state
+              - type: const
+                value: all
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: muix
+    id: 3eg3h4p
+    type: query
+    parentId: y923hoo
+    parentProp: queries
+    parentIndex: a1
+  neh3hm5:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers: []
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/repos/mui/mui-design-kits/issues
+          searchParams:
+            - - labels
+              - type: const
+                value: "status: needs triage"
+            - - per_page
+              - type: const
+                value: "100"
+            - - state
+              - type: const
+                value: all
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: muiDesignKits
+    id: neh3hm5
+    type: query
+    parentId: y923hoo
+    parentProp: queries
+    parentIndex: a2
+  8lj3h3c:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 8lj3h3c
+    type: element
+    parentId: y923hoo
+    parentProp: children
+    parentIndex: a0
+  vxi3hsd:
+    name: text
+    props:
+      value:
+        type: const
+        value: Issues without product scope label
+      variant:
+        type: const
+        value: h5
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: vxi3hsd
+    type: element
+    parentId: 8lj3h3c
+    parentProp: children
+    parentIndex: a0
+  tkl3han:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: tkl3han
+    type: element
+    parentId: y923hoo
+    parentProp: children
+    parentIndex: a1
+  44k3h4h:
+    name: text1
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: "texThis page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e\
+          44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 44k3h4h
+    type: element
+    parentId: tkl3han
+    parentProp: children
+    parentIndex: a0
+  qbn3hjx:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: qbn3hjx
+    type: element
+    parentId: y923hoo
+    parentProp: children
+    parentIndex: a2
+  bsm3hvs:
+    name: dataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: |
+          (() => {
+            const nonProductScopeLabels = [
+              "support: commercial",
+              "support: docs-feedback",
+            ]
+
+            return materialUI.rows
+              .concat(muix.rows)
+              .concat(muiDesignKits.rows)
+              .filter((issue) => {
+                const withoutNonProductScopeLabels = issue.labels.filter(
+                  (label) => !nonProductScopeLabels.includes(label.name)
+                )
+                return withoutNonProductScopeLabels.length === 1
+              })
+              .sort((issueA, issueB) => {
+                if (issueA.state === "open") {
+                  return 1
+                }
+                if (issueB.state === "open") {
+                  return 1
+                }
+                return issueB.number - issueA.number
+              })
+          })()
+      columns:
+        type: const
+        value:
+          - field: number
+            type: number
+          - field: state
+            type: string
+          - field: title
+            type: string
+            width: 272
+          - field: html_url
+            type: link
+            width: 310
+      height:
+        type: const
+        value: 396
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: bsm3hvs
+    type: element
+    parentId: qbn3hjx
+    parentProp: children
+    parentIndex: a0
+  wms3hgs:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers:
+            - - Bearer
+              - type: const
+                value: abc
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/search/issues
+          searchParams:
+            - - q
+              - type: const
+                value: 'repo:mui/material-ui repo:mui/mui-x is:open is:issue label:"status:
+                  needs triage" no:assignee'
+          transformEnabled: true
+          transform: |+
+            return data.items
+
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: noAssignee
+    id: wms3hgs
+    type: query
+    parentId: hl63hwf
+    parentProp: queries
+    parentIndex: a0
+  7ju3hr6:
+    name: closedIssuesNoNeedtriage
+    attributes:
+      title:
+        type: const
+        value: issueWithoutProductScope
+    id: 7ju3hr6
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aL
+  7kv3hfv:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers:
+            - - Bearer
+              - type: const
+                value: abc
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/repos/mui/material-ui/issues
+          searchParams:
+            - - labels
+              - type: const
+                value: "status: needs triage"
+            - - per_page
+              - type: const
+                value: "100"
+            - - state
+              - type: const
+                value: closed
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: materialUI
+    id: 7kv3hfv
+    type: query
+    parentId: 7ju3hr6
+    parentProp: queries
+    parentIndex: a0
+  7lw3hed:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers:
+            - - Bearer
+              - type: const
+                value: abc
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/repos/mui/mui-x/issues
+          searchParams:
+            - - labels
+              - type: const
+                value: "status: needs triage"
+            - - per_page
+              - type: const
+                value: "100"
+            - - state
+              - type: const
+                value: closed
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: muix
+    id: 7lw3hed
+    type: query
+    parentId: 7ju3hr6
+    parentProp: queries
+    parentIndex: a1
+  7lx3hze:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers:
+            - - Bearer
+              - type: const
+                value: abc
+          browser: false
+          url:
+            type: const
+            value: https://api.github.com/repos/mui/mui-design-kits/issues
+          searchParams:
+            - - labels
+              - type: const
+                value: "status: needs triage"
+            - - per_page
+              - type: const
+                value: "100"
+            - - state
+              - type: const
+                value: closed
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: muiDesignKits
+    id: 7lx3hze
+    type: query
+    parentId: 7ju3hr6
+    parentProp: queries
+    parentIndex: a2
+  7ly3hvu:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 7ly3hvu
+    type: element
+    parentId: 7ju3hr6
+    parentProp: children
+    parentIndex: a0
+  7lz3hvr:
+    name: text
+    props:
+      value:
+        type: const
+        value: Issues without product scope label
+      variant:
+        type: const
+        value: h5
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 7lz3hvr
+    type: element
+    parentId: 7ly3hvu
+    parentProp: children
+    parentIndex: a0
+  7l103hz4:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 7l103hz4
+    type: element
+    parentId: 7ju3hr6
+    parentProp: children
+    parentIndex: a1
+  7l113hsm:
+    name: text1
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: "texThis page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e\
+          44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 7l113hsm
+    type: element
+    parentId: 7l103hz4
+    parentProp: children
+    parentIndex: a0
+  7l123hyw:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 7l123hyw
+    type: element
+    parentId: 7ju3hr6
+    parentProp: children
+    parentIndex: a2
+  7l133hf5:
+    name: dataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: |
+          materialUI.rows
+            .concat(muix.rows)
+            .concat(muiDesignKits.rows)
+            .sort((issueA, issueB) => {
+              if (issueA.state === "open") {
+                return 1
+              }
+              if (issueB.state === "open") {
+                return 1
+              }
+              return issueB.number - issueA.number
+            })
+      columns:
+        type: const
+        value:
+          - field: number
+            type: number
+          - field: state
+            type: string
+          - field: title
+            type: string
+            width: 272
+          - field: html_url
+            type: link
+            width: 310
+      height:
+        type: const
+        value: 396
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: 7l133hf5
+    type: element
+    parentId: 7l123hyw
+    parentProp: children
+    parentIndex: a0
+  w2163h8t:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: w2163h8t
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: Zz
+  6o153h7f:
+    name: text
+    props:
+      value:
+        type: const
+        value: "Filter for GitHub slub:"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout:
+      columnSize:
+        type: const
+        value: 0.6565656565656566
+    id: 6o153h7f
+    type: element
+    parentId: w2163h8t
+    parentProp: children
+    parentIndex: a0V
+  sp173h0h:
+    name: textField
+    props:
+      label:
+        type: const
+        value: GitHub slug
+      defaultValue:
+        type: const
+        value: gzrae
+      fullWidth:
+        type: const
+        value: true
+    attributes:
+      component:
+        type: const
+        value: TextField
+    layout:
+      columnSize:
+        type: const
+        value: 1.3434343434343434
+    id: sp173h0h
+    type: element
+    parentId: w2163h8t
+    parentProp: children
+    parentIndex: a1
+  kh183hlc:
+    name: text1
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: "Build for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#0711365e6f2343bfbbb0c9c78bb2bc8d"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: kh183hlc
+    type: element
+    parentId: vu1a3hgd
+    parentProp: children
+    parentIndex: a0
+  vu1a3hgd:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: vu1a3hgd
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: ZzV
+  om1d3h8o:
+    name: pageRow3
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: om1d3h8o
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: Zzl
+  5p1c3hco:
+    name: text2
+    props:
+      value:
+        type: const
+        value: Material UI
+      variant:
+        type: const
+        value: h6
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 5p1c3hco
+    type: element
+    parentId: om1d3h8o
+    parentProp: children
+    parentIndex: a0
+  4k1e3hal:
+    name: dataGrid1
+    props:
+      rows:
+        type: jsExpression
+        value: |
+          queryMaterialUILabels.data.repository.pullRequests.nodes
+            .concat(queryMaterialUILabels.data.repository.issues.nodes)
+            .map((issue) => ({
+              ...issue,
+              timelineItems: issue.timelineItems.nodes.map((event) => ({
+                label: event.label.name,
+                actor: event.actor.login,
+              })),
+            }))
+      columns:
+        type: const
+        value:
+          - field: title
+            type: string
+            width: 279
+          - field: url
+            type: link
+            width: 352
+          - field: timelineItems
+            type: json
+            width: 263
+      height:
+        type: const
+        value: 480
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: 4k1e3hal
+    type: element
+    parentId: o11f3hct
+    parentProp: children
+    parentIndex: a0
+  o11f3hct:
+    name: pageRow4
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: o11f3hct
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: a1
+  v41g3hnr:
+    name: text3
+    props:
+      value:
+        type: const
+        value: MUI X
+      variant:
+        type: const
+        value: h6
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: v41g3hnr
+    type: element
+    parentId: 151h3hrj
+    parentProp: children
+    parentIndex: a0
+  151h3hrj:
+    name: pageRow5
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 151h3hrj
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: a0V
+  d11m3hiz:
+    attributes:
+      query:
+        type: const
+        value:
+          method: GET
+          headers:
+            - - Authorization
+              - type: const
+                value: Basic abc
+          browser: false
+          url:
+            type: const
+            value: https://mui.zendesk.com/api/v2/satisfaction_ratings
+          searchParams:
+            - - start_time
+              - type: jsExpression
+                value: >
+                  (() => {
+                    const days = 7 * 3
+                    return Math.round(new Date().getTime() / 1000) - 3600 * 24 * days
+                  })()
+            - - score
+              - type: const
+                value: received
+          transformEnabled: true
+          transform: >-
+            return Object.values(data.satisfaction_ratings.reduce((acc, item) =>
+            {
+              // only keep the latest
+              acc[item.ticket_id] = {
+                score: item.score,
+              };
+              return acc;
+            }, {}));
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: rest
+    name: satisfactionRating
+    id: d11m3hiz
+    type: query
+    parentId: xu1r3hzj
+    parentProp: queries
+    parentIndex: a0
+  ds1q3hqv:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: ds1q3hqv
+    type: element
+    parentId: xu1r3hzj
+    parentProp: children
+    parentIndex: a0
+  y51p3h4n:
+    name: codeComponent_HealthBadge
+    props:
+      value:
+        type: jsExpression
+        value: >
+          Math.round(
+            (satisfactionRating.data.filter((rating) => rating.score === "good").length /
+              satisfactionRating.data.length) *
+              100
+          )
+    attributes:
+      component:
+        type: const
+        value: codeComponent.HealthBadge
+    layout:
+      columnSize:
+        type: const
+        value: 1
+    id: y51p3h4n
+    type: element
+    parentId: ds1q3hqv
+    parentProp: children
+    parentIndex: a0
+  tn213hge:
+    name: WIP_prWithoutLabels
+    attributes:
+      title:
+        type: const
+        value: labelActivity
+    id: tn213hge
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aM
+  tn223hq9:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: tn223hq9
+    type: element
+    parentId: tn213hge
+    parentProp: children
+    parentIndex: a0
+  tn233hdz:
+    name: text
+    props:
+      value:
+        type: const
+        value: PRs without labels
+      variant:
+        type: const
+        value: h5
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout:
+      columnSize:
+        type: const
+        value: 0.6565656565656566
+    id: tn233hdz
+    type: element
+    parentId: tn223hq9
+    parentProp: children
+    parentIndex: a0
+  ts253hxz:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: ts253hxz
+    type: element
+    parentId: tn213hge
+    parentProp: children
+    parentIndex: a1
+  ts263h16:
+    name: text1
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: "This page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#d97e5e8b4f394dec95de36668dbf81d2"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: ts263h16
+    type: element
+    parentId: ts253hxz
+    parentProp: children
+    parentIndex: a0
+  ts293hy8:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: ts293hy8
+    type: element
+    parentId: tn213hge
+    parentProp: children
+    parentIndex: a3
+  ts2a3h8t:
+    name: dataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: >
+          (() => {
+            const filterOutLabels = ["PR: out-of-date", "PR: needs revision"]
+
+            return queryPRs.data
+              .filter((pr) => !pr.isDraft)
+              .filter(
+                (pr) =>
+                  pr.labels.nodes.filter((label) => !filterOutLabels.includes(label.name))
+                    .length === 0
+              )
+          })()
+      columns:
+        type: const
+        value:
+          - field: title
+            type: string
+            width: 279
+          - field: url
+            type: link
+            width: 352
+          - field: timelineItems
+            type: json
+            width: 263
+      height:
+        type: const
+        value: 480
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: ts2a3h8t
+    type: element
+    parentId: ts293hy8
+    parentProp: children
+    parentIndex: a0
+  ts2f3h31:
+    attributes:
+      query:
+        type: const
+        value:
+          function: queryPRs
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: queryPRs
+    id: ts2f3h31
+    type: query
+    parentId: tn213hge
+    parentProp: queries
+    parentIndex: a0
+  jk2l3h6o:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: jk2l3h6o
+    type: element
+    parentId: hl63hwf
+    parentProp: children
+    parentIndex: a0
+  y02k3h2u:
+    name: text
+    props:
+      value:
+        type: const
+        value: HAVING TRANSFORM ISSUES IN UI QUERY
+      sx:
+        type: const
+        value:
+          color: red
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: y02k3h2u
+    type: element
+    parentId: jk2l3h6o
+    parentProp: children
+    parentIndex: a0
+  ir2o3hxh:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: ir2o3hxh
+    type: element
+    parentId: hl63hwf
+    parentProp: children
+    parentIndex: a1
+  262n3hy0:
+    name: text1
+    props:
+      value:
+        type: const
+        value: Open "need triage" issues without assignee
+      variant:
+        type: const
+        value: h5
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 262n3hy0
+    type: element
+    parentId: ir2o3hxh
+    parentProp: children
+    parentIndex: a0
+  oz2q3h2w:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: oz2q3h2w
+    type: element
+    parentId: hl63hwf
+    parentProp: children
+    parentIndex: a2
+  ap2p3hhw:
+    name: text2
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: "Built for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#8f5ae0daa6ad4543b866f3ad0532c9e4"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: ap2p3hhw
+    type: element
+    parentId: oz2q3h2w
+    parentProp: children
+    parentIndex: a0
+  kp2t3h40:
+    name: pageRow3
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: kp2t3h40
+    type: element
+    parentId: hl63hwf
+    parentProp: children
+    parentIndex: a3
+  7x2s3hos:
+    name: dataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: >
+          noAssignee.data
+            .map((data) => ({
+              ...data,
+              repo: data.repository_url.replace("https://api.github.com/repos/mui/", ""),
+            }))
+            .sort((a, b) => {
+              if (a.repo === "mui-x") {
+                return -1
+              }
+
+              if (b.repo === "mui-x") {
+                return -1
+              }
+            })
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: 7x2s3hos
+    type: element
+    parentId: kp2t3h40
+    parentProp: children
+    parentIndex: a0
+  je2x3h4d:
+    name: pageRow6
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: je2x3h4d
+    type: element
+    parentId: xj43hyd
+    parentProp: children
+    parentIndex: Zy
+  jr2w3haj:
+    name: text4
+    props:
+      value:
+        type: const
+        value: HAVING ISSUES WITH TRANSFORMING DATA IN CODE QUERY
+      sx:
+        type: const
+        value:
+          color: red
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: jr2w3haj
+    type: element
+    parentId: je2x3h4d
+    parentProp: children
+    parentIndex: a0
+  p1303hrn:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: p1303hrn
+    type: element
+    parentId: xu1r3hzj
+    parentProp: children
+    parentIndex: Zz
+  0m2z3hxz:
+    name: text
+    props:
+      value:
+        type: const
+        value: I DOUBT THE WAY I HAVE AUTH IS CORRECT
+      sx:
+        type: const
+        value:
+          color: red
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 0m2z3hxz
+    type: element
+    parentId: p1303hrn
+    parentProp: children
+    parentIndex: a0
+  6a333hp9:
+    name: pageRow3
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 6a333hp9
+    type: element
+    parentId: tn213hge
+    parentProp: children
+    parentIndex: Zz
+  7u323hoa:
+    name: text2
+    props:
+      value:
+        type: const
+        value: HAVING ISSUES WITH TRANSFORMING DATA IN CODE QUERY
+      sx:
+        type: const
+        value:
+          color: red
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 7u323hoa
+    type: element
+    parentId: 6a333hp9
+    parentProp: children
+    parentIndex: a0
+  1t353h04:
+    name: WIP_openPrWithoutReviewer
+    attributes:
+      title:
+        type: const
+        value: labelActivity
+    id: 1t353h04
+    type: page
+    parentId: 9q8eshxx
+    parentProp: pages
+    parentIndex: aN
+  1t363h8u:
+    name: pageRow3
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 1t363h8u
+    type: element
+    parentId: 1t353h04
+    parentProp: children
+    parentIndex: a0
+  1t373hu0:
+    name: text2
+    props:
+      value:
+        type: const
+        value: HAVING ISSUES WITH TRANSFORMING DATA IN CODE QUERY
+      sx:
+        type: const
+        value:
+          color: red
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 1t373hu0
+    type: element
+    parentId: 1t363h8u
+    parentProp: children
+    parentIndex: a0
+  1t383hy0:
+    name: pageRow1
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 1t383hy0
+    type: element
+    parentId: 1t353h04
+    parentProp: children
+    parentIndex: a1
+  1t393h8o:
+    name: text
+    props:
+      value:
+        type: const
+        value: Open PRs without requested reviewer
+      variant:
+        type: const
+        value: h5
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout:
+      columnSize:
+        type: const
+        value: 0.6565656565656566
+    id: 1t393h8o
+    type: element
+    parentId: 1t383hy0
+    parentProp: children
+    parentIndex: a0
+  1t3a3hhg:
+    name: pageRow2
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 1t3a3hhg
+    type: element
+    parentId: 1t353h04
+    parentProp: children
+    parentIndex: a2
+  1u3b3hk6:
+    name: text1
+    props:
+      mode:
+        type: const
+        value: markdown
+      value:
+        type: const
+        value: "This page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf"
+    attributes:
+      component:
+        type: const
+        value: Text
+    layout: {}
+    id: 1u3b3hk6
+    type: element
+    parentId: 1t3a3hhg
+    parentProp: children
+    parentIndex: a0
+  1u3c3hi2:
+    name: pageRow
+    props: {}
+    attributes:
+      component:
+        type: const
+        value: PageRow
+    layout: {}
+    id: 1u3c3hi2
+    type: element
+    parentId: 1t353h04
+    parentProp: children
+    parentIndex: a3
+  1u3d3hjm:
+    name: dataGrid
+    props:
+      rows:
+        type: jsExpression
+        value: >
+          (() => {
+            const filterOutLabels = ["on hold"]
+            const rtf = new Intl.RelativeTimeFormat("en", { style: "narrow" })
+
+            const daysAgo = (a, b) => {
+              const difference = a.getTime() - b.getTime()
+              return Math.ceil(difference / (1000 * 3600 * 24))
+            }
+
+            return queryPRs2.data
+              .filter((pr) => !pr.isDraft)
+              .filter(
+                (pr) =>
+                  pr.reviews.nodes.length === 0 && pr.reviewRequests.nodes.length === 0
+              )
+              .filter(
+                (pr) =>
+                  pr.labels.nodes.filter((label) => filterOutLabels.includes(label.name))
+                    .length === 0
+              )
+              .map((pr) => ({
+                ...pr,
+                repository: pr.repository.name,
+                daysAgoRaw: daysAgo(new Date(pr.createdAt), new Date()),
+                daysAgo: rtf.format(daysAgo(new Date(pr.createdAt), new Date()), "day"),
+              }))
+              .filter((pr) => !(pr.repository === "mui-x" && pr.daysAgoRaw > -14))
+          })()
+      columns:
+        type: const
+        value:
+          - field: title
+            type: string
+            width: 279
+          - field: url
+            type: link
+            width: 352
+          - field: timelineItems
+            type: json
+            width: 263
+      height:
+        type: const
+        value: 480
+    attributes:
+      component:
+        type: const
+        value: DataGrid
+    layout: {}
+    id: 1u3d3hjm
+    type: element
+    parentId: 1u3c3hi2
+    parentProp: children
+    parentIndex: a0
+  1u3e3he6:
+    attributes:
+      query:
+        type: const
+        value:
+          function: queryPRs2
+      connectionId:
+        type: const
+        value: null
+      dataSource:
+        type: const
+        value: local
+    name: queryPRs2
+    id: 1u3e3he6
+    type: query
+    parentId: 1t353h04
+    parentProp: queries
+    parentIndex: a0
 root: 9q8eshxx
 version: 6

@@ -283,3 +283,5 @@ return ratio[0];
 export * from './bundleSizeQueries';
 export * from './queryMaterialUILabels';
 export * from './queryMUIXLabels';
+export * from './queryPRs';
+export * from './queryPRs2';
