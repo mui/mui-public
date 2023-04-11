@@ -1042,7 +1042,7 @@
   resolved "https://registry.npmjs.org/@types/node/-/node-14.18.40.tgz"
   integrity sha512-pGteXO/JQX7wPxGR8lyT+doqjMa7XvlVowwrDwLfX92k5SdLkk4cwC7CYSLBxrenw/R5oQwKioVIak7ZgplM3g==
 
-"@types/node@^18.15.11":
+"@types/node@^18.11.18", "@types/node@^18.15.11":
   version "18.15.11"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-18.15.11.tgz#b3b790f09cb1696cffcec605de025b088fa4225f"
   integrity sha512-E5Kwq2n4SbMzQOn6wnmBjuK9ouqlURrcZDVfbo9ftDDTFt3nk7ZKK4GMOzoYgnpQJKcxwQw+lGaBvvlMo0qN/Q==
@@ -1123,6 +1123,13 @@
   version "0.1.2"
   resolved "https://registry.npmjs.org/@types/source-list-map/-/source-list-map-0.1.2.tgz"
   integrity sha512-K5K+yml8LTo9bWJI/rECfIPrGgxdpeNbj+d53lwN4QjW1MCwlkhUms+gtdzigTeUyBr09+u8BwOIY3MXvHdcsA==
+
+"@types/ssh2@^1.11.8":
+  version "1.11.10"
+  resolved "https://registry.yarnpkg.com/@types/ssh2/-/ssh2-1.11.10.tgz#b38d6814667dab256343aa23179a87514c591465"
+  integrity sha512-b+6fSdTONmCNRDDySZWQPe9f42v09PV2ePuNKMKkDFO4TqQTclX7dI8xISaj9dGckAcVCmaWO/MpoK4IAVfAQA==
+  dependencies:
+    "@types/node" "^18.11.18"
 
 "@types/tapable@^1":
   version "1.0.8"

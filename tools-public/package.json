@@ -20,6 +20,7 @@
     "node": "^16.17.0"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11"
+    "@types/node": "^18.15.11",
+    "@types/ssh2": "^1.11.8"
   }
 }
