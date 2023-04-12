@@ -1,6 +1,31 @@
 import { createQuery } from "@mui/toolpad-core";
 import { request } from "graphql-request";
 
+interface PullRequest {
+  number: number;
+  url: string;
+  title: string;
+  state: string;
+  repository: string;
+  isDraft: boolean;
+  labels: {
+    name: string;
+  }[];
+}
+
+interface QueryResult {
+  materialui: {
+    pullRequests: {
+      nodes: PullRequest[];
+    };
+  };
+  muix: {
+    pullRequests: {
+      nodes: PullRequest[];
+    };
+  };
+}
+
 export const queryPRs = createQuery(
   async ({ parameters }) => {
    
@@ -63,18 +88,14 @@ export const queryPRs = createQuery(
             `
   
   
-  const response = await request(endpoint, query, null, {
+  const response: any = await request<QueryResult>(endpoint, query, null, {
     Authorization: `Bearer ${token}`,
   })
   
-  return response;
-
-  /*
-  const result = await response.json();
-  return result.data.materialui.pullRequests.nodes
-    .concat(result.data.muix.pullRequests.nodes)
-    .map((x) => ({ ...x, repository: x.repository.name }));
   
-  */
+  return response.data.materialui.pullRequests.nodes
+    .concat(response.data.muix.pullRequests.nodes)
+    .map((x) => ({ ...x, repository: x.repository.name })) as PullRequest[];
+  
 
 })

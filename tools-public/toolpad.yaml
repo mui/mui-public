@@ -1192,7 +1192,7 @@ nodes:
     parentProp: pages
     parentIndex: aC
   xj43hyd:
-    name: WIP_labelActivity
+    name: labelActivity
     attributes:
       title:
         type: const
@@ -1203,7 +1203,7 @@ nodes:
     parentProp: pages
     parentIndex: aE
   hl63hwf:
-    name: WIP_needtriageNotAssigned
+    name: needtriageNotAssigned
     attributes:
       title:
         type: const
@@ -1537,14 +1537,15 @@ nodes:
       rows:
         type: jsExpression
         value: |
-          queryMaterialUILabels.data.repository.pullRequests.nodes
-            .concat(queryMaterialUILabels.data.repository.issues.nodes)
+          queryMaterialUILabels.rows
+            .filter((issue) => {
+              return issue.timelineItems.some(
+                (event) => event.actor === gitHubSlug.defaultValue
+              )
+            })
             .map((issue) => ({
               ...issue,
-              timelineItems: issue.timelineItems.nodes.map((event) => ({
-                label: event.label.name,
-                actor: event.actor.login,
-              })),
+              timelineItems: issue.timelineItems.map((event) => event.label),
             }))
       columns:
         type: const
@@ -1554,7 +1555,7 @@ nodes:
             width: 279
           - field: url
             type: link
-            width: 352
+            width: 197
           - field: timelineItems
             type: json
             width: 263
@@ -1759,7 +1760,7 @@ nodes:
         value: markdown
       value:
         type: const
-        value: "texThis page is used for:
+        value: "This page is used for:
           https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e\
           44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc"
     attributes:
@@ -1894,10 +1895,7 @@ nodes:
         type: const
         value:
           method: GET
-          headers:
-            - - Bearer
-              - type: const
-                value: abc
+          headers: []
           browser: false
           url:
             type: const
@@ -1930,10 +1928,7 @@ nodes:
         type: const
         value:
           method: GET
-          headers:
-            - - Bearer
-              - type: const
-                value: abc
+          headers: []
           browser: false
           url:
             type: const
@@ -1966,10 +1961,7 @@ nodes:
         type: const
         value:
           method: GET
-          headers:
-            - - Bearer
-              - type: const
-                value: abc
+          headers: []
           browser: false
           url:
             type: const
@@ -2152,7 +2144,7 @@ nodes:
     parentProp: children
     parentIndex: a0V
   sp173h0h:
-    name: textField
+    name: gitHubSlug
     props:
       label:
         type: const
@@ -2247,15 +2239,14 @@ nodes:
     props:
       rows:
         type: jsExpression
-        value: |
-          queryMaterialUILabels.data.repository.pullRequests.nodes
-            .concat(queryMaterialUILabels.data.repository.issues.nodes)
+        value: >
+          queryMUIXLabels.rows
+            .filter((issue) => {
+              return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
+            })
             .map((issue) => ({
               ...issue,
-              timelineItems: issue.timelineItems.nodes.map((event) => ({
-                label: event.label.name,
-                actor: event.actor.login,
-              })),
+              timelineItems: issue.timelineItems.map((event) => event.label),
             }))
       columns:
         type: const
@@ -2265,7 +2256,7 @@ nodes:
             width: 279
           - field: url
             type: link
-            width: 352
+            width: 184
           - field: timelineItems
             type: json
             width: 263
@@ -2564,39 +2555,6 @@ nodes:
     parentId: tn213hge
     parentProp: queries
     parentIndex: a0
-  jk2l3h6o:
-    name: pageRow
-    props: {}
-    attributes:
-      component:
-        type: const
-        value: PageRow
-    layout: {}
-    id: jk2l3h6o
-    type: element
-    parentId: hl63hwf
-    parentProp: children
-    parentIndex: a0
-  y02k3h2u:
-    name: text
-    props:
-      value:
-        type: const
-        value: HAVING TRANSFORM ISSUES IN UI QUERY
-      sx:
-        type: const
-        value:
-          color: red
-    attributes:
-      component:
-        type: const
-        value: Text
-    layout: {}
-    id: y02k3h2u
-    type: element
-    parentId: jk2l3h6o
-    parentProp: children
-    parentIndex: a0
   ir2o3hxh:
     name: pageRow1
     props: {}
@@ -2696,6 +2654,23 @@ nodes:
                 return -1
               }
             })
+      columns:
+        type: const
+        value:
+          - field: number
+            type: number
+          - field: repo
+            type: string
+            width: 71
+          - field: title
+            type: string
+            width: 372
+          - field: html_url
+            type: link
+            width: 203
+      height:
+        type: const
+        value: 452
     attributes:
       component:
         type: const
@@ -2704,39 +2679,6 @@ nodes:
     id: 7x2s3hos
     type: element
     parentId: kp2t3h40
-    parentProp: children
-    parentIndex: a0
-  je2x3h4d:
-    name: pageRow6
-    props: {}
-    attributes:
-      component:
-        type: const
-        value: PageRow
-    layout: {}
-    id: je2x3h4d
-    type: element
-    parentId: xj43hyd
-    parentProp: children
-    parentIndex: Zy
-  jr2w3haj:
-    name: text4
-    props:
-      value:
-        type: const
-        value: HAVING ISSUES WITH TRANSFORMING DATA IN CODE QUERY
-      sx:
-        type: const
-        value:
-          color: red
-    attributes:
-      component:
-        type: const
-        value: Text
-    layout: {}
-    id: jr2w3haj
-    type: element
-    parentId: je2x3h4d
     parentProp: children
     parentIndex: a0
   p1303hrn:
@@ -2757,7 +2699,7 @@ nodes:
     props:
       value:
         type: const
-        value: I DOUBT THE WAY I HAVE AUTH IS CORRECT
+        value: TBD after we make env variables available in bindings
       sx:
         type: const
         value:
