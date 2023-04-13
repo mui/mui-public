@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: page
+spec:
+  id: 8n03iat
+  title: overdueRatio
+  content:
+    - component: PageRow
+      name: PageRow
+      children:
+        - component: codeComponent.HealthBadge
+          name: codeComponent_HealthBadge
+          props:
+            warning: 10
+            problem: 15
+            lowerIsBetter: true
+            value:
+              $$jsExpression: |
+                Math.round(getRatio.data.ratio * 10000) / 100
+    - component: PageRow
+      name: PageRow1
+      children:
+        - component: Text
+          name: Text
+          props:
+            value: Based on last 30 days invoices
+  queries:
+    - name: getRatio
+      query:
+        function: getRatio
+        kind: local
+  display: standalone

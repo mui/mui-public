@@ -8,8 +8,8 @@
     "start": "toolpad start"
   },
   "dependencies": {
-    "@mui/toolpad": "^0.1.3",
-    "@mui/toolpad-core": "^0.1.3",
+    "@mui/toolpad": "^0.1.5",
+    "@mui/toolpad-core": "^0.1.5",
     "axios": "^1.3.4",
     "graphql": "^16.6.0",
     "graphql-request": "^5.2.0",

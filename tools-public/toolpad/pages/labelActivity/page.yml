@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: page
+spec:
+  id: xj43hyd
+  title: labelActivity
+  content:
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          layout:
+            columnSize: 0.6565656565656566
+          props:
+            value: "Filter for GitHub slub:"
+        - component: TextField
+          name: gitHubSlug
+          layout:
+            columnSize: 1.3434343434343434
+          props:
+            label: GitHub slug
+            defaultValue: gzrae
+            fullWidth: true
+    - component: PageRow
+      name: pageRow2
+      children:
+        - component: Text
+          name: text1
+          props:
+            mode: markdown
+            value: "Build for:
+              https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-\
+              12a84fdf50e44595afc55343dac00fca#0711365e6f2343bfbbb0c9c78bb2bc8d"
+    - component: PageRow
+      name: pageRow3
+      children:
+        - component: Text
+          name: text2
+          props:
+            value: Material UI
+            variant: h6
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: DataGrid
+          name: dataGrid
+          props:
+            rows:
+              $$jsExpression: >
+                queryMaterialUILabels.rows
+                  .filter((issue) => {
+                    return issue.timelineItems.some(
+                      (event) => event.actor === gitHubSlug.defaultValue
+                    )
+                  })
+                  .map((issue) => ({
+                    ...issue,
+                    timelineItems: issue.timelineItems.map((event) => event.label),
+                  }))
+            columns:
+              - field: title
+                type: string
+                width: 279
+              - field: url
+                type: link
+                width: 197
+              - field: timelineItems
+                type: json
+                width: 263
+            height: 480
+    - component: PageRow
+      name: pageRow5
+      children:
+        - component: Text
+          name: text3
+          props:
+            value: MUI X
+            variant: h6
+    - component: PageRow
+      name: pageRow4
+      children:
+        - component: DataGrid
+          name: dataGrid1
+          props:
+            rows:
+              $$jsExpression: >
+                queryMUIXLabels.rows
+                  .filter((issue) => {
+                    return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
+                  })
+                  .map((issue) => ({
+                    ...issue,
+                    timelineItems: issue.timelineItems.map((event) => event.label),
+                  }))
+            columns:
+              - field: title
+                type: string
+                width: 279
+              - field: url
+                type: link
+                width: 184
+              - field: timelineItems
+                type: json
+                width: 263
+            height: 480
+  queries:
+    - name: queryMaterialUILabels
+      query:
+        function: queryMaterialUILabels
+        kind: local
+    - name: queryMUIXLabels
+      query:
+        function: queryMUIXLabels
+        kind: local

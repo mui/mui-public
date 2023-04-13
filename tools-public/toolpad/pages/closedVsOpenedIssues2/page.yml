@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: page
+spec:
+  id: 2413lvx
+  title: medianTimeToCompletion
+  parameters:
+    - name: repoId
+      value: "23083156"
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: codeComponent.HealthBadge
+          name: codeComponent_HealthBadge
+          props:
+            unit: ratio
+            value:
+              $$jsExpression: |
+                (() => {
+                  const timeSpanInMonths = 3
+                  let totalOpened = 0
+                  let totalClosed = 0
+
+                  for (let i = 0; i < timeSpanInMonths; i++) {
+                    totalClosed = +issuesOpenedVsClosedRatio.data.data[i].closed
+                    totalOpened = +issuesOpenedVsClosedRatio.data.data[i].opened
+                  }
+
+                  return (totalOpened / totalClosed).toFixed(2)
+                })()
+            problem: 2
+            warning: 1
+            lowerIsBetter: true
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          props:
+            value:
+              $$jsExpression: |
+                (() => {
+                  return "Based on the last 3 months"
+                })()
+  queries:
+    - name: issuesOpenedVsClosedRatio
+      query:
+        kind: rest
+        url:
+          $$jsExpression: >
+            `https://api.ossinsight.io/q/analyze-issue-opened-and-closed?repoId=${parameters.repoId}`
+        headers: []
+        method: GET
+        searchParams: []
+      parameters:
+        - name: repoId
+          value:
+            $$jsExpression: |
+              page.parameters.repoId
+  display: shell
