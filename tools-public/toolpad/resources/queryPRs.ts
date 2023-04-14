@@ -6,7 +6,9 @@ interface PullRequest {
   url: string;
   title: string;
   state: string;
-  repository: string;
+  repository: {
+    name: string;
+  }
   isDraft: boolean;
   labels: {
     name: string;
@@ -88,13 +90,11 @@ export const queryPRs = createQuery(
             `
   
   
-  const response: any = await request<QueryResult>(endpoint, query, null, {
+  const response = await request<QueryResult>(endpoint, query, null, {
     Authorization: `Bearer ${token}`,
   })
   
   return response.materialui.pullRequests.nodes
     .concat(response.muix.pullRequests.nodes)
-    .map((x) => ({ ...x, repository: x.repository.name })) as PullRequest[];
-  
-
+    .map((x) => ({ ...x, repository: x.repository.name }));
 })
