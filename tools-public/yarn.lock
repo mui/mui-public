@@ -539,10 +539,10 @@
     csstype "^3.1.2"
     prop-types "^15.8.1"
 
-"@mui/toolpad-app@^0.1.5":
-  version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@mui/toolpad-app/-/toolpad-app-0.1.5.tgz#64fe9e933a2cfaa270fd6ff5bf5375fb5ce766b9"
-  integrity sha512-RXNL+WpdvPyoCNkgf4df47iyngDd8YZ8vrZ1cILSN+t8BUUNw2lOLMFwbdzfr6Ao7M7NR5xSDAF5HSUKZc8sig==
+"@mui/toolpad-app@^0.1.6":
+  version "0.1.6"
+  resolved "https://registry.yarnpkg.com/@mui/toolpad-app/-/toolpad-app-0.1.6.tgz#2ca5659405d58a0d65ba5efbb825527ce673b83b"
+  integrity sha512-bdTdWVUmTeK/maJxO93MnCnbFk3wqHr9UNClYRYqyhkpUe0FpLBNlrLbU6qf0qDHJxhU/577oLtrRwMnGrxooA==
   dependencies:
     "@babel/code-frame" "^7.21.4"
     "@emotion/cache" "^11.10.7"
@@ -555,8 +555,8 @@
     "@mui/lab" "^5.0.0-alpha.126"
     "@mui/material" "^5.12.0"
     "@mui/system" "^5.12.0"
-    "@mui/toolpad-components" "^0.1.5"
-    "@mui/toolpad-core" "^0.1.5"
+    "@mui/toolpad-components" "^0.1.6"
+    "@mui/toolpad-core" "^0.1.6"
     "@mui/types" "^7.2.4"
     "@mui/utils" "^5.12.0"
     "@mui/x-data-grid" "^6.1.0"
@@ -630,37 +630,37 @@
     zod "^3.21.4"
     zod-validation-error "^1.1.0"
 
-"@mui/toolpad-components@^0.1.5":
-  version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@mui/toolpad-components/-/toolpad-components-0.1.5.tgz#e731806f9fb8d42fdbcbeb55b7fedbf3a063d0af"
-  integrity sha512-y7Ujwyt3TdFALj1bpQ5FwS+m+Qj9hPmcEREPTzog9pjoHyYUJeqJu8a9X7MYw74I+IsBkHJSC8Pz+iXPba4zcg==
+"@mui/toolpad-components@^0.1.6":
+  version "0.1.6"
+  resolved "https://registry.yarnpkg.com/@mui/toolpad-components/-/toolpad-components-0.1.6.tgz#1634397e9698df06cd8a8bbccf55f37ac29db429"
+  integrity sha512-LZSrl9mH7hCK4iaTDSYqlOlNQ9lHq9JCDscPOTFN+of3yd5zfO5cQYmSgVdVmtthtJVen6jxcaQj1dzweYhGOg==
   dependencies:
     "@mui/lab" "^5.0.0-alpha.126"
     "@mui/material" "^5.12.0"
-    "@mui/toolpad-core" "^0.1.5"
+    "@mui/toolpad-core" "^0.1.6"
     "@mui/x-data-grid-pro" "^6.1.0"
     "@mui/x-date-pickers" "^6.1.0"
     dayjs "^1.11.7"
     markdown-to-jsx "^7.2.0"
     react-error-boundary "^4.0.3"
 
-"@mui/toolpad-core@^0.1.5":
-  version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@mui/toolpad-core/-/toolpad-core-0.1.5.tgz#637d416b27f3703b5126e809adbfba62fd4e436d"
-  integrity sha512-YgADB33Da0KCk2ysOBBrvkr0lsop1rU3jsr8B35JDujtnhrkjqckj6GddVrXa0vD56Y6HDL0HPWoBkieVJXLYA==
+"@mui/toolpad-core@^0.1.6":
+  version "0.1.6"
+  resolved "https://registry.yarnpkg.com/@mui/toolpad-core/-/toolpad-core-0.1.6.tgz#5d96897074b5e48f865d944706e0918a9f8428fe"
+  integrity sha512-4tM1ymeJUS4mbs3KuneRYaYay721SsuVL9qjxDeRYmho+KV2m+GQDv80QkL5Tj0kO7jFBYV7Bdd1ip4EQOZY2Q==
   dependencies:
     "@tanstack/react-query" "^4.28.0"
     quickjs-emscripten "^0.22.0"
     react-error-boundary "^4.0.3"
     react-is "^18.2.0"
 
-"@mui/toolpad@^0.1.5":
-  version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@mui/toolpad/-/toolpad-0.1.5.tgz#ebfed4b0452fe4f4d6681b43123b55ae516b7436"
-  integrity sha512-IgTXIhF8tQuOZXttL22/5+vVPkgVoOfV8Hd2h9aoIwubwdnXZY4mIkEzDykbvARpgL3Y4xoLs8/GKV+3HXs7/w==
+"@mui/toolpad@^0.1.6":
+  version "0.1.6"
+  resolved "https://registry.yarnpkg.com/@mui/toolpad/-/toolpad-0.1.6.tgz#0f181147ededfbb49ab10225157be13ae80f55f5"
+  integrity sha512-8krJtnbbm6puEUm/9rjE/6WH62M4M4vKtYOpRiRxaQCMH/ecexicTslespRa2cHHNsvioIbJ2tIIUXViBO1fdg==
   dependencies:
-    "@mui/toolpad-app" "^0.1.5"
-    "@mui/toolpad-core" "^0.1.5"
+    "@mui/toolpad-app" "^0.1.6"
+    "@mui/toolpad-core" "^0.1.6"
     arg "^5.0.2"
     concurrently "^8.0.1"
     dotenv "^16.0.3"

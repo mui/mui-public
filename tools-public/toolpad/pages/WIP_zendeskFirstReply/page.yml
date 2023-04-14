@@ -14,3 +14,13 @@ spec:
       query:
         function: getRatio
         kind: local
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: Text
+          name: text
+          props:
+            value: TBD after we make env variables available in bindings
+            sx:
+              color: red

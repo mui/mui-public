@@ -46,7 +46,7 @@ spec:
                   })
             columns:
               - field: number
-                type: number
+                type: string
               - field: repo
                 type: string
                 width: 71
