@@ -92,9 +92,8 @@ export const queryPRs = createQuery(
     Authorization: `Bearer ${token}`,
   })
   
-  
-  return response.data.materialui.pullRequests.nodes
-    .concat(response.data.muix.pullRequests.nodes)
+  return response.materialui.pullRequests.nodes
+    .concat(response.muix.pullRequests.nodes)
     .map((x) => ({ ...x, repository: x.repository.name })) as PullRequest[];
   
 
