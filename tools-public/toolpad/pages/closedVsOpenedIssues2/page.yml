@@ -29,7 +29,7 @@ spec:
                   return (totalOpened / totalClosed).toFixed(2)
                 })()
             problem: 2
-            warning: 1
+            warning: 2
             lowerIsBetter: true
     - component: PageRow
       name: pageRow1

@@ -49,7 +49,7 @@ spec:
                 type: string
               - field: repo
                 type: string
-                width: 71
+                width: 109
               - field: title
                 type: string
                 width: 372
