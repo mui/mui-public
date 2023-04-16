@@ -5,15 +5,6 @@ spec:
   title: labelActivity
   content:
     - component: PageRow
-      name: pageRow3
-      children:
-        - component: Text
-          name: text2
-          props:
-            value: HAVING ISSUES WITH TRANSFORMING DATA IN CODE QUERY
-            sx:
-              color: red
-    - component: PageRow
       name: pageRow1
       children:
         - component: Text
