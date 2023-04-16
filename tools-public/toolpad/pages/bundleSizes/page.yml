@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: page
+spec:
+  id: h71gdad
+  title: Bundle size comparison
+  parameters:
+    - name: baseRef
+      value: master
+    - name: baseCommit
+      value: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
+    - name: circleCIBuildNumber
+      value: "487681"
+  content:
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          props:
+            value: "# Size comparison"
+            variant: h2
+            mode: markdown
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: DataGrid
+          name: dataGrid
+          props:
+            rows:
+              $$jsExpression: |
+                bundleSizes.data
+            columns:
+              - field: name
+                type: string
+                headerName: Bundle
+                width: 334
+              - field: absoluteDiff.parsed
+                type: codeComponent
+                codeComponent: Diff
+                headerName: Size change
+                align: right
+              - field: relativeDiff.parsed
+                type: codeComponent
+                codeComponent: Percent
+                width: 111
+                headerName: Size %
+                align: right
+              - field: current.parsed
+                type: number
+                headerName: Size
+                numberFormat:
+                  kind: preset
+                  preset: bytes
+              - field: absoluteDiff.gzip
+                type: codeComponent
+                headerName: Gzip change
+                codeComponent: Diff
+                align: right
+              - field: relativeDiff.gzip
+                type: codeComponent
+                codeComponent: Percent
+                headerName: Gzip %
+                align: right
+              - field: current.gzip
+                type: number
+                numberFormat:
+                  kind: preset
+                  preset: bytes
+                headerName: Gzip
+            height: 534
+            density: standard
+  queries:
+    - name: bundleSizes
+      query:
+        function: getBundleSizes
+        kind: local
+      parameters:
+        - name: baseRef
+          value:
+            $$jsExpression: |
+              page.parameters.baseRef
+        - name: baseCommit
+          value:
+            $$jsExpression: |
+              page.parameters.baseCommit
+        - name: circleCIBuildNumber
+          value:
+            $$jsExpression: |
+              page.parameters.circleCIBuildNumber

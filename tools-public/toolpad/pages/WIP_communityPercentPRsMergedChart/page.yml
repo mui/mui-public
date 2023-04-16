@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: page
+spec:
+  id: ck33hgb
+  title: CommunityPercentPRsMerged
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: TextField
+          name: slug
+          props:
+            label: Repository slug
+            defaultValue: mui/material-ui
+    - component: PageRow
+      name: pageRow2
+      children:
+        - component: Text
+          name: text
+          props:
+            value:
+              $$jsExpression: |
+                (() => {
+                  if (getRepositoryDetails.data) {
+                    return `Repository ID: ${getRepositoryDetails.data.data.id}`
+                  } else {
+                    return "Not found"
+                  }
+                })()
+    - component: PageRow
+      name: pageRow3
+      children:
+        - component: Text
+          name: text1
+          props:
+            value: "Community: PRs merged per month"
+            variant: h6
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: codeComponent.Chart
+          name: codeComponent_Chart
+          props:
+            data:
+              $$jsExpression: |
+                PRsPerMount.rows
+  queries:
+    - name: PRsPerMount
+      query:
+        function: PRsPerMount
+        kind: local
+      parameters:
+        - name: repositoryId
+          value:
+            $$jsExpression: |
+              getRepositoryDetails.data.data.id
+    - name: getRepositoryDetails
+      query:
+        function: getRepositoryDetails
+        kind: local
+      parameters:
+        - name: slug
+          value:
+            $$jsExpression: |
+              slug.value

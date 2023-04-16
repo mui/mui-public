@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: page
+spec:
+  id: 9r8fshsf
+  title: Page 1
+  content:
+    - component: PageRow
+      name: PageRow
+      children:
+        - component: DataGrid
+          name: DataGrid
+          props:
+            rows:
+              $$jsExpression: >
+                PRsOpenandReviewedQuery.data.map((item) => ({
+                  ...item, // use the spread operator to copy existing properties
+                  ratio: Math.round((item.reviewed * 100) / item.opened) / 100, // add a new property to each object
+                }))
+            columns:
+              - field: event_month
+                type: string
+                width: 105
+              - field: reviewed_by
+                type: string
+                width: 165
+              - field: reviewed
+                type: number
+                width: 138
+              - field: opened
+                type: number
+                width: 151
+              - field: ratio
+                type: number
+                width: 141
+    - component: PageRow
+      name: PageRow2
+      children:
+        - component: codeComponent.Chart
+          name: codeComponent_Chart
+          props:
+            data:
+              $$jsExpression: |
+                PRsOpenandReviewedQuery.data
+  queries:
+    - name: PRsOpenandReviewedQuery
+      query:
+        function: PRsOpenandReviewedQuery
+        kind: local

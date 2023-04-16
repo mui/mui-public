@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: page
+spec:
+  id: hr03hdi
+  title: zendeskSatisfactionScore
+  queries:
+    - name: query
+      query:
+        kind: rest
+        headers: []
+        method: GET
+        searchParams: []
+    - name: query1
+      query:
+        function: getRatio
+        kind: local
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: Text
+          name: text
+          props:
+            value: TBD after we make env variables available in bindings
+            sx:
+              color: red

@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: page
+spec:
+  id: 1t353h04
+  title: labelActivity
+  content:
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          layout:
+            columnSize: 0.6565656565656566
+          props:
+            value: Open PRs without requested reviewer
+            variant: h5
+    - component: PageRow
+      name: pageRow2
+      children:
+        - component: Text
+          name: text1
+          props:
+            mode: markdown
+            value: "This page is used for:
+              https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-\
+              12a84fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf"
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: DataGrid
+          name: dataGrid
+          props:
+            rows:
+              $$jsExpression: >
+                (() => {
+                  const filterOutLabels = ["on hold"]
+                  const rtf = new Intl.RelativeTimeFormat("en", { style: "narrow" })
+
+                  const daysAgo = (a, b) => {
+                    const difference = a.getTime() - b.getTime()
+                    return Math.ceil(difference / (1000 * 3600 * 24))
+                  }
+
+                  return queryPRs2.data
+                    .filter((pr) => !pr.isDraft)
+                    .filter(
+                      (pr) =>
+                        pr.reviews.nodes.length === 0 && pr.reviewRequests.nodes.length === 0
+                    )
+                    .filter(
+                      (pr) =>
+                        pr.labels.nodes.filter((label) => filterOutLabels.includes(label.name))
+                          .length === 0
+                    )
+                    .map((pr) => ({
+                      ...pr,
+                      repository: pr.repository.name,
+                      daysAgoRaw: daysAgo(new Date(pr.createdAt), new Date()),
+                      daysAgo: rtf.format(daysAgo(new Date(pr.createdAt), new Date()), "day"),
+                    }))
+                    .filter((pr) => !(pr.repository === "mui-x" && pr.daysAgoRaw > -14))
+                })()
+            columns:
+              - field: title
+                type: string
+                width: 279
+              - field: url
+                type: link
+                width: 352
+              - field: timelineItems
+                type: json
+                width: 263
+            height: 480
+  queries:
+    - name: queryPRs2
+      query:
+        function: queryPRs2
+        kind: local
