@@ -1,9 +1,9 @@
-import { createQuery } from "@mui/toolpad/server";
+import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 import mysql from "mysql2/promise";
 import SSH2Promise from "ssh2-promise";
 
-export const getRepositoryDetails = createQuery(
+export const getRepositoryDetails = createFunction(
   async function getRepositoryDetails({ parameters }) {
     const res = await fetch(
       `https://api.ossinsight.io/gh/repo/${parameters.slug}`,
@@ -27,7 +27,7 @@ export const getRepositoryDetails = createQuery(
   }
 );
 
-export const PRsOpenandReviewedQuery = createQuery(
+export const PRsOpenandReviewedQuery = createFunction(
   async function PRsOpenandReviewedQuery({ parameters }) {
     const openQuery = `
     with pr_opened as (
@@ -130,7 +130,7 @@ export const PRsOpenandReviewedQuery = createQuery(
   }
 );
 
-export const queryCommitStatuses = createQuery(
+export const queryCommitStatuses = createFunction(
   async function queryCommitStatuses({ parameters }) {
     if (!process.env.GITHUB_TOKEN) {
       throw new Error(`Env variable GITHUB_TOKEN not configured`);
@@ -166,9 +166,14 @@ export const queryCommitStatuses = createQuery(
 }  
 `;
 
-    const response = request(endpoint, query, null, {
-      Authorization: `Bearer ${token}`,
-    });
+    const response = request(
+      endpoint,
+      query,
+      {},
+      {
+        Authorization: `Bearer ${token}`,
+      }
+    );
 
     return response;
   },
@@ -181,7 +186,7 @@ export const queryCommitStatuses = createQuery(
   }
 );
 
-export const getRatio = createQuery(async function getRatio({ parameters }) {
+export const getRatio = createFunction(async function getRatio({ parameters }) {
   if (!process.env.STORE_PASSWORD) {
     throw new Error(`Env variable STORE_PASSWORD not configured`);
   }

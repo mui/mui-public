@@ -1,4 +1,4 @@
-import { createQuery } from "@mui/toolpad/server";
+import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 
 interface PullRequest {
@@ -28,7 +28,7 @@ interface QueryResult {
   };
 }
 
-export const queryPRs2 = createQuery(async ({ parameters }) => {
+export const queryPRs2 = createFunction(async ({ parameters }) => {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
@@ -95,9 +95,14 @@ export const queryPRs2 = createQuery(async ({ parameters }) => {
       }
             `;
 
-  const response: any = await request(endpoint, query, null, {
-    Authorization: `Bearer ${token}`,
-  });
+  const response: any = await request(
+    endpoint,
+    query,
+    {},
+    {
+      Authorization: `Bearer ${token}`,
+    }
+  );
 
   return response.materialui.pullRequests.nodes
     .concat(response.muix.pullRequests.nodes)

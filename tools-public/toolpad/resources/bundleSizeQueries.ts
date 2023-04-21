@@ -1,7 +1,7 @@
 // Toolpad queries:
 
 import axios from "axios";
-import { createQuery } from "@mui/toolpad/server";
+import { createFunction } from "@mui/toolpad/server";
 
 function getMainBundleLabel(bundleId: string): string {
   if (
@@ -96,7 +96,7 @@ function getSizeInfo<K extends string>(
   };
 }
 
-export const getBundleSizes = createQuery(
+export const getBundleSizes = createFunction(
   async ({ parameters }) => {
     const [base, target] = await Promise.all([
       getBaseSnapshot(
@@ -141,7 +141,7 @@ export const getBundleSizes = createQuery(
   }
 );
 
-export const PRsPerMount = createQuery(
+export const PRsPerMount = createFunction(
   async function PRsPerMount({ parameters }) {
     const openQuery = `
 with maintainers as (

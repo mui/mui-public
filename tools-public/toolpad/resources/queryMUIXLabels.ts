@@ -1,4 +1,4 @@
-import { createQuery } from "@mui/toolpad/server";
+import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 
 interface LabelTimelineItem {
@@ -19,7 +19,7 @@ interface Issue {
   };
 }
 
-export const queryMUIXLabels = createQuery(async ({ parameters }) => {
+export const queryMUIXLabels = createFunction(async ({ parameters }) => {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
@@ -72,9 +72,14 @@ export const queryMUIXLabels = createQuery(async ({ parameters }) => {
       }
     `;
 
-  const response: any = await request(endpoint, query, null, {
-    Authorization: `Bearer ${token}`,
-  });
+  const response: any = await request(
+    endpoint,
+    query,
+    {},
+    {
+      Authorization: `Bearer ${token}`,
+    }
+  );
 
   const pullRequests = response.repository.pullRequests.nodes;
   const issues = response.repository.issues.nodes;
