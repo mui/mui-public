@@ -1,4 +1,4 @@
-import { createQuery } from "@mui/toolpad-core";
+import { createQuery } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 
 interface PullRequest {
@@ -8,7 +8,7 @@ interface PullRequest {
   state: string;
   repository: {
     name: string;
-  }
+  };
   isDraft: boolean;
   labels: {
     name: string;
@@ -28,18 +28,15 @@ interface QueryResult {
   };
 }
 
-export const queryPRs = createQuery(
-  async ({ parameters }) => {
-   
-    if (!process.env.GITHUB_TOKEN) {
-      throw new Error(`Env variable GITHUB_TOKEN not configured`);
+export const queryPRs = createQuery(async ({ parameters }) => {
+  if (!process.env.GITHUB_TOKEN) {
+    throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
 
-   
-      const endpoint = 'https://api.github.com/graphql';
-      const token = process.env.GITHUB_TOKEN;  
-        
-      const  query = `
+  const endpoint = "https://api.github.com/graphql";
+  const token = process.env.GITHUB_TOKEN;
+
+  const query = `
       {
         materialui: repository(owner: "mui", name: "material-ui") {
           pullRequests(
@@ -87,14 +84,13 @@ export const queryPRs = createQuery(
           }
         }
       }
-            `
-  
-  
+            `;
+
   const response = await request<QueryResult>(endpoint, query, null, {
     Authorization: `Bearer ${token}`,
-  })
-  
+  });
+
   return response.materialui.pullRequests.nodes
     .concat(response.muix.pullRequests.nodes)
     .map((x) => ({ ...x, repository: x.repository.name }));
-})
+});

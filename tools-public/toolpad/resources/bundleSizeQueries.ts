@@ -1,7 +1,7 @@
 // Toolpad queries:
 
 import axios from "axios";
-import { createQuery } from "@mui/toolpad-core";
+import { createQuery } from "@mui/toolpad/server";
 
 function getMainBundleLabel(bundleId: string): string {
   if (
@@ -212,11 +212,15 @@ with maintainers as (
 SELECT * FROM pr_stats ge;
     `;
     const res = await fetch("https://api.ossinsight.io/q/playground", {
-      "headers": {
+      headers: {
         "content-type": "application/json",
       },
-      "body": JSON.stringify({sql: openQuery,"type":"repo","id": parameters.repositoryId}),
-      "method": "POST"
+      body: JSON.stringify({
+        sql: openQuery,
+        type: "repo",
+        id: parameters.repositoryId,
+      }),
+      method: "POST",
     });
     if (res.status !== 200) {
       throw new Error(

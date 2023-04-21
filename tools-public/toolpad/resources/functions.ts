@@ -1,7 +1,7 @@
-import { createQuery } from "@mui/toolpad-core";
+import { createQuery } from "@mui/toolpad/server";
 import { request } from "graphql-request";
-import mysql from 'mysql2/promise';
-import SSH2Promise from 'ssh2-promise';
+import mysql from "mysql2/promise";
+import SSH2Promise from "ssh2-promise";
 
 export const getRepositoryDetails = createQuery(
   async function getRepositoryDetails({ parameters }) {
@@ -11,7 +11,7 @@ export const getRepositoryDetails = createQuery(
         method: "GET",
       }
     );
-            if (res.status !== 200) {
+    if (res.status !== 200) {
       throw new Error(
         `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
       );
@@ -28,7 +28,7 @@ export const getRepositoryDetails = createQuery(
 );
 
 export const PRsOpenandReviewedQuery = createQuery(
-  async function PRsOpenandReviewedQuery ({ parameters }) {
+  async function PRsOpenandReviewedQuery({ parameters }) {
     const openQuery = `
     with pr_opened as (
       SELECT
@@ -106,44 +106,43 @@ export const PRsOpenandReviewedQuery = createQuery(
       SELECT * FROM final_table
     
   `;
-  const res = await fetch("https://api.ossinsight.io/q/playground", {
-    "headers": {
-      "content-type": "application/json",
-    },
-    "body": JSON.stringify({sql: openQuery,"type":"repo","id":"23083156"}),
-    "method": "POST"
-  });
-  if (res.status !== 200) {
-    throw new Error(
-      `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
-    );
-  }
-  const data = await res.json();
-  return data.data;
-},
-{
-  parameters: {
-    // orderIds: {
-    //   typeDef: { type: "string" },
-    // },
+    const res = await fetch("https://api.ossinsight.io/q/playground", {
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ sql: openQuery, type: "repo", id: "23083156" }),
+      method: "POST",
+    });
+    if (res.status !== 200) {
+      throw new Error(
+        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
+      );
+    }
+    const data = await res.json();
+    return data.data;
   },
-}
+  {
+    parameters: {
+      // orderIds: {
+      //   typeDef: { type: "string" },
+      // },
+    },
+  }
 );
 
 export const queryCommitStatuses = createQuery(
-async function queryCommitStatuses({ parameters }) {
+  async function queryCommitStatuses({ parameters }) {
+    if (!process.env.GITHUB_TOKEN) {
+      throw new Error(`Env variable GITHUB_TOKEN not configured`);
+    }
 
-if (!process.env.GITHUB_TOKEN) {
-    throw new Error(`Env variable GITHUB_TOKEN not configured`);
-}
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
 
-const since = new Date();
-since.setDate(since.getDate() - 7);
+    const endpoint = "https://api.github.com/graphql";
+    const token = process.env.GITHUB_TOKEN;
 
-const endpoint = 'https://api.github.com/graphql';
-const token = process.env.GITHUB_TOKEN;
-
-const query = `
+    const query = `
 {
   repository(owner: "mui", name: "${parameters.repository}") {
   	defaultBranchRef {
@@ -167,51 +166,50 @@ const query = `
 }  
 `;
 
-const response =  request(endpoint, query, null, {
-  Authorization: `Bearer ${token}`,
-})
+    const response = request(endpoint, query, null, {
+      Authorization: `Bearer ${token}`,
+    });
 
-return response;
-
-},
-{
-  parameters: {
-      repository: {
-      typeDef: { type: "string" },
-     },
+    return response;
   },
-})
+  {
+    parameters: {
+      repository: {
+        typeDef: { type: "string" },
+      },
+    },
+  }
+);
 
-export const getRatio = createQuery(
-  async function getRatio({ parameters }) {
-    if (!process.env.STORE_PASSWORD) {
-      throw new Error(`Env variable STORE_PASSWORD not configured`);
-    }
-    if (!process.env.BASTION_SSH_KEY) {
-      throw new Error(`Env variable BASTION_SSH_KEY not configured`);
-    }
+export const getRatio = createQuery(async function getRatio({ parameters }) {
+  if (!process.env.STORE_PASSWORD) {
+    throw new Error(`Env variable STORE_PASSWORD not configured`);
+  }
+  if (!process.env.BASTION_SSH_KEY) {
+    throw new Error(`Env variable BASTION_SSH_KEY not configured`);
+  }
 
-    const ssh = new SSH2Promise({
-      host: process.env.BASTION_HOST,
-      port: 22,
-      username: process.env.BASTION_USERNAME ,
-      privateKey: process.env.BASTION_SSH_KEY.replace(/\\n/g, '\n'),
-    });
+  const ssh = new SSH2Promise({
+    host: process.env.BASTION_HOST,
+    port: 22,
+    username: process.env.BASTION_USERNAME,
+    privateKey: process.env.BASTION_SSH_KEY.replace(/\\n/g, "\n"),
+  });
 
-    const tunnel = await ssh.addTunnel({
-      remoteAddr: 'c111501.sgvps.net',
-      remotePort: 3306,
-    })
+  const tunnel = await ssh.addTunnel({
+    remoteAddr: "c111501.sgvps.net",
+    remotePort: 3306,
+  });
 
-    const connection = await mysql.createConnection({
-      host: 'localhost',
-      port: tunnel.localPort,
-      user: process.env.STORE_USERNAME,
-      password: process.env.STORE_PASSWORD,
-      database: process.env.STORE_DATABASE,
-    });
+  const connection = await mysql.createConnection({
+    host: "localhost",
+    port: tunnel.localPort,
+    user: process.env.STORE_USERNAME,
+    password: process.env.STORE_PASSWORD,
+    database: process.env.STORE_DATABASE,
+  });
 
-    const [ratio] = await connection.execute(`
+  const [ratio] = await connection.execute(`
     SELECT
     overdue.total / order_30.total AS ratio
     -- overdue.total,
@@ -276,12 +274,12 @@ export const getRatio = createQuery(
         AND post.post_date >= date_sub(now(), interval 30 day)
         AND post.post_parent = '0' -- ignore orders that are sub-orders
     ) AS order_30
-  `)
-return ratio[0];
-})
+  `);
+  return ratio[0];
+});
 
-export * from './bundleSizeQueries';
-export * from './queryMaterialUILabels';
-export * from './queryMUIXLabels';
-export * from './queryPRs';
-export * from './queryPRs2';
+export * from "./bundleSizeQueries";
+export * from "./queryMaterialUILabels";
+export * from "./queryMUIXLabels";
+export * from "./queryPRs";
+export * from "./queryPRs2";

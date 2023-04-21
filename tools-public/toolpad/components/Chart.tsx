@@ -1,7 +1,13 @@
 import * as React from "react";
-import { createComponent } from "@mui/toolpad-core";
+import { createComponent } from "@mui/toolpad/browser";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
 } from "https://esm.sh/recharts@2.2.0";
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
