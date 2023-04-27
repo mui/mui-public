@@ -1,4 +1,4 @@
-import { createQuery } from "@mui/toolpad-core";
+import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 
 interface LabelTimelineItem {
@@ -19,14 +19,14 @@ interface Issue {
   };
 }
 
-export const queryMaterialUILabels = createQuery(async ({ parameters }) => {
+export const queryMaterialUILabels = createFunction(async ({ parameters }) => {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
 
-  const endpoint = 'https://api.github.com/graphql';
-  const token = process.env.GITHUB_TOKEN;  
-    
+  const endpoint = "https://api.github.com/graphql";
+  const token = process.env.GITHUB_TOKEN;
+
   const query = `
     {
       repository(owner: "mui", name: "material-ui") {
@@ -71,14 +71,19 @@ export const queryMaterialUILabels = createQuery(async ({ parameters }) => {
       }
     }
   `;
-  
-  const response: any = await request(endpoint, query, null, {
-    Authorization: `Bearer ${token}`,
-  });
-  
+
+  const response: any = await request(
+    endpoint,
+    query,
+    {},
+    {
+      Authorization: `Bearer ${token}`,
+    }
+  );
+
   const pullRequests = response.repository.pullRequests.nodes;
   const issues = response.repository.issues.nodes;
-  
+
   const data = [...pullRequests, ...issues].map((issue: Issue) => ({
     ...issue,
     timelineItems: issue.timelineItems.nodes.map((item: LabelTimelineItem) => ({
@@ -86,6 +91,6 @@ export const queryMaterialUILabels = createQuery(async ({ parameters }) => {
       actor: item.actor.login,
     })),
   }));
-  
+
   return data;
 });

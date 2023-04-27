@@ -1,8 +1,15 @@
 import * as React from "react";
-import { createComponent } from "@mui/toolpad-core";
+import { createComponent } from "@mui/toolpad/browser";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from "https://esm.sh/recharts@2.2.0";
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
@@ -23,25 +30,27 @@ export interface PieChartProps {
 
 function ChartExport({ data }: PieChartProps) {
   return (
-    <LineChart
-      width={800}
-      height={300}
-      data={data}
-      margin={{
-        top: 5,
-        right: 30,
-        left: 20,
-        bottom: 5,
-      }}
-    >
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="event_month" />
-      <YAxis />
-      <Tooltip />
-      <Legend />
-      <Line type="monotone" dataKey="reviewed" stroke={COLORS[6]} />
-      <Line type="monotone" dataKey="opened" stroke={COLORS[7]} />
-    </LineChart>
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart
+        width={800}
+        height={300}
+        data={data}
+        margin={{
+          top: 5,
+          right: 30,
+          left: 20,
+          bottom: 5,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="event_month" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Line type="monotone" dataKey="reviewed" stroke={COLORS[6]} />
+        <Line type="monotone" dataKey="opened" stroke={COLORS[7]} />
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
 
