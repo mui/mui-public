@@ -24,5 +24,5 @@ export const queryGender = createFunction(async ({ parameters }) => {
       return acc + 1;
     }
     return acc;
-  }, 0) / data.employees.length;
+  }, 0) / data.employees.length * 100;
 });

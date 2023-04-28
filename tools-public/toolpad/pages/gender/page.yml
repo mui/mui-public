@@ -13,7 +13,7 @@ spec:
           props:
             value:
               $$jsExpression: |
-                gender.data * 100
+                gender.data
             warning: 30
             problem: 15
             lowerIsBetter: false
