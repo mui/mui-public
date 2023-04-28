@@ -12,3 +12,4 @@ services:
     envVars:
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
+      - fromGroup: HiBob
