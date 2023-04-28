@@ -1,14 +1,14 @@
 import { createFunction } from "@mui/toolpad/server";
 
 export const queryGender = createFunction(async ({ parameters }) => {
-  if (!process.env.HIBOB_TOKEN) {
-    throw new Error(`Env variable HIBOB_TOKEN not configured`);
+  if (!process.env.HIBOB_TOKEN_READ_STANDARD) {
+    throw new Error(`Env variable HIBOB_TOKEN_READ_STANDARD not configured`);
   }
 
   const res = await fetch("https://api.hibob.com/v1/people", {
     headers: {
       "content-type": "application/json",
-      'Authorization': process.env.HIBOB_TOKEN,
+      'Authorization': `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
     },
     method: "GET",
   });
