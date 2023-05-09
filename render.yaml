@@ -22,4 +22,7 @@ services:
     buildCommand: yarn && yarn build
     startCommand: yarn start
     pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_VERSION
+        value: 16.17.0
     # plan: standard
