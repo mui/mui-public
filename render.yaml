@@ -13,3 +13,13 @@ services:
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
       - fromGroup: HiBob
+
+  - type: web
+    name: datagrid-example
+    env: node
+    repo: https://github.com/mui/mui-toolpad.git
+    rootDir: examples/custom-datagrid-column
+    buildCommand: yarn && yarn build
+    startCommand: yarn start
+    pullRequestPreviewsEnabled: true
+    # plan: standard
