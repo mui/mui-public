@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: page
+spec:
+  id: KiUQrhI
+  title: CommunityPercentPRsMerged
+  parameters:
+    - name: repositoryId
+      value: "23083156"
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: codeComponent.HealthBadge
+          name: codeComponent_HealthBadge
+          props:
+            value:
+              $$jsExpression: |
+                Math.round(
+                  (PRsPerMonth.data[0].pr_community_count /
+                    PRsPerMonth.data[0].pr_maintainers_count) *
+                    1000
+                ) / 10
+            problem: 50
+            warning: 80
+  queries:
+    - name: PRsPerMonth
+      query:
+        function: PRsPerMonth
+        kind: local
+      parameters:
+        - name: repositoryId
+          value:
+            $$jsExpression: |
+              page.parameters.repositoryId
+        - name: startDate
+          value:
+            $$jsExpression: >
+              (() => {
+                function dateToYMD(date) {
+                  var d = date.getDate()
+                  var m = date.getMonth() + 1 //Month from 0 to 11
+                  var y = date.getFullYear()
+                  return "" + y + "-" + (m <= 9 ? "0" + m : m) + "-" + (d <= 9 ? "0" + d : d)
+                }
+
+                function getFirstDayOfPreviousMonth() {
+                  var currentDate = new Date()
+                  var currentYear = currentDate.getFullYear()
+                  var currentMonth = currentDate.getMonth()
+                  var day = currentDate.getDate()
+
+                  var previousMonth
+                  var previousYear
+
+                  /*if (day > 15) {
+                    previousMonth = currentMonth
+                    previousYear = currentYear
+                  } else*/ if (currentMonth === 0) {
+                    previousMonth = 11 // December
+                    previousYear = currentYear - 1
+                  } else {
+                    previousMonth = currentMonth - 1
+                    previousYear = currentYear
+                  }
+
+                  var firstDayOfPreviousMonth = new Date(previousYear, previousMonth, 1)
+                  return firstDayOfPreviousMonth
+                }
+
+                return dateToYMD(getFirstDayOfPreviousMonth())
+              })()
