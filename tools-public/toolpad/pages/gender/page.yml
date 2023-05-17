@@ -13,7 +13,7 @@ spec:
           props:
             value:
               $$jsExpression: |
-                gender.data
+                Math.round(gender.data * 10) / 10
             warning: 30
             problem: 15
             lowerIsBetter: false
