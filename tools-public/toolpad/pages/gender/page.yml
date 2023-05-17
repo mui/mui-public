@@ -12,8 +12,9 @@ spec:
           name: codeComponent_HealthBadge
           props:
             value:
-              $$jsExpression: |
-                Math.round(gender.data * 10) / 10
+              $$jsExpression: >
+                gender.data != null ? Math.round(gender.data * 10) / 10 :
+                undefined
             warning: 30
             problem: 15
             lowerIsBetter: false
