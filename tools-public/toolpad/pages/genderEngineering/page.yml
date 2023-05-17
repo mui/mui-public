@@ -1,9 +1,11 @@
 apiVersion: v1
 kind: page
 spec:
-  id: id9G8nf
+  id: ZGrUwtd
   title: gender
-  display: shell
+  parameters:
+    - name: department
+      value: ""
   content:
     - component: PageRow
       name: pageRow
@@ -15,11 +17,15 @@ spec:
               $$jsExpression: >
                 gender.data != null ? Math.round(gender.data * 10) / 10 :
                 undefined
-            warning: 30
-            problem: 15
+            warning: 14
+            problem: 5
             lowerIsBetter: false
   queries:
     - name: gender
       query:
         function: queryGender
         kind: local
+      parameters:
+        - name: department
+          value: Engineering
+  display: shell

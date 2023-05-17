@@ -1,9 +1,11 @@
 apiVersion: v1
 kind: page
 spec:
-  id: id9G8nf
+  id: ZGrUwtd
   title: gender
-  display: shell
+  parameters:
+    - name: department
+      value: ""
   content:
     - component: PageRow
       name: pageRow
@@ -19,7 +21,13 @@ spec:
             problem: 15
             lowerIsBetter: false
   queries:
-    - name: gender
+    - name: gender1
       query:
         function: queryGender
         kind: local
+      parameters:
+        - name: department
+          value:
+            $$jsExpression: |
+              page.parameters.department
+  display: shell
