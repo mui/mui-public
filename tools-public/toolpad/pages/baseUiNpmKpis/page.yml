@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: page
+spec:
+  id: U0CsCz5
+  title: baseUiNpmKpis
+  display: shell
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: codeComponent.NpmChart
+          name: codeComponent_NpmChart
+          props:
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: codeComponent.DownloadsTable
+          name: codeComponent_DownloadsTable
+          props:
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+  queries:
+    - name: queryHeadlessLibrariesDownloads
+      query:
+        function: queryHeadlessLibrariesDownloads
+        kind: local
