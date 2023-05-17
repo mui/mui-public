@@ -22,7 +22,7 @@ spec:
                 ) / 10
             unit: x
             problem: 2
-            warning: 5
+            warning: 3
   queries:
     - name: ContributorsPerMonth
       query:
