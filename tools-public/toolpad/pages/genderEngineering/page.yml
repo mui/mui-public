@@ -15,13 +15,13 @@ spec:
           props:
             value:
               $$jsExpression: >
-                gender.data != null ? Math.round(gender.data * 10) / 10 :
+                gender1.data != null ? Math.round(gender1.data * 10) / 10 :
                 undefined
             warning: 14
             problem: 5
             lowerIsBetter: false
   queries:
-    - name: gender
+    - name: gender1
       query:
         function: queryGender
         kind: local
