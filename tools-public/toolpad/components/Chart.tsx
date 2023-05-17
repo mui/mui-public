@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
@@ -29,28 +30,26 @@ export interface PieChartProps {
 }
 
 function ChartExport({ data }: PieChartProps) {
+  if (!data || data.length === 0) {
+    return <CircularProgress />;
+  }
+
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart
-        width={800}
-        height={300}
-        data={data}
-        margin={{
-          top: 5,
-          right: 30,
-          left: 20,
-          bottom: 5,
-        }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="event_month" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="reviewed" stroke={COLORS[6]} />
-        <Line type="monotone" dataKey="opened" stroke={COLORS[7]} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div style={{ width: '100%', height: 300 }}>
+      <ResponsiveContainer>
+        <LineChart
+          data={data}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="event_month" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Line type="monotone" dataKey="pr_community_count" stroke={COLORS[6]} />
+          <Line type="monotone" dataKey="pr_maintainers_count" stroke={COLORS[7]} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 

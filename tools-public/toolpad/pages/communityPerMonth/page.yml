@@ -35,6 +35,8 @@ spec:
           props:
             value: "Community: PRs merged per month"
             variant: h6
+            sx:
+              mt: 2
     - component: PageRow
       name: pageRow1
       children:
@@ -43,11 +45,30 @@ spec:
           props:
             data:
               $$jsExpression: |
-                PRsPerMount.rows
+                PRsPerMonth.rows
+    - component: PageRow
+      name: pageRow5
+      children:
+        - component: Text
+          name: text2
+          props:
+            value: "Community: Unique contributors per month"
+            variant: h6
+            sx:
+              mt: 2
+    - component: PageRow
+      name: pageRow4
+      children:
+        - component: codeComponent.Chart
+          name: codeComponent_Chart1
+          props:
+            data:
+              $$jsExpression: |
+                ContributorsPerMonth.rows
   queries:
-    - name: PRsPerMount
+    - name: PRsPerMonth
       query:
-        function: PRsPerMount
+        function: PRsPerMonth
         kind: local
       parameters:
         - name: repositoryId
@@ -63,3 +84,12 @@ spec:
           value:
             $$jsExpression: |
               slug.value
+    - name: ContributorsPerMonth
+      query:
+        function: ContributorsPerMonth
+        kind: local
+      parameters:
+        - name: repositoryId
+          value:
+            $$jsExpression: |
+              getRepositoryDetails.data.data.id
