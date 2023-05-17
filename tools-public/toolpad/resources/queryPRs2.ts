@@ -15,19 +15,6 @@ interface PullRequest {
   }[];
 }
 
-interface QueryResult {
-  materialui: {
-    pullRequests: {
-      nodes: PullRequest[];
-    };
-  };
-  muix: {
-    pullRequests: {
-      nodes: PullRequest[];
-    };
-  };
-}
-
 export const queryPRs2 = createFunction(async ({ parameters }) => {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);

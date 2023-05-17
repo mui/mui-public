@@ -23,3 +23,11 @@ spec:
       query:
         function: queryGender
         kind: local
+      parameters:
+        - name: department
+          value:
+            $$jsExpression: |
+              page.parameters.department
+  parameters:
+    - name: department
+      value: ""

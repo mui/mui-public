@@ -5,7 +5,7 @@ export const queryGender = createFunction(async ({ parameters }) => {
     throw new Error(`Env variable HIBOB_TOKEN_READ_STANDARD not configured`);
   }
 
-  const res = await fetch("https://api.hibob.com/v1/people", {
+  const res = await fetch("https://api.hibob.com/v1/people?humanReadable=true", {
     headers: {
       "content-type": "application/json",
       'Authorization': `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
@@ -19,10 +19,23 @@ export const queryGender = createFunction(async ({ parameters }) => {
     );
   }
   const data = await res.json();
-  return data.employees.reduce((acc, item) => {
+
+  let employees = data.employees;
+
+  if (parameters.department === 'Engineering') {
+    employees = employees.filter((employee) => employee.work.department === 'Engineering')
+  }
+
+  return employees.reduce((acc, item) => {
     if (item.home.legalGender === 'Female') {
       return acc + 1;
     }
     return acc;
   }, 0) / data.employees.length * 100;
+}, {
+  parameters: {
+    department: {
+      typeDef: { type: "string" },
+    },
+  },
 });
