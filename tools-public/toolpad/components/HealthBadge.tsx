@@ -64,7 +64,7 @@ function Report(props: ReportProps) {
       level = "problem";
     } else if (value > warning) {
       level = "warning";
-    } else if (value !== undefined) {
+    } else if (value != null) {
       level = "ok";
     }
   } else {
@@ -72,7 +72,7 @@ function Report(props: ReportProps) {
       level = "problem";
     } else if (value < warning) {
       level = "warning";
-    } else if (value !== undefined) {
+    } else if (value != null) {
       level = "ok";
     }
   }

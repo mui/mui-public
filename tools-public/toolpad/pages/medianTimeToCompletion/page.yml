@@ -18,6 +18,10 @@ spec:
                 (() => {
                   const length = pullRequestOpenToMerged.data.data.length
 
+                  if (pullRequestOpenToMerged.data.data[length - 1].p75 == null) {
+                    return null
+                  }
+
                   return (
                     Math.round((pullRequestOpenToMerged.data.data[length - 1].p75 / 24) * 100) /
                     100
