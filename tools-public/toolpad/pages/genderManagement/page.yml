@@ -13,7 +13,9 @@ spec:
           props:
             value:
               $$jsExpression: |
-                Math.round(genderManagement.data * 10) / 10
+                genderManagement.data != null
+                  ? Math.round(genderManagement.data * 10) / 10
+                  : undefined
             warning: 30
             problem: 15
   queries:
