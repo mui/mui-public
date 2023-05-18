@@ -22,8 +22,8 @@ spec:
                         PRsPerMonth.data[0].pr_maintainers_count) *
                         1000
                     ) / 10
-            problem: 50
-            warning: 80
+            problem: 35
+            warning: 50
   queries:
     - name: PRsPerMonth
       query:
