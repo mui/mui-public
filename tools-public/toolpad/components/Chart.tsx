@@ -14,22 +14,23 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
+  "#87bc45",
+  "#27aeef",
   "#ea5545",
   "#f46a9b",
   "#ef9b20",
   "#edbf33",
   "#ede15b",
   "#bdcf32",
-  "#87bc45",
-  "#27aeef",
   "#b33dc6",
 ];
 
 export interface PieChartProps {
   data: object[];
+  series: string[];
 }
 
-function ChartExport({ data }: PieChartProps) {
+function ChartExport({ data, series }: PieChartProps) {
   if (!data || data.length === 0) {
     return <CircularProgress />;
   }
@@ -45,8 +46,9 @@ function ChartExport({ data }: PieChartProps) {
           <YAxis />
           <Tooltip />
           <Legend />
-          <Line type="monotone" dataKey="pr_community_count" stroke={COLORS[6]} />
-          <Line type="monotone" dataKey="pr_maintainers_count" stroke={COLORS[7]} />
+          {series.map((serie, index) => (
+            <Line type="monotone" dataKey={serie} stroke={COLORS[index]} />
+          ))}
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -58,6 +60,10 @@ export default createComponent(ChartExport, {
     data: {
       typeDef: { type: "array" },
       defaultValue: [],
+    },
+    series: {
+      typeDef: { type: "array" },
+      defaultValue: ['pr_community_count', 'pr_maintainers_count'],
     },
   },
 });

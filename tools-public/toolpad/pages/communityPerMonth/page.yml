@@ -44,8 +44,16 @@ spec:
           name: codeComponent_Chart
           props:
             data:
-              $$jsExpression: |
-                PRsPerMonth.rows
+              $$jsExpression: >
+                PRsPerMonth.rows.map((row) => ({
+                  ...row,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
+                }))
+            series:
+              - pr_community_count
+              - pr_maintainers_count
+              - ratio
     - component: PageRow
       name: pageRow5
       children:
@@ -63,8 +71,18 @@ spec:
           name: codeComponent_Chart1
           props:
             data:
-              $$jsExpression: |
-                ContributorsPerMonth.rows
+              $$jsExpression: >
+                ContributorsPerMonth.rows.map((row) => ({
+                  ...row,
+                  community_count: row.pr_community_count,
+                  maintainers_count: row.pr_maintainers_count,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
+                }))
+            series:
+              - community_count
+              - maintainers_count
+              - ratio
   queries:
     - name: PRsPerMonth
       query:
