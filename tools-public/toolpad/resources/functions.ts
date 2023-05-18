@@ -42,7 +42,6 @@ with pr_opened as (
     AND action = 'opened'
     AND repo_id = 23083156
     AND ge.created_at >= '2021-12-01'
-    -- AND ge.created_at < '2023-01-01'
     AND actor_login NOT LIKE '%bot'
     AND actor_login NOT LIKE '%[bot]'
     AND ge.actor_login NOT LIKE 'mnajdova'
@@ -63,7 +62,6 @@ with pr_opened as (
   AND ge.type = 'PullRequestReviewEvent'
   AND ge.action = 'created'
   AND ge.created_at >= '2021-12-01'
-  -- AND ge.created_at < '2023-01-01'
   AND ge.actor_login NOT LIKE '%bot'
   AND ge.actor_login NOT LIKE '%[bot]'
   AND ge.actor_login IN ('mnajdova','michaldudak','siriwatknp','hbjORbj','oliviertassinari','mj12albert')
@@ -102,8 +100,11 @@ with pr_opened as (
   FROM new_table n
   JOIN
     pr_open_by_core p ON p.actor_login = n.reviewed_by AND p.event_month = n.event_month
-  GROUP BY event_month, reviewed_by
-  ORDER BY event_month ASC
+  GROUP BY
+    event_month,
+    reviewed_by
+  ORDER BY
+    event_month DESC
 )
 
 SELECT * FROM final_table
