@@ -65,15 +65,14 @@ with pr_opened as (
   AND ge.actor_login NOT LIKE '%bot'
   AND ge.actor_login NOT LIKE '%[bot]'
   AND ge.actor_login IN ('mnajdova','michaldudak','siriwatknp','hbjORbj','oliviertassinari','mj12albert')
-), new_table as (
+), pr_reviewed_with_open_by as (
   SELECT
     pr_reviewed.event_month,
     pr_reviewed.number,
-    pr_opened.actor_login as open_by,
-    pr_reviewed.actor_login as reviewed_by
-  FROM
-    pr_reviewed
-    JOIN pr_opened on pr_opened.number = pr_reviewed.number)
+    pr_reviewed.actor_login as reviewed_by,
+    pr_opened.actor_login as open_by
+  FROM pr_reviewed
+  JOIN pr_opened on pr_opened.number = pr_reviewed.number)
 , pr_open_by_core as (
   SELECT
     number,
@@ -97,7 +96,7 @@ with pr_opened as (
     n.reviewed_by,
     COUNT(DISTINCT n.number) as reviewed,
     COUNT(DISTINCT p.number) as opened
-  FROM new_table n
+  FROM pr_reviewed_with_open_by n
   JOIN
     pr_open_by_core p ON p.actor_login = n.reviewed_by AND p.event_month = n.event_month
   GROUP BY
