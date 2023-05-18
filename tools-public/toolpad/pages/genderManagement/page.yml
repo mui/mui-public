@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: page
+spec:
+  id: oEEu_u7
+  title: genderManagement
+  display: shell
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: codeComponent.HealthBadge
+          name: codeComponent_HealthBadge
+          props:
+            value:
+              $$jsExpression: |
+                Math.round(genderManagement.data * 10) / 10
+            warning: 30
+            problem: 15
+  queries:
+    - name: genderManagement
+      query:
+        function: queryGenderManagement
+        kind: local
