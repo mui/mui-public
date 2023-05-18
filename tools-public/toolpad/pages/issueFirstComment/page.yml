@@ -18,6 +18,10 @@ spec:
                 (() => {
                   const length = issueOpenToFirstResponded.data.data.length
 
+                  if (issueOpenToFirstResponded.data.data[length - 1].p75 == null) {
+                    return null
+                  }
+
                   return Math.round(issueOpenToFirstResponded.data.data[length - 1].p75)
                 })()
             warning: 8

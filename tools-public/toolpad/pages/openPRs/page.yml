@@ -4,8 +4,10 @@ spec:
   id: 39j3h6b
   title: openPRs
   parameters:
-    - name: repository
+    - name: repo
       value: material-ui
+    - name: warning
+      value: "50"
   content:
     - component: PageRow
       name: PageRow
@@ -17,8 +19,12 @@ spec:
               $$jsExpression: |
                 openPRs.data.total_count
             unit: " open PRs"
-            warning: 50
-            problem: 75
+            warning:
+              $$jsExpression: |
+                page.parameters.warning
+            problem:
+              $$jsExpression: |
+                parseInt(page.parameters.warning) * 1.5
             lowerIsBetter: true
   queries:
     - name: openPRs
@@ -37,5 +43,5 @@ spec:
         - name: repository
           value:
             $$jsExpression: |
-              page.parameters.repository
+              page.parameters.repo
   display: standalone
