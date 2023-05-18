@@ -15,11 +15,13 @@ spec:
           props:
             value:
               $$jsExpression: |
-                Math.round(
-                  (PRsPerMonth.data[0].pr_community_count /
-                    PRsPerMonth.data[0].pr_maintainers_count) *
-                    1000
-                ) / 10
+                PRsPerMonth.data.length === 0
+                  ? 0
+                  : Math.round(
+                      (PRsPerMonth.data[0].pr_community_count /
+                        PRsPerMonth.data[0].pr_maintainers_count) *
+                        1000
+                    ) / 10
             problem: 50
             warning: 80
   queries:
