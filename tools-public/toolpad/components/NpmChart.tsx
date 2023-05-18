@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createComponent } from "@mui/toolpad/browser";
-import { LineChart, Line, CartesianGrid, XAxis, Tooltip, Legend, YAxis } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, Tooltip, Legend, YAxis } from 'recharts';
 
 export interface ChartProps {
   data: any[]
@@ -38,14 +38,16 @@ function Chart(props: ChartProps) {
   });
 
   return (
-    <LineChart width={600} height={300} data={data}>
-      {packages.map((packageName, idx) => <Line type="monotone" dataKey={packageName} key={packageName} stroke={colors[idx]} /> )}
-      <CartesianGrid stroke="#ccc" />
-      <Tooltip />
-      <Legend />
-      <XAxis dataKey="date" />
-      <YAxis width={100}/>
-    </LineChart>
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart width={800} height={300} data={data}>
+        {packages.map((packageName, idx) => <Line type="monotone" dataKey={packageName} key={packageName} stroke={colors[idx]} /> )}
+        <CartesianGrid stroke="#ccc" />
+        <Tooltip />
+        <Legend />
+        <XAxis dataKey="date" />
+        <YAxis width={100}/>
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
 
