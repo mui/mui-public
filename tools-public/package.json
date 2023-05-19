@@ -8,7 +8,7 @@
     "start": "toolpad start --viteRuntime"
   },
   "dependencies": {
-    "@mui/toolpad": "^0.1.8",
+    "@mui/toolpad": "^0.1.12",
     "axios": "^1.3.6",
     "graphql": "^16.6.0",
     "graphql-request": "^6.0.0",
