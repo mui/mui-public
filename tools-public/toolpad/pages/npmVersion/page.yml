@@ -30,15 +30,15 @@ spec:
               $$jsExpression: |
                 page.parameters.package
     - component: PageRow
-      name: pageRow2
+      name: pageRow3
       children:
-        - component: codeComponent.pieChart
-          name: codeComponent_pieChart
+        - component: codeComponent.PieChart
+          name: codeComponent_PieChart
           props:
             data:
               $$jsExpression: |
                 Object.entries(
-                  Object.entries(downloadsVersions.data.downloads)
+                  Object.entries(downloadsVersions.data)
                     .filter(([version]) => version.indexOf("0.0") !== 0)
                     .map((entry) => {
                       const groups = entry[0].split(".")
@@ -71,8 +71,8 @@ spec:
             )}/last-week`
         headers: []
         method: GET
-        transform: return data;
-        transformEnabled: false
+        transform: return data.downloads;
+        transformEnabled: true
         searchParams: []
       parameters:
         - name: package
