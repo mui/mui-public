@@ -15,14 +15,46 @@ spec:
               $$jsExpression: |
                 queryHeadlessLibrariesDownloads.data
     - component: PageRow
-      name: pageRow1
+      name: pageRow2
       children:
-        - component: codeComponent.DownloadsTable
-          name: codeComponent_DownloadsTable
+        - component: DataGrid
+          name: dataGrid
           props:
-            data:
-              $$jsExpression: |
-                queryHeadlessLibrariesDownloads.data
+            rows:
+              $$jsExpression: >
+                queryHeadlessLibrariesDownloads.data.map((entry) => {
+                  let headlessLibrariesDownloads = 0
+                  Object.keys(entry).forEach((key) => {
+                    if (key !== "date" && key !== "@mui/base") {
+                      headlessLibrariesDownloads += entry[key]
+                    }
+                  })
+                  return {
+                    ...entry,
+                    date: entry.date.slice(0, -3),
+                    id: entry.date,
+                    ratio: `${((entry["@mui/base"] / headlessLibrariesDownloads) * 100).toFixed(
+                      2
+                    )}%`,
+                  }
+                })
+            columns:
+              - field: date
+                type: string
+              - field: "@mui/base"
+                type: number
+              - field: "@reach/utils"
+                type: number
+              - field: "@radix-ui/react-primitive"
+                type: number
+              - field: "@react-aria/utils"
+                type: number
+              - field: reakit
+                type: number
+              - field: "@headlessui/react"
+                type: number
+              - field: ratio
+                type: string
   queries:
     - name: queryHeadlessLibrariesDownloads
       query:
