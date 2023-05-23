@@ -1,10 +1,8 @@
-// Toolpad queries:
-
-const formatDatePart = (datePart) => {
+export const formatDatePart = (datePart) => {
   return `${datePart < 10 ? "0" : ""}${datePart}`;
 }
 
-const getDateString = (date: Date) => {
+export const getDateString = (date: Date) => {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   return `${date.getFullYear()}-${month < 10 ? "0" : ""}${month}-${day < 10 ? "0" : ''}${date.getDate()}`
@@ -18,7 +16,7 @@ export const getPackages = (inData) => {
   return packages;
 }
 
-const getMonthKey = (date: string) => {
+export const getMonthKey = (date: string) => {
   return date.slice(0, -2) + "01";
 }
 
