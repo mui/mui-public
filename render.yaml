@@ -12,8 +12,10 @@ services:
     envVars:
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
+      - fromGroup: GitHub mui-bot2
       - fromGroup: HiBob
       - fromGroup: Zendesk
+      - fromGroup: GoogleApi public
 
   - type: web
     name: datagrid-example
