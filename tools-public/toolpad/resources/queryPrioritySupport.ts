@@ -73,7 +73,6 @@ export const queryPrioritySupport = createFunction(
     });
 
     const service = sheets({ version: 'v4', auth: googleAuth });
-    // https://docs.google.com/spreadsheets/d/1RNYabJOzAs4pzMN6WI0yAfeGXOqDiMU1t8TpqA1EPjE/
     const spreadsheetId = '1RNYabJOzAs4pzMN6WI0yAfeGXOqDiMU1t8TpqA1EPjE';
 
     const res = await service.spreadsheets.values.get({
