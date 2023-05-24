@@ -291,3 +291,4 @@ export * from "./queryMUIXLabels";
 export * from "./queryPRs";
 export * from "./queryPRs2";
 export * from "./queryGender";
+export * from "./queryPrioritySupport";
