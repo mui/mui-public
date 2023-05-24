@@ -13,7 +13,8 @@ services:
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
       - fromGroup: HiBob
-      - fromGroup: GoogleApi public
+      - fromGroup: Google sheet token
+      - fromGroup: Google service account
 
   - type: web
     name: datagrid-example
