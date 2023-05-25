@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: page
+spec:
+  id: U0CsCz5
+  title: baseUiNpmKpis
+  display: shell
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: codeComponent.NpmChart
+          name: codeComponent_NpmChart
+          props:
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            packages:
+              $$jsExpression: >
+                Object.keys(queryHeadlessLibrariesDownloads.data[0]).filter((i)
+                => i !== "date")
+            title: Headless libraries npm downloads
+    - component: PageRow
+      name: pageRow2
+      children:
+        - component: DataGrid
+          name: dataGrid
+          props:
+            rows:
+              $$jsExpression: >
+                queryHeadlessLibrariesDownloads.data.map((entry) => {
+                  let headlessLibrariesDownloads = 0
+                  Object.keys(entry).forEach((key) => {
+                    if (key !== "date" && key !== "@mui/base") {
+                      headlessLibrariesDownloads += entry[key]
+                    }
+                  })
+                  return {
+                    ...entry,
+                    date: entry.date.slice(0, -3),
+                    id: entry.date,
+                    ratio: `${((entry["@mui/base"] / headlessLibrariesDownloads) * 100).toFixed(
+                      2
+                    )}%`,
+                  }
+                })
+            columns:
+              - field: date
+                type: string
+              - field: "@mui/base"
+                type: number
+              - field: "@reach/utils"
+                type: number
+              - field: "@radix-ui/react-primitive"
+                type: number
+              - field: "@react-aria/utils"
+                type: number
+              - field: reakit
+                type: number
+              - field: "@headlessui/react"
+                type: number
+              - field: ratio
+                type: string
+  queries:
+    - name: queryHeadlessLibrariesDownloads
+      query:
+        function: queryHeadlessLibrariesDownloads
+        kind: local
