@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: page
+spec:
+  id: hr03hdi
+  title: zendeskSatisfactionScore
+  content:
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: codeComponent.HealthBadge
+          name: codeComponent_HealthBadge
+          props:
+            value:
+              $$jsExpression: >
+                (() => {
+                  const metrics = metricEvents.data.map((event) => ({
+                    ...event,
+                    ticket: {
+                      tags: fetchTicketIds.data[event.ticket_id].tags,
+                    },
+                  }))
+
+                  const numberOfEvent = metrics
+                    .filter((event) => !event.ticket.tags.includes("chasing_overdue_invoice"))
+                    .map((event) => event.reply_time_in_minutes.business)
+                    .filter((time) => time !== null)
+                    .sort((a, b) => a - b)
+
+                  return (
+                    Math.round(
+                      (numberOfEvent[Math.round(numberOfEvent.length / 2)] / 60) * 100
+                    ) / 100
+                  )
+                })()
+            warning: 5
+            problem: 8
+            lowerIsBetter: true
+            unit: hours
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: Text
+          name: text
+          props:
+            value: Based on the last 100 open tickets
+  queries:
+    - name: metricEvents
+      query:
+        kind: rest
+        url: https://mui.zendesk.com/api/v2/ticket_metrics
+        searchParams:
+          - name: start_time
+            value:
+              $$jsExpression: |
+                const days = 30
+                Math.round(new Date().getTime() / 1000) - 3600 * 24 * days
+        headers:
+          - name: Authorization
+            value:
+              $$env: ZENDESK
+        method: GET
+        transform: >
+          /*
+
+          const days = 30
+
+          const minDate = new Date((Math.round(new Date().getTime() / 1000) - 3600 * 24 * days) * 1000).toISOString();
+
+          */
+
+          return data
+            .ticket_metrics
+          //  .filter((metric) => metric.created_at > minDate);
+        transformEnabled: true
+    - name: fetchTicketIds
+      query:
+        kind: rest
+        url: https://mui.zendesk.com/api/v2/tickets/show_many
+        searchParams:
+          - name: ids
+            value:
+              $$jsExpression: |
+                parameters.ids
+        headers:
+          - name: Authorization
+            value:
+              $$env: ZENDESK
+        method: GET
+        transform: |-
+          return data.tickets.reduce((acc, item) => {
+            acc[item.id] = {
+              tags: item.tags,
+            };
+            return acc;
+          }, {});
+        transformEnabled: true
+      parameters:
+        - name: ids
+          value:
+            $$jsExpression: |
+              metricEvents.rows.map((row) => row.ticket_id).join(",")

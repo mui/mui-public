@@ -5,15 +5,6 @@ spec:
   title: zendeskFirstReply
   content:
     - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text
-          props:
-            value: TBD after we make env variables available in bindings
-            sx:
-              color: red
-    - component: PageRow
       name: pageRow
       children:
         - component: codeComponent.HealthBadge
@@ -28,6 +19,16 @@ spec:
                     satisfactionRating.data.length) *
                     100
                 )
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          props:
+            value:
+              $$jsExpression: >
+                `Number of reviews in the last 4 weeks:
+                ${satisfactionRating.data.length}`
   queries:
     - name: satisfactionRating
       query:
@@ -38,14 +39,15 @@ spec:
             value:
               $$jsExpression: >
                 (() => {
-                  const days = 7 * 3
+                  const days = 7 * 4
                   return Math.round(new Date().getTime() / 1000) - 3600 * 24 * days
                 })()
           - name: score
             value: received
         headers:
           - name: Authorization
-            value: Basic abc
+            value:
+              $$env: ZENDESK
         method: GET
         transform: |-
           return Object.values(data.satisfaction_ratings.reduce((acc, item) => {

@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: page
+spec:
+  id: 3eVYIR_
+  title: openIssuesWithoutLabels
+  display: shell
+  content:
+    - component: PageRow
+      name: pageRow
+      children:
+        - component: Text
+          name: text
+          props:
+            value: Issues without labels
+            variant: h5
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text1
+          props:
+            mode: markdown
+            value: This page is used for
+              https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e44595afc55343dac00fca#703e5568c5d84ca897f20cf9abbab304.
+    - component: PageRow
+      name: pageRow2
+      children:
+        - component: DataGrid
+          name: dataGrid
+          props:
+            rows:
+              $$jsExpression: |
+                fetchWithoutLabels.data.items
+  queries:
+    - name: fetchWithoutLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:issue no:label repo:mui/mui-x repo:mui/mui-design-kits
+              repo:mui/material-ui
+          - name: order
+            value: desc
+          - name: sort
+            value: updated
+        headers: []
+        method: GET
+        transform: |-
+          return {
+            items: data.items,
+          };
+        transformEnabled: true

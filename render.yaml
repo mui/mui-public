@@ -13,6 +13,7 @@ services:
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
       - fromGroup: HiBob
+      - fromGroup: Zendesk
 
   - type: web
     name: datagrid-example
