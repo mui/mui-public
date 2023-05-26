@@ -57,7 +57,7 @@ spec:
                 })()
             columns:
               - field: number
-                type: number
+                type: string
               - field: state
                 type: string
               - field: title
@@ -79,7 +79,7 @@ spec:
             value: "100"
           - name: state
             value: all
-        headers: []
+        headers: [ { name: Authorization, value: { $$env: GITHUB_TOKEN } } ]
         method: GET
     - name: muix
       query:
@@ -92,7 +92,7 @@ spec:
             value: "100"
           - name: state
             value: all
-        headers: []
+        headers: [ { name: Authorization, value: { $$env: GITHUB_TOKEN } } ]
         method: GET
     - name: muiDesignKits
       query:
@@ -105,5 +105,5 @@ spec:
             value: "100"
           - name: state
             value: all
-        headers: []
+        headers: [ { name: Authorization, value: { $$env: GITHUB_TOKEN } } ]
         method: GET

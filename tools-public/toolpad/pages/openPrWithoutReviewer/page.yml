@@ -62,15 +62,16 @@ spec:
                 })()
             columns:
               - field: number
-                type: number
-                width: 94
+                type: string
+                width: 72
               - field: repository
                 type: string
               - field: title
                 type: string
+                width: 150
               - field: url
                 type: link
-                width: 119
+                width: 197
               - field: labels
                 type: json
                 width: 300
