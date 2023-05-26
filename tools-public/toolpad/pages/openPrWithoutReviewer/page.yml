@@ -54,22 +54,28 @@ spec:
                     )
                     .map((pr) => ({
                       ...pr,
-                      repository: pr.repository.name,
+                      repository: pr.repository,
                       daysAgoRaw: daysAgo(new Date(pr.createdAt), new Date()),
                       daysAgo: rtf.format(daysAgo(new Date(pr.createdAt), new Date()), "day"),
                     }))
                     .filter((pr) => !(pr.repository === "mui-x" && pr.daysAgoRaw > -14))
                 })()
             columns:
+              - field: number
+                type: number
+                width: 94
+              - field: repository
+                type: string
               - field: title
                 type: string
-                width: 279
               - field: url
                 type: link
-                width: 352
-              - field: timelineItems
+                width: 119
+              - field: labels
                 type: json
-                width: 263
+                width: 300
+              - field: daysAgo
+                type: string
             height: 480
   queries:
     - name: queryPRs2
