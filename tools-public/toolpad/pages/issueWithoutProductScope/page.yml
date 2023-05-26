@@ -58,14 +58,16 @@ spec:
             columns:
               - field: number
                 type: string
+                width: 74
               - field: state
                 type: string
+                width: 82
               - field: title
                 type: string
-                width: 272
+                width: 352
               - field: html_url
                 type: link
-                width: 310
+                width: 111
             height: 396
   queries:
     - name: materialUI

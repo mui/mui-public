@@ -47,7 +47,7 @@ spec:
         headers:
           - name: Authorization
             value:
-              $$env: ZENDESK_TOKEN
+              $$env: ZENDESK
         method: GET
         transform: |-
           return Object.values(data.satisfaction_ratings.reduce((acc, item) => {

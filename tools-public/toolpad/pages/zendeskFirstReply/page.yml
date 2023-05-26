@@ -57,7 +57,7 @@ spec:
         headers:
           - name: Authorization
             value:
-              $$env: ZENDESK_TOKEN
+              $$env: ZENDESK
         method: GET
         transform: >
           /*
@@ -84,7 +84,7 @@ spec:
         headers:
           - name: Authorization
             value:
-              $$env: ZENDESK_TOKEN
+              $$env: ZENDESK
         method: GET
         transform: |-
           return data.tickets.reduce((acc, item) => {
