@@ -9,6 +9,8 @@ spec:
       children:
         - component: codeComponent.HealthBadge
           name: codeComponent_HealthBadge
+          layout:
+            columnSize: 1
           props:
             value:
               $$jsExpression: >
@@ -17,8 +19,6 @@ spec:
                     satisfactionRating.data.length) *
                     100
                 )
-          layout:
-            columnSize: 1
     - component: PageRow
       name: pageRow1
       children:
