@@ -189,8 +189,8 @@ export const queryCommitStatuses = createFunction(
 );
 
 export const getRatio = createFunction(async function getRatio({ parameters }) {
-  if (!process.env.STORE_PASSWORD) {
-    throw new Error(`Env variable STORE_PASSWORD not configured`);
+  if (!process.env.STORE_PRODUCTION_READ_PASSWORD) {
+    throw new Error(`Env variable STORE_PRODUCTION_READ_PASSWORD not configured`);
   }
   if (!process.env.BASTION_SSH_KEY) {
     throw new Error(`Env variable BASTION_SSH_KEY not configured`);
@@ -204,16 +204,16 @@ export const getRatio = createFunction(async function getRatio({ parameters }) {
   });
 
   const tunnel = await ssh.addTunnel({
-    remoteAddr: "c111501.sgvps.net",
+    remoteAddr: process.env.STORE_PRODUCTION_READ_HOST,
     remotePort: 3306,
   });
 
   const connection = await mysql.createConnection({
     host: "localhost",
     port: tunnel.localPort,
-    user: process.env.STORE_USERNAME,
-    password: process.env.STORE_PASSWORD,
-    database: process.env.STORE_DATABASE,
+    user: process.env.STORE_PRODUCTION_READ_USERNAME,
+    password: process.env.STORE_PRODUCTION_READ_PASSWORD,
+    database: process.env.STORE_PRODUCTION_READ_DATABASE,
   });
 
   const [ratio] = await connection.execute(`
@@ -273,7 +273,7 @@ FROM
     wp3u_posts post
     LEFT JOIN wp3u_postmeta postmeta1 ON postmeta1.post_id = post.id
     AND postmeta1.meta_key = '_order_total'
-    LEFT JOIN wp3u_postmeta postmeta2 ON postmeta2.post_id = post.id
+    LEFT JOIN wp3u_postmeta postmeta2 ON postmeta2.post_id = pgost.id
     AND postmeta2.meta_key = '_order_tax'
   WHERE
     post.post_status = 'wc-completed'
@@ -291,4 +291,6 @@ export * from "./queryMUIXLabels";
 export * from "./queryPRs";
 export * from "./queryPRs2";
 export * from "./queryGender";
+export * from "./queryHeadlessLibrariesDownloads";
+export * from "./queryJoyUIMonthlyDownloads";
 export * from "./queryPrioritySupport";

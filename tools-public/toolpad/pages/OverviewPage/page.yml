@@ -1,0 +1,295 @@
+apiVersion: v1
+kind: page
+spec:
+  id: JuZeIVb
+  title: OverviewPage
+  display: shell
+  content:
+    - component: PageRow
+      name: pageRow8
+      children:
+        - component: Tabs
+          name: tabs
+          props:
+            tabs:
+              - title: KPI related pages
+                name: KPI related pages
+              - title: Non-KPIs related pages
+                name: Non-KPIs related pages
+            defaultValue: KPI related pages
+    - component: PageRow
+      name: pageRow2
+      children:
+        - component: Container
+          name: container1
+          props:
+            sx:
+              padding: 1
+              border: 1px
+            visible:
+              $$jsExpression: |
+                tabs.value == "KPI related pages"
+          children:
+            - component: PageRow
+              name: pageRow6
+              children:
+                - component: PageColumn
+                  name: pageColumn4
+                  layout:
+                    columnSize: 1
+                  children:
+                    - component: Container
+                      name: container
+                      props:
+                        sx:
+                          padding: 1
+                          border: 1px
+                        visible:
+                          $$jsExpression: |
+                            tabs.value == "KPI related pages"
+                      children:
+                        - component: PageRow
+                          name: pageRow3
+                          children:
+                            - component: PageColumn
+                              name: pageColumn1
+                              layout:
+                                columnSize: 1
+                              children:
+                                - component: Text
+                                  name: text
+                                  layout:
+                                    horizontalAlign: start
+                                  props:
+                                    value: Finance KPIs
+                                    variant: h6
+                                - component: PageRow
+                                  name: pageRow
+                                  props:
+                                    justifyContent: start
+                                  children:
+                                    - component: Paper
+                                      name: paper
+                                      children:
+                                        - component: PageRow
+                                          name: pageRow1
+                                          children:
+                                            - component: PageColumn
+                                              name: pageColumn
+                                              layout:
+                                                columnSize: 1
+                                              children:
+                                                - component: Text
+                                                  name: text1
+                                                  props:
+                                                    value: Overdue ratio
+                                                - component: Button
+                                                  name: button
+                                                  layout:
+                                                    horizontalAlign: end
+                                                  props:
+                                                    onClick:
+                                                      $$navigationAction:
+                                                        page: 8n03iat
+                                                        parameters: {}
+                                                    content: View app
+                                                    variant: text
+                    - component: Container
+                      name: container3
+                      props:
+                        sx:
+                          padding: 1
+                          border: 1px
+                        visible:
+                          $$jsExpression: |
+                            tabs.value == "KPI related pages"
+                      children:
+                        - component: PageRow
+                          name: pageRow7
+                          children:
+                            - component: PageColumn
+                              name: pageColumn5
+                              layout:
+                                columnSize: 1
+                              children:
+                                - component: Text
+                                  name: text4
+                                  layout:
+                                    horizontalAlign: start
+                                  props:
+                                    value: Engineering KPIs
+                                    variant: h6
+                                - component: PageRow
+                                  name: pageRow4
+                                  props:
+                                    justifyContent: start
+                                  children:
+                                    - component: Paper
+                                      name: paper3
+                                      children:
+                                        - component: PageRow
+                                          name: pageRow5
+                                          children:
+                                            - component: PageColumn
+                                              name: pageColumn2
+                                              layout:
+                                                columnSize: 1
+                                              children:
+                                                - component: Text
+                                                  name: text2
+                                                  props:
+                                                    value: HEAD CI success rate
+                                                - component: Button
+                                                  name: button3
+                                                  layout:
+                                                    horizontalAlign: end
+                                                  props:
+                                                    onClick:
+                                                      $$navigationAction:
+                                                        page: lo33hck
+                                                        parameters: { repository: mui-x }
+                                                    content: View app
+                                                    variant: text
+                                    - component: Paper
+                                      name: paper1
+                                      children:
+                                        - component: PageRow
+                                          name: pageRow9
+                                          children:
+                                            - component: PageColumn
+                                              name: pageColumn3
+                                              layout:
+                                                columnSize: 1
+                                              children:
+                                                - component: Text
+                                                  name: text3
+                                                  props:
+                                                    value: HEAD CI median time to completion
+                                                - component: Button
+                                                  name: button1
+                                                  layout:
+                                                    horizontalAlign: end
+                                                  props:
+                                                    onClick:
+                                                      $$navigationAction:
+                                                        page: 9ou3hb2
+                                                        parameters: { repoId: "23083156" }
+                                                    content: View app
+                                                    variant: text
+                    - component: Container
+                      name: container4
+                      props:
+                        sx:
+                          padding: 1
+                          border: 1px
+                        visible:
+                          $$jsExpression: |
+                            tabs.value == "KPI related pages"
+                      children:
+                        - component: PageRow
+                          name: pageRow10
+                          children:
+                            - component: PageColumn
+                              name: pageColumn6
+                              layout:
+                                columnSize: 1
+                              children:
+                                - component: Text
+                                  name: text5
+                                  layout:
+                                    horizontalAlign: start
+                                  props:
+                                    value: Gender KPIs
+                                    variant: h6
+                                - component: PageRow
+                                  name: pageRow11
+                                  props:
+                                    justifyContent: start
+                                  children:
+                                    - component: Paper
+                                      name: paper2
+                                      children:
+                                        - component: PageRow
+                                          name: pageRow12
+                                          children:
+                                            - component: PageColumn
+                                              name: pageColumn7
+                                              layout:
+                                                columnSize: 1
+                                              children:
+                                                - component: Text
+                                                  name: text6
+                                                  props:
+                                                    value: Gender
+                                                - component: Button
+                                                  name: button2
+                                                  layout:
+                                                    horizontalAlign: end
+                                                  props:
+                                                    onClick:
+                                                      $$navigationAction:
+                                                        page: id9G8nf
+                                                        parameters: {}
+                                                    content: View app
+                                                    variant: text
+                                    - component: Paper
+                                      name: paper4
+                                      children:
+                                        - component: PageRow
+                                          name: pageRow13
+                                          children:
+                                            - component: PageColumn
+                                              name: pageColumn8
+                                              layout:
+                                                columnSize: 1
+                                              children:
+                                                - component: Text
+                                                  name: text7
+                                                  props:
+                                                    value: Gender Engineering
+                                                - component: Button
+                                                  name: button4
+                                                  layout:
+                                                    horizontalAlign: end
+                                                  props:
+                                                    onClick:
+                                                      $$navigationAction:
+                                                        page: id9G8nf
+                                                        parameters: {}
+                                                    content: View app
+                                                    variant: text
+                                    - component: Paper
+                                      name: paper5
+                                      children:
+                                        - component: PageRow
+                                          name: pageRow14
+                                          children:
+                                            - component: PageColumn
+                                              name: pageColumn9
+                                              layout:
+                                                columnSize: 1
+                                              children:
+                                                - component: Text
+                                                  name: text8
+                                                  props:
+                                                    value: Gender Management
+                                                - component: Button
+                                                  name: button5
+                                                  layout:
+                                                    horizontalAlign: end
+                                                  props:
+                                                    onClick:
+                                                      $$navigationAction:
+                                                        page: id9G8nf
+                                                        parameters: {}
+                                                    content: View app
+                                                    variant: text
+    - component: PageRow
+      name: pageRow15
+      children:
+        - component: Container
+          name: container2
+          props:
+            visible:
+              $$jsExpression: |
+                tabs.value == "tNon-KPIs related pages"

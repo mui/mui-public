@@ -15,6 +15,7 @@ services:
       - fromGroup: HiBob
       - fromGroup: Google sheet token
       - fromGroup: Google service account
+      - fromGroup: Zendesk
 
   - type: web
     name: datagrid-example
