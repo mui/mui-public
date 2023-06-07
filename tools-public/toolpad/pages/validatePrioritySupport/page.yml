@@ -7,6 +7,8 @@ spec:
   parameters:
     - name: issueId
       value: ""
+    - name: repo
+      value: ""
   content:
     - component: PageRow
       name: pageRow1
@@ -91,6 +93,10 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.issueId
+        - name: repo
+          value:
+            $$jsExpression: |
+              page.parameters.repo
         - name: supportKey
           value:
             $$jsExpression: |

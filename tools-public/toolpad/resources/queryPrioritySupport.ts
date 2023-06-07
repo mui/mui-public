@@ -13,7 +13,7 @@ function findRowByValue(sheet, value) {
   return -1;
 }
 
-async function updateGitHubIssueLabels(issueId) {
+async function updateGitHubIssueLabels(repo, issueId) {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error('Env variable GITHUB_TOKEN not configured');
   }
@@ -24,7 +24,7 @@ async function updateGitHubIssueLabels(issueId) {
 
   const octokitRequestMetadata = {
     owner: 'mui',
-    repo: 'mui-x',
+    repo: repo,
     issue_number: issueId,
     headers: {
       'X-GitHub-Api-Version': '2022-11-28'
@@ -54,16 +54,22 @@ export const queryPrioritySupport = createFunction(
       throw new Error('Env variable GOOGLE_SERVICE_ACCOUNT not configured');
     }
 
+    if (parameters.supportKey === '') {
+      return  {
+        status: 'missing support key',
+      };
+    }
+
     if (parameters.issueId === '') {
       return  {
         status: 'missing issue id',
       };
     }
 
-    if (parameters.supportKey === '') {
+    if (parameters.repo === '') {
       return  {
-        status: 'missing support key',
-      };;
+        status: 'missing repo',
+      };
     }
 
     const googleAuth = new JWT({
@@ -98,7 +104,7 @@ export const queryPrioritySupport = createFunction(
       };
     }
 
-    await updateGitHubIssueLabels(parameters.issueId);
+    await updateGitHubIssueLabels(parameters.repo, parameters.issueId);
 
     return {
       status: 'success',
@@ -107,6 +113,9 @@ export const queryPrioritySupport = createFunction(
   {
     parameters: {
       issueId: {
+        typeDef: { type: "string" },
+      },
+      repo: {
         typeDef: { type: "string" },
       },
       supportKey: {
