@@ -68,12 +68,12 @@ spec:
                     value:
                       $$jsExpression: |
                         (() => {
-                          return queryPrioritySupport.data.status
+                          return updateMuiPaidSupport.data.status
                         })()
                     sx:
                       $$jsExpression: |
                         (() => {
-                          if (queryPrioritySupport.data.status === "success") {
+                          if (updateMuiPaidSupport.data.status === "success") {
                             return {
                               color: "green",
                             }
@@ -84,9 +84,9 @@ spec:
                           }
                         })()
   queries:
-    - name: queryPrioritySupport
+    - name: updateMuiPaidSupport
       query:
-        function: queryPrioritySupport
+        function: updateMuiPaidSupport
         kind: local
       parameters:
         - name: issueId

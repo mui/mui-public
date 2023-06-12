@@ -293,4 +293,4 @@ export * from "./queryPRs2";
 export * from "./queryGender";
 export * from "./queryHeadlessLibrariesDownloads";
 export * from "./queryJoyUIMonthlyDownloads";
-export * from "./queryPrioritySupport";
+export * from "./updateMuiPaidSupport";

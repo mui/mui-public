@@ -44,8 +44,8 @@ async function updateGitHubIssueLabels(repo, issueId) {
   });
 }
 
-export const queryPrioritySupport = createFunction(
-  async function queryPrioritySupport({ parameters }) {
+export const updateMuiPaidSupport = createFunction(
+  async function updateMuiPaidSupport({ parameters }) {
     if (!process.env.GOOGLE_SHEET_TOKEN) {
       throw new Error('Env variable GOOGLE_SHEET_TOKEN not configured');
     }
