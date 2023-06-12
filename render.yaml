@@ -15,7 +15,6 @@ services:
       - fromGroup: GitHub mui-bot2
       - fromGroup: HiBob
       - fromGroup: Zendesk
-      - fromGroup: GoogleApi public
       - fromGroup: Google sheet token
       - fromGroup: Google service account
 

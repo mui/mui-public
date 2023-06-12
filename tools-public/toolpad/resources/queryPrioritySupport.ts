@@ -14,12 +14,12 @@ function findRowByValue(sheet, value) {
 }
 
 async function updateGitHubIssueLabels(repo, issueId) {
-  if (!process.env.GITHUB_TOKEN) {
-    throw new Error('Env variable GITHUB_TOKEN not configured');
+  if (!process.env.GITHUB_MUI_BOT2_TOKEN) {
+    throw new Error('Env variable GITHUB_MUI_BOT2_TOKEN not configured');
   }
 
   const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN
+    auth: process.env.GITHUB_MUI_BOT2_TOKEN
   });
 
   const octokitRequestMetadata = {
