@@ -14,12 +14,12 @@ function findRowByValue(sheet, value) {
 }
 
 async function updateGitHubIssueLabels(repo, issueId) {
-  if (!process.env.GITHUB_MUI_BOT2_TOKEN) {
-    throw new Error('Env variable GITHUB_MUI_BOT2_TOKEN not configured');
+  if (!process.env.GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN) {
+    throw new Error('Env variable GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN not configured');
   }
 
   const octokit = new Octokit({
-    auth: process.env.GITHUB_MUI_BOT2_TOKEN
+    auth: process.env.GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN
   });
 
   const octokitRequestMetadata = {
@@ -50,10 +50,6 @@ export const queryPrioritySupport = createFunction(
       throw new Error('Env variable GOOGLE_SHEET_TOKEN not configured');
     }
 
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
-      throw new Error('Env variable GOOGLE_SERVICE_ACCOUNT not configured');
-    }
-
     if (parameters.supportKey === '') {
       return  {
         status: 'missing support key',
@@ -73,7 +69,7 @@ export const queryPrioritySupport = createFunction(
     }
 
     const googleAuth = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT,
+      email: 'service-account-804@docs-feedbacks.iam.gserviceaccount.com',
       key: process.env.GOOGLE_SHEET_TOKEN.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
@@ -113,13 +109,13 @@ export const queryPrioritySupport = createFunction(
   {
     parameters: {
       issueId: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       repo: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       supportKey: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }

@@ -12,11 +12,10 @@ services:
     envVars:
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
-      - fromGroup: GitHub mui-bot2
+      - fromGroup: GitHub mui-bot2 public_repo
       - fromGroup: HiBob
       - fromGroup: Zendesk
-      - fromGroup: Google sheet token
-      - fromGroup: Google service account
+      - fromGroup: Google Sheet service account
 
   - type: web
     name: datagrid-example
