@@ -3,7 +3,7 @@ kind: page
 spec:
   id: jyhs86t
   title: validatePrioritySupport
-  display: shell
+  display: standalone
   parameters:
     - name: issueId
       value: ""
