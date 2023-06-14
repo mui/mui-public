@@ -12,9 +12,9 @@ spec:
           props:
             value:
               $$jsExpression: |
-                queryNoLabels.data.items.length
-            warning: 10
-            problem: 20
+                queryNoLabels.data.length
+            warning: 1
+            problem: 10
             unit: " issues or PRs"
             lowerIsBetter: true
   queries:
@@ -27,4 +27,6 @@ spec:
             value: no:label is:open org:mui
         headers: []
         method: GET
+        transform: return data.items.filter(item => !item.draft);
+        transformEnabled: true
   display: standalone
