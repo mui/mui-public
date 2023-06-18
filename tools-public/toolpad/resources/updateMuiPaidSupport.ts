@@ -4,7 +4,7 @@ const { sheets } = require('@googleapis/sheets');
 const { JWT } = require('google-auth-library');
 const { Octokit } = require("@octokit/core");
 
-function findRowByValue(sheet, value) {
+function findRowIndexByValue(sheet, value) {
   for (let i = 0; i < sheet.length; i++) {
     if (sheet[i][0] === value) {
       return i;
@@ -31,17 +31,39 @@ async function updateGitHubIssueLabels(repo, issueId) {
     }
   };
 
+  const labelsRes = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/labels', octokitRequestMetadata);
+  const labels = labelsRes.data.map(label => label.name);
+
+  if (labels.includes('support: priority')) {
+    return {
+      status: 'success',
+      message: 'GitHub issue already validated. You can now close this page.',
+    }
+  }
+
+  if (!labels.includes('support: unknown')) {
+    return {
+      status: 'error',
+      message: `We can't validate the ownership of this GitHub issue.`,
+    }
+  }
+
   await octokit.request('DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}', {
     ...octokitRequestMetadata,
-    name: 'priority support: unverified',
+    name: 'support: unknown',
   });
 
   await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/labels', {
     ...octokitRequestMetadata,
     labels: [
-      'priority support: verified'
+      'support: priority'
     ],
   });
+
+  return {
+    status: 'success',
+    message: 'GitHub issue validated. You can now close this page.',
+  }
 }
 
 export const updateMuiPaidSupport = createFunction(
@@ -52,19 +74,19 @@ export const updateMuiPaidSupport = createFunction(
 
     if (parameters.supportKey === '') {
       return  {
-        status: 'missing support key',
+        message: 'Provide your support key above',
       };
     }
 
     if (parameters.issueId === '') {
       return  {
-        status: 'missing issue id',
+        message: 'Missing issue id',
       };
     }
 
     if (parameters.repo === '') {
       return  {
-        status: 'missing repo',
+        message: 'Missing repo',
       };
     }
 
@@ -83,28 +105,24 @@ export const updateMuiPaidSupport = createFunction(
     });
 
     const rows = res.data.values;
-    const row = findRowByValue(rows, parameters.supportKey);
-    const today = new Date();
+    const rowIndex = findRowIndexByValue(rows, parameters.supportKey);
 
-    if (row === -1) {
+    if (rowIndex === -1) {
       return  {
-        status: 'no support key found',
+        message: 'Invalid support key',
       };
     }
 
-    const targetSupportKeyExpirationDate = new Date(rows[row][1]);
+    const targetSupportKeyExpirationDate = new Date(rows[rowIndex][1]);
+    const today = new Date();
 
     if (targetSupportKeyExpirationDate < today) {
       return  {
-        status: 'support key expired',
+        message: 'Support key expired',
       };
     }
 
-    await updateGitHubIssueLabels(parameters.repo, parameters.issueId);
-
-    return {
-      status: 'success',
-    };
+    return updateGitHubIssueLabels(parameters.repo, parameters.issueId);
   },
   {
     parameters: {
