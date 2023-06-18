@@ -111,6 +111,7 @@ spec:
 
                   return updateMuiPaidSupport.data.message
                 })()
+            mode: text
           layout:
             columnSize: 1.6802030456852792
   queries:

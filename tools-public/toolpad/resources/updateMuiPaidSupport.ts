@@ -1,4 +1,5 @@
 import { createFunction } from '@mui/toolpad/server';
+import dayjs from 'dayjs';
 
 const { sheets } = require('@googleapis/sheets');
 const { JWT } = require('google-auth-library');
@@ -118,7 +119,7 @@ export const updateMuiPaidSupport = createFunction(
 
     if (targetSupportKeyExpirationDate < today) {
       return  {
-        message: 'Support key expired',
+        message: `You support key expired on ${dayjs(targetSupportKeyExpirationDate).format('MMMM D, YYYY')}.`,
       };
     }
 
