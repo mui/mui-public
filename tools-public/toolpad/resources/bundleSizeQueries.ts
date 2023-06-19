@@ -240,10 +240,10 @@ SELECT * FROM pr_stats ge;
   {
     parameters: {
       repositoryId: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       startDate: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -348,10 +348,10 @@ SELECT * FROM pr_stats ge;
   {
     parameters: {
       repositoryId: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       startDate: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }

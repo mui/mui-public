@@ -1,11 +1,6 @@
 import * as React from "react";
 import { createComponent } from "@mui/toolpad-core";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-} from "recharts";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
@@ -52,8 +47,8 @@ function PieChartExport({ data }: PieChartProps) {
 export default createComponent(PieChartExport, {
   argTypes: {
     data: {
-      typeDef: { type: "array" },
-      defaultValue: [
+      type: "array",
+      default: [
         { name: "Group A", value: 400 },
         { name: "Group B", value: 300 },
         { name: "Group C", value: 300 },

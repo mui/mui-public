@@ -94,24 +94,24 @@ function Report(props: ReportProps) {
 export default createComponent(Report, {
   argTypes: {
     value: {
-      typeDef: { type: "number" },
-      defaultValue: undefined,
+      type: "number",
+      default: undefined,
     },
     warning: {
-      typeDef: { type: "number" },
-      defaultValue: 1,
+      type: "number",
+      default: 1,
     },
     problem: {
-      typeDef: { type: "number" },
-      defaultValue: 1,
+      type: "number",
+      default: 1,
     },
     unit: {
-      typeDef: { type: "string" },
-      defaultValue: "%",
+      type: "string",
+      default: "%",
     },
     lowerIsBetter: {
-      typeDef: { type: "boolean" },
-      defaultValue: false,
+      type: "boolean",
+      default: false,
     },
   },
 });

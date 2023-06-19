@@ -21,7 +21,7 @@ export const getRepositoryDetails = createFunction(
   {
     parameters: {
       slug: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -126,7 +126,7 @@ SELECT * FROM final_table
   {
     parameters: {
       // orderIds: {
-      //   typeDef: { type: "string" },
+      //    type: "string" ,
       // },
     },
   }
@@ -182,7 +182,7 @@ export const queryCommitStatuses = createFunction(
   {
     parameters: {
       repository: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -190,7 +190,9 @@ export const queryCommitStatuses = createFunction(
 
 export const getRatio = createFunction(async function getRatio({ parameters }) {
   if (!process.env.STORE_PRODUCTION_READ_PASSWORD) {
-    throw new Error(`Env variable STORE_PRODUCTION_READ_PASSWORD not configured`);
+    throw new Error(
+      `Env variable STORE_PRODUCTION_READ_PASSWORD not configured`
+    );
   }
   if (!process.env.BASTION_SSH_KEY) {
     throw new Error(`Env variable BASTION_SSH_KEY not configured`);
