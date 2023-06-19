@@ -128,14 +128,14 @@ export const getBundleSizes = createFunction(
   {
     parameters: {
       baseRef: {
-        typeDef: { type: "string" },
-        defaultValue: "master",
+        type: "string",
+        default: "master",
       },
       baseCommit: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       circleCIBuildNumber: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -147,7 +147,7 @@ export const PRsPerMonth = createFunction(
       return [];
     }
 
-    const startDate = parameters.startDate || '2016-01-01';
+    const startDate = parameters.startDate || "2016-01-01";
 
     const openQuery = `
 with maintainers as (
@@ -255,7 +255,7 @@ export const ContributorsPerMonth = createFunction(
       return [];
     }
 
-    const startDate = parameters.startDate || '2016-01-01';
+    const startDate = parameters.startDate || "2016-01-01";
 
     const openQuery = `
 with maintainers as (
