@@ -1,13 +1,13 @@
-import * as React from "react";
-import { createComponent } from "@mui/toolpad/browser";
+import * as React from 'react';
+import { createComponent } from '@mui/toolpad/browser';
 
 const bytesFormat = new Intl.NumberFormat(undefined, {
-  style: "unit",
+  style: 'unit',
   maximumSignificantDigits: 3,
-  notation: "compact",
-  unit: "byte",
-  unitDisplay: "narrow",
-  signDisplay: "always",
+  notation: 'compact',
+  unit: 'byte',
+  unitDisplay: 'narrow',
+  signDisplay: 'always',
 });
 
 function prettyBytes(value: number) {
@@ -20,10 +20,10 @@ export interface ParsedProps {
 
 function formatDiff(value: number): string {
   if (!value) {
-    return "";
+    return '';
   }
 
-  const trendIcon = value < 0 ? "▼" : "🔺";
+  const trendIcon = value < 0 ? '▼' : '🔺';
 
   return `${prettyBytes(value)} ${trendIcon}`;
 }
@@ -35,7 +35,7 @@ function Diff({ value }: ParsedProps) {
 export default createComponent(Diff, {
   argTypes: {
     value: {
-      type: "string",
+      type: 'string',
     },
   },
 });

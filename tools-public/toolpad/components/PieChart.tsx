@@ -1,18 +1,18 @@
-import * as React from "react";
-import { createComponent } from "@mui/toolpad-core";
-import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import * as React from 'react';
+import { createComponent } from '@mui/toolpad-core';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
-  "#ea5545",
-  "#f46a9b",
-  "#ef9b20",
-  "#edbf33",
-  "#ede15b",
-  "#bdcf32",
-  "#87bc45",
-  "#27aeef",
-  "#b33dc6",
+  '#ea5545',
+  '#f46a9b',
+  '#ef9b20',
+  '#edbf33',
+  '#ede15b',
+  '#bdcf32',
+  '#87bc45',
+  '#27aeef',
+  '#b33dc6',
 ];
 
 export interface PieChartProps {
@@ -37,7 +37,7 @@ function PieChartExport({ data }: PieChartProps) {
       </Pie>
       <Tooltip
         formatter={(value, name, props) =>
-          Intl.NumberFormat("en", { notation: "compact" }).format(value)
+          Intl.NumberFormat('en', { notation: 'compact' }).format(value)
         }
       />
     </PieChart>
@@ -47,12 +47,12 @@ function PieChartExport({ data }: PieChartProps) {
 export default createComponent(PieChartExport, {
   argTypes: {
     data: {
-      type: "array",
+      type: 'array',
       default: [
-        { name: "Group A", value: 400 },
-        { name: "Group B", value: 300 },
-        { name: "Group C", value: 300 },
-        { name: "Group D", value: 200 },
+        { name: 'Group A', value: 400 },
+        { name: 'Group B', value: 300 },
+        { name: 'Group C', value: 300 },
+        { name: 'Group D', value: 200 },
       ],
     },
   },

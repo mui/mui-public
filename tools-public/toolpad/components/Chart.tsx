@@ -1,5 +1,5 @@
-import * as React from "react";
-import { createComponent } from "@mui/toolpad/browser";
+import * as React from 'react';
+import { createComponent } from '@mui/toolpad/browser';
 import {
   ResponsiveContainer,
   LineChart,
@@ -9,20 +9,20 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-} from "recharts";
-import CircularProgress from "@mui/material/CircularProgress";
+} from 'recharts';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
-  "#87bc45",
-  "#27aeef",
-  "#ea5545",
-  "#f46a9b",
-  "#ef9b20",
-  "#edbf33",
-  "#ede15b",
-  "#bdcf32",
-  "#b33dc6",
+  '#87bc45',
+  '#27aeef',
+  '#ea5545',
+  '#f46a9b',
+  '#ef9b20',
+  '#edbf33',
+  '#ede15b',
+  '#bdcf32',
+  '#b33dc6',
 ];
 
 export interface PieChartProps {
@@ -36,7 +36,7 @@ function ChartExport({ data, series }: PieChartProps) {
   }
 
   return (
-    <div style={{ width: "100%", height: 300 }}>
+    <div style={{ width: '100%', height: 300 }}>
       <ResponsiveContainer>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -56,12 +56,12 @@ function ChartExport({ data, series }: PieChartProps) {
 export default createComponent(ChartExport, {
   argTypes: {
     data: {
-      type: "array",
+      type: 'array',
       default: [],
     },
     series: {
-      type: "array",
-      default: ["pr_community_count", "pr_maintainers_count"],
+      type: 'array',
+      default: ['pr_community_count', 'pr_maintainers_count'],
     },
   },
 });
