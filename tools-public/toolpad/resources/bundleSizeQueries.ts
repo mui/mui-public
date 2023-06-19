@@ -96,50 +96,35 @@ function getSizeInfo<K extends string>(
   };
 }
 
-export const getBundleSizes = createFunction(
-  async ({ parameters }) => {
-    const [base, target] = await Promise.all([
-      getBaseSnapshot(
-        parameters.baseRef as string,
-        parameters.baseCommit as string
-      ),
-      getTargetSnapshot(parameters.circleCIBuildNumber as string),
-    ]);
+export async function getBundleSizes(
+  baseRef: string,
+  baseCommit: string,
+  circleCIBuildNumber: string
+) {
+  const [base, target] = await Promise.all([
+    getBaseSnapshot(baseRef, baseCommit),
+    getTargetSnapshot(circleCIBuildNumber),
+  ]);
 
-    const bundles = new Set([...Object.keys(base), ...Object.keys(target)]);
-    return Array.from(bundles, (bundle) => {
-      const currentSize = target[bundle] || NULL_SNAPSHOT;
-      const previousSize = base[bundle] || NULL_SNAPSHOT;
+  const bundles = new Set([...Object.keys(base), ...Object.keys(target)]);
+  return Array.from(bundles, (bundle) => {
+    const currentSize = target[bundle] || NULL_SNAPSHOT;
+    const previousSize = base[bundle] || NULL_SNAPSHOT;
 
-      const entry = {
-        id: bundle,
-        name: getMainBundleLabel(bundle),
-        ...getSizeInfo("parsed", currentSize, previousSize),
-        ...getSizeInfo("gzip", currentSize, previousSize),
-      };
+    const entry = {
+      id: bundle,
+      name: getMainBundleLabel(bundle),
+      ...getSizeInfo("parsed", currentSize, previousSize),
+      ...getSizeInfo("gzip", currentSize, previousSize),
+    };
 
-      return entry;
-    }).sort(
-      (a, b) =>
-        Math.abs(b["absoluteDiff.parsed"] || 0) -
-        Math.abs(a["absoluteDiff.parsed"] || 0)
-    );
-  },
-  {
-    parameters: {
-      baseRef: {
-        typeDef: { type: "string" },
-        defaultValue: "master",
-      },
-      baseCommit: {
-        typeDef: { type: "string" },
-      },
-      circleCIBuildNumber: {
-        typeDef: { type: "string" },
-      },
-    },
-  }
-);
+    return entry;
+  }).sort(
+    (a, b) =>
+      Math.abs(b["absoluteDiff.parsed"] || 0) -
+      Math.abs(a["absoluteDiff.parsed"] || 0)
+  );
+}
 
 export const PRsPerMonth = createFunction(
   async function PRsPerMonth({ parameters }) {
@@ -147,7 +132,7 @@ export const PRsPerMonth = createFunction(
       return [];
     }
 
-    const startDate = parameters.startDate || '2016-01-01';
+    const startDate = parameters.startDate || "2016-01-01";
 
     const openQuery = `
 with maintainers as (
@@ -255,7 +240,7 @@ export const ContributorsPerMonth = createFunction(
       return [];
     }
 
-    const startDate = parameters.startDate || '2016-01-01';
+    const startDate = parameters.startDate || "2016-01-01";
 
     const openQuery = `
 with maintainers as (
