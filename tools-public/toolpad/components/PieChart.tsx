@@ -52,8 +52,8 @@ function PieChartExport({ data }: PieChartProps) {
 export default createComponent(PieChartExport, {
   argTypes: {
     data: {
-      typeDef: { type: "array" },
-      defaultValue: [
+      type: "array",
+      default: [
         { name: "Group A", value: 400 },
         { name: "Group B", value: 300 },
         { name: "Group C", value: 300 },

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Typography, Stack } from "@mui/material";
+import { Box, Typography, Stack, Skeleton } from "@mui/material";
 import { createComponent } from "@mui/toolpad/browser";
 
 export interface HeathBadgeProps {
@@ -53,27 +53,30 @@ interface ReportProps {
   problem: number;
   unit: string;
   lowerIsBetter: boolean;
+  loading?: boolean;
 }
 
 function Report(props: ReportProps) {
   let level = "unknown";
-  const { value, warning, problem, unit, lowerIsBetter } = props;
+  let { value, warning, problem, unit, lowerIsBetter, loading } = props;
 
-  if (lowerIsBetter) {
-    if (value > problem) {
-      level = "problem";
-    } else if (value > warning) {
-      level = "warning";
-    } else if (value != null) {
-      level = "ok";
-    }
-  } else {
-    if (value < problem) {
-      level = "problem";
-    } else if (value < warning) {
-      level = "warning";
-    } else if (value != null) {
-      level = "ok";
+  if (!loading) {
+    if (lowerIsBetter) {
+      if (value > problem) {
+        level = "problem";
+      } else if (value > warning) {
+        level = "warning";
+      } else if (value != null) {
+        level = "ok";
+      }
+    } else {
+      if (value < problem) {
+        level = "problem";
+      } else if (value < warning) {
+        level = "warning";
+      } else if (value != null) {
+        level = "ok";
+      }
     }
   }
 
@@ -85,33 +88,37 @@ function Report(props: ReportProps) {
       </Stack>
       <Stack direction="row" spacing={1}>
         <Typography sx={{ width: 100 }}>Value:</Typography>
-        <Typography>{`${value} ${unit}`}</Typography>
+        <Typography sx={{ flex: 1 }}>
+          {loading ? <Skeleton variant="text" /> : `${value} ${unit}`}
+        </Typography>
       </Stack>
     </Stack>
   );
 }
 
 export default createComponent(Report, {
+  loadingProp: "loading",
+  loadingPropSource: ["value"],
   argTypes: {
     value: {
-      typeDef: { type: "number" },
-      defaultValue: undefined,
+      type: "number",
+      default: undefined,
     },
     warning: {
-      typeDef: { type: "number" },
-      defaultValue: 1,
+      type: "number",
+      default: 1,
     },
     problem: {
-      typeDef: { type: "number" },
-      defaultValue: 1,
+      type: "number",
+      default: 1,
     },
     unit: {
-      typeDef: { type: "string" },
-      defaultValue: "%",
+      type: "string",
+      default: "%",
     },
     lowerIsBetter: {
-      typeDef: { type: "boolean" },
-      defaultValue: false,
+      type: "boolean",
+      default: false,
     },
   },
 });

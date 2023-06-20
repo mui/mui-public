@@ -128,14 +128,14 @@ export const getBundleSizes = createFunction(
   {
     parameters: {
       baseRef: {
-        typeDef: { type: "string" },
-        defaultValue: "master",
+        type: "string",
+        default: "master",
       },
       baseCommit: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       circleCIBuildNumber: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -240,10 +240,10 @@ SELECT * FROM pr_stats ge;
   {
     parameters: {
       repositoryId: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       startDate: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -348,10 +348,10 @@ SELECT * FROM pr_stats ge;
   {
     parameters: {
       repositoryId: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       startDate: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
