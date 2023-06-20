@@ -1,7 +1,4 @@
-// Toolpad queries:
-
 import axios from "axios";
-import { createFunction } from "@mui/toolpad/server";
 
 function getMainBundleLabel(bundleId: string): string {
   if (
@@ -126,22 +123,21 @@ export async function getBundleSizes(
   );
 }
 
-export const PRsPerMonth = createFunction(
-  async function PRsPerMonth({ parameters }) {
-    if (!parameters.repositoryId) {
-      return [];
-    }
+export async function PRsPerMonth(repositoryId: string, startDate: string) {
+  if (!repositoryId) {
+    return [];
+  }
 
-    const startDate = parameters.startDate || "2016-01-01";
+  startDate = startDate || "2016-01-01";
 
-    const openQuery = `
+  const openQuery = `
 with maintainers as (
   SELECT
     DISTINCT ge.actor_login
   FROM
     github_events ge
   WHERE
-    ge.repo_id = ${parameters.repositoryId}
+    ge.repo_id = ${repositoryId}
     AND ge.type = 'PullRequestEvent'
     /* maintainers are defined as the ones that are allowed to merge PRs */
     AND ge.action = 'closed'
@@ -158,7 +154,7 @@ with maintainers as (
     type = 'PullRequestEvent'
     AND action = 'closed'
     AND ge.pr_merged = 1
-    AND repo_id = ${parameters.repositoryId}
+    AND repo_id = ${repositoryId}
     AND ge.created_at >= '${startDate}'
 ), pr_opened as (
   SELECT
@@ -170,7 +166,7 @@ with maintainers as (
   WHERE
     type = 'PullRequestEvent'
     AND action = 'opened'
-    AND repo_id = ${parameters.repositoryId}
+    AND repo_id = ${repositoryId}
     AND ge.created_at >= '2016-01-01'
     AND actor_login NOT LIKE '%bot'
     AND actor_login NOT LIKE '%[bot]'
@@ -203,53 +199,42 @@ with maintainers as (
 SELECT * FROM pr_stats ge;
     `;
 
-    const res = await fetch("https://api.ossinsight.io/q/playground", {
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sql: openQuery,
-        type: "repo",
-        id: parameters.repositoryId,
-      }),
-      method: "POST",
-    });
-    if (res.status !== 200) {
-      throw new Error(
-        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
-      );
-    }
-    const data = await res.json();
-    return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
-  },
-  {
-    parameters: {
-      repositoryId: {
-        typeDef: { type: "string" },
-      },
-      startDate: {
-        typeDef: { type: "string" },
-      },
+  const res = await fetch("https://api.ossinsight.io/q/playground", {
+    headers: {
+      "content-type": "application/json",
     },
+    body: JSON.stringify({
+      sql: openQuery,
+      type: "repo",
+      id: repositoryId,
+    }),
+    method: "POST",
+  });
+  if (res.status !== 200) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
   }
-);
+  const data = await res.json();
+  return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
+}
 
-export const ContributorsPerMonth = createFunction(
-  async function ContributorsPerMonth({ parameters }) {
-    if (!parameters.repositoryId) {
-      return [];
-    }
+export async function ContributorsPerMonth(
+  repositoryId: string,
+  startDate: string
+) {
+  if (!repositoryId) {
+    return [];
+  }
 
-    const startDate = parameters.startDate || "2016-01-01";
+  startDate = startDate || "2016-01-01";
 
-    const openQuery = `
+  const openQuery = `
 with maintainers as (
   SELECT
     DISTINCT ge.actor_login
   FROM
     github_events ge
   WHERE
-    ge.repo_id = ${parameters.repositoryId}
+    ge.repo_id = ${repositoryId}
     AND ge.type = 'PullRequestEvent'
     /* maintainers are defined as the ones that are allowed to merge PRs */
     AND ge.action = 'closed'
@@ -266,7 +251,7 @@ with maintainers as (
     type = 'PullRequestEvent'
     AND action = 'closed'
     AND ge.pr_merged = 1
-    AND repo_id = ${parameters.repositoryId}
+    AND repo_id = ${repositoryId}
     AND ge.created_at >= '${startDate}'
 ), pr_opened as (
   SELECT
@@ -278,7 +263,7 @@ with maintainers as (
   WHERE
     type = 'PullRequestEvent'
     AND action = 'opened'
-    AND repo_id = ${parameters.repositoryId}
+    AND repo_id = ${repositoryId}
     AND ge.created_at >= '2016-01-01'
     AND actor_login NOT LIKE '%bot'
     AND actor_login NOT LIKE '%[bot]'
@@ -311,33 +296,20 @@ with maintainers as (
 SELECT * FROM pr_stats ge;
     `;
 
-    const res = await fetch("https://api.ossinsight.io/q/playground", {
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sql: openQuery,
-        type: "repo",
-        id: parameters.repositoryId,
-      }),
-      method: "POST",
-    });
-    if (res.status !== 200) {
-      throw new Error(
-        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
-      );
-    }
-    const data = await res.json();
-    return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
-  },
-  {
-    parameters: {
-      repositoryId: {
-        typeDef: { type: "string" },
-      },
-      startDate: {
-        typeDef: { type: "string" },
-      },
+  const res = await fetch("https://api.ossinsight.io/q/playground", {
+    headers: {
+      "content-type": "application/json",
     },
+    body: JSON.stringify({
+      sql: openQuery,
+      type: "repo",
+      id: repositoryId,
+    }),
+    method: "POST",
+  });
+  if (res.status !== 200) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
   }
-);
+  const data = await res.json();
+  return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
+}
