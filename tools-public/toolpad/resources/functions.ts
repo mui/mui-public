@@ -273,7 +273,7 @@ FROM
     wp3u_posts post
     LEFT JOIN wp3u_postmeta postmeta1 ON postmeta1.post_id = post.id
     AND postmeta1.meta_key = '_order_total'
-    LEFT JOIN wp3u_postmeta postmeta2 ON postmeta2.post_id = pgost.id
+    LEFT JOIN wp3u_postmeta postmeta2 ON postmeta2.post_id = post.id
     AND postmeta2.meta_key = '_order_tax'
   WHERE
     post.post_status = 'wc-completed'
