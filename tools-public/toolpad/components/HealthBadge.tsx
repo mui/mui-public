@@ -1,6 +1,6 @@
-import * as React from 'react';
-import { Box, Typography, Stack, Skeleton } from '@mui/material';
-import { createComponent } from '@mui/toolpad/browser';
+import * as React from "react";
+import { Box, Typography, Stack, Skeleton } from "@mui/material";
+import { createComponent } from "@mui/toolpad/browser";
 
 export interface HeathBadgeProps {
   level: string;
@@ -8,20 +8,20 @@ export interface HeathBadgeProps {
 
 const levelsInfo = {
   ok: {
-    label: 'Ok',
-    backgroundColor: 'green',
+    label: "Ok",
+    backgroundColor: "green",
   },
   warning: {
-    label: 'Warning',
-    backgroundColor: 'orange',
+    label: "Warning",
+    backgroundColor: "orange",
   },
   problem: {
-    label: 'Problem',
-    backgroundColor: 'red',
+    label: "Problem",
+    backgroundColor: "red",
   },
   unknown: {
-    label: 'Unknown',
-    backgroundColor: 'grey',
+    label: "Unknown",
+    backgroundColor: "grey",
   },
 };
 
@@ -32,14 +32,14 @@ function HeathBadge({ level }: HeathBadgeProps) {
     <Box
       sx={{
         backgroundColor: info.backgroundColor,
-        color: 'white',
-        borderRadius: '0.2em',
+        color: "white",
+        borderRadius: "0.2em",
         fontWeight: 700,
         fontSize: 14,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '2px 12px',
-        textAlign: 'center',
+        display: "flex",
+        alignItems: "center",
+        padding: "2px 12px",
+        textAlign: "center",
       }}
     >
       {info.label}
@@ -57,25 +57,25 @@ interface ReportProps {
 }
 
 function Report(props: ReportProps) {
-  let level = 'unknown';
+  let level = "unknown";
   let { value, warning, problem, unit, lowerIsBetter, loading } = props;
 
   if (!loading) {
     if (lowerIsBetter) {
       if (value > problem) {
-        level = 'problem';
+        level = "problem";
       } else if (value > warning) {
-        level = 'warning';
+        level = "warning";
       } else if (value != null) {
-        level = 'ok';
+        level = "ok";
       }
     } else {
       if (value < problem) {
-        level = 'problem';
+        level = "problem";
       } else if (value < warning) {
-        level = 'warning';
+        level = "warning";
       } else if (value != null) {
-        level = 'ok';
+        level = "ok";
       }
     }
   }
@@ -97,27 +97,27 @@ function Report(props: ReportProps) {
 }
 
 export default createComponent(Report, {
-  loadingProp: 'loading',
-  loadingPropSource: ['value'],
+  loadingProp: "loading",
+  loadingPropSource: ["value"],
   argTypes: {
     value: {
-      type: 'number',
+      type: "number",
       default: undefined,
     },
     warning: {
-      type: 'number',
+      type: "number",
       default: 1,
     },
     problem: {
-      type: 'number',
+      type: "number",
       default: 1,
     },
     unit: {
-      type: 'string',
-      default: '%',
+      type: "string",
+      default: "%",
     },
     lowerIsBetter: {
-      type: 'boolean',
+      type: "boolean",
       default: false,
     },
   },

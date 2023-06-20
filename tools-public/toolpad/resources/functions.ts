@@ -1,25 +1,30 @@
-import { createFunction } from '@mui/toolpad/server';
-import { request } from 'graphql-request';
-import mysql from 'mysql2/promise';
-import SSH2Promise from 'ssh2-promise';
+import { createFunction } from "@mui/toolpad/server";
+import { request } from "graphql-request";
+import mysql from "mysql2/promise";
+import SSH2Promise from "ssh2-promise";
 
 export const getRepositoryDetails = createFunction(
   async function getRepositoryDetails({ parameters }) {
-    const res = await fetch(`https://api.ossinsight.io/gh/repo/${parameters.slug}`, {
-      method: 'GET',
-    });
+    const res = await fetch(
+      `https://api.ossinsight.io/gh/repo/${parameters.slug}`,
+      {
+        method: "GET",
+      }
+    );
     if (res.status !== 200) {
-      throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
+      throw new Error(
+        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
+      );
     }
     return res.json();
   },
   {
     parameters: {
       slug: {
-        type: 'string',
+        type: "string",
       },
     },
-  },
+  }
 );
 
 export const PRsOpenandReviewedQuery = createFunction(
@@ -103,15 +108,17 @@ with pr_opened as (
 
 SELECT * FROM final_table
   `;
-    const res = await fetch('https://api.ossinsight.io/q/playground', {
+    const res = await fetch("https://api.ossinsight.io/q/playground", {
       headers: {
-        'content-type': 'application/json',
+        "content-type": "application/json",
       },
-      body: JSON.stringify({ sql: openQuery, type: 'repo', id: '23083156' }),
-      method: 'POST',
+      body: JSON.stringify({ sql: openQuery, type: "repo", id: "23083156" }),
+      method: "POST",
     });
     if (res.status !== 200) {
-      throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
+      throw new Error(
+        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
+      );
     }
     const data = await res.json();
     return data.data;
@@ -119,10 +126,10 @@ SELECT * FROM final_table
   {
     parameters: {
       // orderIds: {
-      //    type: "string" ,
+      //   type: "string",
       // },
     },
-  },
+  }
 );
 
 export const queryCommitStatuses = createFunction(
@@ -134,7 +141,7 @@ export const queryCommitStatuses = createFunction(
     const since = new Date();
     since.setDate(since.getDate() - 7);
 
-    const endpoint = 'https://api.github.com/graphql';
+    const endpoint = "https://api.github.com/graphql";
     const token = process.env.GITHUB_TOKEN;
 
     const query = `
@@ -167,7 +174,7 @@ export const queryCommitStatuses = createFunction(
       {},
       {
         Authorization: `Bearer ${token}`,
-      },
+      }
     );
 
     return response;
@@ -175,10 +182,10 @@ export const queryCommitStatuses = createFunction(
   {
     parameters: {
       repository: {
-        type: 'string',
+        type: "string",
       },
     },
-  },
+  }
 );
 
 export const getRatio = createFunction(async function getRatio({ parameters }) {
@@ -193,7 +200,7 @@ export const getRatio = createFunction(async function getRatio({ parameters }) {
     host: process.env.BASTION_HOST,
     port: 22,
     username: process.env.BASTION_USERNAME,
-    privateKey: process.env.BASTION_SSH_KEY.replace(/\\n/g, '\n'),
+    privateKey: process.env.BASTION_SSH_KEY.replace(/\\n/g, "\n"),
   });
 
   const tunnel = await ssh.addTunnel({
@@ -202,7 +209,7 @@ export const getRatio = createFunction(async function getRatio({ parameters }) {
   });
 
   const connection = await mysql.createConnection({
-    host: 'localhost',
+    host: "localhost",
     port: tunnel.localPort,
     user: process.env.STORE_PRODUCTION_READ_USERNAME,
     password: process.env.STORE_PRODUCTION_READ_PASSWORD,
@@ -278,11 +285,11 @@ FROM
   return ratio[0];
 });
 
-export * from './bundleSizeQueries';
-export * from './queryMaterialUILabels';
-export * from './queryMUIXLabels';
-export * from './queryPRs';
-export * from './queryPRs2';
-export * from './queryGender';
-export * from './queryHeadlessLibrariesDownloads';
-export * from './queryJoyUIMonthlyDownloads';
+export * from "./bundleSizeQueries";
+export * from "./queryMaterialUILabels";
+export * from "./queryMUIXLabels";
+export * from "./queryPRs";
+export * from "./queryPRs2";
+export * from "./queryGender";
+export * from "./queryHeadlessLibrariesDownloads";
+export * from "./queryJoyUIMonthlyDownloads";

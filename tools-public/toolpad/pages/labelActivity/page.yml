@@ -49,7 +49,9 @@ spec:
               $$jsExpression: >
                 queryMaterialUILabels.rows
                   .filter((issue) => {
-                    return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
+                    return issue.timelineItems.some(
+                      (event) => event.actor === gitHubSlug.defaultValue
+                    )
                   })
                   .map((issue) => ({
                     ...issue,

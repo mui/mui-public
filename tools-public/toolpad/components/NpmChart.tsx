@@ -1,16 +1,7 @@
-import * as React from 'react';
-import { Stack, Typography } from '@mui/material';
-import { createComponent } from '@mui/toolpad/browser';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  CartesianGrid,
-  XAxis,
-  Tooltip,
-  Legend,
-  YAxis,
-} from 'recharts';
+import * as React from "react";
+import { Stack, Typography } from "@mui/material";
+import { createComponent } from "@mui/toolpad/browser";
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, Tooltip, Legend, YAxis } from 'recharts';
 
 export interface ChartProps {
   data: any[];
@@ -18,24 +9,29 @@ export interface ChartProps {
   title: string;
 }
 
-const colors = ['#1976d2', '#9c27b0', '#d32f2f', '#ed6c02', '#2f2f2f', '#2e7d32'];
+const colors = [
+  "#1976d2",
+  "#9c27b0",
+  "#d32f2f",
+  "#ed6c02",
+  "#2f2f2f",
+  "#2e7d32",
+];
 
 function Chart(props: ChartProps) {
   const { data, packages = [], title } = props;
 
   return (
-    <Stack sx={{ width: '100%' }} gap={1}>
+    <Stack sx={{width: '100%'}} gap={1}>
       <Typography variant="h6">{title}</Typography>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart width={800} height={300} data={data}>
-          {packages.map((packageName, idx) => (
-            <Line type="monotone" dataKey={packageName} key={packageName} stroke={colors[idx]} />
-          ))}
+          {packages.map((packageName, idx) => <Line type="monotone" dataKey={packageName} key={packageName} stroke={colors[idx]} /> )}
           <CartesianGrid stroke="#ccc" />
           <Tooltip />
           <Legend />
           <XAxis dataKey="date" />
-          <YAxis width={100} />
+          <YAxis width={100}/>
         </LineChart>
       </ResponsiveContainer>
     </Stack>
@@ -45,13 +41,13 @@ function Chart(props: ChartProps) {
 export default createComponent(Chart, {
   argTypes: {
     data: {
-      type: 'array',
+      type: 'array'
     },
     packages: {
-      type: 'array',
+      type: 'array'
     },
     title: {
-      type: 'string',
-    },
+      type: 'string'
+    }
   },
 });
