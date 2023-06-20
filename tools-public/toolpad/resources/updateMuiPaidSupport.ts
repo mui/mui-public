@@ -1,10 +1,11 @@
 import { createFunction } from '@mui/toolpad/server';
+import dayjs from 'dayjs';
 
 const { sheets } = require('@googleapis/sheets');
 const { JWT } = require('google-auth-library');
 const { Octokit } = require("@octokit/core");
 
-function findRowByValue(sheet, value) {
+function findRowIndexByValue(sheet, value) {
   for (let i = 0; i < sheet.length; i++) {
     if (sheet[i][0] === value) {
       return i;
@@ -14,12 +15,12 @@ function findRowByValue(sheet, value) {
 }
 
 async function updateGitHubIssueLabels(repo, issueId) {
-  if (!process.env.GITHUB_TOKEN) {
-    throw new Error('Env variable GITHUB_TOKEN not configured');
+  if (!process.env.GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN) {
+    throw new Error('Env variable GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN not configured');
   }
 
   const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN
+    auth: process.env.GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN
   });
 
   const octokitRequestMetadata = {
@@ -31,49 +32,67 @@ async function updateGitHubIssueLabels(repo, issueId) {
     }
   };
 
+  const labelsRes = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/labels', octokitRequestMetadata);
+  const labels = labelsRes.data.map(label => label.name);
+
+  if (labels.includes('support: priority')) {
+    return {
+      status: 'success',
+      message: 'GitHub issue already validated. You can now close this page.',
+    }
+  }
+
+  if (!labels.includes('support: unknown')) {
+    return {
+      status: 'error',
+      message: `We can't validate the ownership of this GitHub issue.`,
+    }
+  }
+
   await octokit.request('DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}', {
     ...octokitRequestMetadata,
-    name: 'priority support: unverified',
+    name: 'support: unknown',
   });
 
   await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/labels', {
     ...octokitRequestMetadata,
     labels: [
-      'priority support: verified'
+      'support: priority'
     ],
   });
+
+  return {
+    status: 'success',
+    message: 'GitHub issue validated. You can now close this page.',
+  }
 }
 
-export const queryPrioritySupport = createFunction(
-  async function queryPrioritySupport({ parameters }) {
+export const updateMuiPaidSupport = createFunction(
+  async function updateMuiPaidSupport({ parameters }) {
     if (!process.env.GOOGLE_SHEET_TOKEN) {
       throw new Error('Env variable GOOGLE_SHEET_TOKEN not configured');
     }
 
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
-      throw new Error('Env variable GOOGLE_SERVICE_ACCOUNT not configured');
-    }
-
     if (parameters.supportKey === '') {
       return  {
-        status: 'missing support key',
+        message: 'Provide your support key above',
       };
     }
 
     if (parameters.issueId === '') {
       return  {
-        status: 'missing issue id',
+        message: 'Missing issue id',
       };
     }
 
     if (parameters.repo === '') {
       return  {
-        status: 'missing repo',
+        message: 'Missing repo',
       };
     }
 
     const googleAuth = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT,
+      email: 'service-account-804@docs-feedbacks.iam.gserviceaccount.com',
       key: process.env.GOOGLE_SHEET_TOKEN.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
@@ -87,39 +106,35 @@ export const queryPrioritySupport = createFunction(
     });
 
     const rows = res.data.values;
-    const row = findRowByValue(rows, parameters.supportKey);
-    const today = new Date();
+    const rowIndex = findRowIndexByValue(rows, parameters.supportKey);
 
-    if (row === -1) {
+    if (rowIndex === -1) {
       return  {
-        status: 'no support key found',
+        message: 'Invalid support key',
       };
     }
 
-    const targetSupportKeyExpirationDate = new Date(rows[row][1]);
+    const targetSupportKeyExpirationDate = new Date(rows[rowIndex][1]);
+    const today = new Date();
 
     if (targetSupportKeyExpirationDate < today) {
       return  {
-        status: 'support key expired',
+        message: `You support key expired on ${dayjs(targetSupportKeyExpirationDate).format('MMMM D, YYYY')}.`,
       };
     }
 
-    await updateGitHubIssueLabels(parameters.repo, parameters.issueId);
-
-    return {
-      status: 'success',
-    };
+    return updateGitHubIssueLabels(parameters.repo, parameters.issueId);
   },
   {
     parameters: {
       issueId: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       repo: {
-        typeDef: { type: "string" },
+        type: "string",
       },
       supportKey: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
