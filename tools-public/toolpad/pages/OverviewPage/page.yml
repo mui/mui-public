@@ -58,7 +58,7 @@ spec:
                               $$navigationAction:
                                 page: 8n03iat
                                 parameters: {}
-                            content: View app
+                            content: View page
                             variant: text
                     - component: Text
                       name: text4
@@ -86,7 +86,7 @@ spec:
                                 page: lo33hck
                                 parameters:
                                   repository: mui-x
-                            content: View app
+                            content: View page
                             variant: text
                     - component: PageRow
                       name: pageRow1
@@ -107,7 +107,7 @@ spec:
                                 page: fn03hvq
                                 parameters:
                                   repository: mui-x
-                            content: View app
+                            content: View page
                             variant: text
                     - component: Text
                       name: text9
@@ -129,11 +129,11 @@ spec:
                             - component: Text
                               name: text10
                               props:
-                                value: "Community: percent of PRs merged"
+                                value: 'Community: percent of PRs merged'
                             - component: Text
                               name: text12
                               props:
-                                value: "Community: unique contributors per month"
+                                value: 'Community: unique contributors per month'
                             - component: Text
                               name: text11
                               props:
@@ -141,11 +141,11 @@ spec:
                             - component: Text
                               name: text14
                               props:
-                                value: "PRs: time between open & closed "
+                                value: 'PRs: time between open & closed '
                             - component: Text
                               name: text13
                               props:
-                                value: "Issues: time to first reply"
+                                value: 'Issues: time to first reply'
                             - component: Text
                               name: text15
                               props:
@@ -157,7 +157,7 @@ spec:
                             - component: Text
                               name: text36
                               props:
-                                value: "Issues: closed vs open"
+                                value: 'Issues: closed vs open'
                         - component: PageColumn
                           name: pageColumn1
                           layout:
@@ -172,8 +172,8 @@ spec:
                                   $$navigationAction:
                                     page: KiUQrhI
                                     parameters:
-                                      repositoryId: "23083156"
-                                content: View app
+                                      repositoryId: '23083156'
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button7
@@ -184,8 +184,8 @@ spec:
                                   $$navigationAction:
                                     page: SYEV3CY
                                     parameters:
-                                      repositoryId: "23083156"
-                                content: View app
+                                      repositoryId: '23083156'
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button8
@@ -197,8 +197,8 @@ spec:
                                     page: 39j3h6b
                                     parameters:
                                       repo: material-ui
-                                      warning: "50"
-                                content: View app
+                                      warning: '50'
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button10
@@ -209,8 +209,8 @@ spec:
                                   $$navigationAction:
                                     page: 9ou3hb2
                                     parameters:
-                                      repoId: "23083156"
-                                content: View app
+                                      repoId: '23083156'
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button9
@@ -221,8 +221,8 @@ spec:
                                   $$navigationAction:
                                     page: fo163htb
                                     parameters:
-                                      repoId: "23083156"
-                                content: View app
+                                      repoId: '23083156'
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button11
@@ -234,7 +234,7 @@ spec:
                                     page: hj1i3hqe
                                     parameters:
                                       repository: material-ui
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button12
@@ -245,7 +245,7 @@ spec:
                                   $$navigationAction:
                                     page: bse3h9c
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button30
@@ -255,8 +255,8 @@ spec:
                                 onClick:
                                   $$navigationAction:
                                     page: 2413lvx
-                                    parameters: { repoId: "23083156" }
-                                content: View app
+                                    parameters: { repoId: '23083156' }
+                                content: View page
                                 variant: text
                     - component: Text
                       name: text17
@@ -278,11 +278,11 @@ spec:
                             - component: Text
                               name: text18
                               props:
-                                value: "Zendesk: First reply time"
+                                value: 'Zendesk: First reply time'
                             - component: Text
                               name: text19
                               props:
-                                value: "Zendesk: Satisfaction rating"
+                                value: 'Zendesk: Satisfaction rating'
                         - component: PageColumn
                           name: pageColumn3
                           layout:
@@ -297,7 +297,7 @@ spec:
                                   $$navigationAction:
                                     page: hr03hdi
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button13
@@ -308,7 +308,7 @@ spec:
                                   $$navigationAction:
                                     page: xu1r3hzj
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                     - component: Text
                       name: text5
@@ -353,7 +353,7 @@ spec:
                                   $$navigationAction:
                                     page: id9G8nf
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button4
@@ -364,7 +364,7 @@ spec:
                                   $$navigationAction:
                                     page: id9G8nf
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button5
@@ -376,7 +376,7 @@ spec:
                                   $$navigationAction:
                                     page: id9G8nf
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                     - component: Text
                       name: text22
@@ -422,7 +422,7 @@ spec:
                                   $$navigationAction:
                                     page: 9r8fshsf
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button16
@@ -434,7 +434,7 @@ spec:
                                   $$navigationAction:
                                     page: U0CsCz5
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
                             - component: Button
                               name: button26
@@ -446,7 +446,7 @@ spec:
                                   $$navigationAction:
                                     page: I1HlSLD
                                     parameters: {}
-                                content: View app
+                                content: View page
                                 variant: text
           props:
             visible:
@@ -509,7 +509,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: m023hp4
@@ -521,7 +521,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: m023hp4
@@ -533,12 +533,12 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: jyhs86t
                                     parameters:
-                                      issueId: "9195"
+                                      issueId: '9195'
                                       repo: mui-x
     - component: PageRow
       name: pageRow13
@@ -582,7 +582,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: 7ju3hr6
@@ -643,7 +643,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: xj43hyd
@@ -655,7 +655,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: bse3h9c
@@ -667,7 +667,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: hl63hwf
@@ -679,7 +679,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: 3eVYIR_
@@ -691,7 +691,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: 1t353h04
@@ -703,7 +703,7 @@ spec:
                                 horizontalAlign: end
                               props:
                                 variant: text
-                                content: View App
+                                content: View page
                                 onClick:
                                   $$navigationAction:
                                     page: tn213hge
