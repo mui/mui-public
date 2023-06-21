@@ -8,12 +8,23 @@ spec:
       value: "23083156"
   content:
     - component: PageRow
+      name: pageRow2
+      children:
+        - component: Text
+          name: text1
+          props:
+            value: "This issue is for:
+              [https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff\
+              69c?pvs=4#6585efdaa9d24a66a60a2e74e1613cae](https://www.notion.so\
+              /mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#6585efdaa9d2\
+              4a66a60a2e74e1613cae)"
+            mode: markdown
+    - component: PageRow
       name: pageRow
       children:
         - component: codeComponent.HealthBadge
           name: codeComponent_HealthBadge
           props:
-            unit: ratio
             value:
               $$jsExpression: |
                 (() => {
@@ -28,6 +39,7 @@ spec:
 
                   return (totalOpened / totalClosed).toFixed(2)
                 })()
+            unit: ratio
             problem: 2
             warning: 2
             lowerIsBetter: true
