@@ -31,6 +31,19 @@ spec:
             rows:
               $$jsExpression: |
                 fetchWithoutLabels.data.items
+            columns:
+              - field: html_url
+                type: link
+                width: 273
+              - field: number
+                type: number
+                width: 107
+              - field: title
+                type: string
+                width: 319
+              - field: state
+                type: string
+                width: 230
   queries:
     - name: fetchWithoutLabels
       query:
