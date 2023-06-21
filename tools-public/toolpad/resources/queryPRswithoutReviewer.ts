@@ -15,7 +15,7 @@ interface PullRequest {
   }[];
 }
 
-export const queryPRswithoutRequester = createFunction(
+export const queryPRswithoutReviewer = createFunction(
   async ({ parameters }) => {
     if (!process.env.GITHUB_TOKEN) {
       throw new Error(`Env variable GITHUB_TOKEN not configured`);

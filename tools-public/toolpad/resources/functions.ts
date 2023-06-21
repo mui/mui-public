@@ -291,7 +291,7 @@ export * from './bundleSizeQueries';
 export * from './queryMaterialUILabels';
 export * from './queryMUIXLabels';
 export * from './queryPRs';
-export * from './queryPRswithoutRequester';
+export * from './queryPRswithoutReviewer';
 export * from './queryGender';
 export * from './queryHeadlessLibrariesDownloads';
 export * from './queryJoyUIMonthlyDownloads';
