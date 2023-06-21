@@ -3,29 +3,16 @@ import { request } from "graphql-request";
 import mysql from "mysql2/promise";
 import SSH2Promise from "ssh2-promise";
 
-export const getRepositoryDetails = createFunction(
-  async function getRepositoryDetails({ parameters }) {
-    const res = await fetch(
-      `https://api.ossinsight.io/gh/repo/${parameters.slug}`,
-      {
-        method: "GET",
-      }
-    );
-    if (res.status !== 200) {
-      throw new Error(
-        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
-      );
-    }
-    return res.json();
-  },
-  {
-    parameters: {
-      slug: {
-        type: "string",
-      },
-    },
+export async function getRepositoryDetails(slug: string) {
+  const res = await fetch(`https://api.ossinsight.io/gh/repo/${slug}`, {
+    method: "GET",
+  });
+  if (res.status !== 200) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
   }
-);
+  console.log("hello");
+  return res.json();
+}
 
 export const PRsOpenandReviewedQuery = createFunction(
   async function PRsOpenandReviewedQuery({ parameters }) {
@@ -132,27 +119,26 @@ SELECT * FROM final_table
   }
 );
 
-export const queryCommitStatuses = createFunction(
-  async function queryCommitStatuses({ parameters }) {
-    if (!process.env.GITHUB_TOKEN) {
-      throw new Error(`Env variable GITHUB_TOKEN not configured`);
-    }
+export async function queryCommitStatuses(repository: string) {
+  if (!process.env.GITHUB_TOKEN) {
+    throw new Error(`Env variable GITHUB_TOKEN not configured`);
+  }
 
-    const since = new Date();
-    since.setDate(since.getDate() - 7);
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
 
-    const endpoint = "https://api.github.com/graphql";
-    const token = process.env.GITHUB_TOKEN;
+  const endpoint = "https://api.github.com/graphql";
+  const token = process.env.GITHUB_TOKEN;
 
-    const query = `
-{
-  repository(owner: "mui", name: "${parameters.repository}") {
+  const query = `
+query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
+  repository(owner: "mui", name: $repository) {
   	defaultBranchRef {
       id
       name
       target {
         ... on Commit {
-          history(since: "${since.toISOString()}") {
+          history(since: $since) {
             nodes {
               messageHeadline
               committedDate
@@ -168,29 +154,26 @@ export const queryCommitStatuses = createFunction(
 }
 `;
 
-    const response = request(
-      endpoint,
-      query,
-      {},
-      {
-        Authorization: `Bearer ${token}`,
-      }
-    );
-
-    return response;
-  },
-  {
-    parameters: {
-      repository: {
-        type: "string",
-      },
+  const response = request(
+    endpoint,
+    query,
+    {
+      repository,
+      since: since.toISOString(),
     },
-  }
-);
+    {
+      Authorization: `Bearer ${token}`,
+    }
+  );
+
+  return response;
+}
 
 export const getRatio = createFunction(async function getRatio({ parameters }) {
   if (!process.env.STORE_PRODUCTION_READ_PASSWORD) {
-    throw new Error(`Env variable STORE_PRODUCTION_READ_PASSWORD not configured`);
+    throw new Error(
+      `Env variable STORE_PRODUCTION_READ_PASSWORD not configured`
+    );
   }
   if (!process.env.BASTION_SSH_KEY) {
     throw new Error(`Env variable BASTION_SSH_KEY not configured`);
