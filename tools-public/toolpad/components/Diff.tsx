@@ -35,7 +35,7 @@ function Diff({ value }: ParsedProps) {
 export default createComponent(Diff, {
   argTypes: {
     value: {
-      typeDef: { type: "string" },
+      type: "string",
     },
   },
 });

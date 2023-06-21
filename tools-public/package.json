@@ -3,13 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "toolpad dev --viteRuntime",
-    "build": "toolpad build --viteRuntime",
-    "start": "toolpad start --viteRuntime"
+    "dev": "toolpad dev",
+    "build": "toolpad build",
+    "start": "toolpad start"
   },
   "dependencies": {
     "@mui/toolpad": "https://pkg.csb.dev/mui/mui-toolpad/commit/a0fb98ce/@mui/toolpad",
+    "@googleapis/sheets": "^4.0.2",
+    "@octokit/core": "^4.2.1",
     "axios": "^1.3.6",
+    "dayjs": "^1.11.8",
+    "google-auth-library": "^8.8.0",
     "graphql": "^16.6.0",
     "graphql-request": "^6.0.0",
     "mysql": "^2.18.1",

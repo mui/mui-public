@@ -25,7 +25,7 @@ function Percent({ value }: ParsedProps) {
 export default createComponent(Percent, {
   argTypes: {
     value: {
-      typeDef: { type: "string" },
+      type: "string",
     },
   },
 });

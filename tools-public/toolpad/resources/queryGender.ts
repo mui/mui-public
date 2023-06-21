@@ -39,7 +39,7 @@ export const queryGender = createFunction(async ({ parameters }) => {
 }, {
   parameters: {
     department: {
-      typeDef: { type: "string" },
+      type: "string",
     },
   },
 });

@@ -21,7 +21,7 @@ export const getRepositoryDetails = createFunction(
   {
     parameters: {
       slug: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -126,7 +126,7 @@ SELECT * FROM final_table
   {
     parameters: {
       // orderIds: {
-      //   typeDef: { type: "string" },
+      //   type: "string",
       // },
     },
   }
@@ -182,7 +182,7 @@ export const queryCommitStatuses = createFunction(
   {
     parameters: {
       repository: {
-        typeDef: { type: "string" },
+        type: "string",
       },
     },
   }
@@ -293,3 +293,4 @@ export * from "./queryPRs2";
 export * from "./queryGender";
 export * from "./queryHeadlessLibrariesDownloads";
 export * from "./queryJoyUIMonthlyDownloads";
+export * from "./updateMuiPaidSupport";

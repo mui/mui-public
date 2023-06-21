@@ -41,13 +41,13 @@ function Chart(props: ChartProps) {
 export default createComponent(Chart, {
   argTypes: {
     data: {
-      typeDef: { type: 'array' }
+      type: 'array'
     },
     packages: {
-      typeDef: { type: 'array' }
+      type: 'array'
     },
     title: {
-      typeDef: { type: 'string' }
+      type: 'string'
     }
   },
 });
