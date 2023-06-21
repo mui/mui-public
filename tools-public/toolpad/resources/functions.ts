@@ -1,4 +1,3 @@
-import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 import mysql from "mysql2/promise";
 import SSH2Promise from "ssh2-promise";
@@ -14,9 +13,8 @@ export async function getRepositoryDetails(slug: string) {
   return res.json();
 }
 
-export const PRsOpenandReviewedQuery = createFunction(
-  async function PRsOpenandReviewedQuery({ parameters }) {
-    const openQuery = `
+export async function PRsOpenandReviewedQuery() {
+  const openQuery = `
 with pr_opened as (
   SELECT
     number,
@@ -95,29 +93,19 @@ with pr_opened as (
 
 SELECT * FROM final_table
   `;
-    const res = await fetch("https://api.ossinsight.io/q/playground", {
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ sql: openQuery, type: "repo", id: "23083156" }),
-      method: "POST",
-    });
-    if (res.status !== 200) {
-      throw new Error(
-        `HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`
-      );
-    }
-    const data = await res.json();
-    return data.data;
-  },
-  {
-    parameters: {
-      // orderIds: {
-      //   type: "string",
-      // },
+  const res = await fetch("https://api.ossinsight.io/q/playground", {
+    headers: {
+      "content-type": "application/json",
     },
+    body: JSON.stringify({ sql: openQuery, type: "repo", id: "23083156" }),
+    method: "POST",
+  });
+  if (res.status !== 200) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
   }
-);
+  const data = await res.json();
+  return data.data;
+}
 
 export async function queryCommitStatuses(repository: string) {
   if (!process.env.GITHUB_TOKEN) {
@@ -169,7 +157,7 @@ query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
   return response;
 }
 
-export const getRatio = createFunction(async function getRatio({ parameters }) {
+export async function getRatio() {
   if (!process.env.STORE_PRODUCTION_READ_PASSWORD) {
     throw new Error(
       `Env variable STORE_PRODUCTION_READ_PASSWORD not configured`
@@ -266,7 +254,7 @@ FROM
 ) AS order_30
   `);
   return ratio[0];
-});
+}
 
 export * from "./bundleSizeQueries";
 export * from "./queryMaterialUILabels";

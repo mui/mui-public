@@ -1,5 +1,3 @@
-import { createFunction } from "@mui/toolpad/server";
-
 function countWomen(employees) {
   return employees.reduce((acc, item) => {
     if (item.home.legalGender === "Female") {
@@ -43,7 +41,7 @@ export async function queryGender(department: string) {
   return (countWomen(employees) / employees.length) * 100;
 }
 
-export const queryGenderManagement = createFunction(async ({ parameters }) => {
+export async function queryGenderManagement() {
   if (!process.env.HIBOB_TOKEN_READ_STANDARD) {
     throw new Error(`Env variable HIBOB_TOKEN_READ_STANDARD not configured`);
   }
@@ -71,4 +69,4 @@ export const queryGenderManagement = createFunction(async ({ parameters }) => {
   );
 
   return (countWomen(managers) / managers.length) * 100;
-});
+}

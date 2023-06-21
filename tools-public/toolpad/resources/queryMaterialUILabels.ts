@@ -1,4 +1,3 @@
-import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 
 interface LabelTimelineItem {
@@ -19,7 +18,7 @@ interface Issue {
   };
 }
 
-export const queryMaterialUILabels = createFunction(async ({ parameters }) => {
+export async function queryMaterialUILabels() {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
@@ -93,4 +92,4 @@ export const queryMaterialUILabels = createFunction(async ({ parameters }) => {
   }));
 
   return data;
-});
+}
