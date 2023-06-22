@@ -145,14 +145,14 @@ export const queryCommitStatuses = createFunction(
     const token = process.env.GITHUB_TOKEN;
 
     const query = `
-{
-  repository(owner: "mui", name: "${parameters.repository}") {
-  	defaultBranchRef {
+query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
+  repository(owner: "mui", name: $repository) {
+    defaultBranchRef {
       id
       name
       target {
         ... on Commit {
-          history(since: "${since.toISOString()}") {
+          history(since: $since) {
             nodes {
               messageHeadline
               committedDate
@@ -171,7 +171,10 @@ export const queryCommitStatuses = createFunction(
     const response = request(
       endpoint,
       query,
-      {},
+      {
+        repository: parameters.repository,
+        since: since.toISOString(),
+      },
       {
         Authorization: `Bearer ${token}`,
       }
@@ -190,7 +193,9 @@ export const queryCommitStatuses = createFunction(
 
 export const getRatio = createFunction(async function getRatio({ parameters }) {
   if (!process.env.STORE_PRODUCTION_READ_PASSWORD) {
-    throw new Error(`Env variable STORE_PRODUCTION_READ_PASSWORD not configured`);
+    throw new Error(
+      `Env variable STORE_PRODUCTION_READ_PASSWORD not configured`
+    );
   }
   if (!process.env.BASTION_SSH_KEY) {
     throw new Error(`Env variable BASTION_SSH_KEY not configured`);
