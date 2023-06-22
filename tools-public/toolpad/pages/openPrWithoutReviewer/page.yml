@@ -41,7 +41,7 @@ spec:
                     return Math.ceil(difference / (1000 * 3600 * 24))
                   }
 
-                  return queryPRs2.data
+                  return queryPRswithoutReviewer.data
                     .filter((pr) => !pr.isDraft)
                     .filter(
                       (pr) =>
@@ -79,7 +79,7 @@ spec:
                 type: string
             height: 480
   queries:
-    - name: queryPRs2
+    - name: queryPRswithoutReviewer
       query:
-        function: queryPRs2
+        function: queryPRswithoutReviewer
         kind: local
