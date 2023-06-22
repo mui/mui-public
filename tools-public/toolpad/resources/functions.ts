@@ -145,14 +145,14 @@ export const queryCommitStatuses = createFunction(
     const token = process.env.GITHUB_TOKEN;
 
     const query = `
-{
-  repository(owner: "mui", name: "${parameters.repository}") {
-  	defaultBranchRef {
+query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
+  repository(owner: "mui", name: $repository) {
+    defaultBranchRef {
       id
       name
       target {
         ... on Commit {
-          history(since: "${since.toISOString()}") {
+          history(since: $since) {
             nodes {
               messageHeadline
               committedDate
@@ -171,7 +171,10 @@ export const queryCommitStatuses = createFunction(
     const response = request(
       endpoint,
       query,
-      {},
+      {
+        repository: parameters.repository,
+        since: since.toISOString(),
+      },
       {
         Authorization: `Bearer ${token}`,
       }
