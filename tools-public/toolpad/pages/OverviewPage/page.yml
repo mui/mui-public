@@ -182,9 +182,8 @@ spec:
                               props:
                                 onClick:
                                   $$navigationAction:
-                                    page: SYEV3CY
-                                    parameters:
-                                      repositoryId: '23083156'
+                                    page: ck33hgb
+                                    parameters: {}
                                 content: View page
                                 variant: text
                             - component: Button
@@ -362,8 +361,8 @@ spec:
                               props:
                                 onClick:
                                   $$navigationAction:
-                                    page: id9G8nf
-                                    parameters: {}
+                                    page: ZGrUwtd
+                                    parameters: { department: "" }
                                 content: View page
                                 variant: text
                             - component: Button
@@ -374,7 +373,7 @@ spec:
                               props:
                                 onClick:
                                   $$navigationAction:
-                                    page: id9G8nf
+                                    page: oEEu_u7
                                     parameters: {}
                                 content: View page
                                 variant: text
@@ -512,9 +511,11 @@ spec:
                                 content: View page
                                 onClick:
                                   $$navigationAction:
-                                    page: m023hp4
+                                    page: h71gdad
                                     parameters:
-                                      package: react-dom
+                                      baseRef: master
+                                      baseCommit: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
+                                      circleCIBuildNumber: "487681"
                             - component: Button
                               name: button18
                               layout:
