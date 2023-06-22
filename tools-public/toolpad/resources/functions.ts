@@ -121,7 +121,7 @@ export async function queryCommitStatuses(repository: string) {
   const query = `
 query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
   repository(owner: "mui", name: $repository) {
-  	defaultBranchRef {
+    defaultBranchRef {
       id
       name
       target {
