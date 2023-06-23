@@ -8,7 +8,7 @@
     "start": "toolpad start"
   },
   "dependencies": {
-    "@mui/toolpad": "https://pkg.csb.dev/mui/mui-toolpad/commit/9b108c33/@mui/toolpad",
+    "@mui/toolpad": "https://pkg.csb.dev/mui/mui-toolpad/commit/5c002ca3/@mui/toolpad",
     "@googleapis/sheets": "^4.0.2",
     "@octokit/core": "^4.2.1",
     "axios": "^1.3.6",
