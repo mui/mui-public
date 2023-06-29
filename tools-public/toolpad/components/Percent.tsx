@@ -1,10 +1,10 @@
-import * as React from "react";
-import { createComponent } from "@mui/toolpad/browser";
+import * as React from 'react';
+import { createComponent } from '@mui/toolpad/browser';
 
 const percentFormat = new Intl.NumberFormat(undefined, {
-  style: "percent",
+  style: 'percent',
   maximumFractionDigits: 2,
-  signDisplay: "always",
+  signDisplay: 'always',
 });
 
 export interface ParsedProps {
@@ -13,7 +13,7 @@ export interface ParsedProps {
 
 function formatPercent(change: number | undefined): string {
   if (!change) {
-    return "";
+    return '';
   }
   return percentFormat.format(change);
 }
@@ -25,7 +25,7 @@ function Percent({ value }: ParsedProps) {
 export default createComponent(Percent, {
   argTypes: {
     value: {
-      type: "string",
+      type: 'string',
     },
   },
 });
