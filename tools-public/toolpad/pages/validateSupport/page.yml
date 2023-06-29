@@ -104,13 +104,7 @@ spec:
             loading: false
             value:
               $$jsExpression: |
-                (() => {
-                  if (updateMuiPaidSupport.error) {
-                    return updateMuiPaidSupport.error
-                  }
-
-                  return updateMuiPaidSupport.data.message
-                })()
+                updateMuiPaidSupport.data?.message
             mode: text
           layout:
             columnSize: 1.6802030456852792
