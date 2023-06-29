@@ -1,4 +1,4 @@
-import { request } from "graphql-request";
+import { request } from 'graphql-request';
 
 interface PullRequest {
   number: number;
@@ -32,7 +32,7 @@ export async function queryPRs() {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
 
-  const endpoint = "https://api.github.com/graphql";
+  const endpoint = 'https://api.github.com/graphql';
   const token = process.env.GITHUB_TOKEN;
 
   const query = `
@@ -91,7 +91,7 @@ export async function queryPRs() {
     {},
     {
       Authorization: `Bearer ${token}`,
-    }
+    },
   );
 
   return response.materialui.pullRequests.nodes

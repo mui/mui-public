@@ -1,44 +1,42 @@
-import axios from "axios";
+import axios from 'axios';
 
 function getMainBundleLabel(bundleId: string): string {
-  if (
-    bundleId === "packages/material-ui/build/umd/material-ui.production.min.js"
-  ) {
-    return "@mui/material[umd]";
+  if (bundleId === 'packages/material-ui/build/umd/material-ui.production.min.js') {
+    return '@mui/material[umd]';
   }
-  if (bundleId === "@material-ui/core/Textarea") {
-    return "TextareaAutosize";
+  if (bundleId === '@material-ui/core/Textarea') {
+    return 'TextareaAutosize';
   }
-  if (bundleId === "docs.main") {
-    return "docs:/_app";
+  if (bundleId === 'docs.main') {
+    return 'docs:/_app';
   }
-  if (bundleId === "docs.landing") {
-    return "docs:/";
+  if (bundleId === 'docs.landing') {
+    return 'docs:/';
   }
   return (
     bundleId
       // package renames
-      .replace(/^@material-ui\/core$/, "@mui/material")
-      .replace(/^@material-ui\/core.legacy$/, "@mui/material.legacy")
-      .replace(/^@material-ui\/icons$/, "@mui/material-icons")
-      .replace(/^@material-ui\/unstyled$/, "@mui/core")
+      .replace(/^@material-ui\/core$/, '@mui/material')
+      .replace(/^@material-ui\/core.legacy$/, '@mui/material.legacy')
+      .replace(/^@material-ui\/icons$/, '@mui/material-icons')
+      .replace(/^@material-ui\/unstyled$/, '@mui/core')
       // org rename
-      .replace(/^@material-ui\/([\w-]+)$/, "@mui/$1")
+      .replace(/^@material-ui\/([\w-]+)$/, '@mui/$1')
       // path renames
       .replace(
         /^packages\/material-ui\/material-ui\.production\.min\.js$/,
-        "packages/mui-material/material-ui.production.min.js"
+        'packages/mui-material/material-ui.production.min.js',
       )
-      .replace(/^@material-ui\/core\//, "")
-      .replace(/\.esm$/, "")
+      .replace(/^@material-ui\/core\//, '')
+      .replace(/\.esm$/, '')
   );
 }
 
 async function getBaseSnapshot(baseRef: string, baseCommit: string) {
   const baseSnapshotUrl = new URL(
     `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(
-      baseRef
-    )}/${encodeURIComponent(baseCommit)}/size-snapshot.json`
+      baseRef,
+    )}/${encodeURIComponent(baseCommit)}/size-snapshot.json`,
   );
   const baseSnapshot = await axios.get(baseSnapshotUrl.href);
   return baseSnapshot.data;
@@ -46,16 +44,12 @@ async function getBaseSnapshot(baseRef: string, baseCommit: string) {
 
 async function getTargetSnapshot(circleCIBuildNumber: string) {
   const artifactsUrl = `https://circleci.com/api/v2/project/gh/mui/material-ui/${encodeURIComponent(
-    circleCIBuildNumber
+    circleCIBuildNumber,
   )}/artifacts`;
   const { data: artifacts } = await axios.get(artifactsUrl);
-  const entry = artifacts.items.find(
-    (entry) => entry.path === "size-snapshot.json"
-  );
+  const entry = artifacts.items.find((entry) => entry.path === 'size-snapshot.json');
   if (!entry) {
-    throw new Error(
-      `No artifacts found for build ${circleCIBuildNumber} (${artifactsUrl})`
-    );
+    throw new Error(`No artifacts found for build ${circleCIBuildNumber} (${artifactsUrl})`);
   }
   const { data } = await axios.get(entry.url);
   return data;
@@ -81,7 +75,7 @@ interface Size {
 function getSizeInfo<K extends string>(
   property: K,
   current: Record<K, number>,
-  previous: Record<K, number>
+  previous: Record<K, number>,
 ) {
   const absoluteDiff = current[property] - previous[property];
   const relativeDiff = current[property] / previous[property] - 1;
@@ -96,7 +90,7 @@ function getSizeInfo<K extends string>(
 export async function getBundleSizes(
   baseRef: string,
   baseCommit: string,
-  circleCIBuildNumber: string
+  circleCIBuildNumber: string,
 ) {
   const [base, target] = await Promise.all([
     getBaseSnapshot(baseRef, baseCommit),
@@ -111,15 +105,13 @@ export async function getBundleSizes(
     const entry = {
       id: bundle,
       name: getMainBundleLabel(bundle),
-      ...getSizeInfo("parsed", currentSize, previousSize),
-      ...getSizeInfo("gzip", currentSize, previousSize),
+      ...getSizeInfo('parsed', currentSize, previousSize),
+      ...getSizeInfo('gzip', currentSize, previousSize),
     };
 
     return entry;
   }).sort(
-    (a, b) =>
-      Math.abs(b["absoluteDiff.parsed"] || 0) -
-      Math.abs(a["absoluteDiff.parsed"] || 0)
+    (a, b) => Math.abs(b['absoluteDiff.parsed'] || 0) - Math.abs(a['absoluteDiff.parsed'] || 0),
   );
 }
 
@@ -128,7 +120,7 @@ export async function PRsPerMonth(repositoryId: string, startDate: string) {
     return [];
   }
 
-  startDate = startDate || "2016-01-01";
+  startDate = startDate || '2016-01-01';
 
   const openQuery = `
 with maintainers as (
@@ -199,16 +191,16 @@ with maintainers as (
 SELECT * FROM pr_stats ge;
     `;
 
-  const res = await fetch("https://api.ossinsight.io/q/playground", {
+  const res = await fetch('https://api.ossinsight.io/q/playground', {
     headers: {
-      "content-type": "application/json",
+      'content-type': 'application/json',
     },
     body: JSON.stringify({
       sql: openQuery,
-      type: "repo",
+      type: 'repo',
       id: repositoryId,
     }),
-    method: "POST",
+    method: 'POST',
   });
   if (res.status !== 200) {
     throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
@@ -217,15 +209,12 @@ SELECT * FROM pr_stats ge;
   return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
 }
 
-export async function ContributorsPerMonth(
-  repositoryId: string,
-  startDate: string
-) {
+export async function ContributorsPerMonth(repositoryId: string, startDate: string) {
   if (!repositoryId) {
     return [];
   }
 
-  startDate = startDate || "2016-01-01";
+  startDate = startDate || '2016-01-01';
 
   const openQuery = `
 with maintainers as (
@@ -296,16 +285,16 @@ with maintainers as (
 SELECT * FROM pr_stats ge;
     `;
 
-  const res = await fetch("https://api.ossinsight.io/q/playground", {
+  const res = await fetch('https://api.ossinsight.io/q/playground', {
     headers: {
-      "content-type": "application/json",
+      'content-type': 'application/json',
     },
     body: JSON.stringify({
       sql: openQuery,
-      type: "repo",
+      type: 'repo',
       id: repositoryId,
     }),
-    method: "POST",
+    method: 'POST',
   });
   if (res.status !== 200) {
     throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
