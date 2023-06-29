@@ -106,7 +106,7 @@ spec:
               $$jsExpression: |
                 (() => {
                   if (updateMuiPaidSupport.error) {
-                    return updateMuiPaidSupport.error.message
+                    return updateMuiPaidSupport.error
                   }
 
                   return updateMuiPaidSupport.data.message

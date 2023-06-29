@@ -1,4 +1,3 @@
-import { createFunction } from "@mui/toolpad/server";
 import { request } from "graphql-request";
 
 interface LabelTimelineItem {
@@ -19,7 +18,7 @@ interface Issue {
   };
 }
 
-export const queryMUIXLabels = createFunction(async ({ parameters }) => {
+export async function queryMUIXLabels() {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
@@ -93,4 +92,4 @@ export const queryMUIXLabels = createFunction(async ({ parameters }) => {
   }));
 
   return data;
-});
+}
