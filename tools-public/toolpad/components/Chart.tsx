@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { createComponent } from '@mui/toolpad/browser';
+import * as React from "react";
+import { createComponent } from "@mui/toolpad/browser";
 import {
   ResponsiveContainer,
   LineChart,
@@ -9,20 +9,20 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-} from 'recharts';
-import CircularProgress from '@mui/material/CircularProgress';
+} from "recharts";
+import CircularProgress from "@mui/material/CircularProgress";
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
-  '#87bc45',
-  '#27aeef',
-  '#ea5545',
-  '#f46a9b',
-  '#ef9b20',
-  '#edbf33',
-  '#ede15b',
-  '#bdcf32',
-  '#b33dc6',
+  "#87bc45",
+  "#27aeef",
+  "#ea5545",
+  "#f46a9b",
+  "#ef9b20",
+  "#edbf33",
+  "#ede15b",
+  "#bdcf32",
+  "#b33dc6",
 ];
 
 export interface PieChartProps {
@@ -33,7 +33,7 @@ export interface PieChartProps {
 
 function ChartExport({ loading, data, series }: PieChartProps) {
   return (
-    <div style={{ position: 'relative', width: '100%', height: 300 }}>
+    <div style={{ position: "relative", width: "100%", height: 300 }}>
       <ResponsiveContainer>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -54,11 +54,11 @@ function ChartExport({ loading, data, series }: PieChartProps) {
       {!data || loading ? (
         <div
           style={{
-            position: 'absolute',
-            inset: '0 0 0 0',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            position: "absolute",
+            inset: "0 0 0 0",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
           <CircularProgress />
@@ -69,16 +69,16 @@ function ChartExport({ loading, data, series }: PieChartProps) {
 }
 
 export default createComponent(ChartExport, {
-  loadingProp: 'loading',
-  loadingPropSource: ['data', 'series'],
+  loadingProp: "loading",
+  loadingPropSource: ["data", "series"],
   argTypes: {
     data: {
-      type: 'array',
+      type: "array",
       default: [],
     },
     series: {
-      type: 'array',
-      default: ['pr_community_count', 'pr_maintainers_count'],
+      type: "array",
+      default: ["pr_community_count", "pr_maintainers_count"],
     },
   },
 });
