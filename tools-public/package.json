@@ -21,7 +21,7 @@
     "ssh2-promise": "^1.0.3"
   },
   "engines": {
-    "node": "^16.17.0"
+    "node": ">=16.17.0"
   },
   "devDependencies": {
     "@types/node": "^18.16.1",
