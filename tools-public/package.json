@@ -20,9 +20,6 @@
     "recharts": "^2.5.0",
     "ssh2-promise": "^1.0.3"
   },
-  "engines": {
-    "node": ">=16.17.0"
-  },
   "devDependencies": {
     "@types/node": "^18.16.1",
     "@types/ssh2": "^1.11.11"
