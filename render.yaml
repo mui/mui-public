@@ -29,5 +29,5 @@ services:
     pullRequestPreviewsEnabled: true
     envVars:
       - key: NODE_VERSION
-        value: 18
+        value: 16
     # plan: standard
