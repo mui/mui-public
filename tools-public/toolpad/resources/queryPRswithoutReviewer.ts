@@ -1,5 +1,4 @@
-import { createFunction } from '@mui/toolpad/server';
-import { request } from 'graphql-request';
+import { request } from "graphql-request";
 
 interface PullRequest {
   number: number;
@@ -15,13 +14,12 @@ interface PullRequest {
   }[];
 }
 
-export const queryPRswithoutReviewer = createFunction(
-  async ({ parameters }) => {
-    if (!process.env.GITHUB_TOKEN) {
-      throw new Error(`Env variable GITHUB_TOKEN not configured`);
-    }
+export async function queryPRswithoutReviewer() {
+  if (!process.env.GITHUB_TOKEN) {
+    throw new Error(`Env variable GITHUB_TOKEN not configured`);
+  }
 
-    const query1 = `
+  const query1 = `
   nodes {
     number
     url
@@ -57,10 +55,10 @@ export const queryPRswithoutReviewer = createFunction(
   }
     `;
 
-    const endpoint = 'https://api.github.com/graphql';
-    const token = process.env.GITHUB_TOKEN;
+  const endpoint = "https://api.github.com/graphql";
+  const token = process.env.GITHUB_TOKEN;
 
-    const query = `
+  const query = `
       {
         materialui: repository(owner: "mui", name: "material-ui") {
           pullRequests(
@@ -83,17 +81,16 @@ export const queryPRswithoutReviewer = createFunction(
       }
             `;
 
-    const response: any = await request(
-      endpoint,
-      query,
-      {},
-      {
-        Authorization: `Bearer ${token}`,
-      }
-    );
+  const response: any = await request(
+    endpoint,
+    query,
+    {},
+    {
+      Authorization: `Bearer ${token}`,
+    }
+  );
 
-    return response.materialui.pullRequests.nodes
-      .concat(response.muix.pullRequests.nodes)
-      .map((x) => ({ ...x, repository: x.repository.name }));
-  }
-);
+  return response.materialui.pullRequests.nodes
+    .concat(response.muix.pullRequests.nodes)
+    .map((x) => ({ ...x, repository: x.repository.name }));
+}
