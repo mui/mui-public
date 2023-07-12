@@ -42,4 +42,28 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 16
-    # plan: standard
+    plan: standard
+
+  - type: web
+    name: admin-app
+    env: node
+    repo: https://github.com/mui/mui-toolpad.git
+    rootDir: examples/admin-app
+    buildCommand: yarn && yarn build
+    startCommand: yarn start
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_VERSION
+        value: 16
+
+  - type: web
+    name: qrcode-generator
+    env: node
+    repo: https://github.com/mui/mui-toolpad.git
+    rootDir: examples/qrcode-generator
+    buildCommand: yarn && yarn build
+    startCommand: yarn start
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_VERSION
+        value: 16
