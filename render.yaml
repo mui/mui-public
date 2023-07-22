@@ -18,3 +18,15 @@ services:
       - fromGroup: Google Sheet service account
       - key: NODE_VERSION
         value: 18
+
+  - type: web
+    name: datagrid-example
+    env: node
+    repo: https://github.com/mui/mui-toolpad.git
+    rootDir: examples/custom-datagrid-column
+    buildCommand: yarn && yarn build
+    startCommand: yarn start
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_VERSION
+        value: 16
