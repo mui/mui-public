@@ -252,6 +252,10 @@ FROM
     AND post.post_parent = '0' -- ignore orders that are sub-orders
 ) AS order_30
   `);
+
+  await connection.end();
+  await ssh.close();
+
   return ratio[0];
 }
 
