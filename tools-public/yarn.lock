@@ -557,10 +557,10 @@
     prop-types "^15.8.1"
     react-is "^18.2.0"
 
-"@mui/core-downloads-tracker@^5.14.1":
-  version "5.14.1"
-  resolved "https://registry.yarnpkg.com/@mui/core-downloads-tracker/-/core-downloads-tracker-5.14.1.tgz#af156cb3e15b202f5c09f66e7d8b71ca86aef525"
-  integrity sha512-mIa1WmDmNr1LoupV1Rbxt9bTFKMbIn10RHG1bnZ/FJCkAYpuU/D4n+R+ttiycgcZNngU++zyh/OQeJblzbQPzg==
+"@mui/core-downloads-tracker@^5.14.2":
+  version "5.14.2"
+  resolved "https://registry.yarnpkg.com/@mui/core-downloads-tracker/-/core-downloads-tracker-5.14.2.tgz#d8fcacdb1d37e621fce33ea808180fa5a590f908"
+  integrity sha512-x+c/MgDL1t/IIy5lDbMlrDouFG5DYZbl3DP4dbbuhlpPFBnE9glYwmJEee/orVHQpOPwLxCAIWQs+2DKSaBVWQ==
 
 "@mui/icons-material@5.14.1":
   version "5.14.1"
@@ -583,14 +583,14 @@
     prop-types "^15.8.1"
     react-is "^18.2.0"
 
-"@mui/material@5.14.1":
-  version "5.14.1"
-  resolved "https://registry.yarnpkg.com/@mui/material/-/material-5.14.1.tgz#2711e4ca5c9bdc67b916d01faee650a7a5260bb8"
-  integrity sha512-WtsgYuageTunLfxH3Ri+o1RuQTFImtRHxMcVNyD0Hhd2/znjW6KODNz0XfjvLRnNCAynBxZNiflcoIBW40h9PQ==
+"@mui/material@5.14.2":
+  version "5.14.2"
+  resolved "https://registry.yarnpkg.com/@mui/material/-/material-5.14.2.tgz#13b113489a61021145d62e0383912ca487a46375"
+  integrity sha512-TgNR4/YRL11RifsnMWNhITNCkGJYVz20SCvVJBBoU5Y/KhUNSSJxjDpEB8VrnY+sUsV0NigLCkHZJglfsiS3Pw==
   dependencies:
     "@babel/runtime" "^7.22.6"
     "@mui/base" "5.0.0-beta.8"
-    "@mui/core-downloads-tracker" "^5.14.1"
+    "@mui/core-downloads-tracker" "^5.14.2"
     "@mui/system" "^5.14.1"
     "@mui/types" "^7.2.4"
     "@mui/utils" "^5.14.1"
@@ -634,15 +634,15 @@
     csstype "^3.1.2"
     prop-types "^15.8.1"
 
-"@mui/toolpad-components@https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-components":
-  version "0.1.20"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-components#75f551aa8a8077a0292bd1d6823a77240b8d9034"
+"@mui/toolpad-components@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-components":
+  version "0.1.21"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-components#0c506ed87366c4147507196a748b32ef19dddd5d"
   dependencies:
     "@mui/icons-material" "5.14.1"
     "@mui/lab" "5.0.0-alpha.137"
-    "@mui/material" "5.14.1"
-    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-core"
-    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-utils"
+    "@mui/material" "5.14.2"
+    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core"
+    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils"
     "@mui/x-data-grid-pro" "6.10.1"
     "@mui/x-date-pickers" "6.10.1"
     dayjs "1.11.9"
@@ -652,13 +652,12 @@
     react-hook-form "7.45.2"
     recharts "2.7.2"
 
-"@mui/toolpad-core@https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-core":
-  version "0.1.20"
-  uid f28cfe2d84593b5af75b36edda7321b3a40276d9
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-core#f28cfe2d84593b5af75b36edda7321b3a40276d9"
+"@mui/toolpad-core@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core":
+  version "0.1.21"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core#4539591562d46d8b9dd22290e0a8f9e8260c59a3"
   dependencies:
-    "@mui/material" "5.14.1"
-    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-utils"
+    "@mui/material" "5.14.2"
+    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils"
     "@tanstack/react-query" "4.32.0"
     "@types/json-schema" "^7.0.12"
     invariant "2.2.4"
@@ -666,18 +665,18 @@
     react-error-boundary "4.0.10"
     react-is "18.2.0"
 
-"@mui/toolpad-utils@https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-utils":
-  version "0.1.20"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-utils#48cd706a8d7394903adb75285cb10c32f93efb22"
+"@mui/toolpad-utils@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils":
+  version "0.1.21"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils#b4b2e6b4c71bac0a24fe072ccba69b97aefddec9"
   dependencies:
     invariant "2.2.4"
     react-is "18.2.0"
     yaml "2.3.1"
     yaml-diff-patch "2.0.0"
 
-"@mui/toolpad@https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad":
-  version "0.1.20"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad#41dd379b4c9958cd078cc521d177f41c327fdb2b"
+"@mui/toolpad@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad":
+  version "0.1.21"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad#04f2809005883c7da7f00382300acf6d24dde48d"
   dependencies:
     "@emotion/cache" "11.11.0"
     "@emotion/react" "11.11.1"
@@ -687,11 +686,11 @@
     "@googleapis/sheets" "5.0.1"
     "@mui/icons-material" "5.14.1"
     "@mui/lab" "5.0.0-alpha.137"
-    "@mui/material" "5.14.1"
+    "@mui/material" "5.14.2"
     "@mui/system" "5.14.1"
-    "@mui/toolpad-components" "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-components"
-    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-core"
-    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/9540fd8b/@mui/toolpad-utils"
+    "@mui/toolpad-components" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-components"
+    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core"
+    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils"
     "@mui/types" "7.2.4"
     "@mui/utils" "5.14.1"
     "@mui/x-data-grid" "6.10.1"
