@@ -29,4 +29,4 @@ services:
     pullRequestPreviewsEnabled: true
     envVars:
       - key: NODE_VERSION
-        value: 16
+        value: 18
