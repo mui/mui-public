@@ -6,7 +6,7 @@ services:
     env: node
     rootDir: tools-public
     buildCommand: yarn && yarn build
-    startCommand: yarn start
+    startCommand: node_modules/.bin/toolpad start
     pullRequestPreviewsEnabled: true
     plan: standard
     envVars:
@@ -25,8 +25,8 @@ services:
     repo: https://github.com/mui/mui-toolpad.git
     rootDir: examples/custom-datagrid-column
     buildCommand: yarn && yarn build
-    startCommand: yarn start
+    startCommand: node_modules/.bin/toolpad start
     pullRequestPreviewsEnabled: true
     envVars:
       - key: NODE_VERSION
-        value: 16
+        value: 18
