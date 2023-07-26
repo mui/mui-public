@@ -634,15 +634,15 @@
     csstype "^3.1.2"
     prop-types "^15.8.1"
 
-"@mui/toolpad-components@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-components":
+"@mui/toolpad-components@https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-components":
   version "0.1.21"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-components#0c506ed87366c4147507196a748b32ef19dddd5d"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-components#a20f594864402e8166f5f02aadf744e87a9dec64"
   dependencies:
     "@mui/icons-material" "5.14.1"
     "@mui/lab" "5.0.0-alpha.137"
     "@mui/material" "5.14.2"
-    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core"
-    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils"
+    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-core"
+    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-utils"
     "@mui/x-data-grid-pro" "6.10.1"
     "@mui/x-date-pickers" "6.10.1"
     dayjs "1.11.9"
@@ -652,12 +652,12 @@
     react-hook-form "7.45.2"
     recharts "2.7.2"
 
-"@mui/toolpad-core@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core":
+"@mui/toolpad-core@https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-core":
   version "0.1.21"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core#4539591562d46d8b9dd22290e0a8f9e8260c59a3"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-core#c7a21784a9b51e50758e0f2b9f7ac846d659f32b"
   dependencies:
     "@mui/material" "5.14.2"
-    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils"
+    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-utils"
     "@tanstack/react-query" "4.32.0"
     "@types/json-schema" "^7.0.12"
     invariant "2.2.4"
@@ -665,18 +665,18 @@
     react-error-boundary "4.0.10"
     react-is "18.2.0"
 
-"@mui/toolpad-utils@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils":
+"@mui/toolpad-utils@https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-utils":
   version "0.1.21"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils#b4b2e6b4c71bac0a24fe072ccba69b97aefddec9"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-utils#b4b2e6b4c71bac0a24fe072ccba69b97aefddec9"
   dependencies:
     invariant "2.2.4"
     react-is "18.2.0"
     yaml "2.3.1"
     yaml-diff-patch "2.0.0"
 
-"@mui/toolpad@https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad":
+"@mui/toolpad@https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad":
   version "0.1.21"
-  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad#04f2809005883c7da7f00382300acf6d24dde48d"
+  resolved "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad#277433ae869d03fb9b7c46fe65520dc42321ec50"
   dependencies:
     "@emotion/cache" "11.11.0"
     "@emotion/react" "11.11.1"
@@ -688,9 +688,9 @@
     "@mui/lab" "5.0.0-alpha.137"
     "@mui/material" "5.14.2"
     "@mui/system" "5.14.1"
-    "@mui/toolpad-components" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-components"
-    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-core"
-    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/78f0dcf2/@mui/toolpad-utils"
+    "@mui/toolpad-components" "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-components"
+    "@mui/toolpad-core" "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-core"
+    "@mui/toolpad-utils" "https://pkg.csb.dev/mui/mui-toolpad/commit/336da8cb/@mui/toolpad-utils"
     "@mui/types" "7.2.4"
     "@mui/utils" "5.14.1"
     "@mui/x-data-grid" "6.10.1"
