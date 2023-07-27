@@ -33,14 +33,29 @@ spec:
                 type: number
                 width: 141
     - component: PageRow
-      name: PageRow2
+      name: pageRow
       children:
-        - component: codeComponent.Chart
-          name: codeComponent_Chart
+        - component: Chart
+          name: chart
           props:
             data:
-              $$jsExpression: |
-                PRsOpenandReviewedQuery.data
+              - kind: line
+                label: pr_community_count
+                data:
+                  $$jsExpression: |
+                    PRsOpenandReviewedQuery.data
+                xKey: event_month
+                yKey: pr_community_count
+                color: "#7cb342"
+              - kind: line
+                label: pr_maintainers_count
+                data:
+                  $$jsExpression: |
+                    PRsOpenandReviewedQuery.data
+                xKey: event_month
+                yKey: pr_maintainers_count
+                color: "#27aeef"
+            height: 300
   queries:
     - name: PRsOpenandReviewedQuery
       query:

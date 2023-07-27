@@ -20,6 +20,70 @@ spec:
                 => i !== "date")
             title: Headless libraries npm downloads
     - component: PageRow
+      name: pageRow3
+      children:
+        - component: Text
+          name: npmChartTitle
+          props:
+            variant: h6
+            value: Headless libraries npm downloads
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Chart
+          name: npmChart
+          props:
+            data:
+              - kind: line
+                label: "@mui/base"
+                data:
+                  $$jsExpression: |
+                    queryHeadlessLibrariesDownloads.data
+                xKey: date
+                yKey: "@mui/base"
+                color: "#1976d2"
+              - kind: line
+                label: "@reach/utils"
+                data:
+                  $$jsExpression: |
+                    queryHeadlessLibrariesDownloads.data
+                xKey: date
+                yKey: "@reach/utils"
+                color: "#b33dc6"
+              - kind: line
+                label: "@radix-ui/react-primitive"
+                data:
+                  $$jsExpression: |
+                    queryHeadlessLibrariesDownloads.data
+                xKey: date
+                yKey: "@radix-ui/react-primitive"
+                color: "#ea5545"
+              - kind: line
+                label: "@react-aria/utils"
+                data:
+                  $$jsExpression: |
+                    queryHeadlessLibrariesDownloads.data
+                xKey: date
+                yKey: "@react-aria/utils"
+                color: "#ef9b20"
+              - kind: line
+                label: reakit
+                data:
+                  $$jsExpression: |
+                    queryHeadlessLibrariesDownloads.data
+                xKey: date
+                yKey: reakit
+                color: "#000"
+              - kind: line
+                label: "@headlessui/react"
+                data:
+                  $$jsExpression: |
+                    queryHeadlessLibrariesDownloads.data
+                xKey: date
+                yKey: "@headlessui/react"
+                color: "#388e3c"
+            height: 300
+    - component: PageRow
       name: pageRow2
       children:
         - component: DataGrid

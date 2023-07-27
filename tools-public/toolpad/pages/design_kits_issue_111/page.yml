@@ -15,6 +15,7 @@ spec:
           - name: Accept
             value: application/vnd.github+json
         method: GET
+        searchParams: []
   content:
     - component: PageRow
       name: pageRow1
