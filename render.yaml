@@ -10,14 +10,16 @@ services:
     pullRequestPreviewsEnabled: true
     plan: standard
     envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: NODE_OPTIONS
+        value: --enable-source-maps
       - fromGroup: MUI Store database
       - fromGroup: GitHub public
       - fromGroup: GitHub mui-bot2 public_repo
       - fromGroup: HiBob
       - fromGroup: Zendesk
       - fromGroup: Google Sheet service account
-      - key: NODE_VERSION
-        value: 18
 
   - type: web
     name: datagrid-example
@@ -30,3 +32,5 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18
+      - key: NODE_OPTIONS
+        value: --enable-source-maps
