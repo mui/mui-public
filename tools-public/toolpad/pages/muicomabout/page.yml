@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: page
+spec:
+  id: nSwYn51
+  title: muicomabout
+  display: shell
+  queries:
+    - name: queryAbout
+      query:
+        function: queryAbout.ts#queryAbout
+        kind: local
