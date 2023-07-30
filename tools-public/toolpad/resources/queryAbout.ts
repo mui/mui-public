@@ -1,3 +1,14 @@
+function flip(data) {
+  return Object.fromEntries(
+  Object
+    .entries(data)
+    .map(([key, value]) => [value, key])
+  );
+}
+
+const countryFix = {
+  'Macedonia, the former Yugoslav Republic of': 'North Macedonia',
+};
 
 export async function queryAbout() {
   if (!process.env.HIBOB_TOKEN_READ_STANDARD) {
@@ -5,9 +16,35 @@ export async function queryAbout() {
   }
 
   // https://apidocs.hibob.com/reference/post_people-search
-  // Buggy
+  // Buggy fullName should work but doesn't
+  // const res = await fetch(
+  //   "https://api.hibob.com/v1/people/search",
+  //   {
+  //     headers: {
+  //       "content-type": "application/json",
+  //       Authorization: `Basic ${btoa(
+  //         `SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`
+  //       )}`,
+  //     },
+  //     method: "POST",
+  //     body: JSON.stringify({
+  //       "fields": [
+  //         "fullName",
+  //         "about.socialData.twitter",
+  //         "work.title",
+  //         "address.city",
+  //         "address.country",
+  //         "about.custom.field_1690557141686",
+  //         "about.custom.field_1682954415714",
+  //       ],
+  //       "humanReadable": "REPLACE",
+  //       "showInactive": false
+  //     }),
+  //   }
+  // );
+
   const res = await fetch(
-    "https://api.hibob.com/v1/people/search",
+    "https://api.hibob.com/v1/people?humanReadable=true",
     {
       headers: {
         "content-type": "application/json",
@@ -15,19 +52,7 @@ export async function queryAbout() {
           `SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`
         )}`,
       },
-      method: "POST",
-      body: JSON.stringify({
-        "fields": [
-          "displayName",
-          "about.socialData.twitter",
-          "about.socialData.github",
-          "work.title",
-          "address.city",
-          "address.country"
-        ],
-        "humanReadable": "REPLACE",
-        "showInactive": false
-      }),
+      method: "GET",
     }
   );
 
@@ -36,13 +61,33 @@ export async function queryAbout() {
   }
   const data = await res.json();
 
-  return data.employees.map((employee) => ({
-    // name: employee.fullName,
-    // title: employee.work.title,
-    // location: `${employee.address.city} - ${employee.address.country}`,
-    // locationCountry: employee.address.country,
-    // twitter: employee.about.socialData.twitter,
-    // github: employee.about.custom,
-    ...employee,
-  }));
+  const countriesRes = await fetch(
+    "https://flagcdn.com/en/codes.json",
+    {
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "GET",
+    }
+  );
+
+  if (countriesRes.status !== 200) {
+    throw new Error(`HTTP ${countriesRes.status}: ${(await countriesRes.text()).slice(0, 500)}`);
+  }
+  const countries = await countriesRes.json();
+  const countryToISO = flip(countries);
+
+  return data.employees.map((employee) => {
+    const country = countryFix[employee.address.country] || employee.address.country;
+    return {
+      name: employee.fullName,
+      title: employee.work.title,
+      about: employee.about?.custom?.field_1690557141686,
+      location: `${employee.address.city} - ${country}`,
+      locationCountry: countryToISO[country],
+      twitter: employee.about?.socialData?.twitter,
+      github: employee.about?.custom?.field_1682954415714,
+      // ...employee,
+    };
+  });
 }
