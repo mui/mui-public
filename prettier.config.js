@@ -1,5 +1,6 @@
+const baseline = require('@mui/monorepo/prettier.config');
+
 module.exports = {
-  printWidth: 100,
-  singleQuote: true,
-  trailingComma: "all",
+  ...baseline,
+  overrides: [...baseline.overrides],
 };
