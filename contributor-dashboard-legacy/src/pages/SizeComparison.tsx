@@ -451,13 +451,8 @@ function ComparisonErrorFallback({ prNumber }: { prNumber: number }) {
 }
 
 export default function SizeComparison() {
-	const {
-		buildId,
-		baseRef,
-		baseCommit,
-		circleCIBuildNumber,
-		prNumber,
-	} = useComparisonParams();
+	const { buildId, baseRef, baseCommit, circleCIBuildNumber, prNumber } =
+		useComparisonParams();
 
 	return (
 		<Fragment>

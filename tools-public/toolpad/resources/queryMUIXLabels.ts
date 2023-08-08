@@ -1,4 +1,4 @@
-import { request } from "graphql-request";
+import { request } from 'graphql-request';
 
 interface LabelTimelineItem {
   label: {
@@ -23,7 +23,7 @@ export async function queryMUIXLabels() {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
 
-  const endpoint = "https://api.github.com/graphql";
+  const endpoint = 'https://api.github.com/graphql';
   const token = process.env.GITHUB_TOKEN;
 
   const query = `
@@ -77,7 +77,7 @@ export async function queryMUIXLabels() {
     {},
     {
       Authorization: `Bearer ${token}`,
-    }
+    },
   );
 
   const pullRequests = response.repository.pullRequests.nodes;
