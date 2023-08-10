@@ -6,20 +6,6 @@ spec:
   display: shell
   content:
     - component: PageRow
-      name: pageRow
-      children:
-        - component: codeComponent.NpmChart
-          name: codeComponent_NpmChart
-          props:
-            data:
-              $$jsExpression: |
-                queryHeadlessLibrariesDownloads.data
-            packages:
-              $$jsExpression: >
-                Object.keys(queryHeadlessLibrariesDownloads.data[0]).filter((i)
-                => i !== "date")
-            title: Headless libraries npm downloads
-    - component: PageRow
       name: pageRow3
       children:
         - component: Text
