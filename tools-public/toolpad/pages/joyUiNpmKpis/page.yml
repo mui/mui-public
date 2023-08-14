@@ -11,41 +11,61 @@ spec:
         kind: local
   content:
     - component: PageRow
-      name: pageRow
+      name: pageRow4
       children:
-        - component: codeComponent.NpmChart
-          name: codeComponent_NpmChart
+        - component: Text
+          name: text
           props:
-            title: Joy UI npm downloads
-            packages:
-              $$jsExpression: |
-                ["@mui/joy"]
-            data:
-              $$jsExpression: |
-                queryJoyUIDownloads.data
+            value: Joy UI npm downloads
+            variant: h6
     - component: PageRow
-      name: pageRow1
+      name: pageRow2
       children:
-        - component: codeComponent.NpmChart
-          name: codeComponent_NpmChart1
+        - component: Chart
+          name: chart
           props:
             data:
-              $$jsExpression: |
-                queryJoyUIDownloads.data
-                  .map((item, idx) => {
-                    return {
-                      date: item.date,
-                      "@mui/joy":
-                        idx > 0
-                          ? ((item["@mui/joy"] -
-                              queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) /
-                              queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) *
-                            100
-                          : null,
-                    }
-                  })
-                  .filter((item) => item["@mui/joy"] !== null)
-            packages:
-              $$jsExpression: |
-                ["@mui/joy"]
-            title: Joy UI month to month growth (%)
+              - label: "@mui/joy"
+                kind: line
+                data:
+                  $$jsExpression: |
+                    queryJoyUIDownloads.data
+                color: "#1976d2"
+                xKey: date
+                yKey: "@mui/joy"
+    - component: PageRow
+      name: pageRow5
+      children:
+        - component: Text
+          name: text1
+          props:
+            value: Joy UI month to month growth (%)
+            variant: h6
+    - component: PageRow
+      name: pageRow3
+      children:
+        - component: Chart
+          name: chart1
+          props:
+            data:
+              - label: "@mui/joy"
+                kind: line
+                data:
+                  $$jsExpression: >
+                    queryJoyUIDownloads.data
+                      .map((item, idx) => {
+                        return {
+                          date: item.date,
+                          "@mui/joy":
+                            idx > 0
+                              ? ((item["@mui/joy"] -
+                                  queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) /
+                                  queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) *
+                                100
+                              : null,
+                        }
+                      })
+                      .filter((item) => item["@mui/joy"] !== null)
+                color: "#1976d2"
+                xKey: date
+                yKey: "@mui/joy"

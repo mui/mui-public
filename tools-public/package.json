@@ -17,7 +17,6 @@
     "graphql": "^16.6.0",
     "graphql-request": "^6.0.0",
     "mysql": "^2.18.1",
-    "recharts": "^2.5.0",
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {

@@ -718,3 +718,8 @@ spec:
             visible:
               $$jsExpression: |
                 tabs.value == "tNon-KPIs related pages"
+    - component: PageRow
+      name: pageRow18
+      children:
+        - component: Button
+          name: button28
