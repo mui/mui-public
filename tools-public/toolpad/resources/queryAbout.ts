@@ -1,9 +1,6 @@
+/* eslint-disable import/prefer-default-export */
 function flip(data) {
-  return Object.fromEntries(
-  Object
-    .entries(data)
-    .map(([key, value]) => [value, key])
-  );
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [value, key]));
 }
 
 const countryFix = {
@@ -43,33 +40,25 @@ export async function queryAbout() {
   //   }
   // );
 
-  const res = await fetch(
-    "https://api.hibob.com/v1/people?humanReadable=true",
-    {
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Basic ${btoa(
-          `SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`
-        )}`,
-      },
-      method: "GET",
-    }
-  );
+  const res = await fetch('https://api.hibob.com/v1/people?humanReadable=true', {
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
+    },
+    method: 'GET',
+  });
 
   if (res.status !== 200) {
     throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
   }
   const data = await res.json();
 
-  const countriesRes = await fetch(
-    "https://flagcdn.com/en/codes.json",
-    {
-      headers: {
-        "content-type": "application/json",
-      },
-      method: "GET",
-    }
-  );
+  const countriesRes = await fetch('https://flagcdn.com/en/codes.json', {
+    headers: {
+      'content-type': 'application/json',
+    },
+    method: 'GET',
+  });
 
   if (countriesRes.status !== 200) {
     throw new Error(`HTTP ${countriesRes.status}: ${(await countriesRes.text()).slice(0, 500)}`);

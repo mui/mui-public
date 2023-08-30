@@ -19,7 +19,7 @@ function formatPercent(change: number | undefined): string {
 }
 
 function Percent({ value }: ParsedProps) {
-  return <>{formatPercent(value)}</>;
+  return <React.Fragment>{formatPercent(value)}</React.Fragment>;
 }
 
 export default createComponent(Percent, {

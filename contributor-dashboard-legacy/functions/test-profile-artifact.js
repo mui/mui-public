@@ -1,8 +1,8 @@
 const crypto = require("crypto");
+const zlib = require("zlib");
 const fetch = require("node-fetch");
 const { URL } = require("url");
 const util = require("util");
-const zlib = require("zlib");
 
 const gzip = util.promisify(zlib.gzip);
 /**
@@ -64,6 +64,7 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		url,
 		version: context.functionVersion,
 	});
+	// eslint-disable-next-line no-console
 	console.log(url, etag);
 
 	if (ifNoneMatch === etag) {

@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import dayjs from 'dayjs';
 
 const { sheets } = require('@googleapis/sheets');
@@ -5,7 +6,7 @@ const { JWT } = require('google-auth-library');
 const { Octokit } = require('@octokit/core');
 
 function findRowIndexByValue(sheet, value) {
-  for (let i = 0; i < sheet.length; i++) {
+  for (let i = 0; i < sheet.length; i += 1) {
     if (sheet[i][0] === value) {
       return i;
     }
@@ -24,7 +25,7 @@ async function updateGitHubIssueLabels(repo, issueId) {
 
   const octokitRequestMetadata = {
     owner: 'mui',
-    repo: repo,
+    repo,
     issue_number: issueId,
     headers: {
       'X-GitHub-Api-Version': '2022-11-28',
