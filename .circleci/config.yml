@@ -1,0 +1,108 @@
+version: 2.1
+
+parameters:
+  workflow:
+    description: The name of the workflow to run
+    type: string
+    default: pipeline
+
+defaults: &defaults
+  working_directory: /tmp/mui
+  docker:
+    - image: cimg/node:18.16
+
+commands:
+  install_js:
+    steps:
+      - run:
+          name: View install environment
+          command: |
+            node --version
+            yarn --version
+      - restore_cache:
+          name: Restore yarn cache
+          keys:
+            - v8-yarn-{{ checksum "yarn.lock" }}
+      - run:
+          name: Set yarn cache folder
+          command: |
+            # Keep path in sync with `save_cache` for key "v8-yarn-"
+            yarn config set cache-folder /tmp/yarn-cache
+            # Debug information
+            yarn cache dir
+            yarn cache list
+      - run:
+          name: Install js dependencies
+          command: yarn install
+      - save_cache:
+          name: Save yarn cache
+          key: v8-yarn-{{ checksum "yarn.lock" }}
+          paths:
+            # Keep path in sync with "Set yarn cache folder"
+            # Can't use environment variables for `save_cache` paths (tested in https://app.circleci.com/pipelines/github/mui/material-ui/37813/workflows/5b1e207f-ac8b-44e7-9ba4-d0f9a01f5c55/jobs/223370)
+            - /tmp/yarn-cache
+
+jobs:
+  checkout:
+    <<: *defaults
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Should not have any git not staged
+          command: git add -A && git diff --exit-code --staged
+      - run:
+          name: Check for duplicated packages
+          command: yarn deduplicate
+  test_unit:
+    <<: *defaults
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: keymailer
+          command: |
+            # latest commit
+            LATEST_COMMIT=$(git rev-parse HEAD)
+
+            # latest commit where lambda/keymailer was changed
+            FOLDER_COMMIT=$(git log -1 --format=format:%H --full-diff lambda/keymailer)
+
+            if [ $FOLDER_COMMIT = $LATEST_COMMIT ]; then
+              echo "changes, let's run the tests"
+              yarn workspace keymailer test
+            else
+              echo "no changes"
+            fi
+  test_lint:
+    <<: *defaults
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Eslint
+          command: yarn eslint:ci
+  test_static:
+    <<: *defaults
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: '`yarn prettier` changes committed?'
+          command: yarn prettier --check
+workflows:
+  version: 2
+  pipeline:
+    when:
+      equal: [pipeline, << pipeline.parameters.workflow >>]
+    jobs:
+      - checkout
+      - test_unit:
+          requires:
+            - checkout
+      - test_lint:
+          requires:
+            - checkout
+      - test_static:
+          requires:
+            - checkout
