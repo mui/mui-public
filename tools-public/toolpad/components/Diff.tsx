@@ -29,7 +29,7 @@ function formatDiff(value: number): string {
 }
 
 function Diff({ value }: ParsedProps) {
-  return <>{formatDiff(value)}</>;
+  return <React.Fragment>{formatDiff(value)}</React.Fragment>;
 }
 
 export default createComponent(Diff, {

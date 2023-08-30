@@ -10,6 +10,7 @@ async function fetchCircleCIApiV2(endpoint) {
 	const apiEndpoint = `https://circleci.com/api/v2/`;
 	const url = `${apiEndpoint}${endpoint}`;
 
+	// eslint-disable-next-line no-console
 	console.log(url);
 	const response = await fetch(url, {
 		headers: { "Circle-Token": process.env.CIRCLE_TOKEN },
@@ -66,7 +67,7 @@ function computeLabel(pipeline) {
  * @param {*} event
  * @param {*} context
  */
-exports.handler = async function fetchTestProfileDetails(event, context) {
+exports.handler = async function fetchTestProfileDetails(event) {
 	const { queryStringParameters } = event;
 
 	const jobNumberParameter = queryStringParameters.jobNumber;
@@ -79,6 +80,7 @@ exports.handler = async function fetchTestProfileDetails(event, context) {
 			),
 		};
 	}
+	// eslint-disable-next-line no-console
 	console.log(`fetching details for job #${jobNumber}`);
 
 	const job = await fetchCircleCIJobDetails(jobNumber);

@@ -145,7 +145,7 @@ query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
     endpoint,
     query,
     {
-      repository: repository,
+      repository,
       since: since.toISOString(),
     },
     {

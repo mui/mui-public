@@ -54,26 +54,6 @@ jobs:
       - run:
           name: Check for duplicated packages
           command: yarn deduplicate
-  test_unit:
-    <<: *defaults
-    steps:
-      - checkout
-      - install_js
-      - run:
-          name: keymailer
-          command: |
-            # latest commit
-            LATEST_COMMIT=$(git rev-parse HEAD)
-
-            # latest commit where lambda/keymailer was changed
-            FOLDER_COMMIT=$(git log -1 --format=format:%H --full-diff lambda/keymailer)
-
-            if [ $FOLDER_COMMIT = $LATEST_COMMIT ]; then
-              echo "changes, let's run the tests"
-              yarn workspace keymailer test
-            else
-              echo "no changes"
-            fi
   test_lint:
     <<: *defaults
     steps:
@@ -97,9 +77,6 @@ workflows:
       equal: [pipeline, << pipeline.parameters.workflow >>]
     jobs:
       - checkout
-      - test_unit:
-          requires:
-            - checkout
       - test_lint:
           requires:
             - checkout

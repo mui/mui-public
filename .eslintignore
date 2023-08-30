@@ -1,2 +1,6 @@
-/tools-public/toolpad/**/*.yml
+.cache
+/.git
+/contributor-dashboard-legacy/
 /tools-public/toolpad/.generated/
+/tools-public/toolpad/**/*.yml
+node_modules

@@ -52,7 +52,7 @@ export async function queryGenderManagement() {
   }
   const data = await res.json();
 
-  let managers = data.employees.filter((employee) => employee.work.isManager === 'Yes');
+  const managers = data.employees.filter((employee) => employee.work.isManager === 'Yes');
 
   return (countWomen(managers) / managers.length) * 100;
 }

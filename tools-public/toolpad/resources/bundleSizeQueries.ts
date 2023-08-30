@@ -47,7 +47,7 @@ async function getTargetSnapshot(circleCIBuildNumber: string) {
     circleCIBuildNumber,
   )}/artifacts`;
   const { data: artifacts } = await axios.get(artifactsUrl);
-  const entry = artifacts.items.find((entry) => entry.path === 'size-snapshot.json');
+  const entry = artifacts.items.find((entry2) => entry2.path === 'size-snapshot.json');
   if (!entry) {
     throw new Error(`No artifacts found for build ${circleCIBuildNumber} (${artifactsUrl})`);
   }
@@ -56,21 +56,6 @@ async function getTargetSnapshot(circleCIBuildNumber: string) {
 }
 
 const NULL_SNAPSHOT = { parsed: 0, gzip: 0 };
-
-interface Size {
-  parsed: {
-    previous: number;
-    current: number;
-    absoluteDiff: number;
-    relativeDiff: number;
-  };
-  gzip: {
-    previous: number;
-    current: number;
-    absoluteDiff: number;
-    relativeDiff: number;
-  };
-}
 
 function getSizeInfo<K extends string>(
   property: K,
@@ -82,8 +67,8 @@ function getSizeInfo<K extends string>(
   return {
     [`previous.${property}`]: previous[property],
     [`current.${property}`]: current[property],
-    [`absoluteDiff.${property}`]: absoluteDiff ? absoluteDiff : undefined,
-    [`relativeDiff.${property}`]: relativeDiff ? relativeDiff : undefined,
+    [`absoluteDiff.${property}`]: absoluteDiff ?? undefined,
+    [`relativeDiff.${property}`]: relativeDiff ?? undefined,
   };
 }
 

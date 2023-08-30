@@ -1,18 +1,5 @@
+/* eslint-disable import/prefer-default-export */
 import { request } from 'graphql-request';
-
-interface PullRequest {
-  number: number;
-  url: string;
-  title: string;
-  state: string;
-  repository: {
-    name: string;
-  };
-  isDraft: boolean;
-  labels: {
-    name: string;
-  }[];
-}
 
 export async function queryPRswithoutReviewer() {
   if (!process.env.GITHUB_TOKEN) {

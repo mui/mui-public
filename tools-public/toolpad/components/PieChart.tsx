@@ -36,9 +36,7 @@ function PieChartExport({ data }: PieChartProps) {
         ))}
       </Pie>
       <Tooltip
-        formatter={(value, name, props) =>
-          Intl.NumberFormat('en', { notation: 'compact' }).format(value)
-        }
+        formatter={(value) => Intl.NumberFormat('en', { notation: 'compact' }).format(value)}
       />
     </PieChart>
   );

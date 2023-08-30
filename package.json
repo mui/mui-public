@@ -12,7 +12,6 @@
     "@mui/monorepo": "https://github.com/mui/material-ui.git#master",
     "@typescript-eslint/eslint-plugin": "^4.11.1",
     "@typescript-eslint/parser": "^4.11.1",
-    "babel-eslint": "^9.0.0",
     "eslint": "^7.4.0",
     "eslint-config-airbnb-typescript": "^12.3.1",
     "eslint-config-prettier": "^8.1.0",
@@ -31,6 +30,8 @@
   },
   "dependencies": {},
   "workspaces": {
-    "packages": []
+    "packages": [
+      "packages/*"
+    ]
   }
 }

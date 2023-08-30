@@ -19,7 +19,7 @@ export const getPackages = (inData) => {
 };
 
 export const getMonthKey = (date: string) => {
-  return date.slice(0, -2) + '01';
+  return `${date.slice(0, -2)}01`;
 };
 
 export const prepareData = (inData) => {
@@ -38,22 +38,22 @@ export const prepareData = (inData) => {
   }
 
   packages.forEach((packageName) => {
-    Object.keys(inData[packageName]).map((date) => {
-      const monthKey = getMonthKey(date);
-      monthsData[monthKey][packageName] += inData[packageName][date];
+    Object.keys(inData[packageName]).forEach((date2) => {
+      const monthKey = getMonthKey(date2);
+      monthsData[monthKey][packageName] += inData[packageName][date2];
     });
   });
 
   const data: object[] = [];
 
-  Object.keys(monthsData).forEach((date) => {
+  Object.keys(monthsData).forEach((date2) => {
     const entry = {
-      date,
-      ...monthsData[date],
+      date: date2,
+      ...monthsData[date2],
       '@mui/base':
-        monthsData[date]['@mui/base'] +
-        monthsData[date]['@mui/core'] -
-        monthsData[date]['@mui/material'],
+        monthsData[date2]['@mui/base'] +
+        monthsData[date2]['@mui/core'] -
+        monthsData[date2]['@mui/material'],
     };
 
     delete entry['@mui/material'];

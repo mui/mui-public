@@ -27,16 +27,12 @@
 	},
 	"scripts": {
 		"start": "react-scripts start",
-		"build": "react-scripts build",
+		"build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"lint": "eslint \"src/**/*.{js,tsx}\"",
 		"test": "echo 'No tests yet' && exit 1",
 		"test:types": "tsc",
 		"eject": "react-scripts eject"
-	},
-	"eslintConfig": {
-		"extends": "react-app"
 	},
 	"prettier": {
 		"useTabs": true
@@ -52,5 +48,8 @@
 			"last 1 firefox version",
 			"last 1 safari version"
 		]
-	}
+	},
+  "engines": {
+    "node": "^16.0.0"
+  }
 }
