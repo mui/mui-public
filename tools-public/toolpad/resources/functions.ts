@@ -31,9 +31,10 @@ with pr_opened as (
     AND ge.actor_login NOT LIKE 'mnajdova'
     AND ge.actor_login NOT LIKE 'michaldudak'
     AND ge.actor_login NOT LIKE 'siriwatknp'
-    AND ge.actor_login NOT LIKE 'hbjORbj'
     AND ge.actor_login NOT LIKE 'oliviertassinari'
     AND ge.actor_login NOT LIKE 'mj12albert'
+    AND ge.actor_login NOT LIKE 'DiegoAndai'
+    AND ge.actor_login NOT LIKE 'brijeshb42'
 ), pr_reviewed as (
   SELECT
     number,
@@ -48,7 +49,7 @@ with pr_opened as (
   AND ge.created_at >= '2021-12-01'
   AND ge.actor_login NOT LIKE '%bot'
   AND ge.actor_login NOT LIKE '%[bot]'
-  AND ge.actor_login IN ('mnajdova','michaldudak','siriwatknp','hbjORbj','oliviertassinari','mj12albert')
+  AND ge.actor_login IN ('mnajdova','michaldudak','siriwatknp','oliviertassinari','mj12albert', 'DiegoAndai', 'brijeshb42')
 ), pr_reviewed_with_open_by as (
   SELECT
     pr_reviewed.event_month,
@@ -73,7 +74,7 @@ with pr_opened as (
     AND actor_login NOT LIKE '%bot'
     AND actor_login NOT LIKE '%[bot]'
     AND ge.actor_login IN
-  ('mnajdova','michaldudak','siriwatknp','hbjORbj','oliviertassinari','mj12albert')
+    ('mnajdova','michaldudak','siriwatknp','oliviertassinari','mj12albert', 'DiegoAndai', 'brijeshb42')
 ), final_table AS (
   SELECT
     n.event_month,

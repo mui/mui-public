@@ -33,6 +33,234 @@ spec:
                 type: number
                 width: 141
     - component: PageRow
+      name: pageRow2
+      children:
+        - component: Text
+          name: text
+          props:
+            value: Community PRs reviews
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Chart
+          name: reviews
+          props:
+            data:
+              - kind: line
+                label: michaldudak
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "michaldudak")
+                xKey: event_month
+                yKey: reviewed
+                color: "#1976d2"
+              - kind: line
+                label: mnajdova
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "mnajdova")
+                xKey: event_month
+                yKey: reviewed
+                color: "#9c27b0"
+              - label: siriwatknp
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "siriwatknp")
+                color: "#e91e63"
+                xKey: event_month
+                yKey: reviewed
+              - label: mj12albert
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "mj12albert")
+                color: "#009688"
+                xKey: event_month
+                yKey: reviewed
+              - label: DiegoAndai
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "DiegoAndai")
+                color: "#ff5722"
+                xKey: event_month
+                yKey: reviewed
+              - label: brijeshb42
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "brijeshb42")
+                color: "#ff9800"
+                xKey: event_month
+                yKey: reviewed
+    - component: PageRow
+      name: pageRow4
+      children:
+        - component: Text
+          name: text1
+          props:
+            value: PRs created
+    - component: PageRow
+      name: pageRow3
+      children:
+        - component: Chart
+          name: reviews1
+          props:
+            data:
+              - kind: line
+                label: michaldudak
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "michaldudak")
+                xKey: event_month
+                yKey: opened
+                color: "#1976d2"
+              - kind: line
+                label: mnajdova
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "mnajdova")
+                xKey: event_month
+                yKey: opened
+                color: "#9c27b0"
+              - label: siriwatknp
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "siriwatknp")
+                color: "#e91e63"
+                xKey: event_month
+                yKey: opened
+              - label: mj12albert
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "mj12albert")
+                color: "#009688"
+                xKey: event_month
+                yKey: opened
+              - label: DiegoAndai
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "DiegoAndai")
+                color: "#ff5722"
+                xKey: event_month
+                yKey: opened
+              - label: brijeshb42
+                kind: line
+                data:
+                  $$jsExpression: |
+                    [...PRsOpenandReviewedQuery.data]
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "brijeshb42")
+                color: "#ff9800"
+                xKey: event_month
+                yKey: opened
+    - component: PageRow
+      name: pageRow6
+      children:
+        - component: Text
+          name: text2
+          props:
+            value: Community support ratio
+    - component: PageRow
+      name: pageRow5
+      children:
+        - component: Chart
+          name: reviews2
+          props:
+            data:
+              - kind: line
+                label: michaldudak
+                data:
+                  $$jsExpression: >
+                    [...PRsOpenandReviewedQuery.data]
+                      .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "michaldudak")
+                xKey: event_month
+                yKey: ratio
+                color: "#1976d2"
+              - kind: line
+                label: mnajdova
+                data:
+                  $$jsExpression: >
+                    [...PRsOpenandReviewedQuery.data]
+                      .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "mnajdova")
+                xKey: event_month
+                yKey: ratio
+                color: "#9c27b0"
+              - label: siriwatknp
+                kind: line
+                data:
+                  $$jsExpression: >
+                    [...PRsOpenandReviewedQuery.data]
+                      .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "siriwatknp")
+                color: "#e91e63"
+                xKey: event_month
+                yKey: ratio
+              - label: mj12albert
+                kind: line
+                data:
+                  $$jsExpression: >
+                    [...PRsOpenandReviewedQuery.data]
+                      .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "mj12albert")
+                color: "#009688"
+                xKey: event_month
+                yKey: ratio
+              - label: DiegoAndai
+                kind: line
+                data:
+                  $$jsExpression: >
+                    [...PRsOpenandReviewedQuery.data]
+                      .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "DiegoAndai")
+                color: "#ff5722"
+                xKey: event_month
+                yKey: ratio
+              - label: brijeshb42
+                kind: line
+                data:
+                  $$jsExpression: >
+                    [...PRsOpenandReviewedQuery.data]
+                      .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
+                      .reverse()
+                      .filter((entry) => entry.reviewed_by === "brijeshb42")
+                color: "#ff9800"
+                xKey: event_month
+                yKey: ratio
+    - component: PageRow
       name: pageRow
       children:
         - component: Chart
@@ -43,7 +271,7 @@ spec:
                 label: pr_community_count
                 data:
                   $$jsExpression: |
-                    PRsOpenandReviewedQuery.data
+                    PrsPerMonth.data
                 xKey: event_month
                 yKey: pr_community_count
                 color: "#7cb342"
@@ -51,7 +279,7 @@ spec:
                 label: pr_maintainers_count
                 data:
                   $$jsExpression: |
-                    PRsOpenandReviewedQuery.data
+                    PrsPerMonth.data
                 xKey: event_month
                 yKey: pr_maintainers_count
                 color: "#27aeef"
@@ -61,3 +289,10 @@ spec:
       query:
         function: PRsOpenandReviewedQuery
         kind: local
+    - name: PrsPerMonth
+      query:
+        function: functions.ts#PRsPerMonth
+        kind: local
+      parameters:
+        - name: repositoryId
+          value: "23083156"
