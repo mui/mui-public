@@ -81,7 +81,7 @@ spec:
             value: "100"
           - name: state
             value: all
-        headers: [ { name: Authorization, value: { $$env: GITHUB_TOKEN } } ]
+        headers: []
         method: GET
     - name: muix
       query:
