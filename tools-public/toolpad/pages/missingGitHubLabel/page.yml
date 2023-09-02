@@ -12,19 +12,45 @@ spec:
       props:
         value:
           $$jsExpression: |
-            queryNoLabels.data.length
+            queryOpenNoLabels.data
+              .concat(queryIssueCloseNoLabels.data)
+              .concat(queryPRmergedNoLabels.data).length
         warning: 1
         problem: 10
         unit: " issues or PRs"
         lowerIsBetter: true
   queries:
-    - name: queryNoLabels
+    - name: queryOpenNoLabels
       query:
         kind: rest
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
             value: no:label is:open org:mui
+        headers: []
+        method: GET
+        transform: return data.items.filter(item => !item.draft);
+        transformEnabled: true
+    - name: queryIssueCloseNoLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:issue no:label is:close repo:mui/mui-x repo:mui/mui-design-kits
+              repo:mui/material-ui repo:mui/mui-private  repo:mui/mui-public
+        headers: []
+        method: GET
+        transform: return data.items.filter(item => !item.draft);
+        transformEnabled: true
+    - name: queryPRmergedNoLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:pull-request no:label is:merged repo:mui/mui-x
+              repo:mui/mui-design-kits repo:mui/material-ui
         headers: []
         method: GET
         transform: return data.items.filter(item => !item.draft);
