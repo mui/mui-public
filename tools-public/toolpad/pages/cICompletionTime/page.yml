@@ -7,31 +7,31 @@ spec:
     - name: repository
       value: mui-x
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: >
-                Math.round((queryInsights.data.metrics.duration_metrics.median /
-                60) * 100) /
-                  100
-            warning: 15
-            problem: 20
-            unit: minutes
-            lowerIsBetter: true
-    - component: PageRow
-      name: PageRow1
-      children:
-        - component: Text
-          name: Text
-          props:
-            value:
-              $$jsExpression: >
-                `Based on the last 7 days
-                (${queryInsights.data.metrics.total_runs} runs)`
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            Math.round((queryInsights.data.metrics.duration_metrics.median / 60)
+            * 100) /
+              100
+        warning: 15
+        problem: 20
+        unit: minutes
+        lowerIsBetter: true
+    - component: Text
+      name: Text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            `Based on the last 7 days (${queryInsights.data.metrics.total_runs}
+            runs)`
   queries:
     - name: queryInsights
       query:
@@ -47,4 +47,4 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.repository
-  display: standalone
+  display: shell

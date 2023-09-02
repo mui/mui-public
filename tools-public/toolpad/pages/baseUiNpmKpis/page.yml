@@ -5,111 +5,111 @@ spec:
   title: baseUiNpmKpis
   display: shell
   content:
-    - component: PageRow
-      name: pageRow3
-      children:
-        - component: Text
-          name: npmChartTitle
-          props:
-            variant: h6
-            value: Headless libraries npm downloads
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Chart
-          name: npmChart
-          props:
+    - component: Text
+      name: npmChartTitle
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        variant: h6
+        value: Headless libraries npm downloads
+    - component: Chart
+      name: npmChart
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        data:
+          - kind: line
+            label: "@mui/base"
             data:
-              - kind: line
-                label: "@mui/base"
-                data:
-                  $$jsExpression: |
-                    queryHeadlessLibrariesDownloads.data
-                xKey: date
-                yKey: "@mui/base"
-                color: "#1976d2"
-              - kind: line
-                label: "@reach/utils"
-                data:
-                  $$jsExpression: |
-                    queryHeadlessLibrariesDownloads.data
-                xKey: date
-                yKey: "@reach/utils"
-                color: "#b33dc6"
-              - kind: line
-                label: "@radix-ui/react-primitive"
-                data:
-                  $$jsExpression: |
-                    queryHeadlessLibrariesDownloads.data
-                xKey: date
-                yKey: "@radix-ui/react-primitive"
-                color: "#ea5545"
-              - kind: line
-                label: "@react-aria/utils"
-                data:
-                  $$jsExpression: |
-                    queryHeadlessLibrariesDownloads.data
-                xKey: date
-                yKey: "@react-aria/utils"
-                color: "#ef9b20"
-              - kind: line
-                label: reakit
-                data:
-                  $$jsExpression: |
-                    queryHeadlessLibrariesDownloads.data
-                xKey: date
-                yKey: reakit
-                color: "#000"
-              - kind: line
-                label: "@headlessui/react"
-                data:
-                  $$jsExpression: |
-                    queryHeadlessLibrariesDownloads.data
-                xKey: date
-                yKey: "@headlessui/react"
-                color: "#388e3c"
-            height: 300
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: >
-                queryHeadlessLibrariesDownloads.data.map((entry) => {
-                  let headlessLibrariesDownloads = 0
-                  Object.keys(entry).forEach((key) => {
-                    if (key !== "date" && key !== "@mui/base") {
-                      headlessLibrariesDownloads += entry[key]
-                    }
-                  })
-                  return {
-                    ...entry,
-                    date: entry.date.slice(0, -3),
-                    id: entry.date,
-                    ratio: `${((entry["@mui/base"] / headlessLibrariesDownloads) * 100).toFixed(
-                      2
-                    )}%`,
-                  }
-                })
-            columns:
-              - field: date
-                type: string
-              - field: "@mui/base"
-                type: number
-              - field: "@reach/utils"
-                type: number
-              - field: "@radix-ui/react-primitive"
-                type: number
-              - field: "@react-aria/utils"
-                type: number
-              - field: reakit
-                type: number
-              - field: "@headlessui/react"
-                type: number
-              - field: ratio
-                type: string
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            xKey: date
+            yKey: "@mui/base"
+            color: "#1976d2"
+          - kind: line
+            label: "@reach/utils"
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            xKey: date
+            yKey: "@reach/utils"
+            color: "#b33dc6"
+          - kind: line
+            label: "@radix-ui/react-primitive"
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            xKey: date
+            yKey: "@radix-ui/react-primitive"
+            color: "#ea5545"
+          - kind: line
+            label: "@react-aria/utils"
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            xKey: date
+            yKey: "@react-aria/utils"
+            color: "#ef9b20"
+          - kind: line
+            label: reakit
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            xKey: date
+            yKey: reakit
+            color: "#000"
+          - kind: line
+            label: "@headlessui/react"
+            data:
+              $$jsExpression: |
+                queryHeadlessLibrariesDownloads.data
+            xKey: date
+            yKey: "@headlessui/react"
+            color: "#388e3c"
+        height: 300
+    - component: DataGrid
+      name: dataGrid
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: >
+            queryHeadlessLibrariesDownloads.data.map((entry) => {
+              let headlessLibrariesDownloads = 0
+              Object.keys(entry).forEach((key) => {
+                if (key !== "date" && key !== "@mui/base") {
+                  headlessLibrariesDownloads += entry[key]
+                }
+              })
+              return {
+                ...entry,
+                date: entry.date.slice(0, -3),
+                id: entry.date,
+                ratio: `${((entry["@mui/base"] / headlessLibrariesDownloads) * 100).toFixed(
+                  2
+                )}%`,
+              }
+            })
+        columns:
+          - field: date
+            type: string
+          - field: "@mui/base"
+            type: number
+          - field: "@reach/utils"
+            type: number
+          - field: "@radix-ui/react-primitive"
+            type: number
+          - field: "@react-aria/utils"
+            type: number
+          - field: reakit
+            type: number
+          - field: "@headlessui/react"
+            type: number
+          - field: ratio
+            type: string
   queries:
     - name: queryHeadlessLibrariesDownloads
       query:

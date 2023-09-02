@@ -17,28 +17,28 @@ spec:
         method: GET
         searchParams: []
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text
-          props:
-            value: https://github.com/mui/mui-design-kits/issues/111 upvotes
-            variant: h4
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: |
-                query.data
-                  .filter((reaction) => reaction.content === "+1")
-                  .map((reaction) => ({ user: reaction.user.html_url }))
-            columns:
-              - field: user
-                type: link
-                width: 379
-                align: left
-            height: 588
+    - component: Text
+      name: text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value: https://github.com/mui/mui-design-kits/issues/111 upvotes
+        variant: h4
+    - component: DataGrid
+      name: dataGrid
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: |
+            query.data
+              .filter((reaction) => reaction.content === "+1")
+              .map((reaction) => ({ user: reaction.user.html_url }))
+        columns:
+          - field: user
+            type: link
+            width: 379
+            align: left
+        height: 588

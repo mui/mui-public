@@ -4,45 +4,45 @@ spec:
   id: hr03hdi
   title: zendeskSatisfactionScore
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: >
-                (() => {
-                  const metrics = metricEvents.data.map((event) => ({
-                    ...event,
-                    ticket: {
-                      tags: fetchTicketIds.data[event.ticket_id].tags,
-                    },
-                  }))
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            (() => {
+              const metrics = metricEvents.data.map((event) => ({
+                ...event,
+                ticket: {
+                  tags: fetchTicketIds.data[event.ticket_id].tags,
+                },
+              }))
 
-                  const numberOfEvent = metrics
-                    .filter((event) => !event.ticket.tags.includes("chasing_overdue_invoice"))
-                    .map((event) => event.reply_time_in_minutes.business)
-                    .filter((time) => time !== null)
-                    .sort((a, b) => a - b)
+              const numberOfEvent = metrics
+                .filter((event) => !event.ticket.tags.includes("chasing_overdue_invoice"))
+                .map((event) => event.reply_time_in_minutes.business)
+                .filter((time) => time !== null)
+                .sort((a, b) => a - b)
 
-                  return (
-                    Math.round(
-                      (numberOfEvent[Math.round(numberOfEvent.length / 2)] / 60) * 100
-                    ) / 100
-                  )
-                })()
-            warning: 5
-            problem: 8
-            lowerIsBetter: true
-            unit: hours
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: Text
-          name: text
-          props:
-            value: Based on the last 100 open tickets
+              return (
+                Math.round(
+                  (numberOfEvent[Math.round(numberOfEvent.length / 2)] / 60) * 100
+                ) / 100
+              )
+            })()
+        warning: 5
+        problem: 8
+        lowerIsBetter: true
+        unit: hours
+    - component: Text
+      name: text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value: Based on the last 100 open tickets
   queries:
     - name: metricEvents
       query:

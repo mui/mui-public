@@ -10,35 +10,35 @@ spec:
         function: queryAbout.ts#queryAbout
         kind: local
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: |
-                queryAbout.rows
-            columns:
-              - field: name
-                type: string
-                width: 175
-              - field: title
-                type: string
-                width: 262
-              - field: about
-                type: string
-                width: 242
-              - field: location
-                type: string
-                width: 366
-              - field: locationCountry
-                type: string
-                width: 178
-              - field: twitter
-                type: link
-                width: 277
-              - field: github
-                type: link
-                width: 258
-            height: 648
+    - component: DataGrid
+      name: dataGrid
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: |
+            queryAbout.rows
+        columns:
+          - field: name
+            type: string
+            width: 175
+          - field: title
+            type: string
+            width: 262
+          - field: about
+            type: string
+            width: 242
+          - field: location
+            type: string
+            width: 366
+          - field: locationCountry
+            type: string
+            width: 178
+          - field: twitter
+            type: link
+            width: 277
+          - field: github
+            type: link
+            width: 258
+        height: 648

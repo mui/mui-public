@@ -7,42 +7,42 @@ spec:
     - name: repoId
       value: "23083156"
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: >
-                (() => {
-                  const length = issueOpenToFirstResponded.data.data.length
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            (() => {
+              const length = issueOpenToFirstResponded.data.data.length
 
-                  if (issueOpenToFirstResponded.data.data[length - 1].p75 == null) {
-                    return null
-                  }
+              if (issueOpenToFirstResponded.data.data[length - 1].p75 == null) {
+                return null
+              }
 
-                  return Math.round(issueOpenToFirstResponded.data.data[length - 1].p75)
-                })()
-            warning: 8
-            problem: 24
-            unit: " hours"
-            lowerIsBetter: true
-    - component: PageRow
-      name: PageRow1
-      children:
-        - component: Text
-          name: Text
-          props:
-            value:
-              $$jsExpression: |
-                (() => {
-                  const length = issueOpenToFirstResponded.data.data.length
+              return Math.round(issueOpenToFirstResponded.data.data[length - 1].p75)
+            })()
+        warning: 8
+        problem: 24
+        unit: " hours"
+        lowerIsBetter: true
+    - component: Text
+      name: Text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            (() => {
+              const length = issueOpenToFirstResponded.data.data.length
 
-                  return `Based on the last 30 days (since ${
-                    issueOpenToFirstResponded.data.data[length - 1].event_month
-                  })`
-                })()
+              return `Based on the last 30 days (since ${
+                issueOpenToFirstResponded.data.data[length - 1].event_month
+              })`
+            })()
   queries:
     - name: issueOpenToFirstResponded
       query:
@@ -58,4 +58,4 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.repoId
-  display: standalone
+  display: shell

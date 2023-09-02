@@ -7,19 +7,18 @@ spec:
     - name: department
       value: ""
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: >
-                gender1.data != null ? Math.round(gender1.data * 10) / 10 :
-                undefined
-            warning: 14
-            problem: 7
-            lowerIsBetter: false
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            gender1.data != null ? Math.round(gender1.data * 10) / 10 : undefined
+        warning: 14
+        problem: 7
+        lowerIsBetter: false
   queries:
     - name: gender1
       query:

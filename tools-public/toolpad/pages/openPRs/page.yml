@@ -9,23 +9,23 @@ spec:
     - name: warning
       value: "50"
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: |
-                openPRs.data.total_count
-            unit: " open PRs"
-            warning:
-              $$jsExpression: |
-                page.parameters.warning
-            problem:
-              $$jsExpression: |
-                parseInt(page.parameters.warning) * 1.5
-            lowerIsBetter: true
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            openPRs.data.total_count
+        unit: " open PRs"
+        warning:
+          $$jsExpression: |
+            page.parameters.warning
+        problem:
+          $$jsExpression: |
+            parseInt(page.parameters.warning) * 1.5
+        lowerIsBetter: true
   queries:
     - name: openPRs
       query:
@@ -44,4 +44,4 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.repo
-  display: standalone
+  display: shell

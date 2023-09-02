@@ -7,24 +7,24 @@ spec:
     - name: repositoryId
       value: "23083156"
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: |
-                ContributorsPerMonth.data.length === 0
-                  ? 0
-                  : Math.round(
-                      (ContributorsPerMonth.data[0].pr_community_count /
-                        ContributorsPerMonth.data[0].pr_maintainers_count) *
-                        10
-                    ) / 10
-            unit: x
-            problem: 2
-            warning: 3
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            ContributorsPerMonth.data.length === 0
+              ? 0
+              : Math.round(
+                  (ContributorsPerMonth.data[0].pr_community_count /
+                    ContributorsPerMonth.data[0].pr_maintainers_count) *
+                    10
+                ) / 10
+        unit: x
+        problem: 2
+        warning: 3
   queries:
     - name: ContributorsPerMonth
       query:

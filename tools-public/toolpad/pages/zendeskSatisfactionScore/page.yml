@@ -4,31 +4,29 @@ spec:
   id: xu1r3hzj
   title: zendeskFirstReply
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          layout:
-            columnSize: 1
-          props:
-            value:
-              $$jsExpression: >
-                Math.round(
-                  (satisfactionRating.data.filter((rating) => rating.score === "good").length /
-                    satisfactionRating.data.length) *
-                    100
-                )
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text
-          props:
-            value:
-              $$jsExpression: >
-                `Number of reviews in the last 4 weeks:
-                ${satisfactionRating.data.length}`
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            Math.round(
+              (satisfactionRating.data.filter((rating) => rating.score === "good").length /
+                satisfactionRating.data.length) *
+                100
+            )
+    - component: Text
+      name: text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            `Number of reviews in the last 4 weeks:
+            ${satisfactionRating.data.length}`
   queries:
     - name: satisfactionRating
       query:

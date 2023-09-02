@@ -7,19 +7,19 @@ spec:
     - name: repository
       value: material-ui
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: |
-                needTriage.data.total_count
-            warning: 25
-            problem: 50
-            unit: " issues"
-            lowerIsBetter: true
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            needTriage.data.total_count
+        warning: 25
+        problem: 50
+        unit: " issues"
+        lowerIsBetter: true
   queries:
     - name: needTriage
       query:
@@ -38,4 +38,4 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.repository
-  display: standalone
+  display: shell

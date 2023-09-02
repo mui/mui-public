@@ -5,19 +5,19 @@ spec:
   title: genderManagement
   display: shell
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: |
-                genderManagement.data != null
-                  ? Math.round(genderManagement.data * 10) / 10
-                  : undefined
-            warning: 30
-            problem: 15
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            genderManagement.data != null
+              ? Math.round(genderManagement.data * 10) / 10
+              : undefined
+        warning: 30
+        problem: 15
   queries:
     - name: genderManagement
       query:

@@ -5,48 +5,48 @@ spec:
   title: openIssuesWithoutLabels
   display: shell
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: Text
-          name: text
-          props:
-            value: Issues without labels
-            variant: h5
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text1
-          props:
-            mode: markdown
-            value: This page is used for
-              https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#0231c2f8e6924c6d856b9dcda6af99c1.
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: |
-                fetchIssuesWithoutLabels.data.items.concat(
-                  fetchOpenIssuesWithoutLabels.data.items
-                )
-            columns:
-              - field: html_url
-                type: link
-                width: 273
-              - field: number
-                type: number
-                width: 107
-              - field: title
-                type: string
-                width: 319
-              - field: state
-                type: string
-                width: 230
-            height: 442
+    - component: Text
+      name: text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value: Issues without labels
+        variant: h5
+    - component: Text
+      name: text1
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: This page is used for
+          https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#0231c2f8e6924c6d856b9dcda6af99c1.
+    - component: DataGrid
+      name: dataGrid
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: |
+            fetchIssuesWithoutLabels.data.items.concat(
+              fetchOpenIssuesWithoutLabels.data.items
+            )
+        columns:
+          - field: html_url
+            type: link
+            width: 273
+          - field: number
+            type: number
+            width: 107
+          - field: title
+            type: string
+            width: 319
+          - field: state
+            type: string
+            width: 230
+        height: 442
   queries:
     - name: fetchIssuesWithoutLabels
       query:

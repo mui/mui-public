@@ -7,45 +7,45 @@ spec:
     - name: repoId
       value: "23083156"
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: >
-                (() => {
-                  const length = pullRequestOpenToMerged.data.data.length
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: >
+            (() => {
+              const length = pullRequestOpenToMerged.data.data.length
 
-                  if (pullRequestOpenToMerged.data.data[length - 1].p75 == null) {
-                    return null
-                  }
+              if (pullRequestOpenToMerged.data.data[length - 1].p75 == null) {
+                return null
+              }
 
-                  return (
-                    Math.round((pullRequestOpenToMerged.data.data[length - 1].p75 / 24) * 100) /
-                    100
-                  )
-                })()
-            warning: 3
-            problem: 5
-            unit: days
-            lowerIsBetter: true
-    - component: PageRow
-      name: PageRow1
-      children:
-        - component: Text
-          name: Text
-          props:
-            value:
-              $$jsExpression: |
-                (() => {
-                  const length = pullRequestOpenToMerged.data.data.length
+              return (
+                Math.round((pullRequestOpenToMerged.data.data[length - 1].p75 / 24) * 100) /
+                100
+              )
+            })()
+        warning: 3
+        problem: 5
+        unit: days
+        lowerIsBetter: true
+    - component: Text
+      name: Text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            (() => {
+              const length = pullRequestOpenToMerged.data.data.length
 
-                  return `Based on the last 30 days (${
-                    pullRequestOpenToMerged.data.data[length - 1].event_month
-                  })`
-                })()
+              return `Based on the last 30 days (${
+                pullRequestOpenToMerged.data.data[length - 1].event_month
+              })`
+            })()
   queries:
     - name: pullRequestOpenToMerged
       query:
@@ -61,4 +61,4 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.repoId
-  display: standalone
+  display: shell

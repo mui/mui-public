@@ -4,143 +4,143 @@ spec:
   id: ck33hgb
   title: CommunityPercentPRsMerged
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: TextField
-          name: slug
-          props:
-            label: Repository slug
-            defaultValue: mui/material-ui
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: Text
-          name: text
-          props:
-            value:
-              $$jsExpression: |
-                (() => {
-                  if (getRepositoryDetails.data) {
-                    return `Repository ID: ${getRepositoryDetails.data.data.id}`
-                  } else {
-                    return "Not found"
-                  }
-                })()
-    - component: PageRow
-      name: pageRow3
-      children:
-        - component: Text
-          name: text1
-          props:
-            value: "Community: PRs merged per month"
-            variant: h6
-            sx:
-              mt: 2
-    - component: PageRow
-      name: pageRow6
-      children:
-        - component: Chart
-          name: chart
-          props:
+    - component: TextField
+      name: slug
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        label: Repository slug
+        defaultValue: mui/material-ui
+    - component: Text
+      name: text
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            (() => {
+              if (getRepositoryDetails.data) {
+                return `Repository ID: ${getRepositoryDetails.data.data.id}`
+              } else {
+                return "Not found"
+              }
+            })()
+    - component: Text
+      name: text1
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value: "Community: PRs merged per month"
+        variant: h6
+        sx:
+          mt: 2
+    - component: Chart
+      name: chart
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        data:
+          - kind: line
+            label: pr_community_count
             data:
-              - kind: line
-                label: pr_community_count
-                data:
-                  $$jsExpression: >
-                    PRsPerMonth.rows.map((row) => ({
-                      ...row,
-                      ratio:
-                        Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
-                    }))
-                xKey: event_month
-                yKey: pr_community_count
-                color: "#7cb342"
-              - kind: line
-                label: pr_maintainers_count
-                data:
-                  $$jsExpression: >
-                    PRsPerMonth.rows.map((row) => ({
-                      ...row,
-                      ratio:
-                        Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
-                    }))
-                xKey: event_month
-                yKey: pr_maintainers_count
-                color: "#27aeef"
-              - kind: line
-                label: ratio
-                data:
-                  $$jsExpression: >
-                    PRsPerMonth.rows.map((row) => ({
-                      ...row,
-                      ratio:
-                        Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
-                    }))
-                xKey: event_month
-                yKey: ratio
-                color: "#ea5545"
-            height: 300
-    - component: PageRow
-      name: pageRow5
-      children:
-        - component: Text
-          name: text2
-          props:
-            value: "Community: Unique contributors per month"
-            variant: h6
-            sx:
-              mt: 2
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Chart
-          name: chart1
-          props:
+              $$jsExpression: >
+                PRsPerMonth.rows.map((row) => ({
+                  ...row,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
+                }))
+            xKey: event_month
+            yKey: pr_community_count
+            color: "#7cb342"
+          - kind: line
+            label: pr_maintainers_count
             data:
-              - kind: line
-                label: community_count
-                data:
-                  $$jsExpression: >
-                    ContributorsPerMonth.rows.map((row) => ({
-                      ...row,
-                      community_count: row.pr_community_count,
-                      maintainers_count: row.pr_maintainers_count,
-                      ratio:
-                        Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
-                    }))
-                xKey: event_month
-                yKey: community_count
-                color: "#7cb342"
-              - kind: line
-                label: maintainers_count
-                data:
-                  $$jsExpression: >
-                    ContributorsPerMonth.rows.map((row) => ({
-                      ...row,
-                      community_count: row.pr_community_count,
-                      maintainers_count: row.pr_maintainers_count,
-                      ratio:
-                        Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
-                    }))
-                xKey: event_month
-                yKey: maintainers_count
-                color: "#27aeef"
-              - kind: line
-                label: ratio
-                data:
-                  $$jsExpression: >
-                    ContributorsPerMonth.rows.map((row) => ({
-                      ...row,
-                      community_count: row.pr_community_count,
-                      maintainers_count: row.pr_maintainers_count,
-                      ratio:
-                        Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
-                    }))
-                xKey: event_month
-                yKey: ratio
-                color: "#ea5545"
-            height: 300
+              $$jsExpression: >
+                PRsPerMonth.rows.map((row) => ({
+                  ...row,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
+                }))
+            xKey: event_month
+            yKey: pr_maintainers_count
+            color: "#27aeef"
+          - kind: line
+            label: ratio
+            data:
+              $$jsExpression: >
+                PRsPerMonth.rows.map((row) => ({
+                  ...row,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 1000) / 10,
+                }))
+            xKey: event_month
+            yKey: ratio
+            color: "#ea5545"
+        height: 300
+    - component: Text
+      name: text2
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        value: "Community: Unique contributors per month"
+        variant: h6
+        sx:
+          mt: 2
+    - component: Chart
+      name: chart1
+      children: []
+      layout:
+        columnSize: 1
+      props:
+        data:
+          - kind: line
+            label: community_count
+            data:
+              $$jsExpression: >
+                ContributorsPerMonth.rows.map((row) => ({
+                  ...row,
+                  community_count: row.pr_community_count,
+                  maintainers_count: row.pr_maintainers_count,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
+                }))
+            xKey: event_month
+            yKey: community_count
+            color: "#7cb342"
+          - kind: line
+            label: maintainers_count
+            data:
+              $$jsExpression: >
+                ContributorsPerMonth.rows.map((row) => ({
+                  ...row,
+                  community_count: row.pr_community_count,
+                  maintainers_count: row.pr_maintainers_count,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
+                }))
+            xKey: event_month
+            yKey: maintainers_count
+            color: "#27aeef"
+          - kind: line
+            label: ratio
+            data:
+              $$jsExpression: >
+                ContributorsPerMonth.rows.map((row) => ({
+                  ...row,
+                  community_count: row.pr_community_count,
+                  maintainers_count: row.pr_maintainers_count,
+                  ratio:
+                    Math.round((row.pr_community_count / row.pr_maintainers_count) * 100) / 100,
+                }))
+            xKey: event_month
+            yKey: ratio
+            color: "#ea5545"
+        height: 300
   queries:
     - name: PRsPerMonth
       query:
