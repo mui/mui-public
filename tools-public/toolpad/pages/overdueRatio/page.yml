@@ -10,8 +10,8 @@ spec:
       layout:
         columnSize: 1
       props:
-        warning: 10
-        problem: 15
+        warning: 9
+        problem: 11
         lowerIsBetter: true
         value:
           $$jsExpression: |
