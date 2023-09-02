@@ -21,7 +21,7 @@ spec:
           props:
             mode: markdown
             value: This page is used for
-              https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e44595afc55343dac00fca#703e5568c5d84ca897f20cf9abbab304.
+              https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#0231c2f8e6924c6d856b9dcda6af99c1.
     - component: PageRow
       name: pageRow2
       children:
@@ -30,7 +30,9 @@ spec:
           props:
             rows:
               $$jsExpression: |
-                fetchWithoutLabels.data.items
+                fetchIssuesWithoutLabels.data.items.concat(
+                  fetchOpenIssuesWithoutLabels.data.items
+                )
             columns:
               - field: html_url
                 type: link
@@ -44,15 +46,34 @@ spec:
               - field: state
                 type: string
                 width: 230
+            height: 442
   queries:
-    - name: fetchWithoutLabels
+    - name: fetchIssuesWithoutLabels
       query:
         kind: rest
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
             value: is:issue no:label repo:mui/mui-x repo:mui/mui-design-kits
-              repo:mui/material-ui
+              repo:mui/material-ui repo:mui/mui-private  repo:mui/mui-public
+          - name: order
+            value: desc
+          - name: sort
+            value: updated
+        headers: [ { name: Authorization, value: { $$env: GITHUB_TOKEN } } ]
+        method: GET
+        transform: |-
+          return {
+            items: data.items,
+          };
+        transformEnabled: true
+    - name: fetchOpenIssuesWithoutLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:issue no:label org:mui is:open
           - name: order
             value: desc
           - name: sort
