@@ -66,17 +66,21 @@ export async function queryAbout() {
   const countries = await countriesRes.json();
   const countryToISO = flip(countries);
 
-  return data.employees.map((employee) => {
-    const country = countryFix[employee.address.country] || employee.address.country;
-    return {
-      name: employee.fullName,
-      title: employee.work.title,
-      about: employee.about?.custom?.field_1690557141686,
-      location: `${employee.address.city} - ${country}`,
-      locationCountry: countryToISO[country],
-      twitter: employee.about?.socialData?.twitter,
-      github: employee.about?.custom?.field_1682954415714,
-      // ...employee,
-    };
-  });
+  return data.employees
+    .sort(
+      (a, b) => parseInt(b.work.tenureDurationYears, 10) - parseInt(a.work.tenureDurationYears, 10),
+    )
+    .map((employee) => {
+      const country = countryFix[employee.address.country] || employee.address.country;
+      return {
+        name: employee.fullName,
+        title: employee.work.title,
+        about: employee.about?.custom?.field_1690557141686,
+        location: `${employee.address.city} - ${country}`,
+        locationCountry: countryToISO[country],
+        twitter: employee.about?.socialData?.twitter,
+        github: employee.about?.custom?.field_1682954415714,
+        //...employee,
+      };
+    });
 }

@@ -35,10 +35,10 @@ spec:
           - field: locationCountry
             type: string
             width: 178
-          - field: twitter
-            type: link
-            width: 277
           - field: github
             type: link
             width: 258
+          - field: twitter
+            type: link
+            width: 277
         height: 648
