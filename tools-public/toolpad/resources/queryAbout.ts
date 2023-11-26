@@ -64,6 +64,8 @@ export async function queryAbout() {
     throw new Error(`HTTP ${countriesRes.status}: ${(await countriesRes.text()).slice(0, 500)}`);
   }
   const countries = await countriesRes.json();
+  // Fix country label
+  countries.cz = 'Czech Republic';
   const countryToISO = flip(countries);
 
   return data.employees
