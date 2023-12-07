@@ -1,13 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: JuZeIVb
   title: OverviewPage
   display: shell
   content:
     - component: Tabs
       name: tabs
-      children: []
       layout:
         columnSize: 1
       props:
@@ -32,7 +32,6 @@ spec:
                   name: text
                   layout:
                     horizontalAlign: start
-                  children: []
                   props:
                     variant: h6
                     value: Finance KPIs
@@ -45,7 +44,6 @@ spec:
                       name: text1
                       props:
                         value: Overdue ratio
-                      children: []
                     - component: Button
                       name: button
                       layout:
@@ -57,7 +55,6 @@ spec:
                             parameters: {}
                         content: View page
                         variant: text
-                      children: []
                 - component: Text
                   name: text4
                   layout:
@@ -65,7 +62,6 @@ spec:
                   props:
                     value: Engineering KPIs
                     variant: h6
-                  children: []
                 - component: PageRow
                   name: pageRow4
                   props:
@@ -75,7 +71,6 @@ spec:
                       name: text2
                       props:
                         value: HEAD CI success rate
-                      children: []
                     - component: Button
                       name: button3
                       layout:
@@ -88,7 +83,6 @@ spec:
                               repository: mui-x
                         content: View page
                         variant: text
-                      children: []
                 - component: PageRow
                   name: pageRow1
                   props:
@@ -98,7 +92,6 @@ spec:
                       name: text3
                       props:
                         value: HEAD CI median time to completion
-                      children: []
                     - component: Button
                       name: button1
                       layout:
@@ -111,7 +104,6 @@ spec:
                               repository: mui-x
                         content: View page
                         variant: text
-                      children: []
                 - component: Text
                   name: text9
                   layout:
@@ -119,7 +111,6 @@ spec:
                   props:
                     value: Product KPIs
                     variant: h6
-                  children: []
                 - component: PageRow
                   name: pageRow3
                   props:
@@ -133,43 +124,35 @@ spec:
                         - component: Text
                           name: text10
                           props:
-                            value: "Community: percent of PRs merged"
-                          children: []
+                            value: 'Community: percent of PRs merged'
                         - component: Text
                           name: text12
                           props:
-                            value: "Community: unique contributors per month"
-                          children: []
+                            value: 'Community: unique contributors per month'
                         - component: Text
                           name: text11
                           props:
                             value: Open PRs
-                          children: []
                         - component: Text
                           name: text14
                           props:
-                            value: "PRs: time between open & closed "
-                          children: []
+                            value: 'PRs: time between open & closed '
                         - component: Text
                           name: text13
                           props:
-                            value: "Issues: time to first reply"
-                          children: []
+                            value: 'Issues: time to first reply'
                         - component: Text
                           name: text15
                           props:
                             value: 'Issues: "need triage" label'
-                          children: []
                         - component: Text
                           name: text16
                           props:
                             value: Issues/PRs with no labels
-                          children: []
                         - component: Text
                           name: text36
                           props:
-                            value: "Issues: closed vs open"
-                          children: []
+                            value: 'Issues: closed vs open'
                     - component: PageColumn
                       name: pageColumn1
                       layout:
@@ -184,10 +167,9 @@ spec:
                               $$navigationAction:
                                 page: KiUQrhI
                                 parameters:
-                                  repositoryId: "23083156"
+                                  repositoryId: '23083156'
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button7
                           layout:
@@ -199,7 +181,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button8
                           layout:
@@ -210,10 +191,9 @@ spec:
                                 page: 39j3h6b
                                 parameters:
                                   repo: material-ui
-                                  warning: "50"
+                                  warning: '50'
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button10
                           layout:
@@ -223,10 +203,9 @@ spec:
                               $$navigationAction:
                                 page: 9ou3hb2
                                 parameters:
-                                  repoId: "23083156"
+                                  repoId: '23083156'
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button9
                           layout:
@@ -236,10 +215,9 @@ spec:
                               $$navigationAction:
                                 page: fo163htb
                                 parameters:
-                                  repoId: "23083156"
+                                  repoId: '23083156'
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button11
                           layout:
@@ -252,7 +230,6 @@ spec:
                                   repository: material-ui
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button12
                           layout:
@@ -264,7 +241,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button30
                           layout:
@@ -274,10 +250,9 @@ spec:
                               $$navigationAction:
                                 page: 2413lvx
                                 parameters:
-                                  repoId: "23083156"
+                                  repoId: '23083156'
                             content: View page
                             variant: text
-                          children: []
                 - component: Text
                   name: text17
                   layout:
@@ -285,7 +260,6 @@ spec:
                   props:
                     value: Support KPIs
                     variant: h6
-                  children: []
                 - component: PageRow
                   name: pageRow10
                   props:
@@ -299,13 +273,11 @@ spec:
                         - component: Text
                           name: text18
                           props:
-                            value: "Zendesk: First reply time"
-                          children: []
+                            value: 'Zendesk: First reply time'
                         - component: Text
                           name: text19
                           props:
-                            value: "Zendesk: Satisfaction rating"
-                          children: []
+                            value: 'Zendesk: Satisfaction rating'
                     - component: PageColumn
                       name: pageColumn3
                       layout:
@@ -322,7 +294,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button13
                           layout:
@@ -334,7 +305,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                 - component: Text
                   name: text5
                   layout:
@@ -342,7 +312,6 @@ spec:
                   props:
                     value: People KPIs
                     variant: h6
-                  children: []
                 - component: PageRow
                   name: pageRow11
                   props:
@@ -357,17 +326,14 @@ spec:
                           name: text6
                           props:
                             value: Gender
-                          children: []
                         - component: Text
                           name: text7
                           props:
                             value: Gender Engineering
-                          children: []
                         - component: Text
                           name: text8
                           props:
                             value: Gender Management
-                          children: []
                     - component: PageColumn
                       name: pageColumn6
                       layout:
@@ -384,7 +350,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button4
                           layout:
@@ -394,10 +359,9 @@ spec:
                               $$navigationAction:
                                 page: ZGrUwtd
                                 parameters:
-                                  department: ""
+                                  department: ''
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button5
                           layout:
@@ -410,7 +374,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                 - component: Text
                   name: text22
                   layout:
@@ -418,7 +381,6 @@ spec:
                   props:
                     value: MUI Core KPIs
                     variant: h6
-                  children: []
                 - component: PageRow
                   name: pageRow12
                   props:
@@ -433,17 +395,14 @@ spec:
                           name: text24
                           props:
                             value: Community Core
-                          children: []
                         - component: Text
                           name: text23
                           props:
                             value: Base UI NPM KPIs
-                          children: []
                         - component: Text
                           name: text32
                           props:
                             value: Joy UI NPM KPIs
-                          children: []
                     - component: PageColumn
                       name: pageColumn9
                       layout:
@@ -461,7 +420,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button16
                           layout:
@@ -474,7 +432,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
                         - component: Button
                           name: button26
                           layout:
@@ -487,7 +444,6 @@ spec:
                                 parameters: {}
                             content: View page
                             variant: text
-                          children: []
               layout:
                 columnSize: 1
       layout:
@@ -516,19 +472,16 @@ spec:
                       children:
                         - component: Text
                           name: text20
-                          children: []
                           props:
                             value: Bundle size
                         - component: Text
                           name: text21
-                          children: []
                           props:
                             value: NPM version
                         - component: Text
                           name: text25
                           props:
                             value: X License validate support
-                          children: []
                       layout:
                         columnSize: 1
                     - component: PageColumn
@@ -549,8 +502,7 @@ spec:
                                 parameters:
                                   baseRef: master
                                   baseCommit: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
-                                  circleCIBuildNumber: "487681"
-                          children: []
+                                  circleCIBuildNumber: '487681'
                         - component: Button
                           name: button18
                           layout:
@@ -563,7 +515,6 @@ spec:
                                 page: m023hp4
                                 parameters:
                                   package: react-dom
-                          children: []
                         - component: Button
                           name: button15
                           layout:
@@ -575,9 +526,8 @@ spec:
                               $$navigationAction:
                                 page: jyhs86t
                                 parameters:
-                                  issueId: "9195"
+                                  issueId: '9195'
                                   repo: mui-x
-                          children: []
                   props:
                     justifyContent: start
               layout:
@@ -607,7 +557,6 @@ spec:
                       name: text27
                       props:
                         value: Issues without product scope label
-                      children: []
                     - component: Button
                       name: button25
                       props:
@@ -617,7 +566,6 @@ spec:
                           $$navigationAction:
                             page: 7ju3hr6
                             parameters: {}
-                      children: []
                       layout:
                         columnSize: 1
                         horizontalAlign: end
@@ -637,42 +585,36 @@ spec:
                           name: text31
                           props:
                             value: Label activity
-                          children: []
                         - component: Text
                           name: text26
                           layout:
                             columnSize: 1
                           props:
                             value: Missing gitHub label
-                          children: []
                         - component: Text
                           name: text33
                           layout:
                             columnSize: 1
                           props:
                             value: Open "need triage" issues without assignee
-                          children: []
                         - component: Text
                           name: text28
                           layout:
                             columnSize: 1
                           props:
                             value: Open issues without label
-                          children: []
                         - component: Text
                           name: text29
                           layout:
                             columnSize: 1
                           props:
                             value: Open PRs without reviewer
-                          children: []
                         - component: Text
                           name: text30
                           layout:
                             columnSize: 1
                           props:
                             value: PRs without labels
-                          children: []
                     - component: PageColumn
                       name: pageColumn14
                       layout:
@@ -690,7 +632,6 @@ spec:
                               $$navigationAction:
                                 page: xj43hyd
                                 parameters: {}
-                          children: []
                         - component: Button
                           name: button21
                           layout:
@@ -703,7 +644,6 @@ spec:
                               $$navigationAction:
                                 page: bse3h9c
                                 parameters: {}
-                          children: []
                         - component: Button
                           name: button27
                           layout:
@@ -716,7 +656,6 @@ spec:
                               $$navigationAction:
                                 page: hl63hwf
                                 parameters: {}
-                          children: []
                         - component: Button
                           name: button22
                           layout:
@@ -729,7 +668,6 @@ spec:
                               $$navigationAction:
                                 page: 3eVYIR_
                                 parameters: {}
-                          children: []
                         - component: Button
                           name: button23
                           layout:
@@ -742,7 +680,6 @@ spec:
                               $$navigationAction:
                                 page: 1t353h04
                                 parameters: {}
-                          children: []
                         - component: Button
                           name: button20
                           layout:
@@ -755,7 +692,6 @@ spec:
                               $$navigationAction:
                                 page: tn213hge
                                 parameters: {}
-                          children: []
               layout:
                 columnSize: 1
       layout:
@@ -769,10 +705,11 @@ spec:
           border: 1px
     - component: Container
       name: container2
-      children: []
       layout:
         columnSize: 1
       props:
         visible:
           $$jsExpression: |
             tabs.value == "tNon-KPIs related pages"
+  alias:
+    - JuZeIVb

@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 9r8fshsf
   title: Page 1
   content:
     - component: DataGrid
       name: DataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -34,14 +34,12 @@ spec:
             width: 141
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
         value: Community PRs reviews
     - component: Chart
       name: reviews
-      children: []
       layout:
         columnSize: 1
       props:
@@ -55,7 +53,7 @@ spec:
                   .filter((entry) => entry.reviewed_by === "michaldudak")
             xKey: event_month
             yKey: reviewed
-            color: "#1976d2"
+            color: '#1976d2'
           - kind: line
             label: mnajdova
             data:
@@ -65,7 +63,7 @@ spec:
                   .filter((entry) => entry.reviewed_by === "mnajdova")
             xKey: event_month
             yKey: reviewed
-            color: "#9c27b0"
+            color: '#9c27b0'
           - label: siriwatknp
             kind: line
             data:
@@ -73,7 +71,7 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "siriwatknp")
-            color: "#e91e63"
+            color: '#e91e63'
             xKey: event_month
             yKey: reviewed
           - label: mj12albert
@@ -83,7 +81,7 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "mj12albert")
-            color: "#009688"
+            color: '#009688'
             xKey: event_month
             yKey: reviewed
           - label: DiegoAndai
@@ -93,7 +91,7 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "DiegoAndai")
-            color: "#ff5722"
+            color: '#ff5722'
             xKey: event_month
             yKey: reviewed
           - label: brijeshb42
@@ -103,19 +101,17 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "brijeshb42")
-            color: "#ff9800"
+            color: '#ff9800'
             xKey: event_month
             yKey: reviewed
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
         value: PRs created
     - component: Chart
       name: reviews1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -129,7 +125,7 @@ spec:
                   .filter((entry) => entry.reviewed_by === "michaldudak")
             xKey: event_month
             yKey: opened
-            color: "#1976d2"
+            color: '#1976d2'
           - kind: line
             label: mnajdova
             data:
@@ -139,7 +135,7 @@ spec:
                   .filter((entry) => entry.reviewed_by === "mnajdova")
             xKey: event_month
             yKey: opened
-            color: "#9c27b0"
+            color: '#9c27b0'
           - label: siriwatknp
             kind: line
             data:
@@ -147,7 +143,7 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "siriwatknp")
-            color: "#e91e63"
+            color: '#e91e63'
             xKey: event_month
             yKey: opened
           - label: mj12albert
@@ -157,7 +153,7 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "mj12albert")
-            color: "#009688"
+            color: '#009688'
             xKey: event_month
             yKey: opened
           - label: DiegoAndai
@@ -167,7 +163,7 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "DiegoAndai")
-            color: "#ff5722"
+            color: '#ff5722'
             xKey: event_month
             yKey: opened
           - label: brijeshb42
@@ -177,19 +173,17 @@ spec:
                 [...PRsOpenandReviewedQuery.data]
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "brijeshb42")
-            color: "#ff9800"
+            color: '#ff9800'
             xKey: event_month
             yKey: opened
     - component: Text
       name: text2
-      children: []
       layout:
         columnSize: 1
       props:
         value: Community support ratio
     - component: Chart
       name: reviews2
-      children: []
       layout:
         columnSize: 1
       props:
@@ -204,7 +198,7 @@ spec:
                   .filter((entry) => entry.reviewed_by === "michaldudak")
             xKey: event_month
             yKey: ratio
-            color: "#1976d2"
+            color: '#1976d2'
           - kind: line
             label: mnajdova
             data:
@@ -215,7 +209,7 @@ spec:
                   .filter((entry) => entry.reviewed_by === "mnajdova")
             xKey: event_month
             yKey: ratio
-            color: "#9c27b0"
+            color: '#9c27b0'
           - label: siriwatknp
             kind: line
             data:
@@ -224,7 +218,7 @@ spec:
                   .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "siriwatknp")
-            color: "#e91e63"
+            color: '#e91e63'
             xKey: event_month
             yKey: ratio
           - label: mj12albert
@@ -235,7 +229,7 @@ spec:
                   .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "mj12albert")
-            color: "#009688"
+            color: '#009688'
             xKey: event_month
             yKey: ratio
           - label: DiegoAndai
@@ -246,7 +240,7 @@ spec:
                   .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "DiegoAndai")
-            color: "#ff5722"
+            color: '#ff5722'
             xKey: event_month
             yKey: ratio
           - label: brijeshb42
@@ -257,12 +251,11 @@ spec:
                   .map((entry) => ({ ...entry, ratio: entry.reviewed / entry.opened }))
                   .reverse()
                   .filter((entry) => entry.reviewed_by === "brijeshb42")
-            color: "#ff9800"
+            color: '#ff9800'
             xKey: event_month
             yKey: ratio
     - component: Chart
       name: chart
-      children: []
       layout:
         columnSize: 1
       props:
@@ -274,7 +267,7 @@ spec:
                 PrsPerMonth.data
             xKey: event_month
             yKey: pr_community_count
-            color: "#7cb342"
+            color: '#7cb342'
           - kind: line
             label: pr_maintainers_count
             data:
@@ -282,7 +275,7 @@ spec:
                 PrsPerMonth.data
             xKey: event_month
             yKey: pr_maintainers_count
-            color: "#27aeef"
+            color: '#27aeef'
         height: 300
   queries:
     - name: PRsOpenandReviewedQuery
@@ -295,4 +288,6 @@ spec:
         kind: local
       parameters:
         - name: repositoryId
-          value: "23083156"
+          value: '23083156'
+  alias:
+    - 9r8fshsf

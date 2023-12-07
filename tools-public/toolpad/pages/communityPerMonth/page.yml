@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: ck33hgb
   title: CommunityPercentPRsMerged
   content:
     - component: TextField
       name: slug
-      children: []
       layout:
         columnSize: 1
       props:
@@ -14,7 +14,6 @@ spec:
         defaultValue: mui/material-ui
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -29,17 +28,15 @@ spec:
             })()
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
-        value: "Community: PRs merged per month"
+        value: 'Community: PRs merged per month'
         variant: h6
         sx:
           mt: 2
     - component: Chart
       name: chart
-      children: []
       layout:
         columnSize: 1
       props:
@@ -55,7 +52,7 @@ spec:
                 }))
             xKey: event_month
             yKey: pr_community_count
-            color: "#7cb342"
+            color: '#7cb342'
           - kind: line
             label: pr_maintainers_count
             data:
@@ -67,7 +64,7 @@ spec:
                 }))
             xKey: event_month
             yKey: pr_maintainers_count
-            color: "#27aeef"
+            color: '#27aeef'
           - kind: line
             label: ratio
             data:
@@ -79,21 +76,19 @@ spec:
                 }))
             xKey: event_month
             yKey: ratio
-            color: "#ea5545"
+            color: '#ea5545'
         height: 300
     - component: Text
       name: text2
-      children: []
       layout:
         columnSize: 1
       props:
-        value: "Community: Unique contributors per month"
+        value: 'Community: Unique contributors per month'
         variant: h6
         sx:
           mt: 2
     - component: Chart
       name: chart1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -111,7 +106,7 @@ spec:
                 }))
             xKey: event_month
             yKey: community_count
-            color: "#7cb342"
+            color: '#7cb342'
           - kind: line
             label: maintainers_count
             data:
@@ -125,7 +120,7 @@ spec:
                 }))
             xKey: event_month
             yKey: maintainers_count
-            color: "#27aeef"
+            color: '#27aeef'
           - kind: line
             label: ratio
             data:
@@ -139,7 +134,7 @@ spec:
                 }))
             xKey: event_month
             yKey: ratio
-            color: "#ea5545"
+            color: '#ea5545'
         height: 300
   queries:
     - name: PRsPerMonth
@@ -169,3 +164,5 @@ spec:
           value:
             $$jsExpression: |
               getRepositoryDetails.data.data.id
+  alias:
+    - ck33hgb

@@ -1,7 +1,8 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: nSwYn51
   title: muicomabout
   display: shell
   queries:
@@ -12,7 +13,6 @@ spec:
   content:
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -42,3 +42,5 @@ spec:
             type: link
             width: 277
         height: 648
+  alias:
+    - nSwYn51

@@ -1,13 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: oEEu_u7
   title: genderManagement
   display: shell
   content:
     - component: codeComponent.HealthBadge
       name: codeComponent_HealthBadge
-      children: []
       layout:
         columnSize: 1
       props:
@@ -21,5 +21,7 @@ spec:
   queries:
     - name: genderManagement
       query:
-        function: queryGenderManagement
+        function: queryGender.ts#queryGenderManagement
         kind: local
+  alias:
+    - oEEu_u7

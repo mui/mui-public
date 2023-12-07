@@ -1,14 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: _-clGLR
   title: design_kits_issue_111
   display: shell
   queries:
     - name: query
       query:
         kind: rest
-        url: "  https://api.github.com/repos/mui/mui-design-kits/issues/10/reactions"
+        url: '  https://api.github.com/repos/mui/mui-design-kits/issues/10/reactions'
         headers:
           - name: X-GitHub-Api-Version
             value: 2022-11-28
@@ -19,7 +20,6 @@ spec:
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -27,7 +27,6 @@ spec:
         variant: h4
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -42,3 +41,5 @@ spec:
             width: 379
             align: left
         height: 588
+  alias:
+    - _-clGLR

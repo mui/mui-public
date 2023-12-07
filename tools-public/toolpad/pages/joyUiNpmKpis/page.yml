@@ -1,18 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: I1HlSLD
   title: joyUiNpmKpis
   display: shell
   queries:
     - name: queryJoyUIDownloads
       query:
-        function: queryJoyUIDownloads
+        function: queryJoyUIMonthlyDownloads.ts#queryJoyUIDownloads
         kind: local
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -20,22 +20,20 @@ spec:
         variant: h6
     - component: Chart
       name: chart
-      children: []
       layout:
         columnSize: 1
       props:
         data:
-          - label: "@mui/joy"
+          - label: '@mui/joy'
             kind: line
             data:
               $$jsExpression: |
                 queryJoyUIDownloads.data
-            color: "#1976d2"
+            color: '#1976d2'
             xKey: date
-            yKey: "@mui/joy"
+            yKey: '@mui/joy'
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -43,12 +41,11 @@ spec:
         variant: h6
     - component: Chart
       name: chart1
-      children: []
       layout:
         columnSize: 1
       props:
         data:
-          - label: "@mui/joy"
+          - label: '@mui/joy'
             kind: line
             data:
               $$jsExpression: |
@@ -66,6 +63,8 @@ spec:
                     }
                   })
                   .filter((item) => item["@mui/joy"] !== null)
-            color: "#1976d2"
+            color: '#1976d2'
             xKey: date
-            yKey: "@mui/joy"
+            yKey: '@mui/joy'
+  alias:
+    - I1HlSLD

@@ -1,7 +1,8 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: h71gdad
   title: Bundle size comparison
   parameters:
     - name: baseRef
@@ -9,20 +10,18 @@ spec:
     - name: baseCommit
       value: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
     - name: circleCIBuildNumber
-      value: "487681"
+      value: '487681'
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
-        value: "# Size comparison"
+        value: '# Size comparison'
         variant: h2
         mode: markdown
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -72,7 +71,7 @@ spec:
   queries:
     - name: bundleSizes
       query:
-        function: getBundleSizes
+        function: bundleSizeQueries.ts#getBundleSizes
         kind: local
       parameters:
         - name: baseRef
@@ -87,3 +86,5 @@ spec:
           value:
             $$jsExpression: |
               page.parameters.circleCIBuildNumber
+  alias:
+    - h71gdad

@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 8n03iat
   title: overdueRatio
   content:
     - component: codeComponent.HealthBadge
       name: codeComponent_HealthBadge
-      children: []
       layout:
         columnSize: 1
       props:
@@ -18,7 +18,6 @@ spec:
             Math.round(getRatio.data.ratio * 10000) / 100
     - component: Text
       name: Text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -29,3 +28,5 @@ spec:
         function: getRatio
         kind: local
   display: shell
+  alias:
+    - 8n03iat

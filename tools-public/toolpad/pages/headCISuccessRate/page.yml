@@ -1,7 +1,8 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: lo33hck
   title: Page2
   parameters:
     - name: repository
@@ -9,7 +10,6 @@ spec:
   content:
     - component: codeComponent.HealthBadge
       name: codeComponent_HealthBadge
-      children: []
       layout:
         columnSize: 1
       props:
@@ -29,7 +29,6 @@ spec:
             )
     - component: Text
       name: Text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -49,3 +48,5 @@ spec:
             $$jsExpression: |
               page.parameters.repository
   display: shell
+  alias:
+    - lo33hck
