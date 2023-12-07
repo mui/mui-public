@@ -82,7 +82,7 @@ export async function queryAbout() {
         locationCountry: countryToISO[country],
         twitter: employee.about?.socialData?.twitter,
         github: employee.about?.custom?.field_1682954415714,
-        //...employee,
+        // ...employee,
       };
     });
 }
