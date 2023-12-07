@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: bse3h9c
   title: page
   content:
     - component: codeComponent.HealthBadge
       name: codeComponent_HealthBadge
-      children: []
       layout:
         columnSize: 1
       props:
@@ -17,7 +17,7 @@ spec:
               .concat(queryPRmergedNoLabels.data).length
         warning: 1
         problem: 10
-        unit: " issues or PRs"
+        unit: ' issues or PRs'
         lowerIsBetter: true
   queries:
     - name: queryOpenNoLabels
@@ -56,3 +56,5 @@ spec:
         transform: return data.items.filter(item => !item.draft);
         transformEnabled: true
   display: shell
+  alias:
+    - bse3h9c

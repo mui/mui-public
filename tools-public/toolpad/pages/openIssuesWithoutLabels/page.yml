@@ -1,13 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 3eVYIR_
   title: openIssuesWithoutLabels
   display: shell
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -15,7 +15,6 @@ spec:
         variant: h5
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -24,7 +23,6 @@ spec:
           https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#0231c2f8e6924c6d856b9dcda6af99c1.
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -60,7 +58,7 @@ spec:
             value: desc
           - name: sort
             value: updated
-        headers: [ { name: Authorization, value: { $$env: GITHUB_TOKEN } } ]
+        headers: [{ name: Authorization, value: { $$env: GITHUB_TOKEN } }]
         method: GET
         transform: |-
           return {
@@ -85,3 +83,5 @@ spec:
             items: data.items,
           };
         transformEnabled: true
+  alias:
+    - 3eVYIR_

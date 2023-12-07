@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: hl63hwf
   title: needtriageNotAssigned
   content:
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -14,7 +14,6 @@ spec:
         variant: h5
     - component: Text
       name: text2
-      children: []
       layout:
         columnSize: 1
       props:
@@ -24,7 +23,6 @@ spec:
           4fdf50e44595afc55343dac00fca#8f5ae0daa6ad4543b866f3ad0532c9e4"
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -74,3 +72,5 @@ spec:
           return data.items
 
         transformEnabled: true
+  alias:
+    - hl63hwf

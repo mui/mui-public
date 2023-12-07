@@ -1,15 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: KiUQrhI
   title: CommunityPercentPRsMerged
   parameters:
     - name: repositoryId
-      value: "23083156"
+      value: '23083156'
   content:
     - component: codeComponent.HealthBadge
       name: codeComponent_HealthBadge
-      children: []
       layout:
         columnSize: 1
       props:
@@ -71,3 +71,5 @@ spec:
 
                 return dateToYMD(getFirstDayOfPreviousMonth())
               })()
+  alias:
+    - KiUQrhI

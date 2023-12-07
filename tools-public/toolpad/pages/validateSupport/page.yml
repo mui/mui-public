@@ -1,18 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: jyhs86t
   title: validateSupport
   display: standalone
   parameters:
     - name: issueId
-      value: "9195"
+      value: '9195'
     - name: repo
       value: mui-x
   content:
     - component: Text
       name: title
-      children: []
       layout:
         columnSize: 1
       props:
@@ -21,7 +21,6 @@ spec:
         loading: false
     - component: Text
       name: githubIssueN
-      children: []
       layout:
         columnSize: 1
       props:
@@ -38,7 +37,6 @@ spec:
         mode: markdown
     - component: TextField
       name: supportKey
-      children: []
       layout:
         columnSize: 1
       props:
@@ -58,7 +56,6 @@ spec:
             sx: { marginTop: 4 }
             variant: h6
             value: Validation
-          children: []
           layout:
             columnSize: 1
             horizontalAlign: start
@@ -68,7 +65,6 @@ spec:
         sx: {}
     - component: Text
       name: statusValue
-      children: []
       layout:
         columnSize: 1
       props:
@@ -109,3 +105,5 @@ spec:
           value:
             $$jsExpression: |
               supportKey.value
+  alias:
+    - jyhs86t

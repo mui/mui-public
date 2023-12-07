@@ -1,13 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: U0CsCz5
   title: baseUiNpmKpis
   display: shell
   content:
     - component: Text
       name: npmChartTitle
-      children: []
       layout:
         columnSize: 1
       props:
@@ -15,43 +15,42 @@ spec:
         value: Headless libraries npm downloads
     - component: Chart
       name: npmChart
-      children: []
       layout:
         columnSize: 1
       props:
         data:
           - kind: line
-            label: "@mui/base"
+            label: '@mui/base'
             data:
               $$jsExpression: |
                 queryHeadlessLibrariesDownloads.data
             xKey: date
-            yKey: "@mui/base"
-            color: "#1976d2"
+            yKey: '@mui/base'
+            color: '#1976d2'
           - kind: line
-            label: "@reach/utils"
+            label: '@reach/utils'
             data:
               $$jsExpression: |
                 queryHeadlessLibrariesDownloads.data
             xKey: date
-            yKey: "@reach/utils"
-            color: "#b33dc6"
+            yKey: '@reach/utils'
+            color: '#b33dc6'
           - kind: line
-            label: "@radix-ui/react-primitive"
+            label: '@radix-ui/react-primitive'
             data:
               $$jsExpression: |
                 queryHeadlessLibrariesDownloads.data
             xKey: date
-            yKey: "@radix-ui/react-primitive"
-            color: "#ea5545"
+            yKey: '@radix-ui/react-primitive'
+            color: '#ea5545'
           - kind: line
-            label: "@react-aria/utils"
+            label: '@react-aria/utils'
             data:
               $$jsExpression: |
                 queryHeadlessLibrariesDownloads.data
             xKey: date
-            yKey: "@react-aria/utils"
-            color: "#ef9b20"
+            yKey: '@react-aria/utils'
+            color: '#ef9b20'
           - kind: line
             label: reakit
             data:
@@ -59,19 +58,18 @@ spec:
                 queryHeadlessLibrariesDownloads.data
             xKey: date
             yKey: reakit
-            color: "#000"
+            color: '#000'
           - kind: line
-            label: "@headlessui/react"
+            label: '@headlessui/react'
             data:
               $$jsExpression: |
                 queryHeadlessLibrariesDownloads.data
             xKey: date
-            yKey: "@headlessui/react"
-            color: "#388e3c"
+            yKey: '@headlessui/react'
+            color: '#388e3c'
         height: 300
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -96,17 +94,17 @@ spec:
         columns:
           - field: date
             type: string
-          - field: "@mui/base"
+          - field: '@mui/base'
             type: number
-          - field: "@reach/utils"
+          - field: '@reach/utils'
             type: number
-          - field: "@radix-ui/react-primitive"
+          - field: '@radix-ui/react-primitive'
             type: number
-          - field: "@react-aria/utils"
+          - field: '@react-aria/utils'
             type: number
           - field: reakit
             type: number
-          - field: "@headlessui/react"
+          - field: '@headlessui/react'
             type: number
           - field: ratio
             type: string
@@ -115,3 +113,5 @@ spec:
       query:
         function: queryHeadlessLibrariesDownloads
         kind: local
+  alias:
+    - U0CsCz5

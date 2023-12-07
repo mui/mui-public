@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 7ju3hr6
   title: issueWithoutProductScope
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -14,7 +14,6 @@ spec:
         variant: h5
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -24,7 +23,6 @@ spec:
           44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc"
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -61,9 +59,9 @@ spec:
         url: https://api.github.com/repos/mui/material-ui/issues
         searchParams:
           - name: labels
-            value: "status: needs triage"
+            value: 'status: needs triage'
           - name: per_page
-            value: "100"
+            value: '100'
           - name: state
             value: closed
         headers: []
@@ -74,9 +72,9 @@ spec:
         url: https://api.github.com/repos/mui/mui-x/issues
         searchParams:
           - name: labels
-            value: "status: needs triage"
+            value: 'status: needs triage'
           - name: per_page
-            value: "100"
+            value: '100'
           - name: state
             value: closed
         headers: []
@@ -87,10 +85,12 @@ spec:
         url: https://api.github.com/repos/mui/mui-design-kits/issues
         searchParams:
           - name: labels
-            value: "status: needs triage"
+            value: 'status: needs triage'
           - name: per_page
-            value: "100"
+            value: '100'
           - name: state
             value: closed
         headers: []
         method: GET
+  alias:
+    - 7ju3hr6

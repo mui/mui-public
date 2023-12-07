@@ -1,7 +1,8 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: m023hp4
   title: npmVersion
   parameters:
     - name: package
@@ -9,7 +10,6 @@ spec:
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -21,7 +21,6 @@ spec:
           Same data as in https://www.npmjs.com/package/react-dom?activeTab=versions.
     - component: TextField
       name: textField
-      children: []
       layout:
         columnSize: 1
       props:
@@ -31,7 +30,6 @@ spec:
             page.parameters.package
     - component: codeComponent.PieChart
       name: codeComponent_PieChart
-      children: []
       layout:
         columnSize: 1
       props:
@@ -80,3 +78,5 @@ spec:
             $$jsExpression: |
               textField.value
   display: shell
+  alias:
+    - m023hp4

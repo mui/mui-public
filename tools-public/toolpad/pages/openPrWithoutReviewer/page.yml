@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 1t353h04
   title: labelActivity
   content:
     - component: Text
       name: text
-      children: []
       layout:
         columnSize: 1
       props:
@@ -14,7 +14,6 @@ spec:
         variant: h5
     - component: Text
       name: text1
-      children: []
       layout:
         columnSize: 1
       props:
@@ -24,7 +23,6 @@ spec:
           4fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf"
     - component: DataGrid
       name: dataGrid
-      children: []
       layout:
         columnSize: 1
       props:
@@ -81,3 +79,5 @@ spec:
       query:
         function: queryPRswithoutReviewer
         kind: local
+  alias:
+    - 1t353h04
