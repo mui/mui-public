@@ -90,7 +90,7 @@ spec:
   queries:
     - name: updateMuiPaidSupport
       query:
-        function: updateMuiPaidSupport
+        function: updateMuiPaidSupport.ts#updateMuiPaidSupport
         kind: local
       parameters:
         - name: issueId

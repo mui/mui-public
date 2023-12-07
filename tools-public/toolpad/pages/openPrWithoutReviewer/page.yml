@@ -77,7 +77,7 @@ spec:
   queries:
     - name: queryPRswithoutReviewer
       query:
-        function: queryPRswithoutReviewer
+        function: queryPRswithoutReviewer.ts#queryPRswithoutReviewer
         kind: local
   alias:
     - 1t353h04

@@ -71,7 +71,7 @@ spec:
   queries:
     - name: bundleSizes
       query:
-        function: getBundleSizes
+        function: bundleSizeQueries.ts#getBundleSizes
         kind: local
       parameters:
         - name: baseRef

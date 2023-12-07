@@ -20,7 +20,7 @@ spec:
   queries:
     - name: gender
       query:
-        function: queryGender
+        function: queryGender.ts#queryGender
         kind: local
   alias:
     - id9G8nf

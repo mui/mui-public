@@ -21,7 +21,7 @@ spec:
   queries:
     - name: genderManagement
       query:
-        function: queryGenderManagement
+        function: queryGender.ts#queryGenderManagement
         kind: local
   alias:
     - oEEu_u7

@@ -53,7 +53,7 @@ spec:
   queries:
     - name: queryPRs
       query:
-        function: queryPRs
+        function: queryPRs.ts#queryPRs
         kind: local
   alias:
     - tn213hge

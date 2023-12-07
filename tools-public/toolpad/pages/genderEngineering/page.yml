@@ -22,7 +22,7 @@ spec:
   queries:
     - name: gender1
       query:
-        function: queryGender
+        function: queryGender.ts#queryGender
         kind: local
       parameters:
         - name: department

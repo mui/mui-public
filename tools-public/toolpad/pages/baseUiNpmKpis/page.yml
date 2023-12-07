@@ -111,7 +111,7 @@ spec:
   queries:
     - name: queryHeadlessLibrariesDownloads
       query:
-        function: queryHeadlessLibrariesDownloads
+        function: queryHeadlessLibrariesDownloads.ts#queryHeadlessLibrariesDownloads
         kind: local
   alias:
     - U0CsCz5

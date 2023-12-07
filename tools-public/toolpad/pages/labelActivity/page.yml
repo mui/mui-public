@@ -100,11 +100,11 @@ spec:
   queries:
     - name: queryMaterialUILabels
       query:
-        function: queryMaterialUILabels
+        function: queryMaterialUILabels.ts#queryMaterialUILabels
         kind: local
     - name: queryMUIXLabels
       query:
-        function: queryMUIXLabels
+        function: queryMUIXLabels.ts#queryMUIXLabels
         kind: local
   alias:
     - xj43hyd
