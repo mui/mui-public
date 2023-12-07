@@ -1,27 +1,27 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
-
 apiVersion: v1
 kind: page
 spec:
-  title: needTriage
+  id: hj1i3hqe
+  title: waitingForMaintainer
   parameters:
     - name: repository
       value: material-ui
   content:
     - component: codeComponent.HealthBadge
       name: codeComponent_HealthBadge
+      children: []
       layout:
         columnSize: 1
       props:
         value:
           $$jsExpression: |
-            needTriage.data.total_count
+            waitingForMaintainer.data.total_count
         warning: 25
         problem: 50
-        unit: ' issues'
+        unit: " issues"
         lowerIsBetter: true
   queries:
-    - name: needTriage
+    - name: waitingForMaintainer
       query:
         kind: rest
         url: https://api.github.com/search/issues
@@ -29,8 +29,7 @@ spec:
           - name: q
             value:
               $$jsExpression: >
-                `is:issue repo:mui/${parameters.repository} label:"status: needs
-                triage" `
+                `is:issue is:open repo:mui/${parameters.repository} label:"status: waiting for maintainer" `
         headers: []
         method: GET
       parameters:
@@ -39,5 +38,3 @@ spec:
             $$jsExpression: |
               page.parameters.repository
   display: shell
-  alias:
-    - hj1i3hqe
