@@ -144,7 +144,7 @@ spec:
                         - component: Text
                           name: text15
                           props:
-                            value: 'Issues: "waiting for maintainer" label'
+                            value: 'Issues: "status: waiting for maintainer" label'
                         - component: Text
                           name: text16
                           props:
