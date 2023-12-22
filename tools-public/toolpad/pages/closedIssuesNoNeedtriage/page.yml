@@ -59,7 +59,7 @@ spec:
         url: https://api.github.com/repos/mui/material-ui/issues
         searchParams:
           - name: labels
-            value: 'status: needs triage'
+            value: 'status: waiting for maintainer'
           - name: per_page
             value: '100'
           - name: state
@@ -72,7 +72,7 @@ spec:
         url: https://api.github.com/repos/mui/mui-x/issues
         searchParams:
           - name: labels
-            value: 'status: needs triage'
+            value: 'status: waiting for maintainer'
           - name: per_page
             value: '100'
           - name: state
@@ -85,7 +85,7 @@ spec:
         url: https://api.github.com/repos/mui/mui-design-kits/issues
         searchParams:
           - name: labels
-            value: 'status: needs triage'
+            value: 'status: waiting for maintainer'
           - name: per_page
             value: '100'
           - name: state

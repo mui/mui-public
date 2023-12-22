@@ -63,7 +63,7 @@ spec:
         searchParams:
           - name: q
             value: 'repo:mui/material-ui repo:mui/mui-x is:open is:issue label:"status:
-              needs triage" no:assignee'
+              waiting for maintainer" no:assignee'
         headers:
           - name: Bearer
             value: abc
