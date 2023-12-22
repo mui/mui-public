@@ -27,27 +27,24 @@ spec:
         columnSize: 1
       props:
         rows:
-          $$jsExpression: |
+          $$jsExpression: >
             (() => {
-              const nonProductScopeLabels = [
-                "support: commercial",
-                "support: docs-feedback",
-              ]
+              const nonProductScopeLabels = ['support: commercial', 'support: docs-feedback']
 
               return materialUI.rows
                 .concat(muix.rows)
                 .concat(muiDesignKits.rows)
                 .filter((issue) => {
                   const withoutNonProductScopeLabels = issue.labels.filter(
-                    (label) => !nonProductScopeLabels.includes(label.name)
+                    (label) => !nonProductScopeLabels.includes(label.name),
                   )
                   return withoutNonProductScopeLabels.length === 1
                 })
                 .sort((issueA, issueB) => {
-                  if (issueA.state === "open") {
+                  if (issueA.state === 'open') {
                     return 1
                   }
-                  if (issueB.state === "open") {
+                  if (issueB.state === 'open') {
                     return 1
                   }
                   return issueB.number - issueA.number
