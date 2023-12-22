@@ -596,7 +596,7 @@ spec:
                           layout:
                             columnSize: 1
                           props:
-                            value: Open "waiting for maintainer" issues without assignee
+                            value: Open "status: waiting for maintainer" issues without assignee
                         - component: Text
                           name: text28
                           layout:
