@@ -144,7 +144,7 @@ spec:
                         - component: Text
                           name: text15
                           props:
-                            value: 'Issues: "need triage" label'
+                            value: 'Issues: "status: waiting for maintainer" label'
                         - component: Text
                           name: text16
                           props:
@@ -596,7 +596,7 @@ spec:
                           layout:
                             columnSize: 1
                           props:
-                            value: Open "need triage" issues without assignee
+                            value: Open "status: waiting for maintainer" issues without assignee
                         - component: Text
                           name: text28
                           layout:
