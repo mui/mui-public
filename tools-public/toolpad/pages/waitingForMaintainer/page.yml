@@ -29,15 +29,24 @@ spec:
           - name: q
             value:
               $$jsExpression: >
-                `is:issue is:open repo:mui/${parameters.repository}
+                `is:issue repo:mui/${parameters.repository}
                 label:"status: waiting for maintainer" `
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
       parameters:
         - name: repository
           value:
             $$jsExpression: |
               page.parameters.repository
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
   display: shell
   alias:
     - hj1i3hqe

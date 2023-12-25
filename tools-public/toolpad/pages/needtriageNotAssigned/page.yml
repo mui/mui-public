@@ -10,7 +10,7 @@ spec:
       layout:
         columnSize: 1
       props:
-        value: Open "status: waiting for maintainer" issues without assignee
+        value: 'Open "status: waiting for maintainer" issues without assignee'
         variant: h5
     - component: Text
       name: text2

@@ -58,13 +58,23 @@ spec:
             value: desc
           - name: sort
             value: updated
-        headers: [{ name: Authorization, value: { $$env: GITHUB_TOKEN } }]
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
         transform: |-
           return {
             items: data.items,
           };
         transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
     - name: fetchOpenIssuesWithoutLabels
       query:
         kind: rest
@@ -76,12 +86,22 @@ spec:
             value: desc
           - name: sort
             value: updated
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
         transform: |-
           return {
             items: data.items,
           };
         transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
   alias:
     - 3eVYIR_
