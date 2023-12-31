@@ -15,8 +15,16 @@ spec:
             value: 2022-11-28
           - name: Accept
             value: application/vnd.github+json
+          - name: Authorization
+            value:
+              $$jsExpression: |
+                `Bearer ${parameters.GITHUB_TOKEN}`
         method: GET
         searchParams: []
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
   content:
     - component: Text
       name: text

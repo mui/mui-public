@@ -76,8 +76,18 @@ spec:
             value: '100'
           - name: state
             value: all
-        headers: [{ name: Authorization, value: { $$env: GITHUB_TOKEN } }]
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
     - name: muix
       query:
         kind: rest
@@ -89,8 +99,18 @@ spec:
             value: '100'
           - name: state
             value: all
-        headers: [{ name: Authorization, value: { $$env: GITHUB_TOKEN } }]
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
     - name: muiDesignKits
       query:
         kind: rest
@@ -102,7 +122,17 @@ spec:
             value: '100'
           - name: state
             value: all
-        headers: [{ name: Authorization, value: { $$env: GITHUB_TOKEN } }]
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
   alias:
     - y923hoo

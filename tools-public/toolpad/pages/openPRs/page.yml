@@ -37,13 +37,22 @@ spec:
               $$jsExpression: >
                 `is:pull-request is:open -is:draft
                 repo:mui/${parameters.repository}`
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
       parameters:
         - name: repository
           value:
             $$jsExpression: |
               page.parameters.repo
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
   display: shell
   alias:
     - 39j3h6b
