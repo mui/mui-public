@@ -3,7 +3,6 @@ builder = "NIXPACKS"
 watchPatterns = ["**"]
 buildCommand = "yarn build"
 nixpacksConfigPath = "nixpacks.toml"
-nixpacksPlan = null
 
 [deploy]
 startCommand = "yarn start"
