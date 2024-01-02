@@ -1,4 +1,3 @@
-previewsEnabled: true
 previewsExpireAfterDays: 3
 
 services:
@@ -8,8 +7,8 @@ services:
     rootDir: tools-public
     buildCommand: yarn && yarn build
     startCommand: node_modules/.bin/toolpad start
-    pullRequestPreviewsEnabled: false
-    plan: standard
+    pullRequestPreviewsEnabled: true
+    plan: starter
     envVars:
       - key: NODE_VERSION
         value: 18
@@ -29,7 +28,7 @@ services:
     rootDir: examples/custom-datagrid-column
     buildCommand: yarn && yarn build
     startCommand: node_modules/.bin/toolpad start
-    pullRequestPreviewsEnabled: false
+    pullRequestPreviewsEnabled: true
     envVars:
       - key: NODE_VERSION
         value: 18
