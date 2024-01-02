@@ -8,7 +8,7 @@ services:
     buildCommand: yarn && yarn build
     startCommand: node_modules/.bin/toolpad start
     pullRequestPreviewsEnabled: true
-    plan: standard
+    plan: starter
     envVars:
       - key: NODE_VERSION
         value: 18
