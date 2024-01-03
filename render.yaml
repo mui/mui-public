@@ -11,7 +11,6 @@ services:
     # We use preview environments instead
     pullRequestPreviewsEnabled: false
     plan: starter
-    previewPlan: free
     envVars:
       - key: NODE_VERSION
         value: 18
@@ -23,18 +22,3 @@ services:
       - fromGroup: HiBob
       - fromGroup: Zendesk
       - fromGroup: Google Sheet service account
-
-  - type: web
-    name: datagrid-example
-    env: node
-    repo: https://github.com/mui/mui-toolpad.git
-    rootDir: examples/custom-datagrid-column
-    buildCommand: yarn && yarn build
-    startCommand: node_modules/.bin/toolpad start
-    # We use preview environments instead
-    pullRequestPreviewsEnabled: false
-    envVars:
-      - key: NODE_VERSION
-        value: 18
-      - key: NODE_OPTIONS
-        value: --enable-source-maps
