@@ -29,8 +29,8 @@ spec:
           - name: q
             value:
               $$jsExpression: >
-                `is:issue repo:mui/${parameters.repository}
-                label:"status: waiting for maintainer" `
+                `is:issue repo:mui/${parameters.repository} label:"status:
+                waiting for maintainer" `
         headers:
           [
             {

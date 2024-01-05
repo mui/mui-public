@@ -62,8 +62,8 @@ spec:
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
-            value: 'repo:mui/material-ui repo:mui/mui-x is:open is:issue label:"status:
-              waiting for maintainer" no:assignee'
+            value: 'repo:mui/material-ui repo:mui/mui-x repo:mui/mui-design-kits is:open
+              is:issue label:"status: waiting for maintainer" no:assignee'
         headers:
           - name: Bearer
             value: abc
