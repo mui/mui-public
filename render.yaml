@@ -5,7 +5,7 @@ services:
     name: tools-public
     env: node
     rootDir: tools-public
-    buildCommand: yarn && yarn build
+    buildCommand: pnpm install && pnpm build
     startCommand: node_modules/.bin/toolpad start
     pullRequestPreviewsEnabled: true
     plan: starter

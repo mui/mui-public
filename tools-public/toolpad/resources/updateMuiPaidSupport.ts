@@ -1,9 +1,8 @@
 /* eslint-disable import/prefer-default-export */
 import dayjs from 'dayjs';
-
-const { sheets } = require('@googleapis/sheets');
-const { JWT } = require('google-auth-library');
-const { Octokit } = require('@octokit/core');
+import { sheets } from '@googleapis/sheets';
+import { JWT } from 'google-auth-library';
+import { Octokit } from '@octokit/core';
 
 function findRowIndexByValue(sheet, value) {
   for (let i = 0; i < sheet.length; i += 1) {
