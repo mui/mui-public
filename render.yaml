@@ -1,3 +1,4 @@
+previewsEnabled: true
 previewsExpireAfterDays: 3
 
 services:
@@ -7,7 +8,8 @@ services:
     rootDir: tools-public
     buildCommand: yarn && yarn build
     startCommand: node_modules/.bin/toolpad start
-    pullRequestPreviewsEnabled: true
+    # We use preview environments instead
+    pullRequestPreviewsEnabled: false
     plan: starter
     envVars:
       - key: NODE_VERSION
