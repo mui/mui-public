@@ -113,7 +113,7 @@ export async function updateMuiPaidSupport(issueId: string, repo: string, suppor
     };
   }
 
-  const targetSupportKeyExpirationDate = new Date(rows[rowIndex][1]);
+  const targetSupportKeyExpirationDate = new Date(rows![rowIndex][1]);
   const today = new Date();
 
   if (targetSupportKeyExpirationDate < today) {
