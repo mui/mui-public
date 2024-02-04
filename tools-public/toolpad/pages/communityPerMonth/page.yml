@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: CommunityPercentPRsMerged
+  title: Community per month
   content:
     - component: TextField
       name: slug
@@ -166,3 +166,4 @@ spec:
               getRepositoryDetails.data.data.id
   alias:
     - ck33hgb
+  displayName: Community per month

@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: openIssuesWithoutLabels
+  title: Open issues without labels
   display: shell
   content:
     - component: Text
@@ -105,3 +105,4 @@ spec:
             $$env: GITHUB_TOKEN
   alias:
     - 3eVYIR_
+  displayName: Open issues without labels

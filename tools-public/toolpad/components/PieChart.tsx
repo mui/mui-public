@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createComponent } from '@mui/toolpad-core';
+import { createComponent } from '@mui/toolpad/browser';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/

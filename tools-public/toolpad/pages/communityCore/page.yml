@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: Page 1
+  title: Community Core
   content:
     - component: DataGrid
       name: DataGrid
@@ -291,3 +291,4 @@ spec:
           value: '23083156'
   alias:
     - 9r8fshsf
+  displayName: Community Core

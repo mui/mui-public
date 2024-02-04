@@ -4,3 +4,4 @@
 /tools-public/toolpad/.generated/
 /tools-public/toolpad/**/*.yml
 node_modules
+pnpm-lock.yaml

@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: page
+  title: Median time to completion
   parameters:
     - name: repoId
       value: '23083156'
@@ -63,3 +63,4 @@ spec:
   display: shell
   alias:
     - 9ou3hb2
+  displayName: Median time to completion

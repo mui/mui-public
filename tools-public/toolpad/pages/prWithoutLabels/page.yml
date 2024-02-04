@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: labelActivity
+  title: PR without labels
   content:
     - component: Text
       name: text
@@ -57,3 +57,4 @@ spec:
         kind: local
   alias:
     - tn213hge
+  displayName: PR without labels

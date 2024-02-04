@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: genderManagement
+  title: Gender in management
   display: shell
   content:
     - component: codeComponent.HealthBadge
@@ -25,3 +25,4 @@ spec:
         kind: local
   alias:
     - oEEu_u7
+  displayName: Gender in management
