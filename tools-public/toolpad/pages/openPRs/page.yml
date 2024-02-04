@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.40/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
 spec:
-  title: openPRs
+  title: Open PRs
   parameters:
     - name: repo
       value: material-ui
@@ -56,3 +56,4 @@ spec:
   display: shell
   alias:
     - 39j3h6b
+  displayName: Open PRs
