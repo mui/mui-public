@@ -11,6 +11,9 @@ dependencies:
   '@mui/toolpad':
     specifier: ^0.1.40
     version: 0.1.48(prop-types@15.8.1)(webpack@5.90.1)
+  '@mui/x-charts':
+    specifier: ^6.19.3
+    version: 6.19.3(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(@mui/material@5.15.6)(@mui/system@5.15.6)(react-dom@18.2.0)(react@18.2.0)
   '@octokit/core':
     specifier: ^4.2.1
     version: 4.2.4
@@ -32,9 +35,6 @@ dependencies:
   mysql:
     specifier: ^2.18.1
     version: 2.18.1
-  recharts:
-    specifier: ^2.8.0
-    version: 2.11.0(prop-types@15.8.1)(react-dom@18.2.0)(react@18.2.0)
   ssh2-promise:
     specifier: ^1.0.3
     version: 1.0.3
@@ -1229,6 +1229,41 @@ packages:
 
   /@mui/x-charts@6.19.1(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(@mui/material@5.15.6)(@mui/system@5.15.6)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-7FJFwL+6o0Qt7RcQCeDeGL5aPzMpX8Dyh7+IOoNoaLiIHVNssAYh4D3uD2mKpZ+pcW6SE54aE5WM1SWDEC8TQA==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      '@emotion/react': ^11.9.0
+      '@emotion/styled': ^11.8.1
+      '@mui/material': ^5.4.1
+      '@mui/system': ^5.4.1
+      react: ^17.0.0 || ^18.0.0
+      react-dom: ^17.0.0 || ^18.0.0
+    peerDependenciesMeta:
+      '@emotion/react':
+        optional: true
+      '@emotion/styled':
+        optional: true
+    dependencies:
+      '@babel/runtime': 7.23.9
+      '@emotion/react': 11.11.3(react@18.2.0)
+      '@emotion/styled': 11.11.0(@emotion/react@11.11.3)(react@18.2.0)
+      '@mui/base': 5.0.0-beta.34(react-dom@18.2.0)(react@18.2.0)
+      '@mui/material': 5.15.6(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(react-dom@18.2.0)(react@18.2.0)
+      '@mui/system': 5.15.6(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(react@18.2.0)
+      '@react-spring/rafz': 9.7.3
+      '@react-spring/web': 9.7.3(react-dom@18.2.0)(react@18.2.0)
+      clsx: 2.1.0
+      d3-color: 3.1.0
+      d3-scale: 4.0.2
+      d3-shape: 3.2.0
+      prop-types: 15.8.1
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
+    dev: false
+
+  /@mui/x-charts@6.19.3(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(@mui/material@5.15.6)(@mui/system@5.15.6)(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-VxF+mHXtmR2LxalH2KRzF4gLT6KFDbYMvis6rkcyr+w6J17KBxMsEGx8V0nn1CIEslzcSXgbv41jIzodhiFyMQ==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       '@emotion/react': ^11.9.0
@@ -5668,27 +5703,6 @@ packages:
 
   /recharts@2.10.4(prop-types@15.8.1)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-/Q7/wdf8bW91lN3NEeCjL9RWfaiXQViJFgdnas4Eix/I8B9HAI3tHHK/CW/zDfgRMh4fzW1zlfjoz1IAapLO1Q==}
-    engines: {node: '>=14'}
-    peerDependencies:
-      prop-types: ^15.6.0
-      react: ^16.0.0 || ^17.0.0 || ^18.0.0
-      react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0
-    dependencies:
-      clsx: 2.1.0
-      eventemitter3: 4.0.7
-      lodash: 4.17.21
-      prop-types: 15.8.1
-      react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
-      react-is: 16.13.1
-      react-smooth: 2.0.5(prop-types@15.8.1)(react-dom@18.2.0)(react@18.2.0)
-      recharts-scale: 0.4.5
-      tiny-invariant: 1.3.1
-      victory-vendor: 36.8.6
-    dev: false
-
-  /recharts@2.11.0(prop-types@15.8.1)(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-5s+u1m5Hwxb2nh0LABkE3TS/lFqFHyWl7FnPbQhHobbQQia4ih1t3o3+ikPYr31Ns+kYe4FASIthKeKi/YYvMg==}
     engines: {node: '>=14'}
     peerDependencies:
       prop-types: ^15.6.0

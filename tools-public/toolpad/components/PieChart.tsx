@@ -1,6 +1,6 @@
 import * as React from 'react';
+import { PieChart } from '@mui/x-charts/PieChart';
 import { createComponent } from '@mui/toolpad/browser';
-import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [
@@ -16,29 +16,34 @@ const COLORS = [
 ];
 
 export interface PieChartProps {
-  data: object[];
+  data: any[];
+  loading: boolean;
 }
 
-function PieChartExport({ data }: PieChartProps) {
+function PieChartExport({ data, loading }: PieChartProps) {
+  if (loading) {
+    return null;
+  }
+
   return (
-    <PieChart width={300} height={300}>
-      <Pie
-        data={data}
-        cx={150}
-        cy={150}
-        innerRadius={0}
-        outerRadius={80}
-        fill="#8884d8"
-        dataKey="value"
-      >
-        {data.map((entry, index) => (
-          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-        ))}
-      </Pie>
-      <Tooltip
-        formatter={(value) => Intl.NumberFormat('en', { notation: 'compact' }).format(value)}
+    <div>
+      <PieChart
+        series={[
+          {
+            data: data.map((entry, index) => ({
+              id: index,
+              label: entry.name,
+              color: COLORS[index % COLORS.length],
+              value: entry.value,
+            })),
+            valueFormatter: ({ value }) =>
+              Intl.NumberFormat('en', { notation: 'compact' }).format(value),
+          },
+        ]}
+        width={300}
+        height={300}
       />
-    </PieChart>
+    </div>
   );
 }
 
@@ -52,6 +57,10 @@ export default createComponent(PieChartExport, {
         { name: 'Group C', value: 300 },
         { name: 'Group D', value: 200 },
       ],
+    },
+    loading: {
+      type: 'boolean',
+      default: false,
     },
   },
 });
