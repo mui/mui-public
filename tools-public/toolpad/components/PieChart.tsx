@@ -1,6 +1,6 @@
 import * as React from 'react';
 import Box from '@mui/system/Box';
-import { PieChart } from '@mui/x-charts/PieChart';
+import { PieChart, pieArcLabelClasses } from '@mui/x-charts/PieChart';
 import { createComponent } from '@mui/toolpad/browser';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
@@ -40,12 +40,21 @@ function PieChartExport({ data, loading }: PieChartProps) {
               color: COLORS[index % COLORS.length],
               value: entry.value,
             })),
+            arcLabel: (item) => item.label!,
+            arcLabelMinAngle: 30,
             valueFormatter: ({ value }) =>
               Intl.NumberFormat('en', { notation: 'compact' }).format(value),
           },
         ]}
+        sx={{
+          [`& .${pieArcLabelClasses.root}`]: {
+            fill: 'white',
+            fontWeight: 'bold',
+          },
+        }}
         width={width}
         height={height}
+        slotProps={{ legend: { hidden: true } }}
       />
     </div>
   );
