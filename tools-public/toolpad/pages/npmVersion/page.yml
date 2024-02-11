@@ -30,8 +30,6 @@ spec:
             page.parameters.package
     - component: codeComponent.PieChart
       name: codeComponent_PieChart
-      layout:
-        columnSize: 1
       props:
         data:
           $$jsExpression: |
@@ -58,6 +56,8 @@ spec:
                   return acc
                 }, {})
             ).map((group) => ({ name: group[0], value: group[1] }))
+      layout:
+        columnSize: 1
   queries:
     - name: downloadsVersions
       query:
