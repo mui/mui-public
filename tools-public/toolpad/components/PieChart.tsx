@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Box from '@mui/system/Box';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { createComponent } from '@mui/toolpad/browser';
 
@@ -20,9 +21,12 @@ export interface PieChartProps {
   loading: boolean;
 }
 
+const height = 300;
+const width = 300;
+
 function PieChartExport({ data, loading }: PieChartProps) {
   if (loading) {
-    return null;
+    return <Box sx={{ width, height, display: 'flex', alignItems: 'center', px: 2 }}>Loading…</Box>;
   }
 
   return (
@@ -40,8 +44,8 @@ function PieChartExport({ data, loading }: PieChartProps) {
               Intl.NumberFormat('en', { notation: 'compact' }).format(value),
           },
         ]}
-        width={300}
-        height={300}
+        width={width}
+        height={height}
       />
     </div>
   );
@@ -58,9 +62,7 @@ export default createComponent(PieChartExport, {
         { name: 'Group D', value: 200 },
       ],
     },
-    loading: {
-      type: 'boolean',
-      default: false,
-    },
   },
+  loadingPropSource: ['data'],
+  loadingProp: 'loading',
 });

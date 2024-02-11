@@ -56,8 +56,6 @@ spec:
                   return acc
                 }, {})
             ).map((group) => ({ name: group[0], value: group[1] }))
-        loading:
-          $$jsExpression: downloadsVersions.isLoading || false
       layout:
         columnSize: 1
   queries:
