@@ -6,10 +6,14 @@ parameters:
     type: string
     default: pipeline
 
-defaults: &defaults
+default-job: &default-job
   working_directory: /tmp/mui
   docker:
     - image: cimg/node:18.16
+
+default-context: &default-context
+  context:
+    - org-global
 
 commands:
   install_js:
@@ -44,7 +48,7 @@ commands:
 
 jobs:
   checkout:
-    <<: *defaults
+    <<: *default-job
     steps:
       - checkout
       - install_js
@@ -55,7 +59,7 @@ jobs:
           name: Check for duplicated packages
           command: yarn deduplicate
   test_lint:
-    <<: *defaults
+    <<: *default-job
     steps:
       - checkout
       - install_js
@@ -63,7 +67,7 @@ jobs:
           name: Eslint
           command: yarn eslint:ci
   test_static:
-    <<: *defaults
+    <<: *default-job
     steps:
       - checkout
       - install_js
@@ -76,10 +80,13 @@ workflows:
     when:
       equal: [pipeline, << pipeline.parameters.workflow >>]
     jobs:
-      - checkout
+      - checkout:
+          <<: *default-context
       - test_lint:
+          <<: *default-context
           requires:
             - checkout
       - test_static:
+          <<: *default-context
           requires:
             - checkout
