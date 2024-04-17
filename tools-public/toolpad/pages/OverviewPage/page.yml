@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: page
 spec:
-  title: Overview page
+  title: Overview Page
   display: shell
   content:
     - component: Tabs
