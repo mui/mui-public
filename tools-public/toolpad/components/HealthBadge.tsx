@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Typography, Stack, Skeleton } from '@mui/material';
-import { createComponent } from '@mui/toolpad/browser';
+import { createComponent } from '@toolpad/studio/browser';
 
 export interface HeathBadgeProps {
   level: string;
