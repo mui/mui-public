@@ -1,5 +1,5 @@
-const path = require('path');
 const baseline = require('@mui/monorepo/.eslintrc');
+const path = require('path');
 
 module.exports = {
   ...baseline,
