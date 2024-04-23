@@ -40,12 +40,26 @@ export async function queryAbout() {
   //   }
   // );
 
-  const res = await fetch('https://api.hibob.com/v1/people?humanReadable=true', {
+  const res = await fetch('https://api.hibob.com/v1/people/search', {
+    method: 'POST',
     headers: {
       'content-type': 'application/json',
       Authorization: `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
     },
-    method: 'GET',
+    body: JSON.stringify({
+      showInactive: false,
+      humanReadable: 'REPLACE',
+      fields: [
+        'root.fullName',
+        'address.country',
+        'address.city',
+        'work.title',
+        'work.tenureDurationYears',
+        'about.custom.field_1682954415714',
+        'about.custom.field_1690557141686',
+        'about.socialData.twitter',
+      ],
+    }),
   });
 
   if (res.status !== 200) {
@@ -54,10 +68,10 @@ export async function queryAbout() {
   const data = await res.json();
 
   const countriesRes = await fetch('https://flagcdn.com/en/codes.json', {
+    method: 'GET',
     headers: {
       'content-type': 'application/json',
     },
-    method: 'GET',
   });
 
   if (countriesRes.status !== 200) {
