@@ -19,7 +19,7 @@ interface Issue {
   };
 }
 
-export async function queryJoyUILabels() {
+export async function queryPigmentCSSLabels() {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
@@ -29,7 +29,7 @@ export async function queryJoyUILabels() {
 
   const query = `
     {
-      repository(owner: "mui", name: "Joy-ui") {
+      repository(owner: "mui", name: "Pigment-CSS") {
         pullRequests(first: 50, orderBy: {direction: DESC, field: CREATED_AT}) {
           nodes {
             number
