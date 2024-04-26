@@ -19,7 +19,7 @@ interface Issue {
   };
 }
 
-export async function queryBaselUILabels() {
+export async function queryBaseUILabels() {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
