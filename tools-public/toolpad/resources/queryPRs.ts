@@ -105,7 +105,7 @@ export async function queryPRs() {
             }
           }
         }
-        joyui: repository(owner: "mui", name: "joy-ui") {
+        pigmentcss: repository(owner: "mui", name: "pigment-css") {
           pullRequests(
             first: 100
             orderBy: {direction: DESC, field: CREATED_AT}
