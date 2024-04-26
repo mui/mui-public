@@ -83,6 +83,28 @@ export async function queryPRs() {
             }
           }
         }
+        muix: repository(owner: "mui", name: "base-x") {
+          pullRequests(
+            first: 100
+            orderBy: {direction: DESC, field: CREATED_AT}
+          ) {
+            nodes {
+              number
+              url
+              title
+              state
+              repository {
+                name
+              }
+              isDraft
+              labels(first: 10) {
+                nodes {
+                  name
+                }
+              }
+            }
+          }
+        }
       }
             `;
 
