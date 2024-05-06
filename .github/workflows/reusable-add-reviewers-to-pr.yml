@@ -30,7 +30,8 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - id: get-members
+      - name: 'Get Members'
+        id: get-members
         env:
           GH_TOKEN: ${{ secrets.token }}
         run: |
@@ -43,9 +44,10 @@ jobs:
           echo "data=$DATA" >> $GITHUB_OUTPUT
 
       # assign reviewers
-      - id: assign-reviewers
+      - name: 'Assign reviewers from members'
+        id: assign-reviewers
         run: |
-          echo join(steps.get-members.outputs.data.*.login)
+          echo "${{ join(steps.get-members.outputs.data.*.login) }}"
           curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
