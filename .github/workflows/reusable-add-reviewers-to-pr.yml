@@ -18,7 +18,6 @@ on:
       token:
         description: 'The github token to use for the API calls. You can use the GITHUB_TOKEN secret'
         required: true
-        type: string
 
 permissions: {}
 
