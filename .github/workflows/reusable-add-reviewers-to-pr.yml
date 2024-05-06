@@ -38,7 +38,7 @@ jobs:
           echo "data=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /orgs/${{ github.repository_owner }}/teams/${{ inputs.team-slug }}/members)" >> $GITHUB_OUTPUT
+            https://api.github.com/orgs/${{ github.repository_owner }}/teams/${{ inputs.team-slug }}/members)" >> $GITHUB_OUTPUT
 
       # assign reviewers
       - name: 'Assign reviewers from members'
