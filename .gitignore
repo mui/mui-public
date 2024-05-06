@@ -22,7 +22,7 @@ src
 .env.test.local
 .env.production.local
 
-# IDE spoecific files
+# IDE specific files
 .idea
 
 npm-debug.log*
