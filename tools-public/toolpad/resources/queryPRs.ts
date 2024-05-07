@@ -83,7 +83,7 @@ export async function queryPRs() {
             }
           }
         }
-        basue: repository(owner: "mui", name: "base-ui") {
+        basui: repository(owner: "mui", name: "base-ui") {
           pullRequests(
             first: 100
             orderBy: {direction: DESC, field: CREATED_AT}
