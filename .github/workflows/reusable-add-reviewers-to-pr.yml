@@ -30,15 +30,11 @@ jobs:
         env:
           SLUG: ${{ inputs.team-slug }}
           LABEL: ${{ inputs.label-name }}
-          TOKEN: ${{ secrets.token }}
         with:
           script: |
-            const { SLUG, LABEL, TOKEN } = process.env
-            const octokit = new Octokit({
-              auth: TOKEN
-            })
+            const { SLUG, LABEL } = process.env
             
-            const result = await octokit.request('GET /orgs/{org}/teams/{team_slug}/members', {
+            const result = await github.request('GET /orgs/{org}/teams/{team_slug}/members', {
               org: context.repo.owner,
               team_slug: SLUG,
               headers: {
