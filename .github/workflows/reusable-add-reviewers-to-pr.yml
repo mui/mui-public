@@ -19,7 +19,7 @@ on:
         description: 'The github token to use for the API calls. You can use the GITHUB_TOKEN secret'
         required: true
 
-permissions: {}
+permissions: read-all
 
 jobs:
   get-members-with-js:
