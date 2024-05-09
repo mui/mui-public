@@ -20,11 +20,6 @@ function getMainBundleLabel(bundleId: string): string {
       .replace(/^@material-ui\/unstyled$/, '@mui/core')
       // org rename
       .replace(/^@material-ui\/([\w-]+)$/, '@mui/$1')
-      // path renames
-      .replace(
-        /^packages\/material-ui\/material-ui\.production\.min\.js$/,
-        'packages/mui-material/material-ui.production.min.js',
-      )
       .replace(/^@material-ui\/core\//, '')
       .replace(/\.esm$/, '')
   );
