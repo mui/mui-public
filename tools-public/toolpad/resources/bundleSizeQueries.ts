@@ -2,9 +2,6 @@
 import axios from 'axios';
 
 function getMainBundleLabel(bundleId: string): string {
-  if (bundleId === 'packages/material-ui/build/umd/material-ui.production.min.js') {
-    return '@mui/material[umd]';
-  }
   if (bundleId === '@material-ui/core/Textarea') {
     return 'TextareaAutosize';
   }
