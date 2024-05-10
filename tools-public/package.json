@@ -4,27 +4,28 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev": "toolpad dev --port 3005",
-    "build": "toolpad build",
-    "start": "toolpad start"
+    "dev": "toolpad-studio dev --port 3005",
+    "build": "toolpad-studio build",
+    "start": "toolpad-studio start"
   },
   "dependencies": {
     "@googleapis/sheets": "^4.0.2",
-    "@mui/system": "^5.15.14",
-    "@mui/toolpad": "^0.1.40",
-    "@mui/x-charts": "^7.0.0",
-    "@octokit/core": "^4.2.1",
+    "@mui/system": "^5.15.15",
+    "@mui/x-charts": "^7.2.0",
+    "@octokit/core": "^4.2.4",
+    "@toolpad/studio": "^0.1.55",
     "axios": "^1.6.8",
-    "dayjs": "^1.11.8",
-    "google-auth-library": "^8.8.0",
-    "graphql": "^16.6.0",
-    "graphql-request": "^6.0.0",
+    "dayjs": "^1.11.10",
+    "google-auth-library": "^8.9.0",
+    "graphql": "^16.8.1",
+    "graphql-request": "^6.1.0",
     "mysql": "^2.18.1",
+    "mysql2": "^3.9.5",
     "ssh2-promise": "^1.0.3"
   },
   "packageManager": "pnpm@9.0.6",
   "devDependencies": {
-    "@types/node": "^18.19.26",
+    "@types/node": "^18.19.31",
     "@types/ssh2": "^1.15.0"
   }
 }

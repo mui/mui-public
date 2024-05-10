@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Box from '@mui/system/Box';
 import { PieChart, pieArcLabelClasses } from '@mui/x-charts/PieChart';
-import { createComponent } from '@mui/toolpad/browser';
+import { createComponent } from '@toolpad/studio/browser';
 
 // Copied from https://wpdatatables.com/data-visualization-color-palette/
 const COLORS = [

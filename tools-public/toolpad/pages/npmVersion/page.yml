@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.55/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
@@ -18,7 +18,8 @@ spec:
           ## Downloads in the last 7 days
 
 
-          Same data as in https://www.npmjs.com/package/react-dom?activeTab=versions.
+          Same data as in
+          https://www.npmjs.com/package/react-dom?activeTab=versions.
     - component: TextField
       name: textField
       layout:

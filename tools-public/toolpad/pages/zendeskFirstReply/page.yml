@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.48/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.55/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
@@ -63,7 +63,8 @@ spec:
 
           const days = 30
 
-          const minDate = new Date((Math.round(new Date().getTime() / 1000) - 3600 * 24 * days) * 1000).toISOString();
+          const minDate = new Date((Math.round(new Date().getTime() / 1000) -
+          3600 * 24 * days) * 1000).toISOString();
 
           */
 
