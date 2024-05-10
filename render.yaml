@@ -6,7 +6,7 @@ services:
     name: tools-public
     env: node
     rootDir: tools-public
-    buildCommand: pnpm install && pnpm build
+    buildCommand: corepack enable && pnpm install && pnpm build
     startCommand: node_modules/.bin/toolpad start
     # We use preview environments instead
     pullRequestPreviewsEnabled: false
