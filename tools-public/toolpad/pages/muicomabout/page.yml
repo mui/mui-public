@@ -15,6 +15,7 @@ spec:
       name: dataGrid
       layout:
         columnSize: 1
+        height: 632
       props:
         rows:
           $$jsExpression: |
