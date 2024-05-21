@@ -26,16 +26,16 @@ spec:
             width: 175
           - field: title
             type: string
-            width: 262
+            width: 246
           - field: about
             type: string
-            width: 242
+            width: 472
           - field: location
             type: string
-            width: 366
+            width: 296
           - field: locationCountry
             type: string
-            width: 178
+            width: 124
           - field: github
             type: link
             width: 258
