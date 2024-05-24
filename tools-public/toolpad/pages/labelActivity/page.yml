@@ -12,6 +12,7 @@ spec:
           name: text
           layout:
             columnSize: 0.6565656565656566
+            verticalAlign: center
           props:
             value: 'Filter for GitHub slub:'
         - component: TextField
@@ -20,7 +21,7 @@ spec:
             columnSize: 1.3434343434343434
           props:
             label: GitHub slug
-            defaultValue: gzrae
+            defaultValue: zannager
             fullWidth: true
     - component: Text
       name: text1
@@ -31,21 +32,15 @@ spec:
         value: "Build for:
           https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
           4fdf50e44595afc55343dac00fca#0711365e6f2343bfbbb0c9c78bb2bc8d"
-    - component: Text
-      name: text2
-      layout:
-        columnSize: 1
-      props:
-        value: Material UI
-        variant: h6
     - component: DataGrid
       name: dataGrid
       layout:
         columnSize: 1
+        height: 548
       props:
         rows:
           $$jsExpression: >
-            queryMaterialUILabels.rows
+            queryLabelsActivity.rows
               .filter((issue) => {
                 return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
               })
@@ -59,52 +54,15 @@ spec:
             width: 279
           - field: url
             type: link
-            width: 197
-          - field: timelineItems
-            type: json
-            width: 263
-        height: 480
-    - component: Text
-      name: text3
-      layout:
-        columnSize: 1
-      props:
-        value: MUI X
-        variant: h6
-    - component: DataGrid
-      name: dataGrid1
-      layout:
-        columnSize: 1
-      props:
-        rows:
-          $$jsExpression: >
-            queryMUIXLabels.rows
-              .filter((issue) => {
-                return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
-              })
-              .map((issue) => ({
-                ...issue,
-                timelineItems: issue.timelineItems.map((event) => event.label),
-              }))
-        columns:
-          - field: title
-            type: string
-            width: 279
-          - field: url
-            type: link
-            width: 184
+            width: 362
           - field: timelineItems
             type: json
             width: 263
         height: 480
   queries:
-    - name: queryMaterialUILabels
+    - name: queryLabelsActivity
       query:
-        function: queryMaterialUILabels.ts#queryMaterialUILabels
-        kind: local
-    - name: queryMUIXLabels
-      query:
-        function: queryMUIXLabels.ts#queryMUIXLabels
+        function: queryLabelsActivity.ts#queryLabelsActivity
         kind: local
   alias:
     - xj43hyd
