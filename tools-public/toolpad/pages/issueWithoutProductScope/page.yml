@@ -27,13 +27,15 @@ spec:
         columnSize: 1
       props:
         rows:
-          $$jsExpression: >
+          $$jsExpression: >-
             (() => {
               const nonProductScopeLabels = ['support: commercial', 'support: docs-feedback']
 
               return materialUI.rows
                 .concat(muix.rows)
                 .concat(muiDesignKits.rows)
+                //.concat(pigmentCSS.rows)
+                .concat(baseUI.rows)
                 .filter((issue) => {
                   const withoutNonProductScopeLabels = issue.labels.filter(
                     (label) => !nonProductScopeLabels.includes(label.name),
@@ -115,6 +117,52 @@ spec:
       query:
         kind: rest
         url: https://api.github.com/repos/mui/mui-design-kits/issues
+        searchParams:
+          - name: labels
+            value: 'status: waiting for maintainer'
+          - name: per_page
+            value: '100'
+          - name: state
+            value: all
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
+        method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: baseUI
+      query:
+        kind: rest
+        url: https://api.github.com/repos/mui/base-ui/issues
+        searchParams:
+          - name: labels
+            value: 'status: waiting for maintainer'
+          - name: per_page
+            value: '100'
+          - name: state
+            value: all
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
+        method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: pigmentCSS
+      query:
+        kind: rest
+        url: https://api.github.com/repos/mui/pigment-css/issues
         searchParams:
           - name: labels
             value: 'status: waiting for maintainer'
