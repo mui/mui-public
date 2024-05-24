@@ -27,7 +27,7 @@ spec:
         columnSize: 1
       props:
         rows:
-          $$jsExpression: >
+          $$jsExpression: >-
             noAssignee.data
               .map((data) => ({
                 ...data,
@@ -35,7 +35,7 @@ spec:
               }))
               .sort((a, b) => {
                 if (a.repo === "mui-x") {
-                  return -1
+                  return 1
                 }
 
                 if (b.repo === "mui-x") {
@@ -45,15 +45,16 @@ spec:
         columns:
           - field: number
             type: string
+            width: 81
           - field: repo
             type: string
-            width: 109
+            width: 104
           - field: title
             type: string
-            width: 372
+            width: 508
           - field: html_url
             type: link
-            width: 203
+            width: 125
         height: 452
   queries:
     - name: noAssignee
@@ -62,8 +63,9 @@ spec:
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
-            value: 'repo:mui/material-ui repo:mui/mui-x repo:mui/mui-design-kits is:open
-              is:issue label:"status: waiting for maintainer" no:assignee'
+            value: 'repo:mui/pigment-css repo:mui/base-ui repo:mui/material-ui
+              repo:mui/mui-x repo:mui/mui-design-kits is:open is:issue
+              label:"status: waiting for maintainer" no:assignee'
         headers:
           - name: Bearer
             value: abc
