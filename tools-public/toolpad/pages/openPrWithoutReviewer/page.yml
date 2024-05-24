@@ -64,7 +64,7 @@ spec:
             type: string
           - field: title
             type: string
-            width: 150
+            width: 215
           - field: url
             type: link
             width: 197
