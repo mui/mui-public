@@ -42,7 +42,6 @@ export async function queryPRs() {
           pullRequests(
             first: 100
             orderBy: {direction: DESC, field: CREATED_AT}
-            states: OPEN
           ) {
             nodes {
               number
@@ -141,5 +140,7 @@ export async function queryPRs() {
 
   return response.materialui.pullRequests.nodes
     .concat(response.muix.pullRequests.nodes)
+    .concat(response.baseui.pullRequests.nodes)
+    .concat(response.pigmentcss.pullRequests.nodes)
     .map((x) => ({ ...x, repository: x.repository.name }));
 }
