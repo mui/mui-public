@@ -27,10 +27,12 @@ spec:
         columnSize: 1
       props:
         rows:
-          $$jsExpression: |
+          $$jsExpression: |-
             materialUI.rows
               .concat(muix.rows)
               .concat(muiDesignKits.rows)
+              .concat(pigmentcss.rows)
+              .concat(baseUi.rows)
               .sort((issueA, issueB) => {
                 if (issueA.state === "open") {
                   return 1
@@ -43,6 +45,7 @@ spec:
         columns:
           - field: number
             type: number
+            width: 81
           - field: state
             type: string
           - field: title
@@ -103,6 +106,52 @@ spec:
       query:
         kind: rest
         url: https://api.github.com/repos/mui/mui-design-kits/issues
+        searchParams:
+          - name: labels
+            value: 'status: waiting for maintainer'
+          - name: per_page
+            value: '100'
+          - name: state
+            value: closed
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
+        method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: baseUi
+      query:
+        kind: rest
+        url: https://api.github.com/repos/mui/base-ui/issues
+        searchParams:
+          - name: labels
+            value: 'status: waiting for maintainer'
+          - name: per_page
+            value: '100'
+          - name: state
+            value: closed
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
+        method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: pigmentcss
+      query:
+        kind: rest
+        url: https://api.github.com/repos/mui/pigment-css/issues
         searchParams:
           - name: labels
             value: 'status: waiting for maintainer'
