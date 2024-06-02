@@ -42,13 +42,10 @@ spec:
         columns:
           - field: title
             type: string
-            width: 279
+            width: 312
           - field: url
             type: link
             width: 352
-          - field: timelineItems
-            type: json
-            width: 263
         height: 480
   queries:
     - name: queryPRs
