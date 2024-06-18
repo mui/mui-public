@@ -55,9 +55,7 @@ export async function queryAbout() {
   const countryToISO = flip(countries);
 
   return data.employees
-    .sort(
-      (a, b) => parseInt(b.work.tenureDurationYears, 10) - parseInt(a.work.tenureDurationYears, 10),
-    )
+    .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
     .map((employee) => {
       const country = countryFix[employee.address.country] || employee.address.country;
       return {
