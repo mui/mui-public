@@ -23,9 +23,12 @@
     "mysql2": "^3.9.5",
     "ssh2-promise": "^1.0.3"
   },
-  "packageManager": "pnpm@9.0.6",
   "devDependencies": {
     "@types/node": "^18.19.31",
     "@types/ssh2": "^1.15.0"
-  }
+  },
+  "engines": {
+    "pnpm": "9.2.0"
+  },
+  "packageManager": "pnpm@9.2.0"
 }

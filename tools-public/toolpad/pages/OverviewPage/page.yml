@@ -19,6 +19,8 @@ spec:
           - title: Daily operations (7/29)
             name: Daily operations
         defaultValue: KPI related pages
+    - component: Autocomplete
+      name: autocomplete
     - component: Container
       name: container1
       children:
@@ -30,11 +32,11 @@ spec:
               children:
                 - component: Text
                   name: text
-                  layout:
-                    horizontalAlign: start
                   props:
                     variant: h6
                     value: Finance KPIs
+                  layout:
+                    horizontalAlign: start
                 - component: PageRow
                   name: pageRow9
                   props:
@@ -449,12 +451,12 @@ spec:
       layout:
         columnSize: 1
       props:
-        visible:
-          $$jsExpression: |
-            tabs.value == "KPI related pages"
         sx:
           padding: 1
           border: 1px
+        visible:
+          $$jsExpression: |
+            tabs.value == "KPI related pages"
     - component: Container
       name: container
       children:
@@ -469,6 +471,8 @@ spec:
                   children:
                     - component: PageColumn
                       name: pageColumn10
+                      layout:
+                        columnSize: 1
                       children:
                         - component: Text
                           name: text20
@@ -482,8 +486,6 @@ spec:
                           name: text25
                           props:
                             value: X License validate support
-                      layout:
-                        columnSize: 1
                     - component: PageColumn
                       name: pageColumn11
                       layout:
@@ -535,23 +537,36 @@ spec:
       layout:
         columnSize: 1
       props:
-        sx:
-          padding: 1
-          border: 1px
         visible:
           $$jsExpression: |
             tabs.value == "Non-KPI related pages"
+        sx:
+          padding: 1
+          border: 1px
     - component: Container
       name: container3
+      layout:
+        columnSize: 1
+      props:
+        visible:
+          $$jsExpression: |
+            tabs.value == "Daily operations"
+        sx:
+          padding: 1
+          border: 1px
       children:
         - component: PageRow
           name: pageRow14
           children:
             - component: PageColumn
               name: pageColumn13
+              layout:
+                columnSize: 1
               children:
                 - component: PageRow
                   name: pageRow2
+                  props:
+                    justifyContent: start
                   children:
                     - component: Text
                       name: text27
@@ -559,6 +574,9 @@ spec:
                         value: Issues without product scope label
                     - component: Button
                       name: button25
+                      layout:
+                        columnSize: 1
+                        horizontalAlign: end
                       props:
                         variant: text
                         content: View page
@@ -566,11 +584,6 @@ spec:
                           $$navigationAction:
                             page: 7ju3hr6
                             parameters: {}
-                      layout:
-                        columnSize: 1
-                        horizontalAlign: end
-                  props:
-                    justifyContent: start
                 - component: PageRow
                   name: pageRow16
                   props:
@@ -692,17 +705,6 @@ spec:
                               $$navigationAction:
                                 page: tn213hge
                                 parameters: {}
-              layout:
-                columnSize: 1
-      layout:
-        columnSize: 1
-      props:
-        visible:
-          $$jsExpression: |
-            tabs.value == "Daily operations"
-        sx:
-          padding: 1
-          border: 1px
     - component: Container
       name: container2
       layout:
