@@ -19,32 +19,16 @@ commands:
   install_js:
     steps:
       - run:
+          name: Install corepack
+          # See https://stackoverflow.com/a/73411601
+          command: corepack enable --install-directory ~/bin
+      - run:
           name: View install environment
           command: |
             node --version
-            yarn --version
-      - restore_cache:
-          name: Restore yarn cache
-          keys:
-            - v8-yarn-{{ checksum "yarn.lock" }}
-      - run:
-          name: Set yarn cache folder
-          command: |
-            # Keep path in sync with `save_cache` for key "v8-yarn-"
-            yarn config set cache-folder /tmp/yarn-cache
-            # Debug information
-            yarn cache dir
-            yarn cache list
       - run:
           name: Install js dependencies
-          command: yarn install
-      - save_cache:
-          name: Save yarn cache
-          key: v8-yarn-{{ checksum "yarn.lock" }}
-          paths:
-            # Keep path in sync with "Set yarn cache folder"
-            # Can't use environment variables for `save_cache` paths (tested in https://app.circleci.com/pipelines/github/mui/material-ui/37813/workflows/5b1e207f-ac8b-44e7-9ba4-d0f9a01f5c55/jobs/223370)
-            - /tmp/yarn-cache
+          command: pnpm install
 
 jobs:
   checkout:
@@ -57,7 +41,14 @@ jobs:
           command: git add -A && git diff --exit-code --staged
       - run:
           name: Check for duplicated packages
-          command: yarn deduplicate
+          command: |
+            # #default-branch-switch
+            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
+            then
+                echo "no changes to dependencies detected, skipping..."
+            else
+                pnpm dedupe --check
+            fi
   test_lint:
     <<: *default-job
     steps:
@@ -65,15 +56,15 @@ jobs:
       - install_js
       - run:
           name: Eslint
-          command: yarn eslint:ci
+          command: pnpm eslint:ci
   test_static:
     <<: *default-job
     steps:
       - checkout
       - install_js
       - run:
-          name: '`yarn prettier` changes committed?'
-          command: yarn prettier --check
+          name: '`pnpm prettier` changes committed?'
+          command: pnpm prettier --check
 workflows:
   version: 2
   pipeline:
