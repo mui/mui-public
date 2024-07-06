@@ -56,7 +56,7 @@ jobs:
       - install_js
       - run:
           name: Eslint
-          command: pnpm eslint:ci
+          name: '`pnpm dedupe` was run?'
   test_static:
     <<: *default-job
     steps:
