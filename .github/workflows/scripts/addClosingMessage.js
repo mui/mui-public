@@ -22,7 +22,7 @@ module.exports = async ({ core, context, github }) => {
       'base-ui': 'base',
       'pigment-css': 'pigment',
       'mui-toolpad': 'toolpad',
-    }
+    };
 
     const commentLines = [
       ':warning: **This issue has been closed.** If you have a similar problem but not exactly the same, please open a [new issue](https://github.com/mui/mui-x/issues/new/choose).',
