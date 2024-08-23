@@ -20,7 +20,7 @@ importers:
         version: 6.0.0
       '@mui/monorepo':
         specifier: https://github.com/mui/material-ui.git#master
-        version: https://codeload.github.com/mui/material-ui/tar.gz/8f2219a4ac598cf207ace4edf48f8508e98afffc(@opentelemetry/api@1.8.0)
+        version: https://codeload.github.com/mui/material-ui/tar.gz/92ff1fc67c1c999a9c92bdeb0f3ce6bbc173ee58(@opentelemetry/api@1.8.0)
       '@typescript-eslint/eslint-plugin':
         specifier: 7.12.0
         version: 7.12.0(@typescript-eslint/parser@7.12.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
@@ -65,7 +65,7 @@ importers:
         version: 7.34.2(eslint@8.57.0)
       eslint-plugin-react-compiler:
         specifier: latest
-        version: 0.0.0-experimental-51a85ea-20240601(eslint@8.57.0)
+        version: 0.0.0-experimental-8e3b87c-20240822(eslint@8.57.0)
       eslint-plugin-react-hooks:
         specifier: 4.6.2
         version: 4.6.2(eslint@8.57.0)
@@ -296,9 +296,10 @@ packages:
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
 
-  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/8f2219a4ac598cf207ace4edf48f8508e98afffc':
-    resolution: {tarball: https://codeload.github.com/mui/material-ui/tar.gz/8f2219a4ac598cf207ace4edf48f8508e98afffc}
-    version: 5.15.20
+  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/92ff1fc67c1c999a9c92bdeb0f3ce6bbc173ee58':
+    resolution: {tarball: https://codeload.github.com/mui/material-ui/tar.gz/92ff1fc67c1c999a9c92bdeb0f3ce6bbc173ee58}
+    version: 5.16.7
+    engines: {pnpm: 9.4.0}
 
   '@netlify/functions@2.7.0':
     resolution: {integrity: sha512-4pXC/fuj3eGQ86wbgPiM4zY8+AsNrdz6vcv6FEdUJnZW+LqF8IWjQcY3S0d1hLeLKODYOqq4CkrzGyCpce63Nw==}
@@ -1194,8 +1195,8 @@ packages:
     peerDependencies:
       eslint: '>=7.0.0'
 
-  eslint-plugin-react-compiler@0.0.0-experimental-51a85ea-20240601:
-    resolution: {integrity: sha512-ROiKTVu9pZsNHyJepZj/JULWnkw8+I8+9gOF/MkJ8Q22/9f9MkPQkD2f6FXzVH+iyWbp7DQ3RXKhB3hWhf8AIg==}
+  eslint-plugin-react-compiler@0.0.0-experimental-8e3b87c-20240822:
+    resolution: {integrity: sha512-H0FthLqMLg07n22ritJlLHo749J0z2uaRKu9PgHOhHnBe4DTkzH8kHHMRQUdLkdEE/s/YcDGMXdPyzzGiHhIUg==}
     engines: {node: ^14.17.0 || ^16.0.0 || >= 18.0.0}
     peerDependencies:
       eslint: '>=7'
@@ -2901,7 +2902,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.4.15
 
-  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/8f2219a4ac598cf207ace4edf48f8508e98afffc(@opentelemetry/api@1.8.0)':
+  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/92ff1fc67c1c999a9c92bdeb0f3ce6bbc173ee58(@opentelemetry/api@1.8.0)':
     dependencies:
       '@googleapis/sheets': 5.0.5
       '@netlify/functions': 2.7.0(@opentelemetry/api@1.8.0)
@@ -4087,7 +4088,7 @@ snapshots:
       globals: 13.24.0
       rambda: 7.5.0
 
-  eslint-plugin-react-compiler@0.0.0-experimental-51a85ea-20240601(eslint@8.57.0):
+  eslint-plugin-react-compiler@0.0.0-experimental-8e3b87c-20240822(eslint@8.57.0):
     dependencies:
       '@babel/core': 7.24.7
       '@babel/parser': 7.24.7
