@@ -9,6 +9,8 @@
     "prettier:all": "prettier --write . --ignore-path .eslintignore"
   },
   "devDependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
     "@mui/monorepo": "https://github.com/mui/material-ui.git#master",
     "@typescript-eslint/eslint-plugin": "7.12.0",
     "@typescript-eslint/parser": "7.12.0",
