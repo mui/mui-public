@@ -40,7 +40,7 @@ jobs:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
       - run:
-          name: Check for duplicated packages
+          name: '`pnpm dedupe` was run?'
           command: |
             # #default-branch-switch
             if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
@@ -56,7 +56,7 @@ jobs:
       - install_js
       - run:
           name: Eslint
-          name: '`pnpm dedupe` was run?'
+          command: pnpm eslint:ci
   test_static:
     <<: *default-job
     steps:
