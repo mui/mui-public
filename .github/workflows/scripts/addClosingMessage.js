@@ -27,7 +27,7 @@ module.exports = async ({ core, context, github }) => {
     };
 
     const commentLines = [
-      ':warning: **This issue has been closed.** If you have a similar problem but not exactly the same, please open a [new issue](https://github.com/mui/mui-x/issues/new/choose).',
+      `**This issue has been closed.** If you have a similar problem but not exactly the same, please open a [new issue](https://github.com/mui/${repo}/issues/new/choose).`,
       'Now, if you have additional information related to this issue or things that could help future readers, feel free to leave a comment.',
     ];
 
@@ -41,12 +41,12 @@ module.exports = async ({ core, context, github }) => {
 
     // Only ask for feedback if the user is not an admin or has at least write access (from a team membership)
     if (!['admin', 'write'].includes(userPermission.data.permission)) {
-      commentLines.push('---');
+      commentLines.push('> [!NOTE]');
       commentLines.push(
-        `We value your feedback @${issue.data.user.login}! How was your experience with our support team?`,
+        `> We value your feedback @${issue.data.user.login}! How was your experience with our support team?`,
       );
       commentLines.push(
-        `If you could spare a moment, we'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.so/r/w4r5Mk?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
+        `> If you could spare a moment, we'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.so/r/w4r5Mk?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
       );
     }
 
