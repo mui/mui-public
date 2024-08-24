@@ -3,8 +3,10 @@
 apiVersion: v1
 kind: page
 spec:
-  title: Open issues without labels
-  display: shell
+  displayName: Issues without labels
+  alias:
+    - 3eVYIR_
+  title: Issues without labels
   content:
     - component: Text
       name: text
@@ -59,12 +61,10 @@ spec:
           - name: sort
             value: updated
         headers:
-          [
-            {
-              name: Authorization,
-              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
-            },
-          ]
+          - name: Authorization
+            value:
+              $$jsExpression: |
+                `Bearer ${parameters.GITHUB_TOKEN}`
         method: GET
         transform: |-
           return {
@@ -87,12 +87,10 @@ spec:
           - name: sort
             value: updated
         headers:
-          [
-            {
-              name: Authorization,
-              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
-            },
-          ]
+          - name: Authorization
+            value:
+              $$jsExpression: |
+                `Bearer ${parameters.GITHUB_TOKEN}`
         method: GET
         transform: |-
           return {
@@ -103,6 +101,4 @@ spec:
         - name: GITHUB_TOKEN
           value:
             $$env: GITHUB_TOKEN
-  alias:
-    - 3eVYIR_
-  displayName: Open issues without labels
+  display: shell
