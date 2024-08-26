@@ -20,10 +20,11 @@ module.exports = async ({ core, context, github }) => {
 
     const repositoryMap = {
       'mui-x': 'x',
-      'material-ui': 'core',
-      'base-ui': 'base',
-      'pigment-css': 'pigment',
       'mui-toolpad': 'toolpad',
+      'material-ui': 'material-ui',
+      'base-ui': 'base-ui',
+      'pigment-css': 'pigment-css',
+      'joy-ui': 'joy-ui',
     };
 
     const commentLines = [
