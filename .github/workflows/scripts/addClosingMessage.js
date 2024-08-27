@@ -61,15 +61,17 @@ module.exports = async ({ core, context, github }) => {
       body,
     });
 
-    const labelName = 'status: waiting for maintainer';
-    core.debug(`>>> Removing label: ${labelName}`);
+    if (issue.data.labels.some((label) => label.name === 'status: waiting for maintainer')) {
+      const labelName = 'status: waiting for maintainer';
+      core.debug(`>>> Removing label: ${labelName}`);
 
-    await github.rest.issues.removeLabel({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      name: labelName,
-    });
+      await github.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        name: labelName,
+      });
+    }
   } catch (error) {
     core.setFailed(error.message);
   }
