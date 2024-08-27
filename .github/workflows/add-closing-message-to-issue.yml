@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           # Check this repository out, otherwise the script won't be available,
-          # as it checks out the repository where the workflow caller is located
+          # as it otherwise checks out the repository where the workflow caller is located
           repository: mui/mui-public
       - name: Add closing message
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
