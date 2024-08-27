@@ -38,7 +38,7 @@ module.exports = async ({ core, context, github }) => {
       username: issue.data.user.login,
     });
 
-    core.debug(`>>> Author permission level: ${userPermission.data.permission}`);
+    core.info(`>>> Author permission level: ${userPermission.data.permission}`);
 
     // Only ask for feedback if the user is not an admin or has at least write access (from a team membership)
     if (!['admin', 'write'].includes(userPermission.data.permission)) {
@@ -52,7 +52,7 @@ module.exports = async ({ core, context, github }) => {
     }
 
     const body = commentLines.join('\n');
-    core.debug(`>>> Prepared comment body: ${body}`);
+    core.info(`>>> Prepared comment body: ${body}`);
 
     await github.rest.issues.createComment({
       owner,
@@ -61,15 +61,19 @@ module.exports = async ({ core, context, github }) => {
       body,
     });
 
-    const labelName = 'status: waiting for maintainer';
-    core.debug(`>>> Removing label: ${labelName}`);
+    try {
+      const labelName = 'status: waiting for maintainer';
+      core.info(`>>> Trying to remove label: ${labelName}`);
 
-    await github.rest.issues.removeLabel({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      name: labelName,
-    });
+      await github.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        name: labelName,
+      });
+    } catch (e) {
+      core.error(`>>> Failed to remove label: ${e.message}`);
+    }
   } catch (error) {
     core.setFailed(error.message);
   }
