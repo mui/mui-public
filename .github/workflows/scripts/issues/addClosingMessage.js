@@ -6,7 +6,7 @@
  * @param {ReturnType<import("@actions/github").getOctokit>} params.github
  * @param {import("@actions/github").context} params.context
  */
-module.exports = async ({ core, context, github }) => {
+module.exports = async ({core, context, github}) => {
   try {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
@@ -71,10 +71,12 @@ module.exports = async ({ core, context, github }) => {
         issue_number: issueNumber,
         name: labelName,
       });
-    } catch (e) {
-      core.error(`>>> Failed to remove label: ${e.message}`);
+    } catch (error) {
+      // intentionally not failing this job, since the label might not exist
+      core.error(`>>> Failed to remove label: ${error.message}`);
     }
   } catch (error) {
+    core.error(`>>> Workflow failed with: ${error.message}`);
     core.setFailed(error.message);
   }
 };
