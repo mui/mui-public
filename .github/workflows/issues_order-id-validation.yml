@@ -6,7 +6,7 @@ on:
       - opened
   workflow_call:
     inputs:
-      order_id:
+      orderId:
         required: true
         type: string
 
@@ -32,4 +32,4 @@ jobs:
             const script = require('./.github/workflows/scripts/issues/orderIdValidation.js')
             await script({core, github, context})
         env:
-          ORDER_ID: ${{ inputs.order_id }}
+          ORDER_ID: ${{ inputs.orderId }}
