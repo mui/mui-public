@@ -6,7 +6,7 @@
  * @param {ReturnType<import("@actions/github").getOctokit>} params.github
  * @param {import("@actions/github").context} params.context
  */
-module.exports = async ({core, context, github}) => {
+module.exports = async ({ core, context, github }) => {
   try {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
