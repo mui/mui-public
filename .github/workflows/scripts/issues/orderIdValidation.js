@@ -12,7 +12,11 @@ module.exports = async ({ core, context, github }) => {
     const issueNumber = context.issue.number;
 
     const orderId = process.env.ORDER_ID;
-    const orderApiToken = process.env.ORDER_API_TOKEN;
+
+    const orderApiToken = await github.rest.actions.getOrgSecret({
+      owner,
+      secret_name: 'SHOP_AUTH_TOKEN',
+    });
 
     const orderApi = 'https://store-wp.mui.com/wp-json/wc/v3/orders/';
 
