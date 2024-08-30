@@ -33,3 +33,4 @@ jobs:
             await script({core, github, context})
         env:
           ORDER_ID: ${{ inputs.orderId }}
+          ORDER_API_TOKEN: ${{ secrets.SHOP_AUTH_TOKEN }}
