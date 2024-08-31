@@ -55,7 +55,8 @@ spec:
         searchParams:
           - name: q
             value: is:issue no:label repo:mui/mui-x repo:mui/mui-design-kits
-              repo:mui/material-ui repo:mui/mui-private  repo:mui/mui-public
+              repo:mui/material-ui repo:mui/mui-private repo:mui/mui-public
+              repo:mui/base-ui repo:mui/pigment-css
           - name: order
             value: desc
           - name: sort

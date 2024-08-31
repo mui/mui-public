@@ -11,10 +11,11 @@ spec:
         columnSize: 1
       props:
         value:
-          $$jsExpression: |
-            queryOpenNoLabels.data
+          $$jsExpression: |-
+            queryOpenNoLabels.data.items
               .concat(queryIssueCloseNoLabels.data)
-              .concat(queryPRmergedNoLabels.data).length
+              .concat(queryPRmergedNoLabels.data)
+              .filter(item => !item.draft).length
         warning: 1
         problem: 10
         unit: ' issues or PRs'
@@ -27,10 +28,19 @@ spec:
         searchParams:
           - name: q
             value: no:label is:open org:mui
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: '`Bearer ${parameters.GITHUB_TOKEN}`' },
+            },
+          ]
         method: GET
         transform: return data.items.filter(item => !item.draft);
-        transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
     - name: queryIssueCloseNoLabels
       query:
         kind: rest
@@ -39,6 +49,7 @@ spec:
           - name: q
             value: is:issue no:label is:close repo:mui/mui-x repo:mui/mui-design-kits
               repo:mui/material-ui repo:mui/mui-private  repo:mui/mui-public
+              repo:mui/base-ui repo:mui/pigment-css
         headers: []
         method: GET
         transform: return data.items.filter(item => !item.draft);
@@ -50,11 +61,22 @@ spec:
         searchParams:
           - name: q
             value: is:pull-request no:label is:merged repo:mui/mui-x
-              repo:mui/mui-design-kits repo:mui/material-ui
-        headers: []
+              repo:mui/mui-design-kits repo:mui/material-ui repo:mui/base-ui
+              repo:mui/pigment-css
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: '`Bearer ${parameters.GITHUB_TOKEN}`' },
+            },
+          ]
         method: GET
         transform: return data.items.filter(item => !item.draft);
         transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
   display: shell
   alias:
     - bse3h9c
