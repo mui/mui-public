@@ -47,6 +47,16 @@ spec:
         - name: GITHUB_TOKEN
           value:
             $$env: GITHUB_TOKEN
+    - name: waitingForMaintainer2
+      mode: query
+      query:
+        function: queryGitHubSearchAPI.ts#queryGitHubSearchAPI
+        kind: local
+      parameters:
+        - name: queryInput
+          value:
+            $$jsExpression: '`is:issue repo:mui/${page.parameters.repository}
+              label:\\"status: waiting for maintainer\\"`'
   display: shell
   alias:
     - hj1i3hqe
