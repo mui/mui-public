@@ -37,11 +37,6 @@
   "dependencies": {
     "@next/eslint-plugin-next": "^14.2.4"
   },
-  "workspaces": {
-    "packages": [
-      "packages/*"
-    ]
-  },
   "engines": {
     "pnpm": "9.2.0"
   },
