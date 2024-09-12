@@ -40,7 +40,6 @@ jobs:
             /orgs/${{ github.repository_owner }}/teams/${{ inputs.team-slug }}/members \
             | jq 'reduce inputs as $i (.; . += $i)') \
           echo "data=$DATA" >> $GITHUB_OUTPUT
-
       # assign reviewers
       - id: assign-reviewers
         run: |
