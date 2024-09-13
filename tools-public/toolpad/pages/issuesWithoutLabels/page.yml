@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.1.55/docs/schemas/v1/definitions.json#properties/Page
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.5.2/docs/schemas/v1/definitions.json#properties/Page
 
 apiVersion: v1
 kind: page
@@ -54,7 +54,7 @@ spec:
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
-            value: is:issue no:label repo:mui/mui-x repo:mui/mui-design-kits
+            value: is:issue is:closed no:label repo:mui/mui-x repo:mui/mui-design-kits
               repo:mui/material-ui repo:mui/mui-private repo:mui/mui-public
               repo:mui/base-ui repo:mui/pigment-css
           - name: order
