@@ -17,4 +17,4 @@ STORE_PRODUCTION_READ_USERNAME=
 ZENDESK=
 ```
 
-Those values are actually a subset of https://github.com/mui/mui-private/blob/master/tools-private/README.md#env.
+Those values are actually a subset of [https://github.com/mui/mui-private/blob/master/tools-private/README.md#env](https://github.com/mui/mui-private/blob/master/tools-private/README.md#env).
