@@ -26,9 +26,5 @@
   "devDependencies": {
     "@types/node": "^22.5.4",
     "@types/ssh2": "^1.15.1"
-  },
-  "engines": {
-    "pnpm": "9.2.0"
-  },
-  "packageManager": "pnpm@9.2.0"
+  }
 }
