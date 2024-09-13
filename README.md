@@ -9,6 +9,6 @@ See https://github.com/mui/mui-private for code that needs to be private.
 
 - Folder: `/tools-public/`
 - Hosting: https://dashboard.render.com/web/srv-cgd3k7ceoogljtstv01g
-- [Docs](./tools-public/)
+- [Docs](./tools-public/#readme)
 
 Internal public Toolpad apps that run the operations of MUI, built using https://github.com/mui/mui-toolpad.
