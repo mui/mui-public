@@ -1,1 +1,27 @@
-# tools-private.mui.com
+# tools-public.mui.com
+
+## .env
+
+This application relies on the following environment variables.
+You need to create a `.env` file in the same folder as this README file and fill in the values.
+
+```shell
+BASTION_HOST
+BASTION_SSH_KEY
+BASTION_USERNAME
+BREVO_API_KEY
+GITHUB_TOKEN
+HIBOB_TOKEN_READ_STANDARD
+STORE_BASE_URL
+STORE_DATABASE
+STORE_HOST
+STORE_PASSWORD
+STORE_PRODUCTION_READ_DATABASE
+STORE_PRODUCTION_READ_HOST
+STORE_PRODUCTION_READ_PASSWORD
+STORE_PRODUCTION_READ_USERNAME
+STORE_TABLE_PREFIX
+STORE_USERNAME
+STRIPE_TOKEN
+ZENDESK
+```
