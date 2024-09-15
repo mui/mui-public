@@ -1,5 +1,6 @@
-previewsEnabled: true
-previewsExpireAfterDays: 3
+previews:
+  generation: automatic
+  expireAfterDays: 3
 
 services:
   - type: web
@@ -8,9 +9,9 @@ services:
     rootDir: tools-public
     buildCommand: corepack enable && pnpm install && pnpm build
     startCommand: pnpm start
-    # We use preview environments instead
-    pullRequestPreviewsEnabled: false
     plan: starter
+    previews:
+      plan: free
     envVars:
       - key: NODE_VERSION
         value: 18
