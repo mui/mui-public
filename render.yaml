@@ -7,7 +7,7 @@ services:
     name: tools-public
     env: node
     rootDir: tools-public
-    buildCommand: corepack enable && pnpm install && pnpm build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     plan: starter
     previews:
