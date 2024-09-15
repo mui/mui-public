@@ -7,14 +7,14 @@ services:
     name: tools-public
     env: node
     rootDir: tools-public
-    buildCommand: corepack enable && pnpm install && pnpm build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     plan: starter
     previews:
       plan: free
     envVars:
       - key: NODE_VERSION
-        value: 18
+        value: 20
       - key: NODE_OPTIONS
         value: --enable-source-maps
       - fromGroup: MUI Store database

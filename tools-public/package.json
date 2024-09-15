@@ -10,21 +10,21 @@
   },
   "dependencies": {
     "@googleapis/sheets": "^9.3.1",
-    "@mui/system": "^6.0.2",
-    "@mui/x-charts": "^7.16.0",
+    "@mui/system": "^6.1.0",
+    "@mui/x-charts": "^7.17.0",
     "@octokit/core": "^6.1.2",
-    "@toolpad/studio": "^0.5.2",
+    "@toolpad/studio": "^0.6.0",
     "axios": "^1.7.7",
     "dayjs": "^1.11.13",
     "google-auth-library": "^9.14.1",
     "graphql": "^16.9.0",
     "graphql-request": "^7.1.0",
     "mysql": "^2.18.1",
-    "mysql2": "^3.11.1",
+    "mysql2": "^3.11.2",
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
-    "@types/node": "^22.5.4",
+    "@types/node": "^22.5.5",
     "@types/ssh2": "^1.15.1"
   }
 }
