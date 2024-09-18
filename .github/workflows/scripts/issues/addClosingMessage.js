@@ -47,7 +47,7 @@ module.exports = async ({ core, context, github }) => {
         `> We value your feedback @${issue.data.user.login}! How was your experience with our support team?`,
       );
       commentLines.push(
-        `> If you could spare a moment, we'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.so/r/w4r5Mk?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
+        `> We'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.so/r/w4r5Mk?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
       );
     }
 
