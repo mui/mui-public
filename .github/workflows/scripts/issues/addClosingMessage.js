@@ -44,10 +44,10 @@ module.exports = async ({ core, context, github }) => {
     if (!['admin', 'write'].includes(userPermission.data.permission)) {
       commentLines.push('> [!NOTE]');
       commentLines.push(
-        `> We value your feedback @${issue.data.user.login}! How was your experience with our support team?`,
+        `> @${issue.data.user.login} We value your feedback! How was your experience with our support team?`,
       );
       commentLines.push(
-        `> We'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.so/r/w4r5Mk?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
+        `> We'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
       );
     }
 
