@@ -44,10 +44,7 @@ module.exports = async ({ core, context, github }) => {
     if (!['admin', 'write'].includes(userPermission.data.permission)) {
       commentLines.push('> [!NOTE]');
       commentLines.push(
-        `> @${issue.data.user.login} We value your feedback! How was your experience with our support team?`,
-      );
-      commentLines.push(
-        `> We'd love to hear your thoughts in this brief [Support Satisfaction survey](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}). Your insights help us improve!`,
+        `> @${issue.data.user.login} How did we do? Your experience with our support team matters to us. If you have a moment, please share your thoughts in this short [Support Satisfaction survey](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}).`,
       );
     }
 
