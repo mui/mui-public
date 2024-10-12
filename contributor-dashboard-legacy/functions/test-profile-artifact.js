@@ -1,6 +1,5 @@
 const crypto = require("crypto");
 const zlib = require("zlib");
-const fetch = require("node-fetch");
 const { URL } = require("url");
 const util = require("util");
 

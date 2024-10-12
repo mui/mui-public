@@ -1,5 +1,3 @@
-const fetch = require("node-fetch");
-
 /**
  * Whether we sent Cache-Control headers.
  * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138

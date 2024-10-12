@@ -1,5 +1,3 @@
-const fetch = require("node-fetch");
-
 async function fetchCircleCIApiV2(endpoint) {
 	const url = `https://circleci.com/api/v2/${endpoint}`;
 
