@@ -1,7 +1,7 @@
 .cache
 /.git
-/contributor-dashboard-legacy/
 /tools-public/toolpad/.generated/
 /tools-public/toolpad/**/*.yml
+build
 node_modules
 pnpm-lock.yaml

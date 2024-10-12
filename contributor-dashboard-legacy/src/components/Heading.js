@@ -1,3 +1,4 @@
+import * as React from "react";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 
@@ -17,11 +18,7 @@ export default function Heading(props) {
 				{children}
 			</Typography>
 			{id !== undefined && (
-				<Link
-					aria-labelledby={id}
-					id={`${id}-fragment-link`}
-					href={`#${id}`}
-				>
+				<Link aria-labelledby={id} id={`${id}-fragment-link`} href={`#${id}`}>
 					<svg>
 						<use xlinkHref="#anchor-link-icon" />
 					</svg>

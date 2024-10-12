@@ -21,7 +21,5 @@ module.exports = {
     'jsx-a11y/control-has-associated-label': 'off',
     'jsx-a11y/no-autofocus': 'off',
   },
-  overrides: [
-    ...baseline.overrides,
-  ],
+  overrides: [...baseline.overrides],
 };

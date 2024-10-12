@@ -1,9 +1,5 @@
-import {
-	lazy,
-	useDebugValue,
-	useMemo,
-	useState,
-} from "react";
+/* eslint-disable no-console */
+import * as React from "react";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -21,7 +17,7 @@ import { green, red } from "@mui/material/colors";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
-const Webpagetests = lazy(() => import("../components/Webpagetests"));
+const Webpagetests = React.lazy(() => import("../components/Webpagetests"));
 
 function UnstyledPipelineStatusIcon(props) {
 	const { className, size, status, ...other } = props;
@@ -46,7 +42,7 @@ function UnstyledPipelineStatusIcon(props) {
 
 const PipelineStatusIcon = styled(UnstyledPipelineStatusIcon)`
 	color: ${({ status }) =>
-		({ success: green[300], succeeded: green[300], failed: red[300] }[status])};
+		({ success: green[300], succeeded: green[300], failed: red[300] })[status]};
 	font-size: ${({ size }) => (size === "middle" ? "1.4em" : "1em")};
 	margin: 0 8px;
 	vertical-align: sub;
@@ -96,9 +92,7 @@ function CircleCIWorkflows() {
 		<div>
 			{workflows.map((workflow) => {
 				return (
-					<div
-						key={`${workflow.name}${workflow.branchName}`}
-					>
+					<div key={`${workflow.name}${workflow.branchName}`}>
 						<ErrorBoundary
 							fallback={
 								<p>Failed fetching CircleCI builds for {workflow.name}</p>
@@ -175,7 +169,7 @@ function CircleCIBuilds(props) {
 
 function useRecentBuilds(filter) {
 	const { branchName, workflowName } = filter;
-	const [page, setPage] = useState(0);
+	const [page, setPage] = React.useState(0);
 	const { resolvedData: builds } = usePaginatedQuery(
 		["circle-ci-builds", page],
 		fetchRecentCircleCIBuilds,
@@ -183,13 +177,13 @@ function useRecentBuilds(filter) {
 			getFetchMore: (lastGroup, allGroups) => {
 				return allGroups.length;
 			},
-		}
+		},
 	);
-	useDebugValue(builds);
+	React.useDebugValue(builds);
 
-	console.log('builds', builds);
+	console.log("builds", builds);
 
-	const filteredBuilds = useMemo(() => {
+	const filteredBuilds = React.useMemo(() => {
 		return builds.filter((build) => {
 			return (
 				build.workflows.workflow_name === workflowName &&
@@ -203,11 +197,11 @@ function useRecentBuilds(filter) {
 		setPage(page + 1);
 	}
 
-	return useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
+	return React.useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
 }
 
 async function fetchRecentCircleCIBuilds(key, cursor = 0) {
-	console.log('cursor', cursor)
+	console.log("cursor", cursor);
 	const url = getCircleCIApiUrl("project/github/mui/material-ui", {
 		filter: "completed",
 		limit: 100,
@@ -233,7 +227,7 @@ function RelativeTimeTillNow(props) {
 	const now = new Date();
 	const then = new Date(props.time);
 	const seconds = (then - now) / 1000;
-	if (isNaN(then.getTime())) {
+	if (Number.isNaN(then.getTime())) {
 		if (process.env.NODE_ENV !== "production") {
 			console.warn("Invalid Date given with %s", props.time);
 		}

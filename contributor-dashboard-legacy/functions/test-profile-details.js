@@ -76,7 +76,7 @@ exports.handler = async function fetchTestProfileDetails(event) {
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Given query param jobNumber is not a number. Received '${jobNumberParameter}'.`
+				`Given query param jobNumber is not a number. Received '${jobNumberParameter}'.`,
 			),
 		};
 	}

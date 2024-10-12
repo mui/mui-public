@@ -1,3 +1,4 @@
+import * as React from "react";
 import styled from "@emotion/styled";
 
 // port of https://github.com/simonwhitaker/github-fork-ribbon-css/blob/gh-pages/gh-fork-ribbon.css
@@ -62,7 +63,11 @@ const Ribbon = styled.a`
 
 		/* Set the text properties */
 		color: #fff;
-		font: 700 1em "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font:
+			700 1em "Helvetica Neue",
+			Helvetica,
+			Arial,
+			sans-serif;
 		line-height: 1.54em;
 		text-decoration: none;
 		text-shadow: 0 -0.08em rgba(0, 0, 0, 0.5);

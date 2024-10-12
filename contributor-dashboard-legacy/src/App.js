@@ -1,4 +1,4 @@
-import { lazy, useMemo } from "react";
+import * as React from "react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import * as colors from "@mui/material/colors";
@@ -6,10 +6,12 @@ import { QueryCache, ReactQueryCacheProvider } from "react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 
-const Landing = lazy(() => import("./pages/Landing"));
-const SizeComparison = lazy(() => import("./pages/SizeComparison"));
-const TestProfileAnalysis = lazy(() => import("./pages/TestProfileAnalysis"));
-const ForkRibbon = lazy(() => import("./components/ForkRibbon.js"));
+const Landing = React.lazy(() => import("./pages/Landing"));
+const SizeComparison = React.lazy(() => import("./pages/SizeComparison"));
+const TestProfileAnalysis = React.lazy(
+	() => import("./pages/TestProfileAnalysis"),
+);
+const ForkRibbon = React.lazy(() => import("./components/ForkRibbon"));
 
 const suspenseQueryCache = new QueryCache({
 	defaultConfig: {
@@ -20,7 +22,7 @@ const suspenseQueryCache = new QueryCache({
 });
 
 function App() {
-	const theme = useMemo(() => {
+	const theme = React.useMemo(() => {
 		const nextTheme = createTheme({
 			palette: {
 				background: { default: "#121212" },
