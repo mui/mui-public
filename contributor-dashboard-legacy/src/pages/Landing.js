@@ -1,26 +1,24 @@
 import {
 	lazy,
-	unstable_SuspenseList as SuspenseList,
-	Suspense,
 	useDebugValue,
 	useMemo,
 	useState,
 } from "react";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import Link from "@material-ui/core/Link";
-import Skeleton from "@material-ui/core/Skeleton";
-import Typography from "@material-ui/core/Typography";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Link from "@mui/material/Link";
+import Skeleton from "@mui/material/Skeleton";
+import Typography from "@mui/material/Typography";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { usePaginatedQuery, useQuery } from "react-query";
 import styled from "@emotion/styled";
-import CheckCircleIcon from "@material-ui/icons/CheckCircle";
-import ErrorIcon from "@material-ui/icons/Error";
-import HelpIcon from "@material-ui/icons/Help";
-import { green, red } from "@material-ui/core/colors";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
+import HelpIcon from "@mui/icons-material/Help";
+import { green, red } from "@mui/material/colors";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Heading from "../components/Heading";
 
@@ -73,7 +71,7 @@ const PipelineStatus = styled(PipelineStatusUnstyled)`
 
 export default function Landing() {
 	return (
-		<SuspenseList revealOrder="forwards">
+		<div>
 			<Heading level="1">Maintainer Dashboard</Heading>
 			<Heading level="2" id="circle-ci-workflows">
 				CircleCI workflows
@@ -86,10 +84,8 @@ export default function Landing() {
 			<Heading level="2" id="webpagetests">
 				Webpagetests
 			</Heading>
-			<Suspense fallback="loading webpagetests">
-				<Webpagetests />
-			</Suspense>
-		</SuspenseList>
+			<Webpagetests />
+		</div>
 	);
 }
 

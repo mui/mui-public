@@ -1,9 +1,9 @@
-import { useMemo, useState, unstable_useTransition } from "react";
-import Button from "@material-ui/core/Button";
-import Link from "@material-ui/core/Link";
-import Paper from "@material-ui/core/Paper";
-import TextField from "@material-ui/core/TextField";
-import Typography from "@material-ui/core/Typography";
+import { useMemo, useState, useTransition } from "react";
+import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useMutation } from "react-query";
 
 export default Webpagetests;
@@ -42,7 +42,7 @@ function Webpagetests() {
 
 	const [createSourceTest, { data: sourceTest }] = useMutation(createTest);
 	const [createTargetTest, { data: targetTest }] = useMutation(createTest);
-	const [startTestTransition, isTestPending] = unstable_useTransition({
+	const [startTestTransition, isTestPending] = useTransition({
 		timeoutMs: 300,
 	});
 	function handleSubmit(event) {

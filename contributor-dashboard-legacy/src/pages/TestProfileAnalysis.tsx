@@ -7,9 +7,9 @@ import {
 	useLayoutEffect,
 } from "react";
 import { useQuery } from "react-query";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import MuiLink, { LinkProps as MuiLinkProps } from "@material-ui/core/Link";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import MuiLink, { LinkProps as MuiLinkProps } from "@mui/material/Link";
 import {
 	Link as RouterLink,
 	LinkProps as RouterLinkProps,
@@ -163,7 +163,7 @@ function ProfileAnalysisDetails() {
 		}>
 	> = {};
 	profiledTests.forEach(({ browserName, profile }) => {
-		const testProfiles = profile[testId];
+		const testProfiles = profile[testId!];
 		if (testProfiles?.length > 0) {
 			// squash {a: T, b: U}[] to {a: T[], b: U[]}
 			if (profilesByBrowserName[browserName] === undefined) {
@@ -479,11 +479,11 @@ function ProfiledTests() {
 
 function CircleCITestProfileAnalysis() {
 	const { buildNumber } = useParams();
-	const profiledTests = useProfiledTests(+buildNumber);
+	const profiledTests = useProfiledTests(+buildNumber!);
 
 	return (
 		<Suspense fallback="preparing view">
-			<CircleCIJobContext.Provider value={+buildNumber}>
+			<CircleCIJobContext.Provider value={+buildNumber!}>
 				<ProfiledTestsContext.Provider value={profiledTests}>
 					<Routes>
 						<Route path="" element={<ProfiledTests />} />

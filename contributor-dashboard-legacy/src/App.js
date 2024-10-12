@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo } from "react";
-import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import * as colors from "@material-ui/core/colors";
+import { createMuiTheme, ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import * as colors from "@mui/material/colors";
 import { QueryCache, ReactQueryCacheProvider } from "react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";

@@ -1,15 +1,15 @@
 import { Fragment, memo, useCallback, useMemo, Suspense } from "react";
 import { useLocation } from "react-router";
 import { useQuery } from "react-query";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import Link from "@material-ui/core/Link";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Link from "@mui/material/Link";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 import prettyBytes from "pretty-bytes";
 import styled from "@emotion/styled";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -267,7 +267,7 @@ function getMainBundleLabel(bundleId: string): string {
 	) {
 		return "@mui/material[umd]";
 	}
-	if (bundleId === "@material-ui/core/Textarea") {
+	if (bundleId === "@mui/material/Textarea") {
 		return "TextareaAutosize";
 	}
 	if (bundleId === "docs.main") {
