@@ -8,9 +8,9 @@ spec:
     - name: baseRef
       value: master
     - name: baseCommit
-      value: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
+      value: a25a365a4c66738f358ecd745bf3727c0ca9d5b6
     - name: circleCIBuildNumber
-      value: '487681'
+      value: '759455'
   content:
     - component: Text
       name: text
@@ -24,6 +24,7 @@ spec:
       name: dataGrid
       layout:
         columnSize: 1
+        height: 572
       props:
         rows:
           $$jsExpression: |
@@ -67,7 +68,7 @@ spec:
               preset: bytes
             headerName: Gzip
         height: 534
-        density: standard
+        density: compact
   queries:
     - name: bundleSizes
       query:
