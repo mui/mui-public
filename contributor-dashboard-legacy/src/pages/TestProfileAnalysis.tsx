@@ -482,7 +482,7 @@ function CircleCITestProfileAnalysis() {
 	const profiledTests = useProfiledTests(+buildNumber!);
 
 	return (
-		<Suspense fallback="preparing view">
+		<div>
 			<CircleCIJobContext.Provider value={+buildNumber!}>
 				<ProfiledTestsContext.Provider value={profiledTests}>
 					<Routes>
@@ -494,7 +494,7 @@ function CircleCITestProfileAnalysis() {
 					</Routes>
 				</ProfiledTestsContext.Provider>
 			</CircleCIJobContext.Provider>
-		</Suspense>
+		</div>
 	);
 }
 
@@ -504,13 +504,7 @@ export default function TestProfileAnalysis() {
 	return (
 		<Fragment>
 			<Heading level="1">Test profiling analysis</Heading>
-			<Suspense
-				fallback={
-					<p>
-						Loading test profile <em>{buildNumber}</em>
-					</p>
-				}
-			>
+			<div>
 				<ErrorBoundary
 					fallback={
 						<p>
@@ -520,7 +514,7 @@ export default function TestProfileAnalysis() {
 				>
 					<CircleCITestProfileAnalysis />
 				</ErrorBoundary>
-			</Suspense>
+			</div>
 		</Fragment>
 	);
 }

@@ -10,10 +10,9 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Link from "@mui/material/Link";
-import Skeleton from "@mui/material/Skeleton";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { usePaginatedQuery, useQuery } from "react-query";
+import { usePaginatedQuery } from "react-query";
 import styled from "@emotion/styled";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
@@ -77,156 +76,12 @@ export default function Landing() {
 				CircleCI workflows
 			</Heading>
 			<CircleCIWorkflows />
-			<Heading level="2" id="azure-pipelines-runs">
-				Azure Pipelines runs
-			</Heading>
-			<AzurePipeline />
 			<Heading level="2" id="webpagetests">
 				Webpagetests
 			</Heading>
 			<Webpagetests />
 		</div>
 	);
-}
-
-function AzurePipeline() {
-	const pipelineId = 1;
-	const buildGroups = [
-		{
-			name: "master",
-			label: "material-ui@master",
-			filter: { branchName: "refs/heads/master", reasonFilter: "individualCI" },
-		},
-		{
-			name: "next",
-			label: "material-ui@next",
-			filter: { branchName: "refs/heads/next", reasonFilter: "individualCI" },
-		},
-		{
-			name: "master-next",
-			label: "material-ui@master /w react@next",
-			filter: { branchName: "refs/heads/master", reasonFilter: "schedule" },
-		},
-		{
-			name: "next-next",
-			label: "material-ui@next /w react@next",
-			filter: { branchName: "refs/heads/next", reasonFilter: "schedule" },
-		},
-	];
-
-	return (
-		<SuspenseList revealOrder="forwards">
-			{buildGroups.map((buildGroup) => {
-				return (
-					<Suspense
-						fallback={<Skeleton height={48} variant="rectangular" />}
-						key={buildGroup.label}
-					>
-						<ErrorBoundary
-							fallback={
-								<p>Failed fetching CircleCI builds for {buildGroup.label}</p>
-							}
-						>
-							<AzurePipelineBuildGroup
-								pipelineId={pipelineId}
-								buildGroup={buildGroup}
-							/>
-						</ErrorBoundary>
-					</Suspense>
-				);
-			})}
-		</SuspenseList>
-	);
-}
-
-function AzurePipelineBuildGroup(props) {
-	const { pipelineId, buildGroup } = props;
-
-	const builds = useRecentAzurePipelinesBuilds({
-		definitions: pipelineId,
-		...buildGroup.filter,
-	});
-	const [lastBuild] = builds;
-
-	return (
-		<Accordion>
-			<AccordionSummary
-				aria-controls={`circleci-workflow-${buildGroup.name}-content`}
-				id={`circleci-workflow-${buildGroup.name}-header`}
-				expandIcon={<ExpandMoreIcon />}
-			>
-				<PipelineStatus status={lastBuild?.result}>
-					{buildGroup.label}
-				</PipelineStatus>
-			</AccordionSummary>
-			<AccordionDetails>
-				<AzurePipelineBuilds builds={builds} />
-			</AccordionDetails>
-		</Accordion>
-	);
-}
-
-const AzurePipelineBuild = styled(ListItem)`
-	display: inline-block;
-	padding-top: 0;
-	padding-bottom: 0;
-`;
-
-function AzurePipelineBuilds(props) {
-	const { builds } = props;
-
-	return (
-		<List>
-			{builds.map((build) => {
-				return (
-					<AzurePipelineBuild key={build.id}>
-						<PipelineStatus size="small" status={build.result}>
-							<Link href={build._links.web.href}>
-								#{build.buildNumber}@
-								{build.sourceBranch.replace(/^refs\/heads\//, "")}
-							</Link>
-							{" finished "}
-							<RelativeTimeTillNow time={build.finishTime} />
-						</PipelineStatus>
-					</AzurePipelineBuild>
-				);
-			})}
-		</List>
-	);
-}
-
-function useRecentAzurePipelinesBuilds(filter) {
-	const { data: builds } = useQuery(
-		["azure-pipelines-builds", filter],
-		fetchRecentAzurePipelinesBuilds
-	);
-	useDebugValue(builds);
-
-	return useMemo(() => builds.slice(0, 20), [builds]);
-}
-
-async function fetchRecentAzurePipelinesBuilds(key, filter) {
-	const url = getAzurePipelinesAPIUrl(
-		"mui-org/material-ui/_apis/build/builds",
-		{
-			"api-version": "6.0",
-			...filter,
-		}
-	);
-	const response = await fetch(url);
-	const { value: builds } = await response.json();
-
-	return builds;
-}
-
-function getAzurePipelinesAPIUrl(endpoint, params) {
-	const apiEndpoint = "https://dev.azure.com/";
-	const url = new URL(`${apiEndpoint}${endpoint}`);
-	new URLSearchParams({
-		...params,
-	}).forEach((value, key) => url.searchParams.append(key, value));
-
-	return url;
 }
 
 function CircleCIWorkflows() {
@@ -238,11 +93,10 @@ function CircleCIWorkflows() {
 		{ name: "timezone-tests", label: "experimental-timezones" },
 	];
 	return (
-		<SuspenseList revealOrder="forwards">
+		<div>
 			{workflows.map((workflow) => {
 				return (
-					<Suspense
-						fallback={<Skeleton height={48} variant="rectangular" />}
+					<div
 						key={`${workflow.name}${workflow.branchName}`}
 					>
 						<ErrorBoundary
@@ -252,10 +106,10 @@ function CircleCIWorkflows() {
 						>
 							<CircleCIWorkflow workflow={workflow} />
 						</ErrorBoundary>
-					</Suspense>
+					</div>
 				);
 			})}
-		</SuspenseList>
+		</div>
 	);
 }
 
@@ -333,6 +187,8 @@ function useRecentBuilds(filter) {
 	);
 	useDebugValue(builds);
 
+	console.log('builds', builds);
+
 	const filteredBuilds = useMemo(() => {
 		return builds.filter((build) => {
 			return (
@@ -343,7 +199,7 @@ function useRecentBuilds(filter) {
 	}, [branchName, builds, workflowName]);
 
 	// Fetch as long as we didn't find a build but stop after X pages.
-	if (filteredBuilds.length === 0 && page < 10) {
+	if (filteredBuilds.length === 0 && page < 9) {
 		setPage(page + 1);
 	}
 
@@ -351,6 +207,7 @@ function useRecentBuilds(filter) {
 }
 
 async function fetchRecentCircleCIBuilds(key, cursor = 0) {
+	console.log('cursor', cursor)
 	const url = getCircleCIApiUrl("project/github/mui/material-ui", {
 		filter: "completed",
 		limit: 100,

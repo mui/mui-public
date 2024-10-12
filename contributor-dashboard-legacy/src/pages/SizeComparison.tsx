@@ -457,14 +457,7 @@ export default function SizeComparison() {
 	return (
 		<Fragment>
 			<Heading level="1">Size comparison</Heading>
-			<Suspense
-				fallback={
-					<p>
-						Loading comparison for build{" "}
-						<em>{buildId || circleCIBuildNumber}</em>
-					</p>
-				}
-			>
+			<div>
 				<ErrorBoundary
 					fallback={<ComparisonErrorFallback prNumber={prNumber} />}
 				>
@@ -476,7 +469,7 @@ export default function SizeComparison() {
 						prNumber={prNumber}
 					/>
 				</ErrorBoundary>
-			</Suspense>
+			</div>
 		</Fragment>
 	);
 }

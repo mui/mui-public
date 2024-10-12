@@ -42,7 +42,7 @@ function Webpagetests() {
 
 	const [createSourceTest, { data: sourceTest }] = useMutation(createTest);
 	const [createTargetTest, { data: targetTest }] = useMutation(createTest);
-	const [startTestTransition, isTestPending] = useTransition({
+	const [isTestPending, startTestTransition] = useTransition({
 		timeoutMs: 300,
 	});
 	function handleSubmit(event) {
