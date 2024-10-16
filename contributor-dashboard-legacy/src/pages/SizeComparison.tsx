@@ -27,7 +27,7 @@ async function fetchSizeSnapshotCircleCI(
 	buildNumber: number,
 ): Promise<SizeSnapshot> {
 	const response = await fetch(
-		`/.netlify/functions/circle-ci-artifacts?buildNumber=${buildNumber}`,
+		`/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(buildNumber)}`,
 	);
 	const body: CircleCIApiArtifacts = await response.json();
 
