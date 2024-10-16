@@ -33,15 +33,15 @@ async function fetchSizeSnapshotCircleCI(
 
 	if (response.status === 200) {
 		const artifacts = body.items;
-		const artifact = artifacts.find(
-			(artifactI) => artifactI.path === "size-snapshot.json",
+		const sizeSnapshotArtifact = artifacts.find(
+			(artifact) => artifact.path === "size-snapshot.json",
 		);
 
 		const downloadURL = new URL(
 			"/.netlify/functions/test-profile-artifact",
 			document.baseURI,
 		);
-		downloadURL.searchParams.set("url", artifact!.url);
+		downloadURL.searchParams.set("url", sizeSnapshotArtifact!.url);
 
 		return downloadSnapshot("size-snapshot-circleci", downloadURL.toString());
 	}
