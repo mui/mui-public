@@ -89,7 +89,7 @@ function useAzureSizeSnapshot({
 }
 
 function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
-	const downloadUrl = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${ref}/${commitId}/size-snapshot.json`;
+	const downloadUrl = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
 
 	const { data: sizeSnapshot } = useQuery(
 		["s3-snapshot-download", downloadUrl],
