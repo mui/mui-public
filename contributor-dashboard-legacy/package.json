@@ -26,14 +26,9 @@
 	"scripts": {
 		"start": "NODE_OPTIONS=--openssl-legacy-provider DISABLE_ESLINT_PLUGIN=true SKIP_PREFLIGHT_CHECK=true react-scripts start",
 		"build": "NODE_OPTIONS=--openssl-legacy-provider DISABLE_ESLINT_PLUGIN=true SKIP_PREFLIGHT_CHECK=true react-scripts build",
-		"format": "prettier --write .",
-		"format:check": "prettier --check .",
 		"test": "echo 'No tests yet' && exit 1",
 		"test:types": "tsc",
 		"eject": "react-scripts eject"
-	},
-	"prettier": {
-		"useTabs": true
 	},
 	"browserslist": {
 		"production": [
