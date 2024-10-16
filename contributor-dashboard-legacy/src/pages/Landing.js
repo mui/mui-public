@@ -223,9 +223,8 @@ function getCircleCIApiUrl(endpoint, params) {
 }
 
 function RelativeTimeTillNow(props) {
-	const now = new Date();
 	const then = new Date(props.time);
-	const seconds = (then - now) / 1000;
+
 	if (Number.isNaN(then.getTime())) {
 		if (process.env.NODE_ENV !== "production") {
 			console.warn("Invalid Date given with %s", props.time);
@@ -233,6 +232,8 @@ function RelativeTimeTillNow(props) {
 		return "Unknown";
 	}
 
+	const now = new Date();
+	const seconds = (then - now) / 1000;
 	const intl = new Intl.RelativeTimeFormat("en", { numeric: "always" });
 
 	if (-seconds < 60) {
