@@ -1,6 +1,5 @@
 const crypto = require("crypto");
 const zlib = require("zlib");
-const fetch = require("node-fetch");
 const { URL } = require("url");
 const util = require("util");
 
@@ -42,7 +41,7 @@ function computeEtag(context) {
  */
 exports.handler = async function fetchTestProfileArtifactHandler(
 	event,
-	context
+	context,
 ) {
 	const { queryStringParameters } = event;
 
@@ -54,7 +53,7 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Given query param \`url\` is not a valid URL. Received '${urlParameter}'.`
+				`Given query param \`url\` is not a valid URL. Received '${urlParameter}'.`,
 			),
 		};
 	}
@@ -88,7 +87,7 @@ exports.handler = async function fetchTestProfileArtifactHandler(
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Unable to get CircleCI response for '${url}' that is OK. Got ${testProfileArtifactResponse.status}`
+				`Unable to get CircleCI response for '${url}' that is OK. Got ${testProfileArtifactResponse.status}`,
 			),
 		};
 	}

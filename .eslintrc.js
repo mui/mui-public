@@ -23,5 +23,11 @@ module.exports = {
   },
   overrides: [
     ...baseline.overrides,
+    {
+      files: ['contributor-dashboard-legacy/**'],
+      rules: {
+        'import/no-unresolved': 'off', // TODO, to fix at one point
+      },
+    },
   ],
 };

@@ -1,7 +1,7 @@
-import { Component } from "react";
+import * as React from "react";
 
-export default class ErrorBoundary extends Component {
-	static getDerivedStateFromError(error) {
+export default class ErrorBoundary extends React.Component {
+	static getDerivedStateFromError() {
 		return { didThrow: true };
 	}
 

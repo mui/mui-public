@@ -1,15 +1,8 @@
-import {
-	createContext,
-	Fragment,
-	Suspense,
-	useContext,
-	useEffect,
-	useLayoutEffect,
-} from "react";
+import * as React from "react";
 import { useQuery } from "react-query";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import MuiLink, { LinkProps as MuiLinkProps } from "@material-ui/core/Link";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import MuiLink, { LinkProps as MuiLinkProps } from "@mui/material/Link";
 import {
 	Link as RouterLink,
 	LinkProps as RouterLinkProps,
@@ -23,7 +16,7 @@ import Heading from "../components/Heading";
 
 async function fetchTestProfileDetails(
 	queryKey: unknown,
-	jobNumber: number
+	jobNumber: number,
 ): Promise<TestProfileDetails> {
 	const url = `/.netlify/functions/test-profile-details?jobNumber=${jobNumber}`;
 	const response = await fetch(url);
@@ -31,7 +24,7 @@ async function fetchTestProfileDetails(
 	return testProfileDetails;
 }
 
-const CircleCIJobContext = createContext<number>(null!);
+const CircleCIJobContext = React.createContext<number>(null!);
 
 interface TestProfileDetails {
 	/**
@@ -49,10 +42,10 @@ interface TestProfileDetails {
 	webUrl: string;
 }
 function useTestProfileDetails(): TestProfileDetails {
-	const buildId = useContext(CircleCIJobContext);
+	const buildId = React.useContext(CircleCIJobContext);
 	const testProfileDetailsResponse = useQuery(
 		["circleci-pipeline-details", buildId],
-		fetchTestProfileDetails
+		fetchTestProfileDetails,
 	);
 
 	return testProfileDetailsResponse.data!;
@@ -62,7 +55,7 @@ function Link(
 	props: {
 		state?: RouterLinkProps["state"];
 		to?: RouterLinkProps["to"];
-	} & MuiLinkProps
+	} & MuiLinkProps,
 ) {
 	const { state, to, ...other } = props;
 	if (to === undefined) {
@@ -86,7 +79,7 @@ interface TestProfile {
 }
 type TestProfiles = TestProfile[];
 
-const ProfiledTestsContext = createContext<TestProfiles>(null!);
+const ProfiledTestsContext = React.createContext<TestProfiles>(null!);
 
 interface TimingAnalysisProps {
 	timings: number[];
@@ -95,6 +88,7 @@ interface TimingAnalysisProps {
 
 function TimingAnalysisMean(props: TimingAnalysisProps) {
 	const { format, timings } = props;
+	// eslint-disable-next-line no-bitwise
 	const mean = timings.sort((a, b) => a - b)[timings.length >> 1];
 
 	const details = `mean:\n  ${mean}\nvalues:\n${timings.join("\n")}`;
@@ -113,12 +107,13 @@ function ProfilerInteractions(props: {
 
 	const interactions = props.interactions.map((interaction) => {
 		const traceByStackMatch = interaction.name.match(
-			/^([^:]+):(\d+):\d+ \(([^)]+)\)$/
+			/^([^:]+):(\d+):\d+ \(([^)]+)\)$/,
 		);
 		if (traceByStackMatch === null) {
+			// eslint-disable-next-line no-console
 			console.log(interaction.name);
 			const unknownLineMatch = interaction.name.match(
-				/^unknown line \(([^)]+)\)$/
+				/^unknown line \(([^)]+)\)$/,
 			);
 			return (
 				<ListItem key={interaction.id}>
@@ -149,7 +144,7 @@ function ProfilerInteractions(props: {
 
 function ProfileAnalysisDetails() {
 	const { testId } = useParams();
-	const profiledTests = useContext(ProfiledTestsContext);
+	const profiledTests = React.useContext(ProfiledTestsContext);
 
 	const profilesByBrowserName: Record<
 		string,
@@ -163,7 +158,7 @@ function ProfileAnalysisDetails() {
 		}>
 	> = {};
 	profiledTests.forEach(({ browserName, profile }) => {
-		const testProfiles = profile[testId];
+		const testProfiles = profile[testId!];
 		if (testProfiles?.length > 0) {
 			// squash {a: T, b: U}[] to {a: T[], b: U[]}
 			if (profilesByBrowserName[browserName] === undefined) {
@@ -179,7 +174,7 @@ function ProfileAnalysisDetails() {
 				});
 			} else {
 				testProfiles.forEach((testProfile, interactionIndex) => {
-					let interaction =
+					const interaction =
 						profilesByBrowserName[browserName][interactionIndex];
 
 					if (interaction === undefined) {
@@ -208,7 +203,7 @@ function ProfileAnalysisDetails() {
 	useTitle(`${profileDetails.label}: ${testId}`);
 
 	return (
-		<Fragment>
+		<React.Fragment>
 			<Link to="../..">Back</Link>
 			<table>
 				<caption>
@@ -295,7 +290,7 @@ function ProfileAnalysisDetails() {
 					React.Profiler RFC
 				</Link>
 			</p>
-		</Fragment>
+		</React.Fragment>
 	);
 }
 
@@ -328,7 +323,7 @@ interface TestProfileArtifactsInfo {
 }
 
 async function fetchCircleCIArtifactsInfos(
-	buildNumber: number
+	buildNumber: number,
 ): Promise<Array<{ pretty_path: string; url: string }>> {
 	const apiEndpoint = `https://circleci.com/api/v1.1/`;
 	const url = `${apiEndpoint}project/github/mui/material-ui/${buildNumber}/artifacts`;
@@ -340,14 +335,14 @@ async function fetchCircleCIArtifactsInfos(
 
 async function fetchTestProfileArtifactsInfos(
 	queryKey: unknown,
-	buildNumber: number
+	buildNumber: number,
 ): Promise<TestProfileArtifactsInfo[]> {
 	const infos = await fetchCircleCIArtifactsInfos(buildNumber);
 
 	return infos
 		.map((artifactInfo) => {
 			const match = artifactInfo.pretty_path.match(
-				/^react-profiler-report\/karma\/([^/]+)\/(\d+)\.json$/
+				/^react-profiler-report\/karma\/([^/]+)\/(\d+)\.json$/,
 			);
 			if (match === null) {
 				return null;
@@ -363,19 +358,19 @@ async function fetchTestProfileArtifactsInfos(
 		})
 		.filter(
 			(
-				maybeTestProfileArtifact
+				maybeTestProfileArtifact,
 			): maybeTestProfileArtifact is TestProfileArtifactsInfo => {
 				return maybeTestProfileArtifact !== null;
-			}
+			},
 		);
 }
 
 function useTestProfileArtifactsInfos(
-	buildNumber: number
+	buildNumber: number,
 ): TestProfileArtifactsInfo[] {
 	const testProfileArtifactsInfosResponse = useQuery(
 		["test-profile-artifacts", buildNumber],
-		fetchTestProfileArtifactsInfos
+		fetchTestProfileArtifactsInfos,
 	);
 
 	return testProfileArtifactsInfosResponse.data!;
@@ -383,7 +378,7 @@ function useTestProfileArtifactsInfos(
 
 function fetchTestProfileArtifacts(
 	queryKey: unknown,
-	infos: TestProfileArtifactsInfo[]
+	infos: TestProfileArtifactsInfo[],
 ): Promise<TestProfile[]> {
 	return Promise.all(
 		infos.map(async (info) => {
@@ -396,12 +391,12 @@ function fetchTestProfileArtifacts(
 				profile: testProfile,
 				timestamp: info.timestamp,
 			};
-		})
+		}),
 	);
 }
 
 function useTitle(title: string): void {
-	useEffect(() => {
+	React.useEffect(() => {
 		const originalTitle = document.title;
 
 		return () => {
@@ -409,7 +404,7 @@ function useTitle(title: string): void {
 		};
 	}, []);
 
-	useEffect(() => {
+	React.useEffect(() => {
 		document.title = title;
 	}, [title]);
 }
@@ -420,13 +415,13 @@ function useProfiledTests(buildNumber: number): TestProfiles {
 		["profile-reports", infos],
 		fetchTestProfileArtifacts,
 		// TODO: Let netlify functions do the caching once https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138 is resolved.
-		{ cacheTime: 7 * 24 * 60 * 60, staleTime: 24 * 60 * 60 }
+		{ cacheTime: 7 * 24 * 60 * 60, staleTime: 24 * 60 * 60 },
 	);
 	return testProfileArtifactResponse.data!;
 }
 
 function ProfiledTests() {
-	const profiledTests = useContext(ProfiledTestsContext);
+	const profiledTests = React.useContext(ProfiledTestsContext);
 
 	const testIdsWithProfilingData = Array.from(
 		new Set(
@@ -434,16 +429,16 @@ function ProfiledTests() {
 				return testIdsDuplicated.concat(
 					Object.keys(profile).filter((testId) => {
 						return profile[testId].length > 0;
-					})
+					}),
 				);
-			}, [] as string[])
-		)
+			}, [] as string[]),
+		),
 	).sort((a, b) => {
 		return a.localeCompare(b);
 	});
 
 	const location = useLocation();
-	useLayoutEffect(() => {
+	React.useLayoutEffect(() => {
 		// native scroll restoration does not work when e.g. navigating backwards.
 		// So we restore it manually.
 		if (scrollYBeforeDetailsClick !== null) {
@@ -457,7 +452,7 @@ function ProfiledTests() {
 	useTitle(`${profileDetails.label} | Profile Dashboard`);
 
 	return (
-		<Fragment>
+		<React.Fragment>
 			<Heading level="2">
 				Tests for{" "}
 				<Link
@@ -473,17 +468,17 @@ function ProfiledTests() {
 					return <ProfileAnalysis key={testId} testId={testId} />;
 				})}
 			</ol>
-		</Fragment>
+		</React.Fragment>
 	);
 }
 
 function CircleCITestProfileAnalysis() {
 	const { buildNumber } = useParams();
-	const profiledTests = useProfiledTests(+buildNumber);
+	const profiledTests = useProfiledTests(+buildNumber!);
 
 	return (
-		<Suspense fallback="preparing view">
-			<CircleCIJobContext.Provider value={+buildNumber}>
+		<div>
+			<CircleCIJobContext.Provider value={+buildNumber!}>
 				<ProfiledTestsContext.Provider value={profiledTests}>
 					<Routes>
 						<Route path="" element={<ProfiledTests />} />
@@ -494,7 +489,7 @@ function CircleCITestProfileAnalysis() {
 					</Routes>
 				</ProfiledTestsContext.Provider>
 			</CircleCIJobContext.Provider>
-		</Suspense>
+		</div>
 	);
 }
 
@@ -502,15 +497,9 @@ export default function TestProfileAnalysis() {
 	const { buildNumber } = useParams();
 
 	return (
-		<Fragment>
+		<React.Fragment>
 			<Heading level="1">Test profiling analysis</Heading>
-			<Suspense
-				fallback={
-					<p>
-						Loading test profile <em>{buildNumber}</em>
-					</p>
-				}
-			>
+			<div>
 				<ErrorBoundary
 					fallback={
 						<p>
@@ -520,7 +509,7 @@ export default function TestProfileAnalysis() {
 				>
 					<CircleCITestProfileAnalysis />
 				</ErrorBoundary>
-			</Suspense>
-		</Fragment>
+			</div>
+		</React.Fragment>
 	);
 }

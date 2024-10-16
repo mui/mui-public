@@ -1,5 +1,3 @@
-const fetch = require("node-fetch");
-
 /**
  * Whether we sent Cache-Control headers.
  * Can't send them from netlify due to https://community.netlify.com/t/netlify-function-responds-with-wrong-body/27138
@@ -76,7 +74,7 @@ exports.handler = async function fetchTestProfileDetails(event) {
 		return {
 			statusCode: 500,
 			body: JSON.stringify(
-				`Given query param jobNumber is not a number. Received '${jobNumberParameter}'.`
+				`Given query param jobNumber is not a number. Received '${jobNumberParameter}'.`,
 			),
 		};
 	}

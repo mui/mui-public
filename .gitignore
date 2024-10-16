@@ -2,18 +2,13 @@
 
 # dependencies
 node_modules
-/.pnp
-.pnp.js
 
 # testing
-/.env
 /.eslintcache
 /coverage
 
 # production
 /build
-
-src
 
 # misc
 .DS_Store
@@ -33,27 +28,14 @@ yarn-error.log*
 .netlify
 
 # local env files
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
 # docs
-
 /docs/export
 
 lerna-debug.log
-
-.env
-
 dist/
-
-packages/toolpad-app/public/web_modules
-packages/toolpad-app/public/runtime
-packages/toolpad-app/public/reactDevtools
-packages/toolpad-app/public/runtime
-packages/toolpad-app/public/typings.json
-packages/toolpad-app/prisma/generated
-
-
-.toolpad-generated
