@@ -19,8 +19,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       '@mui/monorepo':
-        specifier: https://github.com/mui/material-ui.git#master
-        version: https://codeload.github.com/mui/material-ui/tar.gz/e3ec0c7612fa099729710cfd8567a44592e864a6
+        specifier: https://github.com/mui/material-ui.git#010de4505361345951824d905d1508d6f258ba67
+        version: https://codeload.github.com/mui/material-ui/tar.gz/010de4505361345951824d905d1508d6f258ba67
       '@typescript-eslint/eslint-plugin':
         specifier: 7.12.0
         version: 7.12.0(@typescript-eslint/parser@7.12.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
@@ -841,8 +841,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/e3ec0c7612fa099729710cfd8567a44592e864a6':
-    resolution: {tarball: https://codeload.github.com/mui/material-ui/tar.gz/e3ec0c7612fa099729710cfd8567a44592e864a6}
+  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/010de4505361345951824d905d1508d6f258ba67':
+    resolution: {tarball: https://codeload.github.com/mui/material-ui/tar.gz/010de4505361345951824d905d1508d6f258ba67}
     version: 6.1.4
     engines: {pnpm: 9.12.1}
 
@@ -5963,7 +5963,7 @@ snapshots:
       '@emotion/styled': 11.13.0(@emotion/react@11.13.3(@types/react@18.3.5)(react@18.3.1))(@types/react@18.3.5)(react@18.3.1)
       '@types/react': 18.3.5
 
-  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/e3ec0c7612fa099729710cfd8567a44592e864a6':
+  '@mui/monorepo@https://codeload.github.com/mui/material-ui/tar.gz/010de4505361345951824d905d1508d6f258ba67':
     dependencies:
       '@googleapis/sheets': 9.3.1
       '@netlify/functions': 2.8.2
