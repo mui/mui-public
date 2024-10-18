@@ -20,7 +20,7 @@ module.exports = async ({ core, context, github }) => {
 
     const repositoryMap = {
       'mui-x': 'x',
-      'mui-toolpad': 'toolpad',
+      'toolpad': 'toolpad',
       'material-ui': 'material-ui',
       'base-ui': 'base-ui',
       'pigment-css': 'pigment-css',
