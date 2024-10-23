@@ -6,6 +6,7 @@ on:
       - 'v*.x'
       - 'master'
     types: ['closed']
+  workflow_call:
 
 permissions: {}
 
