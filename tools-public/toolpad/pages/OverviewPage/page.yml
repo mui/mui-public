@@ -406,6 +406,10 @@ spec:
                               name: text32
                               props:
                                 value: Joy UI NPM KPIs
+                            - component: Text
+                              name: text34
+                              props:
+                                value: Material UI - team stats
                         - component: PageColumn
                           name: pageColumn9
                           layout:
@@ -447,6 +451,17 @@ spec:
                                     parameters: {}
                                 content: View page
                                 variant: text
+                            - component: Button
+                              name: button28
+                              props:
+                                variant: text
+                                content: View page
+                                onClick:
+                                  $$navigationAction:
+                                    page: gtOs1gW
+                                    parameters: {}
+                              layout:
+                                horizontalAlign: end
           props:
             visible:
               $$jsExpression: |
