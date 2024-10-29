@@ -12,7 +12,7 @@ export async function queryGender(department: string) {
     throw new Error(`Env variable HIBOB_TOKEN_READ_STANDARD not configured`);
   }
 
-  const res = await fetch('https://api.hibob.com/v1/people?humanReadable=true', {
+  const res = await fetch('https://api.hibob.com/v1/profiles', {
     headers: {
       'content-type': 'application/json',
       Authorization: `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
@@ -27,8 +27,8 @@ export async function queryGender(department: string) {
 
   let employees = data.employees;
 
-  if (department === 'Engineering') {
-    employees = employees.filter((employee) => employee.work.department === 'Engineering');
+  if (department) {
+    employees = employees.filter((employee) => employee.work.department === department);
   }
 
   return (countWomen(employees) / employees.length) * 100;
@@ -39,7 +39,7 @@ export async function queryGenderManagement() {
     throw new Error(`Env variable HIBOB_TOKEN_READ_STANDARD not configured`);
   }
 
-  const res = await fetch('https://api.hibob.com/v1/people?humanReadable=true', {
+  const res = await fetch('https://api.hibob.com/v1/profiles', {
     headers: {
       'content-type': 'application/json',
       Authorization: `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
@@ -52,7 +52,7 @@ export async function queryGenderManagement() {
   }
   const data = await res.json();
 
-  let managers = data.employees.filter((employee) => employee.work.isManager === 'Yes');
+  const managers = data.employees.filter((employee) => employee.work.isManager === true);
 
   return (countWomen(managers) / managers.length) * 100;
 }

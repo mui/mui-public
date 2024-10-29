@@ -1,117 +1,96 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: jyhs86t
-  title: validateSupport
+  title: Validate support
   display: standalone
   parameters:
     - name: issueId
-      value: "9195"
+      value: '9195'
     - name: repo
       value: mui-x
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: title
-          props:
-            value: Support key validator
-            variant: h4
-            loading: false
-    - component: PageRow
-      name: pageRow3
-      children:
-        - component: Text
-          name: githubIssueN
-          props:
-            variant: body1
-            value:
-              $$jsExpression: >
-                (() => {
-                  if (page.parameters.issueId) {
-                    return `Please provide your support key below to validate your support plan with issue: [mui/${page.parameters.repo}#${page.parameters.issueId}](https://github.com/mui/${page.parameters.repo}/issues/${page.parameters.issueId}).`
-                  } else {
-                    return "GitHub issue not provided!"
-                  }
-                })()
-            mode: markdown
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: TextField
-          name: supportKey
-          props:
-            variant: outlined
-            label: Support key
-            name: supportKey
-            fullWidth: false
-            sx:
-              width: 350
-              marginTop: 1
-    - component: PageRow
-      name: pageRow4
-      children:
-        - component: Container
-          name: container
-          props:
-            sx: {}
-          children:
-            - component: PageRow
-              name: pageRow5
-              children:
-                - component: Text
-                  name: statusTextLabel
-                  layout:
-                    columnSize: 1
-                    horizontalAlign: start
-                  props:
-                    variant: h6
-                    value: Validation
-                    sx:
-                      marginTop: 4
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: Text
-          name: statusValue
-          props:
-            sx:
-              {
-                $$jsExpression: "(() => {
-
-                  \  if (updateMuiPaidSupport.data?.status ===
-                  \"success\") {
-
-                  \    return {
-
-                  \      color: \"green\",
-
-                  \    }
-
-                  \  }
-
-
-                  \  return {
-
-                  \    color: \"red\",
-
-                  \  }
-
-                  })()\n"
+    - component: Text
+      name: title
+      layout:
+        columnSize: 1
+      props:
+        value: Support key validator
+        variant: h4
+        loading: false
+    - component: Text
+      name: githubIssueN
+      layout:
+        columnSize: 1
+      props:
+        variant: body1
+        value:
+          $$jsExpression: >
+            (() => {
+              if (page.parameters.issueId) {
+                return `Please provide your support key below to validate your support plan with issue: [mui/${page.parameters.repo}#${page.parameters.issueId}](https://github.com/mui/${page.parameters.repo}/issues/${page.parameters.issueId}).`
+              } else {
+                return "GitHub issue not provided!"
               }
-            variant: body1
-            loading: false
-            value:
-              $$jsExpression: |
-                updateMuiPaidSupport.data?.message
-            mode: text
+            })()
+        mode: markdown
+    - component: TextField
+      name: supportKey
+      layout:
+        columnSize: 1
+      props:
+        variant: outlined
+        label: Support key
+        name: supportKey
+        fullWidth: false
+        sx:
+          width: 350
+          marginTop: 1
+    - component: Container
+      name: container
+      children:
+        - component: Text
+          name: statusTextLabel
+          props:
+            sx: { marginTop: 4 }
+            variant: h6
+            value: Validation
           layout:
-            columnSize: 1.6802030456852792
+            columnSize: 1
+            horizontalAlign: start
+      layout:
+        columnSize: 1
+      props:
+        sx: {}
+    - component: Text
+      name: statusValue
+      layout:
+        columnSize: 1
+      props:
+        sx:
+          $$jsExpression: |
+            (() => {
+              if (updateMuiPaidSupport.data?.status === "success") {
+                return {
+                  color: "green",
+                }
+              }
+
+              return {
+                color: "red",
+              }
+            })()
+        variant: body1
+        loading: false
+        value:
+          $$jsExpression: |
+            updateMuiPaidSupport.data?.message
+        mode: text
   queries:
     - name: updateMuiPaidSupport
       query:
-        function: updateMuiPaidSupport
+        function: updateMuiPaidSupport.ts#updateMuiPaidSupport
         kind: local
       parameters:
         - name: issueId
@@ -126,3 +105,6 @@ spec:
           value:
             $$jsExpression: |
               supportKey.value
+  alias:
+    - jyhs86t
+  displayName: Validate support

@@ -1,71 +1,71 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: I1HlSLD
-  title: joyUiNpmKpis
+  title: Joy UI npm KPIs
   display: shell
   queries:
     - name: queryJoyUIDownloads
       query:
-        function: queryJoyUIDownloads
+        function: queryJoyUIMonthlyDownloads.ts#queryJoyUIDownloads
         kind: local
   content:
-    - component: PageRow
-      name: pageRow4
-      children:
-        - component: Text
-          name: text
-          props:
-            value: Joy UI npm downloads
-            variant: h6
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: Chart
-          name: chart
-          props:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        value: Joy UI npm downloads
+        variant: h6
+    - component: Chart
+      name: chart
+      layout:
+        columnSize: 1
+      props:
+        data:
+          - label: '@mui/joy'
+            kind: line
             data:
-              - label: "@mui/joy"
-                kind: line
-                data:
-                  $$jsExpression: |
-                    queryJoyUIDownloads.data
-                color: "#1976d2"
-                xKey: date
-                yKey: "@mui/joy"
-    - component: PageRow
-      name: pageRow5
-      children:
-        - component: Text
-          name: text1
-          props:
-            value: Joy UI month to month growth (%)
-            variant: h6
-    - component: PageRow
-      name: pageRow3
-      children:
-        - component: Chart
-          name: chart1
-          props:
+              $$jsExpression: |
+                queryJoyUIDownloads.data
+            color: '#1976d2'
+            xKey: date
+            yKey: '@mui/joy'
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        value: Joy UI month to month growth (%)
+        variant: h6
+    - component: Chart
+      name: chart1
+      layout:
+        columnSize: 1
+      props:
+        data:
+          - label: '@mui/joy'
+            kind: line
             data:
-              - label: "@mui/joy"
-                kind: line
-                data:
-                  $$jsExpression: >
-                    queryJoyUIDownloads.data
-                      .map((item, idx) => {
-                        return {
-                          date: item.date,
-                          "@mui/joy":
-                            idx > 0
-                              ? ((item["@mui/joy"] -
-                                  queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) /
-                                  queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) *
-                                100
-                              : null,
-                        }
-                      })
-                      .filter((item) => item["@mui/joy"] !== null)
-                color: "#1976d2"
-                xKey: date
-                yKey: "@mui/joy"
+              $$jsExpression: |
+                queryJoyUIDownloads.data
+                  .map((item, idx) => {
+                    return {
+                      date: item.date,
+                      "@mui/joy":
+                        idx > 0
+                          ? ((item["@mui/joy"] -
+                              queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) /
+                              queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) *
+                            100
+                          : null,
+                    }
+                  })
+                  .filter((item) => item["@mui/joy"] !== null)
+            color: '#1976d2'
+            xKey: date
+            yKey: '@mui/joy'
+  alias:
+    - I1HlSLD
+  displayName: Joy UI npm KPIs

@@ -1,31 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 8n03iat
-  title: overdueRatio
+  title: Overdue ratio
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            warning: 10
-            problem: 15
-            lowerIsBetter: true
-            value:
-              $$jsExpression: |
-                Math.round(getRatio.data.ratio * 10000) / 100
-    - component: PageRow
-      name: PageRow1
-      children:
-        - component: Text
-          name: Text
-          props:
-            value: Based on last 30 days invoices
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      layout:
+        columnSize: 1
+      props:
+        warning: 9
+        problem: 11
+        lowerIsBetter: true
+        value:
+          $$jsExpression: |
+            Math.round(getRatio.data.ratio * 10000) / 100
+    - component: Text
+      name: Text
+      layout:
+        columnSize: 1
+      props:
+        value: Based on last 30 days invoices
   queries:
     - name: getRatio
       query:
         function: getRatio
         kind: local
-  display: standalone
+  display: shell
+  alias:
+    - 8n03iat
+  displayName: Overdue ratio

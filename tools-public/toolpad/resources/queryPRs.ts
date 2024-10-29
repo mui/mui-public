@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import { request } from 'graphql-request';
 
 interface PullRequest {
@@ -41,7 +42,6 @@ export async function queryPRs() {
           pullRequests(
             first: 100
             orderBy: {direction: DESC, field: CREATED_AT}
-            states: OPEN
           ) {
             nodes {
               number
@@ -82,6 +82,50 @@ export async function queryPRs() {
             }
           }
         }
+        baseui: repository(owner: "mui", name: "base-ui") {
+          pullRequests(
+            first: 100
+            orderBy: {direction: DESC, field: CREATED_AT}
+          ) {
+            nodes {
+              number
+              url
+              title
+              state
+              repository {
+                name
+              }
+              isDraft
+              labels(first: 10) {
+                nodes {
+                  name
+                }
+              }
+            }
+          }
+        }
+        pigmentcss: repository(owner: "mui", name: "pigment-css") {
+          pullRequests(
+            first: 100
+            orderBy: {direction: DESC, field: CREATED_AT}
+          ) {
+            nodes {
+              number
+              url
+              title
+              state
+              repository {
+                name
+              }
+              isDraft
+              labels(first: 10) {
+                nodes {
+                  name
+                }
+              }
+            }
+          }
+        }
       }
             `;
 
@@ -96,5 +140,7 @@ export async function queryPRs() {
 
   return response.materialui.pullRequests.nodes
     .concat(response.muix.pullRequests.nodes)
+    .concat(response.baseui.pullRequests.nodes)
+    .concat(response.pigmentcss.pullRequests.nodes)
     .map((x) => ({ ...x, repository: x.repository.name }));
 }

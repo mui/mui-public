@@ -1,32 +1,83 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: bse3h9c
-  title: page
+  title: Missing GitHub label
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: |
-                queryNoLabels.data.length
-            warning: 1
-            problem: 10
-            unit: " issues or PRs"
-            lowerIsBetter: true
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |-
+            queryOpenNoLabels.data.items
+              .concat(queryIssueCloseNoLabels.data)
+              .concat(queryPRmergedNoLabels.data)
+              .filter(item => !item.draft).length
+        warning: 1
+        problem: 10
+        unit: ' issues or PRs'
+        lowerIsBetter: true
   queries:
-    - name: queryNoLabels
+    - name: queryOpenNoLabels
       query:
         kind: rest
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
             value: no:label is:open org:mui
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: '`Bearer ${parameters.GITHUB_TOKEN}`' },
+            },
+          ]
+        method: GET
+        transform: return data.items.filter(item => !item.draft);
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: queryIssueCloseNoLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:issue no:label is:close repo:mui/mui-x repo:mui/mui-design-kits
+              repo:mui/material-ui repo:mui/mui-private  repo:mui/mui-public
+              repo:mui/base-ui repo:mui/pigment-css
         headers: []
         method: GET
         transform: return data.items.filter(item => !item.draft);
         transformEnabled: true
-  display: standalone
+    - name: queryPRmergedNoLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:pull-request no:label is:merged repo:mui/mui-x
+              repo:mui/mui-design-kits repo:mui/material-ui repo:mui/base-ui
+              repo:mui/pigment-css
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: '`Bearer ${parameters.GITHUB_TOKEN}`' },
+            },
+          ]
+        method: GET
+        transform: return data.items.filter(item => !item.draft);
+        transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+  display: shell
+  alias:
+    - bse3h9c
+  displayName: Missing GitHub label

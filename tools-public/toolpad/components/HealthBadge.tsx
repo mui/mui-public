@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Typography, Stack, Skeleton } from '@mui/material';
-import { createComponent } from '@mui/toolpad/browser';
+import { createComponent } from '@toolpad/studio/browser';
 
 export interface HeathBadgeProps {
   level: string;
@@ -58,7 +58,7 @@ interface ReportProps {
 
 function Report(props: ReportProps) {
   let level = 'unknown';
-  let { value, warning, problem, unit, lowerIsBetter, loading } = props;
+  const { value, warning, problem, unit, lowerIsBetter, loading } = props;
 
   if (!loading) {
     if (lowerIsBetter) {
@@ -69,14 +69,12 @@ function Report(props: ReportProps) {
       } else if (value != null) {
         level = 'ok';
       }
-    } else {
-      if (value < problem) {
-        level = 'problem';
-      } else if (value < warning) {
-        level = 'warning';
-      } else if (value != null) {
-        level = 'ok';
-      }
+    } else if (value < problem) {
+      level = 'problem';
+    } else if (value < warning) {
+      level = 'warning';
+    } else if (value != null) {
+      level = 'ok';
     }
   }
 

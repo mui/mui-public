@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import { formatDatePart, getDateString, getMonthKey } from './queryHeadlessLibrariesDownloads';
 
 const prepareData = (inData) => {
@@ -12,17 +13,17 @@ const prepareData = (inData) => {
     date.setMonth(date.getMonth() + 1);
   }
 
-  Object.keys(inData['@mui/joy']).map((date) => {
-    const monthKey = getMonthKey(date);
-    monthsData[monthKey]['@mui/joy'] += inData['@mui/joy'][date];
+  Object.keys(inData['@mui/joy']).forEach((date2) => {
+    const monthKey = getMonthKey(date2);
+    monthsData[monthKey]['@mui/joy'] += inData['@mui/joy'][date2];
   });
 
   const data: object[] = [];
 
-  Object.keys(monthsData).forEach((date) => {
+  Object.keys(monthsData).forEach((date2) => {
     const entry = {
-      date,
-      ...monthsData[date],
+      date: date2,
+      ...monthsData[date2],
     };
     data.push(entry);
   });

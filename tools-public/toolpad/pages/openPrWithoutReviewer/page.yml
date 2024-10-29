@@ -1,85 +1,84 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 1t353h04
-  title: labelActivity
+  title: Open PR without Reviewer
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text
-          layout:
-            columnSize: 0.6565656565656566
-          props:
-            value: Open PRs without requested reviewer
-            variant: h5
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: Text
-          name: text1
-          props:
-            mode: markdown
-            value: "This page is used for:
-              https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-\
-              12a84fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf"
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: >
-                (() => {
-                  const filterOutLabels = ["on hold"]
-                  const rtf = new Intl.RelativeTimeFormat("en", { style: "narrow" })
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        value: Open PRs without requested reviewer
+        variant: h5
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: "This page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf"
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: >
+            (() => {
+              const filterOutLabels = ["on hold"]
+              const rtf = new Intl.RelativeTimeFormat("en", { style: "narrow" })
 
-                  const daysAgo = (a, b) => {
-                    const difference = a.getTime() - b.getTime()
-                    return Math.ceil(difference / (1000 * 3600 * 24))
-                  }
+              const daysAgo = (a, b) => {
+                const difference = a.getTime() - b.getTime()
+                return Math.ceil(difference / (1000 * 3600 * 24))
+              }
 
-                  return queryPRswithoutReviewer.data
-                    .filter((pr) => !pr.isDraft)
-                    .filter(
-                      (pr) =>
-                        pr.reviews.nodes.length === 0 && pr.reviewRequests.nodes.length === 0
-                    )
-                    .filter(
-                      (pr) =>
-                        pr.labels.nodes.filter((label) => filterOutLabels.includes(label.name))
-                          .length === 0
-                    )
-                    .map((pr) => ({
-                      ...pr,
-                      repository: pr.repository,
-                      daysAgoRaw: daysAgo(new Date(pr.createdAt), new Date()),
-                      daysAgo: rtf.format(daysAgo(new Date(pr.createdAt), new Date()), "day"),
-                    }))
-                    .filter((pr) => !(pr.repository === "mui-x" && pr.daysAgoRaw > -14))
-                })()
-            columns:
-              - field: number
-                type: string
-                width: 72
-              - field: repository
-                type: string
-              - field: title
-                type: string
-                width: 150
-              - field: url
-                type: link
-                width: 197
-              - field: labels
-                type: json
-                width: 300
-              - field: daysAgo
-                type: string
-            height: 480
+              return queryPRswithoutReviewer.data
+                .filter((pr) => !pr.isDraft)
+                .filter(
+                  (pr) =>
+                    pr.reviews.nodes.length === 0 && pr.reviewRequests.nodes.length === 0
+                )
+                .filter(
+                  (pr) =>
+                    pr.labels.nodes.filter((label) => filterOutLabels.includes(label.name))
+                      .length === 0
+                )
+                .map((pr) => ({
+                  ...pr,
+                  repository: pr.repository,
+                  daysAgoRaw: daysAgo(new Date(pr.createdAt), new Date()),
+                  daysAgo: rtf.format(daysAgo(new Date(pr.createdAt), new Date()), "day"),
+                }))
+                .filter((pr) => !(pr.repository === "mui-x" && pr.daysAgoRaw > -14))
+            })()
+        columns:
+          - field: number
+            type: string
+            width: 72
+          - field: repository
+            type: string
+          - field: title
+            type: string
+            width: 215
+          - field: url
+            type: link
+            width: 197
+          - field: labels
+            type: json
+            width: 300
+          - field: daysAgo
+            type: string
+        height: 480
   queries:
     - name: queryPRswithoutReviewer
       query:
-        function: queryPRswithoutReviewer
+        function: queryPRswithoutReviewer.ts#queryPRswithoutReviewer
         kind: local
+  alias:
+    - 1t353h04
+  displayName: Open PR without Reviewer

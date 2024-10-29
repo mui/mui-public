@@ -1,17 +1,20 @@
-previewsExpireAfterDays: 3
+previews:
+  generation: automatic
+  expireAfterDays: 3
 
 services:
   - type: web
-    name: tools-public
+    name: mui-public-tools-public
     env: node
     rootDir: tools-public
-    buildCommand: yarn && yarn build
-    startCommand: node_modules/.bin/toolpad start
-    pullRequestPreviewsEnabled: true
-    plan: standard
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    plan: starter
+    previews:
+      plan: starter
     envVars:
       - key: NODE_VERSION
-        value: 18
+        value: 20
       - key: NODE_OPTIONS
         value: --enable-source-maps
       - fromGroup: MUI Store database
@@ -20,17 +23,3 @@ services:
       - fromGroup: HiBob
       - fromGroup: Zendesk
       - fromGroup: Google Sheet service account
-
-  - type: web
-    name: datagrid-example
-    env: node
-    repo: https://github.com/mui/mui-toolpad.git
-    rootDir: examples/custom-datagrid-column
-    buildCommand: yarn && yarn build
-    startCommand: node_modules/.bin/toolpad start
-    pullRequestPreviewsEnabled: true
-    envVars:
-      - key: NODE_VERSION
-        value: 18
-      - key: NODE_OPTIONS
-        value: --enable-source-maps

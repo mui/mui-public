@@ -1,0 +1,83 @@
+version: 2.1
+
+parameters:
+  workflow:
+    description: The name of the workflow to run
+    type: string
+    default: pipeline
+
+default-job: &default-job
+  working_directory: /tmp/mui
+  docker:
+    - image: cimg/node:18.16
+
+default-context: &default-context
+  context:
+    - org-global
+
+commands:
+  install_js:
+    steps:
+      - run:
+          name: Install corepack
+          # See https://stackoverflow.com/a/73411601
+          command: corepack enable --install-directory ~/bin
+      - run:
+          name: View install environment
+          command: |
+            node --version
+      - run:
+          name: Install js dependencies
+          command: pnpm install
+
+jobs:
+  checkout:
+    <<: *default-job
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Should not have any git not staged
+          command: git add -A && git diff --exit-code --staged
+      - run:
+          name: '`pnpm dedupe` was run?'
+          command: |
+            # #default-branch-switch
+            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
+            then
+                echo "no changes to dependencies detected, skipping..."
+            else
+                pnpm dedupe --check
+            fi
+  test_lint:
+    <<: *default-job
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Eslint
+          command: pnpm eslint:ci
+  test_static:
+    <<: *default-job
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: '`pnpm prettier` changes committed?'
+          command: pnpm prettier --check
+workflows:
+  version: 2
+  pipeline:
+    when:
+      equal: [pipeline, << pipeline.parameters.workflow >>]
+    jobs:
+      - checkout:
+          <<: *default-context
+      - test_lint:
+          <<: *default-context
+          requires:
+            - checkout
+      - test_static:
+          <<: *default-context
+          requires:
+            - checkout

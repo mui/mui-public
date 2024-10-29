@@ -1,31 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 39j3h6b
-  title: openPRs
+  title: Open PRs
   parameters:
     - name: repo
       value: material-ui
     - name: warning
-      value: "50"
+      value: '50'
   content:
-    - component: PageRow
-      name: PageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: |
-                openPRs.data.total_count
-            unit: " open PRs"
-            warning:
-              $$jsExpression: |
-                page.parameters.warning
-            problem:
-              $$jsExpression: |
-                parseInt(page.parameters.warning) * 1.5
-            lowerIsBetter: true
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            openPRs.data.total_count
+        unit: ' open PRs'
+        warning:
+          $$jsExpression: |
+            page.parameters.warning
+        problem:
+          $$jsExpression: |
+            parseInt(page.parameters.warning) * 1.5
+        lowerIsBetter: true
   queries:
     - name: openPRs
       query:
@@ -37,11 +37,23 @@ spec:
               $$jsExpression: >
                 `is:pull-request is:open -is:draft
                 repo:mui/${parameters.repository}`
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
       parameters:
         - name: repository
           value:
             $$jsExpression: |
               page.parameters.repo
-  display: standalone
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+  display: shell
+  alias:
+    - 39j3h6b
+  displayName: Open PRs

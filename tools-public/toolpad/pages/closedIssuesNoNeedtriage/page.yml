@@ -1,59 +1,60 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: 7ju3hr6
-  title: issueWithoutProductScope
+  title: Closed issues no product scope
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: Text
-          name: text
-          props:
-            value: Issues without product scope label
-            variant: h5
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text1
-          props:
-            mode: markdown
-            value: "This page is used for:
-              https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fd\
-              f50e44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc"
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: |
-                materialUI.rows
-                  .concat(muix.rows)
-                  .concat(muiDesignKits.rows)
-                  .sort((issueA, issueB) => {
-                    if (issueA.state === "open") {
-                      return 1
-                    }
-                    if (issueB.state === "open") {
-                      return 1
-                    }
-                    return issueB.number - issueA.number
-                  })
-            columns:
-              - field: number
-                type: number
-              - field: state
-                type: string
-              - field: title
-                type: string
-                width: 272
-              - field: html_url
-                type: link
-                width: 310
-            height: 396
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        value: Issues without product scope label
+        variant: h5
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: "This page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e\
+          44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc"
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: |-
+            materialUI.rows
+              .concat(muix.rows)
+              .concat(muiDesignKits.rows)
+              .concat(pigmentcss.rows)
+              .concat(baseUi.rows)
+              .sort((issueA, issueB) => {
+                if (issueA.state === "open") {
+                  return 1
+                }
+                if (issueB.state === "open") {
+                  return 1
+                }
+                return issueB.number - issueA.number
+              })
+        columns:
+          - field: number
+            type: number
+            width: 81
+          - field: state
+            type: string
+          - field: title
+            type: string
+            width: 272
+          - field: html_url
+            type: link
+            width: 310
+        height: 396
   queries:
     - name: materialUI
       query:
@@ -61,36 +62,115 @@ spec:
         url: https://api.github.com/repos/mui/material-ui/issues
         searchParams:
           - name: labels
-            value: "status: needs triage"
+            value: 'status: waiting for maintainer'
           - name: per_page
-            value: "100"
+            value: '100'
           - name: state
             value: closed
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
     - name: muix
       query:
         kind: rest
         url: https://api.github.com/repos/mui/mui-x/issues
         searchParams:
           - name: labels
-            value: "status: needs triage"
+            value: 'status: waiting for maintainer'
           - name: per_page
-            value: "100"
+            value: '100'
           - name: state
             value: closed
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
     - name: muiDesignKits
       query:
         kind: rest
         url: https://api.github.com/repos/mui/mui-design-kits/issues
         searchParams:
           - name: labels
-            value: "status: needs triage"
+            value: 'status: waiting for maintainer'
           - name: per_page
-            value: "100"
+            value: '100'
           - name: state
             value: closed
-        headers: []
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
         method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: baseUi
+      query:
+        kind: rest
+        url: https://api.github.com/repos/mui/base-ui/issues
+        searchParams:
+          - name: labels
+            value: 'status: waiting for maintainer'
+          - name: per_page
+            value: '100'
+          - name: state
+            value: closed
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
+        method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: pigmentcss
+      query:
+        kind: rest
+        url: https://api.github.com/repos/mui/pigment-css/issues
+        searchParams:
+          - name: labels
+            value: 'status: waiting for maintainer'
+          - name: per_page
+            value: '100'
+          - name: state
+            value: closed
+        headers:
+          [
+            {
+              name: Authorization,
+              value: { $$jsExpression: "`Bearer ${parameters.GITHUB_TOKEN}`\n" },
+            },
+          ]
+        method: GET
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+  alias:
+    - 7ju3hr6
+  displayName: Closed issues no product scope

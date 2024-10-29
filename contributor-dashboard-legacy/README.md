@@ -11,6 +11,7 @@ Bugfixes and feature suggestions are greatly appreciated. Though this project is
 Copy `.env.example` to `.env` and fill in the values as instructed in the file.
 
 ```bash
+$ pnpm --ignore-workspace install
 $ npx netlify login
 $ npx netlify dev
 ```

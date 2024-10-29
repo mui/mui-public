@@ -1,61 +1,57 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: tn213hge
-  title: labelActivity
+  title: PR without labels
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text
-          layout:
-            columnSize: 0.6565656565656566
-          props:
-            value: PRs without labels
-            variant: h5
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: Text
-          name: text1
-          props:
-            mode: markdown
-            value: "This page is used for:
-              https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-\
-              12a84fdf50e44595afc55343dac00fca#d97e5e8b4f394dec95de36668dbf81d2"
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: >
-                (() => {
-                  const filterOutLabels = ["PR: out-of-date", "PR: needs revision"]
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        value: PRs without labels
+        variant: h5
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: "This page is used for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#d97e5e8b4f394dec95de36668dbf81d2"
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: >
+            (() => {
+              const filterOutLabels = ["PR: out-of-date", "PR: needs revision"]
 
-                  return queryPRs.data
-                    .filter((pr) => !pr.isDraft)
-                    .filter(
-                      (pr) =>
-                        pr.labels.nodes.filter((label) => !filterOutLabels.includes(label.name))
-                          .length === 0
-                    )
-                })()
-            columns:
-              - field: title
-                type: string
-                width: 279
-              - field: url
-                type: link
-                width: 352
-              - field: timelineItems
-                type: json
-                width: 263
-            height: 480
+              return queryPRs.data
+                .filter((pr) => !pr.isDraft)
+                .filter(
+                  (pr) =>
+                    pr.labels.nodes.filter((label) => !filterOutLabels.includes(label.name))
+                      .length === 0
+                )
+            })()
+        columns:
+          - field: title
+            type: string
+            width: 312
+          - field: url
+            type: link
+            width: 352
+        height: 480
   queries:
     - name: queryPRs
       query:
-        function: queryPRs
+        function: queryPRs.ts#queryPRs
         kind: local
+  alias:
+    - tn213hge
+  displayName: PR without labels

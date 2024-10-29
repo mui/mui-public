@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
+apiVersion: v1
+kind: page
+spec:
+  displayName: Issues without labels
+  alias:
+    - 3eVYIR_
+  title: Issues without labels
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        value: Issues without labels
+        variant: h5
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: This page is used for
+          https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#0231c2f8e6924c6d856b9dcda6af99c1.
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: |
+            fetchIssuesWithoutLabels.data.items.concat(
+              fetchOpenIssuesWithoutLabels.data.items
+            )
+        columns:
+          - field: html_url
+            type: link
+            width: 273
+          - field: number
+            type: number
+            width: 107
+          - field: title
+            type: string
+            width: 319
+          - field: state
+            type: string
+            width: 230
+        height: 442
+  queries:
+    - name: fetchIssuesWithoutLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:issue is:closed no:label repo:mui/mui-x repo:mui/mui-design-kits
+              repo:mui/material-ui repo:mui/mui-private repo:mui/mui-public
+              repo:mui/base-ui repo:mui/pigment-css
+          - name: order
+            value: desc
+          - name: sort
+            value: updated
+        headers:
+          - name: Authorization
+            value:
+              $$jsExpression: |
+                `Bearer ${parameters.GITHUB_TOKEN}`
+        method: GET
+        transform: |-
+          return {
+            items: data.items,
+          };
+        transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+    - name: fetchOpenIssuesWithoutLabels
+      query:
+        kind: rest
+        url: https://api.github.com/search/issues
+        searchParams:
+          - name: q
+            value: is:issue no:label org:mui is:open
+          - name: order
+            value: desc
+          - name: sort
+            value: updated
+        headers:
+          - name: Authorization
+            value:
+              $$jsExpression: |
+                `Bearer ${parameters.GITHUB_TOKEN}`
+        method: GET
+        transform: |-
+          return {
+            items: data.items,
+          };
+        transformEnabled: true
+      parameters:
+        - name: GITHUB_TOKEN
+          value:
+            $$env: GITHUB_TOKEN
+  display: shell

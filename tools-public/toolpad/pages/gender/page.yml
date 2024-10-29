@@ -1,25 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: id9G8nf
-  title: gender
+  title: Gender
   display: shell
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: codeComponent.HealthBadge
-          name: codeComponent_HealthBadge
-          props:
-            value:
-              $$jsExpression: >
-                gender.data != null ? Math.round(gender.data * 10) / 10 :
-                undefined
-            warning: 30
-            problem: 15
-            lowerIsBetter: false
+    - component: codeComponent.HealthBadge
+      name: codeComponent_HealthBadge
+      layout:
+        columnSize: 1
+      props:
+        value:
+          $$jsExpression: |
+            gender.data != null ? Math.round(gender.data * 10) / 10 : undefined
+        warning: 30
+        problem: 15
+        lowerIsBetter: false
   queries:
     - name: gender
       query:
-        function: queryGender
+        function: queryGender.ts#queryGender
         kind: local
+  alias:
+    - id9G8nf
+  displayName: Gender

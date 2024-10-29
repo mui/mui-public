@@ -1,735 +1,718 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: JuZeIVb
-  title: OverviewPage
+  title: Overview Page
   display: shell
   content:
-    - component: PageRow
-      name: pageRow8
+    - component: Tabs
+      name: tabs
+      layout:
+        columnSize: 1
+      props:
+        tabs:
+          - title: KPI related pages (19/29)
+            name: KPI related pages
+          - title: Non-KPI related pages (3/29)
+            name: Non-KPI related pages
+          - title: Daily operations (7/29)
+            name: Daily operations
+        defaultValue: KPI related pages
+    - component: Autocomplete
+      name: autocomplete
+    - component: Container
+      name: container1
       children:
-        - component: Tabs
-          name: tabs
-          props:
-            tabs:
-              - title: KPI related pages (19/29)
-                name: KPI related pages
-              - title: Non-KPI related pages (3/29)
-                name: Non-KPI related pages
-              - title: Daily operations (7/29)
-                name: Daily operations
-            defaultValue: KPI related pages
-    - component: PageRow
-      name: pageRow17
-      children:
-        - component: Container
-          name: container1
+        - component: PageRow
+          name: pageRow6
           children:
-            - component: PageRow
-              name: pageRow6
+            - component: PageColumn
+              name: pageColumn4
               children:
-                - component: PageColumn
-                  name: pageColumn4
+                - component: Text
+                  name: text
+                  props:
+                    variant: h6
+                    value: Finance KPIs
                   layout:
-                    columnSize: 1
+                    horizontalAlign: start
+                - component: PageRow
+                  name: pageRow9
+                  props:
+                    justifyContent: start
                   children:
                     - component: Text
-                      name: text
+                      name: text1
                       props:
-                        variant: h6
-                        value: Finance KPIs
+                        value: Overdue ratio
+                    - component: Button
+                      name: button
                       layout:
-                        horizontalAlign: start
-                    - component: PageRow
-                      name: pageRow9
+                        horizontalAlign: end
                       props:
-                        justifyContent: start
+                        onClick:
+                          $$navigationAction:
+                            page: 8n03iat
+                            parameters: {}
+                        content: View page
+                        variant: text
+                - component: Text
+                  name: text4
+                  layout:
+                    horizontalAlign: start
+                  props:
+                    value: Engineering KPIs
+                    variant: h6
+                - component: PageRow
+                  name: pageRow4
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: Text
+                      name: text2
+                      props:
+                        value: HEAD CI success rate
+                    - component: Button
+                      name: button3
+                      layout:
+                        horizontalAlign: end
+                      props:
+                        onClick:
+                          $$navigationAction:
+                            page: lo33hck
+                            parameters:
+                              repository: mui-x
+                        content: View page
+                        variant: text
+                - component: PageRow
+                  name: pageRow1
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: Text
+                      name: text3
+                      props:
+                        value: HEAD CI median time to completion
+                    - component: Button
+                      name: button1
+                      layout:
+                        horizontalAlign: end
+                      props:
+                        onClick:
+                          $$navigationAction:
+                            page: fn03hvq
+                            parameters:
+                              repository: mui-x
+                        content: View page
+                        variant: text
+                - component: Text
+                  name: text9
+                  layout:
+                    horizontalAlign: start
+                  props:
+                    value: Product KPIs
+                    variant: h6
+                - component: PageRow
+                  name: pageRow3
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: PageColumn
+                      name: pageColumn
+                      layout:
+                        columnSize: 1
                       children:
                         - component: Text
-                          name: text1
+                          name: text10
                           props:
-                            value: Overdue ratio
+                            value: 'Community: percent of PRs merged'
+                        - component: Text
+                          name: text12
+                          props:
+                            value: 'Community: unique contributors per month'
+                        - component: Text
+                          name: text11
+                          props:
+                            value: Open PRs
+                        - component: Text
+                          name: text14
+                          props:
+                            value: 'PRs: time between open & closed '
+                        - component: Text
+                          name: text13
+                          props:
+                            value: 'Issues: time to first reply'
+                        - component: Text
+                          name: text15
+                          props:
+                            value: 'Issues: "status: waiting for maintainer" label'
+                        - component: Text
+                          name: text16
+                          props:
+                            value: Issues/PRs with no labels
+                        - component: Text
+                          name: text36
+                          props:
+                            value: 'Issues: closed vs open'
+                    - component: PageColumn
+                      name: pageColumn1
+                      layout:
+                        columnSize: 1
+                      children:
                         - component: Button
-                          name: button
+                          name: button6
                           layout:
                             horizontalAlign: end
                           props:
                             onClick:
                               $$navigationAction:
-                                page: 8n03iat
+                                page: KiUQrhI
+                                parameters:
+                                  repositoryId: '23083156'
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button7
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: ck33hgb
                                 parameters: {}
                             content: View page
                             variant: text
-                    - component: Text
-                      name: text4
-                      layout:
-                        horizontalAlign: start
-                      props:
-                        value: Engineering KPIs
-                        variant: h6
-                    - component: PageRow
-                      name: pageRow4
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: Text
-                          name: text2
-                          props:
-                            value: HEAD CI success rate
                         - component: Button
-                          name: button3
+                          name: button8
                           layout:
                             horizontalAlign: end
                           props:
                             onClick:
                               $$navigationAction:
-                                page: lo33hck
+                                page: 39j3h6b
                                 parameters:
-                                  repository: mui-x
+                                  repo: material-ui
+                                  warning: '50'
                             content: View page
                             variant: text
-                    - component: PageRow
-                      name: pageRow1
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: Text
-                          name: text3
-                          props:
-                            value: HEAD CI median time to completion
                         - component: Button
-                          name: button1
+                          name: button10
                           layout:
                             horizontalAlign: end
                           props:
                             onClick:
                               $$navigationAction:
-                                page: fn03hvq
+                                page: 9ou3hb2
                                 parameters:
-                                  repository: mui-x
+                                  repoId: '23083156'
                             content: View page
                             variant: text
-                    - component: Text
-                      name: text9
-                      layout:
-                        horizontalAlign: start
-                      props:
-                        value: Product KPIs
-                        variant: h6
-                    - component: PageRow
-                      name: pageRow3
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: PageColumn
-                          name: pageColumn
+                        - component: Button
+                          name: button9
                           layout:
-                            columnSize: 1
-                          children:
-                            - component: Text
-                              name: text10
-                              props:
-                                value: 'Community: percent of PRs merged'
-                            - component: Text
-                              name: text12
-                              props:
-                                value: 'Community: unique contributors per month'
-                            - component: Text
-                              name: text11
-                              props:
-                                value: Open PRs
-                            - component: Text
-                              name: text14
-                              props:
-                                value: 'PRs: time between open & closed '
-                            - component: Text
-                              name: text13
-                              props:
-                                value: 'Issues: time to first reply'
-                            - component: Text
-                              name: text15
-                              props:
-                                value: 'Issues: "need triage" label'
-                            - component: Text
-                              name: text16
-                              props:
-                                value: Issues/PRs with no labels
-                            - component: Text
-                              name: text36
-                              props:
-                                value: 'Issues: closed vs open'
-                        - component: PageColumn
-                          name: pageColumn1
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: fo163htb
+                                parameters:
+                                  repoId: '23083156'
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button11
                           layout:
-                            columnSize: 1
-                          children:
-                            - component: Button
-                              name: button6
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: KiUQrhI
-                                    parameters:
-                                      repositoryId: '23083156'
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button7
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: ck33hgb
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button8
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: 39j3h6b
-                                    parameters:
-                                      repo: material-ui
-                                      warning: '50'
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button10
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: 9ou3hb2
-                                    parameters:
-                                      repoId: '23083156'
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button9
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: fo163htb
-                                    parameters:
-                                      repoId: '23083156'
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button11
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: hj1i3hqe
-                                    parameters:
-                                      repository: material-ui
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button12
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: bse3h9c
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button30
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: 2413lvx
-                                    parameters: { repoId: '23083156' }
-                                content: View page
-                                variant: text
-                    - component: Text
-                      name: text17
-                      layout:
-                        horizontalAlign: start
-                      props:
-                        value: Support KPIs
-                        variant: h6
-                    - component: PageRow
-                      name: pageRow10
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: PageColumn
-                          name: pageColumn2
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: hj1i3hqe
+                                parameters:
+                                  repository: material-ui
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button12
                           layout:
-                            columnSize: 1
-                          children:
-                            - component: Text
-                              name: text18
-                              props:
-                                value: 'Zendesk: First reply time'
-                            - component: Text
-                              name: text19
-                              props:
-                                value: 'Zendesk: Satisfaction rating'
-                        - component: PageColumn
-                          name: pageColumn3
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: bse3h9c
+                                parameters: {}
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button30
                           layout:
-                            columnSize: 1
-                          children:
-                            - component: Button
-                              name: button14
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: hr03hdi
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button13
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: xu1r3hzj
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                    - component: Text
-                      name: text5
-                      layout:
-                        horizontalAlign: start
-                      props:
-                        value: People KPIs
-                        variant: h6
-                    - component: PageRow
-                      name: pageRow11
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: PageColumn
-                          name: pageColumn5
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Text
-                              name: text6
-                              props:
-                                value: Gender
-                            - component: Text
-                              name: text7
-                              props:
-                                value: Gender Engineering
-                            - component: Text
-                              name: text8
-                              props:
-                                value: Gender Management
-                        - component: PageColumn
-                          name: pageColumn6
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Button
-                              name: button2
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: id9G8nf
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button4
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: ZGrUwtd
-                                    parameters: { department: "" }
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button5
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: oEEu_u7
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                    - component: Text
-                      name: text22
-                      layout:
-                        horizontalAlign: start
-                      props:
-                        value: MUI Core KPIs
-                        variant: h6
-                    - component: PageRow
-                      name: pageRow12
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: PageColumn
-                          name: pageColumn8
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Text
-                              name: text24
-                              props:
-                                value: Community Core
-                            - component: Text
-                              name: text23
-                              props:
-                                value: Base UI NPM KPIs
-                            - component: Text
-                              name: text32
-                              props:
-                                value: Joy UI NPM KPIs
-                            - component: Text
-                              name: text34
-                              props:
-                                value: Material UI - team stats
-                        - component: PageColumn
-                          name: pageColumn9
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Button
-                              name: button17
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: 9r8fshsf
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button16
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: U0CsCz5
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button26
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                onClick:
-                                  $$navigationAction:
-                                    page: I1HlSLD
-                                    parameters: {}
-                                content: View page
-                                variant: text
-                            - component: Button
-                              name: button28
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: gtOs1gW
-                                    parameters: {}
-                              layout:
-                                horizontalAlign: end
-          props:
-            visible:
-              $$jsExpression: |
-                tabs.value == "KPI related pages"
-            sx:
-              padding: 1
-              border: 1px
-    - component: PageRow
-      name: pageRow5
-      children:
-        - component: Container
-          name: container
-          props:
-            sx:
-              padding: 1
-              border: 1px
-            visible:
-              $$jsExpression: |
-                tabs.value == "Non-KPI related pages"
-          children:
-            - component: PageRow
-              name: pageRow7
-              children:
-                - component: PageColumn
-                  name: pageColumn7
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: 2413lvx
+                                parameters:
+                                  repoId: '23083156'
+                            content: View page
+                            variant: text
+                - component: Text
+                  name: text17
                   layout:
-                    columnSize: 1
+                    horizontalAlign: start
+                  props:
+                    value: Support KPIs
+                    variant: h6
+                - component: PageRow
+                  name: pageRow10
+                  props:
+                    justifyContent: start
                   children:
-                    - component: PageRow
-                      name: pageRow
-                      props:
-                        justifyContent: start
-                      children:
-                        - component: PageColumn
-                          name: pageColumn10
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Text
-                              name: text20
-                              props:
-                                value: Bundle size
-                            - component: Text
-                              name: text21
-                              props:
-                                value: NPM version
-                            - component: Text
-                              name: text25
-                              props:
-                                value: X License validate support
-                        - component: PageColumn
-                          name: pageColumn11
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Button
-                              name: button24
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: h71gdad
-                                    parameters:
-                                      baseRef: master
-                                      baseCommit: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
-                                      circleCIBuildNumber: "487681"
-                            - component: Button
-                              name: button18
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: m023hp4
-                                    parameters:
-                                      package: react-dom
-                            - component: Button
-                              name: button15
-                              layout:
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: jyhs86t
-                                    parameters:
-                                      issueId: '9195'
-                                      repo: mui-x
-    - component: PageRow
-      name: pageRow13
-      children:
-        - component: Container
-          name: container3
-          props:
-            visible:
-              $$jsExpression: |
-                tabs.value == "Daily operations"
-            sx:
-              padding: 1
-              border: 1px
-          children:
-            - component: PageRow
-              name: pageRow14
-              children:
-                - component: PageColumn
-                  name: pageColumn13
-                  layout:
-                    columnSize: 1
-                  children:
-                    - component: PageRow
-                      name: pageRow2
-                      props:
-                        justifyContent: start
+                    - component: PageColumn
+                      name: pageColumn2
+                      layout:
+                        columnSize: 1
                       children:
                         - component: Text
-                          name: text27
+                          name: text18
                           props:
-                            value: Issues without product scope label
-                        - component: PageColumn
-                          name: pageColumn15
-                          layout:
-                            columnSize: 1
-                          children:
-                            - component: Button
-                              name: button25
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: 7ju3hr6
-                                    parameters: {}
-                    - component: PageRow
-                      name: pageRow16
-                      props:
-                        justifyContent: start
+                            value: 'Zendesk: First reply time'
+                        - component: Text
+                          name: text19
+                          props:
+                            value: 'Zendesk: Satisfaction rating'
+                    - component: PageColumn
+                      name: pageColumn3
+                      layout:
+                        columnSize: 1
                       children:
-                        - component: PageColumn
-                          name: pageColumn12
+                        - component: Button
+                          name: button14
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: hr03hdi
+                                parameters: {}
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button13
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: xu1r3hzj
+                                parameters: {}
+                            content: View page
+                            variant: text
+                - component: Text
+                  name: text5
+                  layout:
+                    horizontalAlign: start
+                  props:
+                    value: People KPIs
+                    variant: h6
+                - component: PageRow
+                  name: pageRow11
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: PageColumn
+                      name: pageColumn5
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Text
+                          name: text6
+                          props:
+                            value: Gender
+                        - component: Text
+                          name: text7
+                          props:
+                            value: Gender Engineering
+                        - component: Text
+                          name: text8
+                          props:
+                            value: Gender Management
+                    - component: PageColumn
+                      name: pageColumn6
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Button
+                          name: button2
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: id9G8nf
+                                parameters: {}
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button4
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: ZGrUwtd
+                                parameters:
+                                  department: ''
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button5
                           layout:
                             columnSize: 1
-                          children:
-                            - component: Text
-                              name: text31
-                              props:
-                                value: Label activity
-                            - component: Text
-                              name: text26
-                              layout:
-                                columnSize: 1
-                              props:
-                                value: Missing gitHub label
-                            - component: Text
-                              name: text33
-                              layout:
-                                columnSize: 1
-                              props:
-                                value: Open "need triage" issues without assignee
-                            - component: Text
-                              name: text28
-                              layout:
-                                columnSize: 1
-                              props:
-                                value: Open issues without label
-                            - component: Text
-                              name: text29
-                              props:
-                                value: Open PRs without reviewer
-                              layout:
-                                columnSize: 1
-                            - component: Text
-                              name: text30
-                              layout:
-                                columnSize: 1
-                              props:
-                                value: PRs without labels
-                        - component: PageColumn
-                          name: pageColumn14
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: oEEu_u7
+                                parameters: {}
+                            content: View page
+                            variant: text
+                - component: Text
+                  name: text22
+                  layout:
+                    horizontalAlign: start
+                  props:
+                    value: MUI Core KPIs
+                    variant: h6
+                - component: PageRow
+                  name: pageRow12
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: PageColumn
+                      name: pageColumn8
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Text
+                          name: text24
+                          props:
+                            value: Community Core
+                        - component: Text
+                          name: text23
+                          props:
+                            value: Base UI NPM KPIs
+                        - component: Text
+                          name: text32
+                          props:
+                            value: Joy UI NPM KPIs
+                    - component: PageColumn
+                      name: pageColumn9
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Button
+                          name: button17
                           layout:
                             columnSize: 1
-                          children:
-                            - component: Button
-                              name: button19
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: xj43hyd
-                                    parameters: {}
-                            - component: Button
-                              name: button21
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: bse3h9c
-                                    parameters: {}
-                            - component: Button
-                              name: button27
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: hl63hwf
-                                    parameters: {}
-                            - component: Button
-                              name: button22
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: 3eVYIR_
-                                    parameters: {}
-                            - component: Button
-                              name: button23
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: 1t353h04
-                                    parameters: {}
-                            - component: Button
-                              name: button20
-                              layout:
-                                columnSize: 1
-                                horizontalAlign: end
-                              props:
-                                variant: text
-                                content: View page
-                                onClick:
-                                  $$navigationAction:
-                                    page: tn213hge
-                                    parameters: {}
-    - component: PageRow
-      name: pageRow15
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: 9r8fshsf
+                                parameters: {}
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button16
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: U0CsCz5
+                                parameters: {}
+                            content: View page
+                            variant: text
+                        - component: Button
+                          name: button26
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            onClick:
+                              $$navigationAction:
+                                page: I1HlSLD
+                                parameters: {}
+                            content: View page
+                            variant: text
+              layout:
+                columnSize: 1
+      layout:
+        columnSize: 1
+      props:
+        sx:
+          padding: 1
+          border: 1px
+        visible:
+          $$jsExpression: |
+            tabs.value == "KPI related pages"
+    - component: Container
+      name: container
       children:
-        - component: Container
-          name: container2
-          props:
-            visible:
-              $$jsExpression: |
-                tabs.value == "tNon-KPIs related pages"
+        - component: PageRow
+          name: pageRow7
+          children:
+            - component: PageColumn
+              name: pageColumn7
+              children:
+                - component: PageRow
+                  name: pageRow
+                  children:
+                    - component: PageColumn
+                      name: pageColumn10
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Text
+                          name: text20
+                          props:
+                            value: Bundle size
+                        - component: Text
+                          name: text21
+                          props:
+                            value: NPM version
+                        - component: Text
+                          name: text25
+                          props:
+                            value: X License validate support
+                    - component: PageColumn
+                      name: pageColumn11
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Button
+                          name: button24
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: h71gdad
+                                parameters:
+                                  baseRef: master
+                                  baseCommit: 66e13f6e354e2e4e174462c1f839c9bceb772b8b
+                                  circleCIBuildNumber: '487681'
+                        - component: Button
+                          name: button18
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: m023hp4
+                                parameters:
+                                  package: react-dom
+                        - component: Button
+                          name: button15
+                          layout:
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: jyhs86t
+                                parameters:
+                                  issueId: '9195'
+                                  repo: mui-x
+                  props:
+                    justifyContent: start
+              layout:
+                columnSize: 1
+      layout:
+        columnSize: 1
+      props:
+        visible:
+          $$jsExpression: |
+            tabs.value == "Non-KPI related pages"
+        sx:
+          padding: 1
+          border: 1px
+    - component: Container
+      name: container3
+      layout:
+        columnSize: 1
+      props:
+        visible:
+          $$jsExpression: |
+            tabs.value == "Daily operations"
+        sx:
+          padding: 1
+          border: 1px
+      children:
+        - component: PageRow
+          name: pageRow14
+          children:
+            - component: PageColumn
+              name: pageColumn13
+              layout:
+                columnSize: 1
+              children:
+                - component: PageRow
+                  name: pageRow2
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: Text
+                      name: text27
+                      props:
+                        value: Issues without product scope label
+                    - component: Button
+                      name: button25
+                      layout:
+                        columnSize: 1
+                        horizontalAlign: end
+                      props:
+                        variant: text
+                        content: View page
+                        onClick:
+                          $$navigationAction:
+                            page: 7ju3hr6
+                            parameters: {}
+                - component: PageRow
+                  name: pageRow16
+                  props:
+                    justifyContent: start
+                  children:
+                    - component: PageColumn
+                      name: pageColumn12
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Text
+                          name: text31
+                          props:
+                            value: Label activity
+                        - component: Text
+                          name: text26
+                          layout:
+                            columnSize: 1
+                          props:
+                            value: Missing gitHub label
+                        - component: Text
+                          name: text33
+                          layout:
+                            columnSize: 1
+                          props:
+                            value: 'Open "status: waiting for maintainer" issues without assignee'
+                        - component: Text
+                          name: text28
+                          layout:
+                            columnSize: 1
+                          props:
+                            value: Open issues without label
+                        - component: Text
+                          name: text29
+                          layout:
+                            columnSize: 1
+                          props:
+                            value: Open PRs without reviewer
+                        - component: Text
+                          name: text30
+                          layout:
+                            columnSize: 1
+                          props:
+                            value: PRs without labels
+                    - component: PageColumn
+                      name: pageColumn14
+                      layout:
+                        columnSize: 1
+                      children:
+                        - component: Button
+                          name: button19
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: xj43hyd
+                                parameters: {}
+                        - component: Button
+                          name: button21
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: bse3h9c
+                                parameters: {}
+                        - component: Button
+                          name: button27
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: hl63hwf
+                                parameters: {}
+                        - component: Button
+                          name: button22
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: 3eVYIR_
+                                parameters: {}
+                        - component: Button
+                          name: button23
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: 1t353h04
+                                parameters: {}
+                        - component: Button
+                          name: button20
+                          layout:
+                            columnSize: 1
+                            horizontalAlign: end
+                          props:
+                            variant: text
+                            content: View page
+                            onClick:
+                              $$navigationAction:
+                                page: tn213hge
+                                parameters: {}
+    - component: Container
+      name: container2
+      layout:
+        columnSize: 1
+      props:
+        visible:
+          $$jsExpression: |
+            tabs.value == "tNon-KPIs related pages"
+  alias:
+    - JuZeIVb
+  displayName: Overview page

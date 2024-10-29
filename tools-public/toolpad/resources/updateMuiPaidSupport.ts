@@ -1,11 +1,11 @@
+/* eslint-disable import/prefer-default-export */
 import dayjs from 'dayjs';
-
-const { sheets } = require('@googleapis/sheets');
-const { JWT } = require('google-auth-library');
-const { Octokit } = require('@octokit/core');
+import { sheets } from '@googleapis/sheets';
+import { JWT } from 'google-auth-library';
+import { Octokit } from '@octokit/core';
 
 function findRowIndexByValue(sheet, value) {
-  for (let i = 0; i < sheet.length; i++) {
+  for (let i = 0; i < sheet.length; i += 1) {
     if (sheet[i][0] === value) {
       return i;
     }
@@ -24,7 +24,7 @@ async function updateGitHubIssueLabels(repo, issueId) {
 
   const octokitRequestMetadata = {
     owner: 'mui',
-    repo: repo,
+    repo,
     issue_number: issueId,
     headers: {
       'X-GitHub-Api-Version': '2022-11-28',
@@ -113,7 +113,7 @@ export async function updateMuiPaidSupport(issueId: string, repo: string, suppor
     };
   }
 
-  const targetSupportKeyExpirationDate = new Date(rows[rowIndex][1]);
+  const targetSupportKeyExpirationDate = new Date(rows![rowIndex][1]);
   const today = new Date();
 
   if (targetSupportKeyExpirationDate < today) {

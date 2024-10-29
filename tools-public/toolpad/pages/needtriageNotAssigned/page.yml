@@ -1,62 +1,61 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: hl63hwf
-  title: needtriageNotAssigned
+  title: Waiting for maintainers not assigned
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text1
-          props:
-            value: Open "need triage" issues without assignee
-            variant: h5
-    - component: PageRow
-      name: pageRow2
-      children:
-        - component: Text
-          name: text2
-          props:
-            mode: markdown
-            value: "Built for:
-              https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-\
-              12a84fdf50e44595afc55343dac00fca#8f5ae0daa6ad4543b866f3ad0532c9e4"
-    - component: PageRow
-      name: pageRow3
-      children:
-        - component: DataGrid
-          name: dataGrid
-          props:
-            rows:
-              $$jsExpression: >
-                noAssignee.data
-                  .map((data) => ({
-                    ...data,
-                    repo: data.repository_url.replace("https://api.github.com/repos/mui/", ""),
-                  }))
-                  .sort((a, b) => {
-                    if (a.repo === "mui-x") {
-                      return -1
-                    }
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        value: 'Open "status: waiting for maintainer" issues without assignee'
+        variant: h5
+    - component: Text
+      name: text2
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: "Built for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#8f5ae0daa6ad4543b866f3ad0532c9e4"
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+      props:
+        rows:
+          $$jsExpression: >-
+            noAssignee.data
+              .map((data) => ({
+                ...data,
+                repo: data.repository_url.replace("https://api.github.com/repos/mui/", ""),
+              }))
+              .sort((a, b) => {
+                if (a.repo === "mui-x") {
+                  return 1
+                }
 
-                    if (b.repo === "mui-x") {
-                      return -1
-                    }
-                  })
-            columns:
-              - field: number
-                type: string
-              - field: repo
-                type: string
-                width: 109
-              - field: title
-                type: string
-                width: 372
-              - field: html_url
-                type: link
-                width: 203
-            height: 452
+                if (b.repo === "mui-x") {
+                  return -1
+                }
+              })
+        columns:
+          - field: number
+            type: string
+            width: 81
+          - field: repo
+            type: string
+            width: 104
+          - field: title
+            type: string
+            width: 508
+          - field: html_url
+            type: link
+            width: 125
+        height: 452
   queries:
     - name: noAssignee
       query:
@@ -64,8 +63,9 @@ spec:
         url: https://api.github.com/search/issues
         searchParams:
           - name: q
-            value: 'repo:mui/material-ui repo:mui/mui-x is:open is:issue label:"status:
-              needs triage" no:assignee'
+            value: 'repo:mui/pigment-css repo:mui/base-ui repo:mui/material-ui
+              repo:mui/mui-x repo:mui/mui-design-kits is:open is:issue
+              label:"status: waiting for maintainer" no:assignee'
         headers:
           - name: Bearer
             value: abc
@@ -74,3 +74,6 @@ spec:
           return data.items
 
         transformEnabled: true
+  alias:
+    - hl63hwf
+  displayName: Waiting for maintainers not assigned

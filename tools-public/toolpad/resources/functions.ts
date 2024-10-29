@@ -31,9 +31,10 @@ with pr_opened as (
     AND ge.actor_login NOT LIKE 'mnajdova'
     AND ge.actor_login NOT LIKE 'michaldudak'
     AND ge.actor_login NOT LIKE 'siriwatknp'
-    AND ge.actor_login NOT LIKE 'hbjORbj'
     AND ge.actor_login NOT LIKE 'oliviertassinari'
     AND ge.actor_login NOT LIKE 'mj12albert'
+    AND ge.actor_login NOT LIKE 'DiegoAndai'
+    AND ge.actor_login NOT LIKE 'brijeshb42'
 ), pr_reviewed as (
   SELECT
     number,
@@ -48,7 +49,7 @@ with pr_opened as (
   AND ge.created_at >= '2021-12-01'
   AND ge.actor_login NOT LIKE '%bot'
   AND ge.actor_login NOT LIKE '%[bot]'
-  AND ge.actor_login IN ('mnajdova','michaldudak','siriwatknp','hbjORbj','oliviertassinari','mj12albert')
+  AND ge.actor_login IN ('mnajdova','michaldudak','siriwatknp','oliviertassinari','mj12albert', 'DiegoAndai', 'brijeshb42')
 ), pr_reviewed_with_open_by as (
   SELECT
     pr_reviewed.event_month,
@@ -73,7 +74,7 @@ with pr_opened as (
     AND actor_login NOT LIKE '%bot'
     AND actor_login NOT LIKE '%[bot]'
     AND ge.actor_login IN
-  ('mnajdova','michaldudak','siriwatknp','hbjORbj','oliviertassinari','mj12albert')
+    ('mnajdova','michaldudak','siriwatknp','oliviertassinari','mj12albert', 'DiegoAndai', 'brijeshb42')
 ), final_table AS (
   SELECT
     n.event_month,
@@ -174,7 +175,7 @@ query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
     endpoint,
     query,
     {
-      repository: repository,
+      repository,
       since: since.toISOString(),
     },
     {
@@ -286,12 +287,190 @@ FROM
   return ratio[0];
 }
 
-export * from './bundleSizeQueries';
-export * from './queryMaterialUILabels';
-export * from './queryMUIXLabels';
-export * from './queryPRs';
-export * from './queryPRswithoutReviewer';
-export * from './queryGender';
-export * from './queryHeadlessLibrariesDownloads';
-export * from './queryJoyUIMonthlyDownloads';
-export * from './updateMuiPaidSupport';
+export async function PRsPerMonth(repositoryId: string, startDate: string) {
+  if (!repositoryId) {
+    return [];
+  }
+
+  startDate = startDate || '2016-01-01';
+
+  const openQuery = `
+with maintainers as (
+  SELECT
+    DISTINCT ge.actor_login
+  FROM
+    github_events ge
+  WHERE
+    ge.repo_id = ${repositoryId}
+    AND ge.type = 'PullRequestEvent'
+    /* maintainers are defined as the ones that are allowed to merge PRs */
+    AND ge.action = 'closed'
+    AND ge.pr_merged = 1
+    AND ge.created_at >= '2016-01-01'
+), pr_merged AS (
+  SELECT
+    number,
+    date_format(created_at, '%Y-%m-01') AS event_month,
+    actor_login
+  FROM
+    github_events ge
+  WHERE
+    type = 'PullRequestEvent'
+    AND action = 'closed'
+    AND ge.pr_merged = 1
+    AND repo_id = ${repositoryId}
+    AND ge.created_at >= '${startDate}'
+), pr_opened as (
+  SELECT
+    number,
+    date_format(created_at, '%Y-%m-01') AS event_month,
+    actor_login
+  FROM
+    github_events ge
+  WHERE
+    type = 'PullRequestEvent'
+    AND action = 'opened'
+    AND repo_id = ${repositoryId}
+    AND ge.created_at >= '2016-01-01'
+    AND actor_login NOT LIKE '%bot'
+    AND actor_login NOT LIKE '%[bot]'
+), pr_merged_with_open_by as (
+  SELECT
+    pr_merged.event_month,
+    pr_merged.number,
+    pr_opened.actor_login as open_by,
+    pr_merged.actor_login as merged_by
+  FROM
+    pr_merged
+    JOIN pr_opened on pr_opened.number = pr_merged.number
+), pr_stats as (
+  SELECT
+    pr_community.event_month,
+    COUNT(DISTINCT pr_community.number) AS pr_community_count,
+    COUNT(DISTINCT pr_maintainers.number) AS pr_maintainers_count
+  FROM pr_merged_with_open_by as pr_community
+  LEFT JOIN pr_merged_with_open_by  as pr_maintainers
+    ON pr_community.event_month = pr_maintainers.event_month
+  WHERE
+        pr_community.open_by NOT IN (SELECT actor_login FROM maintainers)
+    AND pr_maintainers.open_by IN (SELECT actor_login FROM maintainers)
+  GROUP BY
+    pr_community.event_month
+  ORDER BY
+    pr_community.event_month asc
+)
+
+SELECT * FROM pr_stats ge;
+    `;
+
+  const res = await fetch('https://api.ossinsight.io/q/playground', {
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sql: openQuery,
+      type: 'repo',
+      id: repositoryId,
+    }),
+    method: 'POST',
+  });
+  if (res.status !== 200) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
+  }
+  const data = await res.json();
+  return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
+}
+
+export async function ContributorsPerMonth(repositoryId: string, startDate: string) {
+  if (!repositoryId) {
+    return [];
+  }
+
+  startDate = startDate || '2016-01-01';
+
+  const openQuery = `
+with maintainers as (
+  SELECT
+    DISTINCT ge.actor_login
+  FROM
+    github_events ge
+  WHERE
+    ge.repo_id = ${repositoryId}
+    AND ge.type = 'PullRequestEvent'
+    /* maintainers are defined as the ones that are allowed to merge PRs */
+    AND ge.action = 'closed'
+    AND ge.pr_merged = 1
+    AND ge.created_at >= '2016-01-01'
+), pr_merged AS (
+  SELECT
+    number,
+    date_format(created_at, '%Y-%m-01') AS event_month,
+    actor_login
+  FROM
+    github_events ge
+  WHERE
+    type = 'PullRequestEvent'
+    AND action = 'closed'
+    AND ge.pr_merged = 1
+    AND repo_id = ${repositoryId}
+    AND ge.created_at >= '${startDate}'
+), pr_opened as (
+  SELECT
+    number,
+    date_format(created_at, '%Y-%m-01') AS event_month,
+    actor_login
+  FROM
+    github_events ge
+  WHERE
+    type = 'PullRequestEvent'
+    AND action = 'opened'
+    AND repo_id = ${repositoryId}
+    AND ge.created_at >= '2016-01-01'
+    AND actor_login NOT LIKE '%bot'
+    AND actor_login NOT LIKE '%[bot]'
+), pr_merged_with_open_by as (
+  SELECT
+    pr_merged.event_month,
+    pr_merged.number,
+    pr_opened.actor_login as open_by,
+    pr_merged.actor_login as merged_by
+  FROM
+    pr_merged
+    JOIN pr_opened on pr_opened.number = pr_merged.number
+), pr_stats as (
+  SELECT
+    pr_community.event_month,
+    COUNT(DISTINCT pr_community.open_by) AS pr_community_count,
+    COUNT(DISTINCT pr_maintainers.open_by) AS pr_maintainers_count
+  FROM pr_merged_with_open_by as pr_community
+  LEFT JOIN pr_merged_with_open_by  as pr_maintainers
+    ON pr_community.event_month = pr_maintainers.event_month
+  WHERE
+        pr_community.open_by NOT IN (SELECT actor_login FROM maintainers)
+    AND pr_maintainers.open_by IN (SELECT actor_login FROM maintainers)
+  GROUP BY
+    pr_community.event_month
+  ORDER BY
+    pr_community.event_month asc
+)
+
+SELECT * FROM pr_stats ge;
+    `;
+
+  const res = await fetch('https://api.ossinsight.io/q/playground', {
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sql: openQuery,
+      type: 'repo',
+      id: repositoryId,
+    }),
+    method: 'POST',
+  });
+  if (res.status !== 200) {
+    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
+  }
+  const data = await res.json();
+  return data.data.map((x) => ({ x: x.month, y: x.prs, ...x }));
+}

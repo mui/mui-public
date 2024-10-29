@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createComponent } from '@mui/toolpad/browser';
+import { createComponent } from '@toolpad/studio/browser';
 
 const percentFormat = new Intl.NumberFormat(undefined, {
   style: 'percent',
@@ -19,7 +19,7 @@ function formatPercent(change: number | undefined): string {
 }
 
 function Percent({ value }: ParsedProps) {
-  return <>{formatPercent(value)}</>;
+  return <React.Fragment>{formatPercent(value)}</React.Fragment>;
 }
 
 export default createComponent(Percent, {

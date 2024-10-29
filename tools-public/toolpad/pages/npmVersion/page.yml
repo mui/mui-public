@@ -1,65 +1,64 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: m023hp4
-  title: npmVersion
+  title: npm version
   parameters:
     - name: package
       value: react-dom
   content:
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: Text
-          name: text
-          props:
-            mode: markdown
-            value: >-
-              ## Downloads in the last 7 days
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: >-
+          ## Downloads in the last 7 days
 
 
-              Same data as in https://www.npmjs.com/package/react-dom?activeTab=versions.
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: TextField
-          name: textField
-          props:
-            label: Package
-            defaultValue:
-              $$jsExpression: |
-                page.parameters.package
-    - component: PageRow
-      name: pageRow3
-      children:
-        - component: codeComponent.PieChart
-          name: codeComponent_PieChart
-          props:
-            data:
-              $$jsExpression: |
-                Object.entries(
-                  Object.entries(downloadsVersions.data)
-                    .filter(([version]) => version.indexOf("0.0") !== 0)
-                    .map((entry) => {
-                      const groups = entry[0].split(".")
-                      let group = `v${groups[0]}`
+          Same data as in
+          https://www.npmjs.com/package/react-dom?activeTab=versions.
+    - component: TextField
+      name: textField
+      layout:
+        columnSize: 1
+      props:
+        label: Package
+        defaultValue:
+          $$jsExpression: |
+            page.parameters.package
+    - component: codeComponent.PieChart
+      name: codeComponent_PieChart
+      props:
+        data:
+          $$jsExpression: |
+            Object.entries(
+              Object.entries(downloadsVersions.data)
+                .filter(([version]) => version.indexOf("0.0") !== 0)
+                .map((entry) => {
+                  const groups = entry[0].split(".")
+                  let group = `v${groups[0]}`
 
-                      if (group === "v16" && parseInt(groups[1]) >= 8) {
-                        group = "v16.8"
-                      }
+                  if (group === "v16" && parseInt(groups[1]) >= 8) {
+                    group = "v16.8"
+                  }
 
-                      return {
-                        version: entry[0],
-                        downloads: entry[1],
-                        group,
-                      }
-                    })
-                    .reduce((acc, item) => {
-                      acc[item.group] |= 0
-                      acc[item.group] += item.downloads
-                      return acc
-                    }, {})
-                ).map((group) => ({ name: group[0], value: group[1] }))
+                  return {
+                    version: entry[0],
+                    downloads: entry[1],
+                    group,
+                  }
+                })
+                .reduce((acc, item) => {
+                  acc[item.group] |= 0
+                  acc[item.group] += item.downloads
+                  return acc
+                }, {})
+            ).map((group) => ({ name: group[0], value: group[1] }))
+      layout:
+        columnSize: 1
   queries:
     - name: downloadsVersions
       query:
@@ -80,3 +79,6 @@ spec:
             $$jsExpression: |
               textField.value
   display: shell
+  alias:
+    - m023hp4
+  displayName: npm version
