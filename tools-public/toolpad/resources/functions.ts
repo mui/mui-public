@@ -112,7 +112,7 @@ export async function getTeamPullRequestReviews(repo: string = 'mui/material-ui'
     'mui/material-ui': 23083156,
     'mui/base-ui': 762289766,
     'mui/pigment-css': 715829513,
-  }
+  };
   const openQuery = `
 SELECT
   DATE_FORMAT(created_at, '%Y-%m-01') AS t_month,
@@ -138,7 +138,6 @@ GROUP BY 1 ORDER BY 1;
   const data = await res.json();
   return data.data;
 }
-
 
 export async function queryCommitStatuses(repository: string) {
   if (!process.env.GITHUB_TOKEN) {
