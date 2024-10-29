@@ -107,7 +107,12 @@ SELECT * FROM final_table
   return data.data;
 }
 
-export async function getTeamPullRequestReviews() {
+export async function getTeamPullRequestReviews(repo: string = 'mui/material-ui') {
+  const repoMap = {
+    'mui/material-ui': 23083156,
+    'mui/base-ui': 762289766,
+    'mui/pigment-css': 715829513,
+  }
   const openQuery = `
 SELECT
   DATE_FORMAT(created_at, '%Y-%m-01') AS t_month,
@@ -116,16 +121,15 @@ FROM github_events ge
 WHERE
   type = 'PullRequestReviewEvent' AND
   action = 'created' AND
-  repo_id = 23083156 AND
-  actor_id in (4512430, 16889233, 18292247, 7225802, 4997971, 717550, 2109932)
-  # actor_login IN ('mnajdova', 'siriwatknp', 'Janpot', 'DiegoAndai', 'mj12albert', 'aarongarciah', 'brijeshb42')
+  repo_id = ${repoMap[repo]} AND
+  actor_login IN ('mnajdova', 'siriwatknp', 'Janpot', 'DiegoAndai', 'mj12albert', 'aarongarciah', 'brijeshb42', 'michaldudak', 'colmtuite', 'atomiks', 'vladmoroz')
 GROUP BY 1 ORDER BY 1;
   `;
   const res = await fetch('https://api.ossinsight.io/q/playground', {
     headers: {
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ sql: openQuery, type: 'repo', id: '23083156' }),
+    body: JSON.stringify({ sql: openQuery, type: 'repo', id: `${repoMap[repo]}` }),
     method: 'POST',
   });
   if (res.status !== 200) {

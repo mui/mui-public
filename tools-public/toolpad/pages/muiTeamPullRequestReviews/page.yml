@@ -1,34 +1,68 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
+
 apiVersion: v1
 kind: page
 spec:
-  id: gtOs1gW
   title: muiTeamPullRequestReviews
   display: shell
   content:
-    - component: PageRow
-      name: pageRow1
-      children:
-        - component: Text
-          name: text
-          props:
-            value: Material UI - team repo stats
-    - component: PageRow
-      name: pageRow
-      children:
-        - component: Chart
-          name: muiPRReviewsPerTeam
-          props:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        value: Material UI - team repo stats
+    - component: Chart
+      name: muiPRReviewsPerTeam
+      layout:
+        columnSize: 1
+      props:
+        data:
+          - label: mui/material-ui
+            kind: bar
             data:
-              - label: Number of reviews
-                kind: bar
-                data:
-                  $$jsExpression: |
-                    query.data
-                color: "#1976d2"
-                xKey: t_month
-                yKey: cnt
+              $$jsExpression: materialUIReviewsQuery.data
+            color: '#1976d2'
+            xKey: t_month
+            yKey: cnt
+          - label: mui/base-ui
+            kind: bar
+            data:
+              $$jsExpression: baseUIReviewsQuery.data
+            color: '#4caf50'
+            xKey: t_month
+            yKey: cnt
+          - label: mui/pigment-css
+            kind: bar
+            data:
+              $$jsExpression: pigmentCSSReviewsQuery.data
+            color: '#B800D8'
+            xKey: t_month
+            yKey: cnt
+        sx:
+          zIndex: 0
+    - component: codeComponent.Diff
+      name: diff
   queries:
-    - name: query
+    - name: materialUIReviewsQuery
       query:
         function: functions.ts#getTeamPullRequestReviews
         kind: local
+    - name: baseUIReviewsQuery
+      mode: query
+      query:
+        function: functions.ts#getTeamPullRequestReviews
+        kind: local
+      parameters:
+        - name: repo
+          value: mui/base-ui
+    - name: pigmentCSSReviewsQuery
+      mode: query
+      query:
+        function: functions.ts#getTeamPullRequestReviews
+        kind: local
+      parameters:
+        - name: repo
+          value: mui/pigment-css
+  alias:
+    - gtOs1gW
