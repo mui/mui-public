@@ -97,6 +97,7 @@ module.exports = async ({ core, context, github }) => {
     target = targetLabels[0];
     core.info(`>>> Setting found 'TARGET_BRANCH' output.`);
     core.setOutput('TARGET_BRANCH', target);
+    core.setOutput('TRANSFER_LABELS', transferLabels.join(','));
   } catch (error) {
     core.error(`>>> Workflow failed with: ${error.message}`);
     core.setFailed(error.message);
