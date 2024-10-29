@@ -21,6 +21,7 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'needs cherry-pick') && github.event.pull_request.merged == true }}
     outputs:
       targetBranch: ${{ steps.detect.outputs.TARGET_BRANCH }}
+      transferLabels: ${{ steps.detect.outputs.TRANSFER_LABELS }}
     steps:
       - name: Check out mui-public repo
         id: checkout
@@ -57,5 +58,4 @@ jobs:
           body: 'Cherry-pick of #{old_pull_request_id}'
           cherry-pick-branch: ${{ format('cherry-pick-{0}', github.event.number) }}
           title: '{old_title} (@${{ github.event.pull_request.user.login }})'
-          labels: |
-            cherry-pick
+          labels: ${{ needs.detect_cherry_pick_target.outputs.transferLabels }}

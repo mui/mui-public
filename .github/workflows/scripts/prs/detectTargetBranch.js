@@ -1,5 +1,6 @@
 // @ts-check
 const vBranchRegex = /^v\d{1,3}\.x$/;
+const transferLabels = ['cherry-pick'];
 
 /**
  * @param {Object} params
@@ -33,10 +34,12 @@ module.exports = async ({ core, context, github }) => {
         // the branch this is coming from is a version branch, so the cherry-pick target should be master
         core.info('>>> Head Ref is a version branch, setting `master` as target');
         core.setOutput('TARGET_BRANCH', 'master');
+        core.setOutput('TRANSFER_LABELS', transferLabels.join(','));
         return;
       }
 
       core.setOutput('TARGET_BRANCH', '');
+      core.setOutput('TRANSFER_LABELS', transferLabels.join(','));
       return;
     }
 
@@ -58,6 +61,14 @@ module.exports = async ({ core, context, github }) => {
       core.info(`>>> Sorting and setting the highest as 'TARGET_BRANCH' output.`);
       core.setOutput('TARGET_BRANCH', target);
 
+      // since we have multiple targets we need to add the "needs cherry-pick" label
+      // this makes this workflow de-facto recursive
+      transferLabels.push('needs cherry-pick');
+
+      // add the other targets to the transfer labels
+      transferLabels.push(...targetLabels);
+      core.setOutput('TRANSFER_LABELS', transferLabels.join(','));
+
       // the others will be removed from the PR
       core.info(`>>> Removing the other target labels from the PR`);
       for (const label of targetLabels) {
@@ -75,9 +86,8 @@ module.exports = async ({ core, context, github }) => {
         repo,
         issue_number: pullNumber,
         body: [
-          `We only support automatically creating PRs to one version branch. The target branch has been set to \`${target}\`.`,
-          `Please create a new PR if you want to target a different version branch.`,
-          `Branches that are not being targeted automatically are: ${targetLabels.join(', ')}`,
+          `The target branch for the cherry-pick PR has been set to \`${target}\`.`,
+          `Branches that will be created after merging are: ${targetLabels.join(', ')}`,
           `Thank you!`,
         ].join('\n\n'),
       });
