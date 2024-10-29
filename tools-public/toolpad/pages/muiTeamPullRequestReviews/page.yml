@@ -11,7 +11,7 @@ spec:
       layout:
         columnSize: 1
       props:
-        value: Material UI - team repo stats
+        value: PR reviews by team members
     - component: Chart
       name: muiPRReviewsPerTeam
       layout:
