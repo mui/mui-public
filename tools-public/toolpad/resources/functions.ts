@@ -146,6 +146,7 @@ WHERE
   repo_id = ${repoParam} AND
   actor_login in (SELECT actor_login FROM maintainers)
   AND actor_login NOT LIKE 'oliviertassinari' AND actor_login NOT LIKE 'esp1lon' AND actor_login NOT LIKE 'mnajdova'
+  AND created_at >= '2020-01-01'
 GROUP BY 1 ORDER BY 1;
   `;
   const res = await fetch('https://api.ossinsight.io/q/playground', {
