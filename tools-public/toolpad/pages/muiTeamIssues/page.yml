@@ -63,17 +63,17 @@ spec:
       name: chart
       props:
         data:
-          - label: Benchmark repo data
-            kind: line
-            data:
-              $$jsExpression: getBenchmarkDataQuery.data
-            color: '#02B2AF'
-            xKey: event_month
-            yKey: issues_activity
           - label: MUI repo data
             kind: line
             data:
               $$jsExpression: getRepoDataQuery.data
             color: '#2E96FF'
+            xKey: event_month
+            yKey: issues_activity
+          - label: Benchmark repo data
+            kind: line
+            data:
+              $$jsExpression: getBenchmarkDataQuery.data
+            color: '#ff9800'
             xKey: event_month
             yKey: issues_activity

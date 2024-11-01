@@ -176,6 +176,7 @@ SELECT
 FROM event_months m
 LEFT JOIN issues i ON m.event_month = i.event_month
 LEFT JOIN issue_comments ic ON m.event_month = ic.event_month
+ORDER BY m.event_month ASC
   `;
   const res = await fetch('https://api.ossinsight.io/q/playground', {
     headers: {

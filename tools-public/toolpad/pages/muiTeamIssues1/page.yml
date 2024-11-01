@@ -1,9 +1,0 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/mui-toolpad/v0.6.0/docs/schemas/v1/definitions.json#properties/Page
-
-apiVersion: v1
-kind: page
-spec:
-  title: muiTeamIssues
-  display: shell
-  authorization:
-    allowAll: true
