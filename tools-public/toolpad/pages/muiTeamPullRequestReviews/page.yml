@@ -7,6 +7,11 @@ spec:
   display: shell
   content:
     - component: Text
+      name: text2
+      props:
+        value: TEAM PR REVIEWS ACITVITY
+        variant: h3
+    - component: Text
       name: text1
       props:
         value:
