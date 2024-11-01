@@ -40,18 +40,18 @@ spec:
         columnSize: 1
       props:
         data:
-          - label: Benchmark repo data
-            kind: line
-            data:
-              $$jsExpression: getBenchmarkRepoDataQuery.data
-            color: '#ff9800'
-            xKey: t_month
-            yKey: cnt
           - label: MUI repo data
             kind: line
             data:
               $$jsExpression: getRepoDataQuery.data
             color: '#2E96FF'
+            xKey: t_month
+            yKey: cnt
+          - label: Benchmark repo data
+            kind: line
+            data:
+              $$jsExpression: getBenchmarkRepoDataQuery.data
+            color: '#ff9800'
             xKey: t_month
             yKey: cnt
         sx:

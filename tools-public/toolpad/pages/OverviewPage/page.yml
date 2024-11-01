@@ -408,7 +408,7 @@ spec:
                         - component: Text
                           name: text34
                           props:
-                            value: MUI Core PR reviews per team
+                            value: Team PR reviews activit
                     - component: PageColumn
                       name: pageColumn9
                       layout:
