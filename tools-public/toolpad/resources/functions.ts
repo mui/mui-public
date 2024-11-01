@@ -146,6 +146,7 @@ issues AS (
   AND action = 'opened' 
   AND ge.repo_id = ${repoParam}
   AND ge.actor_login in (SELECT actor_login FROM maintainers)
+  AND event_month >= '2020-01-01'
   GROUP BY 1
   ORDER BY 1
 ), issue_comments AS (
@@ -158,6 +159,7 @@ issues AS (
   AND action = 'created'
   AND ge.repo_id = ${repoParam}
   AND ge.actor_login in (SELECT actor_login FROM maintainers)
+  AND event_month >= '2020-01-01'
   GROUP BY 1
   ORDER BY 1
 ), event_months AS (
