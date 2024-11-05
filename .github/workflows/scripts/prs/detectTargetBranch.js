@@ -14,7 +14,7 @@ module.exports = async ({ core, context, github }) => {
     const repo = context.repo.repo;
     const pullNumber = context.issue.number;
 
-    const pr = await github.rest.pull_request.get({
+    const pr = await github.rest.pulls.get({
       owner,
       repo,
       pull_number: pullNumber,
