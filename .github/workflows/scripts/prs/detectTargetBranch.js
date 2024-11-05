@@ -14,16 +14,16 @@ module.exports = async ({ core, context, github }) => {
     const repo = context.repo.repo;
     const pullNumber = context.issue.number;
 
-    const pr = await github.rest.pulls.get({
+    const { data: pr } = await github.rest.pulls.get({
       owner,
       repo,
       pull_number: pullNumber,
     });
 
-    core.info(`>>> PR fetched: ${pr.id}`);
+    core.info(`>>> PR fetched: ${pr.number}`);
 
     const targetLabels = pr.labels
-      .map((label) => label.name)
+      ?.map((label) => label.name)
       .filter((label) => vBranchRegex.test(label));
 
     if (targetLabels.length === 0) {
