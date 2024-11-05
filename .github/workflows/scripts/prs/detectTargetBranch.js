@@ -94,6 +94,14 @@ module.exports = async ({ core, context, github }) => {
       return;
     }
 
+    core.info(`>>> Removing the "needs cherry-pick" label from the PR`);
+    await github.rest.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: pullNumber,
+      name: 'needs cherry-pick',
+    });
+
     target = targetLabels[0];
     core.info(`>>> Setting found 'TARGET_BRANCH' output.`);
     core.setOutput('TARGET_BRANCH', target);
