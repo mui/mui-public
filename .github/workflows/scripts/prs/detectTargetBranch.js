@@ -22,10 +22,11 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> PR fetched: ${pr.number}`);
 
+    const prLabels = pr.labels.map((label) => label.name);
+
     // filter the target labels from the original PR
-    const targetLabels = pr.labels
-      .map((label) => label.name)
-      .filter((label) => vBranchRegex.test(label));
+    const targetLabels = prLabels.filter((label) => vBranchRegex.test(label));
+    const otherLabels = prLabels.filter((label) => !vBranchRegex.test(label));
 
     if (targetLabels.length === 0) {
       // there was no target branch present
@@ -49,25 +50,6 @@ module.exports = async ({ core, context, github }) => {
     const reviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
     core.info(`>>> Reviewers from original PR: ${reviewers.join(', ')}`);
 
-    // the others will be removed from the PR
-    core.info(`>>> Removing target labels from the original PR`);
-    for (const label of targetLabels) {
-      await github.rest.issues.removeLabel({
-        owner,
-        repo,
-        issue_number: pullNumber,
-        name: label,
-      });
-    }
-
-    core.info(`>>> Removing "needs cherry-pick" label from the original PR`);
-    await github.rest.issues.removeLabel({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      name: 'needs cherry-pick',
-    });
-
     core.info(`>>> Creating explanatory comment on PR`);
     await github.rest.issues.createComment({
       owner,
@@ -78,6 +60,7 @@ module.exports = async ({ core, context, github }) => {
 
     // set the target branches as output to be used as an input for the next step
     core.setOutput('TARGET_BRANCHES', targetLabels.join(','));
+    core.setOutput('LABELS', ['cherry-pick', ...otherLabels].join(','));
     core.setOutput('REVIEWERS', reviewers.join(','));
   } catch (error) {
     core.error(`>>> Workflow failed with: ${error.message}`);
