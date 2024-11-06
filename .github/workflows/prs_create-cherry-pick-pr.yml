@@ -1,4 +1,4 @@
-name: Cherry pick onto target branch
+name: Cherry pick onto target branches
 
 on:
   pull_request_target:
@@ -11,17 +11,18 @@ on:
 permissions: {}
 
 jobs:
-  detect_cherry_pick_target:
+  detect_cherry_pick_targets:
     runs-on: ubuntu-latest
-    name: Detect cherry-pick target branch
+    name: Detect cherry-pick targets
     permissions:
       issues: write
       pull-requests: write
       contents: write
     if: ${{ contains(github.event.pull_request.labels.*.name, 'needs cherry-pick') && github.event.pull_request.merged == true }}
     outputs:
-      targetBranch: ${{ steps.detect.outputs.TARGET_BRANCH }}
-      transferLabels: ${{ steps.detect.outputs.TRANSFER_LABELS }}
+      targetBranches: ${{ steps.detect.outputs.TARGET_BRANCHES }}
+      reviewers: ${{ steps.detect.outputs.REVIEWERS }}
+      labels: ${{ steps.detect.outputs.LABELS }}
     steps:
       - name: Check out mui-public repo
         id: checkout
@@ -40,12 +41,15 @@ jobs:
   open_cherry_pick_pr:
     runs-on: ubuntu-latest
     name: Open cherry-pick PR with target branch
+    if: needs.detect_cherry_pick_targets.outputs.targetBranches != ''
+    strategy:
+      matrix:
+        branch: ${{ needs.detect_cherry_pick_targets.outputs.targetBranches }}
     permissions:
       issues: write
       pull-requests: write
       contents: write
-    needs: detect_cherry_pick_target
-    if: needs.detect_cherry_pick_target.outputs.targetBranch != ''
+    needs: detect_cherry_pick_targets
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -56,8 +60,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: carloscastrojumo/github-cherry-pick-action@503773289f4a459069c832dc628826685b75b4b3 # v1.0.10
         with:
-          branch: ${{ needs.detect_cherry_pick_target.outputs.targetBranch }}
+          # the action will run for each value in matrix.branch
+          branch: ${{ matrix.branch }}
           body: 'Cherry-pick of #{old_pull_request_id}'
           cherry-pick-branch: ${{ format('cherry-pick-{0}', github.event.number) }}
           title: '{old_title} (@${{ github.event.pull_request.user.login }})'
-          labels: ${{ needs.detect_cherry_pick_target.outputs.transferLabels }}
+          # assigning the original reviewers to the new PR
+          reviewers: ${{ needs.detect_cherry_pick_targets.outputs.reviewers }}
+          # instead of inheriting labels (including target branch label, etc.), we filter and set the labels explicitly
+          inherit_labels: false
+          labels: ${{ needs.detect_cherry_pick_targets.outputs.labels }}
