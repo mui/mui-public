@@ -65,7 +65,7 @@ module.exports = async ({ core, context, github }) => {
       owner,
       repo,
       issue_number: pullNumber,
-      name: label,
+      name: 'needs cherry-pick',
     });
 
     core.info(`>>> Creating explanatory comment on PR`);
