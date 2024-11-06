@@ -26,7 +26,9 @@ module.exports = async ({ core, context, github }) => {
 
     // filter the target labels from the original PR
     const targetLabels = prLabels.filter((label) => vBranchRegex.test(label));
-    const otherLabels = prLabels.filter((label) => !vBranchRegex.test(label));
+    const otherLabels = prLabels.filter(
+      (label) => label !== 'needs cherry-pick' && !vBranchRegex.test(label),
+    );
 
     if (targetLabels.length === 0) {
       // there was no target branch present
