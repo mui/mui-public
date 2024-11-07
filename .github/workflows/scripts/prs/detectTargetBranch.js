@@ -37,7 +37,7 @@ module.exports = async ({ core, context, github }) => {
       if (vBranchRegex.test(pr.head_ref)) {
         // the branch this is coming from is a version branch, so the cherry-pick target should be master
         core.info('>>> Head Ref is a version branch, setting `master` as target');
-        core.setOutput('TARGET_BRANCHES', 'master');
+        core.setOutput('TARGET_BRANCHES', ['master']);
         return;
       }
 
@@ -61,7 +61,7 @@ module.exports = async ({ core, context, github }) => {
     });
 
     // set the target branches as output to be used as an input for the next step
-    core.setOutput('TARGET_BRANCHES', targetLabels.join(','));
+    core.setOutput('TARGET_BRANCHES', targetLabels);
     core.setOutput('LABELS', ['cherry-pick', ...otherLabels].join(','));
     core.setOutput('REVIEWERS', reviewers.join(','));
   } catch (error) {

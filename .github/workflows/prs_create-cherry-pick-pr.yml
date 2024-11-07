@@ -44,7 +44,7 @@ jobs:
     if: needs.detect_cherry_pick_targets.outputs.targetBranches != ''
     strategy:
       matrix:
-        branch: ${{ needs.detect_cherry_pick_targets.outputs.targetBranches }}
+        branch: ${{ fromJSON(needs.detect_cherry_pick_targets.outputs.targetBranches) }}
     permissions:
       issues: write
       pull-requests: write
