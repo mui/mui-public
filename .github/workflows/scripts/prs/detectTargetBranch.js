@@ -30,16 +30,15 @@ module.exports = async ({ core, context, github }) => {
       (label) => label !== 'needs cherry-pick' && !vBranchRegex.test(label),
     );
 
+    if (vBranchRegex.test(pr.head_ref)) {
+      // the branch this is coming from is a version branch, so one of the targets should be master
+      core.info('>>> Head Ref is a version branch. Adding `master` as target');
+      targetLabels.push('master');
+    }
+
     if (targetLabels.length === 0) {
       // there was no target branch present
       core.info('>>> No target label found');
-
-      if (vBranchRegex.test(pr.head_ref)) {
-        // the branch this is coming from is a version branch, so the cherry-pick target should be master
-        core.info('>>> Head Ref is a version branch, setting `master` as target');
-        core.setOutput('TARGET_BRANCHES', ['master']);
-        return;
-      }
 
       // the PR is not coming from a version branch
       core.setOutput('TARGET_BRANCHES', '');
@@ -48,8 +47,24 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> Target labels found: ${targetLabels.join(', ')}`);
 
-    // get a list of the original reviewers
-    const reviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
+    // get a list of the originally requested reviewers
+    const reuestedReviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
+
+    // get a list of the reviews done for the PR
+    const reviews = github.rest.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+
+    // extract the reviewers who approved the PR from the reviews
+    const approvingReviewers = reviews
+      .filter((review) => review.state === 'APPROVED')
+      .map((review) => review.user.login);
+
+    // merge the 2 arrays into a single array of unique reviewers
+    const reviewers = [...new Set([...reuestedReviewers, ...approvingReviewers])];
+
     core.info(`>>> Reviewers from original PR: ${reviewers.join(', ')}`);
 
     core.info(`>>> Creating explanatory comment on PR`);
