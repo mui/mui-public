@@ -26,10 +26,8 @@ body:
       description: |
         **⚠️ Issues that we can't reproduce can't be fixed.**
       value: |
-        Link to live example: (required)
-
         Steps:
-        1.
+        1. Open this link to live example: (required)
         2.
         3.
   - type: textarea
