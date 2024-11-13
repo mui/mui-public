@@ -30,6 +30,12 @@ module.exports = async ({ core, context, github }) => {
       (label) => label !== 'needs cherry-pick' && !vBranchRegex.test(label),
     );
 
+    if (vBranchRegex.test(pr.head_ref)) {
+      // the branch this is coming from is a version branch, so one of the targets should be master
+      core.info('>>> Head Ref is a version branch. Adding `master` as target');
+      targetLabels.push('master');
+    }
+
     if (targetLabels.length === 0) {
       // there was no target branch present
       core.info('>>> No target label found');
@@ -37,12 +43,6 @@ module.exports = async ({ core, context, github }) => {
       // the PR is not coming from a version branch
       core.setOutput('TARGET_BRANCHES', '');
       return;
-    }
-
-    if (vBranchRegex.test(pr.head_ref)) {
-      // the branch this is coming from is a version branch, so the cherry-pick target should be master
-      core.info('>>> Head Ref is a version branch. Adding `master` as target');
-      targetLabels.push('master');
     }
 
     core.info(`>>> Target labels found: ${targetLabels.join(', ')}`);
