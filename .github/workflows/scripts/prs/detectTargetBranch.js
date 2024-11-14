@@ -51,16 +51,16 @@ module.exports = async ({ core, context, github }) => {
     const reuestedReviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
 
     // get a list of the reviews done for the PR
-    const reviews = github.rest.pulls.listReviews({
+    const { data: reviews } = github.rest.pulls.listReviews({
       owner,
       repo,
       pull_number: pullNumber,
     });
 
     // extract the reviewers who approved the PR from the reviews
-    const approvingReviewers = reviews
-      .filter((review) => review.state === 'APPROVED')
-      .map((review) => review.user.login);
+    const approvingReviewers =
+      reviews?.filter((review) => review.state === 'APPROVED').map((review) => review.user.login) ||
+      [];
 
     // merge the 2 arrays into a single array of unique reviewers
     const reviewers = [...new Set([...reuestedReviewers, ...approvingReviewers])];
