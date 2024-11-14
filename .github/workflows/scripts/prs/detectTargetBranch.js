@@ -51,7 +51,7 @@ module.exports = async ({ core, context, github }) => {
     const reuestedReviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
 
     // get a list of the reviews done for the PR
-    const reviews = github.rest.pulls.listReviews({
+    const { data: reviews } = github.rest.pulls.listReviews({
       owner,
       repo,
       pull_number: pullNumber,
