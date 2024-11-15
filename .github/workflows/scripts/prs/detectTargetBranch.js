@@ -30,7 +30,7 @@ module.exports = async ({ core, context, github }) => {
       (label) => label !== 'needs cherry-pick' && !vBranchRegex.test(label),
     );
 
-    if (vBranchRegex.test(pr.head_ref)) {
+    if (vBranchRegex.test(pr.head_ref) || pr.head_ref === 'next') {
       // the branch this is coming from is a version branch, so one of the targets should be master
       core.info('>>> Head Ref is a version branch. Adding `master` as target');
       targetLabels.push('master');
