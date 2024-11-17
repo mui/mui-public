@@ -25,5 +25,5 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const script = require('./.github/workflows/scripts/issues/addClosingMessage.js')
-            await script({core, github, context})
+            const script = require('./.github/workflows/scripts/issues/addClosingMessage.js');
+            await script({core, github, context});
