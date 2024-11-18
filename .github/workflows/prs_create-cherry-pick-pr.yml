@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Detect cherry-pick targets
     permissions:
-      issues: write
       pull-requests: write
       contents: write
     if: ${{ contains(github.event.pull_request.labels.*.name, 'needs cherry-pick') && github.event.pull_request.merged == true }}
@@ -46,7 +45,6 @@ jobs:
       matrix:
         branch: ${{ fromJSON(needs.detect_cherry_pick_targets.outputs.targetBranches) }}
     permissions:
-      issues: write
       pull-requests: write
       contents: write
     needs: detect_cherry_pick_targets
