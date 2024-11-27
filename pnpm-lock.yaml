@@ -213,10 +213,6 @@ packages:
     resolution: {integrity: sha512-FIpuNaz5ow8VyrYcnXQTDRGvV6tTjkNtCK/RYNDXGSLlUD6cBuQTSw43CShGxjvfBTfcUA/r6UhUCbtYqkhcuQ==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helper-plugin-utils@7.24.8':
-    resolution: {integrity: sha512-FFWx5142D8h2Mgr/iPVGH5G7w6jDn4jUSpZTyDnQO0Yn7Ks2Kuz6Pci8H6MPCoUJegd/UZQ3tAvfLCxQSnWWwg==}
-    engines: {node: '>=6.9.0'}
-
   '@babel/helper-plugin-utils@7.25.9':
     resolution: {integrity: sha512-kSMlyUVdWe25rEsRGviIgOWnoT/nfABVWlqt9N19/dIPWViAOW2s9wznP5tURbs/IDuNk4gPy3YdYRgH3uxhBw==}
     engines: {node: '>=6.9.0'}
@@ -5226,8 +5222,6 @@ snapshots:
     dependencies:
       '@babel/types': 7.26.0
 
-  '@babel/helper-plugin-utils@7.24.8': {}
-
   '@babel/helper-plugin-utils@7.25.9': {}
 
   '@babel/helper-replace-supers@7.25.9(@babel/core@7.26.0)':
@@ -5272,12 +5266,12 @@ snapshots:
   '@babel/plugin-transform-react-jsx-self@7.24.7(@babel/core@7.26.0)':
     dependencies:
       '@babel/core': 7.26.0
-      '@babel/helper-plugin-utils': 7.24.8
+      '@babel/helper-plugin-utils': 7.25.9
 
   '@babel/plugin-transform-react-jsx-source@7.24.7(@babel/core@7.26.0)':
     dependencies:
       '@babel/core': 7.26.0
-      '@babel/helper-plugin-utils': 7.24.8
+      '@babel/helper-plugin-utils': 7.25.9
 
   '@babel/runtime@7.26.0':
     dependencies:
