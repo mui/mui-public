@@ -22,7 +22,7 @@ export async function queryAbout() {
       showInactive: false,
       humanReadable: 'REPLACE',
       fields: [
-        'root.fullName',
+        'root.displayName', // 'root.fullName', is the legal name, use the preferred name instead.
         'address.country',
         'address.city',
         'work.title',
@@ -59,13 +59,13 @@ export async function queryAbout() {
     .map((employee) => {
       const country = countryFix[employee.address.country] || employee.address.country;
       return {
-        name: employee.fullName,
+        name: employee.displayName,
         title: employee.work.title,
-        about: employee.about?.custom?.field_1690557141686,
-        location: `${employee.address.city} - ${country}`,
+        location: `${employee.address.city}, ${country}`,
         locationCountry: countryToISO[country],
-        twitter: employee.about?.socialData?.twitter,
-        github: employee.about?.custom?.field_1682954415714,
+        about: employee.about?.custom?.field_1690557141686,
+        twitter: employee.about?.socialData?.twitter?.replace('https://www.twitter.com/', ''),
+        github: employee.about?.custom?.field_1682954415714?.replace('https://github.com/', ''),
         // ...employee,
       };
     });

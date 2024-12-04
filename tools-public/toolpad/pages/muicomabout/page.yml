@@ -18,18 +18,25 @@ spec:
         height: 632
       props:
         rows:
-          $$jsExpression: |
-            queryAbout.rows
+          $$jsExpression: |-
+            queryAbout.rows.map((row) => ({
+              ...row,
+              twitter: row.twitter ? `https://x.com/${row.twitter}` : null,
+              github: row.github ? `https://github.com/${row.github}` : null,
+            }))
         columns:
           - field: name
             type: string
             width: 175
+            headerName: Name
           - field: title
             type: string
             width: 246
+            headerName: Title
           - field: about
             type: string
             width: 472
+            headerName: About
           - field: location
             type: string
             width: 296
