@@ -1,13 +1,13 @@
 // @ts-check
 const regexes = {
   // covers 'dataGrid' in all variants, as well as with suffixes (-pro/-premium/etc)
-  dataGrid: /\s?\[\s?(data\s?grid[-\sA-Za-z]*)]/gi,
+  dataGrid: /\s*\[\s*(data\s?grid[-\sA-Za-z]*)]/gi,
   // covers 'charts' in all variants, as well as with prefixes (PieChart, LineChart, etc)
-  charts: /\s?\[\s?([-\sA-Za-z]*charts?)]/gi,
+  charts: /\s*\[\s*([-\sA-Za-z]*charts?)]/gi,
   // covers 'pickers' in all variants, as well as with prefixes (DatePicker, time-picker, etc)
-  pickers: /\s?\[\s?([-\sA-Za-z]*pickers?)]/gi,
+  pickers: /\s*\[\s*([-\sA-Za-z]*pickers?)]/gi,
   // covers 'treeView' in all variants
-  treeView: /\s?\[\s?([-\sA-Za-z]*tree\s?(view|item))]/gi,
+  treeView: /\s*\[\s*([-\sA-Za-z]*tree\s?(view|item))]/gi,
 };
 
 const replacements = {
