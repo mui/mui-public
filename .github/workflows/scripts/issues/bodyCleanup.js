@@ -55,9 +55,13 @@ module.exports = async ({ core, context, github }) => {
     core.info(`>>> Order ID: ${orderID}`);
     core.info(`>>> Affected Products: ${products}`);
 
-    lines.push('');
-    lines.push(`**Search keywords**: ${searchKeywords}`);
+    if (searchKeywords !== '') {
+      lines.push('');
+      lines.push(`**Search keywords**: ${searchKeywords}`);
+    }
+
     if (orderID !== '') {
+      lines.push('');
       lines.push(`**Order ID**: ${orderID}`);
     }
 
@@ -80,6 +84,7 @@ module.exports = async ({ core, context, github }) => {
       owner: context.repo.owner,
       repo: context.repo.repo,
       issue_number: context.issue.number,
+      title: issue.data.title,
       body,
       labels,
     });

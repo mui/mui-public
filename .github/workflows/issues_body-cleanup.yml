@@ -27,6 +27,15 @@ jobs:
           # Check this repository out, otherwise the script won't be available,
           # as it otherwise checks out the repository where the workflow caller is located
           repository: mui/mui-public
+      - name: Clean issue title
+        # for now this only works (makes sense) for mui-x
+        if: github.event.repository.name == 'mui-x'
+        id: titleCleanup
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const script = require('./.github/workflows/scripts/issues/titleCleanup.js')
+            await script({core, github, context})
       - name: Clean issue body
         id: cleanup
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
