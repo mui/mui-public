@@ -47,6 +47,12 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> Updated title: ${result}`);
 
+    if (result === issue.data.title) {
+      core.info('>>> No changes needed. Exiting...');
+      core.notice('No changes to the issue title are necessary. This action will be skipped.');
+      return;
+    }
+
     await github.rest.issues.update({
       owner: context.repo.owner,
       repo: context.repo.repo,
