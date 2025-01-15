@@ -1,11 +1,6 @@
 name: Cherry pick onto target branches
 
 on:
-  pull_request_target:
-    branches:
-      - 'v*.x'
-      - 'master'
-    types: ['closed']
   workflow_call:
 
 permissions: {}
