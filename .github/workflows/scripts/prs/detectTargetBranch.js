@@ -1,6 +1,5 @@
 // @ts-check
 const vBranchRegex = /^v\d{1,3}\.x$/;
-const targetBranches = [];
 
 /**
  * @param {Object} params
@@ -12,7 +11,7 @@ module.exports = async ({ core, context, github }) => {
   try {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    const pullNumber = context.issue.number;
+    const pullNumber = process.env.PR_NUMBER ?? context.issue.number;
 
     const { data: pr } = await github.rest.pulls.get({
       owner,
@@ -30,25 +29,29 @@ module.exports = async ({ core, context, github }) => {
       (label) => label !== 'needs cherry-pick' && !vBranchRegex.test(label),
     );
 
-    if (vBranchRegex.test(pr.head_ref) || pr.head_ref === 'next') {
-      // the branch this is coming from is a version branch, so one of the targets should be master
-      core.info('>>> Head Ref is a version branch. Adding `master` as target');
-      targetLabels.push('master');
-    }
+    if (process.env.TARGET_BRANCH) {
+      targetLabels.push(process.env.TARGET_BRANCH);
+    } else {
+      if (vBranchRegex.test(pr.head_ref) || pr.head_ref === 'next') {
+        // the branch this is coming from is a version branch, so one of the targets should be master
+        core.info('>>> Head Ref is a version branch. Adding `master` as target');
+        targetLabels.push('master');
+      }
 
-    if (targetLabels.length === 0) {
-      // there was no target branch present
-      core.info('>>> No target label found');
+      if (targetLabels.length === 0) {
+        // there was no target branch present
+        core.info('>>> No target label found');
 
-      // the PR is not coming from a version branch
-      core.setOutput('TARGET_BRANCHES', '');
-      return;
+        // the PR is not coming from a version branch
+        core.setOutput('TARGET_BRANCHES', '');
+        return;
+      }
     }
 
     core.info(`>>> Target labels found: ${targetLabels.join(', ')}`);
 
     // get a list of the originally requested reviewers
-    const reuestedReviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
+    const requestedReviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
 
     // get a list of the reviews done for the PR
     const { data: reviews } = github.rest.pulls.listReviews({
@@ -63,7 +66,7 @@ module.exports = async ({ core, context, github }) => {
       [];
 
     // merge the 2 arrays into a single array of unique reviewers
-    const reviewers = [...new Set([...reuestedReviewers, ...approvingReviewers])];
+    const reviewers = [...new Set([...requestedReviewers, ...approvingReviewers])];
 
     core.info(`>>> Reviewers from original PR: ${reviewers.join(', ')}`);
 
