@@ -2,6 +2,15 @@ name: Cherry pick onto target branches
 
 on:
   workflow_call:
+    inputs:
+      target_branch:
+        description: 'A target branch passed from the caller workflow'
+        required: false
+        type: string
+      pr_number:
+        description: 'The PR number to cherry-pick from'
+        required: false
+        type: string
 
 permissions: {}
 
@@ -12,7 +21,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'needs cherry-pick') && github.event.pull_request.merged == true }}
+    if: ${{ (inputs.target_branch != '' && inputs.pr_number != '') || (contains(github.event.pull_request.labels.*.name, 'needs cherry-pick') && github.event.pull_request.merged == true)}}
     outputs:
       targetBranches: ${{ steps.detect.outputs.TARGET_BRANCHES }}
       reviewers: ${{ steps.detect.outputs.REVIEWERS }}
@@ -28,6 +37,9 @@ jobs:
       - name: Detect target
         id: detect
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         with:
           script: |
             const script = require('./.github/workflows/scripts/prs/detectTargetBranch.js');
