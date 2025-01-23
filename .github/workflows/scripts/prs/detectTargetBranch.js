@@ -9,9 +9,10 @@ const vBranchRegex = /^v\d{1,3}\.x$/;
  */
 module.exports = async ({ core, context, github }) => {
   try {
+    const wasTriggeredManually = process.env.PR_NUMBER !== '' && process.env.TARGET_BRANCH !== '';
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    const pullNumber = process.env.PR_NUMBER || context.issue.number;
+    const pullNumber = wasTriggeredManually ? process.env.PR_NUMBER : context.issue.number;
 
     const { data: pr } = await github.rest.pulls.get({
       owner,
@@ -29,7 +30,7 @@ module.exports = async ({ core, context, github }) => {
       (label) => label !== 'needs cherry-pick' && !vBranchRegex.test(label),
     );
 
-    if (process.env.TARGET_BRANCH) {
+    if (wasTriggeredManually) {
       targetLabels.push(process.env.TARGET_BRANCH);
     } else {
       if (vBranchRegex.test(pr.head_ref) || pr.head_ref === 'next') {
