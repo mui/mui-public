@@ -33,7 +33,7 @@ module.exports = async ({ core, context, github }) => {
     if (wasTriggeredManually) {
       targetLabels.push(process.env.TARGET_BRANCH);
     } else {
-      if (vBranchRegex.test(pr.head_ref) || pr.head_ref === 'next') {
+      if (vBranchRegex.test(pr.head.ref) || pr.head.ref === 'next') {
         // the branch this is coming from is a version branch, so one of the targets should be master
         core.info('>>> Head Ref is a version branch. Adding `master` as target');
         targetLabels.push('master');
