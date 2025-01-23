@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       target_branch:
-        description: 'A target branch passed from the caller workflow'
+        description: 'The target branch (e.g. `v7.x`)'
         required: false
         type: string
       pr_number:

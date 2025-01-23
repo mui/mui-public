@@ -1,11 +1,6 @@
 name: Check for target branch labels
 
 on:
-  pull_request_target:
-    branches:
-      - 'v*.x'
-      - 'master'
-    types: ['labeled']
   workflow_call:
 
 permissions: {}
