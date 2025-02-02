@@ -5,6 +5,14 @@ function flip(data) {
 
 const countryFix = {
   'Macedonia, the former Yugoslav Republic of': 'North Macedonia',
+  'United Kingdom': 'UK',
+  'United States': 'US',
+};
+
+const cityFix = {
+  'Greater London': 'London',
+  'New York City': 'New York',
+  'Islamabad Capital Territory': 'Islamabad',
 };
 
 export async function queryAbout() {
@@ -24,7 +32,9 @@ export async function queryAbout() {
       fields: [
         'root.displayName', // 'root.fullName', is the legal name, use the preferred name instead.
         'address.country',
+        'work.custom.field_1680187492413',
         'address.city',
+        'address.customColumns.column_1738498855264',
         'work.title',
         'work.tenureDurationYears',
         'about.custom.field_1682954415714',
@@ -52,16 +62,33 @@ export async function queryAbout() {
   const countries = await countriesRes.json();
   // Fix country label
   countries.cz = 'Czech Republic';
+  countries.us = 'US';
+  countries.gb = 'UK';
   const countryToISO = flip(countries);
 
   return data.employees
     .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
     .map((employee) => {
       const country = countryFix[employee.address.country] || employee.address.country;
+      const city = cityFix[employee.address.city] || employee.address.city;
+      const customCity = employee.address.customColumns?.column_1738498855264;
+      const teams = employee.work.custom.field_1680187492413.split(',');
+      let team = teams[0];
+      if (teams.includes('Core')) {
+        team = 'Core';
+      }
+      if (teams.includes('MUI')) {
+        team = 'MUI';
+      }
+      let location = `${customCity ?? city}, ${country}`;
+      // e.g. Hong Kong
+      if (city === country) {
+        location = city;
+      }
       return {
         name: employee.displayName,
-        title: employee.work.title,
-        location: `${employee.address.city}, ${country}`,
+        title: team === 'MUI' ? employee.work.title : `${employee.work.title} — ${team}`,
+        location,
         locationCountry: countryToISO[country],
         about: employee.about?.custom?.field_1690557141686,
         twitter: employee.about?.socialData?.twitter?.replace('https://www.twitter.com/', ''),

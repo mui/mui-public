@@ -31,7 +31,7 @@ spec:
             headerName: Name
           - field: title
             type: string
-            width: 246
+            width: 260
             headerName: Title
           - field: about
             type: string
