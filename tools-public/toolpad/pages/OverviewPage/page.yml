@@ -590,7 +590,7 @@ spec:
                           layout:
                             columnSize: 1
                           props:
-                            value: Missing gitHub label
+                            value: Missing GitHub label
                         - component: Text
                           name: text33
                           layout:
