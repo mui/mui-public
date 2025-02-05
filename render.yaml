@@ -7,7 +7,7 @@ services:
     name: mui-public-tools-public
     env: node
     rootDir: tools-public
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     plan: starter
     previews:
