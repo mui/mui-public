@@ -11,6 +11,12 @@ on:
         description: 'The PR number to cherry-pick from'
         required: false
         type: string
+    secrets:
+      token:
+        # Needed when the repository uses GitHub actions https://github.com/orgs/community/discussions/55906
+        # We usually use CircleCI but not always.
+        description: 'The github token to use for the API calls. You can use the GITHUB_TOKEN secret'
+        required: false
 
 permissions: {}
 
@@ -67,6 +73,7 @@ jobs:
         with:
           # the action will run for each value in matrix.branch
           branch: ${{ matrix.branch }}
+          token: ${{ secrets.token }}
           body: 'Cherry-pick of #{old_pull_request_id}'
           cherry-pick-branch: ${{ format('cherry-pick-{0}', github.event.number) }}
           title: '{old_title} (@${{ github.event.pull_request.user.login }})'
