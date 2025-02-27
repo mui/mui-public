@@ -13,9 +13,9 @@ const typeLabels = [
   'bug',
   'regression',
   'maintenance',
+  'dependencies',
   'enhancement',
   'new feature',
-  'dependencies',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
