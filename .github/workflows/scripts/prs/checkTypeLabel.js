@@ -67,6 +67,7 @@ module.exports = async ({ core, context, github }) => {
       issue_number: pullNumber,
       body: commentLines.join('\n\n'),
     });
+    core.setFailed('>>> Failing workflow to prevent merge without passing this!');
   } catch (error) {
     core.error(`>>> Workflow failed with: ${error.message}`);
     core.setFailed(error.message);
