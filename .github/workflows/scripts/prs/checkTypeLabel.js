@@ -9,7 +9,14 @@ const createEnumerationFromArray = (stringArray) =>
       `\`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
-const typeLabels = ['bug', 'regression', 'maintenance', 'enhancement', 'new feature'];
+const typeLabels = [
+  'bug',
+  'regression',
+  'maintenance',
+  'enhancement',
+  'new feature',
+  'dependencies',
+];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
 /**
