@@ -46,7 +46,7 @@ module.exports = async ({ core, context, github }) => {
       /\b(pro|premium|priority)\b/i.test(label.name),
     );
 
-    // Only ask for feedback if the user is not an admin or has at least write access (from a team membership)
+    // Only ask for feedback if the user is not an admin or doesn't have write access (from a team membership)
     if (!['admin', 'write'].includes(userPermission.data.permission) && isPaidSupport) {
       commentLines.push('> [!NOTE]');
       commentLines.push(
