@@ -41,7 +41,7 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> Author permission level: ${userPermission.data.permission}`);
 
-    // checks if the issue was created from a customer with commercial support (pro, premium or priority plan)
+    // checks if the issue was created by a customer with commercial support (pro, premium, or priority plan)
     const isPaidSupport = issue.labels.some((label) =>
       /\b(pro|premium|priority)\b/i.test(label.name),
     );
