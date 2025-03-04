@@ -6,11 +6,10 @@ on:
 permissions: {}
 
 jobs:
-  detect_cherry_pick_target:
+  check_type_label:
     runs-on: ubuntu-latest
     name: Check PR type labels
     permissions:
-      issues: write
       pull-requests: write
       contents: write
     if: ${{ github.event.pull_request.merged == false }}
