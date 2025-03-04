@@ -68,13 +68,16 @@ module.exports = async ({ core, context, github }) => {
       return;
     }
 
-    core.info(`>>> Creating explanatory comment on PR`);
-    await github.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      body: commentLines.join('\n\n'),
-    });
+    core.info(`>>> No type labels found.`);
+    core.info(`>>> Comment: \n"${commentLines.join('\n\n')}"`);
+    // core.info(`>>> Creating explanatory comment on PR`);
+    // await github.rest.issues.createComment({
+    //   owner,
+    //   repo,
+    //   issue_number: pullNumber,
+    //   body: commentLines.join('\n\n'),
+    // });
+
     core.setFailed('>>> Failing workflow to prevent merge without passing this!');
   } catch (error) {
     core.error(`>>> Workflow failed with: ${error.message}`);
