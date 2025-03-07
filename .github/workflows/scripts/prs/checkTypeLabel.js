@@ -10,6 +10,7 @@ const createEnumerationFromArray = (stringArray) =>
     : stringArray.map((s) => `\`${s}\``).join('');
 
 const typeLabels = [
+  'docs',
   'release',
   'bug',
   'regression',
@@ -70,13 +71,14 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> No type labels found.`);
     core.info(`>>> Comment: \n"${commentLines.join('\n\n')}"`);
-    // core.info(`>>> Creating explanatory comment on PR`);
-    // await github.rest.issues.createComment({
-    //   owner,
-    //   repo,
-    //   issue_number: pullNumber,
-    //   body: commentLines.join('\n\n'),
-    // });
+
+    core.info(`>>> Creating explanatory comment on PR`);
+    await github.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: pullNumber,
+      body: commentLines.join('\n\n'),
+    });
 
     core.setFailed('>>> Failing workflow to prevent merge without passing this!');
   } catch (error) {
