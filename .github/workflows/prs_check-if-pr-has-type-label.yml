@@ -3,15 +3,16 @@ name: Check PR for type labels
 on:
   workflow_call:
 
-permissions:
-  issues: write
-  pull-requests: write
-  contents: write
+permissions: {}
 
 jobs:
   check_type_label:
     runs-on: ubuntu-latest
     name: Check PR type labels
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
     if: ${{ github.event.pull_request.merged == false }}
     steps:
       - name: Check out mui-public repo
