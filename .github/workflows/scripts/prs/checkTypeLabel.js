@@ -82,7 +82,6 @@ module.exports = async ({ core, context, github }) => {
       commentLines.push(
         'Only one is allowed. Please remove the extra type labels to ensure the PR is categorized correctly.',
       );
-    } else if (pr.c) {
     } else {
       core.info(`>>> Single type label found: ${typeLabelsFound[0]}`);
       core.info(`>>> Exiting gracefully! 👍`);
