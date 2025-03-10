@@ -50,6 +50,25 @@ module.exports = async ({ core, context, github }) => {
     if (typeLabelsFound.length === 0) {
       core.info(`>>> No type labels found`);
 
+      const { data: prComments } = await github.rest.issues.listComments({
+        owner,
+        repo,
+        pull_number: pullNumber,
+        per_page: 100,
+      });
+
+      const commentFound = prComments?.some((c) =>
+        c.body.includes(
+          'Please add one type label to categorize the purpose of this PR appropriately:',
+        ),
+      );
+
+      if (commentFound) {
+        core.info(`>>> PR already has the type label comment.`);
+        core.info(`>>> Exiting gracefully! 👍`);
+        return;
+      }
+
       // Add a comment line explaining that a type label needs to be added
       commentLines.push(
         'Please add one type label to categorize the purpose of this PR appropriately:',
