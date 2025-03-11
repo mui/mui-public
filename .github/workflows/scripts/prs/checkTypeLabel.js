@@ -89,7 +89,7 @@ module.exports = async ({ core, context, github }) => {
         await github.rest.issues.updateComment({
           owner,
           repo,
-          issue_number: pullNumber,
+          comment_id: commentFound.id,
           body: 'Thanks for adding a type label to the PR! 👍',
         });
         return;
