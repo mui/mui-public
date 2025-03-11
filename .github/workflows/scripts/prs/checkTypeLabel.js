@@ -45,23 +45,23 @@ module.exports = async ({ core, context, github }) => {
       ?.map((label) => label.name)
       .filter((labelName) => labelRegex.test(labelName));
 
+    const { data: prComments } = await github.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: pullNumber,
+      per_page: 100,
+    });
+
+    const commentFound = prComments?.find((c) =>
+      c.body.includes(
+        'Please add one type label to categorize the purpose of this PR appropriately:',
+      ),
+    );
+
     const commentLines = [];
 
     if (typeLabelsFound.length === 0) {
       core.info(`>>> No type labels found`);
-
-      const { data: prComments } = await github.rest.issues.listComments({
-        owner,
-        repo,
-        pull_number: pullNumber,
-        per_page: 100,
-      });
-
-      const commentFound = prComments?.some((c) =>
-        c.body.includes(
-          'Please add one type label to categorize the purpose of this PR appropriately:',
-        ),
-      );
 
       if (commentFound) {
         core.info(`>>> PR already has the type label comment.`);
@@ -83,6 +83,18 @@ module.exports = async ({ core, context, github }) => {
         'Only one is allowed. Please remove the extra type labels to ensure the PR is categorized correctly.',
       );
     } else {
+      if (commentFound) {
+        core.info(`>>> PR already has the type label comment.`);
+        core.info(`>>> Trying to update the comment with id: ${commentFound.id}`);
+        await github.rest.issues.updateComment({
+          owner,
+          repo,
+          issue_number: pullNumber,
+          body: 'Thanks for adding a type label to the PR! 👍',
+        });
+        return;
+      }
+
       core.info(`>>> Single type label found: ${typeLabelsFound[0]}`);
       core.info(`>>> Exiting gracefully! 👍`);
       return;
