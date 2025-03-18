@@ -58,6 +58,10 @@ module.exports = async ({ core, context, github }) => {
       ),
     );
 
+    const multipleCommentFound = prComments?.find((c) =>
+      c.body.includes('Multiple type labels found: '),
+    );
+
     const commentLines = [];
 
     if (typeLabelsFound.length === 0) {
@@ -76,6 +80,12 @@ module.exports = async ({ core, context, github }) => {
       commentLines.push(createEnumerationFromArray(typeLabels));
     } else if (typeLabelsFound.length > 1) {
       core.info(`>>> Multiple type labels found: ${typeLabelsFound.join(', ')}`);
+
+      if (multipleCommentFound) {
+        core.info(`>>> PR already has the multiple type label comment.`);
+        core.info(`>>> Exiting gracefully! 👍`);
+        return;
+      }
 
       // add a comment line explaining that only one type label is allowed
       commentLines.push(`Multiple type labels found: ${typeLabelsFound.join(', ')}`);
