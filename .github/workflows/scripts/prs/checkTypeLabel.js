@@ -22,7 +22,7 @@ const typeLabels = [
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
 function containsAny(str, substrings) {
-  return substrings.some((sub) => str?.includes(sub));
+  return str ? substrings.some((sub) => str?.includes(sub)) : false;
 }
 
 const COMMENT_STARTS = [
