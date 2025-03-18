@@ -10,7 +10,6 @@ const createEnumerationFromArray = (stringArray) =>
     : stringArray.map((s) => `\`${s}\``).join('');
 
 const typeLabels = [
-  'docs',
   'release',
   'bug',
   'regression',
