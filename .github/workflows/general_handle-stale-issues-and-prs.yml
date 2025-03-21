@@ -16,8 +16,8 @@ jobs:
           operations-per-run: 50
 
           # stale issue handling
-          stale-issue-message: 'This issue is stale because it has been open 7 days with no activity. Remove stale label or comment or this will be closed in another 5 days.'
-          close-issue-message: 'This issue was closed because it has been stalled for 5 days with no activity.'
+          stale-issue-message: 'This issue has been inactive for 7 days. Please remove the stale label or leave a comment to keep it open. Otherwise, it will be closed in 5 days.'
+          close-issue-message: 'This issue has been closed due to 5 days of inactivity after being marked stale.'
           # labeling "stale" after 7 days and closing after additional 5 days
           days-before-issue-stale: 7
           days-before-issue-close: 5
@@ -25,8 +25,8 @@ jobs:
           only-issue-labels: 'status: waiting for maintainer'
 
           # stale PR handling
-          stale-pr-message: 'This PR is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 15 days.'
-          close-pr-message: 'This PR was closed because it has been stalled for 15 days with no activity.'
+          stale-pr-message: 'This pull request has been inactive for 30 days. Please remove the stale label or leave a comment to keep it open. Otherwise, it will be closed in 15 days.'
+          close-pr-message: 'This pull request has been closed due to 15 days of inactivity after being marked stale.'
           # labeling "stale" after 30 days and closing after additional 15 days
           days-before-pr-stale: 30
           days-before-pr-close: 15
