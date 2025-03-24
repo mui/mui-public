@@ -73,7 +73,7 @@ jobs:
           branch: ${{ matrix.branch }}
           token: ${{ secrets.token || secrets.GITHUB_TOKEN }}
           body: 'Cherry-pick of #{old_pull_request_id}'
-          cherry-pick-branch: ${{ format('cherry-pick-{0}', github.event.number) }}
+          cherry-pick-branch: ${{ format('cherry-pick-{0}-to-{1}', github.event.number, matrix.branch) }}
           title: '{old_title} (@${{ github.event.pull_request.user.login }})'
           # assigning the original reviewers to the new PR
           reviewers: ${{ needs.detect_cherry_pick_targets.outputs.reviewers }}
