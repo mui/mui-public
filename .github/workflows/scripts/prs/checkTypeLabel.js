@@ -74,7 +74,7 @@ const createCommentHandler =
     }
 
     // only create a new comment if it's not the success comment
-    if (commentLines[0] !== COMMENT_FIRST_LINE.SUCCESS_COMMENT) {
+    if (commentLines[0] === COMMENT_FIRST_LINE.SUCCESS_COMMENT) {
       core.info(`>>> No need for a comment!`);
       core.info(`>>> Exiting gracefully! 👍`);
       return;
