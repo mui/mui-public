@@ -1,6 +1,12 @@
 name: 'Close stale issues and PRs'
 on:
   workflow_call:
+    inputs:
+      operations:
+        description: 'The number of operations to use (should not exceed 500)'
+        default: 50
+        required: false
+        type: number
 
 jobs:
   stale:
@@ -13,7 +19,7 @@ jobs:
     steps:
       - uses: actions/stale@v9
         with:
-          operations-per-run: 50
+          operations-per-run: ${{ inputs.operations }}
 
           # stale issue handling
           stale-issue-message: 'This issue has been inactive for 7 days. Please remove the stale label or leave a comment to keep it open. Otherwise, it will be closed in 5 days.'
@@ -21,8 +27,8 @@ jobs:
           # labeling "stale" after 7 days and closing after additional 5 days
           days-before-issue-stale: 7
           days-before-issue-close: 5
-          # only run on issues with the waiting for maintainer label
-          only-issue-labels: 'status: waiting for maintainer'
+          # only run on issues with the waiting for author label
+          only-issue-labels: 'status: waiting for author'
 
           # stale PR handling
           stale-pr-message: 'This pull request has been inactive for 30 days. Please remove the stale label or leave a comment to keep it open. Otherwise, it will be closed in 15 days.'
