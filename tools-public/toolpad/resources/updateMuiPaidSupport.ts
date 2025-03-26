@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { sheets } from '@googleapis/sheets';
 import { JWT } from 'google-auth-library';
 import { Octokit } from '@octokit/core';
+import { queryStoreDatabase } from './queryStoreDatabase';
 
 function findRowIndexByValue(sheet, value) {
   for (let i = 0; i < sheet.length; i += 1) {
@@ -11,6 +12,17 @@ function findRowIndexByValue(sheet, value) {
     }
   }
   return -1;
+}
+
+async function queryPurchasedSupportKey(supportKey: string) {
+  return queryStoreDatabase(async (connection) => {
+    const [result] = await connection.execute(
+      'select count(*) from wp3u_x_addons where license_key = ? and expire_at > now()',
+      [supportKey],
+    );
+
+    return result[0] >= 1;
+  }).catch(() => false);
 }
 
 async function updateGitHubIssueLabels(repo, issueId) {
@@ -88,6 +100,11 @@ export async function updateMuiPaidSupport(issueId: string, repo: string, suppor
     return {
       message: 'Missing repo',
     };
+  }
+
+  const isPurchasedSupportKey = await queryPurchasedSupportKey(supportKey);
+  if (isPurchasedSupportKey) {
+    return updateGitHubIssueLabels(repo, issueId);
   }
 
   const googleAuth = new JWT({
