@@ -1,0 +1,27 @@
+name: Check issue status label
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  add-comment:
+    runs-on: ubuntu-latest
+    name: Check author permission and status labels
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out mui-public repo
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          # Check this repository out, otherwise the script won't be available,
+          # as it otherwise checks out the repository where the workflow caller is located
+          repository: mui/mui-public
+      - name: label check
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const script = require('./.github/workflows/scripts/issues/statusLabelHandler.js');
+            await script({core, github, context});
