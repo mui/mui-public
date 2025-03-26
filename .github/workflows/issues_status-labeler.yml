@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Check author permission and status labels
     permissions:
+      contents: read
       issues: write
     steps:
       - name: Check out mui-public repo
