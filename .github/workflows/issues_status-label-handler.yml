@@ -9,6 +9,7 @@ jobs:
   add-comment:
     runs-on: ubuntu-latest
     name: Check author permission and status labels
+    if: ${{ !github.event.issue.pull_request }}
     permissions:
       contents: read
       issues: write
