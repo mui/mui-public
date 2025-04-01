@@ -38,6 +38,7 @@ module.exports = async ({ core, context, github }) => {
       return;
     }
 
+    // if we are not waiting for author feedback, we can exit
     if (!labels.includes(authorLabel)) {
       core.info(`>>> '${authorLabel}' label not present. Exiting.`);
       return;
