@@ -25,10 +25,9 @@ module.exports = async ({ core, context, github }) => {
     const issueAuthor = issue.data.user.login;
     core.info(`>>> Issue author: ${issueAuthor}`);
 
+    // there is no comment when the issue gets closed, so we just assign null and continue with the action
     const commentAuthor =
-      context.payload.comment && context.payload.comment.user
-        ? context.payload.comment.user.login
-        : '';
+      context.payload.action === 'closed' ? context.payload.comment.user.login : null;
     core.info(`>>> Comment author: ${commentAuthor}`);
 
     // return early if the author of the comment is not the same as the author of the issue
