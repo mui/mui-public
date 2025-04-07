@@ -22,7 +22,7 @@ module.exports = async ({ core, context, github }) => {
 
     core.debug(`>>> Issue data: ${JSON.stringify(issue.data)}`);
 
-    const issueAuthor = issue.data.user.login;
+    const issueAuthor = issue.data.user?.login;
     core.info(`>>> Issue author: ${issueAuthor}`);
 
     // there is no comment when the issue gets closed, so we just assign null and continue with the action
