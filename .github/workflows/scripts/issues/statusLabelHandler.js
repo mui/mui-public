@@ -12,14 +12,24 @@ module.exports = async ({ core, context, github }) => {
     const repo = context.repo.repo;
     const issueNumber = context.issue.number;
 
+    core.debug(`>>> Context: ${JSON.stringify(context)}`);
+
     const issue = await github.rest.issues.get({
       owner,
       repo,
       issue_number: issueNumber,
     });
 
+    core.debug(`>>> Issue data: ${JSON.stringify(issue.data)}`);
+
     const issueAuthor = issue.data.user.login;
-    const commentAuthor = context.payload.comment.user.login;
+    core.info(`>>> Issue author: ${issueAuthor}`);
+
+    const commentAuthor =
+      context.payload.comment && context.payload.comment.user
+        ? context.payload.comment.user.login
+        : '';
+    core.info(`>>> Comment author: ${commentAuthor}`);
 
     // return early if the author of the comment is not the same as the author of the issue
     if (issueAuthor !== commentAuthor) {
@@ -28,6 +38,7 @@ module.exports = async ({ core, context, github }) => {
     }
 
     const labels = issue.data.labels.map((label) => label.name);
+    core.debug(`>>> Issue labels: ${JSON.stringify(labels)}`);
 
     const maintainerLabel = 'status: waiting for maintainer';
     const authorLabel = 'status: waiting for author';
@@ -48,9 +59,13 @@ module.exports = async ({ core, context, github }) => {
     const purgedLabels = labels.filter(
       (label) => label !== maintainerLabel && label !== authorLabel,
     );
+    core.debug(`>>> Purged labels: ${JSON.stringify(purgedLabels)}`);
+
     // check if the issue is closed or gets closed with this event
     const issueIsOrGetsClosed =
       context.payload.action === 'closed' || issue.data.state === 'closed';
+    core.info(`>>> Issue is or gets closed: ${issueIsOrGetsClosed}`);
+
     // add maintainerLabel when issue is not/won't be closed
     const labelsForUpdate = issueIsOrGetsClosed ? purgedLabels : [...purgedLabels, maintainerLabel];
 
