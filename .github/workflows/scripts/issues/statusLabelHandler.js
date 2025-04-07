@@ -58,7 +58,7 @@ module.exports = async ({ core, context, github }) => {
     const purgedLabels = labels.filter(
       (label) => label !== maintainerLabel && label !== authorLabel,
     );
-    core.debug(`>>> Purged labels: ${JSON.stringify(purgedLabels)}`);
+    core.info(`>>> Purged labels: ${JSON.stringify(purgedLabels)}`);
 
     // check if the issue is closed or gets closed with this event
     const issueIsOrGetsClosed =
