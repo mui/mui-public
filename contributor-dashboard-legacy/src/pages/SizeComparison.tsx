@@ -28,92 +28,186 @@ async function fetchSnapshot(url: string): Promise<SizeSnapshot> {
   return response.json();
 }
 
-function useSizeSnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }) {
-  const downloadUrl = `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(circleCIBuildNumber)}`;
-
+/**
+ * Generic hook to fetch size snapshots from any URL
+ */
+function useSizeSnapshotFromUrl(url: string) {
   return useQuery({
-    queryKey: [downloadUrl],
-    queryFn: () => fetchSnapshot(downloadUrl),
-  });
-}
-
-function useS3SizeSnapshot(ref: string, commitId: string) {
-  const downloadUrl = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
-
-  return useQuery({
-    queryKey: [downloadUrl],
-    queryFn: () => fetchSnapshot(downloadUrl),
+    queryKey: [url],
+    queryFn: () => fetchSnapshot(url),
   });
 }
 
 /**
- * Generates a user-readable string from a percentage change
- * @param change
- * @param goodEmoji emoji on reduction
- * @param badEmoji emoji on increase
+ * Hook to fetch size snapshots from CircleCI artifacts
  */
-function addPercent(
-  change: number,
-  goodEmoji: string = '',
-  badEmoji: string = ':small_red_triangle:',
-): string {
-  const formatted = (change * 100).toFixed(2);
-  if (/^-|^0(?:\.0+)$/.test(formatted)) {
-    return `${formatted}% ${goodEmoji}`;
-  }
-  return `+${formatted}% ${badEmoji}`;
+function useCircleCISnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }) {
+  return useSizeSnapshotFromUrl(
+    `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(circleCIBuildNumber)}`,
+  );
 }
 
-function formatDiff(absoluteChange: number, relativeChange: number): string {
+/**
+ * Hook to fetch size snapshots from S3
+ */
+function useS3SizeSnapshot(ref: string, commitId: string) {
+  return useSizeSnapshotFromUrl(
+    `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`,
+  );
+}
+
+// Formatter specifically for display in the UI with proper percentage formatting
+const displayPercentFormatter = new Intl.NumberFormat('en-US', {
+  style: 'percent',
+  signDisplay: 'exceptZero',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  useGrouping: true,
+});
+
+// Helper function that uses SizeChangeDisplay component to render diffs
+function renderDiff(absoluteChange: number, relativeChange: number) {
   if (absoluteChange === 0) {
     return '--';
   }
 
-  const trendIcon = absoluteChange < 0 ? '▼' : '▲';
+  // Determine if this is a special bundle (new or removed)
+  let specialLabel: 'new' | 'removed' | undefined;
 
-  return `${trendIcon} ${prettyBytes(absoluteChange, {
-    signed: true,
-  })} (${addPercent(relativeChange, '', '')})`;
+  if (relativeChange === Infinity) {
+    specialLabel = 'new';
+  } else if (relativeChange === -Infinity) {
+    specialLabel = 'removed';
+  }
+
+  // Return using our new component for consistency
+  return (
+    <SizeChangeDisplay
+      absoluteChange={absoluteChange}
+      relativeChange={Number.isFinite(relativeChange) ? relativeChange : undefined}
+      specialLabel={specialLabel}
+    />
+  );
+}
+
+/**
+ * Reusable component for displaying size changes with colored arrows
+ */
+function SizeChangeDisplay({
+  absoluteChange,
+  relativeChange,
+  specialLabel,
+}: {
+  absoluteChange: number;
+  relativeChange?: number;
+  specialLabel?: 'new' | 'removed';
+}): React.ReactElement | null {
+  if (absoluteChange === 0) {
+    return <React.Fragment>No change</React.Fragment>;
+  }
+
+  const isDecrease = absoluteChange < 0;
+  const formattedSize = prettyBytes(Math.abs(absoluteChange));
+
+  // Determine arrow color based on change type
+  let arrowColor;
+  let arrowIcon;
+
+  if (specialLabel === 'new') {
+    arrowIcon = '▲';
+    arrowColor = 'warning.main'; // Orange for new
+  } else if (specialLabel === 'removed') {
+    arrowIcon = '▼';
+    arrowColor = 'info.main'; // Blue for removed
+  } else {
+    arrowIcon = isDecrease ? '▼' : '▲';
+    arrowColor = isDecrease ? 'success.main' : 'error.main';
+  }
+
+  return (
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
+      <Box component="span" sx={{ color: arrowColor, mr: 0.5, fontWeight: 'bold' }}>
+        {arrowIcon}
+      </Box>
+      <Box component="span">
+        {isDecrease ? '-' : '+'}
+        {formattedSize}
+
+        {/* Render the special label or percentage in a less pronounced style */}
+        {specialLabel && (
+          <Box component="span" sx={{ ml: 0.5, fontSize: '0.85em', color: 'text.secondary' }}>
+            ({specialLabel})
+          </Box>
+        )}
+
+        {!specialLabel && relativeChange !== undefined && (
+          <Box component="span" sx={{ ml: 0.5, fontSize: '0.85em', color: 'text.secondary' }}>
+            ({displayPercentFormatter.format(relativeChange)})
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
 }
 
 const BundleCell = styled(TableCell)`
   max-width: 40ch;
 `;
 
-const CompareTable = React.memo(function CompareTable({
-  entries,
-  getBundleLabel,
-  renderBundleLabel = getBundleLabel,
-}: {
-  entries: [string, Size][];
-  getBundleLabel: (bundleId: string) => string;
-  renderBundleLabel?: (bundleId: string) => string;
-}) {
+const CompareTable = React.memo(function CompareTable({ entries }: { entries: [string, Size][] }) {
   const rows = React.useMemo(() => {
     return (
       entries
         .map(([bundleId, size]): [string, Size & { id: string }] => [
-          getBundleLabel(bundleId),
+          bundleId,
           { ...size, id: bundleId },
         ])
-        // orderBy(|parsedDiff| DESC, |gzipDiff| DESC, name ASC)
+        // Custom sorting:
+        // 1. Existing bundles that increased in size (larger increases first)
+        // 2. New bundles (larger sizes first)
+        // 3. Existing bundles that decreased in size (larger decreases first)
+        // 4. Removed bundles (larger sizes first)
+        // 5. Unchanged bundles (alphabetically)
         .sort(([labelA, statsA], [labelB, statsB]) => {
-          const compareParsedDiff =
-            Math.abs(statsB.parsed.absoluteDiff) - Math.abs(statsA.parsed.absoluteDiff);
-          const compareGzipDiff =
-            Math.abs(statsB.gzip.absoluteDiff) - Math.abs(statsA.gzip.absoluteDiff);
-          const compareName = labelA.localeCompare(labelB);
+          // Helper function to determine bundle category (for sorting)
+          const getCategory = (stats: Size): number => {
+            if (stats.parsed.relativeDiff === Infinity) {
+              return 2; // New bundle
+            }
+            if (stats.parsed.relativeDiff === -Infinity) {
+              return 4; // Removed bundle
+            }
+            if (stats.parsed.relativeDiff > 0) {
+              return 1; // Increased
+            }
+            if (stats.parsed.relativeDiff < 0) {
+              return 3; // Decreased
+            }
+            return 5; // Unchanged
+          };
 
-          if (compareParsedDiff === 0 && compareGzipDiff === 0) {
-            return compareName;
+          // Get categories for both bundles
+          const categoryA = getCategory(statsA);
+          const categoryB = getCategory(statsB);
+
+          // Sort by category first
+          if (categoryA !== categoryB) {
+            return categoryA - categoryB;
           }
-          if (compareParsedDiff === 0) {
-            return compareGzipDiff;
+
+          // Within the same category, sort by absolute diff (largest first)
+          const diffA = Math.abs(statsA.parsed.absoluteDiff);
+          const diffB = Math.abs(statsB.parsed.absoluteDiff);
+
+          if (diffA !== diffB) {
+            return diffB - diffA;
           }
-          return compareParsedDiff;
+
+          // If diffs are the same, sort by name
+          return labelA.localeCompare(labelB);
         })
     );
-  }, [entries, getBundleLabel]);
+  }, [entries]);
 
   return (
     <Table>
@@ -130,13 +224,13 @@ const CompareTable = React.memo(function CompareTable({
         {rows.map(([label, { parsed, gzip, id }]) => {
           return (
             <TableRow key={label}>
-              <BundleCell>{renderBundleLabel(id)}</BundleCell>
+              <BundleCell>{id}</BundleCell>
               <TableCell align="right">
-                {formatDiff(parsed.absoluteDiff, parsed.relativeDiff)}
+                {renderDiff(parsed.absoluteDiff, parsed.relativeDiff)}
               </TableCell>
               <TableCell align="right">{prettyBytes(parsed.current)}</TableCell>
               <TableCell align="right">
-                {formatDiff(gzip.absoluteDiff, gzip.relativeDiff)}
+                {renderDiff(gzip.absoluteDiff, gzip.relativeDiff)}
               </TableCell>
               <TableCell align="right">{prettyBytes(gzip.current)}</TableCell>
             </TableRow>
@@ -146,40 +240,6 @@ const CompareTable = React.memo(function CompareTable({
     </Table>
   );
 });
-
-function getMainBundleLabel(bundleId: string): string {
-  if (bundleId === 'packages/material-ui/build/umd/material-ui.production.min.js') {
-    return '@mui/material[umd]';
-  }
-  if (bundleId === '@mui/material/Textarea') {
-    return 'TextareaAutosize';
-  }
-  if (bundleId === 'docs.main') {
-    return 'docs:/_app';
-  }
-  if (bundleId === 'docs.landing') {
-    return 'docs:/';
-  }
-  // eslint-disable-next-line no-console
-  console.log(bundleId);
-  return (
-    bundleId
-      // package renames
-      .replace(/^@material-ui\/core$/, '@mui/material')
-      .replace(/^@material-ui\/core.legacy$/, '@mui/material.legacy')
-      .replace(/^@material-ui\/icons$/, '@mui/material-icons')
-      .replace(/^@material-ui\/unstyled$/, '@mui/core')
-      // org rename
-      .replace(/^@material-ui\/([\w-]+)$/, '@mui/$1')
-      // path renames
-      .replace(
-        /^packages\/material-ui\/material-ui\.production\.min\.js$/,
-        'packages/mui-material/material-ui.production.min.js',
-      )
-      .replace(/^@material-ui\/core\//, '')
-      .replace(/\.esm$/, '')
-  );
-}
 
 interface Size {
   parsed: {
@@ -197,36 +257,110 @@ interface Size {
 }
 
 const nullSnapshot = { parsed: 0, gzip: 0 };
-function Comparison({
-  baseRef,
-  baseCommit,
-  circleCIBuildNumber,
+// Pure presentational component that just renders the table
+function ComparisonTable({
+  entries,
+  isLoading,
 }: {
-  baseRef: string;
-  baseCommit: string;
-  circleCIBuildNumber: number;
+  entries: [string, Size][];
+  isLoading: boolean;
 }) {
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
+        <CircularProgress size={16} />
+        <Typography>Loading size comparison data...</Typography>
+      </Box>
+    );
+  }
+
+  return <CompareTable entries={entries} />;
+}
+
+// Hook that handles data fetching and processing
+function useSizeComparisonData(baseRef: string, baseCommit: string, circleCIBuildNumber: number) {
   const { data: baseSnapshot, isLoading: isBaseLoading } = useS3SizeSnapshot(baseRef, baseCommit);
-  const { data: targetSnapshot, isLoading: isTargetLoading } = useSizeSnapshot({
+  const { data: targetSnapshot, isLoading: isTargetLoading } = useCircleCISnapshot({
     circleCIBuildNumber,
   });
 
-  // Always define the useMemo hook, even when data is loading
-  // This ensures the hook order remains stable between renders
-  const { main: mainResults } = React.useMemo(() => {
+  // Process data to get bundle comparisons and totals
+  const { entries, totals, fileCounts } = React.useMemo(() => {
     if (!baseSnapshot || !targetSnapshot) {
-      return { main: [] };
+      return {
+        entries: [],
+        totals: {
+          totalParsed: 0,
+          totalGzip: 0,
+          totalParsedPercent: 0,
+          totalGzipPercent: 0,
+        },
+        fileCounts: {
+          added: 0,
+          removed: 0,
+          changed: 0,
+          total: 0,
+        },
+      };
     }
 
     const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
+    const results: [string, Size][] = [];
 
-    const main: [string, Size][] = [];
+    // Track totals
+    let totalParsed = 0;
+    let totalGzip = 0;
+    let totalParsedPrevious = 0;
+    let totalGzipPrevious = 0;
+
+    // Track file counts
+    let addedFiles = 0;
+    let removedFiles = 0;
+    let changedFiles = 0;
+
     bundleKeys.forEach((bundle) => {
-      // current vs previous based off: https://github.com/mui/material-ui/blob/f1246e829f9c0fc9458ce951451f43c2f166c7d1/scripts/sizeSnapshot/loadComparison.js#L32
-      // if a bundle was added the change should be +inf
-      // if a bundle was removed the change should be -100%
+      const isNewBundle = !baseSnapshot[bundle];
+      const isRemovedBundle = !targetSnapshot[bundle];
       const currentSize = targetSnapshot[bundle] || nullSnapshot;
       const previousSize = baseSnapshot[bundle] || nullSnapshot;
+
+      // Update file counts
+      if (isNewBundle) {
+        addedFiles++;
+      } else if (isRemovedBundle) {
+        removedFiles++;
+      } else if (
+        currentSize.parsed !== previousSize.parsed ||
+        currentSize.gzip !== previousSize.gzip
+      ) {
+        changedFiles++;
+      }
+
+      const parsedDiff = currentSize.parsed - previousSize.parsed;
+      const gzipDiff = currentSize.gzip - previousSize.gzip;
+
+      // Calculate relative diffs with appropriate handling of new/removed bundles
+      let parsedRelativeDiff: number;
+      if (isNewBundle) {
+        parsedRelativeDiff = Infinity;
+      } else if (isRemovedBundle) {
+        parsedRelativeDiff = -Infinity;
+      } else if (previousSize.parsed) {
+        parsedRelativeDiff = currentSize.parsed / previousSize.parsed - 1;
+      } else {
+        parsedRelativeDiff = 0;
+      }
+
+      let gzipRelativeDiff: number;
+      if (isNewBundle) {
+        gzipRelativeDiff = Infinity;
+      } else if (isRemovedBundle) {
+        gzipRelativeDiff = -Infinity;
+      } else if (previousSize.gzip) {
+        gzipRelativeDiff = currentSize.gzip / previousSize.gzip - 1;
+      } else {
+        gzipRelativeDiff = 0;
+      }
 
       const entry: [string, Size] = [
         bundle,
@@ -234,47 +368,125 @@ function Comparison({
           parsed: {
             previous: previousSize.parsed,
             current: currentSize.parsed,
-            absoluteDiff: currentSize.parsed - previousSize.parsed,
-            relativeDiff: currentSize.parsed / previousSize.parsed - 1,
+            absoluteDiff: parsedDiff,
+            relativeDiff: parsedRelativeDiff,
           },
           gzip: {
             previous: previousSize.gzip,
             current: currentSize.gzip,
-            absoluteDiff: currentSize.gzip - previousSize.gzip,
-            relativeDiff: currentSize.gzip / previousSize.gzip - 1,
+            absoluteDiff: gzipDiff,
+            relativeDiff: gzipRelativeDiff,
           },
         },
       ];
 
-      main.push(entry);
+      results.push(entry);
+
+      // Update totals
+      totalParsed += parsedDiff;
+      totalGzip += gzipDiff;
+      totalParsedPrevious += previousSize.parsed;
+      totalGzipPrevious += previousSize.gzip;
     });
 
-    return { main };
+    // Calculate percentage changes
+    const totalParsedPercent = totalParsedPrevious > 0 ? totalParsed / totalParsedPrevious : 0;
+    const totalGzipPercent = totalGzipPrevious > 0 ? totalGzip / totalGzipPrevious : 0;
+
+    return {
+      entries: results,
+      totals: {
+        totalParsed,
+        totalGzip,
+        totalParsedPercent,
+        totalGzipPercent,
+      },
+      fileCounts: {
+        added: addedFiles,
+        removed: removedFiles,
+        changed: changedFiles,
+        total: bundleKeys.length,
+      },
+    };
   }, [baseSnapshot, targetSnapshot]);
 
-  const isLoading = isBaseLoading || isTargetLoading;
+  return {
+    entries,
+    totals,
+    fileCounts,
+    isLoading: isBaseLoading || isTargetLoading,
+  };
+}
 
-  // Show a loading state if either query is still loading
-  if (isLoading || !baseSnapshot || !targetSnapshot) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Modules
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
-          <CircularProgress size={24} />
-          <Typography>Loading size comparison data...</Typography>
-        </Box>
-      </Paper>
-    );
-  }
+// Main comparison component that renders both the header and the table
+function Comparison({
+  baseRef,
+  baseCommit,
+  circleCIBuildNumber,
+  prNumber,
+}: {
+  baseRef: string;
+  baseCommit: string;
+  circleCIBuildNumber: number;
+  prNumber: number;
+}) {
+  const { entries, totals, fileCounts, isLoading } = useSizeComparisonData(
+    baseRef,
+    baseCommit,
+    circleCIBuildNumber,
+  );
 
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" component="h2" gutterBottom>
-        Modules
-      </Typography>
-      <CompareTable entries={mainResults} getBundleLabel={getMainBundleLabel} />
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" component="h2" gutterBottom>
+          Bundle Size Comparison for PR{' '}
+          <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`} target="_blank">
+            #{prNumber}
+          </Link>
+        </Typography>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Comparing size changes between {baseRef} ({baseCommit.substring(0, 7)}) and the PR{' '}
+            <Link
+              href={`https://app.circleci.com/pipelines/github/mui/material-ui/jobs/${circleCIBuildNumber}`}
+              target="_blank"
+            >
+              View Circle CI build
+            </Link>
+          </Typography>
+        </Box>
+
+        {!isLoading && (
+          <React.Fragment>
+            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+              <Typography variant="body2">
+                <strong>Total Size Change:</strong>{' '}
+                <SizeChangeDisplay
+                  absoluteChange={totals.totalParsed}
+                  relativeChange={totals.totalParsedPercent}
+                />
+              </Typography>
+              <Typography variant="body2">
+                <strong>Total Gzip Change:</strong>{' '}
+                <SizeChangeDisplay
+                  absoluteChange={totals.totalGzip}
+                  relativeChange={totals.totalGzipPercent}
+                />
+              </Typography>
+            </Box>
+
+            <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
+                {fileCounts.removed} removed, {fileCounts.changed} changed)
+              </Typography>
+            </Box>
+          </React.Fragment>
+        )}
+      </Box>
+
+      <ComparisonTable entries={entries} isLoading={isLoading} />
     </Paper>
   );
 }
@@ -310,15 +522,16 @@ export default function SizeComparison() {
   return (
     <React.Fragment>
       <Heading level={1}>Size comparison</Heading>
-      <div>
+      <Box sx={{ width: '100%' }}>
         <ErrorBoundary fallback={<ComparisonErrorFallback prNumber={prNumber} />}>
           <Comparison
             baseRef={baseRef}
             baseCommit={baseCommit}
             circleCIBuildNumber={circleCIBuildNumber}
+            prNumber={prNumber}
           />
         </ErrorBoundary>
-      </div>
+      </Box>
     </React.Fragment>
   );
 }
