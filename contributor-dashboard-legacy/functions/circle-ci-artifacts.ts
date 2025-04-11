@@ -1,5 +1,6 @@
 /* eslint-disable import/prefer-default-export */
 import type { Handler } from '@netlify/functions';
+import computeEtag from 'etag';
 
 interface CircleCIArtifact {
   path: string;
@@ -11,10 +12,12 @@ interface CircleCIArtifactsResponse {
   items: CircleCIArtifact[];
 }
 
+const enableCacheControl = true;
+
 /**
  * netlify function that wraps CircleCI API v2 which requires CORS.
  */
-export const handler: Handler = async function circleCIArtifact(event) {
+export const handler: Handler = async function circleCIArtifact(event, context) {
   const { queryStringParameters } = event;
 
   const buildNumberParameter = queryStringParameters?.buildNumber;
@@ -29,8 +32,8 @@ export const handler: Handler = async function circleCIArtifact(event) {
     };
   }
 
-  const url = `https://circleci.com/api/v2/project/github/mui/material-ui/${buildNumber}/artifacts`;
-  const artifactsResponse = await fetch(url);
+  const artifactsUrl = `https://circleci.com/api/v2/project/github/mui/material-ui/${buildNumber}/artifacts`;
+  const artifactsResponse = await fetch(artifactsUrl);
 
   if (!artifactsResponse.ok) {
     return {
@@ -54,6 +57,25 @@ export const handler: Handler = async function circleCIArtifact(event) {
   }
 
   const sizeSnapshotUrl = sizeSnapshotArtifact.url;
+
+  const ifNoneMatch = event.headers['if-none-match'];
+  const etag = computeEtag(
+    JSON.stringify({ url: sizeSnapshotUrl, version: context.functionVersion }),
+  );
+
+  if (ifNoneMatch === etag) {
+    // No need to download every artifact again since they're immutable.
+    const response = {
+      statusCode: 304,
+      headers: {
+        ...(enableCacheControl ? { 'Cache-Control': 'immutable, max-age=86400' } : {}),
+        ETag: etag,
+      },
+    };
+
+    return response;
+  }
+
   const sizeSnapshotResponse = await fetch(sizeSnapshotUrl);
   if (!sizeSnapshotResponse.ok) {
     return {
@@ -68,6 +90,11 @@ export const handler: Handler = async function circleCIArtifact(event) {
 
   return {
     statusCode: 200,
+    headers: {
+      ...(enableCacheControl ? { 'Cache-Control': 'immutable, max-age=86400' } : {}),
+      'Content-Type': 'application/json',
+      ETag: etag,
+    },
     body: JSON.stringify(sizeSnapshotJson),
   };
 };

@@ -105,6 +105,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.72.2
         version: 5.72.2(react@19.1.0)
+      etag:
+        specifier: ^1.8.1
+        version: 1.8.1
       pretty-bytes:
         specifier: ^6.1.1
         version: 6.1.1
@@ -118,6 +121,9 @@ importers:
         specifier: ^7.5.0
         version: 7.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
+      '@types/etag':
+        specifier: ^1.8.3
+        version: 1.8.3
       '@types/node':
         specifier: ^22.14.0
         version: 22.14.0
@@ -2589,6 +2595,9 @@ packages:
 
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
+
+  '@types/etag@1.8.3':
+    resolution: {integrity: sha512-QYHv9Yeh1ZYSMPQOoxY4XC4F1r+xRUiAriB303F4G6uBsT3KKX60DjiogvVv+2VISVDuJhcIzMdbjT+Bm938QQ==}
 
   '@types/express-serve-static-core@4.19.5':
     resolution: {integrity: sha512-y6W03tvrACO72aijJ5uF02FRq5cgDR9lUxddQ8vyF+GvmjJQqbzDcJngEjURc+ZsG31VI3hODNZJ2URj86pzmg==}
@@ -10861,6 +10870,10 @@ snapshots:
       '@types/json-schema': 7.0.15
 
   '@types/estree@1.0.7': {}
+
+  '@types/etag@1.8.3':
+    dependencies:
+      '@types/node': 22.14.0
 
   '@types/express-serve-static-core@4.19.5':
     dependencies:
