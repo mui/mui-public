@@ -17,8 +17,6 @@ import { green, red } from '@mui/material/colors';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Heading from '../components/Heading';
 
-const Webpagetests = React.lazy(() => import('../components/Webpagetests'));
-
 function UnstyledPipelineStatusIcon(props) {
   const { className, size, status, ...other } = props;
   switch (status) {
@@ -69,7 +67,6 @@ export default function Landing() {
       <Heading level="2" id="webpagetests">
         Webpagetests
       </Heading>
-      <Webpagetests />
     </div>
   );
 }

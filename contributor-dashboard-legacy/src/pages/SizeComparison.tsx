@@ -15,10 +15,6 @@ import styled from '@emotion/styled';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Heading from '../components/Heading';
 
-interface CircleCIApiArtifacts {
-  items: ReadonlyArray<{ path: string; url: string }>;
-}
-
 interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
 }
@@ -27,28 +23,33 @@ async function fetchSizeSnapshotCircleCI(buildNumber: number): Promise<SizeSnaps
   const response = await fetch(
     `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(buildNumber)}`,
   );
-  const body: CircleCIApiArtifacts = await response.json();
 
-  if (response.status === 200) {
-    const artifacts = body.items;
-    const sizeSnapshotArtifact = artifacts.find(
-      (artifact) => artifact.path === 'size-snapshot.json',
-    );
-
-    const downloadURL = new URL('/.netlify/functions/test-profile-artifact', document.baseURI);
-    downloadURL.searchParams.set('url', sizeSnapshotArtifact!.url);
-
-    return downloadSnapshot('size-snapshot-circleci', downloadURL.toString());
+  if (!response.ok) {
+    throw new Error(`Failed to fetch CircleCI artifacts, HTTP ${response.status}`);
   }
 
-  throw new Error(`${response.status}: ${response.statusText}`);
+  return response.json();
 }
 
 async function fetchSizeSnapshot(
   key: unknown,
   { circleCIBuildNumber }: { circleCIBuildNumber: number },
-): Promise<SizeSnapshot | undefined> {
+): Promise<SizeSnapshot> {
   return fetchSizeSnapshotCircleCI(circleCIBuildNumber);
+}
+
+function useSizeSnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }): SizeSnapshot {
+  const { data: sizeSnapshot } = useQuery(
+    ['size-snapshot', { circleCIBuildNumber }],
+    fetchSizeSnapshot,
+  );
+
+  if (!sizeSnapshot) {
+    // NonNullable due to Suspense
+    throw new Error('Unreachable');
+  }
+
+  return sizeSnapshot;
 }
 
 async function downloadSnapshot(key: unknown, downloadUrl: string): Promise<SizeSnapshot> {
@@ -59,32 +60,20 @@ async function downloadSnapshot(key: unknown, downloadUrl: string): Promise<Size
   return response.json();
 }
 
-function useAzureSizeSnapshot({
-  circleCIBuildNumber,
-}: {
-  circleCIBuildNumber: number;
-}): SizeSnapshot {
-  const { data: sizeSnapshot } = useQuery(
-    [
-      'azure-artifacts',
-      {
-        circleCIBuildNumber,
-      },
-    ],
-    fetchSizeSnapshot,
-  );
-
-  // NonNullable due to Suspense
-  return sizeSnapshot!;
-}
-
 function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
   const downloadUrl = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
 
-  const { data: sizeSnapshot } = useQuery(['s3-snapshot-download', downloadUrl], downloadSnapshot);
+  const { data: sizeSnapshot } = useQuery<SizeSnapshot>(
+    ['s3-snapshot-download', downloadUrl],
+    downloadSnapshot,
+  );
 
-  // NonNullable due to Suspense
-  return sizeSnapshot!;
+  if (!sizeSnapshot) {
+    // NonNullable due to Suspense
+    throw new Error('Unreachable');
+  }
+
+  return sizeSnapshot;
 }
 
 /**
@@ -261,7 +250,7 @@ function Comparison({
   prNumber: number;
 }) {
   const baseSnapshot = useS3SizeSnapshot(baseRef, baseCommit);
-  const targetSnapshot = useAzureSizeSnapshot({
+  const targetSnapshot = useSizeSnapshot({
     circleCIBuildNumber,
   });
 

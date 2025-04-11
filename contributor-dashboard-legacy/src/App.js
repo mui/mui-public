@@ -8,8 +8,6 @@ import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
-const TestProfileAnalysis = React.lazy(() => import('./pages/TestProfileAnalysis'));
-const ForkRibbon = React.lazy(() => import('./components/ForkRibbon'));
 
 const suspenseQueryCache = new QueryCache({
   defaultConfig: {
@@ -122,12 +120,10 @@ function App() {
           </symbol>
         </svg>
         <div>
-          <ForkRibbon />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/size-comparison" element={<SizeComparison />} />
-              <Route path="/test-profile/:buildNumber/*" element={<TestProfileAnalysis />} />
             </Routes>
           </BrowserRouter>
         </div>
