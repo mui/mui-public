@@ -8,7 +8,9 @@ import ListItem from '@mui/material/ListItem';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { usePaginatedQuery } from 'react-query';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -50,23 +52,26 @@ const PipelineStatusIcon = styled(UnstyledPipelineStatusIcon)`
     return 'inherit';
   }};
   font-size: ${({ size }) => (size === 'middle' ? '1.4em' : '1em')};
-  margin: 0 8px;
-  vertical-align: sub;
 `;
 
 interface PipelineStatusUnstyledProps {
   children: React.ReactNode;
   size?: 'small' | 'middle';
   status?: string;
+  loading?: boolean;
   [key: string]: any;
 }
 
 function PipelineStatusUnstyled(props: PipelineStatusUnstyledProps) {
-  const { children, size = 'middle', status, ...other } = props;
+  const { children, size = 'middle', status, loading = false, ...other } = props;
 
   return (
     <Typography variant={size === 'middle' ? 'body1' : 'body2'} {...other}>
-      <PipelineStatusIcon size={size} status={status} />
+      {loading ? (
+        <CircularProgress size={size === 'middle' ? 20 : 16} sx={{ mr: 2 }} />
+      ) : (
+        <PipelineStatusIcon size={size} status={status} sx={{ mr: 1 }} />
+      )}
       <span>{children}</span>
     </Typography>
   );
@@ -137,7 +142,7 @@ interface CircleCIBuild {
 function CircleCIWorkflow(props: CircleCIWorkflowProps) {
   const { workflow } = props;
 
-  const builds = useRecentBuilds({
+  const { builds, isLoading, noData } = useRecentBuilds({
     workflowName: workflow.name,
     branchName: workflow.branchName,
   });
@@ -148,6 +153,8 @@ function CircleCIWorkflow(props: CircleCIWorkflowProps) {
   });
   const [lastBuild] = sortedBuilds;
 
+  // We always show the accordion even if there are no builds yet
+  // The status icon will indicate unknown status until data is loaded
   return (
     <Accordion>
       <AccordionSummary
@@ -155,10 +162,28 @@ function CircleCIWorkflow(props: CircleCIWorkflowProps) {
         id={`circleci-workflow-${workflow.name}-header`}
         expandIcon={<ExpandMoreIcon />}
       >
-        <PipelineStatus status={lastBuild?.status}>{workflow.label}</PipelineStatus>
+        <PipelineStatus status={lastBuild?.status} loading={isLoading}>
+          {workflow.label}
+        </PipelineStatus>
       </AccordionSummary>
       <AccordionDetails>
-        <CircleCIBuilds builds={sortedBuilds} />
+        {/* Show builds if we have any */}
+        {sortedBuilds.length > 0 && <CircleCIBuilds builds={sortedBuilds} />}
+        
+        {/* Show loading indicator if we're loading and don't have builds yet */}
+        {sortedBuilds.length === 0 && isLoading && (
+          <Typography>Loading build data...</Typography>
+        )}
+        
+        {/* Show message if we have no data */}
+        {sortedBuilds.length === 0 && !isLoading && noData && (
+          <Typography color="text.secondary">No builds found for this workflow.</Typography>
+        )}
+        
+        {/* Show message if we have data but no matching builds */}
+        {sortedBuilds.length === 0 && !isLoading && !noData && (
+          <Typography color="text.secondary">No matching builds found.</Typography>
+        )}
       </AccordionDetails>
     </Accordion>
   );
@@ -201,40 +226,54 @@ interface BuildFilter {
   branchName?: string;
 }
 
-function useRecentBuilds(filter: BuildFilter): CircleCIBuild[] {
+function useRecentBuilds(filter: BuildFilter) {
   const { branchName, workflowName } = filter;
-  const [page, setPage] = React.useState(0);
-  const { resolvedData: builds = [] } = usePaginatedQuery<CircleCIBuild[]>(
-    ['circle-ci-builds', page],
-    fetchRecentCircleCIBuilds,
-    {
-      getFetchMore: (lastGroup, allGroups) => {
-        return allGroups.length;
-      },
-    },
-  );
-  React.useDebugValue(builds);
 
-  console.log('builds', builds);
+  const { data, fetchNextPage, hasNextPage, isLoading, isFetching } = useInfiniteQuery({
+    queryKey: ['circle-ci-builds'],
+    queryFn: ({ pageParam = 0 }) => fetchRecentCircleCIBuilds(pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      // Return the next page number if we haven't reached 9 pages
+      return allPages.length < 9 ? allPages.length : undefined;
+    },
+  });
+
+  const allBuilds = React.useMemo(() => {
+    return data?.pages.flat() || [];
+  }, [data]);
+
+  React.useDebugValue(allBuilds);
+  console.log('builds', allBuilds);
 
   const filteredBuilds = React.useMemo(() => {
-    return builds.filter((build) => {
+    return allBuilds.filter((build) => {
       return (
         build.workflows.workflow_name === workflowName &&
         (branchName === undefined || build.branch === branchName)
       );
     });
-  }, [branchName, builds, workflowName]);
+  }, [branchName, allBuilds, workflowName]);
 
-  // Fetch as long as we didn't find a build but stop after X pages.
-  if (filteredBuilds.length === 0 && page < 9) {
-    setPage(page + 1);
-  }
+  // Fetch next page if we have no matching builds but there are more pages available
+  React.useEffect(() => {
+    if (filteredBuilds.length === 0 && hasNextPage) {
+      fetchNextPage();
+    }
+  }, [filteredBuilds.length, hasNextPage, fetchNextPage]);
 
-  return React.useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
+  // Include loading state information with the builds
+  return {
+    builds: filteredBuilds.slice(0, 20),
+    isLoading: isLoading || isFetching,
+    // We consider it as "no data" if:
+    // - We have no builds at all (allBuilds is empty)
+    // - We have builds but none match our filter, and we're not loading more
+    noData: allBuilds.length === 0 || (filteredBuilds.length === 0 && !hasNextPage),
+  };
 }
 
-async function fetchRecentCircleCIBuilds(key: string, cursor = 0): Promise<CircleCIBuild[]> {
+async function fetchRecentCircleCIBuilds(cursor = 0): Promise<CircleCIBuild[]> {
   const url = getCircleCIApiUrl('project/github/mui/material-ui', {
     filter: 'completed',
     limit: 100,

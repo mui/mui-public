@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { useLocation } from 'react-router';
-import { useQuery } from 'react-query';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
+import { useQuery } from '@tanstack/react-query';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -19,41 +20,30 @@ interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
 }
 
-async function downloadSnapshot(key: unknown, downloadUrl: string): Promise<SizeSnapshot> {
-  const response = await fetch(downloadUrl);
+async function fetchSnapshot(url: string): Promise<SizeSnapshot> {
+  const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch "${downloadUrl}", HTTP ${response.status}`);
+    throw new Error(`Failed to fetch "${url}", HTTP ${response.status}`);
   }
   return response.json();
 }
 
-function useSizeSnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }): SizeSnapshot {
+function useSizeSnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }) {
   const downloadUrl = `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(circleCIBuildNumber)}`;
 
-  const { data: sizeSnapshot } = useQuery(['cci-snapshot-download', downloadUrl], downloadSnapshot);
-
-  if (!sizeSnapshot) {
-    // NonNullable due to Suspense
-    throw new Error('Unreachable');
-  }
-
-  return sizeSnapshot;
+  return useQuery({
+    queryKey: [downloadUrl],
+    queryFn: () => fetchSnapshot(downloadUrl),
+  });
 }
 
-function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
+function useS3SizeSnapshot(ref: string, commitId: string) {
   const downloadUrl = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
 
-  const { data: sizeSnapshot } = useQuery<SizeSnapshot>(
-    ['s3-snapshot-download', downloadUrl],
-    downloadSnapshot,
-  );
-
-  if (!sizeSnapshot) {
-    // NonNullable due to Suspense
-    throw new Error('Unreachable');
-  }
-
-  return sizeSnapshot;
+  return useQuery({
+    queryKey: [downloadUrl],
+    queryFn: () => fetchSnapshot(downloadUrl),
+  });
 }
 
 /**
@@ -216,12 +206,18 @@ function Comparison({
   baseCommit: string;
   circleCIBuildNumber: number;
 }) {
-  const baseSnapshot = useS3SizeSnapshot(baseRef, baseCommit);
-  const targetSnapshot = useSizeSnapshot({
+  const { data: baseSnapshot, isLoading: isBaseLoading } = useS3SizeSnapshot(baseRef, baseCommit);
+  const { data: targetSnapshot, isLoading: isTargetLoading } = useSizeSnapshot({
     circleCIBuildNumber,
   });
-
+  
+  // Always define the useMemo hook, even when data is loading
+  // This ensures the hook order remains stable between renders
   const { main: mainResults } = React.useMemo(() => {
+    if (!baseSnapshot || !targetSnapshot) {
+      return { main: [] };
+    }
+    
     const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
 
     const main: [string, Size][] = [];
@@ -255,14 +251,31 @@ function Comparison({
 
     return { main };
   }, [baseSnapshot, targetSnapshot]);
+  
+  const isLoading = isBaseLoading || isTargetLoading;
+  
+  // Show a loading state if either query is still loading
+  if (isLoading || !baseSnapshot || !targetSnapshot) {
+    return (
+      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" component="h2" gutterBottom>
+          Modules
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
+          <CircularProgress size={24} />
+          <Typography>Loading size comparison data...</Typography>
+        </Box>
+      </Paper>
+    );
+  }
 
   return (
-    <Accordion defaultExpanded>
-      <AccordionSummary>Modules</AccordionSummary>
-      <AccordionDetails>
-        <CompareTable entries={mainResults} getBundleLabel={getMainBundleLabel} />
-      </AccordionDetails>
-    </Accordion>
+    <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Typography variant="h6" component="h2" gutterBottom>
+        Modules
+      </Typography>
+      <CompareTable entries={mainResults} getBundleLabel={getMainBundleLabel} />
+    </Paper>
   );
 }
 

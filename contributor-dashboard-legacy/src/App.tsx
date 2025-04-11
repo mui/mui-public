@@ -2,20 +2,15 @@ import * as React from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import * as colors from '@mui/material/colors';
-import { QueryCache, ReactQueryCacheProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router';
 import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
 
-const suspenseQueryCache = new QueryCache({
-  defaultConfig: {
-    queries: {
-      suspense: true,
-    },
-  },
-});
+// In TanStack Query v5+, suspense is no longer specified in defaultOptions
+const queryClient = new QueryClient();
 
 function App() {
   const theme = React.useMemo(() => {
@@ -134,7 +129,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <ReactQueryCacheProvider queryCache={suspenseQueryCache}>
+      <QueryClientProvider client={queryClient}>
         <div>
           <BrowserRouter>
             <Routes>
@@ -157,7 +152,7 @@ function App() {
             </Routes>
           </BrowserRouter>
         </div>
-      </ReactQueryCacheProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

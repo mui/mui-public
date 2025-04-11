@@ -19,7 +19,7 @@ export default function Heading(props: HeadingProps): React.ReactElement {
       sx={{ 
         display: 'flex', 
         alignItems: 'center',
-        mb: 3,
+        mb: level === 1 ? 4 : 3,
         position: 'relative',
         '&:hover .anchor-link': {
           opacity: 0.6
