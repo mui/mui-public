@@ -129,7 +129,7 @@ function SizeChangeDisplay({
       <Box component="span" sx={{ color: arrowColor, mr: 0.5, fontWeight: 'bold' }}>
         {arrowIcon}
       </Box>
-      <Box component="span">
+      <span>
         {isDecrease ? '-' : '+'}
         {formattedSize}
 
@@ -145,7 +145,7 @@ function SizeChangeDisplay({
             ({displayPercentFormatter.format(relativeChange)})
           </Box>
         )}
-      </Box>
+      </span>
     </Box>
   );
 }
@@ -356,14 +356,14 @@ function useSizeComparisonData(baseRef: string, baseCommit: string, circleCIBuil
 
       // Update file counts
       if (isNewBundle) {
-        addedFiles++;
+        addedFiles += 1;
       } else if (isRemovedBundle) {
-        removedFiles++;
+        removedFiles += 1;
       } else if (
         currentSize.parsed !== previousSize.parsed ||
         currentSize.gzip !== previousSize.gzip
       ) {
-        changedFiles++;
+        changedFiles += 1;
       }
 
       const parsedDiff = currentSize.parsed - previousSize.parsed;
@@ -472,16 +472,14 @@ function Comparison({
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
           Comparing size changes between {baseRef} (
-            <Link 
-              href={`https://github.com/mui/material-ui/commit/${baseCommit}`} 
-              target="_blank"
-            >
-              {baseCommit.substring(0, 7)}
-            </Link>
+          <Link href={`https://github.com/mui/material-ui/commit/${baseCommit}`} target="_blank">
+            {baseCommit.substring(0, 7)}
+          </Link>
           ) and PR{' '}
           <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`} target="_blank">
             #{prNumber}
-          </Link>, Circle CI build{' '}
+          </Link>
+          , Circle CI build{' '}
           <Link
             href={`https://app.circleci.com/pipelines/github/mui/material-ui/jobs/${circleCIBuildNumber}`}
             target="_blank"
