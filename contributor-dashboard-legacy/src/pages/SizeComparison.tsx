@@ -14,6 +14,7 @@ import TableRow from '@mui/material/TableRow';
 import prettyBytes from 'pretty-bytes';
 import styled from '@emotion/styled';
 import Heading from '../components/Heading';
+import GitHubPRReference from '../components/GitHubPRReference';
 
 interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
@@ -495,25 +496,30 @@ function Comparison({
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" component="h2" gutterBottom>
+          <GitHubPRReference 
+            org={baseOrg}
+            repo={baseRepo}
+            prNumber={prNumber}
+          />
+        </Typography>
+
         <Typography variant="body2" color="text.secondary">
-          Comparing size changes between {baseRef} (
-          <Link
-            href={`https://github.com/${baseOrg}/${baseRepo}/commit/${baseCommit}`}
-            target="_blank"
-          >
-            {baseCommit.substring(0, 7)}
-          </Link>
-          ) and PR{' '}
-          <Link href={`https://github.com/${baseOrg}/${baseRepo}/pull/${prNumber}`} target="_blank">
-            #{prNumber}
-          </Link>
-          , Circle CI build{' '}
+          Circle CI build{' '}
           <Link
             href={`https://app.circleci.com/pipelines/github/${baseOrg}/${baseRepo}/jobs/${circleCIBuildNumber}`}
             target="_blank"
           >
             {circleCIBuildNumber}
           </Link>
+          . Comparing bundle size changes against {baseRef} (
+          <Link
+            href={`https://github.com/${baseOrg}/${baseRepo}/commit/${baseCommit}`}
+            target="_blank"
+          >
+            {baseCommit.substring(0, 7)}
+          </Link>
+          ).
         </Typography>
 
         {!isLoading && !error && (
