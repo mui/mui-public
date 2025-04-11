@@ -261,9 +261,11 @@ const nullSnapshot = { parsed: 0, gzip: 0 };
 function ComparisonTable({
   entries,
   isLoading,
+  error,
 }: {
   entries: [string, Size][];
   isLoading: boolean;
+  error?: Error | null;
 }) {
   if (isLoading) {
     return (
@@ -274,13 +276,41 @@ function ComparisonTable({
     );
   }
 
+  if (error) {
+    return (
+      <Box sx={{ p: 2, color: 'error.main' }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Error loading comparison data
+        </Typography>
+        <Typography variant="body2">{error.message || 'Unknown error occurred'}</Typography>
+      </Box>
+    );
+  }
+
+  if (entries.length === 0) {
+    return (
+      <Box sx={{ p: 2, color: 'text.secondary' }}>
+        <Typography>No comparison data available.</Typography>
+      </Box>
+    );
+  }
+
   return <CompareTable entries={entries} />;
 }
 
 // Hook that handles data fetching and processing
 function useSizeComparisonData(baseRef: string, baseCommit: string, circleCIBuildNumber: number) {
-  const { data: baseSnapshot, isLoading: isBaseLoading } = useS3SizeSnapshot(baseRef, baseCommit);
-  const { data: targetSnapshot, isLoading: isTargetLoading } = useCircleCISnapshot({
+  const {
+    data: baseSnapshot,
+    isLoading: isBaseLoading,
+    error: baseError,
+  } = useS3SizeSnapshot(baseRef, baseCommit);
+
+  const {
+    data: targetSnapshot,
+    isLoading: isTargetLoading,
+    error: targetError,
+  } = useCircleCISnapshot({
     circleCIBuildNumber,
   });
 
@@ -415,6 +445,7 @@ function useSizeComparisonData(baseRef: string, baseCommit: string, circleCIBuil
     totals,
     fileCounts,
     isLoading: isBaseLoading || isTargetLoading,
+    error: baseError || targetError,
   };
 }
 
@@ -430,7 +461,7 @@ function Comparison({
   circleCIBuildNumber: number;
   prNumber: number;
 }) {
-  const { entries, totals, fileCounts, isLoading } = useSizeComparisonData(
+  const { entries, totals, fileCounts, isLoading, error } = useSizeComparisonData(
     baseRef,
     baseCommit,
     circleCIBuildNumber,
@@ -457,7 +488,7 @@ function Comparison({
           </Typography>
         </Box>
 
-        {!isLoading && (
+        {!isLoading && !error && (
           <React.Fragment>
             <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
               <Typography variant="body2">
@@ -486,7 +517,7 @@ function Comparison({
         )}
       </Box>
 
-      <ComparisonTable entries={entries} isLoading={isLoading} />
+      <ComparisonTable entries={entries} isLoading={isLoading} error={error} />
     </Paper>
   );
 }
