@@ -9,7 +9,6 @@ import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CircularProgress from '@mui/material/CircularProgress';
-import Box from '@mui/material/Box';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -169,17 +168,15 @@ function CircleCIWorkflow(props: CircleCIWorkflowProps) {
       <AccordionDetails>
         {/* Show builds if we have any */}
         {sortedBuilds.length > 0 && <CircleCIBuilds builds={sortedBuilds} />}
-        
+
         {/* Show loading indicator if we're loading and don't have builds yet */}
-        {sortedBuilds.length === 0 && isLoading && (
-          <Typography>Loading build data...</Typography>
-        )}
-        
+        {sortedBuilds.length === 0 && isLoading && <Typography>Loading build data...</Typography>}
+
         {/* Show message if we have no data */}
         {sortedBuilds.length === 0 && !isLoading && noData && (
           <Typography color="text.secondary">No builds found for this workflow.</Typography>
         )}
-        
+
         {/* Show message if we have data but no matching builds */}
         {sortedBuilds.length === 0 && !isLoading && !noData && (
           <Typography color="text.secondary">No matching builds found.</Typography>

@@ -210,14 +210,14 @@ function Comparison({
   const { data: targetSnapshot, isLoading: isTargetLoading } = useSizeSnapshot({
     circleCIBuildNumber,
   });
-  
+
   // Always define the useMemo hook, even when data is loading
   // This ensures the hook order remains stable between renders
   const { main: mainResults } = React.useMemo(() => {
     if (!baseSnapshot || !targetSnapshot) {
       return { main: [] };
     }
-    
+
     const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
 
     const main: [string, Size][] = [];
@@ -251,9 +251,9 @@ function Comparison({
 
     return { main };
   }, [baseSnapshot, targetSnapshot]);
-  
+
   const isLoading = isBaseLoading || isTargetLoading;
-  
+
   // Show a loading state if either query is still loading
   if (isLoading || !baseSnapshot || !targetSnapshot) {
     return (
