@@ -89,8 +89,7 @@ const CodeSpan = styled('code')({
 });
 
 interface GitHubPRReferenceProps {
-  org: string;
-  repo: string;
+  repo: string; // Full repo path like "mui/material-ui"
   prNumber: number;
 }
 
@@ -106,11 +105,12 @@ interface PRContentProps {
   icon: React.ReactNode;
   contextPrefix?: string; // Optional context prefix like "[core]"
   title?: React.ReactNode; // The formatted title content (can include React elements for backtick formatting)
-  reference: string; // The PR reference (org/repo#number)
+  reference: string; // The full PR reference (org/repo#number)
+  prNumber: number; // Just the PR number
 }
 
 // This is a pure presentational component that handles different states through props
-function PRContent({ isLoading, icon, contextPrefix, title, reference }: PRContentProps) {
+function PRContent({ isLoading, icon, contextPrefix, title, reference, prNumber }: PRContentProps) {
   return (
     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'baseline' }}>
       {icon}
@@ -145,8 +145,17 @@ function PRContent({ isLoading, icon, contextPrefix, title, reference }: PRConte
                 {title}{' '}
               </Box>
             )}
-            <Box component="span" sx={{ color: 'primary.main', display: 'inline' }}>
-              {reference}
+            <Box
+              component="span"
+              sx={{
+                color: 'primary.main',
+                display: 'inline',
+                fontWeight: 'normal',
+                opacity: 0.8,
+                fontSize: '0.9em',
+              }}
+            >
+              #{prNumber}
             </Box>
           </React.Fragment>
         )}
@@ -155,14 +164,17 @@ function PRContent({ isLoading, icon, contextPrefix, title, reference }: PRConte
   );
 }
 
-export default function GitHubPRReference({ org, repo, prNumber }: GitHubPRReferenceProps) {
-  const { prInfo, isLoading, error } = usePRInfo(org, repo, prNumber);
+export default function GitHubPRReference({ repo, prNumber }: GitHubPRReferenceProps) {
+  // Split repo into org and repoName
+  const [org, repoName] = repo.split('/');
+
+  const { prInfo, isLoading, error } = usePRInfo(org, repoName, prNumber);
 
   // Base URL for linking to the PR
-  const prUrl = `https://github.com/${org}/${repo}/pull/${prNumber}`;
+  const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
 
-  // Create the PR reference text (org/repo#number)
-  const prReference = `${org}/${repo}#${prNumber}`;
+  // Create the PR reference text (repo#number)
+  const prReference = `${repo}#${prNumber}`;
 
   // Process title for formatting if we have PR info
   let contextPrefix: string | undefined;
@@ -212,6 +224,7 @@ export default function GitHubPRReference({ org, repo, prNumber }: GitHubPRRefer
         contextPrefix={contextPrefix}
         title={formattedTitle}
         reference={prReference}
+        prNumber={prNumber}
       />
     </Link>
   );

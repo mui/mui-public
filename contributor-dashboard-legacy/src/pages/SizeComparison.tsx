@@ -497,7 +497,7 @@ function Comparison({
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" component="h2" gutterBottom>
-          <GitHubPRReference org={baseOrg} repo={baseRepo} prNumber={prNumber} />
+          <GitHubPRReference repo={`${baseOrg}/${baseRepo}`} prNumber={prNumber} />
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
