@@ -19,7 +19,11 @@ function usePRInfo(
   repo: string,
   prNumber: number,
 ): { prInfo: GitHubPRInfo | null; isLoading: boolean; error: Error | null } {
-  const { data, isLoading, error } = useQuery({
+  const {
+    data = null,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['github-pr', org, repo, prNumber],
     queryFn: async (): Promise<GitHubPRInfo | null> => {
       try {
@@ -30,11 +34,11 @@ function usePRInfo(
           throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const responseBody = await response.json();
         return {
-          title: data.title,
+          title: responseBody.title,
           number: prNumber,
-          html_url: data.html_url,
+          html_url: responseBody.html_url,
         };
       } catch (err) {
         console.error('Error fetching PR info:', err);
@@ -117,15 +121,15 @@ function PRContent({ isLoading, icon, contextPrefix, title, reference }: PRConte
               {reference}
             </Box>
             {isLoading && (
-              <CircularProgress 
-                size={12} 
+              <CircularProgress
+                size={12}
                 thickness={6}
-                sx={{ 
-                  ml: 0.75, 
+                sx={{
+                  ml: 0.75,
                   color: 'text.secondary',
                   display: 'inline-block',
-                  verticalAlign: 'middle'
-                }} 
+                  verticalAlign: 'middle',
+                }}
               />
             )}
           </Box>
