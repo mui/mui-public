@@ -9,6 +9,11 @@
   # Default build command.
   command = "pnpm build"
 
+[dev]
+  base = "contributor-dashboard-legacy"
+  command = "pnpm start"
+  targetPort = 3000
+
 [build.environment]
   NODE_VERSION = "18"
   PNPM_FLAGS = "--ignore-workspace"
