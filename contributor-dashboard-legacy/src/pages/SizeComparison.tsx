@@ -13,7 +13,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import prettyBytes from 'pretty-bytes';
 import styled from '@emotion/styled';
-import ErrorBoundary from '../components/ErrorBoundary';
 import Heading from '../components/Heading';
 
 interface SizeSnapshot {
@@ -536,17 +535,6 @@ function useComparisonParams() {
   }, [search]);
 }
 
-function ComparisonErrorFallback({ prNumber }: { prNumber: number }) {
-  return (
-    <p>
-      Could not load comparison for PR{' '}
-      <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`}>#{prNumber}</Link>
-      {". This can happen if the build in the CI job didn't finish yet. "}
-      Reload this page once the CI job has finished.
-    </p>
-  );
-}
-
 export default function SizeComparison() {
   const { baseRef, baseCommit, circleCIBuildNumber, prNumber } = useComparisonParams();
 
@@ -554,14 +542,12 @@ export default function SizeComparison() {
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
       <Box sx={{ width: '100%' }}>
-        <ErrorBoundary fallback={<ComparisonErrorFallback prNumber={prNumber} />}>
-          <Comparison
-            baseRef={baseRef}
-            baseCommit={baseCommit}
-            circleCIBuildNumber={circleCIBuildNumber}
-            prNumber={prNumber}
-          />
-        </ErrorBoundary>
+        <Comparison
+          baseRef={baseRef}
+          baseCommit={baseCommit}
+          circleCIBuildNumber={circleCIBuildNumber}
+          prNumber={prNumber}
+        />
       </Box>
     </React.Fragment>
   );
