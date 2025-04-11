@@ -36,7 +36,23 @@ export const handler: Handler = async function circleCIArtifact(event, context) 
     };
   }
 
-  const artifactsUrl = `https://circleci.com/api/v2/project/github/mui/material-ui/${buildNumber}/artifacts`;
+  const org = queryStringParameters?.org;
+  if (!org) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify('Missing required query parameter: org'),
+    };
+  }
+
+  const repository = queryStringParameters?.repository;
+  if (!repository) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify('Missing required query parameter: repository'),
+    };
+  }
+
+  const artifactsUrl = `https://circleci.com/api/v2/project/github/${org}/${repository}/${buildNumber}/artifacts`;
   const artifactsResponse = await fetch(artifactsUrl);
 
   if (!artifactsResponse.ok) {

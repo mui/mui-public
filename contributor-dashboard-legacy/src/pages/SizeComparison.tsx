@@ -40,19 +40,31 @@ function useSizeSnapshotFromUrl(url: string) {
 /**
  * Hook to fetch size snapshots from CircleCI artifacts
  */
-function useCircleCISnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }) {
-  return useSizeSnapshotFromUrl(
-    `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(circleCIBuildNumber)}`,
-  );
+function useCircleCISnapshot({
+  org,
+  repository,
+  circleCIBuildNumber,
+}: {
+  org: string;
+  repository: string;
+  circleCIBuildNumber: number;
+}) {
+  const url = new URL('/.netlify/functions/circle-ci-artifacts', window.location.origin);
+  url.searchParams.append('org', org);
+  url.searchParams.append('repository', repository);
+  url.searchParams.append('buildNumber', String(circleCIBuildNumber));
+
+  return useSizeSnapshotFromUrl(url.toString());
 }
 
 /**
  * Hook to fetch size snapshots from S3
  */
-function useS3SizeSnapshot(ref: string, commitId: string) {
-  return useSizeSnapshotFromUrl(
-    `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`,
-  );
+function useS3SizeSnapshot(org: string, repo: string, ref: string, commitId: string) {
+  // TODO: store artifacts under a url that includes the repo name
+  const path = `${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
+  const url = new URL(path, 'https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/');
+  return useSizeSnapshotFromUrl(url.toString());
 }
 
 // Formatter specifically for display in the UI with proper percentage formatting
@@ -298,18 +310,26 @@ function ComparisonTable({
 }
 
 // Hook that handles data fetching and processing
-function useSizeComparisonData(baseRef: string, baseCommit: string, circleCIBuildNumber: number) {
+function useSizeComparisonData(
+  baseOrg: string,
+  baseRepo: string,
+  baseRef: string,
+  baseCommit: string,
+  circleCIBuildNumber: number,
+) {
   const {
     data: baseSnapshot,
     isLoading: isBaseLoading,
     error: baseError,
-  } = useS3SizeSnapshot(baseRef, baseCommit);
+  } = useS3SizeSnapshot(baseOrg, baseRepo, baseRef, baseCommit);
 
   const {
     data: targetSnapshot,
     isLoading: isTargetLoading,
     error: targetError,
   } = useCircleCISnapshot({
+    org: baseOrg,
+    repository: baseRepo,
     circleCIBuildNumber,
   });
 
@@ -450,17 +470,23 @@ function useSizeComparisonData(baseRef: string, baseCommit: string, circleCIBuil
 
 // Main comparison component that renders both the header and the table
 function Comparison({
+  baseOrg,
+  baseRepo,
   baseRef,
   baseCommit,
   circleCIBuildNumber,
   prNumber,
 }: {
+  baseOrg: string;
+  baseRepo: string;
   baseRef: string;
   baseCommit: string;
   circleCIBuildNumber: number;
   prNumber: number;
 }) {
   const { entries, totals, fileCounts, isLoading, error } = useSizeComparisonData(
+    baseOrg,
+    baseRepo,
     baseRef,
     baseCommit,
     circleCIBuildNumber,
@@ -471,16 +497,19 @@ function Comparison({
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
           Comparing size changes between {baseRef} (
-          <Link href={`https://github.com/mui/material-ui/commit/${baseCommit}`} target="_blank">
+          <Link
+            href={`https://github.com/${baseOrg}/${baseRepo}/commit/${baseCommit}`}
+            target="_blank"
+          >
             {baseCommit.substring(0, 7)}
           </Link>
           ) and PR{' '}
-          <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`} target="_blank">
+          <Link href={`https://github.com/${baseOrg}/${baseRepo}/pull/${prNumber}`} target="_blank">
             #{prNumber}
           </Link>
           , Circle CI build{' '}
           <Link
-            href={`https://app.circleci.com/pipelines/github/mui/material-ui/jobs/${circleCIBuildNumber}`}
+            href={`https://app.circleci.com/pipelines/github/${baseOrg}/${baseRepo}/jobs/${circleCIBuildNumber}`}
             target="_blank"
           >
             {circleCIBuildNumber}
@@ -527,6 +556,8 @@ function useComparisonParams() {
     const params = new URLSearchParams(search);
 
     return {
+      baseOrg: params.get('baseOrg') || 'mui',
+      baseRepo: params.get('baseRepo') || 'material-ui',
       baseCommit: params.get('baseCommit')!,
       baseRef: params.get('baseRef')!,
       prNumber: +params.get('prNumber')!,
@@ -536,13 +567,16 @@ function useComparisonParams() {
 }
 
 export default function SizeComparison() {
-  const { baseRef, baseCommit, circleCIBuildNumber, prNumber } = useComparisonParams();
+  const { baseOrg, baseRepo, baseRef, baseCommit, circleCIBuildNumber, prNumber } =
+    useComparisonParams();
 
   return (
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
       <Box sx={{ width: '100%' }}>
         <Comparison
+          baseOrg={baseOrg}
+          baseRepo={baseRepo}
           baseRef={baseRef}
           baseCommit={baseCommit}
           circleCIBuildNumber={circleCIBuildNumber}
