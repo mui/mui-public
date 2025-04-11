@@ -470,23 +470,25 @@ function Comparison({
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Bundle Size Comparison for PR{' '}
-          <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`} target="_blank">
-            #{prNumber}
-          </Link>
-        </Typography>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Comparing size changes between {baseRef} ({baseCommit.substring(0, 7)}) and the PR{' '}
-            <Link
-              href={`https://app.circleci.com/pipelines/github/mui/material-ui/jobs/${circleCIBuildNumber}`}
+        <Typography variant="body2" color="text.secondary">
+          Comparing size changes between {baseRef} (
+            <Link 
+              href={`https://github.com/mui/material-ui/commit/${baseCommit}`} 
               target="_blank"
             >
-              View Circle CI build
+              {baseCommit.substring(0, 7)}
             </Link>
-          </Typography>
-        </Box>
+          ) and PR{' '}
+          <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`} target="_blank">
+            #{prNumber}
+          </Link>, Circle CI build{' '}
+          <Link
+            href={`https://app.circleci.com/pipelines/github/mui/material-ui/jobs/${circleCIBuildNumber}`}
+            target="_blank"
+          >
+            {circleCIBuildNumber}
+          </Link>
+        </Typography>
 
         {!isLoading && !error && (
           <React.Fragment>
@@ -539,7 +541,7 @@ function useComparisonParams() {
 function ComparisonErrorFallback({ prNumber }: { prNumber: number }) {
   return (
     <p>
-      Could not load comparison for{' '}
+      Could not load comparison for PR{' '}
       <Link href={`https://github.com/mui/material-ui/pull/${prNumber}`}>#{prNumber}</Link>
       {". This can happen if the build in the CI job didn't finish yet. "}
       Reload this page once the CI job has finished.
@@ -552,7 +554,7 @@ export default function SizeComparison() {
 
   return (
     <React.Fragment>
-      <Heading level={1}>Size comparison</Heading>
+      <Heading level={1}>Bundle Size Comparison</Heading>
       <Box sx={{ width: '100%' }}>
         <ErrorBoundary fallback={<ComparisonErrorFallback prNumber={prNumber} />}>
           <Comparison
