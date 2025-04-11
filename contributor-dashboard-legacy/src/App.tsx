@@ -3,7 +3,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import * as colors from '@mui/material/colors';
 import { QueryCache, ReactQueryCacheProvider } from 'react-query';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router';
 import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
@@ -128,7 +128,6 @@ function App() {
       },
     });
 
-
     return nextTheme;
   }, []);
 
@@ -139,21 +138,21 @@ function App() {
         <div>
           <BrowserRouter>
             <Routes>
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
                   <React.Suspense fallback={<div>Loading...</div>}>
                     <Landing />
                   </React.Suspense>
-                } 
+                }
               />
-              <Route 
-                path="/size-comparison" 
+              <Route
+                path="/size-comparison"
                 element={
                   <React.Suspense fallback={<div>Loading...</div>}>
                     <SizeComparison />
                   </React.Suspense>
-                } 
+                }
               />
             </Routes>
           </BrowserRouter>

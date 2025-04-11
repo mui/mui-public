@@ -85,9 +85,6 @@ export default function Landing() {
         CircleCI workflows
       </Heading>
       <CircleCIWorkflows />
-      <Heading level={2} id="webpagetests">
-        Webpagetests
-      </Heading>
     </div>
   );
 }

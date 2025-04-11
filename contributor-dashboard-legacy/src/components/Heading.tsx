@@ -19,10 +19,21 @@ export default function Heading(props: HeadingProps): React.ReactElement {
       sx={{ 
         display: 'flex', 
         alignItems: 'center',
-        mb: 2,
+        mb: 3,
+        position: 'relative',
         '&:hover .anchor-link': {
-          opacity: 0.7
-        }
+          opacity: 0.6
+        },
+        '&::after': level === 1 ? {
+          content: '""',
+          position: 'absolute',
+          bottom: -8,
+          left: 0,
+          width: '40px',
+          height: '2px',
+          bgcolor: 'primary.main',
+          borderRadius: '1px'
+        } : {}
       }}
     >
       <Typography id={id} variant={`h${level}`} component={`h${level}`}>
@@ -38,14 +49,17 @@ export default function Heading(props: HeadingProps): React.ReactElement {
           className="anchor-link"
           sx={{ 
             ml: 1,
-            opacity: 0,
+            opacity: 0.3,
             transition: 'opacity 0.2s ease',
+            padding: '4px',
+            color: 'primary.main',
             '&:hover': {
-              opacity: 1
+              opacity: 1,
+              backgroundColor: 'rgba(255, 255, 255, 0.08)'
             }
           }}
         >
-          <LinkIcon fontSize="small" />
+          <LinkIcon fontSize="small" sx={{ fontSize: '0.85rem' }} />
         </IconButton>
       )}
     </Box>
