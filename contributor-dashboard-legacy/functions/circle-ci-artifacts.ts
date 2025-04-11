@@ -1,6 +1,10 @@
 /* eslint-disable import/prefer-default-export */
 import type { Handler } from '@netlify/functions';
+import zlib from 'zlib';
+import util from 'util';
 import computeEtag from 'etag';
+
+const gzip = util.promisify(zlib.gzip);
 
 interface CircleCIArtifact {
   path: string;
@@ -87,14 +91,18 @@ export const handler: Handler = async function circleCIArtifact(event, context) 
   }
 
   const sizeSnapshotJson = await sizeSnapshotResponse.json();
+  const bodyRaw = JSON.stringify(sizeSnapshotJson);
+  const bodyBuffer = await gzip(bodyRaw, { level: 9 });
 
   return {
     statusCode: 200,
     headers: {
       ...(enableCacheControl ? { 'Cache-Control': 'immutable, max-age=86400' } : {}),
       'Content-Type': 'application/json',
+      'Content-Encoding': 'gzip',
       ETag: etag,
     },
-    body: JSON.stringify(sizeSnapshotJson),
+    body: bodyBuffer.toString('base64'),
+    isBase64Encoded: true,
   };
 };
