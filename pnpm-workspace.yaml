@@ -1,3 +1,4 @@
 packages:
   - 'packages/*'
   - 'tools-public'
+  - 'contributor-dashboard-legacy'
