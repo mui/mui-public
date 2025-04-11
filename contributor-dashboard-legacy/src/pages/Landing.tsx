@@ -17,7 +17,14 @@ import { green, red } from '@mui/material/colors';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Heading from '../components/Heading';
 
-function UnstyledPipelineStatusIcon(props) {
+interface PipelineStatusIconProps {
+  className?: string;
+  size?: 'small' | 'middle';
+  status?: string;
+  [key: string]: any;
+}
+
+function UnstyledPipelineStatusIcon(props: PipelineStatusIconProps) {
   const { className, size, status, ...other } = props;
   switch (status) {
     case undefined:
@@ -33,19 +40,33 @@ function UnstyledPipelineStatusIcon(props) {
 }
 
 const PipelineStatusIcon = styled(UnstyledPipelineStatusIcon)`
-  color: ${({ status }) =>
-    ({ success: green[300], succeeded: green[300], failed: red[300] })[status]};
+  color: ${({ status }) => {
+    if (status === 'success' || status === 'succeeded') {
+      return green[300];
+    }
+    if (status === 'failed') {
+      return red[300];
+    }
+    return 'inherit';
+  }};
   font-size: ${({ size }) => (size === 'middle' ? '1.4em' : '1em')};
   margin: 0 8px;
   vertical-align: sub;
 `;
 
-function PipelineStatusUnstyled(props) {
+interface PipelineStatusUnstyledProps {
+  children: React.ReactNode;
+  size?: 'small' | 'middle';
+  status?: string;
+  [key: string]: any;
+}
+
+function PipelineStatusUnstyled(props: PipelineStatusUnstyledProps) {
   const { children, size = 'middle', status, ...other } = props;
 
   return (
     <Typography variant={size === 'middle' ? 'body1' : 'body2'} {...other}>
-      <PipelineStatusIcon size="size" status={status} />
+      <PipelineStatusIcon size={size} status={status} />
       <span>{children}</span>
     </Typography>
   );
@@ -59,12 +80,12 @@ const PipelineStatus = styled(PipelineStatusUnstyled)`
 export default function Landing() {
   return (
     <div>
-      <Heading level="1">Maintainer Dashboard</Heading>
-      <Heading level="2" id="circle-ci-workflows">
+      <Heading level={1}>Maintainer Dashboard</Heading>
+      <Heading level={2} id="circle-ci-workflows">
         CircleCI workflows
       </Heading>
       <CircleCIWorkflows />
-      <Heading level="2" id="webpagetests">
+      <Heading level={2} id="webpagetests">
         Webpagetests
       </Heading>
     </div>
@@ -94,7 +115,29 @@ function CircleCIWorkflows() {
   );
 }
 
-function CircleCIWorkflow(props) {
+interface WorkflowProps {
+  name: string;
+  label: string;
+  branchName?: string;
+}
+
+interface CircleCIWorkflowProps {
+  workflow: WorkflowProps;
+}
+
+interface CircleCIBuild {
+  build_num: number;
+  build_url: string;
+  status?: string;
+  branch: string;
+  stop_time: string;
+  workflows: {
+    workflow_name: string;
+    job_name: string;
+  };
+}
+
+function CircleCIWorkflow(props: CircleCIWorkflowProps) {
   const { workflow } = props;
 
   const builds = useRecentBuilds({
@@ -104,7 +147,7 @@ function CircleCIWorkflow(props) {
 
   // recent builds first
   const sortedBuilds = builds.sort((a, b) => {
-    return new Date(b.stop_time) - new Date(a.stop_time);
+    return new Date(b.stop_time).getTime() - new Date(a.stop_time).getTime();
   });
   const [lastBuild] = sortedBuilds;
 
@@ -124,20 +167,24 @@ function CircleCIWorkflow(props) {
   );
 }
 
-const CircleCIBuild = styled(ListItem)`
+const CircleCIBuildListItem = styled(ListItem)`
   display: inline-block;
   padding-top: 0;
   padding-bottom: 0;
 `;
 
-function CircleCIBuilds(props) {
+interface CircleCIBuildsProps {
+  builds: CircleCIBuild[];
+}
+
+function CircleCIBuilds(props: CircleCIBuildsProps) {
   const { builds } = props;
 
   return (
     <List component="ol">
       {builds.map((build) => {
         return (
-          <CircleCIBuild key={build.build_num}>
+          <CircleCIBuildListItem key={build.build_num}>
             <PipelineStatus size="small" status={build.status}>
               <Link href={build.build_url}>
                 {build.workflows.job_name}@{build.branch}
@@ -145,17 +192,22 @@ function CircleCIBuilds(props) {
               {' finished '}
               <RelativeTimeTillNow time={build.stop_time} />
             </PipelineStatus>
-          </CircleCIBuild>
+          </CircleCIBuildListItem>
         );
       })}
     </List>
   );
 }
 
-function useRecentBuilds(filter) {
+interface BuildFilter {
+  workflowName: string;
+  branchName?: string;
+}
+
+function useRecentBuilds(filter: BuildFilter): CircleCIBuild[] {
   const { branchName, workflowName } = filter;
   const [page, setPage] = React.useState(0);
-  const { resolvedData: builds } = usePaginatedQuery(
+  const { resolvedData: builds = [] } = usePaginatedQuery<CircleCIBuild[]>(
     ['circle-ci-builds', page],
     fetchRecentCircleCIBuilds,
     {
@@ -185,7 +237,7 @@ function useRecentBuilds(filter) {
   return React.useMemo(() => filteredBuilds.slice(0, 20), [filteredBuilds]);
 }
 
-async function fetchRecentCircleCIBuilds(key, cursor = 0) {
+async function fetchRecentCircleCIBuilds(key: string, cursor = 0): Promise<CircleCIBuild[]> {
   const url = getCircleCIApiUrl('project/github/mui/material-ui', {
     filter: 'completed',
     limit: 100,
@@ -197,38 +249,54 @@ async function fetchRecentCircleCIBuilds(key, cursor = 0) {
   return builds;
 }
 
-function getCircleCIApiUrl(endpoint, params) {
+interface CircleCIParams {
+  [key: string]: string | number;
+}
+
+function getCircleCIApiUrl(endpoint: string, params: CircleCIParams): URL {
   const apiEndpoint = 'https://circleci.com/api/v1.1/';
   const url = new URL(`${apiEndpoint}${endpoint}`);
   new URLSearchParams({
-    ...params,
+    ...(params as Record<string, string>),
   }).forEach((value, key) => url.searchParams.append(key, value));
 
   return url;
 }
 
-function RelativeTimeTillNow(props) {
-  const then = new Date(props.time);
+interface RelativeTimeProps {
+  time: string;
+}
 
-  if (Number.isNaN(then.getTime())) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('Invalid Date given with %s', props.time);
+function RelativeTimeTillNow({ time }: RelativeTimeProps): React.ReactElement {
+  const [relativeTime, setRelativeTime] = React.useState<string>('');
+
+  React.useEffect(() => {
+    const then = new Date(time);
+    if (Number.isNaN(then.getTime())) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Invalid Date given with %s', time);
+      }
+      setRelativeTime('Unknown');
+      return;
     }
-    return 'Unknown';
-  }
 
-  const now = new Date();
-  const seconds = (then - now) / 1000;
-  const intl = new Intl.RelativeTimeFormat('en', { numeric: 'always' });
+    const now = new Date();
+    const seconds = (then.getTime() - now.getTime()) / 1000;
+    const intl = new Intl.RelativeTimeFormat('en', { numeric: 'always' });
 
-  if (-seconds < 60) {
-    return intl.format(Math.ceil(seconds), 'second');
-  }
-  if (-seconds < 60 * 60) {
-    return intl.format(Math.ceil(seconds / 60), 'minute');
-  }
-  if (-seconds < 60 * 60 * 24) {
-    return intl.format(Math.ceil(seconds / 60 / 60), 'hour');
-  }
-  return intl.format(Math.ceil(seconds / 60 / 60 / 24), 'day');
+    let result: string;
+    if (-seconds < 60) {
+      result = intl.format(Math.ceil(seconds), 'second');
+    } else if (-seconds < 60 * 60) {
+      result = intl.format(Math.ceil(seconds / 60), 'minute');
+    } else if (-seconds < 60 * 60 * 24) {
+      result = intl.format(Math.ceil(seconds / 60 / 60), 'hour');
+    } else {
+      result = intl.format(Math.ceil(seconds / 60 / 60 / 24), 'day');
+    }
+
+    setRelativeTime(result);
+  }, [time]);
+
+  return <React.Fragment>{relativeTime}</React.Fragment>;
 }

@@ -30,54 +30,78 @@ function App() {
         },
         mode: 'dark',
       },
-      props: {
+      components: {
         MuiButton: {
-          size: 'small',
+          defaultProps: {
+            size: 'small',
+          },
         },
         MuiFilledInput: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiFormControl: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiFormHelperText: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiIconButton: {
-          size: 'small',
+          defaultProps: {
+            size: 'small',
+          },
+          styleOverrides: {
+            sizeSmall: {
+              // Adjust spacing to reach minimal touch target hitbox
+              marginLeft: 4,
+              marginRight: 4,
+              padding: 12,
+            },
+          },
         },
         MuiInputBase: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiInputLabel: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiListItem: {
-          dense: true,
+          defaultProps: {
+            dense: true,
+          },
         },
         MuiOutlinedInput: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiFab: {
-          size: 'small',
+          defaultProps: {
+            size: 'small',
+          },
         },
         MuiTable: {
-          size: 'small',
+          defaultProps: {
+            size: 'small',
+          },
         },
         MuiTextField: {
-          margin: 'dense',
+          defaultProps: {
+            margin: 'dense',
+          },
         },
         MuiToolbar: {
-          variant: 'dense',
-        },
-      },
-      overrides: {
-        MuiIconButton: {
-          sizeSmall: {
-            // Adjust spacing to reach minimal touch target hitbox
-            marginLeft: 4,
-            marginRight: 4,
-            padding: 12,
+          defaultProps: {
+            variant: 'dense',
           },
         },
       },
@@ -104,8 +128,6 @@ function App() {
       },
     });
 
-    nextTheme.palette.background.level2 = '#333';
-    nextTheme.palette.background.level1 = nextTheme.palette.grey[900];
 
     return nextTheme;
   }, []);
@@ -114,16 +136,25 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ReactQueryCacheProvider queryCache={suspenseQueryCache}>
-        <svg style={{ display: 'none' }} xmlns="http://www.w3.org/2000/svg">
-          <symbol id="anchor-link-icon" viewBox="0 0 16 16">
-            <path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z" />
-          </symbol>
-        </svg>
         <div>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/size-comparison" element={<SizeComparison />} />
+              <Route 
+                path="/" 
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <Landing />
+                  </React.Suspense>
+                } 
+              />
+              <Route 
+                path="/size-comparison" 
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <SizeComparison />
+                  </React.Suspense>
+                } 
+              />
             </Routes>
           </BrowserRouter>
         </div>

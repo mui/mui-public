@@ -19,30 +19,18 @@ interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
 }
 
-async function fetchSizeSnapshotCircleCI(buildNumber: number): Promise<SizeSnapshot> {
-  const response = await fetch(
-    `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(buildNumber)}`,
-  );
-
+async function downloadSnapshot(key: unknown, downloadUrl: string): Promise<SizeSnapshot> {
+  const response = await fetch(downloadUrl);
   if (!response.ok) {
-    throw new Error(`Failed to fetch CircleCI artifacts, HTTP ${response.status}`);
+    throw new Error(`Failed to fetch "${downloadUrl}", HTTP ${response.status}`);
   }
-
   return response.json();
 }
 
-async function fetchSizeSnapshot(
-  key: unknown,
-  { circleCIBuildNumber }: { circleCIBuildNumber: number },
-): Promise<SizeSnapshot> {
-  return fetchSizeSnapshotCircleCI(circleCIBuildNumber);
-}
-
 function useSizeSnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number }): SizeSnapshot {
-  const { data: sizeSnapshot } = useQuery(
-    ['size-snapshot', { circleCIBuildNumber }],
-    fetchSizeSnapshot,
-  );
+  const downloadUrl = `/.netlify/functions/circle-ci-artifacts?buildNumber=${encodeURIComponent(circleCIBuildNumber)}`;
+
+  const { data: sizeSnapshot } = useQuery(['cci-snapshot-download', downloadUrl], downloadSnapshot);
 
   if (!sizeSnapshot) {
     // NonNullable due to Suspense
@@ -50,14 +38,6 @@ function useSizeSnapshot({ circleCIBuildNumber }: { circleCIBuildNumber: number 
   }
 
   return sizeSnapshot;
-}
-
-async function downloadSnapshot(key: unknown, downloadUrl: string): Promise<SizeSnapshot> {
-  const response = await fetch(downloadUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch "${downloadUrl}", HTTP ${response.status}`);
-  }
-  return response.json();
 }
 
 function useS3SizeSnapshot(ref: string, commitId: string): SizeSnapshot {
@@ -211,17 +191,6 @@ function getMainBundleLabel(bundleId: string): string {
   );
 }
 
-function getPageBundleLabel(bundleId: string): string {
-  // a page
-  if (bundleId.startsWith('docs:/')) {
-    const page = bundleId.replace(/^docs:/, '');
-    return page;
-  }
-
-  // shared
-  return bundleId;
-}
-
 interface Size {
   parsed: {
     previous: number;
@@ -242,23 +211,20 @@ function Comparison({
   baseRef,
   baseCommit,
   circleCIBuildNumber,
-  prNumber,
 }: {
   baseRef: string;
   baseCommit: string;
   circleCIBuildNumber: number;
-  prNumber: number;
 }) {
   const baseSnapshot = useS3SizeSnapshot(baseRef, baseCommit);
   const targetSnapshot = useSizeSnapshot({
     circleCIBuildNumber,
   });
 
-  const { main: mainResults, pages: pageResults } = React.useMemo(() => {
+  const { main: mainResults } = React.useMemo(() => {
     const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
 
     const main: [string, Size][] = [];
-    const pages: [string, Size][] = [];
     bundleKeys.forEach((bundle) => {
       // current vs previous based off: https://github.com/mui/material-ui/blob/f1246e829f9c0fc9458ce951451f43c2f166c7d1/scripts/sizeSnapshot/loadComparison.js#L32
       // if a bundle was added the change should be +inf
@@ -284,50 +250,19 @@ function Comparison({
         },
       ];
 
-      if (bundle.startsWith('docs:')) {
-        pages.push(entry);
-      } else {
-        main.push(entry);
-      }
+      main.push(entry);
     });
 
-    return { main, pages };
+    return { main };
   }, [baseSnapshot, targetSnapshot]);
 
-  const renderPageBundleLabel = React.useCallback(
-    (bundleId) => {
-      // a page
-      if (bundleId.startsWith('docs:/')) {
-        const page = bundleId.replace(/^docs:/, '');
-        const host = `https://deploy-preview-${prNumber}--material-ui.netlify.app`;
-        return <Link href={`${host}${page}`}>{page}</Link>;
-      }
-
-      // shared
-      return bundleId;
-    },
-    [prNumber],
-  );
-
   return (
-    <React.Fragment>
-      <Accordion defaultExpanded>
-        <AccordionSummary>Modules</AccordionSummary>
-        <AccordionDetails>
-          <CompareTable entries={mainResults} getBundleLabel={getMainBundleLabel} />
-        </AccordionDetails>
-      </Accordion>
-      <Accordion defaultExpanded={false}>
-        <AccordionSummary>Pages</AccordionSummary>
-        <AccordionDetails>
-          <CompareTable
-            entries={pageResults}
-            getBundleLabel={getPageBundleLabel}
-            renderBundleLabel={renderPageBundleLabel}
-          />
-        </AccordionDetails>
-      </Accordion>
-    </React.Fragment>
+    <Accordion defaultExpanded>
+      <AccordionSummary>Modules</AccordionSummary>
+      <AccordionDetails>
+        <CompareTable entries={mainResults} getBundleLabel={getMainBundleLabel} />
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -361,14 +296,13 @@ export default function SizeComparison() {
 
   return (
     <React.Fragment>
-      <Heading level="1">Size comparison</Heading>
+      <Heading level={1}>Size comparison</Heading>
       <div>
         <ErrorBoundary fallback={<ComparisonErrorFallback prNumber={prNumber} />}>
           <Comparison
             baseRef={baseRef}
             baseCommit={baseCommit}
             circleCIBuildNumber={circleCIBuildNumber}
-            prNumber={prNumber}
           />
         </ErrorBoundary>
       </div>
