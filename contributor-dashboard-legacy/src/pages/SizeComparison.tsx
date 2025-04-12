@@ -11,10 +11,19 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import prettyBytes from 'pretty-bytes';
 import styled from '@emotion/styled';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
+import SizeChangeDisplay from '../components/SizeChangeDisplay';
+
+// Formatter for byte sizes
+const byteSizeFormatter = new Intl.NumberFormat('en-US', {
+  style: 'unit',
+  unit: 'kilobyte',
+  unitDisplay: 'short',
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 0,
+});
 
 interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
@@ -66,100 +75,6 @@ function useS3SizeSnapshot(org: string, repo: string, ref: string, commitId: str
   const path = `${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
   const url = new URL(path, 'https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/');
   return useSizeSnapshotFromUrl(url.toString());
-}
-
-// Formatter specifically for display in the UI with proper percentage formatting
-const displayPercentFormatter = new Intl.NumberFormat('en-US', {
-  style: 'percent',
-  signDisplay: 'exceptZero',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  useGrouping: true,
-});
-
-// Helper function that uses SizeChangeDisplay component to render diffs
-function renderDiff(absoluteChange: number, relativeChange: number) {
-  if (absoluteChange === 0) {
-    return '--';
-  }
-
-  // Determine if this is a special bundle (new or removed)
-  let specialLabel: 'new' | 'removed' | undefined;
-
-  if (relativeChange === Infinity) {
-    specialLabel = 'new';
-  } else if (relativeChange === -Infinity) {
-    specialLabel = 'removed';
-  }
-
-  // Return using our new component for consistency
-  return (
-    <SizeChangeDisplay
-      absoluteChange={absoluteChange}
-      relativeChange={Number.isFinite(relativeChange) ? relativeChange : undefined}
-      specialLabel={specialLabel}
-    />
-  );
-}
-
-/**
- * Reusable component for displaying size changes with colored arrows
- */
-function SizeChangeDisplay({
-  absoluteChange,
-  relativeChange,
-  specialLabel,
-}: {
-  absoluteChange: number;
-  relativeChange?: number;
-  specialLabel?: 'new' | 'removed';
-}): React.ReactElement | null {
-  if (absoluteChange === 0) {
-    return <React.Fragment>No change</React.Fragment>;
-  }
-
-  const isDecrease = absoluteChange < 0;
-  const formattedSize = prettyBytes(Math.abs(absoluteChange));
-
-  // Determine arrow color based on change type
-  let arrowColor;
-  let arrowIcon;
-
-  if (specialLabel === 'new') {
-    arrowIcon = '▲';
-    arrowColor = 'warning.main'; // Orange for new
-  } else if (specialLabel === 'removed') {
-    arrowIcon = '▼';
-    arrowColor = 'info.main'; // Blue for removed
-  } else {
-    arrowIcon = isDecrease ? '▼' : '▲';
-    arrowColor = isDecrease ? 'success.main' : 'error.main';
-  }
-
-  return (
-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
-      <Box component="span" sx={{ color: arrowColor, mr: 0.5, fontWeight: 'bold' }}>
-        {arrowIcon}
-      </Box>
-      <span>
-        {isDecrease ? '-' : '+'}
-        {formattedSize}
-
-        {/* Render the special label or percentage in a less pronounced style */}
-        {specialLabel && (
-          <Box component="span" sx={{ ml: 0.5, fontSize: '0.85em', color: 'text.secondary' }}>
-            ({specialLabel})
-          </Box>
-        )}
-
-        {!specialLabel && relativeChange !== undefined && (
-          <Box component="span" sx={{ ml: 0.5, fontSize: '0.85em', color: 'text.secondary' }}>
-            ({displayPercentFormatter.format(relativeChange)})
-          </Box>
-        )}
-      </span>
-    </Box>
-  );
 }
 
 const BundleCell = styled(TableCell)`
@@ -238,13 +153,27 @@ const CompareTable = React.memo(function CompareTable({ entries }: { entries: [s
             <TableRow key={label}>
               <BundleCell>{id}</BundleCell>
               <TableCell align="right">
-                {renderDiff(parsed.absoluteDiff, parsed.relativeDiff)}
+                {parsed.absoluteDiff === 0 ? (
+                  '--'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={parsed.absoluteDiff}
+                    relativeChange={parsed.relativeDiff}
+                  />
+                )}
               </TableCell>
-              <TableCell align="right">{prettyBytes(parsed.current)}</TableCell>
+              <TableCell align="right">{byteSizeFormatter.format(parsed.current / 1024)}</TableCell>
               <TableCell align="right">
-                {renderDiff(gzip.absoluteDiff, gzip.relativeDiff)}
+                {gzip.absoluteDiff === 0 ? (
+                  '--'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={gzip.absoluteDiff}
+                    relativeChange={gzip.relativeDiff}
+                  />
+                )}
               </TableCell>
-              <TableCell align="right">{prettyBytes(gzip.current)}</TableCell>
+              <TableCell align="right">{byteSizeFormatter.format(gzip.current / 1024)}</TableCell>
             </TableRow>
           );
         })}
@@ -523,17 +452,25 @@ function Comparison({
             <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
               <Typography variant="body2">
                 <strong>Total Size Change:</strong>{' '}
-                <SizeChangeDisplay
-                  absoluteChange={totals.totalParsed}
-                  relativeChange={totals.totalParsedPercent}
-                />
+                {totals.totalParsed === 0 ? (
+                  'No change'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={totals.totalParsed}
+                    relativeChange={totals.totalParsedPercent}
+                  />
+                )}
               </Typography>
               <Typography variant="body2">
                 <strong>Total Gzip Change:</strong>{' '}
-                <SizeChangeDisplay
-                  absoluteChange={totals.totalGzip}
-                  relativeChange={totals.totalGzipPercent}
-                />
+                {totals.totalGzip === 0 ? (
+                  'No change'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={totals.totalGzip}
+                    relativeChange={totals.totalGzipPercent}
+                  />
+                )}
               </Typography>
             </Box>
 
