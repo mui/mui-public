@@ -81,7 +81,14 @@ const BundleCell = styled(TableCell)`
   max-width: 40ch;
 `;
 
-const CompareTable = React.memo(function CompareTable({ entries }: { entries: [string, Size][] }) {
+/**
+ * Props interface for the CompareTable component
+ */
+interface CompareTableProps {
+  entries: [string, Size][];
+}
+
+const CompareTable = React.memo(function CompareTable({ entries }: CompareTableProps) {
   const rows = React.useMemo(() => {
     return (
       entries
@@ -198,16 +205,22 @@ interface Size {
 }
 
 const nullSnapshot = { parsed: 0, gzip: 0 };
+
+/**
+ * Props interface for the ComparisonTable component
+ */
+interface ComparisonTableProps {
+  entries: [string, Size][];
+  isLoading: boolean;
+  error?: Error | null;
+}
+
 // Pure presentational component that just renders the table
 function ComparisonTable({
   entries,
   isLoading,
   error,
-}: {
-  entries: [string, Size][];
-  isLoading: boolean;
-  error?: Error | null;
-}) {
+}: ComparisonTableProps) {
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
@@ -398,6 +411,18 @@ function useSizeComparisonData(
   };
 }
 
+/**
+ * Props interface for the Comparison component
+ */
+interface ComparisonProps {
+  baseOrg: string;
+  baseRepo: string;
+  baseRef: string;
+  baseCommit: string;
+  circleCIBuildNumber: number;
+  prNumber: number;
+}
+
 // Main comparison component that renders both the header and the table
 function Comparison({
   baseOrg,
@@ -406,14 +431,7 @@ function Comparison({
   baseCommit,
   circleCIBuildNumber,
   prNumber,
-}: {
-  baseOrg: string;
-  baseRepo: string;
-  baseRef: string;
-  baseCommit: string;
-  circleCIBuildNumber: number;
-  prNumber: number;
-}) {
+}: ComparisonProps) {
   const { entries, totals, fileCounts, isLoading, error } = useSizeComparisonData(
     baseOrg,
     baseRepo,
