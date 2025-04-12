@@ -216,11 +216,7 @@ interface ComparisonTableProps {
 }
 
 // Pure presentational component that just renders the table
-function ComparisonTable({
-  entries,
-  isLoading,
-  error,
-}: ComparisonTableProps) {
+function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
