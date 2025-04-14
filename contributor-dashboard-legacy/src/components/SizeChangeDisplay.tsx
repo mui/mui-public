@@ -2,7 +2,7 @@ import * as React from 'react';
 import { styled } from '@mui/material/styles';
 
 // Formatters for display in the UI
-const displayPercentFormatter = new Intl.NumberFormat('en-US', {
+const displayPercentFormatter = new Intl.NumberFormat(undefined, {
   style: 'percent',
   signDisplay: 'exceptZero',
   minimumFractionDigits: 2,
@@ -11,7 +11,7 @@ const displayPercentFormatter = new Intl.NumberFormat('en-US', {
 });
 
 // Formatter for byte sizes with adaptive precision based on magnitude
-export const byteSizeFormatter = new Intl.NumberFormat('en-US', {
+export const byteSizeFormatter = new Intl.NumberFormat(undefined, {
   style: 'unit',
   signDisplay: 'exceptZero',
   unit: 'byte',
@@ -19,6 +19,14 @@ export const byteSizeFormatter = new Intl.NumberFormat('en-US', {
   unitDisplay: 'narrow',
   maximumSignificantDigits: 3,
   minimumSignificantDigits: 1,
+});
+
+// Formatter for exact byte counts (for tooltips)
+export const exactBytesFormatter = new Intl.NumberFormat(undefined, {
+  style: 'unit',
+  unit: 'byte',
+  unitDisplay: 'long',
+  useGrouping: true,
 });
 
 // Styled components
@@ -94,8 +102,11 @@ export default function SizeChangeDisplay({
     }
   }
 
+  // Format exact bytes for tooltip
+  const exactBytes = exactBytesFormatter.format(Math.abs(absoluteChange));
+
   return (
-    <Root>
+    <Root title={exactBytes}>
       <ArrowContainer sx={{ color: arrowColor }}>{arrowIcon}</ArrowContainer>
       <Content>
         {formattedSize}

@@ -14,7 +14,10 @@ import TableRow from '@mui/material/TableRow';
 import styled from '@emotion/styled';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
-import SizeChangeDisplay, { byteSizeFormatter } from '../components/SizeChangeDisplay';
+import SizeChangeDisplay, {
+  byteSizeFormatter,
+  exactBytesFormatter,
+} from '../components/SizeChangeDisplay';
 
 interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
@@ -105,7 +108,9 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
                 />
               )}
             </TableCell>
-            <TableCell align="right">{byteSizeFormatter.format(parsed.current)}</TableCell>
+            <TableCell align="right" title={exactBytesFormatter.format(parsed.current)}>
+              {byteSizeFormatter.format(parsed.current)}
+            </TableCell>
             <TableCell align="right">
               {gzip.absoluteDiff === 0 ? (
                 '--'
@@ -116,7 +121,9 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
                 />
               )}
             </TableCell>
-            <TableCell align="right">{byteSizeFormatter.format(gzip.current)}</TableCell>
+            <TableCell align="right" title={exactBytesFormatter.format(gzip.current)}>
+              {byteSizeFormatter.format(gzip.current)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
