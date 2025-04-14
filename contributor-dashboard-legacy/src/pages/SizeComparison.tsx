@@ -79,7 +79,7 @@ const BundleCell = styled(TableCell)`
  * Props interface for the CompareTable component
  */
 interface CompareTableProps {
-  entries: [string, Size][];
+  entries: Size[];
 }
 
 const CompareTable = React.memo(function CompareTable({ entries }: CompareTableProps) {
@@ -95,9 +95,9 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
         </TableRow>
       </TableHead>
       <TableBody>
-        {entries.map(([bundleId, { parsed, gzip }]) => (
-          <TableRow key={bundleId}>
-            <BundleCell>{bundleId}</BundleCell>
+        {entries.map(({ id, parsed, gzip }) => (
+          <TableRow key={id}>
+            <BundleCell>{id}</BundleCell>
             <TableCell align="right">
               {parsed.absoluteDiff === 0 ? (
                 '--'
@@ -132,6 +132,7 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
 });
 
 interface Size {
+  id: string;
   parsed: {
     previous: number;
     current: number;
@@ -152,7 +153,7 @@ const nullSnapshot = { parsed: 0, gzip: 0 };
  * Props interface for the ComparisonTable component
  */
 interface ComparisonTableProps {
-  entries: [string, Size][];
+  entries: Size[];
   isLoading: boolean;
   error?: Error | null;
 }
@@ -235,7 +236,7 @@ function useSizeComparisonData(
     }
 
     const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
-    const results: [string, Size][] = [];
+    const results: Size[] = [];
 
     // Track totals
     let totalParsed = 0;
@@ -292,23 +293,21 @@ function useSizeComparisonData(
         gzipRelativeDiff = 0;
       }
 
-      const entry: [string, Size] = [
-        bundle,
-        {
-          parsed: {
-            previous: previousSize.parsed,
-            current: currentSize.parsed,
-            absoluteDiff: parsedDiff,
-            relativeDiff: parsedRelativeDiff,
-          },
-          gzip: {
-            previous: previousSize.gzip,
-            current: currentSize.gzip,
-            absoluteDiff: gzipDiff,
-            relativeDiff: gzipRelativeDiff,
-          },
+      const entry: Size = {
+        id: bundle,
+        parsed: {
+          previous: previousSize.parsed,
+          current: currentSize.parsed,
+          absoluteDiff: parsedDiff,
+          relativeDiff: parsedRelativeDiff,
         },
-      ];
+        gzip: {
+          previous: previousSize.gzip,
+          current: currentSize.gzip,
+          absoluteDiff: gzipDiff,
+          relativeDiff: gzipRelativeDiff,
+        },
+      };
 
       results.push(entry);
 
@@ -330,27 +329,27 @@ function useSizeComparisonData(
     // 3. Existing bundles that decreased in size (larger decreases first)
     // 4. Removed bundles (larger sizes first)
     // 5. Unchanged bundles (alphabetically)
-    results.sort(([labelA, statsA], [labelB, statsB]) => {
+    results.sort((entryA, entryB) => {
       // Helper function to determine bundle category (for sorting)
-      const getCategory = (stats: Size): number => {
-        if (stats.parsed.relativeDiff === Infinity) {
+      const getCategory = (entry: Size): number => {
+        if (entry.parsed.relativeDiff === Infinity) {
           return 2; // New bundle
         }
-        if (stats.parsed.relativeDiff === -Infinity) {
+        if (entry.parsed.relativeDiff === -Infinity) {
           return 4; // Removed bundle
         }
-        if (stats.parsed.relativeDiff > 0) {
+        if (entry.parsed.relativeDiff > 0) {
           return 1; // Increased
         }
-        if (stats.parsed.relativeDiff < 0) {
+        if (entry.parsed.relativeDiff < 0) {
           return 3; // Decreased
         }
         return 5; // Unchanged
       };
 
       // Get categories for both bundles
-      const categoryA = getCategory(statsA);
-      const categoryB = getCategory(statsB);
+      const categoryA = getCategory(entryA);
+      const categoryB = getCategory(entryB);
 
       // Sort by category first
       if (categoryA !== categoryB) {
@@ -358,15 +357,15 @@ function useSizeComparisonData(
       }
 
       // Within the same category, sort by absolute diff (largest first)
-      const diffA = Math.abs(statsA.parsed.absoluteDiff);
-      const diffB = Math.abs(statsB.parsed.absoluteDiff);
+      const diffA = Math.abs(entryA.parsed.absoluteDiff);
+      const diffB = Math.abs(entryB.parsed.absoluteDiff);
 
       if (diffA !== diffB) {
         return diffB - diffA;
       }
 
       // If diffs are the same, sort by name
-      return labelA.localeCompare(labelB);
+      return entryA.id.localeCompare(entryB.id);
     });
 
     return {
