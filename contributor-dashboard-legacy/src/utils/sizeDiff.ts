@@ -47,14 +47,14 @@ const nullSnapshot = { parsed: 0, gzip: 0 };
 
 /**
  * Calculates size difference between two snapshots
- * 
+ *
  * @param baseSnapshot - Base snapshot (previous)
  * @param targetSnapshot - Target snapshot (current)
  * @returns Comparison result with entries, totals, and file counts
  */
 export function calculateSizeDiff(
   baseSnapshot: SizeSnapshot | null,
-  targetSnapshot: SizeSnapshot | null
+  targetSnapshot: SizeSnapshot | null,
 ): ComparisonResult {
   if (!baseSnapshot || !targetSnapshot) {
     return {
