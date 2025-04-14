@@ -10,14 +10,15 @@ const displayPercentFormatter = new Intl.NumberFormat('en-US', {
   useGrouping: true,
 });
 
-// Formatter for byte sizes
-const byteSizeFormatter = new Intl.NumberFormat('en-US', {
+// Formatter for byte sizes with adaptive precision based on magnitude
+export const byteSizeFormatter = new Intl.NumberFormat('en-US', {
   style: 'unit',
   signDisplay: 'exceptZero',
-  unit: 'kilobyte',
-  unitDisplay: 'short',
-  maximumFractionDigits: 1,
-  minimumFractionDigits: 0,
+  unit: 'byte',
+  notation: 'compact',
+  unitDisplay: 'narrow',
+  maximumSignificantDigits: 3,
+  minimumSignificantDigits: 1,
 });
 
 // Styled components
@@ -59,9 +60,8 @@ export default function SizeChangeDisplay({
     return <React.Fragment>No change</React.Fragment>;
   }
 
-  // Convert bytes to kilobytes and format
-  const sizeInKB = Math.abs(absoluteChange) / 1024;
-  const formattedSize = byteSizeFormatter.format(sizeInKB);
+  // Format the size in bytes
+  const formattedSize = byteSizeFormatter.format(Math.abs(absoluteChange));
 
   // Determine label and arrow characteristics based on the change
   let label: string | null = null;

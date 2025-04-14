@@ -14,16 +14,7 @@ import TableRow from '@mui/material/TableRow';
 import styled from '@emotion/styled';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
-import SizeChangeDisplay from '../components/SizeChangeDisplay';
-
-// Formatter for byte sizes
-const byteSizeFormatter = new Intl.NumberFormat('en-US', {
-  style: 'unit',
-  unit: 'kilobyte',
-  unitDisplay: 'short',
-  maximumFractionDigits: 1,
-  minimumFractionDigits: 0,
-});
+import SizeChangeDisplay, { byteSizeFormatter } from '../components/SizeChangeDisplay';
 
 interface SizeSnapshot {
   [bundleId: string]: { parsed: number; gzip: number };
@@ -89,60 +80,6 @@ interface CompareTableProps {
 }
 
 const CompareTable = React.memo(function CompareTable({ entries }: CompareTableProps) {
-  const rows = React.useMemo(() => {
-    return (
-      entries
-        .map(([bundleId, size]): [string, Size & { id: string }] => [
-          bundleId,
-          { ...size, id: bundleId },
-        ])
-        // Custom sorting:
-        // 1. Existing bundles that increased in size (larger increases first)
-        // 2. New bundles (larger sizes first)
-        // 3. Existing bundles that decreased in size (larger decreases first)
-        // 4. Removed bundles (larger sizes first)
-        // 5. Unchanged bundles (alphabetically)
-        .sort(([labelA, statsA], [labelB, statsB]) => {
-          // Helper function to determine bundle category (for sorting)
-          const getCategory = (stats: Size): number => {
-            if (stats.parsed.relativeDiff === Infinity) {
-              return 2; // New bundle
-            }
-            if (stats.parsed.relativeDiff === -Infinity) {
-              return 4; // Removed bundle
-            }
-            if (stats.parsed.relativeDiff > 0) {
-              return 1; // Increased
-            }
-            if (stats.parsed.relativeDiff < 0) {
-              return 3; // Decreased
-            }
-            return 5; // Unchanged
-          };
-
-          // Get categories for both bundles
-          const categoryA = getCategory(statsA);
-          const categoryB = getCategory(statsB);
-
-          // Sort by category first
-          if (categoryA !== categoryB) {
-            return categoryA - categoryB;
-          }
-
-          // Within the same category, sort by absolute diff (largest first)
-          const diffA = Math.abs(statsA.parsed.absoluteDiff);
-          const diffB = Math.abs(statsB.parsed.absoluteDiff);
-
-          if (diffA !== diffB) {
-            return diffB - diffA;
-          }
-
-          // If diffs are the same, sort by name
-          return labelA.localeCompare(labelB);
-        })
-    );
-  }, [entries]);
-
   return (
     <Table>
       <TableHead>
@@ -155,35 +92,33 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
         </TableRow>
       </TableHead>
       <TableBody>
-        {rows.map(([label, { parsed, gzip, id }]) => {
-          return (
-            <TableRow key={label}>
-              <BundleCell>{id}</BundleCell>
-              <TableCell align="right">
-                {parsed.absoluteDiff === 0 ? (
-                  '--'
-                ) : (
-                  <SizeChangeDisplay
-                    absoluteChange={parsed.absoluteDiff}
-                    relativeChange={parsed.relativeDiff}
-                  />
-                )}
-              </TableCell>
-              <TableCell align="right">{byteSizeFormatter.format(parsed.current / 1024)}</TableCell>
-              <TableCell align="right">
-                {gzip.absoluteDiff === 0 ? (
-                  '--'
-                ) : (
-                  <SizeChangeDisplay
-                    absoluteChange={gzip.absoluteDiff}
-                    relativeChange={gzip.relativeDiff}
-                  />
-                )}
-              </TableCell>
-              <TableCell align="right">{byteSizeFormatter.format(gzip.current / 1024)}</TableCell>
-            </TableRow>
-          );
-        })}
+        {entries.map(([bundleId, { parsed, gzip }]) => (
+          <TableRow key={bundleId}>
+            <BundleCell>{bundleId}</BundleCell>
+            <TableCell align="right">
+              {parsed.absoluteDiff === 0 ? (
+                '--'
+              ) : (
+                <SizeChangeDisplay
+                  absoluteChange={parsed.absoluteDiff}
+                  relativeChange={parsed.relativeDiff}
+                />
+              )}
+            </TableCell>
+            <TableCell align="right">{byteSizeFormatter.format(parsed.current)}</TableCell>
+            <TableCell align="right">
+              {gzip.absoluteDiff === 0 ? (
+                '--'
+              ) : (
+                <SizeChangeDisplay
+                  absoluteChange={gzip.absoluteDiff}
+                  relativeChange={gzip.relativeDiff}
+                />
+              )}
+            </TableCell>
+            <TableCell align="right">{byteSizeFormatter.format(gzip.current)}</TableCell>
+          </TableRow>
+        ))}
       </TableBody>
     </Table>
   );
@@ -380,6 +315,52 @@ function useSizeComparisonData(
     // Calculate percentage changes
     const totalParsedPercent = totalParsedPrevious > 0 ? totalParsed / totalParsedPrevious : 0;
     const totalGzipPercent = totalGzipPrevious > 0 ? totalGzip / totalGzipPrevious : 0;
+
+    // Sort the results
+    // Custom sorting:
+    // 1. Existing bundles that increased in size (larger increases first)
+    // 2. New bundles (larger sizes first)
+    // 3. Existing bundles that decreased in size (larger decreases first)
+    // 4. Removed bundles (larger sizes first)
+    // 5. Unchanged bundles (alphabetically)
+    results.sort(([labelA, statsA], [labelB, statsB]) => {
+      // Helper function to determine bundle category (for sorting)
+      const getCategory = (stats: Size): number => {
+        if (stats.parsed.relativeDiff === Infinity) {
+          return 2; // New bundle
+        }
+        if (stats.parsed.relativeDiff === -Infinity) {
+          return 4; // Removed bundle
+        }
+        if (stats.parsed.relativeDiff > 0) {
+          return 1; // Increased
+        }
+        if (stats.parsed.relativeDiff < 0) {
+          return 3; // Decreased
+        }
+        return 5; // Unchanged
+      };
+
+      // Get categories for both bundles
+      const categoryA = getCategory(statsA);
+      const categoryB = getCategory(statsB);
+
+      // Sort by category first
+      if (categoryA !== categoryB) {
+        return categoryA - categoryB;
+      }
+
+      // Within the same category, sort by absolute diff (largest first)
+      const diffA = Math.abs(statsA.parsed.absoluteDiff);
+      const diffB = Math.abs(statsB.parsed.absoluteDiff);
+
+      if (diffA !== diffB) {
+        return diffB - diffA;
+      }
+
+      // If diffs are the same, sort by name
+      return labelA.localeCompare(labelB);
+    });
 
     return {
       entries: results,

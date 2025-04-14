@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   server: {
     port: 3000,
-    open: true,
+    open: false,
   },
   build: {
     outDir: 'build', // Match the existing build directory for Netlify
