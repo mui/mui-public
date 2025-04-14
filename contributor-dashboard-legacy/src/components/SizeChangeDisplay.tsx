@@ -10,10 +10,9 @@ const displayPercentFormatter = new Intl.NumberFormat(undefined, {
   useGrouping: true,
 });
 
-// Formatter for byte sizes with adaptive precision based on magnitude
+// Formatter for byte sizes (absolute values) - no sign
 export const byteSizeFormatter = new Intl.NumberFormat(undefined, {
   style: 'unit',
-  signDisplay: 'exceptZero',
   unit: 'byte',
   notation: 'compact',
   unitDisplay: 'narrow',
@@ -21,11 +20,31 @@ export const byteSizeFormatter = new Intl.NumberFormat(undefined, {
   minimumSignificantDigits: 1,
 });
 
-// Formatter for exact byte counts (for tooltips)
+// Formatter for size changes - always show sign
+export const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
+  style: 'unit',
+  signDisplay: 'always', // Always show the sign (+ or -)
+  unit: 'byte',
+  notation: 'compact',
+  unitDisplay: 'narrow',
+  maximumSignificantDigits: 3,
+  minimumSignificantDigits: 1,
+});
+
+// Formatter for exact byte counts (for tooltips) - no sign
 export const exactBytesFormatter = new Intl.NumberFormat(undefined, {
   style: 'unit',
   unit: 'byte',
   unitDisplay: 'long',
+  useGrouping: true,
+});
+
+// Formatter for exact byte changes (for tooltips) - with sign
+export const exactBytesChangeFormatter = new Intl.NumberFormat(undefined, {
+  style: 'unit',
+  unit: 'byte',
+  unitDisplay: 'long',
+  signDisplay: 'always', // Always show the sign (+ or -)
   useGrouping: true,
 });
 
@@ -68,8 +87,8 @@ export default function SizeChangeDisplay({
     return <React.Fragment>No change</React.Fragment>;
   }
 
-  // Format the size in bytes
-  const formattedSize = byteSizeFormatter.format(Math.abs(absoluteChange));
+  // Format the size in bytes with sign for changes
+  const formattedSize = byteSizeChangeFormatter.format(absoluteChange);
 
   // Determine label and arrow characteristics based on the change
   let label: string | null = null;
@@ -102,8 +121,8 @@ export default function SizeChangeDisplay({
     }
   }
 
-  // Format exact bytes for tooltip
-  const exactBytes = exactBytesFormatter.format(Math.abs(absoluteChange));
+  // Format exact bytes for tooltip with sign for changes
+  const exactBytes = exactBytesChangeFormatter.format(absoluteChange);
 
   return (
     <Root title={exactBytes}>
