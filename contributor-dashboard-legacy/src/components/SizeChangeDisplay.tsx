@@ -21,14 +21,10 @@ export const byteSizeFormatter = new Intl.NumberFormat(undefined, {
 });
 
 // Formatter for size changes - always show sign
+// Created by extending the options from byteSizeFormatter
 export const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
-  style: 'unit',
-  signDisplay: 'always', // Always show the sign (+ or -)
-  unit: 'byte',
-  notation: 'compact',
-  unitDisplay: 'narrow',
-  maximumSignificantDigits: 3,
-  minimumSignificantDigits: 1,
+  ...byteSizeFormatter.resolvedOptions(),
+  signDisplay: 'exceptZero',
 });
 
 // Formatter for exact byte counts (for tooltips) - no sign
@@ -40,12 +36,10 @@ export const exactBytesFormatter = new Intl.NumberFormat(undefined, {
 });
 
 // Formatter for exact byte changes (for tooltips) - with sign
+// Created by extending the options from exactBytesFormatter
 export const exactBytesChangeFormatter = new Intl.NumberFormat(undefined, {
-  style: 'unit',
-  unit: 'byte',
-  unitDisplay: 'long',
-  signDisplay: 'always', // Always show the sign (+ or -)
-  useGrouping: true,
+  ...exactBytesFormatter.resolvedOptions(),
+  signDisplay: 'exceptZero',
 });
 
 // Styled components
