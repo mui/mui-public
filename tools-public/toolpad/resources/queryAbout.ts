@@ -74,8 +74,12 @@ export async function queryAbout() {
       const customCity = employee.address.customColumns?.column_1738498855264;
       const teams = employee.work.custom.field_1680187492413.split(',');
       let team = teams[0];
+      // Prioritize when part of multiple teams rather than picking the first one
       if (teams.includes('Core')) {
         team = 'Core';
+      }
+      if (teams.includes('X')) {
+        team = 'X';
       }
       if (teams.includes('MUI')) {
         team = 'MUI';
