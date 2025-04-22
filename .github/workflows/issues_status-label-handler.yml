@@ -9,9 +9,11 @@ jobs:
   add-comment:
     runs-on: ubuntu-latest
     name: Check author permission and status labels
+    if: ${{ !github.event.issue.pull_request }}
     permissions:
       contents: read
       issues: write
+      actions: write
     steps:
       - name: Check out mui-public repo
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
