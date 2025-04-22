@@ -1,5 +1,5 @@
 {
-  "name": "contributor-dashboard-legacy",
+  "name": "code-infra-dashboard",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -28,6 +28,7 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
+    "dev": "pnpm --package netlify-cli@15 dlx netlify dev",
     "preview": "vite preview",
     "test": "echo 'No tests yet' && exit 1",
     "test:types": "tsc"
