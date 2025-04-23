@@ -16,15 +16,16 @@ function findRowIndexByValue(sheet, value) {
 
 async function queryPurchasedSupportKey(supportKey: string) {
   return queryStoreDatabase(async (connection) => {
-    const [result] = await connection.execute(
-      'select count(*) from wp3u_x_addons where license_key = ? and expire_at > now()',
+    const [rows] = await connection.execute(
+      'select count(*) as found from wp3u_x_addons where license_key = ? and expire_at > now()',
       [supportKey],
     );
+    const totalFound = rows?.[0]?.found ?? 0;
 
     // eslint-disable-next-line no-console
-    console.log('queryPurchasedSupportKey', JSON.stringify(result, null, 2));
+    console.log('queryPurchasedSupportKey', JSON.stringify({ rows, totalFound }, null, 2));
 
-    return result[0] >= 1;
+    return totalFound >= 1;
   }).catch(() => false);
 }
 
