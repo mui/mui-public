@@ -21,10 +21,6 @@ async function queryPurchasedSupportKey(supportKey: string) {
       [supportKey],
     );
     const totalFound = rows?.[0]?.found ?? 0;
-
-    // eslint-disable-next-line no-console
-    console.log('queryPurchasedSupportKey', JSON.stringify({ rows, totalFound }, null, 2));
-
     return totalFound >= 1;
   }).catch(() => false);
 }
