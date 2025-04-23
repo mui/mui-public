@@ -89,12 +89,12 @@ export default function SizeChangeDisplay({
   let arrowIcon: string;
   let arrowColor: string;
 
-  if (relativeChange === Infinity) {
+  if (relativeChange === null) {
     // New bundle
     label = 'new';
     arrowIcon = '▲';
     arrowColor = 'warning.main';
-  } else if (relativeChange === -Infinity) {
+  } else if (relativeChange === -1) {
     // Removed bundle
     label = 'removed';
     arrowIcon = '▼';
