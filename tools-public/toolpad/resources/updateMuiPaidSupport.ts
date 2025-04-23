@@ -21,6 +21,9 @@ async function queryPurchasedSupportKey(supportKey: string) {
       [supportKey],
     );
 
+    // eslint-disable-next-line no-console
+    console.log('queryPurchasedSupportKey', JSON.stringify(result, null, 2));
+
     return result[0] >= 1;
   }).catch(() => false);
 }
