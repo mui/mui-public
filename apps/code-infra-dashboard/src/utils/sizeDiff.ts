@@ -14,13 +14,13 @@ export interface Size {
     previous: number;
     current: number;
     absoluteDiff: number;
-    relativeDiff: number;
+    relativeDiff: number | null;
   };
   gzip: {
     previous: number;
     current: number;
     absoluteDiff: number;
-    relativeDiff: number;
+    relativeDiff: number | null;
   };
 }
 
@@ -110,22 +110,22 @@ export function calculateSizeDiff(
     const gzipDiff = currentSize.gzip - previousSize.gzip;
 
     // Calculate relative diffs with appropriate handling of new/removed bundles
-    let parsedRelativeDiff: number;
+    let parsedRelativeDiff: number | null;
     if (isNewBundle) {
-      parsedRelativeDiff = Infinity;
+      parsedRelativeDiff = null;
     } else if (isRemovedBundle) {
-      parsedRelativeDiff = -Infinity;
+      parsedRelativeDiff = -1;
     } else if (previousSize.parsed) {
       parsedRelativeDiff = currentSize.parsed / previousSize.parsed - 1;
     } else {
       parsedRelativeDiff = 0;
     }
 
-    let gzipRelativeDiff: number;
+    let gzipRelativeDiff: number | null;
     if (isNewBundle) {
-      gzipRelativeDiff = Infinity;
+      gzipRelativeDiff = null;
     } else if (isRemovedBundle) {
-      gzipRelativeDiff = -Infinity;
+      gzipRelativeDiff = -1;
     } else if (previousSize.gzip) {
       gzipRelativeDiff = currentSize.gzip / previousSize.gzip - 1;
     } else {
@@ -171,10 +171,10 @@ export function calculateSizeDiff(
   results.sort((entryA, entryB) => {
     // Helper function to determine bundle category (for sorting)
     const getCategory = (entry: Size): number => {
-      if (entry.parsed.relativeDiff === Infinity) {
+      if (entry.parsed.relativeDiff === null) {
         return 2; // New bundle
       }
-      if (entry.parsed.relativeDiff === -Infinity) {
+      if (entry.parsed.relativeDiff === -1) {
         return 4; // Removed bundle
       }
       if (entry.parsed.relativeDiff > 0) {
