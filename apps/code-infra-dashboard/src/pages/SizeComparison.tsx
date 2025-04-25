@@ -12,14 +12,13 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import styled from '@emotion/styled';
+import { SizeSnapshot, Size, calculateSizeDiff } from '@mui/internal-bundle-size-checker';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
   byteSizeFormatter,
   exactBytesFormatter,
 } from '../components/SizeChangeDisplay';
-
-import { SizeSnapshot, Size, calculateSizeDiff } from '../utils/sizeDiff';
 
 async function fetchSnapshot(url: string): Promise<SizeSnapshot> {
   const response = await fetch(url);
@@ -196,10 +195,26 @@ function useSizeComparisonData(
   });
 
   // Process data to get bundle comparisons and totals using the extracted function
-  const { entries, totals, fileCounts } = React.useMemo(
-    () => calculateSizeDiff(baseSnapshot, targetSnapshot),
-    [baseSnapshot, targetSnapshot],
-  );
+  const { entries, totals, fileCounts } = React.useMemo(() => {
+    if (!baseSnapshot || !targetSnapshot) {
+      return {
+        entries: [],
+        totals: {
+          totalParsed: 0,
+          totalGzip: 0,
+          totalParsedPercent: 0,
+          totalGzipPercent: 0,
+        },
+        fileCounts: {
+          added: 0,
+          removed: 0,
+          changed: 0,
+          total: 0,
+        },
+      };
+    }
+    return calculateSizeDiff(baseSnapshot, targetSnapshot);
+  }, [baseSnapshot, targetSnapshot]);
 
   return {
     entries,

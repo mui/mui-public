@@ -5,3 +5,8 @@ import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { fetchSnapshot } from './fetchSnapshot.js';
 
 export { defineConfig, loadConfig, calculateSizeDiff, renderMarkdownReport, fetchSnapshot };
+
+/**
+ * @typedef {import('./sizeDiff.js').Size} Size
+ * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
+ */

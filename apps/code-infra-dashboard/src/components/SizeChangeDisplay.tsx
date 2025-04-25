@@ -66,7 +66,7 @@ const Label = styled('span')(({ theme }) => ({
 
 interface SizeChangeDisplayProps {
   absoluteChange: number;
-  relativeChange?: number;
+  relativeChange?: number | null;
 }
 
 /**
