@@ -10,14 +10,12 @@ const createEnumerationFromArray = (stringArray) =>
     : stringArray.map((s) => `\`${s}\``).join('');
 
 const typeLabels = [
-  'docs',
-  'release',
   'bug',
-  'regression',
-  'maintenance',
-  'dependencies',
   'enhancement',
   'new feature',
+  // note types, but who cares about those:
+  'release',
+  'dependencies',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
