@@ -14,7 +14,7 @@ const typeLabels = [
   'regression', // a sub-type of bug but we flatten it.
   'enhancement',
   'new feature',
-  // Those are not "Types" labels, they are "Kind of work" labels, but we don't want to have to handle the overhead of.
+  // Those are not "Types" labels, they are "Kind of work" labels, but we don't want to have to handle the overhead of
   // setting “Types” labels with them.
   'release',
   'dependencies',
