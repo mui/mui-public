@@ -9,32 +9,22 @@ const createEnumerationFromArray = (stringArray) =>
       `\`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
-const typeLabels = [
-  'docs',
-  'release',
-  'bug',
-  'regression',
-  'maintenance',
-  'dependencies',
-  'enhancement',
-  'new feature',
-];
+const typeLabels = ['release', 'bug', 'regression', 'dependencies', 'enhancement', 'new feature'];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
-const COMMENT_FIRST_LINE = {
-  NO_LABELS_COMMENT:
-    'Please add one type label to categorize the purpose of this PR appropriately:',
-  MULTIPLE_LABELS_COMMENT: 'Multiple type labels found:',
-  SUCCESS_COMMENT: 'Thanks for adding a type label to the PR! 👍',
-};
+const NO_LABELS_COMMENT =
+  'Please add one type label to categorize the purpose of this PR appropriately:';
+const MULTIPLE_LABELS_COMMENT = 'Multiple type labels found:';
 
 /**
  * @param {Awaited<ReturnType<ReturnType<import("@actions/github").getOctokit>['rest']['issues']['listComments']>>['data']} comments
  */
 function containsAny(comments) {
   return (
-    comments.find((comment) =>
-      Object.values(COMMENT_FIRST_LINE).some((startLine) => comment.body?.startsWith(startLine)),
+    comments.find(
+      (comment) =>
+        comment.body?.startsWith(NO_LABELS_COMMENT) ||
+        comment.body?.startsWith(MULTIPLE_LABELS_COMMENT),
     ) ?? false
   );
 }
@@ -46,48 +36,51 @@ function containsAny(comments) {
  * @param {import("@actions/github").context} params.context
  * @param {Awaited<ReturnType<ReturnType<import("@actions/github").getOctokit>['rest']['issues']['listComments']>>['data']} params.comments
  */
-const createCommentHandler =
-  ({ core, context, github, comments }) =>
-  async (/** @type {string[]} */ commentLines) => {
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
-    const pullNumber = context.issue.number;
+const createCommentHandler = ({ core, context, github, comments }) => {
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
+  const pullNumber = context.issue.number;
 
-    const commentFound = containsAny(comments);
+  const commentFound = containsAny(comments);
 
-    if (commentFound) {
-      core.info(`>>> Updating existing comment on PR`);
-      core.info(`>>> Comment id: ${commentFound.id}`);
+  return {
+    addComment: async (/** @type {string[]} */ commentLines, removeComment) => {
+      if (commentFound) {
+        core.info(`>>> Updating existing comment on PR`);
+        core.info(`>>> Comment id: ${commentFound.id}`);
 
-      if (commentFound.body?.startsWith(commentLines[0])) {
-        core.info(`>>> PR already has the needed comment.`);
-        core.info(`>>> Exiting gracefully! 👍`);
+        return await github.rest.issues.updateComment({
+          owner,
+          repo,
+          comment_id: commentFound.id,
+          body: commentLines.join('\n\n'),
+        });
+      }
+
+      core.info(`>>> Creating explanatory comment on PR`);
+      return await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pullNumber,
+        body: commentLines.join('\n\n'),
+      });
+    },
+    removeComment: async () => {
+      if (!commentFound) {
         return;
       }
 
-      return await github.rest.issues.updateComment({
+      core.info(`>>> Removing existing comment on PR`);
+      core.info(`>>> Comment id: ${commentFound.id}`);
+
+      return await github.rest.issues.deleteComment({
         owner,
         repo,
         comment_id: commentFound.id,
-        body: commentLines.join('\n\n'),
       });
-    }
-
-    // only create a new comment if it's not the success comment
-    if (commentLines[0] === COMMENT_FIRST_LINE.SUCCESS_COMMENT) {
-      core.info(`>>> No need for a comment!`);
-      core.info(`>>> Exiting gracefully! 👍`);
-      return;
-    }
-
-    core.info(`>>> Creating explanatory comment on PR`);
-    return await github.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      body: commentLines.join('\n\n'),
-    });
+    },
   };
+};
 
 /**
  * @param {Object} params
@@ -120,29 +113,18 @@ module.exports = async ({ core, context, github }) => {
       per_page: 100,
     });
 
-    const commentHandler = createCommentHandler({
+    const { addComment, removeComment } = createCommentHandler({
       core,
       context,
       github,
       comments: prComments,
     });
 
-    // docs label is handled differently
-    if (typeLabelsFound.some((l) => l === 'docs')) {
-      core.info(`>>> 'docs' type label found`);
-
-      await commentHandler([COMMENT_FIRST_LINE.SUCCESS_COMMENT]);
-      return;
-    }
-
     if (typeLabelsFound.length === 0) {
       core.info(`>>> No type labels found`);
 
       // Add a comment line explaining that a type label needs to be added
-      await commentHandler([
-        COMMENT_FIRST_LINE.NO_LABELS_COMMENT,
-        createEnumerationFromArray(typeLabels),
-      ]);
+      await addComment([NO_LABELS_COMMENT, createEnumerationFromArray(typeLabels)]);
 
       core.setFailed('>>> Failing workflow to prevent merge without passing this!');
       return;
@@ -152,8 +134,8 @@ module.exports = async ({ core, context, github }) => {
       core.info(`>>> Multiple type labels found: ${typeLabelsFound.join(', ')}`);
 
       // add a comment line explaining that only one type label is allowed
-      await commentHandler([
-        COMMENT_FIRST_LINE.MULTIPLE_LABELS_COMMENT,
+      await addComment([
+        MULTIPLE_LABELS_COMMENT,
         typeLabelsFound.map((label) => `- ${label}`).join('\n'),
         'Only one is allowed. Please remove the extra type labels to ensure the PR is categorized correctly.',
       ]);
@@ -164,7 +146,7 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> Single type label found: ${typeLabelsFound[0]}`);
 
-    await commentHandler([COMMENT_FIRST_LINE.SUCCESS_COMMENT]);
+    await removeComment();
   } catch (error) {
     core.error(`>>> Workflow failed with: ${error.message}`);
     core.setFailed(error.message);
