@@ -197,6 +197,8 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
  * @param {Object} prInfo.base - The base branch of the pull request
  * @param {string} prInfo.base.ref - The base branch name
  * @param {string} prInfo.base.sha - The base branch SHA
+ * @param {Object} prInfo.base.repo - The base repository of the pull request
+ * @param {string} prInfo.base.repo.full_name - The full name of the base repository
  * @param {Object} prInfo.head - The head branch of the pull request
  * @param {string} prInfo.head.ref - The head branch name
  * @param {string} prInfo.head.sha - The head branch SHA
@@ -208,12 +210,13 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
 
   const baseCommit = prInfo.base.sha;
   const prCommit = prInfo.head.sha;
+  const repo = prInfo.base.repo.full_name;
   const [baseSnapshot, prSnapshot] = await Promise.all([
-    fetchSnapshot('mui/material-ui', baseCommit).catch((error) => {
+    fetchSnapshot(repo, baseCommit).catch((error) => {
       console.error(`Error fetching base snapshot: ${error}`);
       return null;
     }),
-    fetchSnapshot('mui/material-ui', prCommit),
+    fetchSnapshot(repo, prCommit),
   ]);
 
   if (!baseSnapshot) {
