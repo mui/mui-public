@@ -9,7 +9,16 @@ const createEnumerationFromArray = (stringArray) =>
       `\`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
-const typeLabels = ['release', 'bug', 'regression', 'dependencies', 'enhancement', 'new feature'];
+const typeLabels = [
+  'bug',
+  'regression', // a sub-type of bug but we flatten it.
+  'enhancement',
+  'new feature',
+  // Those are not "Types" labels, they are "Kind of work" labels, but we don't want to have to handle the overhead of
+  // setting “Types” labels with them.
+  'release',
+  'dependencies',
+];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
 const NO_LABELS_COMMENT =
