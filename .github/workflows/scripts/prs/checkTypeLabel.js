@@ -11,6 +11,7 @@ const createEnumerationFromArray = (stringArray) =>
 
 const typeLabels = [
   'bug',
+  'regression', // a sub-type of bug but we flatten it.
   'enhancement',
   'new feature',
   // note types, but who cares about those:
