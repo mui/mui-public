@@ -17,7 +17,7 @@ services:
       pnpm build
     startCommand: pnpm start
     plan: starter
-    region: oregon
+    region: virginia
     previews:
       plan: starter
     domains:
