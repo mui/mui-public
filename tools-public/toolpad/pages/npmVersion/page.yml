@@ -30,36 +30,87 @@ spec:
         defaultValue:
           $$jsExpression: |
             page.parameters.package
-    - component: codeComponent.PieChart
-      name: codeComponent_PieChart
+    - component: PageRow
+      name: pageRow
       props:
-        data:
-          $$jsExpression: |
-            Object.entries(
-              Object.entries(downloadsVersions.data)
-                .filter(([version]) => version.indexOf("0.0") !== 0)
-                .map((entry) => {
-                  const groups = entry[0].split(".")
-                  let group = `v${groups[0]}`
+        justifyContent: start
+      children:
+        - component: codeComponent.PieChart
+          name: codeComponent_PieChart
+          layout:
+            columnSize: 1
+          props:
+            data:
+              $$jsExpression: |
+                Object.entries(
+                  Object.entries(downloadsVersions.data)
+                    .filter(([version]) => version.indexOf("0.0") !== 0)
+                    .map((entry) => {
+                      const groups = entry[0].split(".")
+                      let group = `v${groups[0]}`
 
-                  if (group === "v16" && parseInt(groups[1]) >= 8) {
-                    group = "v16.8"
-                  }
+                      if (group === "v16" && parseInt(groups[1]) >= 8) {
+                        group = "v16.8"
+                      }
 
-                  return {
-                    version: entry[0],
-                    downloads: entry[1],
-                    group,
-                  }
-                })
-                .reduce((acc, item) => {
-                  acc[item.group] |= 0
-                  acc[item.group] += item.downloads
-                  return acc
-                }, {})
-            ).map((group) => ({ name: group[0], value: group[1] }))
-      layout:
-        columnSize: 1
+                      return {
+                        version: entry[0],
+                        downloads: entry[1],
+                        group,
+                      }
+                    })
+                    .reduce((acc, item) => {
+                      acc[item.group] |= 0
+                      acc[item.group] += item.downloads
+                      return acc
+                    }, {})
+                ).map((group) => ({ name: group[0], value: group[1] }))
+        - component: Text
+          name: markdown
+          props:
+            mode: markdown
+            value:
+              $$jsExpression: >-
+                `${(() => {
+
+                const list = Object.entries(
+                  Object.entries(downloadsVersions.data)
+                    .filter(([version]) => version.indexOf("0.0") !== 0)
+                    .map((entry) => {
+                      const groups = entry[0].split(".")
+                      let group = `v${groups[0]}`
+
+                      if (group === "v16" && parseInt(groups[1]) >= 8) {
+                        group = "v16.8"
+                      }
+
+                      return {
+                        version: entry[0],
+                        downloads: entry[1],
+                        group,
+                      }
+                    })
+                    .reduce((acc, item) => {
+                      acc[item.group] |= 0
+                      acc[item.group] += item.downloads
+                      return acc
+                    }, {})
+                )
+
+                .sort((groupA, groupB) => parseInt(groupA[0].replace('v', '')) -
+                parseInt(groupB[0].replace('v', '')))
+
+
+                const total = list.reduce((acc, item) => {
+                  acc += item[1];
+                  return acc;
+                }, 0);
+
+
+                return list.map((group) => ` - ${group[0]}:
+                ${Math.round(group[1]/total * 100)}%`).join('\n');
+
+                })()}`
   queries:
     - name: downloadsVersions
       query:
