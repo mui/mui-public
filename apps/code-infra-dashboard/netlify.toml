@@ -8,8 +8,8 @@
   # Build command.
   command = "pnpm build"
 
-  # Deciden when to build Netlify
-  ignore = "cd ../../ && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF apps/code-infra-dashboard pnpm-lock.yaml"
+  # Decide when to build Netlify
+  ignore = "cd ../../ && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF $(pnpm ls --filter code-infra-dashboard --parseable --only-projects) pnpm-lock.yaml"
 
 [dev]
   command = "pnpm start"
