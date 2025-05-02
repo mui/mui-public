@@ -13,7 +13,7 @@ See https://github.com/mui/mui-private for code that needs to be private.
 
 Internal public Toolpad apps that run the operations of MUI, built using https://github.com/mui/toolpad.
 
-### [mui-frontend-public.mui.com](https://frontend-public.mui.com/)
+### [frontend-public.mui.com](https://frontend-public.mui.com/)
 
 - Folder: `/apps/tools-public/`
 - Hosting: https://app.netlify.com/sites/mui-frontend-public/overview
