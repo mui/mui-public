@@ -146,9 +146,7 @@ importers:
         specifier: ^5.1.4
         version: 5.1.4(typescript@5.8.3)(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(terser@5.39.0)(yaml@2.5.1))
 
-  packages/eslint-plugin-material-ui: {}
-
-  tools-public:
+  apps/tools-public:
     dependencies:
       '@googleapis/sheets':
         specifier: ^9.3.1
@@ -196,6 +194,8 @@ importers:
       '@types/ssh2':
         specifier: ^1.15.1
         version: 1.15.1
+
+  packages/eslint-plugin-material-ui: {}
 
 packages:
 
@@ -2522,13 +2522,11 @@ packages:
 
   '@toolpad/studio-components@0.12.0':
     resolution: {integrity: sha512-CVMqK6B0GWknFen2Ulism9dw+OT0/KtrfcScNzqWz1OKSjpHZiqTUvnJjNNDa56HHXB+egypELUCOoXGx7o/2g==}
-    deprecated: Toolpad Studio has been deprecated. Please use @toolpad/core instead.
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
   '@toolpad/studio-runtime@0.12.0':
     resolution: {integrity: sha512-fb8uLoS5bSSLSUhejb+3SlBiLwT0H9Y306KztOPAQ1sveMEVnCxNNYCUz0HgvEbr8JdkqfTqdy9CdaLa4n6JRg==}
-    deprecated: Toolpad Studio has been deprecated. Please use @toolpad/core instead.
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       vm-browserify: ^1.1.2
