@@ -2522,11 +2522,13 @@ packages:
 
   '@toolpad/studio-components@0.12.0':
     resolution: {integrity: sha512-CVMqK6B0GWknFen2Ulism9dw+OT0/KtrfcScNzqWz1OKSjpHZiqTUvnJjNNDa56HHXB+egypELUCOoXGx7o/2g==}
+    deprecated: Toolpad Studio has been deprecated. Please use @toolpad/core instead.
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
   '@toolpad/studio-runtime@0.12.0':
     resolution: {integrity: sha512-fb8uLoS5bSSLSUhejb+3SlBiLwT0H9Y306KztOPAQ1sveMEVnCxNNYCUz0HgvEbr8JdkqfTqdy9CdaLa4n6JRg==}
+    deprecated: Toolpad Studio has been deprecated. Please use @toolpad/core instead.
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       vm-browserify: ^1.1.2
