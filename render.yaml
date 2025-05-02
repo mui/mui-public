@@ -6,7 +6,7 @@ services:
   - type: web
     name: mui-tools-public
     env: node
-    rootDir: tools-public
+    rootDir: apps/tools-public
     buildCommand: |
       # Required per https://github.com/pnpm/pnpm/issues/9029#issuecomment-2629866277
       npm install -g corepack@latest
