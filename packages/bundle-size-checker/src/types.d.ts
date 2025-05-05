@@ -46,3 +46,11 @@ interface CommandLineArgs {
   accurateBundles?: boolean;
   output?: string;
 }
+
+// Diff command argument types
+interface DiffCommandArgs {
+  base: string;
+  head?: string;
+  output?: 'json' | 'markdown';
+  reportUrl?: string;
+}

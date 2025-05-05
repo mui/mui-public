@@ -112,7 +112,7 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
  * @param {number} [options.gzipSizeChangeThreshold=100] - Threshold for gzipped size change by which to show the entry
  * @returns {string} Markdown report
  */
-function renderMarkdownReportContent(
+export function renderMarkdownReportContent(
   comparison,
   { visibleLimit = 10, parsedSizeChangeThreshold = 300, gzipSizeChangeThreshold = 100 } = {},
 ) {
@@ -203,7 +203,7 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
  * @param {string} prInfo.head.ref - The head branch name
  * @param {string} prInfo.head.sha - The head branch SHA
  * @param {string} [circleciBuildNumber] - The CircleCI build number
- * @returns
+ * @returns {Promise<string>} Markdown report
  */
 export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
   let markdownContent = '';
@@ -225,7 +225,7 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
 
-  const report = await renderMarkdownReportContent(sizeDiff);
+  const report = renderMarkdownReportContent(sizeDiff);
 
   markdownContent += report;
 
@@ -233,3 +233,4 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
 
   return markdownContent;
 }
+

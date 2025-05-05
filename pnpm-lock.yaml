@@ -18,6 +18,9 @@ importers:
       '@actions/github':
         specifier: ^6.0.0
         version: 6.0.0
+      '@mui/internal-bundle-size-checker':
+        specifier: workspace:*
+        version: link:packages/bundle-size-checker
       '@mui/monorepo':
         specifier: https://github.com/mui/material-ui.git#010de4505361345951824d905d1508d6f258ba67
         version: https://codeload.github.com/mui/material-ui/tar.gz/010de4505361345951824d905d1508d6f258ba67
