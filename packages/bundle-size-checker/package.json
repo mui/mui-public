@@ -11,6 +11,12 @@
   "scripts": {
     "typescript": "tsc -p tsconfig.json"
   },
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json",
+    "./browser": "./src/browser.js"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.515.0",
     "@aws-sdk/credential-providers": "^3.787.0",

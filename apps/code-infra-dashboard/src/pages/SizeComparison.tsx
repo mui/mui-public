@@ -12,7 +12,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import styled from '@emotion/styled';
-import { SizeSnapshot, Size, calculateSizeDiff } from '@mui/internal-bundle-size-checker';
+import { SizeSnapshot, Size, calculateSizeDiff } from '@mui/internal-bundle-size-checker/browser';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
