@@ -34,8 +34,8 @@ async function getCurrentCommitSHA() {
  * @returns {Promise<{key:string}>}
  */
 export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
-  if (!uploadConfig || !uploadConfig.project) {
-    throw new Error('Upload configuration is missing or invalid');
+  if (!uploadConfig || !uploadConfig.repo) {
+    throw new Error('Upload configuration is missing or invalid. Missing repo property.');
   }
 
   // Run git operations and file reading in parallel
@@ -48,8 +48,8 @@ export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
     fs.promises.readFile(snapshotPath),
   ]);
 
-  // Default isPullRequest is false
-  const isPullRequest = uploadConfig.isPullRequest || false;
+  // Default isPullRequest should already be set in the config loader
+  const isPullRequest = uploadConfig.isPullRequest;
 
   // Create S3 client (uses AWS credentials from environment)
   const client = new S3Client({
@@ -59,7 +59,7 @@ export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
 
   // S3 bucket and key
   const bucket = 'mui-org-ci';
-  const key = `artifacts/${uploadConfig.project}/${sha}/size-snapshot.json`;
+  const key = `artifacts/${uploadConfig.repo}/${sha}/size-snapshot.json`;
 
   // Upload the file first
   await client.send(

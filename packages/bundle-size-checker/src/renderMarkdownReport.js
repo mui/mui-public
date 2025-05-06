@@ -192,16 +192,7 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
 
 /**
  *
- * @param {Object} prInfo
- * @param {number} prInfo.number - The pull request number
- * @param {Object} prInfo.base - The base branch of the pull request
- * @param {string} prInfo.base.ref - The base branch name
- * @param {string} prInfo.base.sha - The base branch SHA
- * @param {Object} prInfo.base.repo - The base repository of the pull request
- * @param {string} prInfo.base.repo.full_name - The full name of the base repository
- * @param {Object} prInfo.head - The head branch of the pull request
- * @param {string} prInfo.head.ref - The head branch name
- * @param {string} prInfo.head.sha - The head branch SHA
+ * @param {PrInfo} prInfo
  * @param {string} [circleciBuildNumber] - The CircleCI build number
  * @returns {Promise<string>} Markdown report
  */
@@ -233,4 +224,3 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
 
   return markdownContent;
 }
-

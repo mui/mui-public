@@ -15,6 +15,7 @@
     "@aws-sdk/client-s3": "^3.515.0",
     "@aws-sdk/credential-providers": "^3.787.0",
     "compression-webpack-plugin": "^10.0.0",
+    "env-ci": "^11.1.0",
     "execa": "^7.2.0",
     "fast-glob": "^3.3.2",
     "fs-extra": "^11.2.0",
@@ -25,6 +26,8 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/env-ci": "^3.1.4",
+    "@types/fs-extra": "^11.0.4",
     "@types/webpack": "^5.28.5",
     "@types/webpack-bundle-analyzer": "^4.7.0",
     "@types/yargs": "^17.0.33"

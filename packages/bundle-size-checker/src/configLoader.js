@@ -4,6 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import envCi from 'env-ci';
 
 /**
  * Attempts to load and parse a single config file
@@ -41,6 +42,42 @@ async function loadConfigFile(configPath) {
 }
 
 /**
+ * Apply default values to the upload configuration using CI environment
+ * @param {BundleSizeCheckerConfig} config - The loaded configuration
+ * @returns {BundleSizeCheckerConfig} Configuration with defaults applied
+ */
+function applyConfigDefaults(config) {
+  // Get environment CI information
+  /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string}} */
+  const { branch: ciBranch, isPr, prBranch, slug } = envCi();
+
+  // Clone the config to avoid mutating the original
+  const result = { ...config };
+
+  // Ensure upload object exists
+  if (!result.upload) {
+    result.upload = {};
+  }
+
+  // Use environment/defaults for upload configuration
+  const upload = result.upload;
+
+  upload.repo ??= slug;
+
+  // Default branch from CI or git otherwise will use getCurrentBranch() later
+  if (!upload.branch) {
+    upload.branch = isPr ? prBranch : ciBranch;
+  }
+
+  // Default isPullRequest from CI environment
+  if (upload.isPullRequest === undefined) {
+    upload.isPullRequest = isPr;
+  }
+
+  return result;
+}
+
+/**
  * Attempts to load the config file from the given directory
  * @param {string} rootDir - The directory to search for the config file
  * @returns {Promise<BundleSizeCheckerConfig>} A promise that resolves to the config object
@@ -55,7 +92,8 @@ export async function loadConfig(rootDir) {
     // eslint-disable-next-line no-await-in-loop
     const config = await loadConfigFile(configPath);
     if (config) {
-      return config;
+      // Apply defaults and return the config
+      return applyConfigDefaults(config);
     }
   }
 

@@ -9,6 +9,11 @@ import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { calculateSizeDiff } from './sizeDiff.js';
 import { renderMarkdownReportContent, renderMarkdownReport } from './renderMarkdownReport.js';
+import { fetchSnapshot } from './fetchSnapshot.js';
+
+/**
+ * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
+ */
 
 const MAX_CONCURRENCY = Math.min(8, os.cpus().length);
 
@@ -108,9 +113,10 @@ function resolveFilePath(filePath) {
  */
 function isUrl(str) {
   try {
+    // eslint-disable-next-line no-new
     new URL(str);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -118,7 +124,7 @@ function isUrl(str) {
 /**
  * Loads a snapshot from a URL (http:, https:, or file: scheme)
  * @param {string} source - The source URL
- * @returns {Promise<object>} The loaded snapshot
+ * @returns {Promise<SizeSnapshot>} The loaded snapshot
  */
 async function loadSnapshot(source) {
   // Check if it's a valid URL
@@ -146,7 +152,7 @@ async function loadSnapshot(source) {
 
     try {
       return await fse.readJSON(filePath);
-    } catch (error) {
+    } catch (/** @type {any} */ error) {
       throw new Error(`Failed to read snapshot from ${filePath}: ${error.message}`);
     }
   }
@@ -156,7 +162,8 @@ async function loadSnapshot(source) {
   if (!response.ok) {
     throw new Error(`Failed to fetch snapshot from ${source}: ${response.statusText}`);
   }
-  return await response.json();
+  const body = await response.json();
+  return body;
 }
 
 /**
@@ -173,9 +180,11 @@ async function diffHandler(argv) {
 
   try {
     // Load snapshots
+    // eslint-disable-next-line no-console
     console.log(`Loading base snapshot from ${base}...`);
     const baseSnapshot = await loadSnapshot(base);
 
+    // eslint-disable-next-line no-console
     console.log(`Loading head snapshot from ${head}...`);
     const headSnapshot = await loadSnapshot(head);
 
@@ -192,12 +201,14 @@ async function diffHandler(argv) {
         markdownContent += `\n\n[Details of bundle changes](${reportUrl})`;
       }
 
+      // eslint-disable-next-line no-console
       console.log(markdownContent);
     } else {
       // Default JSON output
+      // eslint-disable-next-line no-console
       console.log(JSON.stringify(comparison, null, 2));
     }
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
   }
@@ -208,27 +219,22 @@ async function diffHandler(argv) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} prNumber - Pull request number
- * @returns {Promise<Object>} PR information
+ * @returns {Promise<PrInfo>} PR information
  */
 async function fetchPrInfo(owner, repo, prNumber) {
   const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`;
 
-  // Create request with auth token if available
-  const headers = { Accept: 'application/vnd.github.v3+json' };
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `token ${process.env.GITHUB_TOKEN}`;
-  }
-
   try {
+    // eslint-disable-next-line no-console
     console.log(`Fetching PR info from ${url}...`);
-    const response = await fetch(url, { headers });
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`GitHub API request failed: ${response.statusText} (${response.status})`);
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     console.error(`Failed to fetch PR info: ${error.message}`);
     throw error;
   }
@@ -239,24 +245,24 @@ async function fetchPrInfo(owner, repo, prNumber) {
  * @param {PrCommandArgs} argv - Command line arguments
  */
 async function prHandler(argv) {
-  const { 'pr-number': prNumber, circleci, output } = argv;
+  const { prNumber, circleci, output } = argv;
 
   try {
-    // Load the config to get the project information
+    // Load the config to get the repository information
     const config = await loadConfig(rootDir);
 
-    if (!config.upload || !config.upload.project) {
+    if (!config.upload || !config.upload.repo) {
       throw new Error(
-        'No project configuration found in bundle-size-checker config. Please add upload.project (e.g., "mui/material-ui").',
+        'No repository configuration found in bundle-size-checker config. Please add upload.repo (e.g., "mui/material-ui").',
       );
     }
 
-    // Extract owner and repo from project config
-    const [owner, repo] = config.upload.project.split('/');
+    // Extract owner and repo from repository config
+    const [owner, repo] = config.upload.repo.split('/');
 
     if (!owner || !repo) {
       throw new Error(
-        `Invalid project format in config: ${config.upload.project}. Expected format: "owner/repo"`,
+        `Invalid repository format in config: ${config.upload.repo}. Expected format: "owner/repo"`,
       );
     }
 
@@ -264,29 +270,34 @@ async function prHandler(argv) {
     const prInfo = await fetchPrInfo(owner, repo, prNumber);
 
     // Generate the report
+    // eslint-disable-next-line no-console
     console.log('Generating bundle size report...');
     const report = await renderMarkdownReport(prInfo, circleci);
 
     // Output
     if (output === 'markdown') {
+      // eslint-disable-next-line no-console
       console.log(report);
     } else {
       // For JSON we need to load the snapshots and calculate differences
       const baseCommit = prInfo.base.sha;
       const prCommit = prInfo.head.sha;
 
+      // eslint-disable-next-line no-console
       console.log(`Fetching base snapshot for commit ${baseCommit}...`);
+      // eslint-disable-next-line no-console
       console.log(`Fetching PR snapshot for commit ${prCommit}...`);
 
       const [baseSnapshot, prSnapshot] = await Promise.all([
-        fetchSnapshot(config.upload.project, baseCommit).catch(() => ({})),
-        fetchSnapshot(config.upload.project, prCommit).catch(() => ({})),
+        fetchSnapshot(config.upload.repo, baseCommit).catch(() => ({})),
+        fetchSnapshot(config.upload.repo, prCommit).catch(() => ({})),
       ]);
 
       const comparison = calculateSizeDiff(baseSnapshot, prSnapshot);
+      // eslint-disable-next-line no-console
       console.log(JSON.stringify(comparison, null, 2));
     }
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
   }
@@ -318,7 +329,7 @@ yargs(process.argv.slice(2))
     },
     handler: run,
   })
-  // Add diff command
+  // @ts-expect-error
   .command({
     command: 'diff',
     describe: 'Compare two bundle size snapshots',
@@ -349,13 +360,13 @@ yargs(process.argv.slice(2))
     },
     handler: diffHandler,
   })
-  // Add PR command
+  // @ts-expect-error
   .command({
-    command: 'pr <pr-number>',
+    command: 'pr <prNumber>',
     describe: 'Generate a bundle size report for a GitHub pull request',
     builder: (cmdYargs) => {
       return cmdYargs
-        .positional('pr-number', {
+        .positional('prNumber', {
           describe: 'GitHub pull request number',
           type: 'number',
           demandOption: true,

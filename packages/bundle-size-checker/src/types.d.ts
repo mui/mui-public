@@ -29,9 +29,9 @@ interface WebpackStats {
 
 // Upload configuration
 interface UploadConfig {
-  project: string; // The project name (e.g., "mui/material-ui")
+  repo?: string; // The repository name (e.g., "mui/material-ui")
   branch?: string; // Optional branch name (defaults to current Git branch)
-  isPullRequest?: boolean; // Whether this is a pull request build (defaults to false)
+  isPullRequest?: boolean; // Whether this is a pull request build (defaults to CI detection)
 }
 
 // Bundle size checker config
@@ -57,7 +57,22 @@ interface DiffCommandArgs {
 
 // PR command argument types
 interface PrCommandArgs {
-  'pr-number': number;
+  prNumber: number;
   output?: 'json' | 'markdown';
   circleci?: string;
+}
+
+interface PrInfo {
+  number: number;
+  base: {
+    ref: string;
+    sha: string;
+    repo: {
+      full_name: string;
+    };
+  };
+  head: {
+    ref: string;
+    sha: string;
+  };
 }

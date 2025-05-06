@@ -4,13 +4,13 @@ import { calculateSizeDiff } from './sizeDiff.js';
 import { renderMarkdownReport, renderMarkdownReportContent } from './renderMarkdownReport.js';
 import { fetchSnapshot } from './fetchSnapshot.js';
 
-export { 
-  defineConfig, 
-  loadConfig, 
-  calculateSizeDiff, 
-  renderMarkdownReport, 
+export {
+  defineConfig,
+  loadConfig,
+  calculateSizeDiff,
+  renderMarkdownReport,
   renderMarkdownReportContent,
-  fetchSnapshot 
+  fetchSnapshot,
 };
 
 /**
