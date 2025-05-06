@@ -54,3 +54,10 @@ interface DiffCommandArgs {
   output?: 'json' | 'markdown';
   reportUrl?: string;
 }
+
+// PR command argument types
+interface PrCommandArgs {
+  'pr-number': number;
+  output?: 'json' | 'markdown';
+  circleci?: string;
+}
