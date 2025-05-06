@@ -33,10 +33,16 @@ import { defineConfig } from '@mui/internal-bundle-size-checker';
 export default defineConfig(async () => {
   return {
     entrypoints: [
-      // List of packages and components to measure
+      // String entries (simple format)
       '@mui/material', // Will bundle `import * as ... from '@mui/material'`
       '@mui/material/Button', // Will bundle `import * as ... from '@mui/material/Button'`
-      '@mui/material#Button', // Will bundle `import Button from '@mui/material'`
+      '@mui/material#Button', // Will bundle `import { Button } from '@mui/material'`
+
+      // Object entries (advanced format)
+      {
+        name: 'custom-button',
+        code: `import Button from '@mui/material/Button'; console.log(Button);`,
+      },
       // ...
     ],
     // Optional upload configuration

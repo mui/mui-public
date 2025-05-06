@@ -15,9 +15,7 @@ if (!packageName) {
 }
 
 // Get the workspace root using pnpm
-const workspaceInfo = JSON.parse(
-  execSync('pnpm ls --depth -1 --json', { encoding: 'utf8' })
-);
+const workspaceInfo = JSON.parse(execSync('pnpm ls --depth -1 --json', { encoding: 'utf8' }));
 const workspaceRoot = workspaceInfo[0].path;
 
 // Find the package directory using pnpm

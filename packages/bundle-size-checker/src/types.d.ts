@@ -41,15 +41,25 @@ interface NormalizedUploadConfig {
   isPullRequest: boolean; // Whether this is a pull request build
 }
 
+// EntryPoint types
+type StringEntry = string;
+
+interface ObjectEntry {
+  name: string; // Unique name for the entry
+  code: string; // Code to be executed in the virtual module
+}
+
+type EntryPoint = StringEntry | ObjectEntry;
+
 // Bundle size checker config with optional upload config
 interface BundleSizeCheckerConfig {
-  entrypoints: string[];
+  entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
 }
 
 // Normalized bundle size checker config with all properties defined
 interface NormalizedBundleSizeCheckerConfig {
-  entrypoints: string[];
+  entrypoints: EntryPoint[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
 }
 

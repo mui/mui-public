@@ -16,19 +16,30 @@ const rootDir = process.cwd();
 
 /**
  * Creates webpack configuration for bundle size checking
- * @param {string} entryName - Entry point string
+ * @param {EntryPoint} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
  * @returns {import('webpack').Configuration}
  */
-function createWebpackConfig(entryName, args) {
+function createWebpackConfig(entry, args) {
   const analyzerMode = args.analyze ? 'static' : 'disabled';
   const concatenateModules = !args.accurateBundles;
 
-  const [importSrc, importName] = entryName.split('#');
+  let entryName;
+  let entryContent;
 
-  const entryContent = importName
-    ? `import { ${importName} as foo } from '${importSrc}';console.log(foo);`
-    : `import * as foo from '${importSrc}';console.log(foo);`;
+  if (typeof entry === 'string') {
+    // Handle string entry (backward compatibility)
+    entryName = entry;
+    const [importSrc, importName] = entry.split('#');
+
+    entryContent = importName
+      ? `import { ${importName} as foo } from '${importSrc}';console.log(foo);`
+      : `import * as foo from '${importSrc}';console.log(foo);`;
+  } else {
+    // Handle object entry with name and code properties
+    entryName = entry.name;
+    entryContent = entry.code;
+  }
 
   /**
    * @type {import('webpack').Configuration}
@@ -75,7 +86,7 @@ function createWebpackConfig(entryName, args) {
         // If opened with `webpack --config . --analyze` it'll still open one new tab though.
         openAnalyzer: false,
         // '[name].html' not supported: https://github.com/webpack-contrib/webpack-bundle-analyzer/issues/12
-        reportFilename: `${importSrc}.html`,
+        reportFilename: `${entryName}.html`,
       }),
     ],
     // A context to the current dir, which has a node_modules folder with workspace dependencies
@@ -96,7 +107,7 @@ function createWebpackConfig(entryName, args) {
 
 /**
  * Get sizes for a bundle
- * @param {{ entry: string, args: CommandLineArgs, index: number, total: number }} options
+ * @param {{ entry: EntryPoint, args: CommandLineArgs, index: number, total: number }} options
  * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
  */
 export default async function getSizes({ entry, args, index, total }) {
@@ -105,8 +116,11 @@ export default async function getSizes({ entry, args, index, total }) {
 
   const configuration = createWebpackConfig(entry, args);
 
+  // Display appropriate entry information for logging
+  const displayEntry = typeof entry === 'string' ? entry : entry.name;
+
   // eslint-disable-next-line no-console -- process monitoring
-  console.log(`Compiling ${index + 1}/${total}: "${entry}"`);
+  console.log(`Compiling ${index + 1}/${total}: "${displayEntry}"`);
 
   const webpackStats = await webpack(configuration);
 

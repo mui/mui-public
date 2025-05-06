@@ -34,6 +34,18 @@ async function loadConfigFile(configPath) {
       throw new Error('Configuration must include an entrypoints array');
     }
 
+    // Validate that each entry is either a string or an object with name and code
+    for (const entry of config.entrypoints) {
+      if (
+        typeof entry !== 'string' &&
+        (!entry || typeof entry !== 'object' || !entry.name || !entry.code)
+      ) {
+        throw new Error(
+          'Each entry must be either a string or an object with name and code properties',
+        );
+      }
+    }
+
     return config;
   } catch (error) {
     console.error(`Error loading config from ${configPath}:`, error);
@@ -94,7 +106,13 @@ function applyConfigDefaults(config) {
   // Clone the config to avoid mutating the original
   /** @type {NormalizedBundleSizeCheckerConfig} */
   const result = {
-    entrypoints: [...config.entrypoints],
+    entrypoints: config.entrypoints.map((entry) => {
+      if (typeof entry === 'string') {
+        return entry;
+      }
+      // Clone object entries to avoid mutation
+      return { name: entry.name, code: entry.code };
+    }),
     upload: null, // Default to disabled
   };
 

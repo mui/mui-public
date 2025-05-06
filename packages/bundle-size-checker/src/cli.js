@@ -20,6 +20,41 @@ const MAX_CONCURRENCY = Math.min(8, os.cpus().length);
 const rootDir = process.cwd();
 
 /**
+ * Normalizes entries to ensure they have a consistent format and names are unique
+ * @param {EntryPoint[]} entries - The array of entries from the config
+ * @returns {EntryPoint[]} - Normalized entries with uniqueness enforced
+ */
+function normalizeEntries(entries) {
+  // Maps to track used names and detect duplicates
+  const usedNames = new Map();
+
+  return entries.map((entry) => {
+    // For string entries, convert to name if needed
+    if (typeof entry === 'string') {
+      // We keep the string entry as is, but still track it for uniqueness checking
+      usedNames.set(entry, (usedNames.get(entry) || 0) + 1);
+      return entry;
+    }
+
+    // For object entries, ensure uniqueness
+    if (!entry.name) {
+      throw new Error('Object entries must have a name property');
+    }
+
+    // Check if this name has been used before
+    if (usedNames.has(entry.name)) {
+      throw new Error(`Duplicate entry name found: "${entry.name}". Entry names must be unique.`);
+    }
+
+    // Mark name as used
+    usedNames.set(entry.name, 1);
+
+    // Return the valid object entry
+    return entry;
+  });
+}
+
+/**
  * creates size snapshot for every bundle that built with webpack
  * @param {CommandLineArgs} args
  * @param {BundleSizeCheckerConfig} config - The loaded configuration
@@ -45,12 +80,28 @@ async function getWebpackSizes(args, config) {
     );
   }
 
-  const entries = config.entrypoints;
-  const uniqueEntries = new Set(entries);
+  // Normalize and validate entries
+  const entries = normalizeEntries(config.entrypoints);
+
+  // For string entries, we want to use a Set to remove duplicates (backward compatibility)
+  // For object entries, uniqueness is already enforced by normalizeEntries
+  const uniqueStringEntries = new Set();
+  const validEntries = entries.filter((entry) => {
+    if (typeof entry === 'string') {
+      // If we've seen this string entry before, skip it
+      if (uniqueStringEntries.has(entry)) {
+        return false;
+      }
+      uniqueStringEntries.add(entry);
+      return true;
+    }
+    // All object entries are already unique by name
+    return true;
+  });
 
   const sizeArrays = await Promise.all(
-    Array.from(uniqueEntries, (entry, index) =>
-      worker.run({ entry, args, index, total: uniqueEntries.size }),
+    validEntries.map((entry, index) =>
+      worker.run({ entry, args, index, total: validEntries.length }),
     ),
   );
 
