@@ -21,13 +21,5 @@ module.exports = {
     'jsx-a11y/control-has-associated-label': 'off',
     'jsx-a11y/no-autofocus': 'off',
   },
-  overrides: [
-    ...baseline.overrides,
-    {
-      files: ['contributor-dashboard-legacy/**'],
-      rules: {
-        'import/no-unresolved': 'off', // TODO, to fix at one point
-      },
-    },
-  ],
+  overrides: [...baseline.overrides],
 };

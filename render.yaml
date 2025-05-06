@@ -6,7 +6,7 @@ services:
   - type: web
     name: mui-tools-public
     env: node
-    rootDir: tools-public
+    rootDir: apps/tools-public
     buildCommand: |
       # Required per https://github.com/pnpm/pnpm/issues/9029#issuecomment-2629866277
       npm install -g corepack@latest
@@ -17,8 +17,12 @@ services:
       pnpm build
     startCommand: pnpm start
     plan: starter
+    region: virginia
     previews:
       plan: starter
+    domains:
+      - tools-public.mui.com
+    healthCheckPath: /health-check
     envVars:
       - key: NODE_VERSION
         value: 20
