@@ -78,7 +78,7 @@ async function run(argv) {
   // eslint-disable-next-line no-console
   console.log(`Bundle size snapshot written to ${snapshotDestPath}`);
 
-  // Upload the snapshot if upload configuration is provided
+  // Upload the snapshot if upload configuration is provided and not null
   if (config && config.upload) {
     try {
       // eslint-disable-next-line no-console
@@ -251,9 +251,9 @@ async function prHandler(argv) {
     // Load the config to get the repository information
     const config = await loadConfig(rootDir);
 
-    if (!config.upload || !config.upload.repo) {
+    if (!config.upload) {
       throw new Error(
-        'No repository configuration found in bundle-size-checker config. Please add upload.repo (e.g., "mui/material-ui").',
+        'Upload is not configured. Please enable it in your bundle-size-checker config.',
       );
     }
 

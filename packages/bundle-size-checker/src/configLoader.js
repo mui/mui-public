@@ -42,36 +42,87 @@ async function loadConfigFile(configPath) {
 }
 
 /**
- * Apply default values to the upload configuration using CI environment
+ * Validates and normalizes an upload configuration object
+ * @param {UploadConfig} uploadConfig - The upload configuration to normalize
+ * @param {Object} ciInfo - CI environment information
+ * @param {string} [ciInfo.branch] - Branch name from CI environment
+ * @param {boolean} [ciInfo.isPr] - Whether this is a pull request from CI environment
+ * @param {string} [ciInfo.prBranch] - PR branch name from CI environment
+ * @param {string} [ciInfo.slug] - Repository slug from CI environment
+ * @returns {NormalizedUploadConfig} - Normalized upload config
+ * @throws {Error} If required fields are missing
+ */
+export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
+  const { slug, branch: ciBranch, isPr, prBranch } = ciInfo;
+
+  // Get repo from config or environment
+  const repo = uploadConfig.repo || slug;
+  if (!repo) {
+    throw new Error(
+      'Missing required field: upload.repo. Please specify a repository (e.g., "mui/material-ui").',
+    );
+  }
+
+  // Get branch from config or environment
+  const branch = uploadConfig.branch || (isPr ? prBranch : ciBranch);
+  if (!branch) {
+    throw new Error('Missing required field: upload.branch. Please specify a branch name.');
+  }
+
+  // Return the normalized config
+  return {
+    repo,
+    branch,
+    isPullRequest:
+      uploadConfig.isPullRequest !== undefined
+        ? Boolean(uploadConfig.isPullRequest)
+        : Boolean(isPr),
+  };
+}
+
+/**
+ * Apply default values to the configuration using CI environment
  * @param {BundleSizeCheckerConfig} config - The loaded configuration
- * @returns {BundleSizeCheckerConfig} Configuration with defaults applied
+ * @returns {NormalizedBundleSizeCheckerConfig} Configuration with defaults applied
+ * @throws {Error} If required fields are missing
  */
 function applyConfigDefaults(config) {
   // Get environment CI information
   /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string}} */
-  const { branch: ciBranch, isPr, prBranch, slug } = envCi();
+  const ciInfo = envCi();
 
   // Clone the config to avoid mutating the original
-  const result = { ...config };
+  /** @type {NormalizedBundleSizeCheckerConfig} */
+  const result = {
+    entrypoints: [...config.entrypoints],
+    upload: null, // Default to disabled
+  };
 
-  // Ensure upload object exists
-  if (!result.upload) {
-    result.upload = {};
-  }
+  // Handle different types of upload value
+  if (typeof config.upload === 'boolean') {
+    // If upload is false, leave as null
+    if (config.upload === false) {
+      return result;
+    }
 
-  // Use environment/defaults for upload configuration
-  const upload = result.upload;
+    // If upload is true, create empty object and apply defaults
+    if (!ciInfo.slug) {
+      throw new Error(
+        'Upload enabled but repository not found in CI environment. Please specify upload.repo in config.',
+      );
+    }
 
-  upload.repo ??= slug;
+    if (!ciInfo.branch && !(ciInfo.isPr && ciInfo.prBranch)) {
+      throw new Error(
+        'Upload enabled but branch not found in CI environment. Please specify upload.branch in config.',
+      );
+    }
 
-  // Default branch from CI or git otherwise will use getCurrentBranch() later
-  if (!upload.branch) {
-    upload.branch = isPr ? prBranch : ciBranch;
-  }
-
-  // Default isPullRequest from CI environment
-  if (upload.isPullRequest === undefined) {
-    upload.isPullRequest = isPr;
+    // Apply defaults to an empty object
+    result.upload = applyUploadConfigDefaults({}, ciInfo);
+  } else if (config.upload) {
+    // It's an object, apply defaults
+    result.upload = applyUploadConfigDefaults(config.upload, ciInfo);
   }
 
   return result;
@@ -80,7 +131,7 @@ function applyConfigDefaults(config) {
 /**
  * Attempts to load the config file from the given directory
  * @param {string} rootDir - The directory to search for the config file
- * @returns {Promise<BundleSizeCheckerConfig>} A promise that resolves to the config object
+ * @returns {Promise<NormalizedBundleSizeCheckerConfig>} A promise that resolves to the normalized config object
  */
 export async function loadConfig(rootDir) {
   const configPaths = [

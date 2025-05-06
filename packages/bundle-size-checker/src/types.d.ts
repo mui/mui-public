@@ -27,17 +27,30 @@ interface WebpackStats {
   };
 }
 
-// Upload configuration
+// Upload configuration with optional properties
 interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
   branch?: string; // Optional branch name (defaults to current Git branch)
   isPullRequest?: boolean; // Whether this is a pull request build (defaults to CI detection)
 }
 
-// Bundle size checker config
+// Normalized upload configuration where all properties are defined
+interface NormalizedUploadConfig {
+  repo: string; // The repository name (e.g., "mui/material-ui")
+  branch: string; // Branch name
+  isPullRequest: boolean; // Whether this is a pull request build
+}
+
+// Bundle size checker config with optional upload config
 interface BundleSizeCheckerConfig {
   entrypoints: string[];
-  upload?: UploadConfig;
+  upload?: UploadConfig | boolean | null;
+}
+
+// Normalized bundle size checker config with all properties defined
+interface NormalizedBundleSizeCheckerConfig {
+  entrypoints: string[];
+  upload: NormalizedUploadConfig | null; // null means upload is disabled
 }
 
 // Command line argument types
