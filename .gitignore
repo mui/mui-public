@@ -39,3 +39,5 @@ yarn-error.log*
 
 lerna-debug.log
 dist/
+
+build

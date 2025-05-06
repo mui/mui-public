@@ -1,5 +1,5 @@
 [build]
-  publish = "apps/code-infra-dashboard/build"
+  publish = "build"
 
   # Default build command.
   command = "pnpm -F code-infra-dashboard build"
