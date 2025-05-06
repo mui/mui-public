@@ -2,7 +2,7 @@
   "name": "@mui/internal-bundle-size-checker",
   "version": "1.0.0",
   "private": true,
-  "description": "Bundle size checker for MUI packages",
+  "description": "Bundle size checker for MUI packages.",
   "type": "module",
   "main": "./src/index.js",
   "bin": {
