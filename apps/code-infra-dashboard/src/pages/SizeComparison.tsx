@@ -12,7 +12,12 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import styled from '@emotion/styled';
-import { SizeSnapshot, Size, calculateSizeDiff } from '@mui/internal-bundle-size-checker/browser';
+import {
+  SizeSnapshot,
+  Size,
+  calculateSizeDiff,
+  fetchSnapshot,
+} from '@mui/internal-bundle-size-checker/browser';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
@@ -20,7 +25,7 @@ import SizeChangeDisplay, {
   exactBytesFormatter,
 } from '../components/SizeChangeDisplay';
 
-async function fetchSnapshot(url: string): Promise<SizeSnapshot> {
+async function fetchUrl(url: string | URL): Promise<SizeSnapshot> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch "${url}", HTTP ${response.status}`);
@@ -29,43 +34,51 @@ async function fetchSnapshot(url: string): Promise<SizeSnapshot> {
 }
 
 /**
- * Generic hook to fetch size snapshots from any URL
+ * Generic hook to fetch size snapshots for the head branch
  */
-function useSizeSnapshotFromUrl(url: string) {
+function useHeadSizeSnapshot(repo: string, sha: string | null, circleCIBuildNumber: number) {
   return useQuery({
-    queryKey: [url],
-    queryFn: () => fetchSnapshot(url),
+    queryKey: ['size-snapshot', repo, sha],
+    queryFn: async () => {
+      const fetches = [];
+
+      if (sha) {
+        fetches.push(() => fetchSnapshot(repo, sha));
+      }
+
+      fetches.push(() => {
+        const url = new URL('/.netlify/functions/circle-ci-artifacts', window.location.origin);
+        const [org, repository] = repo.split('/');
+        url.searchParams.append('org', org);
+        url.searchParams.append('repository', repository);
+        url.searchParams.append('buildNumber', String(circleCIBuildNumber));
+        return fetchUrl(url.toString());
+      });
+
+      let lastError: Error | null = null;
+      for (const fetch of fetches) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          return await fetch();
+        } catch (error) {
+          lastError = error as Error;
+        }
+      }
+      throw lastError ?? new Error('Failed to fetch size snapshot');
+    },
   });
 }
 
-/**
- * Hook to fetch size snapshots from CircleCI artifacts
- */
-function useCircleCISnapshot({
-  org,
-  repository,
-  circleCIBuildNumber,
-}: {
-  org: string;
-  repository: string;
-  circleCIBuildNumber: number;
-}) {
-  const url = new URL('/.netlify/functions/circle-ci-artifacts', window.location.origin);
-  url.searchParams.append('org', org);
-  url.searchParams.append('repository', repository);
-  url.searchParams.append('buildNumber', String(circleCIBuildNumber));
-
-  return useSizeSnapshotFromUrl(url.toString());
-}
-
-/**
- * Hook to fetch size snapshots from S3
- */
-function useS3SizeSnapshot(org: string, repo: string, ref: string, commitId: string) {
+function useBaseSizeSnapshot(repo: string, ref: string, commitId: string) {
   // TODO: store artifacts under a url that includes the repo name
   const path = `${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
   const url = new URL(path, 'https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/');
-  return useSizeSnapshotFromUrl(url.toString());
+
+  return useQuery({
+    queryKey: ['base-snapshot', url],
+    // Default to an empty snapshot, this will show up in the UI as all new files
+    queryFn: () => fetchUrl(url).catch(() => ({})),
+  });
 }
 
 const BundleCell = styled(TableCell)`
@@ -172,7 +185,6 @@ function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
 
 // Hook that handles data fetching and processing
 function useSizeComparisonData(
-  baseOrg: string,
   baseRepo: string,
   baseRef: string,
   baseCommit: string,
@@ -182,17 +194,13 @@ function useSizeComparisonData(
     data: baseSnapshot = null,
     isLoading: isBaseLoading,
     error: baseError,
-  } = useS3SizeSnapshot(baseOrg, baseRepo, baseRef, baseCommit);
+  } = useBaseSizeSnapshot(baseRepo, baseRef, baseCommit);
 
   const {
     data: targetSnapshot = null,
     isLoading: isTargetLoading,
     error: targetError,
-  } = useCircleCISnapshot({
-    org: baseOrg,
-    repository: baseRepo,
-    circleCIBuildNumber,
-  });
+  } = useHeadSizeSnapshot(baseRepo, null, circleCIBuildNumber);
 
   // Process data to get bundle comparisons and totals using the extracted function
   const { entries, totals, fileCounts } = React.useMemo(() => {
@@ -229,7 +237,6 @@ function useSizeComparisonData(
  * Props interface for the Comparison component
  */
 interface ComparisonProps {
-  baseOrg: string;
   baseRepo: string;
   baseRef: string;
   baseCommit: string;
@@ -239,7 +246,6 @@ interface ComparisonProps {
 
 // Main comparison component that renders both the header and the table
 function Comparison({
-  baseOrg,
   baseRepo,
   baseRef,
   baseCommit,
@@ -247,7 +253,6 @@ function Comparison({
   prNumber,
 }: ComparisonProps) {
   const { entries, totals, fileCounts, isLoading, error } = useSizeComparisonData(
-    baseOrg,
     baseRepo,
     baseRef,
     baseCommit,
@@ -258,22 +263,19 @@ function Comparison({
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" component="h2" gutterBottom>
-          <GitHubPRReference repo={`${baseOrg}/${baseRepo}`} prNumber={prNumber} />
+          <GitHubPRReference repo={`${baseRepo}`} prNumber={prNumber} />
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
           Circle CI build{' '}
           <Link
-            href={`https://app.circleci.com/pipelines/github/${baseOrg}/${baseRepo}/jobs/${circleCIBuildNumber}`}
+            href={`https://app.circleci.com/pipelines/github/${baseRepo}/jobs/${circleCIBuildNumber}`}
             target="_blank"
           >
             {circleCIBuildNumber}
           </Link>
           . Comparing bundle size changes against {baseRef} (
-          <Link
-            href={`https://github.com/${baseOrg}/${baseRepo}/commit/${baseCommit}`}
-            target="_blank"
-          >
+          <Link href={`https://github.com/${baseRepo}/commit/${baseCommit}`} target="_blank">
             {baseCommit.substring(0, 7)}
           </Link>
           ).
@@ -327,8 +329,7 @@ function useComparisonParams() {
     const params = new URLSearchParams(search);
 
     return {
-      baseOrg: params.get('baseOrg') || 'mui',
-      baseRepo: params.get('baseRepo') || 'material-ui',
+      baseRepo: params.get('baseRepo') || 'mui/material-ui',
       baseCommit: params.get('baseCommit')!,
       baseRef: params.get('baseRef')!,
       prNumber: +params.get('prNumber')!,
@@ -338,15 +339,13 @@ function useComparisonParams() {
 }
 
 export default function SizeComparison() {
-  const { baseOrg, baseRepo, baseRef, baseCommit, circleCIBuildNumber, prNumber } =
-    useComparisonParams();
+  const { baseRepo, baseRef, baseCommit, circleCIBuildNumber, prNumber } = useComparisonParams();
 
   return (
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
       <Box sx={{ width: '100%' }}>
         <Comparison
-          baseOrg={baseOrg}
           baseRepo={baseRepo}
           baseRef={baseRef}
           baseCommit={baseCommit}

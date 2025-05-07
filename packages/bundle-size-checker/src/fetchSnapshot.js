@@ -5,17 +5,32 @@
  * @returns {Promise<import('./sizeDiff').SizeSnapshot>} - The size snapshot data
  */
 export async function fetchSnapshot(repo, sha) {
-  const url = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${repo}/${sha}/size-snapshot.json`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    if (repo === 'mui/material-ui') {
-      const legacyUrl = `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/master/${sha}/size-snapshot.json`;
-      const legacyResponse = await fetch(legacyUrl);
-      if (legacyResponse.ok) {
-        return legacyResponse.json();
-      }
-    }
-    throw new Error(`Failed to fetch "${url}", HTTP ${response.status}`);
+  const urlsToTry = [
+    `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${repo}/${sha}/size-snapshot.json`,
+  ];
+
+  if (repo === 'mui/material-ui') {
+    urlsToTry.push(
+      `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/master/${sha}/size-snapshot.json`,
+    );
   }
-  return response.json();
+
+  let lastError;
+  for (const url of urlsToTry) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await fetch(url);
+      if (!response.ok) {
+        lastError = new Error(`Failed to fetch "${url}", HTTP ${response.status}`);
+        continue;
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error;
+      continue;
+    }
+  }
+
+  throw new Error(`Failed to fetch snapshot`, { cause: lastError });
 }
