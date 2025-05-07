@@ -8,7 +8,6 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
-import Link from '@mui/material/Link';
 import Chip from '@mui/material/Chip';
 import GitPullRequestIcon from '@mui/icons-material/Commit';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -75,15 +74,16 @@ export default function PRList({ prs, isLoading, error, owner, repo }: PRListPro
           <React.Fragment key={pr.number}>
             {index > 0 && <Divider />}
             <StyledListItem
+              // @ts-expect-error https://github.com/mui/material-ui/issues/29875
               component={RouterLink}
               to={`/size-comparison/${owner}/${repo}/${pr.number}`}
-              sx={{ 
+              sx={{
                 py: 1.5,
                 color: 'text.primary',
                 textDecoration: 'none',
                 '&:hover': {
-                  textDecoration: 'none'
-                }
+                  textDecoration: 'none',
+                },
               }}
             >
               <Box sx={{ mr: 1, color: 'text.secondary', display: 'flex' }}>
@@ -93,13 +93,13 @@ export default function PRList({ prs, isLoading, error, owner, repo }: PRListPro
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <PRNumber variant="body2">#{pr.number}</PRNumber>
-                    <Typography 
+                    <Typography
                       variant="body2"
-                      sx={{ 
+                      sx={{
                         fontWeight: 500,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {pr.title}
@@ -118,12 +118,12 @@ export default function PRList({ prs, isLoading, error, owner, repo }: PRListPro
                     <Typography variant="caption" color="text.secondary">
                       SHA: <code>{pr.head.sha.substring(0, 7)}</code>
                     </Typography>
-                    <Box 
-                      sx={{ 
-                        display: 'flex', 
+                    <Box
+                      sx={{
+                        display: 'flex',
                         alignItems: 'center',
                         ml: 2,
-                        color: 'secondary.main'
+                        color: 'secondary.main',
                       }}
                     >
                       <BarChartIcon sx={{ mr: 0.5, fontSize: '0.9rem' }} />

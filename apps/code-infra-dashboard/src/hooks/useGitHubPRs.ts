@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { GitHubPRInfo } from './useGitHubPR';
 
+export interface UseGitHubPRs {
+  prs: GitHubPRInfo[];
+  isLoading: boolean;
+  error: Error | null;
+}
+
 /**
  * Hook to fetch the latest PRs for a repository
  * @param repo Full repository name in the format "org/repo" (e.g. "mui/material-ui")
  * @param limit Number of PRs to fetch (default: 10)
  */
-export function useGitHubPRs(
-  repo: string,
-  limit: number = 10,
-): { prs: GitHubPRInfo[]; isLoading: boolean; error: Error | null } {
+export function useGitHubPRs(repo: string, limit: number = 10): UseGitHubPRs {
   const {
     data = [],
     isLoading,

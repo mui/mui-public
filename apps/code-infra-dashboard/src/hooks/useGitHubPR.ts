@@ -17,15 +17,18 @@ export interface GitHubPRInfo {
   };
 }
 
+export interface UseGitHubPR {
+  prInfo: GitHubPRInfo | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
 /**
  * Hook to fetch PR information by PR number
  * @param repo Full repository name in the format "org/repo" (e.g. "mui/material-ui")
  * @param prNumber The PR number to fetch information for
  */
-export function useGitHubPR(
-  repo: string,
-  prNumber: number,
-): { prInfo: GitHubPRInfo | null; isLoading: boolean; error: Error | null } {
+export function useGitHubPR(repo: string, prNumber: number): UseGitHubPR {
   const {
     data = null,
     isLoading,
