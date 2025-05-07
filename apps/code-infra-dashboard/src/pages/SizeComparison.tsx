@@ -11,6 +11,7 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import WarningIcon from '@mui/icons-material/Warning';
 import styled from '@emotion/styled';
 import {
   SizeSnapshot,
@@ -69,16 +70,17 @@ function useHeadSizeSnapshot(repo: string, sha: string | null, circleCIBuildNumb
   });
 }
 
+function useFetch(url: string | URL) {
+  return useQuery({
+    queryKey: ['fetch', url],
+    queryFn: () => fetchUrl(url),
+  });
+}
+
 function useBaseSizeSnapshot(repo: string, ref: string, commitId: string) {
-  // TODO: store artifacts under a url that includes the repo name
   const path = `${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
   const url = new URL(path, 'https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/');
-
-  return useQuery({
-    queryKey: ['base-snapshot', url],
-    // Default to an empty snapshot, this will show up in the UI as all new files
-    queryFn: () => fetchUrl(url).catch(() => ({})),
-  });
+  return useFetch(url);
 }
 
 const BundleCell = styled(TableCell)`
@@ -191,7 +193,7 @@ function useSizeComparisonData(
   circleCIBuildNumber: number,
 ) {
   const {
-    data: baseSnapshot = null,
+    data: baseSnapshot = {},
     isLoading: isBaseLoading,
     error: baseError,
   } = useBaseSizeSnapshot(baseRepo, baseRef, baseCommit);
@@ -229,7 +231,8 @@ function useSizeComparisonData(
     totals,
     fileCounts,
     isLoading: isBaseLoading || isTargetLoading,
-    error: baseError || targetError,
+    error: targetError,
+    baseError,
   };
 }
 
@@ -252,7 +255,7 @@ function Comparison({
   circleCIBuildNumber,
   prNumber,
 }: ComparisonProps) {
-  const { entries, totals, fileCounts, isLoading, error } = useSizeComparisonData(
+  const { entries, totals, fileCounts, isLoading, error, baseError } = useSizeComparisonData(
     baseRepo,
     baseRef,
     baseCommit,
@@ -280,6 +283,19 @@ function Comparison({
           </Link>
           ).
         </Typography>
+
+        {baseError && (
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
+            <Typography variant="body2" color="warning.main">
+              No snapshot found for base commit{' '}
+              <Link href={`https://github.com/${baseRepo}/commit/${baseCommit}`} target="_blank">
+                {baseCommit.substring(0, 7)}
+              </Link>
+              . Comparison may be incomplete.
+            </Typography>
+          </Box>
+        )}
 
         {!isLoading && !error && (
           <React.Fragment>
