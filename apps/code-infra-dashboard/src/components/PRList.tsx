@@ -107,13 +107,13 @@ export default function PRList({ prs, isLoading, error, owner, repo }: PRListPro
                   </Box>
                 }
                 secondary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 2 }}>
                     <Chip
                       label={pr.base.ref}
                       size="small"
                       color="primary"
                       variant="outlined"
-                      sx={{ fontSize: '0.7rem', height: 20, mr: 1 }}
+                      sx={{ fontSize: '0.7rem', height: 20 }}
                     />
                     <Typography variant="caption" color="text.secondary">
                       SHA: <code>{pr.head.sha.substring(0, 7)}</code>
@@ -122,11 +122,11 @@ export default function PRList({ prs, isLoading, error, owner, repo }: PRListPro
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        ml: 2,
                         color: 'secondary.main',
+                        gap: 0.5,
                       }}
                     >
-                      <BarChartIcon sx={{ mr: 0.5, fontSize: '0.9rem' }} />
+                      <BarChartIcon fontSize="inherit" />
                       <Typography variant="caption">View Bundle Size</Typography>
                     </Box>
                   </Box>
