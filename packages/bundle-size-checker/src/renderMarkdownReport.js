@@ -171,16 +171,15 @@ export function renderMarkdownReportContent(
 
 /**
  *
- * @param {Object} prInfo
- * @param {number} prInfo.number - The pull request number
- * @param {Object} prInfo.base - The base branch of the pull request
- * @param {string} prInfo.base.ref - The base branch name
- * @param {string} prInfo.base.sha - The base branch SHA
+ * @param {PrInfo} prInfo
  * @param {string} [circleciBuildNumber] - The CircleCI build number
  * @returns {URL}
  */
 function getDetailsUrl(prInfo, circleciBuildNumber) {
   const detailedComparisonUrl = new URL('https://mui-dashboard.netlify.app/size-comparison');
+  const [org, repo] = prInfo.base.repo.full_name.split('/');
+  detailedComparisonUrl.searchParams.set('baseOrg', org);
+  detailedComparisonUrl.searchParams.set('baseRepo', repo);
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
   detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
