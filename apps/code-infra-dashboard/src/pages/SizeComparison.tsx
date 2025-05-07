@@ -74,6 +74,7 @@ function useFetch(url: string | URL) {
   return useQuery({
     queryKey: ['fetch', url],
     queryFn: () => fetchUrl(url),
+    retry: 1,
   });
 }
 
