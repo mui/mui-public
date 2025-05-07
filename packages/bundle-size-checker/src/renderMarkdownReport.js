@@ -176,11 +176,9 @@ export function renderMarkdownReportContent(
  * @returns {URL}
  */
 function getDetailsUrl(prInfo, circleciBuildNumber) {
-  const detailedComparisonUrl = new URL('https://frontend-public.mui.com/size-comparison');
-  detailedComparisonUrl.searchParams.set('repo', prInfo.base.repo.full_name);
-  detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
-  detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
-  detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
+  const detailedComparisonUrl = new URL(
+    `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/${prInfo.number}`,
+  );
   if (circleciBuildNumber) {
     detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
   }
