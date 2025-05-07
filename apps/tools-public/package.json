@@ -1,9 +1,7 @@
 {
   "name": "tools-public",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
     "dev": "toolpad-studio dev --port 3005",
     "build": "toolpad-studio build",
     "start": "toolpad-studio start"
