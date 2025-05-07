@@ -4,6 +4,17 @@ export interface GitHubPRInfo {
   title: string;
   number: number;
   html_url: string;
+  base: {
+    ref: string;
+    sha: string;
+    repo: {
+      full_name: string;
+    };
+  };
+  head: {
+    ref: string;
+    sha: string;
+  };
 }
 
 /**
@@ -29,16 +40,13 @@ export function useGitHubPR(
         }
 
         const responseBody = await response.json();
-        return {
-          title: responseBody.title,
-          number: prNumber,
-          html_url: responseBody.html_url,
-        };
+        return responseBody;
       } catch (err) {
         console.error('Error fetching PR info:', err);
         throw err;
       }
     },
+    retry: 1,
     enabled: Boolean(repo && prNumber),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });

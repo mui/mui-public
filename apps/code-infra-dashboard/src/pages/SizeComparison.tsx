@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useLocation } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -25,6 +25,7 @@ import SizeChangeDisplay, {
   byteSizeFormatter,
   exactBytesFormatter,
 } from '../components/SizeChangeDisplay';
+import { useGitHubPR } from '../hooks/useGitHubPR';
 
 async function fetchUrl(url: string | URL): Promise<SizeSnapshot> {
   const response = await fetch(url);
@@ -37,7 +38,7 @@ async function fetchUrl(url: string | URL): Promise<SizeSnapshot> {
 /**
  * Generic hook to fetch size snapshots for the head branch
  */
-function useHeadSizeSnapshot(repo: string, sha: string | null, circleCIBuildNumber: number) {
+function useSizeSnapshot(repo: string, sha: string, circleCIBuildNumber: number | null) {
   return useQuery({
     queryKey: ['size-snapshot', repo, sha],
     queryFn: async () => {
@@ -47,14 +48,16 @@ function useHeadSizeSnapshot(repo: string, sha: string | null, circleCIBuildNumb
         fetches.push(() => fetchSnapshot(repo, sha));
       }
 
-      fetches.push(() => {
-        const url = new URL('/.netlify/functions/circle-ci-artifacts', window.location.origin);
-        const [org, repository] = repo.split('/');
-        url.searchParams.append('org', org);
-        url.searchParams.append('repository', repository);
-        url.searchParams.append('buildNumber', String(circleCIBuildNumber));
-        return fetchUrl(url.toString());
-      });
+      if (circleCIBuildNumber) {
+        fetches.push(() => {
+          const url = new URL('/.netlify/functions/circle-ci-artifacts', window.location.origin);
+          const [org, repository] = repo.split('/');
+          url.searchParams.append('org', org);
+          url.searchParams.append('repository', repository);
+          url.searchParams.append('buildNumber', String(circleCIBuildNumber));
+          return fetchUrl(url.toString());
+        });
+      }
 
       let lastError: Error | null = null;
       for (const fetch of fetches) {
@@ -67,21 +70,8 @@ function useHeadSizeSnapshot(repo: string, sha: string | null, circleCIBuildNumb
       }
       throw lastError ?? new Error('Failed to fetch size snapshot');
     },
-  });
-}
-
-function useFetch(url: string | URL) {
-  return useQuery({
-    queryKey: ['fetch', url],
-    queryFn: () => fetchUrl(url),
     retry: 1,
   });
-}
-
-function useBaseSizeSnapshot(repo: string, ref: string, commitId: string) {
-  const path = `${encodeURIComponent(ref)}/${encodeURIComponent(commitId)}/size-snapshot.json`;
-  const url = new URL(path, 'https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/');
-  return useFetch(url);
 }
 
 const BundleCell = styled(TableCell)`
@@ -188,22 +178,24 @@ function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
 
 // Hook that handles data fetching and processing
 function useSizeComparisonData(
-  baseRepo: string,
+  repo: string,
   baseRef: string,
   baseCommit: string,
-  circleCIBuildNumber: number,
+  headRef: string,
+  headCommit: string,
+  circleCIBuildNumber: number | null,
 ) {
   const {
     data: baseSnapshot = {},
     isLoading: isBaseLoading,
     error: baseError,
-  } = useBaseSizeSnapshot(baseRepo, baseRef, baseCommit);
+  } = useSizeSnapshot(repo, baseCommit, null);
 
   const {
     data: targetSnapshot = null,
     isLoading: isTargetLoading,
     error: targetError,
-  } = useHeadSizeSnapshot(baseRepo, null, circleCIBuildNumber);
+  } = useSizeSnapshot(repo, headCommit, circleCIBuildNumber);
 
   // Process data to get bundle comparisons and totals using the extracted function
   const { entries, totals, fileCounts } = React.useMemo(() => {
@@ -241,25 +233,31 @@ function useSizeComparisonData(
  * Props interface for the Comparison component
  */
 interface ComparisonProps {
-  baseRepo: string;
+  repo: string;
   baseRef: string;
   baseCommit: string;
-  circleCIBuildNumber: number;
+  headRef: string;
+  headCommit: string;
+  circleCIBuildNumber: number | null;
   prNumber: number;
 }
 
 // Main comparison component that renders both the header and the table
 function Comparison({
-  baseRepo,
+  repo,
   baseRef,
   baseCommit,
+  headRef,
+  headCommit,
   circleCIBuildNumber,
   prNumber,
 }: ComparisonProps) {
   const { entries, totals, fileCounts, isLoading, error, baseError } = useSizeComparisonData(
-    baseRepo,
+    repo,
     baseRef,
     baseCommit,
+    headRef,
+    headCommit,
     circleCIBuildNumber,
   );
 
@@ -267,19 +265,19 @@ function Comparison({
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" component="h2" gutterBottom>
-          <GitHubPRReference repo={`${baseRepo}`} prNumber={prNumber} />
+          <GitHubPRReference repo={`${repo}`} prNumber={prNumber} />
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
           Circle CI build{' '}
           <Link
-            href={`https://app.circleci.com/pipelines/github/${baseRepo}/jobs/${circleCIBuildNumber}`}
+            href={`https://app.circleci.com/pipelines/github/${repo}/jobs/${circleCIBuildNumber}`}
             target="_blank"
           >
             {circleCIBuildNumber}
           </Link>
           . Comparing bundle size changes against {baseRef} (
-          <Link href={`https://github.com/${baseRepo}/commit/${baseCommit}`} target="_blank">
+          <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
             {baseCommit.substring(0, 7)}
           </Link>
           ).
@@ -290,7 +288,7 @@ function Comparison({
             <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
             <Typography variant="body2" color="warning.main">
               No snapshot found for base commit{' '}
-              <Link href={`https://github.com/${baseRepo}/commit/${baseCommit}`} target="_blank">
+              <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
                 {baseCommit.substring(0, 7)}
               </Link>
               . Comparison may be incomplete.
@@ -340,33 +338,66 @@ function Comparison({
   );
 }
 
-function useComparisonParams() {
-  const { search } = useLocation();
-  return React.useMemo(() => {
-    const params = new URLSearchParams(search);
-
-    return {
-      baseRepo: params.get('repo') || 'mui/material-ui',
-      baseCommit: params.get('baseCommit')!,
-      baseRef: params.get('baseRef')!,
-      prNumber: +params.get('prNumber')!,
-      circleCIBuildNumber: +params.get('circleCIBuildNumber')!,
-    };
-  }, [search]);
-}
-
 export default function SizeComparison() {
-  const { baseRepo, baseRef, baseCommit, circleCIBuildNumber, prNumber } = useComparisonParams();
+  const [searchParams] = useSearchParams();
+  const params = useParams<{ owner: string; repo: string; prNumber: string }>();
+  if (!params.owner || !params.repo || !params.prNumber) {
+    throw new Error('Missing required path parameters');
+  }
+
+  const repo = `${params.owner}/${params.repo}`;
+  const prNumber = Number(params.prNumber);
+
+  const { prInfo, isLoading, error } = useGitHubPR(repo, prNumber);
+
+  const circleCIBuildNumber = searchParams.get('circleCIBuildNumber');
+
+  if (isLoading) {
+    return (
+      <React.Fragment>
+        <Heading level={1}>Bundle Size Comparison</Heading>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
+          <CircularProgress size={20} />
+          <Typography>Loading PR information...</Typography>
+        </Box>
+      </React.Fragment>
+    );
+  }
+
+  if (error || !prInfo) {
+    return (
+      <React.Fragment>
+        <Heading level={1}>Bundle Size Comparison</Heading>
+        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ p: 2, color: 'error.main' }}>
+            <Typography variant="h6" component="h2" gutterBottom>
+              Error Loading PR Information
+            </Typography>
+            <Typography variant="body2">
+              {error?.message || 'Could not load PR information'}
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                Looking for PR #{prNumber} in repository {repo}
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </React.Fragment>
+    );
+  }
 
   return (
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
       <Box sx={{ width: '100%' }}>
         <Comparison
-          baseRepo={baseRepo}
-          baseRef={baseRef}
-          baseCommit={baseCommit}
-          circleCIBuildNumber={circleCIBuildNumber}
+          repo={repo}
+          baseRef={prInfo.base.ref}
+          baseCommit={prInfo.base.sha}
+          headRef={prInfo.head.ref}
+          headCommit={prInfo.head.sha}
+          circleCIBuildNumber={circleCIBuildNumber ? +circleCIBuildNumber : null}
           prNumber={prNumber}
         />
       </Box>
