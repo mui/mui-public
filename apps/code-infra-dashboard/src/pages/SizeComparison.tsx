@@ -345,7 +345,7 @@ function useComparisonParams() {
     const params = new URLSearchParams(search);
 
     return {
-      baseRepo: params.get('baseRepo') || 'mui/material-ui',
+      baseRepo: params.get('repo') || 'mui/material-ui',
       baseCommit: params.get('baseCommit')!,
       baseRef: params.get('baseRef')!,
       prNumber: +params.get('prNumber')!,

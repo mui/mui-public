@@ -177,7 +177,7 @@ export function renderMarkdownReportContent(
  */
 function getDetailsUrl(prInfo, circleciBuildNumber) {
   const detailedComparisonUrl = new URL('https://mui-dashboard.netlify.app/size-comparison');
-  detailedComparisonUrl.searchParams.set('baseRepo', prInfo.base.repo.full_name);
+  detailedComparisonUrl.searchParams.set('repo', prInfo.base.repo.full_name);
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
   detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
