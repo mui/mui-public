@@ -69,7 +69,7 @@ jobs:
           # make sure the netlify ignore command has the correct dependencies
           name: '`pnpm update-netlify-ignore` changes committed?'
           command: |
-            pnpm update-netlify-ignore code-infra-dashboard
+            pnpm update-netlify-ignore
             git add -A && git diff --exit-code --staged
 workflows:
   version: 2

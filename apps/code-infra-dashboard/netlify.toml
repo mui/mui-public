@@ -5,7 +5,7 @@
   command = "pnpm -F code-infra-dashboard build"
 
   # Decide when to build Netlify
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- apps/code-infra-dashboard packages/bundle-size-checker pnpm-*.yaml"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF apps/code-infra-dashboard packages/bundle-size-checker pnpm-lock.yaml"
 
 [dev]
   framework = "#custom"

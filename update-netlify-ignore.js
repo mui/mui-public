@@ -57,7 +57,7 @@ try {
   // Replace the ignore line with our new command using relative paths
   const updatedContent = tomlContent.replace(
     /^\s*ignore\s*=.*$/m,
-    `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ${relativePaths.join(' ')} pnpm-*.yaml"`,
+    `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`,
   );
 
   // Write the updated file
