@@ -37,8 +37,8 @@ async function getPeerDependencies(packageName) {
     }
 
     return null;
-  } catch (error) {
-    console.warn(`Could not resolve peer dependencies for ${packageName}`);
+  } catch (/** @type {any} */ error) {
+    console.warn(`Could not resolve peer dependencies for ${packageName}: ${error.message}`);
     return null;
   }
 }
