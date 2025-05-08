@@ -25,7 +25,9 @@ const require = createRequire(import.meta.url);
 async function getPeerDependencies(packageName) {
   try {
     // Try to resolve packageName/package.json
-    const packageJsonPath = require.resolve(`${packageName}/package.json`);
+    const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+      paths: [rootDir],
+    });
 
     // Read and parse the package.json
     const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');
