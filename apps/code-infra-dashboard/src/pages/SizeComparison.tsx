@@ -179,9 +179,7 @@ function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
 // Hook that handles data fetching and processing
 function useSizeComparisonData(
   repo: string,
-  baseRef: string,
   baseCommit: string,
-  headRef: string,
   headCommit: string,
   circleCIBuildNumber: number | null,
 ) {
@@ -236,7 +234,6 @@ interface ComparisonProps {
   repo: string;
   baseRef: string;
   baseCommit: string;
-  headRef: string;
   headCommit: string;
   circleCIBuildNumber: number | null;
   prNumber: number;
@@ -247,16 +244,13 @@ function Comparison({
   repo,
   baseRef,
   baseCommit,
-  headRef,
   headCommit,
   circleCIBuildNumber,
   prNumber,
 }: ComparisonProps) {
   const { entries, totals, fileCounts, isLoading, error, baseError } = useSizeComparisonData(
     repo,
-    baseRef,
     baseCommit,
-    headRef,
     headCommit,
     circleCIBuildNumber,
   );
@@ -387,16 +381,20 @@ export default function SizeComparison() {
     );
   }
 
+  // Allow overrides
+  const baseRef = searchParams.get('baseRef') ?? prInfo.base.ref;
+  const baseCommit = searchParams.get('baseCommit') ?? prInfo.base.sha;
+  const headCommit = searchParams.get('headCommit') ?? prInfo.head.sha;
+
   return (
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
       <Box sx={{ width: '100%' }}>
         <Comparison
           repo={repo}
-          baseRef={prInfo.base.ref}
-          baseCommit={prInfo.base.sha}
-          headRef={prInfo.head.ref}
-          headCommit={prInfo.head.sha}
+          baseRef={baseRef}
+          baseCommit={baseCommit}
+          headCommit={headCommit}
           circleCIBuildNumber={circleCIBuildNumber ? +circleCIBuildNumber : null}
           prNumber={prNumber}
         />

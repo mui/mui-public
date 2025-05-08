@@ -3,7 +3,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import * as colors from '@mui/material/colors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router';
 import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
@@ -12,9 +12,9 @@ const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
 
 // Redirect component for size comparison with query params
 function SizeComparisonRedirect() {
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  // remove the default when https://github.com/mui/material-ui/pull/45911 is merged for longer than 1 month
+  const [params] = useSearchParams();
+
+  // remove the default when https://github.com/mui/material-ui/pull/45911 is merged for longer than e.g. 1 month
   const repo = params.get('repo') || 'mui/material-ui';
   const prNumber = params.get('prNumber');
 
@@ -25,9 +25,10 @@ function SizeComparisonRedirect() {
 
     // Preserve all other query params for the redirect
     const otherParams = new URLSearchParams();
-    const circleCIBuildNumber = params.get('circleCIBuildNumber');
-    if (circleCIBuildNumber) {
-      otherParams.append('circleCIBuildNumber', circleCIBuildNumber);
+    for (const [key, value] of params.entries()) {
+      if (key !== 'repo' && key !== 'prNumber') {
+        otherParams.append(key, value);
+      }
     }
 
     // Build the new URL with path parameters

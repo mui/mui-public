@@ -182,6 +182,9 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
   if (circleciBuildNumber) {
     detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
   }
+  detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
+  detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
+  detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
   return detailedComparisonUrl;
 }
 
