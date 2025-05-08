@@ -75,9 +75,5 @@ workflows:
           <<: *default-context
       - test_lint:
           <<: *default-context
-          requires:
-            - checkout
       - test_static:
           <<: *default-context
-          requires:
-            - checkout
