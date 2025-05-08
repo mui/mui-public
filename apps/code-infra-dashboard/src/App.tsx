@@ -16,24 +16,23 @@ function SizeComparisonRedirect() {
 
   // remove the default when https://github.com/mui/material-ui/pull/45911 is merged for longer than e.g. 1 month
   const repo = params.get('repo') || 'mui/material-ui';
-  const prNumber = params.get('prNumber');
 
-  // Check if we have the essential path parameters
-  if (repo && prNumber) {
+  // Check if we have the essential repo parameter
+  if (repo) {
     // Split repo into owner/repo parts
     const [owner, repoName] = repo.split('/');
 
-    // Preserve all other query params for the redirect
-    const otherParams = new URLSearchParams();
+    // Preserve all query params for the redirect
+    const newParams = new URLSearchParams();
     for (const [key, value] of params.entries()) {
-      if (key !== 'repo' && key !== 'prNumber') {
-        otherParams.append(key, value);
+      if (key !== 'repo') {
+        newParams.append(key, value);
       }
     }
 
     // Build the new URL with path parameters
-    const queryString = otherParams.toString() ? `?${otherParams.toString()}` : '';
-    const newPath = `/size-comparison/${owner}/${repoName}/${prNumber}${queryString}`;
+    const queryString = newParams.toString() ? `?${newParams.toString()}` : '';
+    const newPath = `/size-comparison/${owner}/${repoName}/diff${queryString}`;
 
     return <Navigate to={newPath} replace />;
   }
@@ -42,7 +41,7 @@ function SizeComparisonRedirect() {
   return (
     <div style={{ padding: '2rem', color: 'red' }}>
       <h2>Error: Missing Parameters</h2>
-      <p>This page requires both &quot;repo&quot; and &quot;prNumber&quot; parameters.</p>
+      <p>This page requires the &quot;repo&quot; parameter.</p>
       <p>Example: /size-comparison?repo=mui/material-ui&prNumber=1234</p>
     </div>
   );
@@ -182,7 +181,7 @@ function App() {
               />
               <Route path="/size-comparison" element={<SizeComparisonRedirect />} />
               <Route
-                path="/size-comparison/:owner/:repo/:prNumber"
+                path="/size-comparison/:owner/:repo/diff"
                 element={
                   <React.Suspense fallback={<div>Loading...</div>}>
                     <SizeComparison />

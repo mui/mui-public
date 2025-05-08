@@ -76,7 +76,7 @@ export default function PRList({ prs, isLoading, error, owner, repo }: PRListPro
             <StyledListItem
               // @ts-expect-error https://github.com/mui/material-ui/issues/29875
               component={RouterLink}
-              to={`/size-comparison/${owner}/${repo}/${pr.number}`}
+              to={`/size-comparison/${owner}/${repo}/diff?prNumber=${pr.number}`}
               sx={{
                 py: 1.5,
                 color: 'text.primary',

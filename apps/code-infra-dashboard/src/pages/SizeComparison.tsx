@@ -236,7 +236,7 @@ interface ComparisonProps {
   baseCommit: string;
   headCommit: string;
   circleCIBuildNumber: number | null;
-  prNumber: number;
+  prNumber?: number;
 }
 
 // Main comparison component that renders both the header and the table
@@ -258,19 +258,31 @@ function Comparison({
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          <GitHubPRReference repo={`${repo}`} prNumber={prNumber} />
-        </Typography>
+        {prNumber && (
+          <Typography variant="h6" component="h2" gutterBottom>
+            <GitHubPRReference repo={`${repo}`} prNumber={prNumber} />
+          </Typography>
+        )}
+        {!prNumber && (
+          <Typography variant="h6" component="h2" gutterBottom>
+            Bundle Size Comparison
+          </Typography>
+        )}
 
         <Typography variant="body2" color="text.secondary">
-          Circle CI build{' '}
-          <Link
-            href={`https://app.circleci.com/pipelines/github/${repo}/jobs/${circleCIBuildNumber}`}
-            target="_blank"
-          >
-            {circleCIBuildNumber}
-          </Link>
-          . Comparing bundle size changes against {baseRef} (
+          {circleCIBuildNumber && (
+            <React.Fragment>
+              Circle CI build{' '}
+              <Link
+                href={`https://app.circleci.com/pipelines/github/${repo}/jobs/${circleCIBuildNumber}`}
+                target="_blank"
+              >
+                {circleCIBuildNumber}
+              </Link>
+              .{' '}
+            </React.Fragment>
+          )}
+          Comparing bundle size changes against {baseRef} (
           <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
             {baseCommit.substring(0, 7)}
           </Link>
@@ -334,17 +346,16 @@ function Comparison({
 
 export default function SizeComparison() {
   const [searchParams] = useSearchParams();
-  const params = useParams<{ owner: string; repo: string; prNumber: string }>();
-  if (!params.owner || !params.repo || !params.prNumber) {
+  const params = useParams<{ owner: string; repo: string }>();
+  if (!params.owner || !params.repo) {
     throw new Error('Missing required path parameters');
   }
 
   const repo = `${params.owner}/${params.repo}`;
-  const prNumber = Number(params.prNumber);
+  const prNumberParam = searchParams.get('prNumber');
+  const prNumber = prNumberParam ? Number(prNumberParam) : undefined;
 
   const { prInfo, isLoading, error } = useGitHubPR(repo, prNumber);
-
-  const circleCIBuildNumber = searchParams.get('circleCIBuildNumber');
 
   if (isLoading) {
     return (
@@ -358,21 +369,30 @@ export default function SizeComparison() {
     );
   }
 
-  if (error || !prInfo) {
+  const circleCIBuildNumber = searchParams.get('circleCIBuildNumber');
+  const baseCommitParam = searchParams.get('baseCommit');
+  const headCommitParam = searchParams.get('headCommit');
+
+  // We can show a comparison if we have baseCommit and either headCommit or circleCIBuildNumber
+  const hasRequiredParams = baseCommitParam && (headCommitParam || circleCIBuildNumber);
+
+  if (!hasRequiredParams && (error || !prInfo)) {
     return (
       <React.Fragment>
         <Heading level={1}>Bundle Size Comparison</Heading>
         <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
           <Box sx={{ p: 2, color: 'error.main' }}>
             <Typography variant="h6" component="h2" gutterBottom>
-              Error Loading PR Information
+              Error Loading Comparison Data
             </Typography>
             <Typography variant="body2">
               {error?.message || 'Could not load PR information'}
             </Typography>
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2">
-                Looking for PR #{prNumber} in repository {repo}
+                {prNumber
+                  ? `Looking for PR #${prNumber} in repository ${repo}`
+                  : 'Please provide baseCommit and either headCommit or circleCIBuildNumber parameters for comparison.'}
               </Typography>
             </Box>
           </Box>
@@ -381,10 +401,10 @@ export default function SizeComparison() {
     );
   }
 
-  // Allow overrides
-  const baseRef = searchParams.get('baseRef') ?? prInfo.base.ref;
-  const baseCommit = searchParams.get('baseCommit') ?? prInfo.base.sha;
-  const headCommit = searchParams.get('headCommit') ?? prInfo.head.sha;
+  // Use direct parameters if available, otherwise fall back to PR info
+  const baseRef = searchParams.get('baseRef') ?? prInfo?.base.ref ?? 'main';
+  const baseCommit = baseCommitParam ?? prInfo?.base.sha ?? '';
+  const headCommit = headCommitParam ?? prInfo?.head.sha ?? '';
 
   return (
     <React.Fragment>

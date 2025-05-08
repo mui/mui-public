@@ -26,9 +26,9 @@ export interface UseGitHubPR {
 /**
  * Hook to fetch PR information by PR number
  * @param repo Full repository name in the format "org/repo" (e.g. "mui/material-ui")
- * @param prNumber The PR number to fetch information for
+ * @param prNumber The PR number to fetch information for, optional
  */
-export function useGitHubPR(repo: string, prNumber: number): UseGitHubPR {
+export function useGitHubPR(repo: string, prNumber?: number): UseGitHubPR {
   const {
     data = null,
     isLoading,

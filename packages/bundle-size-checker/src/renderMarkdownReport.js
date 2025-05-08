@@ -177,14 +177,15 @@ export function renderMarkdownReportContent(
  */
 function getDetailsUrl(prInfo, circleciBuildNumber) {
   const detailedComparisonUrl = new URL(
-    `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/${prInfo.number}`,
+    `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
-  if (circleciBuildNumber) {
-    detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
-  }
+  detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
   detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
+  if (circleciBuildNumber) {
+    detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
+  }
   return detailedComparisonUrl;
 }
 
