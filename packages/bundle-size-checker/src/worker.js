@@ -4,9 +4,7 @@ import webpackCallbackBased from 'webpack';
 import CompressionPlugin from 'compression-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
-// @ts-expect-error no types for css-loader
-import cssLoader from 'css-loader';
-import fileLoader from 'file-loader';
+import { createRequire } from 'module';
 
 /**
  * @type {(options: webpackCallbackBased.Configuration) => Promise<webpackCallbackBased.Stats>}
@@ -14,6 +12,7 @@ import fileLoader from 'file-loader';
 // @ts-expect-error Can't select the right overload
 const webpack = promisify(webpackCallbackBased);
 const rootDir = process.cwd();
+const require = createRequire(import.meta.url);
 
 // Type declarations are now in types.d.ts
 
@@ -72,11 +71,11 @@ function createWebpackConfig(entry, args) {
       rules: [
         {
           test: /\.css$/,
-          use: [cssLoader],
+          use: [require.resolve('css-loader')],
         },
         {
           test: /\.(png|svg|jpg|gif)$/,
-          use: [fileLoader],
+          use: [require.resolve('file-loader')],
         },
       ],
     },
