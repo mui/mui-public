@@ -94,8 +94,9 @@ function createWebpackConfig(entry, args) {
     entry: {
       // This format is a data: url combined with inline matchResource to obtain a virtual entry.
       // See https://github.com/webpack/webpack/issues/6437#issuecomment-874466638
+      // See https://webpack.js.org/api/module-methods/#import
       // See https://webpack.js.org/api/loaders/#inline-matchresource
-      [entryName]: `./index.js!=!data:text/javascript,${entryContent}`,
+      [entryName]: `./index.js!=!data:text/javascript;charset=utf-8;base64,${Buffer.from(entryContent.trim()).toString('base64')}`,
     },
     // TODO: 'browserslist:modern'
     // See https://github.com/webpack/webpack/issues/14203
