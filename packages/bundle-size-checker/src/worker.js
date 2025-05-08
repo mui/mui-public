@@ -105,7 +105,7 @@ async function createWebpackConfig(entry, args) {
       // Iterate through all packages and check if request is equal to or starts with package + '/'
       for (const pkg of packages) {
         if (request === pkg || request.startsWith(`${pkg}/`)) {
-          return callback(null, `module ${request}`);
+          return callback(null, `commonjs ${request}`);
         }
       }
 
@@ -168,8 +168,10 @@ async function createWebpackConfig(entry, args) {
     output: {
       filename: '[name].js',
       library: {
+        // TODO: Use `type: 'module'` once it is supported (currently incompatible with `externals`)
         name: 'M',
-        type: 'module',
+        type: 'var',
+        // type: 'module',
       },
       path: path.join(rootDir, 'build'),
     },
