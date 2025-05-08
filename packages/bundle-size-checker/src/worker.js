@@ -35,8 +35,8 @@ function createWebpackConfig(entry, args) {
     const [importSrc, importName] = entry.split('#');
 
     entryContent = importName
-      ? `import { ${importName} as foo } from '${importSrc}';console.log(foo);`
-      : `import * as foo from '${importSrc}';console.log(foo);`;
+      ? `import { ${importName} } from '${importSrc}';console.log(${importName});`
+      : `import * as _ from '${importSrc}';console.log(_);`;
   } else {
     // Handle object entry with name and code properties
     entryName = entry.name;
