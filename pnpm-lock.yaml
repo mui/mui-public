@@ -249,6 +249,9 @@ importers:
       '@types/env-ci':
         specifier: ^3.1.4
         version: 3.1.4
+      '@types/file-loader':
+        specifier: ^5.0.4
+        version: 5.0.4
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
@@ -2930,6 +2933,9 @@ packages:
 
   '@types/express@4.17.21':
     resolution: {integrity: sha512-ejlPM315qwLpaQlQDTjPdsUFSc6ZsP4AN6AlWnogPjQ7CVi7PYF3YVz+CY3jE2pwYf7E/7HlDAN0rV2GxTG0HQ==}
+
+  '@types/file-loader@5.0.4':
+    resolution: {integrity: sha512-aB4X92oi5D2nIGI8/kolnJ47btRM2MQjQS4eJgA/VnCD12x0+kP5v7b5beVQWKHLOcquwUXvv6aMt8PmMy9uug==}
 
   '@types/format-util@1.0.4':
     resolution: {integrity: sha512-xrCYOdHh5zA3LUrn6CvspYwlzSWxPso11Lx32WnAG6KvLCRecKZ/Rh21PLXUkzUFsQmrGcx/traJAFjR6dVS5Q==}
@@ -12224,6 +12230,10 @@ snapshots:
       '@types/express-serve-static-core': 4.19.5
       '@types/qs': 6.9.15
       '@types/serve-static': 1.15.7
+
+  '@types/file-loader@5.0.4':
+    dependencies:
+      '@types/webpack': 4.41.39
 
   '@types/format-util@1.0.4': {}
 

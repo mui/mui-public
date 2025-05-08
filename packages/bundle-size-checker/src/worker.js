@@ -4,6 +4,9 @@ import webpackCallbackBased from 'webpack';
 import CompressionPlugin from 'compression-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
+// @ts-expect-error no types for css-loader
+import cssLoader from 'css-loader';
+import fileLoader from 'file-loader';
 
 /**
  * @type {(options: webpackCallbackBased.Configuration) => Promise<webpackCallbackBased.Stats>}
@@ -69,11 +72,11 @@ function createWebpackConfig(entry, args) {
       rules: [
         {
           test: /\.css$/,
-          use: ['css-loader'],
+          use: [cssLoader],
         },
         {
           test: /\.(png|svg|jpg|gif)$/,
-          use: ['file-loader'],
+          use: [fileLoader],
         },
       ],
     },
