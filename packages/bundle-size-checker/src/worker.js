@@ -86,44 +86,44 @@ async function createWebpackConfig(entry, args) {
   }
 
   /**
-   * Escapes string for use in a regular expression
-   * Similar to the non-standard RegExp.escape that might be added in the future
-   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/escape
-   * @param {string} string - The string to be escaped
-   * @returns {string} - The escaped string
-   */
-  function escapeRegExp(string) {
-    // $& means the whole matched string
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  /**
-   * Generate externals RegExp pattern from an array of package names
+   * Generate externals function from an array of package names
    * @param {string[]} packages - Array of package names to exclude (defaults to react and react-dom)
-   * @returns {RegExp} - RegExp to exclude the packages
+   * @returns {function} - Function to determine if a request should be treated as external
    */
-  function generateExternalsRegex(packages) {
-    // Escape any regex special characters
-    const escapedPackages = packages.map((pkg) => escapeRegExp(pkg));
+  function createExternalsFunction(packages = ['react', 'react-dom']) {
+    /**
+     * Check if a request should be treated as external
+     * @param {string} context - The directory containing the issuer file
+     * @param {string} request - The request path being imported
+     * @param {Function} callback - Callback to handle the result
+     */
+    return (context, request, callback) => {
+      // Iterate through all packages and check if request is equal to or starts with package + '/'
+      for (const pkg of packages) {
+        if (request === pkg || request.startsWith(`${pkg}/`)) {
+          return callback(null, request);
+        }
+      }
 
-    // Create a pattern that matches each package name exactly and also handles subpaths
-    // e.g. 'react' should match 'react' and 'react/something' but not 'react-dom'
-    const pattern = `^(${escapedPackages.join('|')})(/.*)?$`;
-    return new RegExp(pattern);
+      return callback();
+    };
   }
+
+  // Generate externals based on priorities:
+  // 1. Explicitly defined externals in the entry object
+  // 2. Peer dependencies from package.json if available
+  // 3. Default externals (react, react-dom)
+  const externalsArray =
+    typeof entry === 'object' && entry.externals
+      ? entry.externals
+      : (packageExternals ?? ['react', 'react-dom']);
 
   /**
    * @type {import('webpack').Configuration}
    */
   const configuration = {
-    // Generate externals based on priorities:
-    // 1. Explicitly defined externals in the entry object
-    // 2. Peer dependencies from package.json if available
-    // 3. Default externals (react, react-dom)
-    externals:
-      typeof entry === 'object' && entry.externals
-        ? generateExternalsRegex(entry.externals)
-        : generateExternalsRegex(packageExternals ?? ['react', 'react-dom']),
+    // @ts-expect-error -- webpack types are not compatible with the current version
+    externals: createExternalsFunction(externalsArray),
     mode: 'production',
     optimization: {
       concatenateModules,
@@ -206,11 +206,21 @@ export default async function getSizes({ entry, args, index, total }) {
   // Create webpack configuration (now async to handle peer dependency resolution)
   const configuration = await createWebpackConfig(entry, args);
 
-  // Display appropriate entry information for logging
-  const displayEntry = typeof entry === 'string' ? entry : entry.id;
+  // Create a concise log message showing import details
+  let entryDetails = '';
+  if (entry.code) {
+    entryDetails = 'code import';
+  } else if (entry.import) {
+    entryDetails = `${entry.import}`;
+    if (entry.importedNames && entry.importedNames.length > 0) {
+      entryDetails += ` [${entry.importedNames.join(', ')}]`;
+    } else {
+      entryDetails += ' [*]';
+    }
+  }
 
   // eslint-disable-next-line no-console -- process monitoring
-  console.log(`Compiling ${index + 1}/${total}: "${displayEntry}"`);
+  console.log(`Compiling ${index + 1}/${total}: [${entry.id}] ${entryDetails}`);
 
   const webpackStats = await webpack(configuration);
 
