@@ -105,7 +105,7 @@ async function createWebpackConfig(entry, args) {
       // Iterate through all packages and check if request is equal to or starts with package + '/'
       for (const pkg of packages) {
         if (request === pkg || request.startsWith(`${pkg}/`)) {
-          return callback(null, `esm ${request}`);
+          return callback(null, `commonjs ${request}`);
         }
       }
 
