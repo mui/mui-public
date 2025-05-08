@@ -65,6 +65,18 @@ function createWebpackConfig(entry, args) {
         }),
       ],
     },
+    module: {
+      rules: [
+        {
+          test: /\.css$/,
+          use: ['css-loader'],
+        },
+        {
+          test: /\.(png|svg|jpg|gif)$/,
+          use: ['file-loader'],
+        },
+      ],
+    },
     output: {
       filename: '[name].js',
       library: {
