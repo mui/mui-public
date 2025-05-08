@@ -71,6 +71,7 @@ interface CommandLineArgs {
   analyze?: boolean;
   accurateBundles?: boolean;
   output?: string;
+  verbose?: boolean;
 }
 
 // Diff command argument types

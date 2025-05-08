@@ -109,13 +109,13 @@ async function getWebpackSizes(args, config) {
  * @param {CommandLineArgs} argv - Command line arguments
  */
 async function run(argv) {
-  const { analyze, accurateBundles, output } = argv;
+  const { analyze, accurateBundles, output, verbose } = argv;
 
   const snapshotDestPath = output ? path.resolve(output) : path.join(rootDir, 'size-snapshot.json');
 
   const config = await loadConfig(rootDir);
 
-  const webpackSizes = await getWebpackSizes({ analyze, accurateBundles }, config);
+  const webpackSizes = await getWebpackSizes({ analyze, accurateBundles, verbose }, config);
   const bundleSizes = Object.fromEntries(webpackSizes.sort((a, b) => a[0].localeCompare(b[0])));
 
   // Ensure output directory exists
@@ -366,6 +366,11 @@ yargs(process.argv.slice(2))
           default: false,
           describe: 'Displays used bundles accurately at the cost of more CPU cycles.',
           type: 'boolean',
+        })
+        .option('verbose', {
+          default: false,
+          describe: 'Show more detailed information during compilation.',
+          type: 'boolean', 
         })
         .option('output', {
           alias: 'o',

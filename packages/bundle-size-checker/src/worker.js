@@ -118,6 +118,12 @@ async function createWebpackConfig(entry, args) {
       ? entry.externals
       : (packageExternals ?? ['react', 'react-dom']);
 
+  // Log externals when verbose mode is enabled
+  if (args.verbose) {
+    // eslint-disable-next-line no-console -- verbose logging
+    console.log(`  ${entry.id} externals found: ${externalsArray.join(', ')}`);
+  }
+
   /**
    * @type {import('webpack').Configuration}
    */
