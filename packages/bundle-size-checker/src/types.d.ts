@@ -45,8 +45,10 @@ interface NormalizedUploadConfig {
 type StringEntry = string;
 
 interface ObjectEntry {
-  name: string; // Unique name for the entry
-  code: string; // Code to be executed in the virtual module
+  id: string; // Unique identifier for the entry (renamed from 'name')
+  code?: string; // Code to be executed in the virtual module (now optional)
+  import?: string; // Optional package name to import 
+  importedNames?: string[]; // Optional array of named imports
 }
 
 type EntryPoint = StringEntry | ObjectEntry;

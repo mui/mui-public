@@ -20,34 +20,42 @@ const MAX_CONCURRENCY = Math.min(8, os.cpus().length);
 const rootDir = process.cwd();
 
 /**
- * Normalizes entries to ensure they have a consistent format and names are unique
+ * Normalizes entries to ensure they have a consistent format and ids are unique
  * @param {EntryPoint[]} entries - The array of entries from the config
  * @returns {EntryPoint[]} - Normalized entries with uniqueness enforced
  */
 function normalizeEntries(entries) {
-  // Maps to track used names and detect duplicates
-  const usedNames = new Map();
+  // Set to track used ids and detect duplicates
+  const usedIds = new Set();
 
   return entries.map((entry) => {
-    // For string entries, convert to name if needed
+    // For string entries, handle as is
     if (typeof entry === 'string') {
       // We keep the string entry as is, but still track it for uniqueness checking
-      usedNames.set(entry, (usedNames.get(entry) || 0) + 1);
+      if (usedIds.has(entry)) {
+        throw new Error(`Duplicate entry id found: "${entry}". Entry ids must be unique.`);
+      }
+      usedIds.add(entry);
       return entry;
     }
 
     // For object entries, ensure uniqueness
-    if (!entry.name) {
-      throw new Error('Object entries must have a name property');
+    if (!entry.id) {
+      throw new Error('Object entries must have an id property');
     }
 
-    // Check if this name has been used before
-    if (usedNames.has(entry.name)) {
-      throw new Error(`Duplicate entry name found: "${entry.name}". Entry names must be unique.`);
+    // Validate that at least one of code or import is defined
+    if (!entry.code && !entry.import) {
+      throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
     }
 
-    // Mark name as used
-    usedNames.set(entry.name, 1);
+    // Check if this id has been used before
+    if (usedIds.has(entry.id)) {
+      throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
+    }
+
+    // Mark id as used
+    usedIds.add(entry.id);
 
     // Return the valid object entry
     return entry;
@@ -83,21 +91,9 @@ async function getWebpackSizes(args, config) {
   // Normalize and validate entries
   const entries = normalizeEntries(config.entrypoints);
 
-  // For string entries, we want to use a Set to remove duplicates (backward compatibility)
-  // For object entries, uniqueness is already enforced by normalizeEntries
-  const uniqueStringEntries = new Set();
-  const validEntries = entries.filter((entry) => {
-    if (typeof entry === 'string') {
-      // If we've seen this string entry before, skip it
-      if (uniqueStringEntries.has(entry)) {
-        return false;
-      }
-      uniqueStringEntries.add(entry);
-      return true;
-    }
-    // All object entries are already unique by name
-    return true;
-  });
+  // After normalizeEntries, all entries (both string and object) are already unique
+  // No need to filter for uniqueness again
+  const validEntries = entries;
 
   const sizeArrays = await Promise.all(
     validEntries.map((entry, index) =>

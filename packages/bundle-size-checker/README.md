@@ -40,8 +40,14 @@ export default defineConfig(async () => {
 
       // Object entries (advanced format)
       {
-        name: 'custom-button',
+        id: 'custom-button',
         code: `import Button from '@mui/material/Button'; console.log(Button);`,
+      },
+      // Object entries with import and importedNames
+      {
+        id: 'material-button-icons',
+        import: '@mui/material',
+        importedNames: ['Button', 'IconButton'],
       },
       // ...
     ],

@@ -38,9 +38,27 @@ function createWebpackConfig(entry, args) {
       ? `import { ${importName} } from '${importSrc}';console.log(${importName});`
       : `import * as _ from '${importSrc}';console.log(_);`;
   } else {
-    // Handle object entry with name and code properties
-    entryName = entry.name;
-    entryContent = entry.code;
+    // Handle object entry with id and other properties
+    entryName = entry.id;
+    
+    if (entry.code && (entry.import || entry.importedNames)) {
+      console.warn(`Warning: Both code and import/importedNames are defined for entry "${entry.id}". Using code property.`);
+      entryContent = entry.code;
+    } else if (entry.code) {
+      entryContent = entry.code;
+    } else if (entry.import) {
+      if (entry.importedNames && entry.importedNames.length > 0) {
+        // Generate named imports for each name in the importedNames array
+        const imports = entry.importedNames.map(name => `import { ${name} } from '${entry.import}';`).join('\n');
+        const logs = entry.importedNames.map(name => `console.log(${name});`).join('\n');
+        entryContent = `${imports}\n${logs}`;
+      } else {
+        // Default to import * as if importedNames is not defined
+        entryContent = `import * as _ from '${entry.import}';\nconsole.log(_);`;
+      }
+    } else {
+      throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
+    }
   }
 
   /**
@@ -132,7 +150,7 @@ export default async function getSizes({ entry, args, index, total }) {
   const configuration = createWebpackConfig(entry, args);
 
   // Display appropriate entry information for logging
-  const displayEntry = typeof entry === 'string' ? entry : entry.name;
+  const displayEntry = typeof entry === 'string' ? entry : entry.id;
 
   // eslint-disable-next-line no-console -- process monitoring
   console.log(`Compiling ${index + 1}/${total}: "${displayEntry}"`);
