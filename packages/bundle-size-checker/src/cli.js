@@ -370,7 +370,7 @@ yargs(process.argv.slice(2))
         .option('verbose', {
           default: false,
           describe: 'Show more detailed information during compilation.',
-          type: 'boolean', 
+          type: 'boolean',
         })
         .option('output', {
           alias: 'o',
