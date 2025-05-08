@@ -49,6 +49,13 @@ export default defineConfig(async () => {
         import: '@mui/material',
         importedNames: ['Button', 'IconButton'],
       },
+      // Object entry with custom externals
+      {
+        id: 'custom-externals',
+        import: '@mui/material',
+        importedNames: ['Button'],
+        externals: ['react', 'react-dom', '@emotion/styled'],
+      },
       // ...
     ],
     // Optional upload configuration

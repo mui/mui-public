@@ -49,6 +49,7 @@ interface ObjectEntry {
   code?: string; // Code to be executed in the virtual module (now optional)
   import?: string; // Optional package name to import 
   importedNames?: string[]; // Optional array of named imports
+  externals?: string[]; // Optional array of packages to exclude from the bundle
 }
 
 type EntryPoint = StringEntry | ObjectEntry;

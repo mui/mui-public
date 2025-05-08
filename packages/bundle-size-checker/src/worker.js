@@ -62,12 +62,40 @@ function createWebpackConfig(entry, args) {
   }
 
   /**
+   * Escapes string for use in a regular expression
+   * Similar to the non-standard RegExp.escape that might be added in the future
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/escape
+   * @param {string} string - The string to be escaped
+   * @returns {string} - The escaped string
+   */
+  function escapeRegExp(string) {
+    // $& means the whole matched string
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Generate externals RegExp pattern from an array of package names
+   * @param {string[]} packages - Array of package names to exclude (defaults to react and react-dom)
+   * @returns {RegExp} - RegExp to exclude the packages
+   */
+  function generateExternalsRegex(packages = ['react', 'react-dom']) {
+    // Escape any regex special characters
+    const escapedPackages = packages.map(pkg => escapeRegExp(pkg));
+    
+    // Create a pattern that matches each package name exactly and also handles subpaths
+    // e.g. 'react' should match 'react' and 'react/something' but not 'react-dom'
+    const pattern = `^(${escapedPackages.join('|')})(\/.*)?$`;
+    return new RegExp(pattern);
+  }
+
+  /**
    * @type {import('webpack').Configuration}
    */
   const configuration = {
-    // ideally this would be computed from the bundles peer dependencies
-    // Ensure that `react` as well as `react/*` are considered externals but not `react*`
-    externals: /^(date-fns|dayjs|luxon|moment|react|react-dom)(\/.*)?$/,
+    // Generate externals based on provided options or use defaults
+    externals: typeof entry === 'object' && entry.externals 
+      ? generateExternalsRegex(entry.externals)
+      : generateExternalsRegex(),
     mode: 'production',
     optimization: {
       concatenateModules,
