@@ -59,7 +59,11 @@ async function createWebpackConfig(entry, args) {
 
   // Process peer dependencies if externals aren't specified but import is
   if (entry.import && !entry.externals) {
-    packageExternals = await getPeerDependencies(entry.import);
+    const packageRoot = entry.import
+      .split('/')
+      .slice(0, entry.import.startsWith('@') ? 2 : 1)
+      .join('/');
+    packageExternals = await getPeerDependencies(packageRoot);
   }
 
   if (entry.code && (entry.import || entry.importedNames)) {
@@ -93,11 +97,11 @@ async function createWebpackConfig(entry, args) {
   function createExternalsFunction(packages = ['react', 'react-dom']) {
     /**
      * Check if a request should be treated as external
-     * @param {string} context - The directory containing the issuer file
-     * @param {string} request - The request path being imported
+     * Uses the new recommended format to avoid deprecation warnings
+     * @param {{ context: string, request: string }} params - Object containing context and request
      * @param {Function} callback - Callback to handle the result
      */
-    return (context, request, callback) => {
+    return ({ request }, callback) => {
       // Iterate through all packages and check if request is equal to or starts with package + '/'
       for (const pkg of packages) {
         if (request === pkg || request.startsWith(`${pkg}/`)) {
