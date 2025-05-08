@@ -56,6 +56,13 @@ export default defineConfig(async () => {
         importedNames: ['Button'],
         externals: ['react', 'react-dom', '@emotion/styled'],
       },
+      // Object entry that automatically extracts externals from package.json peer dependencies
+      {
+        id: 'auto-externals',
+        import: '@mui/material',
+        importedNames: ['Button'],
+        // When externals is not specified, peer dependencies will be automatically excluded
+      },
       // ...
     ],
     // Optional upload configuration

@@ -65,7 +65,7 @@ function normalizeEntries(entries) {
 /**
  * creates size snapshot for every bundle that built with webpack
  * @param {CommandLineArgs} args
- * @param {BundleSizeCheckerConfig} config - The loaded configuration
+ * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
  * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
  */
 async function getWebpackSizes(args, config) {

@@ -1,10 +1,11 @@
 import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs/promises';
 import webpackCallbackBased from 'webpack';
 import CompressionPlugin from 'compression-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
-import { createRequire } from 'module';
+import { createRequire } from 'node:module';
 
 /**
  * @type {(options: webpackCallbackBased.Configuration) => Promise<webpackCallbackBased.Stats>}
@@ -17,48 +18,71 @@ const require = createRequire(import.meta.url);
 // Type declarations are now in types.d.ts
 
 /**
- * Creates webpack configuration for bundle size checking
- * @param {EntryPoint} entry - Entry point (string or object)
- * @param {CommandLineArgs} args
- * @returns {import('webpack').Configuration}
+ * Attempts to extract peer dependencies from a package's package.json
+ * @param {string} packageName - Package to extract peer dependencies from
+ * @returns {Promise<string[]|null>} - Array of peer dependency package names or null if not found
  */
-function createWebpackConfig(entry, args) {
+async function getPeerDependencies(packageName) {
+  try {
+    // Try to resolve packageName/package.json
+    const packageJsonPath = require.resolve(`${packageName}/package.json`);
+
+    // Read and parse the package.json
+    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');
+    const packageJson = JSON.parse(packageJsonContent);
+
+    // Extract peer dependencies
+    if (packageJson.peerDependencies) {
+      return Object.keys(packageJson.peerDependencies);
+    }
+
+    return null;
+  } catch (error) {
+    console.warn(`Could not resolve peer dependencies for ${packageName}`);
+    return null;
+  }
+}
+
+/**
+ * Creates webpack configuration for bundle size checking
+ * @param {ObjectEntry} entry - Entry point (string or object)
+ * @param {CommandLineArgs} args
+ * @returns {Promise<import('webpack').Configuration>}
+ */
+async function createWebpackConfig(entry, args) {
   const analyzerMode = args.analyze ? 'static' : 'disabled';
   const concatenateModules = !args.accurateBundles;
 
-  let entryName;
+  const entryName = entry.id;
   let entryContent;
+  let packageExternals = null;
 
-  if (typeof entry === 'string') {
-    // Handle string entry (backward compatibility)
-    entryName = entry;
-    const [importSrc, importName] = entry.split('#');
+  // Process peer dependencies if externals aren't specified but import is
+  if (entry.import && !entry.externals) {
+    packageExternals = await getPeerDependencies(entry.import);
+  }
 
-    entryContent = importName
-      ? `import { ${importName} } from '${importSrc}';console.log(${importName});`
-      : `import * as _ from '${importSrc}';console.log(_);`;
-  } else {
-    // Handle object entry with id and other properties
-    entryName = entry.id;
-    
-    if (entry.code && (entry.import || entry.importedNames)) {
-      console.warn(`Warning: Both code and import/importedNames are defined for entry "${entry.id}". Using code property.`);
-      entryContent = entry.code;
-    } else if (entry.code) {
-      entryContent = entry.code;
-    } else if (entry.import) {
-      if (entry.importedNames && entry.importedNames.length > 0) {
-        // Generate named imports for each name in the importedNames array
-        const imports = entry.importedNames.map(name => `import { ${name} } from '${entry.import}';`).join('\n');
-        const logs = entry.importedNames.map(name => `console.log(${name});`).join('\n');
-        entryContent = `${imports}\n${logs}`;
-      } else {
-        // Default to import * as if importedNames is not defined
-        entryContent = `import * as _ from '${entry.import}';\nconsole.log(_);`;
-      }
+  if (entry.code && (entry.import || entry.importedNames)) {
+    console.warn(
+      `Warning: Both code and import/importedNames are defined for entry "${entry.id}". Using code property.`,
+    );
+    entryContent = entry.code;
+  } else if (entry.code) {
+    entryContent = entry.code;
+  } else if (entry.import) {
+    if (entry.importedNames && entry.importedNames.length > 0) {
+      // Generate named imports for each name in the importedNames array
+      const imports = entry.importedNames
+        .map((name) => `import { ${name} } from '${entry.import}';`)
+        .join('\n');
+      const logs = entry.importedNames.map((name) => `console.log(${name});`).join('\n');
+      entryContent = `${imports}\n${logs}`;
     } else {
-      throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
+      // Default to import * as if importedNames is not defined
+      entryContent = `import * as _ from '${entry.import}';\nconsole.log(_);`;
     }
+  } else {
+    throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
   }
 
   /**
@@ -78,13 +102,13 @@ function createWebpackConfig(entry, args) {
    * @param {string[]} packages - Array of package names to exclude (defaults to react and react-dom)
    * @returns {RegExp} - RegExp to exclude the packages
    */
-  function generateExternalsRegex(packages = ['react', 'react-dom']) {
+  function generateExternalsRegex(packages) {
     // Escape any regex special characters
-    const escapedPackages = packages.map(pkg => escapeRegExp(pkg));
-    
+    const escapedPackages = packages.map((pkg) => escapeRegExp(pkg));
+
     // Create a pattern that matches each package name exactly and also handles subpaths
     // e.g. 'react' should match 'react' and 'react/something' but not 'react-dom'
-    const pattern = `^(${escapedPackages.join('|')})(\/.*)?$`;
+    const pattern = `^(${escapedPackages.join('|')})(/.*)?$`;
     return new RegExp(pattern);
   }
 
@@ -92,10 +116,14 @@ function createWebpackConfig(entry, args) {
    * @type {import('webpack').Configuration}
    */
   const configuration = {
-    // Generate externals based on provided options or use defaults
-    externals: typeof entry === 'object' && entry.externals 
-      ? generateExternalsRegex(entry.externals)
-      : generateExternalsRegex(),
+    // Generate externals based on priorities:
+    // 1. Explicitly defined externals in the entry object
+    // 2. Peer dependencies from package.json if available
+    // 3. Default externals (react, react-dom)
+    externals:
+      typeof entry === 'object' && entry.externals
+        ? generateExternalsRegex(entry.externals)
+        : generateExternalsRegex(packageExternals ?? ['react', 'react-dom']),
     mode: 'production',
     optimization: {
       concatenateModules,
@@ -168,14 +196,15 @@ function createWebpackConfig(entry, args) {
 
 /**
  * Get sizes for a bundle
- * @param {{ entry: EntryPoint, args: CommandLineArgs, index: number, total: number }} options
+ * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number }} options
  * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
  */
 export default async function getSizes({ entry, args, index, total }) {
   /** @type {Array<[string, { parsed: number, gzip: number }]>} */
   const sizes = [];
 
-  const configuration = createWebpackConfig(entry, args);
+  // Create webpack configuration (now async to handle peer dependency resolution)
+  const configuration = await createWebpackConfig(entry, args);
 
   // Display appropriate entry information for logging
   const displayEntry = typeof entry === 'string' ? entry : entry.id;

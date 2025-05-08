@@ -20,8 +20,7 @@ async function loadConfigFile(configPath) {
 
     // Dynamic import for ESM
     const configUrl = new URL(`file://${configPath}`);
-    const configModule = await import(configUrl.href);
-    let config = configModule.default;
+    let { default: config } = await import(configUrl.href);
 
     // Handle configs that might be Promise-returning functions
     if (config instanceof Promise) {
@@ -32,18 +31,6 @@ async function loadConfigFile(configPath) {
 
     if (!config.entrypoints || !Array.isArray(config.entrypoints)) {
       throw new Error('Configuration must include an entrypoints array');
-    }
-
-    // Validate that each entry is either a string or an object with name and code
-    for (const entry of config.entrypoints) {
-      if (
-        typeof entry !== 'string' &&
-        (!entry || typeof entry !== 'object' || !entry.name || !entry.code)
-      ) {
-        throw new Error(
-          'Each entry must be either a string or an object with name and code properties',
-        );
-      }
     }
 
     return config;
@@ -103,15 +90,44 @@ function applyConfigDefaults(config) {
   /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string}} */
   const ciInfo = envCi();
 
+  // Basic validation to ensure entries have the required structure
+  // More detailed validation will be done in the worker
+  for (const entry of config.entrypoints) {
+    if (typeof entry !== 'string' && (!entry || typeof entry !== 'object')) {
+      throw new Error('Each entry must be either a string or an object');
+    }
+  }
+
   // Clone the config to avoid mutating the original
   /** @type {NormalizedBundleSizeCheckerConfig} */
   const result = {
-    entrypoints: config.entrypoints.map((entry) => {
+    entrypoints: config.entrypoints.map((entry, i) => {
       if (typeof entry === 'string') {
+        // Transform string entries into object entries
+        const [importSrc, importName] = entry.split('#');
+        if (importName) {
+          // For entries like '@mui/material#Button', create an object with import and importedNames
+          return {
+            id: entry,
+            import: importSrc,
+            importedNames: [importName],
+          };
+        }
+        // For entries like '@mui/material', create an object with import only
+        return {
+          id: entry,
+          import: importSrc,
+        };
+      }
+
+      if (entry && typeof entry === 'object') {
+        // For existing object entries, return them as is
         return entry;
       }
-      // Clone object entries to avoid mutation
-      return { name: entry.name, code: entry.code };
+
+      throw new Error(
+        `Invalid entry format config.entrypoints[${i}]. Must be a string or an object.`,
+      );
     }),
     upload: null, // Default to disabled
   };
