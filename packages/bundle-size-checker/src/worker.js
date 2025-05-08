@@ -105,7 +105,7 @@ async function createWebpackConfig(entry, args) {
       // Iterate through all packages and check if request is equal to or starts with package + '/'
       for (const pkg of packages) {
         if (request === pkg || request.startsWith(`${pkg}/`)) {
-          return callback(null, request);
+          return callback(null, `esm ${request}`);
         }
       }
 
@@ -132,8 +132,10 @@ async function createWebpackConfig(entry, args) {
    * @type {import('webpack').Configuration}
    */
   const configuration = {
-    // @ts-expect-error -- webpack types are not compatible with the current version
-    externals: createExternalsFunction(externalsArray),
+    externals: [
+      // @ts-expect-error -- webpack types are not compatible with the current version
+      createExternalsFunction(externalsArray),
+    ],
     mode: 'production',
     optimization: {
       concatenateModules,
