@@ -1,6 +1,7 @@
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
+import { pathToFileURL } from 'url';
 import webpackCallbackBased from 'webpack';
 import CompressionPlugin from 'compression-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
@@ -76,7 +77,9 @@ async function createWebpackConfig(entry, args) {
 
   if (entry.code && (entry.import || entry.importedNames)) {
     console.warn(
-      `Warning: Both code and import/importedNames are defined for entry "${entry.id}". Using code property.`,
+      chalk.yellow(
+        `Warning: Both code and import/importedNames are defined for entry "${chalk.bold(entry.id)}". Using code property.`,
+      ),
     );
     entryContent = entry.code;
   } else if (entry.code) {
@@ -320,7 +323,7 @@ ${chalk.green('✓')} ${chalk.green.bold(`Completed ${index + 1}/${total}: [${en
   ${chalk.cyan('Import:')}    ${entryDetails}
   ${chalk.cyan('Externals:')} ${externalsArray.join(', ')}
   ${chalk.cyan('Sizes:')}     ${chalk.yellow(byteSizeFormatter.format(entrySize.parsed))} (${chalk.yellow(byteSizeFormatter.format(entrySize.gzip))} gzipped)
-${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(path.join(rootDir, 'build', `${entry.id}.html`))}` : ''}
+${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(pathToFileURL(path.join(rootDir, 'build', `${entry.id}.html`)).href)}` : ''}
 `,
   );
 
