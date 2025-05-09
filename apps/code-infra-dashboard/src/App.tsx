@@ -3,11 +3,49 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import * as colors from '@mui/material/colors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router';
 import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
+const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
+
+// Redirect component for size comparison with query params
+function SizeComparisonRedirect() {
+  const [params] = useSearchParams();
+
+  // remove the default when https://github.com/mui/material-ui/pull/45911 is merged for longer than e.g. 1 month
+  const repo = params.get('repo') || 'mui/material-ui';
+
+  // Check if we have the essential repo parameter
+  if (repo) {
+    // Split repo into owner/repo parts
+    const [owner, repoName] = repo.split('/');
+
+    // Preserve all query params for the redirect
+    const newParams = new URLSearchParams();
+    for (const [key, value] of params.entries()) {
+      if (key !== 'repo') {
+        newParams.append(key, value);
+      }
+    }
+
+    // Build the new URL with path parameters
+    const queryString = newParams.toString() ? `?${newParams.toString()}` : '';
+    const newPath = `/size-comparison/${owner}/${repoName}/diff${queryString}`;
+
+    return <Navigate to={newPath} replace />;
+  }
+
+  // If we don't have the required params, show an error
+  return (
+    <div style={{ padding: '2rem', color: 'red' }}>
+      <h2>Error: Missing Parameters</h2>
+      <p>This page requires the &quot;repo&quot; parameter.</p>
+      <p>Example: /size-comparison?repo=mui/material-ui&prNumber=1234</p>
+    </div>
+  );
+}
 
 // In TanStack Query v5+, suspense is no longer specified in defaultOptions
 const queryClient = new QueryClient();
@@ -141,11 +179,20 @@ function App() {
                   </React.Suspense>
                 }
               />
+              <Route path="/size-comparison" element={<SizeComparisonRedirect />} />
               <Route
-                path="/size-comparison"
+                path="/size-comparison/:owner/:repo/diff"
                 element={
                   <React.Suspense fallback={<div>Loading...</div>}>
                     <SizeComparison />
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="/size-comparison/:owner/:repo"
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <RepositoryPRs />
                   </React.Suspense>
                 }
               />

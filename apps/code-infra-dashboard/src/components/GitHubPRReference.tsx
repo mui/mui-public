@@ -1,60 +1,9 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import Link from '@mui/material/Link';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { styled } from '@mui/material/styles';
-
-interface GitHubPRInfo {
-  title: string;
-  number: number;
-  html_url: string;
-}
-
-/**
- * Hook to fetch PR information by PR number
- */
-function usePRInfo(
-  org: string,
-  repo: string,
-  prNumber: number,
-): { prInfo: GitHubPRInfo | null; isLoading: boolean; error: Error | null } {
-  const {
-    data = null,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['github-pr', org, repo, prNumber],
-    queryFn: async (): Promise<GitHubPRInfo | null> => {
-      try {
-        const response = await fetch(
-          `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}`,
-        );
-        if (!response.ok) {
-          throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-        }
-
-        const responseBody = await response.json();
-        return {
-          title: responseBody.title,
-          number: prNumber,
-          html_url: responseBody.html_url,
-        };
-      } catch (err) {
-        console.error('Error fetching PR info:', err);
-        throw err;
-      }
-    },
-    enabled: Boolean(org && repo && prNumber),
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  return {
-    prInfo: data,
-    isLoading,
-    error: error as Error | null,
-  };
-}
+import { useGitHubPR } from '../hooks/useGitHubPR';
 
 // PR icon as a simple SVG component
 // Styled SVG wrapper that follows font size
@@ -165,10 +114,7 @@ function PRContent({ isLoading, icon, contextPrefix, title, reference, prNumber 
 }
 
 export default function GitHubPRReference({ repo, prNumber }: GitHubPRReferenceProps) {
-  // Split repo into org and repoName
-  const [org, repoName] = repo.split('/');
-
-  const { prInfo, isLoading, error } = usePRInfo(org, repoName, prNumber);
+  const { prInfo, isLoading, error } = useGitHubPR(repo, prNumber);
 
   // Base URL for linking to the PR
   const prUrl = `https://github.com/${repo}/pull/${prNumber}`;

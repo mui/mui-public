@@ -4,6 +4,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
     "@netlify/functions": "^3.0.4",

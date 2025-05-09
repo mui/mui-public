@@ -1,81 +1,54 @@
 /**
- * Interface representing a size snapshot from CircleCI or S3
+ * @description Represents a single bundle size entry
+ * @typedef {Object} SizeSnapshotEntry
+ * @property {number} parsed
+ * @property {number} gzip
+ *
+ * @description Represents a single bundle size snapshot
+ * @typedef {Object.<string, SizeSnapshotEntry>} SizeSnapshot
+ *
+ * @description Represents a single bundle size comparison
+ * @typedef {Object} Size
+ * @property {string} id - Bundle identifier
+ * @property {Object} parsed - Parsed size information
+ * @property {number} parsed.previous - Previous parsed size
+ * @property {number} parsed.current - Current parsed size
+ * @property {number} parsed.absoluteDiff - Absolute difference in parsed size
+ * @property {number|null} parsed.relativeDiff - Relative difference in parsed size
+ * @property {Object} gzip - Gzipped size information
+ * @property {number} gzip.previous - Previous gzipped size
+ * @property {number} gzip.current - Current gzipped size
+ * @property {number} gzip.absoluteDiff - Absolute difference in gzipped size
+ * @property {number|null} gzip.relativeDiff - Relative difference in gzipped size
+ *
+ * @description Represents the comparison results
+ * @typedef {Object} ComparisonResult
+ * @property {Size[]} entries - Size entries for each bundle
+ * @property {Object} totals - Total size information
+ * @property {number} totals.totalParsed - Total parsed size difference
+ * @property {number} totals.totalGzip - Total gzipped size difference
+ * @property {number} totals.totalParsedPercent - Total parsed size percentage difference
+ * @property {number} totals.totalGzipPercent - Total gzipped size percentage difference
+ * @property {Object} fileCounts - File count information
+ * @property {number} fileCounts.added - Number of added files
+ * @property {number} fileCounts.removed - Number of removed files
+ * @property {number} fileCounts.changed - Number of changed files
+ * @property {number} fileCounts.total - Total number of files
  */
-export interface SizeSnapshot {
-  [bundleId: string]: { parsed: number; gzip: number };
-}
-
-/**
- * Interface representing a single bundle size comparison
- */
-export interface Size {
-  id: string;
-  parsed: {
-    previous: number;
-    current: number;
-    absoluteDiff: number;
-    relativeDiff: number | null;
-  };
-  gzip: {
-    previous: number;
-    current: number;
-    absoluteDiff: number;
-    relativeDiff: number | null;
-  };
-}
-
-/**
- * Interface representing the comparison results
- */
-export interface ComparisonResult {
-  entries: Size[];
-  totals: {
-    totalParsed: number;
-    totalGzip: number;
-    totalParsedPercent: number;
-    totalGzipPercent: number;
-  };
-  fileCounts: {
-    added: number;
-    removed: number;
-    changed: number;
-    total: number;
-  };
-}
 
 const nullSnapshot = { parsed: 0, gzip: 0 };
 
 /**
  * Calculates size difference between two snapshots
  *
- * @param baseSnapshot - Base snapshot (previous)
- * @param targetSnapshot - Target snapshot (current)
- * @returns Comparison result with entries, totals, and file counts
+ * @param {SizeSnapshot} baseSnapshot - Base snapshot (previous)
+ * @param {SizeSnapshot} targetSnapshot - Target snapshot (current)
+ * @returns {ComparisonResult} Comparison result with entries, totals, and file counts
  */
-export function calculateSizeDiff(
-  baseSnapshot: SizeSnapshot | null,
-  targetSnapshot: SizeSnapshot | null,
-): ComparisonResult {
-  if (!baseSnapshot || !targetSnapshot) {
-    return {
-      entries: [],
-      totals: {
-        totalParsed: 0,
-        totalGzip: 0,
-        totalParsedPercent: 0,
-        totalGzipPercent: 0,
-      },
-      fileCounts: {
-        added: 0,
-        removed: 0,
-        changed: 0,
-        total: 0,
-      },
-    };
-  }
-
+export function calculateSizeDiff(baseSnapshot, targetSnapshot) {
   const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
-  const results: Size[] = [];
+  /** @type {Size[]} */
+  const results = [];
 
   // Track totals
   let totalParsed = 0;
@@ -110,7 +83,7 @@ export function calculateSizeDiff(
     const gzipDiff = currentSize.gzip - previousSize.gzip;
 
     // Calculate relative diffs with appropriate handling of new/removed bundles
-    let parsedRelativeDiff: number | null;
+    let parsedRelativeDiff;
     if (isNewBundle) {
       parsedRelativeDiff = null;
     } else if (isRemovedBundle) {
@@ -121,7 +94,7 @@ export function calculateSizeDiff(
       parsedRelativeDiff = 0;
     }
 
-    let gzipRelativeDiff: number | null;
+    let gzipRelativeDiff;
     if (isNewBundle) {
       gzipRelativeDiff = null;
     } else if (isRemovedBundle) {
@@ -132,7 +105,7 @@ export function calculateSizeDiff(
       gzipRelativeDiff = 0;
     }
 
-    const entry: Size = {
+    const entry = {
       id: bundle,
       parsed: {
         previous: previousSize.parsed,
@@ -170,7 +143,8 @@ export function calculateSizeDiff(
   // 5. Unchanged bundles (alphabetically)
   results.sort((entryA, entryB) => {
     // Helper function to determine bundle category (for sorting)
-    const getCategory = (entry: Size): number => {
+    /** @type {(entry: Size) => number} */
+    const getCategory = (entry) => {
       if (entry.parsed.relativeDiff === null) {
         return 2; // New bundle
       }
