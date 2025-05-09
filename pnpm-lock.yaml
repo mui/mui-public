@@ -209,6 +209,9 @@ importers:
       '@aws-sdk/credential-providers':
         specifier: ^3.787.0
         version: 3.796.0
+      chalk:
+        specifier: ^5.4.1
+        version: 5.4.1
       compression-webpack-plugin:
         specifier: ^10.0.0
         version: 10.0.0(webpack@5.94.0)

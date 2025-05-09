@@ -6,6 +6,7 @@ import CompressionPlugin from 'compression-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import { createRequire } from 'node:module';
+import chalk from 'chalk';
 import { byteSizeFormatter } from './formatUtils.js';
 
 /**
@@ -41,7 +42,11 @@ async function getPeerDependencies(packageName) {
 
     return null;
   } catch (/** @type {any} */ error) {
-    console.warn(`Could not resolve peer dependencies for ${packageName}: ${error.message}`);
+    console.warn(
+      chalk.yellow(
+        `Could not resolve peer dependencies for ${chalk.bold(packageName)}: ${error.message}`,
+      ),
+    );
     return null;
   }
 }
@@ -124,12 +129,6 @@ async function createWebpackConfig(entry, args) {
     typeof entry === 'object' && entry.externals
       ? entry.externals
       : (packageExternals ?? ['react', 'react-dom']);
-
-  // Log externals when verbose mode is enabled
-  if (args.verbose) {
-    // eslint-disable-next-line no-console -- verbose logging
-    console.log(`  ${entry.id} externals found: ${externalsArray.join(', ')}`);
-  }
 
   /**
    * @type {import('webpack').Configuration}
@@ -223,7 +222,7 @@ export default async function getSizes({ entry, args, index, total }) {
   const { configuration, externalsArray } = await createWebpackConfig(entry, args);
 
   // eslint-disable-next-line no-console -- process monitoring
-  console.log(`Compiling ${index + 1}/${total}: [${entry.id}]`);
+  console.log(chalk.blue(`Compiling ${index + 1}/${total}: ${chalk.bold(`[${entry.id}]`)}`));
 
   const webpackStats = await webpack(configuration);
 
@@ -241,7 +240,7 @@ export default async function getSizes({ entry, args, index, total }) {
     const entrypointKeys = statsJson.entrypoints ? Object.keys(statsJson.entrypoints) : [];
 
     throw new Error(
-      `The following errors occurred during bundling of ${entrypointKeys.join(', ')} with webpack: \n${(
+      `${chalk.red.bold('ERROR:')} The following errors occurred during bundling of ${chalk.yellow(entrypointKeys.join(', '))} with webpack: \n${(
         statsJson.errors || []
       )
         .map((error) => {
@@ -316,11 +315,11 @@ export default async function getSizes({ entry, args, index, total }) {
   // eslint-disable-next-line no-console -- process monitoring
   console.log(
     `
-✓ Completed ${index + 1}/${total}: [${entry.id}]
-  Import:    ${entryDetails}
-  Externals: ${externalsArray.join(', ')}
-  Sizes:     ${byteSizeFormatter.format(entrySize.parsed)} (${byteSizeFormatter.format(entrySize.gzip)} gzipped)
-${args.analyze ? `  Analysis:  ${path.join(rootDir, 'build', `${entry.id}.html`)}` : ''}
+${chalk.green('✓')} ${chalk.green.bold(`Completed ${index + 1}/${total}: [${entry.id}]`)}
+  ${chalk.cyan('Import:')}    ${entryDetails}
+  ${chalk.cyan('Externals:')} ${externalsArray.join(', ')}
+  ${chalk.cyan('Sizes:')}     ${chalk.yellow(byteSizeFormatter.format(entrySize.parsed))} (${chalk.yellow(byteSizeFormatter.format(entrySize.gzip))} gzipped)
+${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(path.join(rootDir, 'build', `${entry.id}.html`))}` : ''}
 `,
   );
 
