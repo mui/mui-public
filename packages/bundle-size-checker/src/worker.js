@@ -324,7 +324,7 @@ ${chalk.green('✓')} ${chalk.green.bold(`Completed ${index + 1}/${total}: [${en
   ${chalk.cyan('Externals:')} ${externalsArray.join(', ')}
   ${chalk.cyan('Sizes:')}     ${chalk.yellow(byteSizeFormatter.format(entrySize.parsed))} (${chalk.yellow(byteSizeFormatter.format(entrySize.gzip))} gzipped)
 ${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(pathToFileURL(path.join(rootDir, 'build', `${entry.id}.html`)).href)}` : ''}
-`,
+`.trim(),
   );
 
   // Convert the Map to an array of entries for the return value
