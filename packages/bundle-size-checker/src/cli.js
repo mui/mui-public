@@ -80,7 +80,14 @@ async function getWebpackSizes(args, config) {
   let validEntries = entries;
   const filter = args.filter;
   if (filter && filter.length > 0) {
-    validEntries = entries.filter((entry) => micromatch.isMatch(entry.id, filter));
+    validEntries = entries.filter((entry) => {
+      return filter.some((pattern) => {
+        if (pattern.includes('*') || pattern.includes('?') || pattern.includes('[')) {
+          return micromatch.isMatch(entry.id, pattern, { nocase: true });
+        }
+        return entry.id.toLowerCase().includes(pattern.toLowerCase());
+      });
+    });
 
     if (validEntries.length === 0) {
       console.warn('Warning: No entries match the provided filter pattern(s).');
