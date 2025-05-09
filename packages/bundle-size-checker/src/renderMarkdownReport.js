@@ -6,32 +6,7 @@
 
 import { calculateSizeDiff } from './sizeDiff.js';
 import { fetchSnapshot } from './fetchSnapshot.js';
-
-const displayPercentFormatter = new Intl.NumberFormat(undefined, {
-  style: 'percent',
-  signDisplay: 'exceptZero',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  useGrouping: true,
-});
-
-// Formatter for byte sizes (absolute values) - no sign
-const byteSizeFormatter = new Intl.NumberFormat(undefined, {
-  style: 'unit',
-  unit: 'byte',
-  notation: 'compact',
-  unitDisplay: 'narrow',
-  maximumSignificantDigits: 3,
-  minimumSignificantDigits: 1,
-});
-
-// Formatter for size changes - always show sign
-// Created by extending the options from byteSizeFormatter
-const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
-  ...byteSizeFormatter.resolvedOptions(),
-  signDisplay: 'exceptZero',
-});
-
+import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 /**
  *
  * @param {'▲' | '▼'} symbol

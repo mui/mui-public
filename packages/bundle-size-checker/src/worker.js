@@ -6,6 +6,7 @@ import CompressionPlugin from 'compression-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import { createRequire } from 'node:module';
+import { byteSizeFormatter } from './formatUtils.js';
 
 /**
  * @type {(options: webpackCallbackBased.Configuration) => Promise<webpackCallbackBased.Stats>}
@@ -49,7 +50,7 @@ async function getPeerDependencies(packageName) {
  * Creates webpack configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
- * @returns {Promise<import('webpack').Configuration>}
+ * @returns {Promise<{configuration: import('webpack').Configuration, externalsArray: string[]}>}
  */
 async function createWebpackConfig(entry, args) {
   const analyzerMode = args.analyze ? 'static' : 'disabled';
@@ -205,7 +206,8 @@ async function createWebpackConfig(entry, args) {
     target: 'web',
   };
 
-  return configuration;
+  // Return both the configuration and the externals array
+  return { configuration, externalsArray };
 }
 
 /**
@@ -214,27 +216,14 @@ async function createWebpackConfig(entry, args) {
  * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
  */
 export default async function getSizes({ entry, args, index, total }) {
-  /** @type {Array<[string, { parsed: number, gzip: number }]>} */
-  const sizes = [];
+  /** @type {Map<string, { parsed: number, gzip: number }>} */
+  const sizeMap = new Map();
 
   // Create webpack configuration (now async to handle peer dependency resolution)
-  const configuration = await createWebpackConfig(entry, args);
-
-  // Create a concise log message showing import details
-  let entryDetails = '';
-  if (entry.code) {
-    entryDetails = 'code import';
-  } else if (entry.import) {
-    entryDetails = `${entry.import}`;
-    if (entry.importedNames && entry.importedNames.length > 0) {
-      entryDetails += ` [${entry.importedNames.join(', ')}]`;
-    } else {
-      entryDetails += ' [*]';
-    }
-  }
+  const { configuration, externalsArray } = await createWebpackConfig(entry, args);
 
   // eslint-disable-next-line no-console -- process monitoring
-  console.log(`Compiling ${index + 1}/${total}: [${entry.id}] ${entryDetails}`);
+  console.log(`Compiling ${index + 1}/${total}: [${entry.id}]`);
 
   const webpackStats = await webpack(configuration);
 
@@ -270,7 +259,7 @@ export default async function getSizes({ entry, args, index, total }) {
   });
 
   if (!stats.assets) {
-    return sizes;
+    return Array.from(sizeMap.entries());
   }
 
   const assets = new Map(stats.assets.map((asset) => [asset.name, asset]));
@@ -303,9 +292,38 @@ export default async function getSizes({ entry, args, index, total }) {
         throw new Error('Entrypoint name is undefined');
       }
 
-      sizes.push([entrypoint.name, { parsed: parsedSize, gzip: gzipSize }]);
+      sizeMap.set(entrypoint.name, { parsed: parsedSize, gzip: gzipSize });
     });
   }
 
-  return sizes;
+  // Create a concise log message showing import details
+  let entryDetails = '';
+  if (entry.code) {
+    entryDetails = 'code import';
+  } else if (entry.import) {
+    entryDetails = `${entry.import}`;
+    if (entry.importedNames && entry.importedNames.length > 0) {
+      entryDetails += ` [${entry.importedNames.join(', ')}]`;
+    } else {
+      entryDetails += ' [*]';
+    }
+  }
+
+  // Print a summary with all the requested information
+  // Get the size entry for this entry.id from the map
+  const entrySize = sizeMap.get(entry.id) || { parsed: 0, gzip: 0 };
+
+  // eslint-disable-next-line no-console -- process monitoring
+  console.log(
+    `
+✓ Completed ${index + 1}/${total}: [${entry.id}]
+  Import:    ${entryDetails}
+  Externals: ${externalsArray.join(', ')}
+  Sizes:     ${byteSizeFormatter.format(entrySize.parsed)} (${byteSizeFormatter.format(entrySize.gzip)} gzipped)
+${args.analyze ? `  Analysis:  ${path.join(rootDir, 'build', `${entry.id}.html`)}` : ''}
+`,
+  );
+
+  // Convert the Map to an array of entries for the return value
+  return Array.from(sizeMap.entries());
 }
