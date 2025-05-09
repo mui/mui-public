@@ -5,6 +5,7 @@ import os from 'os';
 import fse from 'fs-extra';
 import yargs from 'yargs';
 import Piscina from 'piscina';
+import micromatch from 'micromatch';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { calculateSizeDiff } from './sizeDiff.js';
@@ -21,43 +22,27 @@ const rootDir = process.cwd();
 
 /**
  * Normalizes entries to ensure they have a consistent format and ids are unique
- * @param {EntryPoint[]} entries - The array of entries from the config
- * @returns {EntryPoint[]} - Normalized entries with uniqueness enforced
+ * @param {ObjectEntry[]} entries - The array of entries from the config
+ * @returns {ObjectEntry[]} - Normalized entries with uniqueness enforced
  */
 function normalizeEntries(entries) {
-  // Set to track used ids and detect duplicates
   const usedIds = new Set();
 
   return entries.map((entry) => {
-    // For string entries, handle as is
-    if (typeof entry === 'string') {
-      // We keep the string entry as is, but still track it for uniqueness checking
-      if (usedIds.has(entry)) {
-        throw new Error(`Duplicate entry id found: "${entry}". Entry ids must be unique.`);
-      }
-      usedIds.add(entry);
-      return entry;
-    }
-
-    // For object entries, ensure uniqueness
     if (!entry.id) {
       throw new Error('Object entries must have an id property');
     }
 
-    // Validate that at least one of code or import is defined
     if (!entry.code && !entry.import) {
       throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
     }
 
-    // Check if this id has been used before
     if (usedIds.has(entry.id)) {
       throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
     }
 
-    // Mark id as used
     usedIds.add(entry.id);
 
-    // Return the valid object entry
     return entry;
   });
 }
@@ -91,9 +76,16 @@ async function getWebpackSizes(args, config) {
   // Normalize and validate entries
   const entries = normalizeEntries(config.entrypoints);
 
-  // After normalizeEntries, all entries (both string and object) are already unique
-  // No need to filter for uniqueness again
-  const validEntries = entries;
+  // Apply filters if provided
+  let validEntries = entries;
+  const filter = args.filter;
+  if (filter && filter.length > 0) {
+    validEntries = entries.filter((entry) => micromatch.isMatch(entry.id, filter));
+
+    if (validEntries.length === 0) {
+      console.warn('Warning: No entries match the provided filter pattern(s).');
+    }
+  }
 
   const sizeArrays = await Promise.all(
     validEntries.map((entry, index) =>
@@ -109,13 +101,14 @@ async function getWebpackSizes(args, config) {
  * @param {CommandLineArgs} argv - Command line arguments
  */
 async function run(argv) {
-  const { analyze, accurateBundles, output, verbose } = argv;
+  const { analyze, accurateBundles, output, verbose, filter } = argv;
 
   const snapshotDestPath = output ? path.resolve(output) : path.join(rootDir, 'size-snapshot.json');
 
   const config = await loadConfig(rootDir);
 
-  const webpackSizes = await getWebpackSizes({ analyze, accurateBundles, verbose }, config);
+  // Pass the filter patterns to getWebpackSizes if provided
+  const webpackSizes = await getWebpackSizes({ analyze, accurateBundles, verbose, filter }, config);
   const bundleSizes = Object.fromEntries(webpackSizes.sort((a, b) => a[0].localeCompare(b[0])));
 
   // Ensure output directory exists
@@ -377,6 +370,11 @@ yargs(process.argv.slice(2))
           describe:
             'Path to output the size snapshot JSON file (defaults to size-snapshot.json in current directory).',
           type: 'string',
+        })
+        .option('filter', {
+          alias: 'F',
+          describe: 'Filter entry points by glob pattern(s) applied to their IDs',
+          type: 'array',
         });
     },
     handler: run,

@@ -27,6 +27,7 @@
     "fast-glob": "^3.3.2",
     "file-loader": "^6.2.0",
     "fs-extra": "^11.2.0",
+    "micromatch": "^4.0.8",
     "piscina": "^4.2.1",
     "terser-webpack-plugin": "^5.3.10",
     "webpack": "^5.90.3",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@types/env-ci": "^3.1.4",
     "@types/fs-extra": "^11.0.4",
+    "@types/micromatch": "^4.0.9",
     "@types/webpack": "^5.28.5",
     "@types/webpack-bundle-analyzer": "^4.7.0",
     "@types/yargs": "^17.0.33"
