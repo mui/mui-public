@@ -189,6 +189,7 @@ async function createWebpackConfig(entry, args) {
         openAnalyzer: false,
         // '[name].html' not supported: https://github.com/webpack-contrib/webpack-bundle-analyzer/issues/12
         reportFilename: `${entryName}.html`,
+        logLevel: 'warn',
       }),
     ],
     // A context to the current dir, which has a node_modules folder with workspace dependencies
