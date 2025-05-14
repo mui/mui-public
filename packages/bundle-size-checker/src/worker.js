@@ -134,6 +134,7 @@ async function createWebpackConfig(entry, args) {
       : (packageExternals ?? ['react', 'react-dom']);
 
   const entrypointContent = Buffer.from(entryContent.trim()).toString('base64');
+  console.log(entrypointContent);
 
   /**
    * @type {import('webpack').Configuration}
@@ -195,7 +196,10 @@ async function createWebpackConfig(entry, args) {
         // '[name].html' not supported: https://github.com/webpack-contrib/webpack-bundle-analyzer/issues/12
         reportFilename: `${entryName}.html`,
         logLevel: 'warn',
-        excludeAssets: (assetName) => assetName.includes(entrypointContent),
+        excludeAssets: (assetName) => {
+          console.log(`Excluding asset: ${assetName}, ${assetName.includes(entrypointContent)}`);
+          return assetName.includes(entrypointContent);
+        },
       }),
     ],
     // A context to the current dir, which has a node_modules folder with workspace dependencies
