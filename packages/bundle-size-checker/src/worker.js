@@ -133,6 +133,8 @@ async function createWebpackConfig(entry, args) {
       ? entry.externals
       : (packageExternals ?? ['react', 'react-dom']);
 
+  const entrypointContent = Buffer.from(entryContent.trim()).toString('base64');
+
   /**
    * @type {import('webpack').Configuration}
    */
@@ -193,6 +195,7 @@ async function createWebpackConfig(entry, args) {
         // '[name].html' not supported: https://github.com/webpack-contrib/webpack-bundle-analyzer/issues/12
         reportFilename: `${entryName}.html`,
         logLevel: 'warn',
+        excludeAssets: (assetName) => assetName.includes(entrypointContent),
       }),
     ],
     // A context to the current dir, which has a node_modules folder with workspace dependencies
@@ -202,7 +205,7 @@ async function createWebpackConfig(entry, args) {
       // See https://github.com/webpack/webpack/issues/6437#issuecomment-874466638
       // See https://webpack.js.org/api/module-methods/#import
       // See https://webpack.js.org/api/loaders/#inline-matchresource
-      [entryName]: `./index.js!=!data:text/javascript;charset=utf-8;base64,${Buffer.from(entryContent.trim()).toString('base64')}`,
+      [entryName]: `./index.js!=!data:text/javascript;charset=utf-8;base64,${entrypointContent}`,
     },
     // TODO: 'browserslist:modern'
     // See https://github.com/webpack/webpack/issues/14203
