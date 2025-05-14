@@ -1,12 +1,9 @@
 {
-  "name": "@probablyup/babel-plugin-react-displayname",
-  "version": "1.0.3",
+  "name": "@mui-public/babel-plugin-display-name",
+  "private": true,
   "description": "Babel plugin for automatic React display name generation with tree-shaking and prefix support, forked from @zendesk/babel-plugin-react-displayname",
   "main": "src/index.js",
-  "author": "Kai Li <hello@lik.ai>",
-  "contributors": [
-    "Evan Jacobs <probablyup@gmail.com> (https://probablyup.com)"
-  ],
+  "author": "mui",
   "files": [
     "src/index.js"
   ],
@@ -38,7 +35,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/probablyup/babel-plugin-react-displayname.git"
+    "url": "https://github.com/mui/mui-public.git"
   },
-  "homepage": "https://github.com/probablyup/babel-plugin-react-displayname#readme"
+  "homepage": "https://github.com/mui/mui-public"
 }
