@@ -196,6 +196,12 @@ async function createWebpackConfig(entry, args) {
         // '[name].html' not supported: https://github.com/webpack-contrib/webpack-bundle-analyzer/issues/12
         reportFilename: `${entryName}.html`,
         logLevel: 'warn',
+        statsOptions: {
+          excludeModules: (assetName) => {
+            console.log(`Excluding module: ${assetName}, ${assetName.includes(entrypointContent)}`);
+            return assetName.includes(entrypointContent);
+          },
+        },
         excludeAssets: (assetName) => {
           console.log(`Excluding asset: ${assetName}, ${assetName.includes(entrypointContent)}`);
           return assetName.includes(entrypointContent);
