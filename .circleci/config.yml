@@ -65,6 +65,12 @@ jobs:
       - run:
           name: '`pnpm prettier` changes committed?'
           command: pnpm prettier --check
+      - run:
+          # make sure the netlify ignore command has the correct dependencies
+          name: '`pnpm update-netlify-ignore` changes committed?'
+          command: |
+            pnpm update-netlify-ignore
+            git add -A && git diff --exit-code --staged
 workflows:
   version: 2
   pipeline:
