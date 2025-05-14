@@ -73,6 +73,7 @@ interface CommandLineArgs {
   output?: string;
   verbose?: boolean;
   filter?: string[];
+  concurrency?: number;
 }
 
 // Diff command argument types
