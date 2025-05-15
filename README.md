@@ -31,4 +31,6 @@ Steps:
 
 Steps:
 
+1. Run `pnpm release:prepare`
+1. Run `pnpm test`
 1. Run `pnpm release:publish`
