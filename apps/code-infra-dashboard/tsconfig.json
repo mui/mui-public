@@ -15,7 +15,9 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "downlevelIteration": true
+    "outDir": "./build",
+    "downlevelIteration": true,
+    "composite": true
   },
-  "include": ["src"]
+  "include": ["src", "functions"]
 }

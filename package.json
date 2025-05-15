@@ -8,7 +8,8 @@
     "prettier": "pretty-quick --ignore-path .eslintignore",
     "prettier:all": "prettier --write . --ignore-path .eslintignore",
     "update-netlify-ignore": "node ./update-netlify-ignore.js code-infra-dashboard",
-    "test": "vitest"
+    "test": "vitest",
+    "typescript": "time tsc --build --verbose"
   },
   "devDependencies": {
     "@actions/core": "^1.10.1",
@@ -34,7 +35,7 @@
     "eslint-plugin-typescript-enum": "2.1.0",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
-    "typescript": "^4.6.4"
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "@next/eslint-plugin-next": "^14.2.4",
