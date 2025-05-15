@@ -27,7 +27,6 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
-      - run: npm install -g npm@latest
-      - run: pnpm install
+      - run: pnpm release:prepare
       - run: pnpm release:build
       - run: pnpm pkg-pr-new-release
