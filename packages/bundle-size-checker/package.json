@@ -7,6 +7,11 @@
   "bin": {
     "bundle-size-checker": "./bin/bundle-size-checker.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/bundle-size-checker"
+  },
   "scripts": {
     "typescript": "tsc -p tsconfig.json"
   },
