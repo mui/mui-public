@@ -5,6 +5,12 @@ import plugin from './index';
 
 const fixturePath = path.resolve(__dirname, './__fixtures__');
 
+/**
+ * Reads the output fixture and normalizes line endings
+ * @param {string} fixture
+ * @param {string} file
+ * @returns {string}
+ */
 function readOutputFixtureSync(fixture, file) {
   // babel hardcodes the linefeed to \n and can add extra newlines
   return normalizeQuotesAndWhitespace(
@@ -14,7 +20,11 @@ function readOutputFixtureSync(fixture, file) {
   );
 }
 
-// Normalize string quotes and whitespace for comparison
+/**
+ * Normalize string quotes and whitespace for comparison
+ * @param {string} str
+ * @returns {string}
+ */
 function normalizeQuotesAndWhitespace(str) {
   return str
     .trim()

@@ -8,6 +8,12 @@ import plugin from './index';
 const temporaryErrorCodesPath = path.join(os.tmpdir(), 'error-codes.json');
 const fixturePath = path.resolve(__dirname, './__fixtures__');
 
+/**
+ *
+ * @param {string} fixture
+ * @param {string} file
+ * @returns {string}
+ */
 function readOutputFixtureSync(fixture, file) {
   // babel hardcodes the linefeed to \n
   return fs
@@ -105,6 +111,7 @@ pluginTester({
             const expectedErrorCodes = JSON.parse(
               fs.readFileSync(
                 path.join(fixturePath, 'error-code-extraction', 'error-codes.after.json'),
+                'utf-8',
               ),
             );
 

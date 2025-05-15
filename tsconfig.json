@@ -11,6 +11,8 @@
   },
   "references": [
     { "path": "apps/code-infra-dashboard" },
+    { "path": "packages/babel-plugin-minify-errors" },
+    { "path": "packages/babel-plugin-resolve-imports" },
     { "path": "packages/bundle-size-checker" }
   ],
   "files": []
