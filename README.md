@@ -23,14 +23,16 @@ Internal public Toolpad apps that run the operations of MUI, built using https:/
 
 Steps:
 
+1. Checkout latest master
 1. Run `pnpm release:prepare`
-1. Run `pnpm test`
 1. Run `pnpm release:version`
+1. Open PR with the changes
 
 ## Publishing
 
 Steps:
 
+1. Merge versioning PR
+1. Checkout release commit on master
 1. Run `pnpm release:prepare`
-1. Run `pnpm test`
 1. Run `pnpm release:publish`
