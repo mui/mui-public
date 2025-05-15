@@ -16,7 +16,8 @@ import { fetchSnapshot } from './fetchSnapshot.js';
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
  */
 
-const MAX_CONCURRENCY = Math.min(8, os.cpus().length);
+// Default concurrency is set to the number of available CPU cores
+const DEFAULT_CONCURRENCY = os.availableParallelism();
 
 const rootDir = process.cwd();
 
@@ -56,7 +57,7 @@ function normalizeEntries(entries) {
 async function getWebpackSizes(args, config) {
   const worker = new Piscina({
     filename: new URL('./worker.js', import.meta.url).href,
-    maxThreads: MAX_CONCURRENCY,
+    maxThreads: args.concurrency || DEFAULT_CONCURRENCY,
   });
   // Clean and recreate the build directory
   const buildDir = path.join(rootDir, 'build');
@@ -108,14 +109,16 @@ async function getWebpackSizes(args, config) {
  * @param {CommandLineArgs} argv - Command line arguments
  */
 async function run(argv) {
-  const { analyze, accurateBundles, output, verbose, filter } = argv;
+  const { output, concurrency } = argv;
 
   const snapshotDestPath = output ? path.resolve(output) : path.join(rootDir, 'size-snapshot.json');
 
   const config = await loadConfig(rootDir);
 
-  // Pass the filter patterns to getWebpackSizes if provided
-  const webpackSizes = await getWebpackSizes({ analyze, accurateBundles, verbose, filter }, config);
+  // eslint-disable-next-line no-console
+  console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
+
+  const webpackSizes = await getWebpackSizes(argv, config);
   const bundleSizes = Object.fromEntries(webpackSizes.sort((a, b) => a[0].localeCompare(b[0])));
 
   // Ensure output directory exists
@@ -382,6 +385,12 @@ yargs(process.argv.slice(2))
           alias: 'F',
           describe: 'Filter entry points by glob pattern(s) applied to their IDs',
           type: 'array',
+        })
+        .option('concurrency', {
+          alias: 'c',
+          describe: 'Number of workers to use for parallel processing',
+          type: 'number',
+          default: DEFAULT_CONCURRENCY,
         });
     },
     handler: run,
