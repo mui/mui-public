@@ -1,7 +1,7 @@
 {
   "name": "@mui-public/babel-plugin-display-name",
   "private": true,
-  "description": "Babel plugin for automatic React display name generation with tree-shaking and prefix support, forked from @zendesk/babel-plugin-react-displayname",
+  "description": "Babel plugin for automatic React display name generation with tree-shaking and prefix support, forked from @zendesk/babel-plugin-react-displayname.",
   "main": "src/index.js",
   "author": "mui",
   "files": [
