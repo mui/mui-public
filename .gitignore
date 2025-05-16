@@ -41,3 +41,5 @@ lerna-debug.log
 dist/
 
 build
+
+.tsbuildinfo

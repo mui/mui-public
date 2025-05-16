@@ -57,6 +57,9 @@ jobs:
       - run:
           name: Eslint
           command: pnpm eslint:ci
+      - run:
+          name: Typescript
+          command: pnpm typescript
   test_static:
     <<: *default-job
     steps:
@@ -71,6 +74,14 @@ jobs:
           command: |
             pnpm update-netlify-ignore
             git add -A && git diff --exit-code --staged
+  test_unit:
+    <<: *default-job
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: 'Run tests'
+          command: pnpm test
 workflows:
   version: 2
   pipeline:
