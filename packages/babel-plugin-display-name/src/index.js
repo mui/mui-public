@@ -1,4 +1,11 @@
+// @ts-check
+
 const { declare } = require('@babel/helper-plugin-utils');
+
+/**
+ * @typedef {import('@babel/core')} babel
+ * @typedef {{ id: babel.types.Expression, computed?: boolean }} ComponentIdentifier
+ */
 
 // remember to set `cacheDirectory` to `false` when modifying this plugin
 
@@ -6,6 +13,7 @@ const DEFAULT_ALLOWED_CALLEES = {
   react: ['createContext', 'forwardRef', 'memo'],
 };
 
+/** @type {Map<string, string>} */
 const calleeModuleMapping = new Map(); // Mapping of callee name to module name
 const seenDisplayNames = new Set();
 
@@ -38,21 +46,23 @@ module.exports = declare((api, options) => {
         // so we clear when we're transforming on a new file
         seenDisplayNames.clear();
       },
-      'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (path) => {
+      'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
+        /** @type {babel.NodePath<babel.types.FunctionExpression|babel.types.ArrowFunctionExpression|babel.types.ObjectMethod>} */ path,
+      ) => {
         // if the parent is a call expression, make sure it's an allowed one
         if (
-          path.parentPath && t.isCallExpression(path.parentPath.node)
+          path.parentPath && path.parentPath.isCallExpression()
             ? isAllowedCallExpression(t, path.parentPath)
             : true
         ) {
           if (doesReturnJSX(t, path.node.body)) {
-            addDisplayNamesToFunctionComponent(t, path, options);
+            addDisplayNamesToFunctionComponent(t, path);
           }
         }
       },
       CallExpression(path) {
         if (isAllowedCallExpression(t, path)) {
-          addDisplayNamesToFunctionComponent(t, path, options);
+          addDisplayNamesToFunctionComponent(t, path);
         }
       },
     },
@@ -64,8 +74,8 @@ module.exports = declare((api, options) => {
  * It does not do type-checking, which means calling
  * other functions that return JSX will still return `false`.
  *
- * @param {Types} t content of @babel/types package
- * @param {Node} node function node
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.types.Statement | babel.types.Expression} node function node
  */
 function doesReturnJSX(t, node) {
   if (!node) {
@@ -78,6 +88,7 @@ function doesReturnJSX(t, node) {
   }
 
   return body.some((statement) => {
+    /** @type {babel.Node | null | undefined} */
     let currentNode;
 
     if (t.isReturnStatement(statement)) {
@@ -93,6 +104,7 @@ function doesReturnJSX(t, node) {
       // detect *.createElement and count it as returning JSX
       // this could be improved a lot but will work for the 99% case
       t.isMemberExpression(currentNode.callee) &&
+      t.isIdentifier(currentNode.callee.property) &&
       currentNode.callee.property.name === 'createElement'
     ) {
       return true;
@@ -118,8 +130,8 @@ function doesReturnJSX(t, node) {
  * Checks if this node is JSXElement or JSXFragment,
  * which are the root nodes of react components.
  *
- * @param {Types} t content of @babel/types package
- * @param {Node} node babel node
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.Node | null | undefined} node babel node
  */
 function isJSX(t, node) {
   return t.isJSXElement(node) || t.isJSXFragment(node);
@@ -128,13 +140,15 @@ function isJSX(t, node) {
 /**
  * Checks if this path is an allowed CallExpression.
  *
- * @param {Types} t content of @babel/types package
- * @param {Path} path path of callee
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.NodePath<babel.types.CallExpression>} path path of callee
  */
 function isAllowedCallExpression(t, path) {
-  const callee = path.node.callee;
-  const calleeName = callee.name || (callee.property && callee.property.name);
-  const moduleName = calleeModuleMapping.get(calleeName);
+  const calleePath = path.get('callee');
+  const callee = /** @type {babel.types.Expression} */ (path.node.callee);
+  /** @type {string | undefined} */
+  const calleeName = /** @type {any} */ (callee).name || /** @type {any} */ (callee).property?.name;
+  const moduleName = calleeName && calleeModuleMapping.get(calleeName);
 
   if (!moduleName) {
     return false;
@@ -142,15 +156,15 @@ function isAllowedCallExpression(t, path) {
 
   // If the callee is an identifier expression, then check if it matches
   // a named import, e.g. `import {createContext} from 'react'`.
-  if (t.isIdentifier(callee)) {
-    return path.get('callee').referencesImport(moduleName, calleeName);
+  if (calleePath.isIdentifier()) {
+    return calleePath.referencesImport(moduleName, calleeName);
   }
 
   // Otherwise, check if the member expression's object matches
   // a default import (e.g. `import React from 'react'`)
   // or namespace import (e.g. `import * as React from 'react')
-  if (t.isMemberExpression(callee)) {
-    const object = path.get('callee.object');
+  if (calleePath.isMemberExpression()) {
+    const object = calleePath.get('object');
 
     return (
       object.referencesImport(moduleName, 'default') || object.referencesImport(moduleName, '*')
@@ -166,16 +180,17 @@ function isAllowedCallExpression(t, path) {
  *  - not within other JSX elements
  *  - not called by a react hook or _createClass helper
  *
- * @param {Types} t content of @babel/types package
- * @param {Path} path path of function
- * @param {Object} options
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.NodePath<babel.types.FunctionExpression|babel.types.ArrowFunctionExpression|babel.types.ObjectMethod|babel.types.CallExpression>} path path of function
  */
 function addDisplayNamesToFunctionComponent(t, path) {
+  /** @type {ComponentIdentifier[]} */
   const componentIdentifiers = [];
-  if (path.node.key) {
-    componentIdentifiers.push({ id: path.node.key });
+  if (/** @type {any} */ (path.node).key) {
+    componentIdentifiers.push({ id: /** @type {any} */ (path.node).key });
   }
 
+  /** @type {babel.NodePath | undefined} */
   let assignmentPath;
   let hasCallee = false;
   let hasObjectProperty = false;
@@ -194,7 +209,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
 
     if (parentPath.isCallExpression()) {
       // Ignore immediately invoked function expressions (IIFEs)
-      const callee = parentPath.node.callee;
+      const callee = /** @types {babel.types.Expression} */ parentPath.node.callee;
       if (t.isArrowFunctionExpression(callee) || t.isFunctionExpression(callee)) {
         return true;
       }
@@ -202,7 +217,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
       // Ignore instances where displayNames are disallowed
       // _createClass(() => <Element />)
       // useMemo(() => <Element />)
-      const calleeName = callee.name;
+      const calleeName = t.isIdentifier(callee) ? callee.name : undefined;
       if (calleeName && (calleeName.startsWith('_') || calleeName.startsWith('use'))) {
         return true;
       }
@@ -213,14 +228,18 @@ function addDisplayNamesToFunctionComponent(t, path) {
     // componentIdentifier = <Element />
     if (parentPath.isAssignmentExpression()) {
       assignmentPath = parentPath.parentPath;
-      componentIdentifiers.unshift({ id: parentPath.node.left });
+      componentIdentifiers.unshift({
+        id: /** @type {babel.types.Expression} */ (parentPath.node.left),
+      });
       return true;
     }
 
     // const componentIdentifier = <Element />
     if (parentPath.isVariableDeclarator()) {
       assignmentPath = parentPath.parentPath;
-      componentIdentifiers.unshift({ id: parentPath.node.id });
+      componentIdentifiers.unshift({
+        id: /** @type {babel.types.Expression} */ (parentPath.node.id),
+      });
       return true;
     }
 
@@ -233,7 +252,10 @@ function addDisplayNamesToFunctionComponent(t, path) {
     if (parentPath.isObjectProperty()) {
       hasObjectProperty = true;
       const node = parentPath.node;
-      componentIdentifiers.unshift({ id: node.key, computed: node.computed });
+      componentIdentifiers.unshift({
+        id: /** @type {babel.types.Expression} */ (node.key),
+        computed: node.computed,
+      });
     }
 
     return false;
@@ -275,8 +297,8 @@ function addDisplayNamesToFunctionComponent(t, path) {
 /**
  * Generate a displayName string based on the ids collected.
  *
- * @param {Types} t content of @babel/types package
- * @param {componentIdentifier[]} componentIdentifiers list of { id, computed } objects
+ * @param {babel.types} t content of @babel/types package
+ * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
  */
 function generateDisplayName(t, componentIdentifiers) {
   let displayName = '';
@@ -295,8 +317,8 @@ function generateDisplayName(t, componentIdentifiers) {
 /**
  * Generate a displayName string based on the node.
  *
- * @param {Types} t content of @babel/types package
- * @param {Node} node identifier or member expression node
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.Node} node identifier or member expression node
  */
 function generateNodeDisplayName(t, node) {
   if (t.isIdentifier(node)) {
@@ -319,46 +341,48 @@ function generateNodeDisplayName(t, node) {
 /**
  * Checks if this path has been previously assigned to a particular value.
  *
- * @param {Types} t content of @babel/types package
- * @param {Path} assignmentPath path where assignement will take place
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.NodePath} assignmentPath path where assignement will take place
  * @param {string} pattern assignment path in string form e.g. `x.y.z`
  * @param {string} value assignment value to compare with
+ * @returns {boolean}
  */
 function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
   return assignmentPath.getAllPrevSiblings().some((sibling) => {
-    const expression = sibling.get('expression');
+    const expression = /** @type {babel.NodePath} */ (sibling.get('expression'));
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
     if (!t.isStringLiteral(expression.node.right, { value })) {
       return false;
     }
-    return expression.get('left').matchesPattern(pattern);
+    return /** @type {babel.NodePath} */ (expression.get('left')).matchesPattern(pattern);
   });
 }
 
 /**
  * Checks if this path will be assigned later in the scope.
  *
- * @param {Types} t content of @babel/types package
- * @param {Path} assignmentPath path where assignement will take place
+ * @param {babel.types} t content of @babel/types package
+ * @param {babel.NodePath} assignmentPath path where assignement will take place
  * @param {string} pattern assignment path in string form e.g. `x.y.z`
+ * @returns {boolean}
  */
 function hasBeenAssignedNext(t, assignmentPath, pattern) {
   return assignmentPath.getAllNextSiblings().some((sibling) => {
-    const expression = sibling.get('expression');
+    const expression = /** @type {babel.NodePath} */ (sibling.get('expression'));
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
-    return expression.get('left').matchesPattern(pattern);
+    return /** @type {babel.NodePath} */ (expression.get('left')).matchesPattern(pattern);
   });
 }
 
 /**
  * Generate a displayName ExpressionStatement node based on the ids.
  *
- * @param {Types} t content of @babel/types package
- * @param {componentIdentifier[]} componentIdentifiers list of { id, computed } objects
+ * @param {babel.types} t content of @babel/types package
+ * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
  * @param {string} displayName name of the function component
  */
 function createDisplayNameStatement(t, componentIdentifiers, displayName) {
@@ -388,8 +412,9 @@ function createDisplayNameStatement(t, componentIdentifiers, displayName) {
 /**
  * Helper that creates a MemberExpression node from the ids.
  *
- * @param {Types} t content of @babel/types package
- * @param {componentIdentifier[]} componentIdentifiers list of { id, computed } objects
+ * @param {babel.types} t content of @babel/types package
+ * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
+ * @returns {babel.types.Expression}
  */
 function createMemberExpression(t, componentIdentifiers) {
   let node = componentIdentifiers[0].id;
@@ -406,7 +431,7 @@ function createMemberExpression(t, componentIdentifiers) {
  * Changes the arrow function to a function expression and gives it a name.
  * `name` will be changed to ensure that it is unique within the scope. e.g. `helper` -> `_helper`
  *
- * @param {Types} t content of @babel/types package
+ * @param {babel.types} t content of @babel/types package
  * @param {string} name name of function to follow after
  */
 function setInternalFunctionName(t, path, name) {
