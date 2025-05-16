@@ -29,6 +29,7 @@ commands:
             npm i --prefix=~/.local --global corepack@latest
             # See https://stackoverflow.com/a/73411601
             corepack enable --install-directory=~/bin pnpm
+            pnpm --version
 
   install_js:
     steps:
