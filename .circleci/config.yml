@@ -19,15 +19,15 @@ commands:
   install_js:
     steps:
       - run:
-          name: Install corepack
-          command: |
-            npm install --global corepack@latest
-            # See https://stackoverflow.com/a/73411601
-            corepack enable --install-directory ~/bin
-      - run:
           name: View install environment
           command: |
             node --version
+            corepack --version
+      - run:
+          name: Install corepack
+          command: |
+            # See https://stackoverflow.com/a/73411601
+            corepack enable --install-directory ~/bin
       - run:
           name: Install js dependencies
           command: pnpm install
