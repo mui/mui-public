@@ -1,9 +1,6 @@
 import path from 'path';
 import { transformSync } from '@babel/core';
-
-const describe = global.describe;
-const expect = global.expect;
-const it = global.it;
+import { describe, it, expect } from 'vitest';
 
 const plugin = path.join(__dirname, './index.js');
 

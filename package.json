@@ -7,7 +7,8 @@
     "eslint:ci": "eslint . --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .eslintignore",
     "prettier:all": "prettier --write . --ignore-path .eslintignore",
-    "update-netlify-ignore": "node ./update-netlify-ignore.js code-infra-dashboard"
+    "update-netlify-ignore": "node ./update-netlify-ignore.js code-infra-dashboard",
+    "test": "vitest"
   },
   "devDependencies": {
     "@actions/core": "^1.10.1",
@@ -34,7 +35,8 @@
     "eslint-plugin-typescript-enum": "2.1.0",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
-    "typescript": "^4.6.4"
+    "typescript": "^4.6.4",
+    "vitest": "^3.1.3"
   },
   "dependencies": {
     "@next/eslint-plugin-next": "^14.2.4"
