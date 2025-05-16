@@ -9,7 +9,7 @@ parameters:
 default-job: &default-job
   working_directory: /tmp/mui
   docker:
-    - image: cimg/node:18.16
+    - image: cimg/node:20.17
 
 default-context: &default-context
   context:
@@ -35,7 +35,6 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - install_js
       - run:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
@@ -46,6 +45,7 @@ jobs:
             if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
             then
                 echo "no changes to dependencies detected, skipping..."
+                pnpm install
             else
                 pnpm dedupe --check
             fi
