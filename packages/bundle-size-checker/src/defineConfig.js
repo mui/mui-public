@@ -1,9 +1,4 @@
 /**
- * @typedef {Object} BundleSizeCheckerConfig
- * @property {string[]} entrypoints - Array of entrypoints to check size for
- */
-
-/**
  * Define a configuration for the bundle size checker.
  * This is just a pass-through function for better TypeScript typing.
  *

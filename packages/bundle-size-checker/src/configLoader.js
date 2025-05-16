@@ -9,7 +9,7 @@ import envCi from 'env-ci';
 /**
  * Attempts to load and parse a single config file
  * @param {string} configPath - Path to the configuration file
- * @returns {Promise<BundleSizeCheckerConfig | null>} The parsed config or null if file doesn't exist
+ * @returns {Promise<BundleSizeCheckerConfigObject | null>} The parsed config or null if file doesn't exist
  * @throws {Error} If the file exists but has invalid format
  */
 async function loadConfigFile(configPath) {
@@ -20,20 +20,18 @@ async function loadConfigFile(configPath) {
 
     // Dynamic import for ESM
     const configUrl = new URL(`file://${configPath}`);
-    let { default: config } = await import(configUrl.href);
+    const { default: config } = await import(configUrl.href);
 
+    /** @type {BundleSizeCheckerConfigObject | null} */
+    let resolvedConfig = null;
     // Handle configs that might be Promise-returning functions
     if (config instanceof Promise) {
-      config = await config;
+      resolvedConfig = await config;
     } else if (typeof config === 'function') {
-      config = await config();
+      resolvedConfig = await config();
     }
 
-    if (!config.entrypoints || !Array.isArray(config.entrypoints)) {
-      throw new Error('Configuration must include an entrypoints array');
-    }
-
-    return config;
+    return resolvedConfig;
   } catch (error) {
     console.error(`Error loading config from ${configPath}:`, error);
     throw error; // Re-throw to indicate failure
@@ -81,7 +79,7 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
 
 /**
  * Apply default values to the configuration using CI environment
- * @param {BundleSizeCheckerConfig} config - The loaded configuration
+ * @param {BundleSizeCheckerConfigObject} config - The loaded configuration
  * @returns {NormalizedBundleSizeCheckerConfig} Configuration with defaults applied
  * @throws {Error} If required fields are missing
  */
