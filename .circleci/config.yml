@@ -41,7 +41,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - setuppnpm
+      - setup_pnpm
       - run:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
@@ -61,7 +61,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - setuppnpm
+      - setup_pnpm
       - install_js
       - run:
           name: Eslint
@@ -71,7 +71,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - setuppnpm
+      - setup_pnpm
       - install_js
       - run:
           name: '`pnpm prettier` changes committed?'
