@@ -26,9 +26,7 @@ commands:
       - run:
           name: Install corepack
           command: |
-            npm i -g corepack@latest
-            # See https://stackoverflow.com/a/73411601
-            corepack enable
+            npm i -g pnpm@latest
 
   install_js:
     steps:
