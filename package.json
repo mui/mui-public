@@ -8,6 +8,7 @@
     "prettier": "pretty-quick --ignore-path .eslintignore",
     "prettier:all": "prettier --write . --ignore-path .eslintignore",
     "update-netlify-ignore": "node ./update-netlify-ignore.js code-infra-dashboard",
+    "test": "vitest",
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm --filter \"./packages/**\" run build",
@@ -41,7 +42,8 @@
     "lerna": "^8.2.2",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
-    "typescript": "^4.6.4"
+    "typescript": "^4.6.4",
+    "vitest": "^3.1.3"
   },
   "dependencies": {
     "@next/eslint-plugin-next": "^14.2.4"
