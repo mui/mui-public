@@ -21,7 +21,11 @@ commands:
       - run:
           name: Install corepack
           # See https://stackoverflow.com/a/73411601
-          command: corepack enable --install-directory ~/bin
+          command: |
+            npm install --global corepack@latest
+            corepack enable
+            corepack prepare pnpm@latest-10 --activate
+            pnpm config set store-dir .pnpm-store
       - run:
           name: View install environment
           command: |
