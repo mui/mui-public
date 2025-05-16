@@ -5,8 +5,8 @@
   "description": "This is an internal package not meant for general use.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mui/material-ui.git",
-    "directory": "packages/mui-babel-plugin-minify-errors"
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/babel-plugin-minify-errors"
   },
   "license": "MIT",
   "bugs": {

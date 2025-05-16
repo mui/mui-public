@@ -9,8 +9,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mui/material-ui.git",
-    "directory": "packages-internal/babel-plugin-resolve-imports"
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/babel-plugin-resolve-imports"
   },
   "license": "MIT",
   "scripts": {},
