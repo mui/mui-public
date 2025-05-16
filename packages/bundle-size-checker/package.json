@@ -1,12 +1,16 @@
 {
   "name": "@mui/internal-bundle-size-checker",
-  "version": "1.0.0",
-  "private": true,
+  "version": "1.0.2",
   "description": "Bundle size checker for MUI packages.",
   "type": "module",
   "main": "./src/index.js",
   "bin": {
     "bundle-size-checker": "./bin/bundle-size-checker.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/bundle-size-checker"
   },
   "scripts": {
     "typescript": "tsc -p tsconfig.json"
