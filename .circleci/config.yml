@@ -28,7 +28,7 @@ commands:
           command: |
             npm i -g corepack@latest
             # See https://stackoverflow.com/a/73411601
-            corepack enable --install-directory ~/bin
+            corepack enable
 
   install_js:
     steps:
