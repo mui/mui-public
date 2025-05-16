@@ -55,10 +55,15 @@ interface ObjectEntry {
 type EntryPoint = StringEntry | ObjectEntry;
 
 // Bundle size checker config with optional upload config
-interface BundleSizeCheckerConfig {
+interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
 }
+
+type BundleSizeCheckerConfig =
+  | BundleSizeCheckerConfigObject
+  | Promise<BundleSizeCheckerConfigObject>
+  | (() => BundleSizeCheckerConfigObject | Promise<BundleSizeCheckerConfigObject>);
 
 // Normalized bundle size checker config with all properties defined
 interface NormalizedBundleSizeCheckerConfig {
