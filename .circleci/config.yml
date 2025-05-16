@@ -20,7 +20,6 @@ commands:
     steps:
       - run:
           name: Install corepack
-          # See https://stackoverflow.com/a/73411601
           command: |
             npm install --global corepack@latest
             corepack enable
