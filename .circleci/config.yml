@@ -16,7 +16,7 @@ default-context: &default-context
     - org-global
 
 commands:
-  install_js:
+  setup_corepack:
     steps:
       - run:
           name: View install environment
@@ -28,6 +28,9 @@ commands:
           command: |
             # See https://stackoverflow.com/a/73411601
             corepack enable --install-directory ~/bin
+
+  install_js:
+    steps:
       - run:
           name: Install js dependencies
           command: pnpm install
@@ -37,6 +40,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
+      - setup_corepack
       - run:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
@@ -51,18 +55,22 @@ jobs:
             else
                 pnpm dedupe --check
             fi
+
   test_lint:
     <<: *default-job
     steps:
       - checkout
+      - setup_corepack
       - install_js
       - run:
           name: Eslint
           command: pnpm eslint:ci
+
   test_static:
     <<: *default-job
     steps:
       - checkout
+      - setup_corepack
       - install_js
       - run:
           name: '`pnpm prettier` changes committed?'
@@ -73,6 +81,7 @@ jobs:
           command: |
             pnpm update-netlify-ignore
             git add -A && git diff --exit-code --staged
+  
 workflows:
   version: 2
   pipeline:
