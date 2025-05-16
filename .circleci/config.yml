@@ -16,7 +16,7 @@ default-context: &default-context
     - org-global
 
 commands:
-  setup_corepack:
+  setup_pnpm:
     steps:
       - run:
           name: View install environment
@@ -26,6 +26,7 @@ commands:
       - run:
           name: Install corepack
           command: |
+            npm i -g corepack@latest
             # See https://stackoverflow.com/a/73411601
             corepack enable --install-directory ~/bin
 
@@ -40,7 +41,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - setup_corepack
+      - setuppnpm
       - run:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
@@ -60,7 +61,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - setup_corepack
+      - setuppnpm
       - install_js
       - run:
           name: Eslint
@@ -70,7 +71,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - setup_corepack
+      - setuppnpm
       - install_js
       - run:
           name: '`pnpm prettier` changes committed?'
