@@ -10,7 +10,7 @@ import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.
 /**
  *
  * @param {'▲' | '▼'} symbol
- * @param {'yellow'|'red'|'blue'|'green'} color
+ * @param {KatexColor} color
  * @returns
  */
 function formatSymbol(symbol, color) {
@@ -24,10 +24,10 @@ function formatSymbol(symbol, color) {
  */
 function getChangeIcon(relative) {
   if (relative === null) {
-    return formatSymbol('▲', 'yellow');
+    return formatSymbol('▲', 'orangered');
   }
   if (relative === -1) {
-    return formatSymbol('▼', 'blue');
+    return formatSymbol('▼', 'cornflowerblue');
   }
   if (relative < 0) {
     return formatSymbol('▼', 'green');
