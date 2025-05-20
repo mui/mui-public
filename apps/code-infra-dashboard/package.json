@@ -1,5 +1,5 @@
 {
-  "name": "code-infra-dashboard",
+  "name": "@apps/code-infra-dashboard",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -31,7 +31,7 @@
     "dev": "pnpm --package netlify-cli@15 dlx netlify dev",
     "preview": "vite preview",
     "test": "echo 'No tests yet' && exit 1",
-    "test:types": "tsc"
+    "typescript": "tsc"
   },
   "browserslist": {
     "production": [
