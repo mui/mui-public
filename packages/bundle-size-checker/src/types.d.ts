@@ -111,6 +111,7 @@ interface PrInfo {
   };
 }
 
+// Check the PR message for available colors: https://github.com/mui/mui-public/pull/332
 type KatexColor =
   | 'blueviolet'
   | 'aquamarine'
