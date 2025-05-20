@@ -42,7 +42,8 @@
     "lerna": "^8.2.2",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^4.6.4",
+    "vitest": "^3.1.3"
   },
   "dependencies": {
     "@next/eslint-plugin-next": "^14.2.4",
