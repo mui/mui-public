@@ -302,21 +302,6 @@ importers:
       '@aws-sdk/credential-providers':
         specifier: ^3.787.0
         version: 3.796.0
-      '@babel/core':
-        specifier: ^7.27.1
-        version: 7.27.1
-      '@babel/preset-env':
-        specifier: ^7.20.2
-        version: 7.27.2(@babel/core@7.27.1)
-      '@babel/preset-react':
-        specifier: ^7.18.6
-        version: 7.27.1(@babel/core@7.27.1)
-      '@babel/preset-typescript':
-        specifier: ^7.27.1
-        version: 7.27.1(@babel/core@7.27.1)
-      babel-loader:
-        specifier: ^10.0.0
-        version: 10.0.0(@babel/core@7.27.1)(webpack@5.94.0)
       chalk:
         specifier: ^5.4.1
         version: 5.4.1
@@ -4559,13 +4544,6 @@ packages:
 
   b4a@1.6.7:
     resolution: {integrity: sha512-OnAYlL5b7LEkALw87fUVafQw5rVR9RjwGd4KUwNQ6DrrNmaVaUCgLipfVlzrPQ4tWOR9P0IXGNOx50jYCCdSJg==}
-
-  babel-loader@10.0.0:
-    resolution: {integrity: sha512-z8jt+EdS61AMw22nSfoNJAZ0vrtmhPRVi6ghL3rCeRZI8cdNYFiV5xeV3HbE7rlZZNmGH8BVccwWt8/ED0QOHA==}
-    engines: {node: ^18.20.0 || ^20.10.0 || >=22.0.0}
-    peerDependencies:
-      '@babel/core': ^7.12.0
-      webpack: '>=5.61.0'
 
   babel-plugin-macros@3.1.0:
     resolution: {integrity: sha512-Cg7TFGpIr01vOQNODXOOaGz2NpCU5gl8x1qJFbb6hbZxR7XrcE2vtbAsTAbJ7/xwJtUuJEw8K8Zr/AE0LHlesg==}
@@ -16205,12 +16183,6 @@ snapshots:
       dequal: 2.0.3
 
   b4a@1.6.7: {}
-
-  babel-loader@10.0.0(@babel/core@7.27.1)(webpack@5.94.0):
-    dependencies:
-      '@babel/core': 7.27.1
-      find-up: 5.0.0
-      webpack: 5.94.0
 
   babel-plugin-macros@3.1.0:
     dependencies:
