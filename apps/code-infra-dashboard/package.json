@@ -1,5 +1,5 @@
 {
-  "name": " @app/code-infra-dashboard",
+  "name": "@app/code-infra-dashboard",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
