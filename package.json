@@ -7,7 +7,7 @@
     "eslint:ci": "eslint . --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .eslintignore",
     "prettier:all": "prettier --write . --ignore-path .eslintignore",
-    "update-netlify-ignore": "node ./update-netlify-ignore.js @apps/code-infra-dashboard",
+    "update-netlify-ignore": "node ./update-netlify-ignore.js  @app/code-infra-dashboard",
     "test": "vitest",
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
