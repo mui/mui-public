@@ -9,6 +9,6 @@ Collection of helpers useful when working on [MUI](https://github.com/mui).
 Bugfixes and feature suggestions are greatly appreciated. Though this project is highly opinionated so feature requests from external contributors likely won't be accepted if no core member has a use for them.
 
 ```bash
-$ pnpm --ignore-workspace install
-$ pnpm -F code-infra-dashboard dev
+pnpm install
+pnpm -F @app/code-infra-dashboard dev
 ```

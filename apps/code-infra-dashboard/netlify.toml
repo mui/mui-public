@@ -2,14 +2,14 @@
   publish = "build"
 
   # Default build command.
-  command = "pnpm -F code-infra-dashboard build"
+  command = "pnpm -F @app/code-infra-dashboard build"
 
   # Decide when to build Netlify
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF apps/code-infra-dashboard packages/bundle-size-checker pnpm-lock.yaml"
 
 [dev]
   framework = "#custom"
-  command = "pnpm -F code-infra-dashboard start"
+  command = "pnpm -F @app/code-infra-dashboard start"
   targetPort = 3000
 
 [build.environment]
