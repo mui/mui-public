@@ -57,6 +57,9 @@ jobs:
       - run:
           name: Eslint
           command: pnpm eslint:ci
+      - run:
+          name: Typescript
+          command: pnpm typescript
   test_static:
     <<: *default-job
     steps:

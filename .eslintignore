@@ -5,3 +5,5 @@ apps/tools-public/toolpad/**/*.yml
 build
 node_modules
 pnpm-lock.yaml
+
+__fixtures__

@@ -1,12 +1,11 @@
 const baseline = require('@mui/monorepo/.eslintrc');
-const path = require('path');
 
 module.exports = {
   ...baseline,
   settings: {
     'import/resolver': {
-      webpack: {
-        config: path.join(__dirname, './webpackBaseConfig.js'),
+      typescript: {
+        project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
       },
     },
   },
