@@ -13,14 +13,16 @@ const DEFAULT_ALLOWED_CALLEES = {
   react: ['createContext', 'forwardRef', 'memo'],
 };
 
-/** @type {Map<string, string>} */
+/** @type {Map<string, string[]>} */
 const calleeModuleMapping = new Map(); // Mapping of callee name to module name
 const seenDisplayNames = new Set();
 
 function applyAllowedCallees(mapping) {
   Object.entries(mapping).forEach(([moduleName, methodNames]) => {
     methodNames.forEach((methodName) => {
-      calleeModuleMapping.set(methodName, moduleName);
+      const moduleNames = calleeModuleMapping.get(methodName) ?? [];
+      moduleNames.push(moduleName);
+      calleeModuleMapping.set(methodName, moduleNames);
     });
   });
 }
@@ -148,16 +150,16 @@ function isAllowedCallExpression(t, path) {
   const callee = /** @type {babel.types.Expression} */ (path.node.callee);
   /** @type {string | undefined} */
   const calleeName = /** @type {any} */ (callee).name || /** @type {any} */ (callee).property?.name;
-  const moduleName = calleeName && calleeModuleMapping.get(calleeName);
+  const moduleNames = calleeName && calleeModuleMapping.get(calleeName);
 
-  if (!moduleName) {
+  if (!moduleNames) {
     return false;
   }
 
   // If the callee is an identifier expression, then check if it matches
   // a named import, e.g. `import {createContext} from 'react'`.
   if (calleePath.isIdentifier()) {
-    return calleePath.referencesImport(moduleName, calleeName);
+    return moduleNames.some((moduleName) => calleePath.referencesImport(moduleName, calleeName));
   }
 
   // Otherwise, check if the member expression's object matches
@@ -166,8 +168,9 @@ function isAllowedCallExpression(t, path) {
   if (calleePath.isMemberExpression()) {
     const object = calleePath.get('object');
 
-    return (
-      object.referencesImport(moduleName, 'default') || object.referencesImport(moduleName, '*')
+    return moduleNames.some(
+      (moduleName) =>
+        object.referencesImport(moduleName, 'default') || object.referencesImport(moduleName, '*'),
     );
   }
 
