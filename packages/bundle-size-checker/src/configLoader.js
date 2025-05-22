@@ -78,6 +78,52 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
 }
 
 /**
+ * Normalizes entries to ensure they have a consistent format and ids are unique
+ * @param {EntryPoint[]} entries - The array of entries from the config
+ * @returns {ObjectEntry[]} - Normalized entries with uniqueness enforced
+ */
+function normalizeEntries(entries) {
+  const usedIds = new Set();
+
+  return entries.map((entry) => {
+    if (typeof entry === 'string') {
+      // Transform string entries into object entries
+      const [importSrc, importName] = entry.split('#');
+      if (importName) {
+        // For entries like '@mui/material#Button', create an object with import and importedNames
+        entry = {
+          id: entry,
+          import: importSrc,
+          importedNames: [importName],
+        };
+      } else {
+        // For entries like '@mui/material', create an object with import only
+        entry = {
+          id: entry,
+          import: importSrc,
+        };
+      }
+    }
+
+    if (!entry.id) {
+      throw new Error('Object entries must have an id property');
+    }
+
+    if (!entry.code && !entry.import) {
+      throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
+    }
+
+    if (usedIds.has(entry.id)) {
+      throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
+    }
+
+    usedIds.add(entry.id);
+
+    return entry;
+  });
+}
+
+/**
  * Apply default values to the configuration using CI environment
  * @param {BundleSizeCheckerConfigObject} config - The loaded configuration
  * @returns {NormalizedBundleSizeCheckerConfig} Configuration with defaults applied
@@ -99,34 +145,7 @@ function applyConfigDefaults(config) {
   // Clone the config to avoid mutating the original
   /** @type {NormalizedBundleSizeCheckerConfig} */
   const result = {
-    entrypoints: config.entrypoints.map((entry, i) => {
-      if (typeof entry === 'string') {
-        // Transform string entries into object entries
-        const [importSrc, importName] = entry.split('#');
-        if (importName) {
-          // For entries like '@mui/material#Button', create an object with import and importedNames
-          return {
-            id: entry,
-            import: importSrc,
-            importedNames: [importName],
-          };
-        }
-        // For entries like '@mui/material', create an object with import only
-        return {
-          id: entry,
-          import: importSrc,
-        };
-      }
-
-      if (entry && typeof entry === 'object') {
-        // For existing object entries, return them as is
-        return entry;
-      }
-
-      throw new Error(
-        `Invalid entry format config.entrypoints[${i}]. Must be a string or an object.`,
-      );
-    }),
+    entrypoints: normalizeEntries(config.entrypoints),
     upload: null, // Default to disabled
   };
 

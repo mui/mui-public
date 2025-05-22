@@ -2,6 +2,7 @@ import { pathToFileURL } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
 import chalk from 'chalk';
+import * as module from 'module';
 import { byteSizeFormatter } from './formatUtils.js';
 import { getWebpackSizes } from './webpack-utils.js';
 
@@ -14,10 +15,22 @@ const rootDir = process.cwd();
  */
 async function getPeerDependencies(packageName) {
   try {
-    // Try to resolve packageName/package.json
-    const packageJsonPath = require.resolve(`${packageName}/package.json`, {
-      paths: [rootDir],
-    });
+    /** @type {string | undefined} */
+    let packageJsonPath;
+
+    if (module.findPackageJSON) {
+      // findPackageJSON was added in: v23.2.0, v22.14.0
+      packageJsonPath = module.findPackageJSON(packageName, `${rootDir}/_.js`);
+    } else {
+      // Try to resolve packageName/package.json
+      packageJsonPath = require.resolve(`${packageName}/package.json`, {
+        paths: [rootDir],
+      });
+    }
+
+    if (!packageJsonPath) {
+      return null;
+    }
 
     // Read and parse the package.json
     const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');

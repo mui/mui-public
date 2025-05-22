@@ -22,33 +22,6 @@ const DEFAULT_CONCURRENCY = os.availableParallelism();
 const rootDir = process.cwd();
 
 /**
- * Normalizes entries to ensure they have a consistent format and ids are unique
- * @param {ObjectEntry[]} entries - The array of entries from the config
- * @returns {ObjectEntry[]} - Normalized entries with uniqueness enforced
- */
-function normalizeEntries(entries) {
-  const usedIds = new Set();
-
-  return entries.map((entry) => {
-    if (!entry.id) {
-      throw new Error('Object entries must have an id property');
-    }
-
-    if (!entry.code && !entry.import) {
-      throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
-    }
-
-    if (usedIds.has(entry.id)) {
-      throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
-    }
-
-    usedIds.add(entry.id);
-
-    return entry;
-  });
-}
-
-/**
  * creates size snapshot for every bundle that built with webpack
  * @param {CommandLineArgs} args
  * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
@@ -74,14 +47,11 @@ async function getWebpackSizes(args, config) {
     );
   }
 
-  // Normalize and validate entries
-  const entries = normalizeEntries(config.entrypoints);
-
   // Apply filters if provided
-  let validEntries = entries;
+  let validEntries = config.entrypoints;
   const filter = args.filter;
   if (filter && filter.length > 0) {
-    validEntries = entries.filter((entry) => {
+    validEntries = config.entrypoints.filter((entry) => {
       return filter.some((pattern) => {
         if (pattern.includes('*') || pattern.includes('?') || pattern.includes('[')) {
           return micromatch.isMatch(entry.id, pattern, { nocase: true });
