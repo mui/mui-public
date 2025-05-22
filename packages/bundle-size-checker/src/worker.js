@@ -8,6 +8,7 @@ import TerserPlugin from 'terser-webpack-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import { createRequire } from 'node:module';
 import chalk from 'chalk';
+import * as module from 'module';
 import { byteSizeFormatter } from './formatUtils.js';
 
 /**
@@ -27,10 +28,22 @@ const require = createRequire(import.meta.url);
  */
 async function getPeerDependencies(packageName) {
   try {
-    // Try to resolve packageName/package.json
-    const packageJsonPath = require.resolve(`${packageName}/package.json`, {
-      paths: [rootDir],
-    });
+    /** @type {string | undefined} */
+    let packageJsonPath;
+
+    if (module.findPackageJSON) {
+      // findPackageJSON was added in: v23.2.0, v22.14.0
+      packageJsonPath = module.findPackageJSON(packageName, `${rootDir}/_.js`);
+    } else {
+      // Try to resolve packageName/package.json
+      packageJsonPath = require.resolve(`${packageName}/package.json`, {
+        paths: [rootDir],
+      });
+    }
+
+    if (!packageJsonPath) {
+      return null;
+    }
 
     // Read and parse the package.json
     const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');
@@ -160,6 +173,20 @@ async function createWebpackConfig(entry, args) {
     },
     module: {
       rules: [
+        {
+          test: /\.[jt]sx?$/,
+          include: rootDir,
+          exclude: /node_modules/,
+          use: {
+            loader: require.resolve('babel-loader'),
+            options: {
+              presets: [
+                require.resolve('@babel/preset-react'),
+                require.resolve('@babel/preset-typescript'),
+              ],
+            },
+          },
+        },
         {
           test: /\.css$/,
           use: [require.resolve('css-loader')],
