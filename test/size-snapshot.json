@@ -1,10 +1,10 @@
 {
   "Base UI checkbox": {
-    "parsed": 21347,
-    "gzip": 7876
+    "parsed": 18228,
+    "gzip": 6848
   },
   "Radix UI checkbox": {
-    "parsed": 12017,
-    "gzip": 4599
+    "parsed": 11111,
+    "gzip": 4236
   }
 }
