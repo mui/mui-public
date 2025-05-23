@@ -55,10 +55,18 @@ try {
   const tomlContent = fs.readFileSync(tomlPath, 'utf8');
 
   // Replace the ignore line with our new command using relative paths
-  const updatedContent = tomlContent.replace(
-    /^\s*ignore\s*=.*$/m,
-    `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`,
-  );
+  let didReplace = false;
+  const updatedContent = tomlContent.replace(/^\s*ignore\s*=.*$/m, () => {
+    didReplace = true;
+    return `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`;
+  });
+
+  if (!didReplace) {
+    console.error(
+      `Error: No ignore line found in ${tomlPath}, please add one before running this script.`,
+    );
+    process.exit(1);
+  }
 
   // Write the updated file
   fs.writeFileSync(tomlPath, updatedContent);
