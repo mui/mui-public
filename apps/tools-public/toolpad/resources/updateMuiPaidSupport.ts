@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { sheets } from '@googleapis/sheets';
 import { JWT } from 'google-auth-library';
 import { Octokit } from '@octokit/core';
+import { queryStoreDatabase } from './queryStoreDatabase';
 
 function findRowIndexByValue(sheet, value) {
   for (let i = 0; i < sheet.length; i += 1) {
@@ -67,6 +68,17 @@ async function updateGitHubIssueLabels(repo, issueId) {
   };
 }
 
+async function queryPurchasedSupportKey(supportKey: string) {
+  return queryStoreDatabase(async (connection) => {
+    const [rows] = await connection.execute(
+      'select count(*) as found from wp3u_x_addons where license_key = ? and expire_at > now()',
+      [supportKey],
+    );
+    const totalFound = rows?.[0]?.found ?? 0;
+    return totalFound >= 1;
+  }).catch(() => false);
+}
+
 export async function updateMuiPaidSupport(issueId: string, repo: string, supportKey: string) {
   if (!process.env.GOOGLE_SHEET_TOKEN) {
     throw new Error('Env variable GOOGLE_SHEET_TOKEN not configured');
@@ -88,6 +100,11 @@ export async function updateMuiPaidSupport(issueId: string, repo: string, suppor
     return {
       message: 'Missing repo',
     };
+  }
+
+  const isPurchasedSupportKey = await queryPurchasedSupportKey(supportKey);
+  if (isPurchasedSupportKey) {
+    return updateGitHubIssueLabels(repo, issueId);
   }
 
   const googleAuth = new JWT({
