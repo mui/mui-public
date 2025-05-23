@@ -4,7 +4,8 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 import * as module from 'module';
 import { byteSizeFormatter } from './formatUtils.js';
-import { getWebpackSizes } from './webpack-utils.js';
+import { getWebpackSizes } from './webpackBuilder.js';
+import { getViteSizes } from './viteBuilder.js';
 
 const rootDir = process.cwd();
 
@@ -80,8 +81,13 @@ export default async function getSizes({ entry, args, index, total }) {
   }
 
   try {
-    // Get webpack sizes
-    const sizeMap = await getWebpackSizes(entry, args);
+    // Get bundle sizes using either webpack, esbuild, or vite based on the flag
+    let sizeMap;
+    if (args.vite) {
+      sizeMap = await getViteSizes(entry, args);
+    } else {
+      sizeMap = await getWebpackSizes(entry, args);
+    }
 
     // Create a concise log message showing import details
     let entryDetails = '';
@@ -105,6 +111,7 @@ export default async function getSizes({ entry, args, index, total }) {
 ${chalk.green('✓')} ${chalk.green.bold(`Completed ${index + 1}/${total}: [${entry.id}]`)}
   ${chalk.cyan('Import:')}    ${entryDetails}
   ${chalk.cyan('Externals:')} ${entry.externals.join(', ')}
+  ${chalk.cyan('Bundler:')}   ${args.vite ? 'vite' : 'webpack'}
   ${chalk.cyan('Sizes:')}     ${chalk.yellow(byteSizeFormatter.format(entrySize.parsed))} (${chalk.yellow(byteSizeFormatter.format(entrySize.gzip))} gzipped)
 ${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(pathToFileURL(path.join(rootDir, 'build', `${entry.id}.html`)).href)}` : ''}
 `.trim(),
