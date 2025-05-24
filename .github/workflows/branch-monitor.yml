@@ -44,23 +44,7 @@ jobs:
             const commitDate = context.payload.head_commit.timestamp;
 
             console.log(`Monitoring checks for commit ${commitSha} on branch ${branchName}`);
-
-            // Mark this check run with a custom output for filtering
-            const checkRunId = context.payload.workflow_job?.id || context.runId;
-            try {
-              await github.rest.checks.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                check_run_id: checkRunId,
-                output: {
-                  title: 'Branch Monitor',
-                  summary: 'This is the branch monitoring workflow - exclude from status checks',
-                  text: 'BRANCH_MONITOR_MARKER'
-                }
-              });
-            } catch (error) {
-              console.log('Could not update check run output:', error.message);
-            }
+            console.log(`Current workflow run ID: ${github.run_id}`);
 
             // Poll for check completion
             let polls = 0;
@@ -93,10 +77,10 @@ jobs:
                   state: status.state,
                   type: 'status'
                 })),
-                // GitHub check runs (filter out this monitor using our marker)
+                // GitHub check runs (filter out this monitor using run ID)
                 ...checks.check_runs
                   .filter(check => 
-                    !check.output?.text?.includes('BRANCH_MONITOR_MARKER')
+                    check.check_suite.id !== github.run_id
                   )
                   .map(check => ({
                     name: check.name,
