@@ -106,14 +106,14 @@ jobs:
                 s === 'success' || s === 'failure' || s === 'error' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
               );
 
-              console.log(`All statuses: [${statuses.join(', ')}]`);
+              console.log(`All states: [${states.join(', ')}]`);
               console.log(`All completed: ${allCompleted}`);
 
               if (allCompleted) {
                 // Determine overall status
-                if (statuses.every(s => s === 'success' || s === 'skipped')) {
+                if (states.every(s => s === 'success' || s === 'skipped')) {
                   overallStatus = 'success';
-                } else if (statuses.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled')) {
+                } else if (states.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled' || s === 'error')) {
                   overallStatus = 'failure';
                 } else {
                   overallStatus = 'success'; // fallback
