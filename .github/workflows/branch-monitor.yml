@@ -39,14 +39,35 @@ jobs:
 
             console.log(`Processing completed check suite for commit ${commitSha} on branch ${branchName}`);
 
-            // Get status from the completed check suite
-            const checkSuiteConclusion = context.payload.check_suite.conclusion;
-            let overallStatus = checkSuiteConclusion || 'pending';
+            // Get all check suites for this commit to determine overall status
+            const { data: checkSuites } = await github.rest.checks.listSuitesForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: commitSha
+            });
 
-            // Map GitHub conclusions to our status names
-            if (checkSuiteConclusion === 'timed_out' || checkSuiteConclusion === 'cancelled') {
-              overallStatus = 'failure';
+            console.log(`Found ${checkSuites.check_suites.length} check suites for commit ${commitSha}`);
+            checkSuites.check_suites.forEach(suite => {
+              console.log(`- ${suite.app.name}: ${suite.conclusion || suite.status}`);
+            });
+
+            let overallStatus = 'pending';
+            if (checkSuites.check_suites.length === 0) {
+              overallStatus = 'no_checks';
+            } else {
+              const statuses = checkSuites.check_suites.map(suite => suite.conclusion || suite.status);
+              console.log(`All statuses: [${statuses.join(', ')}]`);
+              
+              if (statuses.every(s => s === 'success')) {
+                overallStatus = 'success';
+              } else if (statuses.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled')) {
+                overallStatus = 'failure';
+              } else if (statuses.some(s => s === 'in_progress' || s === 'queued' || s === 'pending')) {
+                overallStatus = 'pending';
+              }
             }
+
+            console.log(`Determined overall status: ${overallStatus}`);
 
             // Generate status display
             const statusEmojis = {
