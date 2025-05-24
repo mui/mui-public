@@ -53,34 +53,57 @@ jobs:
               polls++;
               console.log(`Poll ${polls}/${MAX_POLLS} - checking status...`);
 
-              // Get combined status (includes all checks: external + GitHub)
+              // Get combined status (external checks like CircleCI)
               const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: commitSha
               });
 
-              // Filter out this monitor workflow
-              const relevantStatuses = combinedStatus.statuses.filter(status => 
-                !status.context.includes('Branch Monitor') && 
-                !status.context.includes('Monitor Branch Status')
-              );
-
-              console.log(`Found ${relevantStatuses.length} relevant checks for commit ${commitSha}`);
-              relevantStatuses.forEach(status => {
-                console.log(`- ${status.context}: ${status.state}`);
+              // Get check runs (GitHub Actions and modern checks)
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: commitSha,
+                per_page: 100
               });
 
-              if (relevantStatuses.length === 0) {
+              // Combine into single array with normalized structure
+              const allChecks = [
+                // External statuses (don't filter - won't be this monitor)
+                ...combinedStatus.statuses.map(status => ({
+                  name: status.context,
+                  state: status.state,
+                  type: 'status'
+                })),
+                // GitHub check runs (filter out this monitor)
+                ...checks.check_runs
+                  .filter(check => 
+                    !check.name.includes('Branch Monitor') && 
+                    !check.name.includes('Monitor Branch Status')
+                  )
+                  .map(check => ({
+                    name: check.name,
+                    state: check.conclusion || check.status,
+                    type: 'check'
+                  }))
+              ];
+
+              console.log(`Found ${allChecks.length} total checks for commit ${commitSha}`);
+              allChecks.forEach(check => {
+                console.log(`- ${check.type}: ${check.name}: ${check.state}`);
+              });
+
+              if (allChecks.length === 0) {
                 console.log('No checks found yet, continuing to poll...');
                 await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
                 continue;
               }
 
               // Check if all are completed
-              const statuses = relevantStatuses.map(status => status.state);
-              const allCompleted = statuses.every(s => 
-                s === 'success' || s === 'failure' || s === 'error'
+              const states = allChecks.map(check => check.state);
+              const allCompleted = states.every(s => 
+                s === 'success' || s === 'failure' || s === 'error' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
               );
 
               console.log(`All statuses: [${statuses.join(', ')}]`);
