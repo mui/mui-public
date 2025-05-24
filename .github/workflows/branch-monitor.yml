@@ -15,7 +15,7 @@ env:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.check_suite.head_branch == env.BRANCH_NAME
+    if: github.event.check_suite.head_branch == env.BRANCH_NAME
     permissions:
       issues: write
       checks: read
