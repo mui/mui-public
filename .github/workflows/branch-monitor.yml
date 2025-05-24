@@ -1,7 +1,9 @@
 name: Branch Monitor
 
 on:
-  status:
+  push:
+    branches:
+      - ${{ vars.MONITOR_BRANCH }}
 
 # Configure repository variables in Settings > Secrets and variables > Actions > Variables:
 # - MONITOR_BRANCH: Branch to monitor (required)
@@ -11,13 +13,17 @@ env:
   BRANCH_NAME: ${{ vars.MONITOR_BRANCH }}
   ISSUE_NUMBER: ${{ vars.MONITOR_ISSUE_NUMBER }}
 
+concurrency:
+  group: branch-monitor-${{ vars.MONITOR_BRANCH }}
+  cancel-in-progress: true
+
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    if: contains(github.event.branches.*.name, vars.MONITOR_BRANCH)
     permissions:
       issues: write
       checks: read
+    timeout-minutes: 60
 
     steps:
       - name: Monitor Branch Status
@@ -27,60 +33,87 @@ jobs:
             const branchName = process.env.BRANCH_NAME;
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
             const COMMENT_MARKER = '<!-- branch-monitor-failure-comment -->';
+            const POLL_INTERVAL = 30; // seconds
+            const MAX_POLLS = 120; // 60 minutes total
 
-
-            // Get commit data from the status event
-            const commitSha = context.payload.sha;
+            // Get commit data from the push event
+            const commitSha = context.sha;
             const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${commitSha}`;
-            const commitMessage = context.payload.commit.commit.message;
-            const commitAuthor = context.payload.commit.commit.author.name;
-            const commitDate = context.payload.commit.commit.author.date;
+            const commitMessage = context.payload.head_commit.message;
+            const commitAuthor = context.payload.head_commit.author.name;
+            const commitDate = context.payload.head_commit.timestamp;
 
-            console.log(`Processing status event for commit ${commitSha} on branch ${branchName}`);
+            console.log(`Monitoring checks for commit ${commitSha} on branch ${branchName}`);
 
-            // Get all check suites for this commit to determine overall status
-            const { data: checkSuites } = await github.rest.checks.listSuitesForRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: commitSha
-            });
-
-            console.log(`Found ${checkSuites.check_suites.length} check suites for commit ${commitSha}`);
-            checkSuites.check_suites.forEach(suite => {
-              console.log(`- ${suite.app.name}: ${suite.conclusion || suite.status}`);
-            });
-
+            // Poll for check completion
+            let polls = 0;
             let overallStatus = 'pending';
-            if (checkSuites.check_suites.length === 0) {
-              overallStatus = 'no_checks';
-            } else {
-              const statuses = checkSuites.check_suites.map(suite => suite.conclusion || suite.status);
+
+            while (polls < MAX_POLLS) {
+              polls++;
+              console.log(`Poll ${polls}/${MAX_POLLS} - checking status...`);
+
+              // Get all checks for this commit
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: commitSha,
+                per_page: 100
+              });
+
+              // Filter out this workflow's checks
+              const relevantChecks = checks.check_runs.filter(check => 
+                check.name !== 'Monitor Branch Status'
+              );
+
+              console.log(`Found ${relevantChecks.length} relevant checks for commit ${commitSha}`);
+              relevantChecks.forEach(check => {
+                console.log(`- ${check.name}: ${check.conclusion || check.status}`);
+              });
+
+              if (relevantChecks.length === 0) {
+                console.log('No checks found yet, continuing to poll...');
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
+                continue;
+              }
+
+              // Check if all are completed
+              const statuses = relevantChecks.map(check => check.conclusion || check.status);
+              const allCompleted = statuses.every(s => 
+                s === 'success' || s === 'failure' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
+              );
+
               console.log(`All statuses: [${statuses.join(', ')}]`);
-              
-              if (statuses.every(s => s === 'success')) {
-                overallStatus = 'success';
-              } else if (statuses.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled')) {
-                overallStatus = 'failure';
-              } else if (statuses.some(s => s === 'in_progress' || s === 'queued' || s === 'pending')) {
-                overallStatus = 'pending';
+              console.log(`All completed: ${allCompleted}`);
+
+              if (allCompleted) {
+                // Determine overall status
+                if (statuses.every(s => s === 'success' || s === 'skipped')) {
+                  overallStatus = 'success';
+                } else if (statuses.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled')) {
+                  overallStatus = 'failure';
+                } else {
+                  overallStatus = 'success'; // fallback
+                }
+                console.log(`All checks completed with overall status: ${overallStatus}`);
+                break;
+              } else {
+                console.log(`Checks still pending, waiting ${POLL_INTERVAL}s...`);
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
               }
             }
 
-            console.log(`Determined overall status: ${overallStatus}`);
-
-            // Skip updating if checks are still pending
-            if (overallStatus === 'pending') {
-              console.log('Checks still pending, skipping issue update');
-              return;
+            if (polls >= MAX_POLLS) {
+              console.log('Timeout reached, using current status');
+              overallStatus = 'timeout';
             }
 
             // Generate status display
             const statusEmojis = {
               success: '✅',
               failure: '❌',
-              pending: '⏳',
-              no_checks: '⚪',
-              error: '⚠️'
+              timeout: '⏰',
+              pending: '⏳'
             };
 
             const emoji = statusEmojis[overallStatus] || '❓';
@@ -107,7 +140,7 @@ jobs:
               body: issueBody
             });
 
-            console.log(`Updated issue #${issueNumber} with current status: ${overallStatus}`);
+            console.log(`Updated issue #${issueNumber} with status: ${overallStatus}`);
 
             // Handle failure comments
             const hasFailure = overallStatus === 'failure';
