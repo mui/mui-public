@@ -44,7 +44,7 @@ jobs:
             const commitDate = context.payload.head_commit.timestamp;
 
             console.log(`Monitoring checks for commit ${commitSha} on branch ${branchName}`);
-            console.log(`Current workflow run ID: ${github.run_id}`);
+            console.log(`Current workflow run ID: ${process.env.GITHUB_RUN_ID}`);
 
             // Poll for check completion
             let polls = 0;
@@ -80,7 +80,7 @@ jobs:
                 // GitHub check runs (filter out this monitor using run ID)
                 ...checks.check_runs
                   .filter(check => 
-                    check.check_suite.id !== github.run_id
+                    check.check_suite.id !== parseInt(process.env.GITHUB_RUN_ID)
                   )
                   .map(check => ({
                     name: check.name,
