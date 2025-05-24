@@ -45,6 +45,23 @@ jobs:
 
             console.log(`Monitoring checks for commit ${commitSha} on branch ${branchName}`);
 
+            // Mark this check run with a custom output for filtering
+            const checkRunId = context.payload.workflow_job?.id || context.runId;
+            try {
+              await github.rest.checks.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                check_run_id: checkRunId,
+                output: {
+                  title: 'Branch Monitor',
+                  summary: 'This is the branch monitoring workflow - exclude from status checks',
+                  text: 'BRANCH_MONITOR_MARKER'
+                }
+              });
+            } catch (error) {
+              console.log('Could not update check run output:', error.message);
+            }
+
             // Poll for check completion
             let polls = 0;
             let overallStatus = 'pending';
@@ -76,11 +93,10 @@ jobs:
                   state: status.state,
                   type: 'status'
                 })),
-                // GitHub check runs (filter out this monitor)
+                // GitHub check runs (filter out this monitor using our marker)
                 ...checks.check_runs
                   .filter(check => 
-                    !check.name.includes('Branch Monitor') && 
-                    !check.name.includes('Monitor Branch Status')
+                    !check.output?.text?.includes('BRANCH_MONITOR_MARKER')
                   )
                   .map(check => ({
                     name: check.name,
