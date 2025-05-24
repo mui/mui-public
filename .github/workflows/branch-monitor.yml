@@ -2,8 +2,7 @@ name: Branch Monitor
 
 on:
   push:
-    branches:
-      - ${{ vars.MONITOR_BRANCH }}
+    branches: ['**']
 
 # Configure repository variables in Settings > Secrets and variables > Actions > Variables:
 # - MONITOR_BRANCH: Branch to monitor (required)
@@ -20,6 +19,7 @@ concurrency:
 jobs:
   monitor:
     runs-on: ubuntu-latest
+    if: github.ref_name == vars.MONITOR_BRANCH
     permissions:
       issues: write
       checks: read
