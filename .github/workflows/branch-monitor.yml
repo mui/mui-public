@@ -1,8 +1,7 @@
 name: Branch Monitor
 
 on:
-  check_suite:
-    types: [completed]
+  status:
 
 # Configure repository variables in Settings > Secrets and variables > Actions > Variables:
 # - MONITOR_BRANCH: Branch to monitor (required)
@@ -15,7 +14,7 @@ env:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    if: github.event.check_suite.head_branch == vars.MONITOR_BRANCH
+    if: contains(github.event.branches.*.name, vars.MONITOR_BRANCH)
     permissions:
       issues: write
       checks: read
@@ -30,14 +29,14 @@ jobs:
             const COMMENT_MARKER = '<!-- branch-monitor-failure-comment -->';
 
 
-            // Get commit data from the check suite event
-            const commitSha = context.payload.check_suite.head_sha;
+            // Get commit data from the status event
+            const commitSha = context.payload.sha;
             const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${commitSha}`;
-            const commitMessage = context.payload.check_suite.head_commit.message;
-            const commitAuthor = context.payload.check_suite.head_commit.author.name;
-            const commitDate = context.payload.check_suite.head_commit.timestamp;
+            const commitMessage = context.payload.commit.commit.message;
+            const commitAuthor = context.payload.commit.commit.author.name;
+            const commitDate = context.payload.commit.commit.author.date;
 
-            console.log(`Processing completed check suite for commit ${commitSha} on branch ${branchName}`);
+            console.log(`Processing status event for commit ${commitSha} on branch ${branchName}`);
 
             // Get all check suites for this commit to determine overall status
             const { data: checkSuites } = await github.rest.checks.listSuitesForRef({
@@ -68,6 +67,12 @@ jobs:
             }
 
             console.log(`Determined overall status: ${overallStatus}`);
+
+            // Skip updating if checks are still pending
+            if (overallStatus === 'pending') {
+              console.log('Checks still pending, skipping issue update');
+              return;
+            }
 
             // Generate status display
             const statusEmojis = {
