@@ -1,0 +1,130 @@
+name: Branch Monitor
+
+on:
+  check_suite:
+    types: [completed]
+
+# Configure repository variables in Settings > Secrets and variables > Actions > Variables:
+# - MONITOR_BRANCH: Branch to monitor (defaults to 'master' if not set)
+# - MONITOR_ISSUE_NUMBER: Issue number to update (required)
+
+env:
+  BRANCH_NAME: ${{ vars.MONITOR_BRANCH || 'master' }}
+  ISSUE_NUMBER: ${{ vars.MONITOR_ISSUE_NUMBER }}
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.check_suite.head_branch == env.BRANCH_NAME
+    permissions:
+      issues: write
+      checks: read
+
+    steps:
+
+      - name: Monitor Branch Status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchName = process.env.BRANCH_NAME;
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            const COMMENT_MARKER = '<!-- branch-monitor-failure-comment -->';
+
+
+            // Get commit data from the check suite event
+            const commitSha = context.payload.check_suite.head_sha;
+            const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${commitSha}`;
+            const commitMessage = context.payload.check_suite.head_commit.message;
+            const commitAuthor = context.payload.check_suite.head_commit.author.name;
+            const commitDate = context.payload.check_suite.head_commit.timestamp;
+            
+            console.log(`Processing completed check suite for commit ${commitSha} on branch ${branchName}`);
+
+            // Get status from the completed check suite
+            const checkSuiteConclusion = context.payload.check_suite.conclusion;
+            let overallStatus = checkSuiteConclusion || 'pending';
+            
+            // Map GitHub conclusions to our status names
+            if (checkSuiteConclusion === 'timed_out' || checkSuiteConclusion === 'cancelled') {
+              overallStatus = 'failure';
+            }
+
+            // Generate status display
+            const statusEmojis = {
+              success: '✅',
+              failure: '❌',
+              pending: '⏳',
+              no_checks: '⚪',
+              error: '⚠️'
+            };
+
+            const emoji = statusEmojis[overallStatus] || '❓';
+            const shortSha = commitSha.substring(0, 7);
+            const date = new Date(commitDate).toISOString();
+
+            const issueTitle = `Status Monitor for ${branchName} branch`;
+            const issueBody = `${emoji} **${overallStatus.toUpperCase()}**
+
+            **Latest Commit**: [\`${shortSha}\`](${commitUrl})
+            **Message**: ${commitMessage.split('\n')[0]}
+            **Author**: ${commitAuthor}
+            **Date**: ${date}
+
+            ---
+            *Last updated: ${new Date().toISOString()}*`;
+
+            // Update issue title and body
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              title: issueTitle,
+              body: issueBody
+            });
+
+            console.log(`Updated issue #${issueNumber} with current status: ${overallStatus}`);
+
+            // Handle failure comments
+            const hasFailure = overallStatus === 'failure';
+
+            // Get existing comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+
+            const existingFailureComment = comments.find(comment => 
+              comment.body.includes(COMMENT_MARKER)
+            );
+
+            if (hasFailure && !existingFailureComment) {
+              // Post failure comment
+              const failureComment = `${COMMENT_MARKER}
+            🚨 **Build Failure Detected**
+
+            The latest commit on branch \`${branchName}\` has failed checks:
+            - **Commit**: [\`${shortSha}\`](${commitUrl})
+            - **Message**: ${commitMessage.split('\n')[0]}
+            - **Author**: ${commitAuthor}
+
+            Please investigate and fix the failing checks.`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: failureComment
+              });
+
+              console.log('Posted failure comment');
+            } else if (!hasFailure && existingFailureComment) {
+              // Remove failure comment when status is green
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingFailureComment.id
+              });
+
+              console.log('Removed failure comment - status is now green');
+            }
