@@ -2,24 +2,18 @@ name: Branch Monitor
 
 on:
   push:
-    branches: ['**']
-
-# Configure repository variables in Settings > Secrets and variables > Actions > Variables:
-# - MONITOR_BRANCH: Branch to monitor (required)
-# - MONITOR_ISSUE_NUMBER: Issue number to update (required)
+    branches: ['master']
 
 env:
-  BRANCH_NAME: ${{ vars.MONITOR_BRANCH }}
   ISSUE_NUMBER: ${{ vars.MONITOR_ISSUE_NUMBER }}
 
 concurrency:
-  group: branch-monitor-${{ vars.MONITOR_BRANCH }}
+  group: branch-monitor-master
   cancel-in-progress: true
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    if: github.ref_name == vars.MONITOR_BRANCH
     permissions:
       issues: write
       checks: read
@@ -30,8 +24,15 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const branchName = process.env.BRANCH_NAME;
+            const branchName = process.env.GITHUB_REF_NAME;
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+
+            if (!issueNumber) {
+              console.log('ERROR: ISSUE_NUMBER environment variable is not set. Please configure MONITOR_ISSUE_NUMBER in repository variables.');
+              process.exit(1);
+            }
+
+            const currentJobName = process.env.GITHUB_JOB;
             const COMMENT_MARKER = '<!-- branch-monitor-failure-comment -->';
             const POLL_INTERVAL = 30; // seconds
             const MAX_POLLS = 120; // 60 minutes total
@@ -40,11 +41,13 @@ jobs:
             const commitSha = context.sha;
             const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${commitSha}`;
             const commitMessage = context.payload.head_commit.message;
-            const commitAuthor = context.payload.head_commit.author.name;
+            const commitAuthor = context.payload.head_commit.author.username 
+              ? `@${context.payload.head_commit.author.username}` 
+              : context.payload.head_commit.author.name;
             const commitDate = context.payload.head_commit.timestamp;
+            console.log(JSON.stringify(context, null, 2));
 
             console.log(`Monitoring checks for commit ${commitSha} on branch ${branchName}`);
-            console.log(`Current workflow run ID: ${process.env.GITHUB_RUN_ID}`);
 
             // Poll for check completion
             let polls = 0;
@@ -71,22 +74,18 @@ jobs:
 
               // Combine into single array with normalized structure
               const allChecks = [
-                // External statuses (don't filter - won't be this monitor)
+                // External statuses
                 ...combinedStatus.statuses.map(status => ({
                   name: status.context,
                   state: status.state,
                   type: 'status'
                 })),
-                // GitHub check runs (filter out this monitor using run ID)
-                ...checks.check_runs
-                  .filter(check => 
-                    check.check_suite.id !== parseInt(process.env.GITHUB_RUN_ID)
-                  )
-                  .map(check => ({
-                    name: check.name,
-                    state: check.conclusion || check.status,
-                    type: 'check'
-                  }))
+                // GitHub check runs
+                ...checks.check_runs.map(check => ({
+                  name: check.name,
+                  state: check.conclusion || check.status,
+                  type: 'check'
+                }))
               ];
 
               console.log(`Found ${allChecks.length} total checks for commit ${commitSha}`);
@@ -94,34 +93,41 @@ jobs:
                 console.log(`- ${check.type}: ${check.name}: ${check.state}`);
               });
 
-              if (allChecks.length === 0) {
-                console.log('No checks found yet, continuing to poll...');
+              // Filter out the current workflow run (this monitor job)
+              const currentJobName = process.env.GITHUB_JOB;
+              const otherChecks = allChecks.filter(check => check.name !== currentJobName);
+              
+              console.log(`Filtered out current job '${currentJobName}', ${otherChecks.length} other checks remaining`);
+
+              if (otherChecks.length === 0) {
+                console.log('No other checks found, continuing to poll...');
                 await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
                 continue;
               }
 
-              // Check if all are completed
-              const states = allChecks.map(check => check.state);
-              const allCompleted = states.every(s => 
+              // Check if all other checks are completed
+              const otherStates = otherChecks.map(check => check.state);
+              const completedStates = otherStates.filter(s => 
                 s === 'success' || s === 'failure' || s === 'error' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
               );
+              const allOtherCompleted = completedStates.length === otherChecks.length;
 
-              console.log(`All states: [${states.join(', ')}]`);
-              console.log(`All completed: ${allCompleted}`);
+              console.log(`Completed: ${completedStates.length}/${otherChecks.length} other checks`);
+              console.log(`All other checks completed: ${allOtherCompleted}`);
 
-              if (allCompleted) {
-                // Determine overall status
-                if (states.every(s => s === 'success' || s === 'skipped')) {
+              if (allOtherCompleted) {
+                // Determine overall status from completed checks only
+                if (completedStates.every(s => s === 'success' || s === 'skipped')) {
                   overallStatus = 'success';
-                } else if (states.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled' || s === 'error')) {
+                } else if (completedStates.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled' || s === 'error')) {
                   overallStatus = 'failure';
                 } else {
                   overallStatus = 'success'; // fallback
                 }
-                console.log(`All checks completed with overall status: ${overallStatus}`);
+                console.log(`All other checks completed with overall status: ${overallStatus}`);
                 break;
               } else {
-                console.log(`Checks still pending, waiting ${POLL_INTERVAL}s...`);
+                console.log(`Still waiting for more checks to complete, waiting ${POLL_INTERVAL}s...`);
                 await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
               }
             }
@@ -143,13 +149,12 @@ jobs:
             const shortSha = commitSha.substring(0, 7);
             const date = new Date(commitDate).toISOString();
 
-            const issueTitle = `Status Monitor for ${branchName} branch`;
-            const issueBody = `${emoji} **${overallStatus.toUpperCase()}**
+            const issueTitle = `Status Monitor for the \`${branchName}\` branch`;
+            const issueBody = `<!-- This issue is automatically updated by the branch-monitor workflow. Do not edit manually as changes will be overwritten. -->
 
-            **Latest Commit**: [\`${shortSha}\`](${commitUrl})
-            **Message**: ${commitMessage.split('\n')[0]}
-            **Author**: ${commitAuthor}
-            **Date**: ${date}
+            This issue automatically tracks the CI status of the \`${branchName}\` branch. It monitors all checks and updates whenever new commits are pushed.
+
+            **Latest Commit**: [\`${shortSha}\`](${commitUrl}) ${commitMessage.split('\n')[0]} ${emoji} **${overallStatus}**
 
             ---
             *Last updated: ${new Date().toISOString()}*`;
