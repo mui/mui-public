@@ -53,34 +53,34 @@ jobs:
               polls++;
               console.log(`Poll ${polls}/${MAX_POLLS} - checking status...`);
 
-              // Get all checks for this commit
-              const { data: checks } = await github.rest.checks.listForRef({
+              // Get combined status (includes all checks: external + GitHub)
+              const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                ref: commitSha,
-                per_page: 100
+                ref: commitSha
               });
 
-              // Filter out this workflow's checks
-              const relevantChecks = checks.check_runs.filter(check => 
-                check.name !== 'Monitor Branch Status'
+              // Filter out this monitor workflow
+              const relevantStatuses = combinedStatus.statuses.filter(status => 
+                !status.context.includes('Branch Monitor') && 
+                !status.context.includes('Monitor Branch Status')
               );
 
-              console.log(`Found ${relevantChecks.length} relevant checks for commit ${commitSha}`);
-              relevantChecks.forEach(check => {
-                console.log(`- ${check.name}: ${check.conclusion || check.status}`);
+              console.log(`Found ${relevantStatuses.length} relevant checks for commit ${commitSha}`);
+              relevantStatuses.forEach(status => {
+                console.log(`- ${status.context}: ${status.state}`);
               });
 
-              if (relevantChecks.length === 0) {
+              if (relevantStatuses.length === 0) {
                 console.log('No checks found yet, continuing to poll...');
                 await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
                 continue;
               }
 
               // Check if all are completed
-              const statuses = relevantChecks.map(check => check.conclusion || check.status);
+              const statuses = relevantStatuses.map(status => status.state);
               const allCompleted = statuses.every(s => 
-                s === 'success' || s === 'failure' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
+                s === 'success' || s === 'failure' || s === 'error'
               );
 
               console.log(`All statuses: [${statuses.join(', ')}]`);
