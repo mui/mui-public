@@ -345,6 +345,16 @@ yargs(process.argv.slice(2))
           describe: 'Show more detailed information during compilation.',
           type: 'boolean',
         })
+        .option('esbuild', {
+          default: false,
+          describe: 'Use esbuild instead of webpack for bundling.',
+          type: 'boolean',
+        })
+        .option('vite', {
+          default: false,
+          describe: 'Use Vite instead of webpack for bundling.',
+          type: 'boolean',
+        })
         .option('output', {
           alias: 'o',
           describe:

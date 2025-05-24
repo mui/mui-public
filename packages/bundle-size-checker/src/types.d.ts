@@ -18,7 +18,7 @@ interface StatsChunkGroup {
   assets: Array<{ name: string; size: number }>;
 }
 
-interface WebpackStats {
+/* interface WebpackStats {
   hasErrors(): boolean;
   toJson(options: any): {
     assets?: StatsAsset[];
@@ -26,7 +26,7 @@ interface WebpackStats {
     errors?: any[];
   };
 }
-
+ */
 // Upload configuration with optional properties
 interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
@@ -79,6 +79,7 @@ interface CommandLineArgs {
   verbose?: boolean;
   filter?: string[];
   concurrency?: number;
+  vite?: boolean;
 }
 
 // Diff command argument types
