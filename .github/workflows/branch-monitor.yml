@@ -5,23 +5,22 @@ on:
     types: [completed]
 
 # Configure repository variables in Settings > Secrets and variables > Actions > Variables:
-# - MONITOR_BRANCH: Branch to monitor (defaults to 'master' if not set)
+# - MONITOR_BRANCH: Branch to monitor (required)
 # - MONITOR_ISSUE_NUMBER: Issue number to update (required)
 
 env:
-  BRANCH_NAME: ${{ vars.MONITOR_BRANCH || 'master' }}
+  BRANCH_NAME: ${{ vars.MONITOR_BRANCH }}
   ISSUE_NUMBER: ${{ vars.MONITOR_ISSUE_NUMBER }}
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    if: github.event.check_suite.head_branch == env.BRANCH_NAME
+    if: github.event.check_suite.head_branch == vars.MONITOR_BRANCH
     permissions:
       issues: write
       checks: read
 
     steps:
-
       - name: Monitor Branch Status
         uses: actions/github-script@v7
         with:
@@ -37,13 +36,13 @@ jobs:
             const commitMessage = context.payload.check_suite.head_commit.message;
             const commitAuthor = context.payload.check_suite.head_commit.author.name;
             const commitDate = context.payload.check_suite.head_commit.timestamp;
-            
+
             console.log(`Processing completed check suite for commit ${commitSha} on branch ${branchName}`);
 
             // Get status from the completed check suite
             const checkSuiteConclusion = context.payload.check_suite.conclusion;
             let overallStatus = checkSuiteConclusion || 'pending';
-            
+
             // Map GitHub conclusions to our status names
             if (checkSuiteConclusion === 'timed_out' || checkSuiteConclusion === 'cancelled') {
               overallStatus = 'failure';
