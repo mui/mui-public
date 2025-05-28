@@ -1,0 +1,216 @@
+name: Branch Monitor
+
+on:
+  push:
+    branches: ['master']
+
+env:
+  ISSUE_NUMBER: ${{ vars.MONITOR_ISSUE_NUMBER }}
+
+concurrency:
+  group: branch-monitor-master
+  cancel-in-progress: true
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      checks: read
+    timeout-minutes: 60
+
+    steps:
+      - name: Monitor Branch Status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchName = process.env.GITHUB_REF_NAME;
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+
+            if (!issueNumber) {
+              console.log('ERROR: ISSUE_NUMBER environment variable is not set. Please configure MONITOR_ISSUE_NUMBER in repository variables.');
+              process.exit(1);
+            }
+
+            const currentJobName = process.env.GITHUB_JOB;
+            const COMMENT_MARKER = '<!-- branch-monitor-failure-comment -->';
+            const POLL_INTERVAL = 30; // seconds
+            const MAX_POLLS = 120; // 60 minutes total
+
+            // Get commit data from the push event
+            const commitSha = context.sha;
+            const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${commitSha}`;
+            const commitMessage = context.payload.head_commit.message;
+            const commitAuthor = context.payload.head_commit.author.username 
+              ? `@${context.payload.head_commit.author.username}` 
+              : context.payload.head_commit.author.name;
+            const commitDate = context.payload.head_commit.timestamp;
+            console.log(JSON.stringify(context, null, 2));
+
+            console.log(`Monitoring checks for commit ${commitSha} on branch ${branchName}`);
+
+            // Poll for check completion
+            let polls = 0;
+            let overallStatus = 'pending';
+
+            while (polls < MAX_POLLS) {
+              polls++;
+              console.log(`Poll ${polls}/${MAX_POLLS} - checking status...`);
+
+              // Get combined status (external checks like CircleCI)
+              const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: commitSha
+              });
+
+              // Get check runs (GitHub Actions and modern checks)
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: commitSha,
+                per_page: 100
+              });
+
+              // Combine into single array with normalized structure
+              const allChecks = [
+                // External statuses
+                ...combinedStatus.statuses.map(status => ({
+                  name: status.context,
+                  state: status.state,
+                  type: 'status'
+                })),
+                // GitHub check runs
+                ...checks.check_runs.map(check => ({
+                  name: check.name,
+                  state: check.conclusion || check.status,
+                  type: 'check'
+                }))
+              ];
+
+              console.log(`Found ${allChecks.length} total checks for commit ${commitSha}`);
+              allChecks.forEach(check => {
+                console.log(`- ${check.type}: ${check.name}: ${check.state}`);
+              });
+
+              // Filter out the current workflow run (this monitor job)
+              const currentJobName = process.env.GITHUB_JOB;
+              const otherChecks = allChecks.filter(check => check.name !== currentJobName);
+              
+              console.log(`Filtered out current job '${currentJobName}', ${otherChecks.length} other checks remaining`);
+
+              if (otherChecks.length === 0) {
+                console.log('No other checks found, continuing to poll...');
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
+                continue;
+              }
+
+              // Check if all other checks are completed
+              const otherStates = otherChecks.map(check => check.state);
+              const completedStates = otherStates.filter(s => 
+                s === 'success' || s === 'failure' || s === 'error' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
+              );
+              const allOtherCompleted = completedStates.length === otherChecks.length;
+
+              console.log(`Completed: ${completedStates.length}/${otherChecks.length} other checks`);
+              console.log(`All other checks completed: ${allOtherCompleted}`);
+
+              if (allOtherCompleted) {
+                // Determine overall status from completed checks only
+                if (completedStates.every(s => s === 'success' || s === 'skipped')) {
+                  overallStatus = 'success';
+                } else if (completedStates.some(s => s === 'failure' || s === 'timed_out' || s === 'cancelled' || s === 'error')) {
+                  overallStatus = 'failure';
+                } else {
+                  overallStatus = 'success'; // fallback
+                }
+                console.log(`All other checks completed with overall status: ${overallStatus}`);
+                break;
+              } else {
+                console.log(`Still waiting for more checks to complete, waiting ${POLL_INTERVAL}s...`);
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL * 1000));
+              }
+            }
+
+            if (polls >= MAX_POLLS) {
+              console.log('Timeout reached, using current status');
+              overallStatus = 'timeout';
+            }
+
+            // Generate status display
+            const statusEmojis = {
+              success: '✅',
+              failure: '❌',
+              timeout: '⏰',
+              pending: '⏳'
+            };
+
+            const emoji = statusEmojis[overallStatus] || '❓';
+            const shortSha = commitSha.substring(0, 7);
+            const date = new Date(commitDate).toISOString();
+
+            const issueTitle = `Status Monitor for the \`${branchName}\` branch`;
+            const issueBody = `<!-- This issue is automatically updated by the branch-monitor workflow. Do not edit manually as changes will be overwritten. -->
+
+            This issue automatically tracks the CI status of the \`${branchName}\` branch. It monitors all checks and updates whenever new commits are pushed.
+
+            **Latest Commit**: [\`${shortSha}\`](${commitUrl}) ${commitMessage.split('\n')[0]} ${emoji} **${overallStatus}**
+
+            ---
+            *Last updated: ${new Date().toISOString()}*`;
+
+            // Update issue title and body
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              title: issueTitle,
+              body: issueBody
+            });
+
+            console.log(`Updated issue #${issueNumber} with status: ${overallStatus}`);
+
+            // Handle failure comments
+            const hasFailure = overallStatus === 'failure';
+
+            // Get existing comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+
+            const existingFailureComment = comments.find(comment => 
+              comment.body.includes(COMMENT_MARKER)
+            );
+
+            if (hasFailure && !existingFailureComment) {
+              // Post failure comment
+              const failureComment = `${COMMENT_MARKER}
+            🚨 **Build Failure Detected**
+
+            The latest commit on branch \`${branchName}\` has failed checks:
+            - **Commit**: [\`${shortSha}\`](${commitUrl})
+            - **Message**: ${commitMessage.split('\n')[0]}
+            - **Author**: ${commitAuthor}
+
+            Please investigate and fix the failing checks.`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: failureComment
+              });
+
+              console.log('Posted failure comment');
+            } else if (!hasFailure && existingFailureComment) {
+              // Remove failure comment when status is green
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingFailureComment.id
+              });
+
+              console.log('Removed failure comment - status is now green');
+            }

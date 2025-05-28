@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -16,7 +16,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "outDir": "./build",
-    "downlevelIteration": true,
     "composite": true
   },
   "include": ["src", "functions"]

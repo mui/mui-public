@@ -29,4 +29,4 @@ jobs:
           cache: 'pnpm' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
       - run: pnpm release:prepare
       - run: pnpm release:build
-      - run: pnpm pkg-pr-new-release
+      - run: pnpm dlx pkg-pr-new publish $(pnpm -s pkg-pr-new-packages) --pnpm --comment=off --peerDeps --compact

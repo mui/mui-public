@@ -7,15 +7,14 @@
     "eslint:ci": "eslint . --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .eslintignore",
     "prettier:all": "prettier --write . --ignore-path .eslintignore",
-    "update-netlify-ignore": "node ./update-netlify-ignore.js code-infra-dashboard",
+    "update-netlify-ignore": "node ./update-netlify-ignore.js @app/code-infra-dashboard",
     "test": "vitest",
     "typescript": "tsc --build --verbose",
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm --filter \"./packages/**\" run build",
     "release:publish": "pnpm publish --recursive --tag latest",
-    "pkg-pr-new-packages": "pnpm ls -r --parseable --depth -1 -F \"./packages/**\"",
-    "pkg-pr-new-release": "pnpm dlx pkg-pr-new publish $(pnpm -s pkg-pr-new-packages) --pnpm --comment=off --peerDeps --compact"
+    "pkg-pr-new-packages": "pnpm ls -r --parseable --depth -1 -F \"./packages/**\""
   },
   "devDependencies": {
     "@actions/core": "^1.10.1",
