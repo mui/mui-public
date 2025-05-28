@@ -9,6 +9,7 @@
     "prettier:all": "prettier --write . --ignore-path .eslintignore",
     "update-netlify-ignore": "node ./update-netlify-ignore.js @app/code-infra-dashboard",
     "test": "vitest",
+    "typescript": "tsc --build --verbose",
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm --filter \"./packages/**\" run build",
@@ -26,8 +27,7 @@
     "eslint-config-airbnb": "19.0.4",
     "eslint-config-airbnb-typescript": "18.0.0",
     "eslint-config-prettier": "9.1.0",
-    "eslint-import-resolver-exports": "1.0.0-beta.5",
-    "eslint-import-resolver-webpack": "0.13.8",
+    "eslint-import-resolver-typescript": "^4.3.4",
     "eslint-plugin-filenames": "1.3.2",
     "eslint-plugin-import": "2.29.1",
     "eslint-plugin-jsx-a11y": "6.8.0",
@@ -41,11 +41,12 @@
     "lerna": "^8.2.2",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
-    "typescript": "^4.6.4",
+    "typescript": "^5.8.3",
     "vitest": "^3.1.3"
   },
   "dependencies": {
-    "@next/eslint-plugin-next": "^14.2.4"
+    "@next/eslint-plugin-next": "^14.2.4",
+    "vitest": "^3.1.3"
   },
   "packageManager": "pnpm@10.6.2",
   "engines": {
