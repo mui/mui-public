@@ -7,6 +7,8 @@ import { byteSizeFormatter } from './formatUtils.js';
 import { getWebpackSizes } from './webpackBuilder.js';
 import { getViteSizes } from './viteBuilder.js';
 
+const require = module.createRequire(import.meta.url);
+
 const rootDir = process.cwd();
 
 /**

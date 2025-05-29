@@ -288,6 +288,9 @@ importers:
       piscina:
         specifier: ^4.2.1
         version: 4.7.0
+      rollup-plugin-visualizer:
+        specifier: ^6.0.1
+        version: 6.0.1(rollup@4.39.0)
       terser-webpack-plugin:
         specifier: ^5.3.10
         version: 5.3.14(esbuild@0.25.2)(webpack@5.94.0(esbuild@0.25.2))
@@ -9918,6 +9921,19 @@ packages:
 
   robust-predicates@3.0.2:
     resolution: {integrity: sha512-IXgzBWvWQwE6PrDI05OvmXUIruQTcoMDzRsOd5CDvHCVLcLHMTSYvOK5Cm46kWqlV3yAbuSpBZdJ5oP5OUoStg==}
+
+  rollup-plugin-visualizer@6.0.1:
+    resolution: {integrity: sha512-NjlGElvLXCSZSAi3gNRZbfX3qlQbQcJ9TW97c5JpqfVwMhttj9YwEdPwcvbKj91RnMX2PWAjonvSEv6UEYtnRQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      rolldown: 1.x
+      rollup: 2.x || 3.x || 4.x
+    peerDependenciesMeta:
+      rolldown:
+        optional: true
+      rollup:
+        optional: true
 
   rollup@4.39.0:
     resolution: {integrity: sha512-thI8kNc02yNvnmJp8dr3fNWJ9tCONDhp6TV35X6HkKGGs9E6q7YWCHbe5vKiTa7TAiNcFEmXKj3X/pG2b3ci0g==}
@@ -23174,6 +23190,15 @@ snapshots:
       glob: 9.3.5
 
   robust-predicates@3.0.2: {}
+
+  rollup-plugin-visualizer@6.0.1(rollup@4.39.0):
+    dependencies:
+      open: 8.4.2
+      picomatch: 4.0.2
+      source-map: 0.7.4
+      yargs: 17.7.2
+    optionalDependencies:
+      rollup: 4.39.0
 
   rollup@4.39.0:
     dependencies:

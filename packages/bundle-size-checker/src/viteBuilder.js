@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { gzipSync } from 'zlib';
 import { build, transformWithEsbuild } from 'vite';
-import { byteSizeFormatter } from './formatUtils.js';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const rootDir = process.cwd();
 
@@ -42,12 +42,13 @@ async function createViteConfig(entry, args) {
   // Ensure build directory exists
   const outDir = path.join(rootDir, 'build', entryName);
   await fs.mkdir(outDir, { recursive: true });
-
   /**
    * @type {import('vite').InlineConfig}
    */
   const configuration = {
     configFile: false,
+    root: rootDir,
+
     build: {
       write: true,
       minify: true,
@@ -56,10 +57,30 @@ async function createViteConfig(entry, args) {
       rollupOptions: {
         input: '/index.tsx',
         external: externalsArray,
+        plugins: [
+          ...(args.analyze
+            ? [
+                // File sizes are not accurate, use it only for relative comparison
+                visualizer({
+                  filename: `${outDir}.html`,
+                  title: `Bundle Size Analysis: ${entryName}`,
+                  projectRoot: rootDir,
+                  open: false,
+                  gzipSize: true,
+                  brotliSize: false,
+                  template: 'treemap',
+                }),
+              ]
+            : []),
+        ],
       },
       manifest: true,
       reportCompressedSize: true,
       target: 'esnext',
+    },
+
+    esbuild: {
+      legalComments: 'none',
     },
 
     define: {
@@ -81,7 +102,7 @@ async function createViteConfig(entry, args) {
         },
         load(id) {
           if (id === `\0virtual:index.tsx`) {
-            return transformWithEsbuild(`import foo from '/entry.tsx';console.log(foo)`, id);
+            return transformWithEsbuild(`import('/entry.tsx').then(console.log)`, id);
           }
           if (id === `\0virtual:entry.tsx`) {
             return transformWithEsbuild(entryContent, id);
@@ -99,10 +120,9 @@ async function createViteConfig(entry, args) {
  * Process vite output to extract bundle sizes
  * @param {string} outDir - The output directory
  * @param {string} entryName - The entry name
- * @param {CommandLineArgs} args - Command line arguments
  * @returns {Promise<Map<string, { parsed: number, gzip: number }>>} - Map of bundle names to size information
  */
-async function processBundleSizes(outDir, entryName, args) {
+async function processBundleSizes(outDir, entryName) {
   /** @type {Map<string, { parsed: number, gzip: number }>} */
   const sizeMap = new Map();
 
@@ -113,28 +133,13 @@ async function processBundleSizes(outDir, entryName, args) {
     const manifest = JSON.parse(manifestContent);
 
     // Find the main entry point JS file in the manifest
-    const mainEntry = Object.values(manifest).find(
-      (entry) =>
-        // It could be the entry JS file or one of the assets referenced from the HTML
-        (entry.isEntry || entry.isDynamicEntry) && entry.file.endsWith('.js'),
-    );
+    const mainEntry = manifest['virtual:entry.tsx'];
 
-    let filePath;
-
-    if (mainEntry) {
-      // Get the file path from the manifest
-      filePath = path.join(outDir, mainEntry.file);
-    } else {
-      // Fallback: try to find a JS file directly
-      const files = await fs.readdir(outDir);
-      const jsFile = files.find((file) => file.endsWith('.js') && !file.includes('-'));
-
-      if (!jsFile) {
-        throw new Error(`Could not find any JS files in ${outDir}`);
-      }
-
-      filePath = path.join(outDir, jsFile);
+    if (!mainEntry) {
+      throw new Error(`No main entry found in manifest for ${entryName}`);
     }
+
+    const filePath = path.join(outDir, mainEntry.file);
 
     // Check if the file exists
     try {
@@ -149,39 +154,6 @@ async function processBundleSizes(outDir, entryName, args) {
     const gzip = Buffer.byteLength(gzipSync(fileContent));
 
     sizeMap.set(entryName, { parsed, gzip });
-
-    // If analyze is requested, create a simple HTML report
-    if (args.analyze) {
-      const reportPath = path.join(rootDir, 'build', `${entryName}.html`);
-
-      const reportContent = `
-        <html>
-          <head>
-            <title>Bundle Size Analysis: ${entryName}</title>
-            <style>
-              body { font-family: sans-serif; }
-              .size-info { margin: 20px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
-              .file-list { margin-top: 20px; }
-              table { border-collapse: collapse; width: 100%; }
-              th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
-              th { background-color: #f2f2f2; }
-            </style>
-          </head>
-          <body>
-            <h1>Bundle Size Analysis: ${entryName}</h1>
-            <div class="size-info">
-              <p>Raw Size: ${byteSizeFormatter.format(parsed)}</p>
-              <p>Gzipped Size: ${byteSizeFormatter.format(gzip)}</p>
-            </div>
-            <div class="details">
-              TODO: Visualize details here
-            </div>
-          </body>
-        </html>
-      `;
-
-      await fs.writeFile(reportPath, reportContent);
-    }
   } catch (error) {
     console.error(`Error processing bundle sizes for ${entryName}:`, error);
     throw error;
@@ -206,7 +178,7 @@ export async function getViteSizes(entry, args) {
     await build(configuration);
 
     // Process the output to get bundle sizes
-    return processBundleSizes(outDir, entry.id, args);
+    return processBundleSizes(outDir, entry.id);
   } catch (error) {
     console.error(`Error building ${entry.id} with vite:`, error);
     throw error;

@@ -11,6 +11,7 @@ import { defineConfig } from '@mui/internal-bundle-size-checker';
 export default defineConfig(async () => {
   return {
     entrypoints: [
+      '@base-ui-components/react',
       {
         id: 'Base UI checkbox',
         code: `
