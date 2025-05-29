@@ -14,7 +14,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "outDir": "./build",
+    "composite": true
   },
-  "include": ["src"]
+  "include": ["src", "functions"]
 }
