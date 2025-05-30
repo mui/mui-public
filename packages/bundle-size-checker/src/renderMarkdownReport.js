@@ -87,7 +87,7 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
  * @param {number} [options.gzipSizeChangeThreshold=100] - Threshold for gzipped size change by which to show the entry
  * @returns {string} Markdown report
  */
-export function renderMarkdownReportContent(
+function renderMarkdownReportContent(
   comparison,
   { visibleLimit = 10, parsedSizeChangeThreshold = 300, gzipSizeChangeThreshold = 100 } = {},
 ) {
