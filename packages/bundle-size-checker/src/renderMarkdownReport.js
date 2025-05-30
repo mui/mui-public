@@ -82,63 +82,100 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
  * Generates a Markdown report for bundle size changes
  * @param {ComparisonResult} comparison - Comparison result from calculateSizeDiff
  * @param {Object} [options] - Additional options
- * @param {number} [options.visibleLimit=10] - Number of entries to show before collapsing
- * @param {number} [options.parsedSizeChangeThreshold=300] - Threshold for parsed size change by which to show the entry
- * @param {number} [options.gzipSizeChangeThreshold=100] - Threshold for gzipped size change by which to show the entry
+ * @param {string[]} [options.track] - Array of bundle IDs to track. If specified, totals will only include tracked bundles and all tracked bundles will be shown prominently
  * @returns {string} Markdown report
  */
-function renderMarkdownReportContent(
+export function renderMarkdownReportContent(
   comparison,
-  { visibleLimit = 10, parsedSizeChangeThreshold = 300, gzipSizeChangeThreshold = 100 } = {},
+  { track } = {},
 ) {
   let markdownContent = '';
 
+  // If track is specified, calculate totals only for tracked bundles
+  let displayTotals = comparison.totals;
+  let displayFileCounts = comparison.fileCounts;
+  
+  if (track && track.length > 0) {
+    const trackedEntries = comparison.entries.filter(entry => track.includes(entry.id));
+    
+    // Calculate totals only for tracked bundles
+    const trackedTotalParsed = trackedEntries.reduce((sum, entry) => sum + entry.parsed.absoluteDiff, 0);
+    const trackedTotalGzip = trackedEntries.reduce((sum, entry) => sum + entry.gzip.absoluteDiff, 0);
+    
+    // Calculate percentages based on tracked bundles only
+    const trackedBaseParsed = trackedEntries.reduce((sum, entry) => sum + entry.parsed.previous, 0);
+    const trackedBaseGzip = trackedEntries.reduce((sum, entry) => sum + entry.gzip.previous, 0);
+    
+    const trackedTotalParsedPercent = trackedBaseParsed > 0 ? trackedTotalParsed / trackedBaseParsed : 0;
+    const trackedTotalGzipPercent = trackedBaseGzip > 0 ? trackedTotalGzip / trackedBaseGzip : 0;
+    
+    displayTotals = {
+      totalParsed: trackedTotalParsed,
+      totalGzip: trackedTotalGzip,
+      totalParsedPercent: trackedTotalParsedPercent,
+      totalGzipPercent: trackedTotalGzipPercent,
+    };
+    
+    // Count files only for tracked bundles
+    const trackedAdded = trackedEntries.filter(entry => entry.parsed.relativeDiff === null).length;
+    const trackedRemoved = trackedEntries.filter(entry => entry.parsed.relativeDiff === -1).length;
+    const trackedChanged = trackedEntries.filter(entry => 
+      entry.parsed.relativeDiff !== null && 
+      entry.parsed.relativeDiff !== -1 && 
+      (Math.abs(entry.parsed.absoluteDiff) > 0 || Math.abs(entry.gzip.absoluteDiff) > 0)
+    ).length;
+    
+    displayFileCounts = {
+      total: trackedEntries.length,
+      added: trackedAdded,
+      removed: trackedRemoved,
+      changed: trackedChanged,
+    };
+  }
+
   markdownContent += `**Total Size Change:**${formatChange(
-    comparison.totals.totalParsed,
-    comparison.totals.totalParsedPercent,
+    displayTotals.totalParsed,
+    displayTotals.totalParsedPercent,
   )} - **Total Gzip Change:**${formatChange(
-    comparison.totals.totalGzip,
-    comparison.totals.totalGzipPercent,
+    displayTotals.totalGzip,
+    displayTotals.totalGzipPercent,
   )}\n`;
 
-  markdownContent += `Files: ${comparison.fileCounts.total} total (${
-    comparison.fileCounts.added
-  } added, ${comparison.fileCounts.removed} removed, ${comparison.fileCounts.changed} changed)\n\n`;
+  markdownContent += `Files: ${displayFileCounts.total} total (${
+    displayFileCounts.added
+  } added, ${displayFileCounts.removed} removed, ${displayFileCounts.changed} changed)\n\n`;
 
+  // Filter entries with changes
   const changedEntries = comparison.entries.filter(
     (entry) => Math.abs(entry.parsed.absoluteDiff) > 0 || Math.abs(entry.gzip.absoluteDiff) > 0,
   );
 
-  const visibleEntries = [];
-  const hiddenEntries = [];
-
-  for (const entry of changedEntries) {
-    const { parsed, gzip } = entry;
-    const isSignificantChange =
-      Math.abs(parsed.absoluteDiff) > parsedSizeChangeThreshold ||
-      Math.abs(gzip.absoluteDiff) > gzipSizeChangeThreshold;
-    if (isSignificantChange && visibleEntries.length < visibleLimit) {
-      visibleEntries.push(entry);
-    } else {
-      hiddenEntries.push(entry);
+  if (track && track.length > 0) {
+    // When tracking is enabled, show tracked bundles prominently and others in details
+    const trackedEntries = changedEntries.filter(entry => track.includes(entry.id));
+    const untrackedEntries = changedEntries.filter(entry => !track.includes(entry.id));
+    
+    // Show all tracked bundles prominently
+    const trackedChanges = trackedEntries.map(generateEmphasizedChange);
+    if (trackedChanges.length > 0) {
+      markdownContent += `${trackedChanges.join('\n')}`;
     }
-  }
-
-  const importantChanges = visibleEntries.map(generateEmphasizedChange);
-  const hiddenChanges = hiddenEntries.map(generateEmphasizedChange);
-
-  // Add important changes to markdown
-  if (importantChanges.length > 0) {
-    // Show the most significant changes first, up to the visible limit
-    const visibleChanges = importantChanges.slice(0, visibleLimit);
-    markdownContent += `${visibleChanges.join('\n')}`;
-  }
-
-  // If there are more changes, add them in a collapsible details section
-  if (hiddenChanges.length > 0) {
-    markdownContent += `\n<details>\n<summary>Show ${hiddenChanges.length} more bundle changes</summary>\n\n`;
-    markdownContent += `${hiddenChanges.join('\n')}\n\n`;
-    markdownContent += `</details>`;
+    
+    // Put untracked bundles in details section
+    if (untrackedEntries.length > 0) {
+      const untrackedChanges = untrackedEntries.map(generateEmphasizedChange);
+      markdownContent += `\n<details>\n<summary>Show ${untrackedEntries.length} other bundle changes</summary>\n\n`;
+      markdownContent += `${untrackedChanges.join('\n')}\n\n`;
+      markdownContent += `</details>`;
+    }
+  } else {
+    // When track is not specified, put all bundles in details section
+    if (changedEntries.length > 0) {
+      const allChanges = changedEntries.map(generateEmphasizedChange);
+      markdownContent += `<details>\n<summary>Show ${changedEntries.length} bundle changes</summary>\n\n`;
+      markdownContent += `${allChanges.join('\n')}\n\n`;
+      markdownContent += `</details>`;
+    }
   }
 
   return markdownContent;
@@ -168,9 +205,11 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
  *
  * @param {PrInfo} prInfo
  * @param {string} [circleciBuildNumber] - The CircleCI build number
+ * @param {Object} [options] - Additional options
+ * @param {string[]} [options.track] - Array of bundle IDs to track
  * @returns {Promise<string>} Markdown report
  */
-export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
+export async function renderMarkdownReport(prInfo, circleciBuildNumber, options) {
   let markdownContent = '';
 
   const baseCommit = prInfo.base.sha;
@@ -190,7 +229,7 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
 
-  const report = renderMarkdownReportContent(sizeDiff);
+  const report = renderMarkdownReportContent(sizeDiff, options);
 
   markdownContent += report;
 
