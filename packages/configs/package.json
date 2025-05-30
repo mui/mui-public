@@ -1,0 +1,95 @@
+{
+  "name": "@mui/configs",
+  "version": "0.0.1",
+  "description": "Eslint config to be used across MUI repos.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mui/mui-public.git",
+    "directory": "packages/configs"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./prettier": {
+      "types": "./src/prettier.d.ts",
+      "default": "./src/prettier.mjs"
+    },
+    "./eslint": {
+      "types": "./src/eslint/index.d.ts",
+      "default": "./src/eslint/index.mjs"
+    },
+    "./eslint/docs": {
+      "types": "./src/eslint/index.d.ts",
+      "default": "./src/eslint/docs.mjs"
+    },
+    "./eslint/test": {
+      "types": "./src/eslint/test.d.ts",
+      "default": "./src/eslint/test.mjs"
+    },
+    "./eslint/airbnb/base": {
+      "types": "./src/eslint/airbnb/base.d.ts",
+      "default": "./src/eslint/airbnb/base.mjs"
+    },
+    "./eslint/airbnb/react": {
+      "types": "./src/eslint/airbnb/base.d.ts",
+      "default": "./src/eslint/airbnb/react.mjs"
+    },
+    "./eslint/airbnb/typescript": {
+      "types": "./src/eslint/airbnb/base.d.ts",
+      "default": "./src/eslint/airbnb/typescript.mjs"
+    },
+    "./eslint/material-ui": {
+      "types": "./src/eslint/material-ui/index.d.ts",
+      "default": "./src/eslint/material-ui/index.mjs"
+    },
+    "./eslint/material-ui/config": {
+      "types": "./src/eslint/material-ui/config.d.ts",
+      "default": "./src/eslint/material-ui/config.mjs"
+    }
+  },
+  "dependencies": {
+    "@eslint/js": "^9.27.0",
+    "@typescript-eslint/parser": "^8.33.0",
+    "emoji-regex": "^10.4.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-import-resolver-typescript": "^4.4.1",
+    "eslint-plugin-import-x": "^4.13.3",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-mocha": "^11.1.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
+    "eslint-plugin-react-hooks": "^6.0.0",
+    "eslint-plugin-testing-library": "^7.2.2",
+    "globals": "^16.2.0",
+    "typescript-eslint": "^8.33.0"
+  },
+  "peerDependencies": {
+    "@next/eslint-plugin-next": "*",
+    "eslint": "^9.0.0",
+    "prettier": "*"
+  },
+  "peerDependenciesMeta": {
+    "@next/eslint-plugin-next": {
+      "optional": true
+    },
+    "prettier": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^15.3.3",
+    "eslint": "^9.27.0",
+    "prettier": "^3.3.3",
+    "typescript-eslint": "^8.32.1"
+  },
+  "files": [
+    "src",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ]
+}

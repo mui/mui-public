@@ -2,9 +2,9 @@
 
 import path from 'path';
 import os from 'os';
-import fse from 'fs-extra';
+import * as fse from 'fs-extra';
 import yargs from 'yargs';
-import Piscina from 'piscina';
+import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
