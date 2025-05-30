@@ -221,14 +221,9 @@ export async function getViteSizes(entry, args) {
   const { configuration } = await createViteConfig(entry, args);
   const outDir = path.join(rootDir, 'build', entry.id);
 
-  try {
-    // Run vite build
-    await build(configuration);
+  // Run vite build
+  await build(configuration);
 
-    // Process the output to get bundle sizes
-    return processBundleSizes(outDir, entry.id);
-  } catch (error) {
-    console.error(`Error building ${entry.id} with vite:`, error);
-    throw error;
-  }
+  // Process the output to get bundle sizes
+  return processBundleSizes(outDir, entry.id);
 }
