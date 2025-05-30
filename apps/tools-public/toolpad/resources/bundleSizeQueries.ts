@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import axios from 'axios';
 
 function getMainBundleLabel(bundleId: string): string {
