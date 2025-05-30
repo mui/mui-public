@@ -83,7 +83,6 @@ export default async function getSizes({ entry, args, index, total }) {
   }
 
   try {
-    // Get bundle sizes using either webpack, esbuild, or vite based on the flag
     let sizeMap;
     if (args.vite) {
       sizeMap = await getViteSizes(entry, args);
