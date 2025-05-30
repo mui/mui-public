@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import { request } from 'graphql-request';
 
 interface LabelTimelineItem {
