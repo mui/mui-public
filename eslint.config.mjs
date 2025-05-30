@@ -3,7 +3,6 @@ import { defineConfig } from 'eslint/config';
 import * as path from 'node:path';
 import baseConfig from '@mui/configs/eslint';
 import testConfig from '@mui/configs/eslint/test';
-import muiPlugin from '@mui/configs/eslint/material-ui';
 import { fileURLToPath } from 'url';
 
 const filename = fileURLToPath(import.meta.url);
@@ -30,9 +29,6 @@ export default defineConfig(
       'jsx-a11y/control-has-associated-label': 'off',
       'jsx-a11y/no-autofocus': 'off',
       'import-x/extensions': 'off',
-    },
-    plugins: {
-      'material-ui': muiPlugin,
     },
   },
   {

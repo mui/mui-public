@@ -1,12 +1,10 @@
 // @ts-check
 const createEnumerationFromArray = (stringArray) =>
   stringArray.length > 1
-    ? stringArray
+    ? `${stringArray
         .slice(0, -1)
         .map((s) => `\`${s}\``)
-        .join(', ') +
-      ' or ' +
-      `\`${stringArray.slice(-1)}\``
+        .join(', ')} or \`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
 const typeLabels = [
@@ -15,7 +13,7 @@ const typeLabels = [
   'enhancement',
   'new feature',
   // Those are not "Types" labels, they are "Kind of work" labels, but we don't want to have to handle the overhead of
-  // setting “Types” labels with them.
+  // setting "Types" labels with them.
   'release',
   'dependencies',
 ];
@@ -65,12 +63,13 @@ const createCommentHandler =
         return;
       }
 
-      return await github.rest.issues.updateComment({
+      await github.rest.issues.updateComment({
         owner,
         repo,
         comment_id: commentFound.id,
         body: commentLines.join('\n\n'),
       });
+      return;
     }
 
     // only create a new comment if it's not the success comment
@@ -81,7 +80,7 @@ const createCommentHandler =
     }
 
     core.info(`>>> Creating explanatory comment on PR`);
-    return await github.rest.issues.createComment({
+    await github.rest.issues.createComment({
       owner,
       repo,
       issue_number: pullNumber,
