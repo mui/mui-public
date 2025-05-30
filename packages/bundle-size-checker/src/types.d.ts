@@ -18,15 +18,6 @@ interface StatsChunkGroup {
   assets: Array<{ name: string; size: number }>;
 }
 
-/* interface WebpackStats {
-  hasErrors(): boolean;
-  toJson(options: any): {
-    assets?: StatsAsset[];
-    entrypoints?: Record<string, StatsChunkGroup>;
-    errors?: any[];
-  };
-}
- */
 // Upload configuration with optional properties
 interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")

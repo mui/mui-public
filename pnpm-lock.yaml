@@ -313,22 +313,19 @@ importers:
         version: 7.27.1(@babel/core@7.27.1)
       babel-loader:
         specifier: ^10.0.0
-        version: 10.0.0(@babel/core@7.27.1)(webpack@5.94.0(esbuild@0.25.2))
+        version: 10.0.0(@babel/core@7.27.1)(webpack@5.94.0)
       chalk:
         specifier: ^5.4.1
         version: 5.4.1
       compression-webpack-plugin:
         specifier: ^10.0.0
-        version: 10.0.0(webpack@5.94.0(esbuild@0.25.2))
+        version: 10.0.0(webpack@5.94.0)
       css-loader:
         specifier: ^7.1.2
-        version: 7.1.2(webpack@5.94.0(esbuild@0.25.2))
+        version: 7.1.2(webpack@5.94.0)
       env-ci:
         specifier: ^11.1.0
         version: 11.1.0
-      esbuild:
-        specifier: ^0.25.2
-        version: 0.25.2
       execa:
         specifier: ^7.2.0
         version: 7.2.0
@@ -337,7 +334,7 @@ importers:
         version: 3.3.2
       file-loader:
         specifier: ^6.2.0
-        version: 6.2.0(webpack@5.94.0(esbuild@0.25.2))
+        version: 6.2.0(webpack@5.94.0)
       fs-extra:
         specifier: ^11.2.0
         version: 11.3.0
@@ -352,13 +349,13 @@ importers:
         version: 6.0.1(rollup@4.39.0)
       terser-webpack-plugin:
         specifier: ^5.3.10
-        version: 5.3.14(esbuild@0.25.2)(webpack@5.94.0(esbuild@0.25.2))
+        version: 5.3.14(webpack@5.94.0)
       vite:
         specifier: ^6.3.5
         version: 6.3.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)(yaml@2.7.1)
       webpack:
         specifier: ^5.90.3
-        version: 5.94.0(esbuild@0.25.2)
+        version: 5.94.0
       webpack-bundle-analyzer:
         specifier: ^4.10.1
         version: 4.10.2
@@ -377,10 +374,10 @@ importers:
         version: 4.0.9
       '@types/webpack':
         specifier: ^5.28.5
-        version: 5.28.5(esbuild@0.25.2)
+        version: 5.28.5
       '@types/webpack-bundle-analyzer':
         specifier: ^4.7.0
-        version: 4.7.0(esbuild@0.25.2)
+        version: 4.7.0
       '@types/yargs':
         specifier: ^17.0.33
         version: 17.0.33
@@ -16909,11 +16906,11 @@ snapshots:
     dependencies:
       source-map: 0.6.1
 
-  '@types/webpack-bundle-analyzer@4.7.0(esbuild@0.25.2)':
+  '@types/webpack-bundle-analyzer@4.7.0':
     dependencies:
       '@types/node': 22.14.0
       tapable: 2.2.1
-      webpack: 5.94.0(esbuild@0.25.2)
+      webpack: 5.94.0
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
@@ -16945,11 +16942,11 @@ snapshots:
       anymatch: 3.1.3
       source-map: 0.6.1
 
-  '@types/webpack@5.28.5(esbuild@0.25.2)':
+  '@types/webpack@5.28.5':
     dependencies:
       '@types/node': 22.14.0
       tapable: 2.2.1
-      webpack: 5.94.0(esbuild@0.25.2)
+      webpack: 5.94.0
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
@@ -17798,11 +17795,11 @@ snapshots:
 
   b4a@1.6.7: {}
 
-  babel-loader@10.0.0(@babel/core@7.27.1)(webpack@5.94.0(esbuild@0.25.2)):
+  babel-loader@10.0.0(@babel/core@7.27.1)(webpack@5.94.0):
     dependencies:
       '@babel/core': 7.27.1
       find-up: 5.0.0
-      webpack: 5.94.0(esbuild@0.25.2)
+      webpack: 5.94.0
 
   babel-plugin-macros@3.1.0:
     dependencies:
@@ -18324,11 +18321,11 @@ snapshots:
     dependencies:
       mime-db: 1.53.0
 
-  compression-webpack-plugin@10.0.0(webpack@5.94.0(esbuild@0.25.2)):
+  compression-webpack-plugin@10.0.0(webpack@5.94.0):
     dependencies:
       schema-utils: 4.3.0
       serialize-javascript: 6.0.2
-      webpack: 5.94.0(esbuild@0.25.2)
+      webpack: 5.94.0
 
   compression@1.7.5:
     dependencies:
@@ -18559,7 +18556,7 @@ snapshots:
     dependencies:
       type-fest: 1.4.0
 
-  css-loader@7.1.2(webpack@5.94.0(esbuild@0.25.2)):
+  css-loader@7.1.2(webpack@5.94.0):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.3)
       postcss: 8.5.3
@@ -18570,7 +18567,7 @@ snapshots:
       postcss-value-parser: 4.2.0
       semver: 7.7.1
     optionalDependencies:
-      webpack: 5.94.0(esbuild@0.25.2)
+      webpack: 5.94.0
 
   css-select@5.1.0:
     dependencies:
@@ -19895,11 +19892,11 @@ snapshots:
       flat-cache: 4.0.1
     optional: true
 
-  file-loader@6.2.0(webpack@5.94.0(esbuild@0.25.2)):
+  file-loader@6.2.0(webpack@5.94.0):
     dependencies:
       loader-utils: 2.0.4
       schema-utils: 3.3.0
-      webpack: 5.94.0(esbuild@0.25.2)
+      webpack: 5.94.0
 
   file-type@18.7.0:
     dependencies:
@@ -24111,17 +24108,6 @@ snapshots:
       ansi-escapes: 7.0.0
       supports-hyperlinks: 3.2.0
 
-  terser-webpack-plugin@5.3.14(esbuild@0.25.2)(webpack@5.94.0(esbuild@0.25.2)):
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
-      jest-worker: 27.5.1
-      schema-utils: 4.3.0
-      serialize-javascript: 6.0.2
-      terser: 5.39.0
-      webpack: 5.94.0(esbuild@0.25.2)
-    optionalDependencies:
-      esbuild: 0.25.2
-
   terser-webpack-plugin@5.3.14(webpack@5.94.0):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.25
@@ -24752,36 +24738,6 @@ snapshots:
       schema-utils: 3.3.0
       tapable: 2.2.1
       terser-webpack-plugin: 5.3.14(webpack@5.94.0)
-      watchpack: 2.4.2
-      webpack-sources: 3.2.3
-    transitivePeerDependencies:
-      - '@swc/core'
-      - esbuild
-      - uglify-js
-
-  webpack@5.94.0(esbuild@0.25.2):
-    dependencies:
-      '@types/estree': 1.0.7
-      '@webassemblyjs/ast': 1.14.1
-      '@webassemblyjs/wasm-edit': 1.14.1
-      '@webassemblyjs/wasm-parser': 1.14.1
-      acorn: 8.14.1
-      acorn-import-attributes: 1.9.5(acorn@8.14.1)
-      browserslist: 4.24.4
-      chrome-trace-event: 1.0.4
-      enhanced-resolve: 5.18.1
-      es-module-lexer: 1.7.0
-      eslint-scope: 5.1.1
-      events: 3.3.0
-      glob-to-regexp: 0.4.1
-      graceful-fs: 4.2.11
-      json-parse-even-better-errors: 2.3.1
-      loader-runner: 4.3.0
-      mime-types: 2.1.35
-      neo-async: 2.6.2
-      schema-utils: 3.3.0
-      tapable: 2.2.1
-      terser-webpack-plugin: 5.3.14(esbuild@0.25.2)(webpack@5.94.0(esbuild@0.25.2))
       watchpack: 2.4.2
       webpack-sources: 3.2.3
     transitivePeerDependencies:
