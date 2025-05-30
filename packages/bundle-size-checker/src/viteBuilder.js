@@ -7,6 +7,22 @@ import { visualizer } from 'rollup-plugin-visualizer';
 const rootDir = process.cwd();
 
 /**
+ * @typedef {Object} ManifestChunk
+ * @property {string} file - Hashed filename of the chunk
+ * @property {string} [name] - Optional name of the chunk
+ * @property {string} [src] - Original source path
+ * @property {string[]} [css] - Associated CSS files
+ * @property {boolean} [isEntry] - Indicates if this is an entry point
+ * @property {boolean} [isDynamicEntry] - Indicates if this is a dynamic entry point
+ * @property {string[]} [imports] - Imported chunk keys
+ * @property {string[]} [dynamicImports] - Dynamically imported chunk keys
+ */
+
+/**
+ * @typedef {Record<string, ManifestChunk>} Manifest
+ */
+
+/**
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
@@ -117,49 +133,81 @@ async function createViteConfig(entry, args) {
 }
 
 /**
+ * Walks the dependency tree starting from a chunk and collects all dependencies
+ * @param {string} chunkKey - The key of the chunk to start from
+ * @param {Manifest} manifest - The Vite manifest
+ * @param {Set<string>} visited - Set of already visited chunks to avoid cycles
+ * @returns {Set<string>} - Set of all chunk keys in the dependency tree
+ */
+function walkDependencyTree(chunkKey, manifest, visited = new Set()) {
+  if (visited.has(chunkKey)) {
+    return visited;
+  }
+
+  visited.add(chunkKey);
+  const chunk = manifest[chunkKey];
+
+  if (!chunk) {
+    throw new Error(`Chunk not found in manifest: ${chunkKey}`);
+  }
+
+  // Walk through static imports
+  if (chunk.imports) {
+    for (const importKey of chunk.imports) {
+      walkDependencyTree(importKey, manifest, visited);
+    }
+  }
+
+  // Walk through dynamic imports
+  if (chunk.dynamicImports) {
+    for (const dynamicImportKey of chunk.dynamicImports) {
+      walkDependencyTree(dynamicImportKey, manifest, visited);
+    }
+  }
+
+  return visited;
+}
+
+/**
  * Process vite output to extract bundle sizes
  * @param {string} outDir - The output directory
  * @param {string} entryName - The entry name
  * @returns {Promise<Map<string, { parsed: number, gzip: number }>>} - Map of bundle names to size information
  */
 async function processBundleSizes(outDir, entryName) {
-  /** @type {Map<string, { parsed: number, gzip: number }>} */
-  const sizeMap = new Map();
+  // Read the manifest file to find the generated chunks
+  const manifestPath = path.join(outDir, '.vite/manifest.json');
+  const manifestContent = await fs.readFile(manifestPath, 'utf8');
+  /** @type {Manifest} */
+  const manifest = JSON.parse(manifestContent);
 
-  try {
-    // Read the manifest file to find the generated chunks
-    const manifestPath = path.join(outDir, '.vite/manifest.json');
-    const manifestContent = await fs.readFile(manifestPath, 'utf8');
-    const manifest = JSON.parse(manifestContent);
+  // Find the main entry point JS file in the manifest
+  const mainEntry = manifest['virtual:entry.tsx'];
 
-    // Find the main entry point JS file in the manifest
-    const mainEntry = manifest['virtual:entry.tsx'];
+  if (!mainEntry) {
+    throw new Error(`No main entry found in manifest for ${entryName}`);
+  }
 
-    if (!mainEntry) {
-      throw new Error(`No main entry found in manifest for ${entryName}`);
-    }
+  // Walk the dependency tree to get all chunks that are part of this entry
+  const allChunks = walkDependencyTree('virtual:entry.tsx', manifest);
 
-    const filePath = path.join(outDir, mainEntry.file);
-
-    // Check if the file exists
-    try {
-      await fs.access(filePath);
-    } catch (err) {
-      throw new Error(`Found entry point in manifest but file does not exist: ${filePath}`);
-    }
+  // Process each chunk in the dependency tree in parallel
+  const chunkPromises = Array.from(allChunks, async (chunkKey) => {
+    const chunk = manifest[chunkKey];
+    const filePath = path.join(outDir, chunk.file);
     const fileContent = await fs.readFile(filePath, 'utf8');
 
     // Calculate sizes
     const parsed = Buffer.byteLength(fileContent);
     const gzip = Buffer.byteLength(gzipSync(fileContent));
 
-    sizeMap.set(entryName, { parsed, gzip });
-  } catch (error) {
-    console.error(`Error processing bundle sizes for ${entryName}:`, error);
-    throw error;
-  }
+    // Use chunk key as the name, or fallback to entry name for main chunk
+    const chunkName = chunkKey === 'virtual:entry.tsx' ? entryName : chunkKey;
+    return /** @type {const} */ ([chunkName, { parsed, gzip }]);
+  });
 
-  return sizeMap;
+  const chunkEntries = await Promise.all(chunkPromises);
+  return new Map(chunkEntries);
 }
 
 /**
