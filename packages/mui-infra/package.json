@@ -1,12 +1,12 @@
 {
-  "name": "@mui/configs",
+  "name": "@mui/infra",
   "version": "0.0.1",
-  "description": "Eslint config to be used across MUI repos.",
+  "description": "Infra scripts and configs to be used across MUI repos.",
   "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/mui/mui-public.git",
-    "directory": "packages/configs"
+    "directory": "packages/mui-infra"
   },
   "sideEffects": false,
   "exports": {
@@ -91,5 +91,8 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

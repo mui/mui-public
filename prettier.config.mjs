@@ -1,3 +1,3 @@
-import baseline from '@mui/configs/prettier';
+import baseline from '@mui/infra/prettier';
 
 export default baseline;
