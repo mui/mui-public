@@ -21,7 +21,7 @@
     "@actions/github": "^6.0.0",
     "@eslint/compat": "^1.2.9",
     "@mui/internal-bundle-size-checker": "workspace:*",
-    "@mui/configs": "workspace:*",
+    "@mui/infra": "workspace:*",
     "@typescript-eslint/eslint-plugin": "7.12.0",
     "@typescript-eslint/parser": "7.12.0",
     "eslint": "9.27.0",
