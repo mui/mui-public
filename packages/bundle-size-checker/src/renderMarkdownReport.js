@@ -66,7 +66,7 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
   const changeParsed = formatChange(parsed.absoluteDiff, parsed.relativeDiff);
   const changeGzip = formatChange(gzip.absoluteDiff, gzip.relativeDiff);
 
-  return `**${bundle}**&emsp;**parsed:**${changeParsed} **gzip:**${changeGzip}`;
+  return `**${bundle}**&emsp;**parsed:** ${changeParsed} **gzip:** ${changeGzip}`;
 }
 
 /**
@@ -133,10 +133,10 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
     };
   }
 
-  markdownContent += `**Total Size Change:**${formatChange(
+  markdownContent += `**Total Size Change:** ${formatChange(
     displayTotals.totalParsed,
     displayTotals.totalParsedPercent,
-  )} - **Total Gzip Change:**${formatChange(
+  )} - **Total Gzip Change:** ${formatChange(
     displayTotals.totalGzip,
     displayTotals.totalGzipPercent,
   )}\n`;

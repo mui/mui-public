@@ -42,13 +42,13 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+400B<sup>(+1.08%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+0.91%)</sup>
+      "**Total Size Change:** 🔺+400B<sup>(+1.08%)</sup> - **Total Gzip Change:** 🔺+100B<sup>(+0.91%)</sup>
       Files: 2 total (0 added, 0 removed, 1 changed)
 
       <details>
       <summary>Show 1 bundle changes</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+400B<sup>(+2.67%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+2.22%)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
 
       </details>
 
@@ -71,13 +71,13 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+3.5KB<sup>(+23.33%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+1.2KB<sup>(+26.67%)</sup>
+      "**Total Size Change:** 🔺+3.5KB<sup>(+23.33%)</sup> - **Total Gzip Change:** 🔺+1.2KB<sup>(+26.67%)</sup>
       Files: 2 total (1 added, 0 removed, 0 changed)
 
       <details>
       <summary>Show 1 bundle changes</summary>
 
-      **@mui/material/Chip/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{orangered}▲}}$</sup>+3.5KB<sup>(new)</sup> **gzip:**<sup>\${\\tiny{\\color{orangered}▲}}$</sup>+1.2KB<sup>(new)</sup>
+      **@mui/material/Chip/index.js**&emsp;**parsed:** 🔺+3.5KB<sup>(new)</sup> **gzip:** 🔺+1.2KB<sup>(new)</sup>
 
       </details>
 
@@ -99,13 +99,13 @@ describe('renderMarkdownReport', () => {
     expect(result).toMatchInlineSnapshot(`
       "_:no_entry_sign: No bundle size snapshot found for base commit abc123._
 
-      **Total Size Change:** +15KB<sup>(0.00%)</sup> - **Total Gzip Change:** +4.5KB<sup>(0.00%)</sup>
+      **Total Size Change:**  +15KB<sup>(0.00%)</sup> - **Total Gzip Change:**  +4.5KB<sup>(0.00%)</sup>
       Files: 1 total (1 added, 0 removed, 0 changed)
 
       <details>
       <summary>Show 1 bundle changes</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{orangered}▲}}$</sup>+15KB<sup>(new)</sup> **gzip:**<sup>\${\\tiny{\\color{orangered}▲}}$</sup>+4.5KB<sup>(new)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+15KB<sup>(new)</sup> **gzip:** 🔺+4.5KB<sup>(new)</sup>
 
       </details>
 
@@ -127,13 +127,13 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{green}▼}}$</sup>-500B<sup>(-3.33%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{green}▼}}$</sup>-200B<sup>(-4.44%)</sup>
+      "**Total Size Change:** ▼-500B<sup>(-3.33%)</sup> - **Total Gzip Change:** ▼-200B<sup>(-4.44%)</sup>
       Files: 1 total (0 added, 0 removed, 1 changed)
 
       <details>
       <summary>Show 1 bundle changes</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{green}▼}}$</sup>-500B<sup>(-3.33%)</sup> **gzip:**<sup>\${\\tiny{\\color{green}▼}}$</sup>-200B<sup>(-4.44%)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** ▼-500B<sup>(-3.33%)</sup> **gzip:** ▼-200B<sup>(-4.44%)</sup>
 
       </details>
 
@@ -157,13 +157,13 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{green}▼}}$</sup>-22KB<sup>(-59.46%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{green}▼}}$</sup>-6.5KB<sup>(-59.09%)</sup>
+      "**Total Size Change:** ▼-22KB<sup>(-59.46%)</sup> - **Total Gzip Change:** ▼-6.5KB<sup>(-59.09%)</sup>
       Files: 2 total (0 added, 1 removed, 0 changed)
 
       <details>
       <summary>Show 1 bundle changes</summary>
 
-      **@mui/material/TextField/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{cornflowerblue}▼}}$</sup>-22KB<sup>(removed)</sup> **gzip:**<sup>\${\\tiny{\\color{cornflowerblue}▼}}$</sup>-6.5KB<sup>(removed)</sup>
+      **@mui/material/TextField/index.js**&emsp;**parsed:** ▼-22KB<sup>(removed)</sup> **gzip:** ▼-6.5KB<sup>(removed)</sup>
 
       </details>
 
@@ -196,28 +196,28 @@ describe('renderMarkdownReport', () => {
     expect(result).toContain('<details>'); // Collapsible section
     expect(result).toContain('Show 16 bundle changes'); // All changes in details
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+1.15KB<sup>(+3.83%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+250B<sup>(+2.78%)</sup>
+      "**Total Size Change:** 🔺+1.15KB<sup>(+3.83%)</sup> - **Total Gzip Change:** 🔺+250B<sup>(+2.78%)</sup>
       Files: 16 total (0 added, 0 removed, 16 changed)
 
       <details>
       <summary>Show 16 bundle changes</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+400B<sup>(+2.67%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+2.22%)</sup>
-      **@mui/icons-material/Icon1.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon10.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon11.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon12.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon13.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon14.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon15.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon2.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon3.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon4.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon5.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon6.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon7.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon8.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
-      **@mui/icons-material/Icon9.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+5.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+10B<sup>(+3.33%)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
+      **@mui/icons-material/Icon1.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon10.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon11.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon12.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon13.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon14.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon15.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon2.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon3.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon4.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon5.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon6.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon7.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon8.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
+      **@mui/icons-material/Icon9.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
 
       </details>
 
@@ -240,7 +240,7 @@ describe('renderMarkdownReport', () => {
 
     expect(result).toContain('circleCIBuildNumber=12345');
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:** 0B<sup>(0.00%)</sup> - **Total Gzip Change:** 0B<sup>(0.00%)</sup>
+      "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
       Files: 1 total (0 added, 0 removed, 0 changed)
 
 
@@ -263,7 +263,7 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:** 0B<sup>(0.00%)</sup> - **Total Gzip Change:** 0B<sup>(0.00%)</sup>
+      "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
       Files: 1 total (0 added, 0 removed, 0 changed)
 
 
@@ -292,15 +292,15 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+600B<sup>(+1.62%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+200B<sup>(+1.82%)</sup>
+      "**Total Size Change:** 🔺+600B<sup>(+1.62%)</sup> - **Total Gzip Change:** 🔺+200B<sup>(+1.82%)</sup>
       Files: 2 total (0 added, 0 removed, 2 changed)
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+400B<sup>(+2.67%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+2.22%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+200B<sup>(+0.91%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+1.54%)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
+      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+200B<sup>(+0.91%)</sup> **gzip:** 🔺+100B<sup>(+1.54%)</sup>
       <details>
       <summary>Show 1 other bundle changes</summary>
 
-      **@mui/icons-material/Add.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+10.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+16.67%)</sup>
+      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
 
       </details>
 
@@ -333,15 +333,15 @@ describe('renderMarkdownReport', () => {
     expect(result).not.toContain('+1.8KB');
     expect(result).not.toContain('+600B');
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+800B<sup>(+2.16%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+300B<sup>(+2.73%)</sup>
+      "**Total Size Change:** 🔺+800B<sup>(+2.16%)</sup> - **Total Gzip Change:** 🔺+300B<sup>(+2.73%)</sup>
       Files: 2 total (0 added, 0 removed, 2 changed)
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+500B<sup>(+3.33%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+150B<sup>(+3.33%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+300B<sup>(+1.36%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+150B<sup>(+2.31%)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+500B<sup>(+3.33%)</sup> **gzip:** 🔺+150B<sup>(+3.33%)</sup>
+      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+300B<sup>(+1.36%)</sup> **gzip:** 🔺+150B<sup>(+2.31%)</sup>
       <details>
       <summary>Show 1 other bundle changes</summary>
 
-      **@mui/icons-material/Add.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+1KB<sup>(+100.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+300B<sup>(+100.00%)</sup>
+      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+1KB<sup>(+100.00%)</sup> **gzip:** 🔺+300B<sup>(+100.00%)</sup>
 
       </details>
 
@@ -371,15 +371,15 @@ describe('renderMarkdownReport', () => {
     expect(result).toContain('Show 2 other bundle changes');
     expect(result).toContain('<details>');
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+400B<sup>(+2.67%)</sup> - **Total Gzip Change:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+2.22%)</sup>
+      "**Total Size Change:** 🔺+400B<sup>(+2.67%)</sup> - **Total Gzip Change:** 🔺+100B<sup>(+2.22%)</sup>
       Files: 1 total (0 added, 0 removed, 1 changed)
 
-      **@mui/material/Button/index.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+400B<sup>(+2.67%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+2.22%)</sup>
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       <details>
       <summary>Show 2 other bundle changes</summary>
 
-      **@mui/icons-material/Add.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+10.00%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+16.67%)</sup>
-      **@mui/icons-material/Delete.js**&emsp;**parsed:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+100B<sup>(+8.33%)</sup> **gzip:**<sup>\${\\tiny{\\color{red}▲}}$</sup>+50B<sup>(+14.29%)</sup>
+      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
+      **@mui/icons-material/Delete.js**&emsp;**parsed:** 🔺+100B<sup>(+8.33%)</sup> **gzip:** 🔺+50B<sup>(+14.29%)</sup>
 
       </details>
 
