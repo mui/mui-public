@@ -85,11 +85,11 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
 
   if (track && track.length > 0) {
     const trackedEntries = track.map((bundleId) => {
-      const entry = comparison.entries.find((e) => e.id === bundleId);
-      if (!entry) {
+      const trackedEntry = comparison.entries.find((entry) => entry.id === bundleId);
+      if (!trackedEntry) {
         throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
       }
-      return entry;
+      return trackedEntry;
     });
 
     // Calculate totals only for tracked bundles

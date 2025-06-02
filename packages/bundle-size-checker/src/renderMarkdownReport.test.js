@@ -401,7 +401,9 @@ describe('renderMarkdownReport', () => {
     await expect(
       renderMarkdownReport(mockPrInfo, undefined, {
         track: ['@mui/material/Button/index.js', '@mui/material/NonExistent/index.js'],
-      })
-    ).rejects.toThrow('Tracked bundle not found in head snapshot: @mui/material/NonExistent/index.js');
+      }),
+    ).rejects.toThrow(
+      'Tracked bundle not found in head snapshot: @mui/material/NonExistent/index.js',
+    );
   });
 });
