@@ -84,7 +84,13 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
   let displayFileCounts = comparison.fileCounts;
 
   if (track && track.length > 0) {
-    const trackedEntries = comparison.entries.filter((entry) => track.includes(entry.id));
+    const trackedEntries = track.map((bundleId) => {
+      const entry = comparison.entries.find((e) => e.id === bundleId);
+      if (!entry) {
+        throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
+      }
+      return entry;
+    });
 
     // Calculate totals only for tracked bundles
     const trackedTotalParsed = trackedEntries.reduce(

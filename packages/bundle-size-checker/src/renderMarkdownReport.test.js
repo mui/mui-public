@@ -386,4 +386,22 @@ describe('renderMarkdownReport', () => {
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
   });
+
+  it('should throw error when tracked bundle is missing from head snapshot', async () => {
+    const baseSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15400, gzip: 4600 },
+    };
+
+    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+
+    await expect(
+      renderMarkdownReport(mockPrInfo, undefined, {
+        track: ['@mui/material/Button/index.js', '@mui/material/NonExistent/index.js'],
+      })
+    ).rejects.toThrow('Tracked bundle not found in head snapshot: @mui/material/NonExistent/index.js');
+  });
 });
