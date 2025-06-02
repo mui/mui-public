@@ -79,19 +79,23 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
 export function renderMarkdownReportContent(comparison, { track } = {}) {
   let markdownContent = '';
 
+  // Calculate tracked entries once at the top
+  const trackedEntries =
+    track && track.length > 0
+      ? track.map((bundleId) => {
+          const trackedEntry = comparison.entries.find((entry) => entry.id === bundleId);
+          if (!trackedEntry) {
+            throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
+          }
+          return trackedEntry;
+        })
+      : null;
+
   // If track is specified, calculate totals only for tracked bundles
   let displayTotals = comparison.totals;
   let displayFileCounts = comparison.fileCounts;
 
-  if (track && track.length > 0) {
-    const trackedEntries = track.map((bundleId) => {
-      const trackedEntry = comparison.entries.find((entry) => entry.id === bundleId);
-      if (!trackedEntry) {
-        throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
-      }
-      return trackedEntry;
-    });
-
+  if (trackedEntries) {
     // Calculate totals only for tracked bundles
     const trackedTotalParsed = trackedEntries.reduce(
       (sum, entry) => sum + entry.parsed.absoluteDiff,
@@ -156,12 +160,12 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
     (entry) => Math.abs(entry.parsed.absoluteDiff) > 0 || Math.abs(entry.gzip.absoluteDiff) > 0,
   );
 
-  if (track && track.length > 0) {
+  if (trackedEntries) {
+    const trackedIds = new Set(trackedEntries.map((entry) => entry.id));
     // When tracking is enabled, show tracked bundles prominently and others in details
-    const trackedEntries = changedEntries.filter((entry) => track.includes(entry.id));
-    const untrackedEntries = changedEntries.filter((entry) => !track.includes(entry.id));
+    const untrackedEntries = changedEntries.filter((entry) => !trackedIds.has(entry.id));
 
-    // Show all tracked bundles prominently
+    // Show all tracked bundles prominently (including unchanged ones)
     const trackedChanges = trackedEntries.map(generateEmphasizedChange);
     if (trackedChanges.length > 0) {
       markdownContent += `${trackedChanges.join('\n')}`;
@@ -172,6 +176,10 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
       const untrackedChanges = untrackedEntries.map(generateEmphasizedChange);
       markdownContent += `\n<details>\n<summary>Show ${untrackedEntries.length} other bundle changes</summary>\n\n`;
       markdownContent += `${untrackedChanges.join('\n')}\n\n`;
+      markdownContent += `</details>`;
+    } else {
+      markdownContent += `\n<details>\n<summary>No other bundles with changes</summary>\n\n`;
+      markdownContent += `No untracked bundles have size changes.\n\n`;
       markdownContent += `</details>`;
     }
   } else if (changedEntries.length > 0) {

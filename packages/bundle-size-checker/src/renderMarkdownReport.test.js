@@ -387,6 +387,75 @@ describe('renderMarkdownReport', () => {
     `);
   });
 
+  it('should show tracked bundles prominently even when they have no changes', async () => {
+    const baseSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+      '@mui/material/TextField/index.js': { parsed: 22000, gzip: 6500 },
+      '@mui/material/Icon/index.js': { parsed: 8000, gzip: 2500 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 }, // tracked, no change
+      '@mui/material/TextField/index.js': { parsed: 22000, gzip: 6500 }, // tracked, no change
+      '@mui/material/Icon/index.js': { parsed: 8100, gzip: 2550 }, // untracked, has change
+    };
+
+    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+      "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
+      Files: 2 total (0 added, 0 removed, 0 changed)
+
+      **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
+      **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
+      <details>
+      <summary>Show 1 other bundle changes</summary>
+
+      **@mui/material/Icon/index.js**&emsp;**parsed:** 🔺+100B<sup>(+1.25%)</sup> **gzip:** 🔺+50B<sup>(+2.00%)</sup>
+
+      </details>
+
+      [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
+    `);
+  });
+
+  it('should show message when tracking is enabled but no untracked bundles have changes', async () => {
+    const baseSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+      '@mui/material/TextField/index.js': { parsed: 22000, gzip: 6500 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15400, gzip: 4600 }, // tracked, has change
+      '@mui/material/TextField/index.js': { parsed: 22000, gzip: 6500 }, // untracked, no change
+    };
+
+    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      track: ['@mui/material/Button/index.js'],
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+      "**Total Size Change:** 🔺+400B<sup>(+2.67%)</sup> - **Total Gzip Change:** 🔺+100B<sup>(+2.22%)</sup>
+      Files: 1 total (0 added, 0 removed, 1 changed)
+
+      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
+      <details>
+      <summary>No other bundles with changes</summary>
+
+      No untracked bundles have size changes.
+
+      </details>
+
+      [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
+    `);
+  });
+
   it('should throw error when tracked bundle is missing from head snapshot', async () => {
     const baseSnapshot = {
       '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
