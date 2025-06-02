@@ -7,15 +7,6 @@
 import { calculateSizeDiff } from './sizeDiff.js';
 import { fetchSnapshot } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
-/**
- *
- * @param {'▲' | '▼'} symbol
- * @param {KatexColor} color
- * @returns
- */
-function formatSymbol(symbol, color) {
-  return `<sup>\${\\tiny{\\color{${color}}${symbol}}}$</sup>`;
-}
 
 /**
  * Generates a symbol based on the relative change value.
@@ -24,16 +15,16 @@ function formatSymbol(symbol, color) {
  */
 function getChangeIcon(relative) {
   if (relative === null) {
-    return formatSymbol('▲', 'orangered');
+    return '🔺';
   }
   if (relative === -1) {
-    return formatSymbol('▼', 'cornflowerblue');
+    return '▼';
   }
   if (relative < 0) {
-    return formatSymbol('▼', 'green');
+    return '▼';
   }
   if (relative > 0) {
-    return formatSymbol('▲', 'red');
+    return '🔺';
   }
   return ' ';
 }
