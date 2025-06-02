@@ -19,33 +19,13 @@
       "types": "./src/eslint/index.d.ts",
       "default": "./src/eslint/index.mjs"
     },
-    "./eslint/docs": {
+    "./eslint-docs": {
       "types": "./src/eslint/index.d.ts",
       "default": "./src/eslint/docs.mjs"
     },
-    "./eslint/test": {
+    "./eslint-test": {
       "types": "./src/eslint/test.d.ts",
       "default": "./src/eslint/test.mjs"
-    },
-    "./eslint/airbnb/base": {
-      "types": "./src/eslint/airbnb/base.d.ts",
-      "default": "./src/eslint/airbnb/base.mjs"
-    },
-    "./eslint/airbnb/react": {
-      "types": "./src/eslint/airbnb/base.d.ts",
-      "default": "./src/eslint/airbnb/react.mjs"
-    },
-    "./eslint/airbnb/typescript": {
-      "types": "./src/eslint/airbnb/base.d.ts",
-      "default": "./src/eslint/airbnb/typescript.mjs"
-    },
-    "./eslint/material-ui": {
-      "types": "./src/eslint/material-ui/index.d.ts",
-      "default": "./src/eslint/material-ui/index.mjs"
-    },
-    "./eslint/material-ui/config": {
-      "types": "./src/eslint/material-ui/config.d.ts",
-      "default": "./src/eslint/material-ui/config.mjs"
     }
   },
   "dependencies": {

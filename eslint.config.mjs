@@ -2,7 +2,7 @@ import { includeIgnoreFile } from '@eslint/compat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import * as path from 'node:path';
 import baseConfig from '@mui/infra/eslint';
-import testConfig from '@mui/infra/eslint/test';
+import testConfig from '@mui/infra/eslint-test';
 import { fileURLToPath } from 'url';
 
 const filename = fileURLToPath(import.meta.url);
