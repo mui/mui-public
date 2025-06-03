@@ -20,13 +20,11 @@
       "default": "./src/eslint/index.mjs"
     },
     "./eslint-docs": {
-      "types": "./src/eslint/index.d.ts",
+      "types": "./src/eslint/docs.d.ts",
       "default": "./src/eslint/docs.mjs"
     }
   },
   "dependencies": {
-    "@eslint/js": "^9.27.0",
-    "@typescript-eslint/parser": "^8.33.0",
     "emoji-regex": "^10.4.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-airbnb": "^19.0.4",
@@ -38,15 +36,15 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^6.0.0",
-    "eslint-plugin-testing-library": "^7.2.2",
+    "eslint-plugin-testing-library": "^7.3.0",
     "globals": "^16.2.0",
     "minimatch": "^10.0.1",
-    "typescript-eslint": "^8.33.0"
+    "typescript-eslint": "^8.33.1"
   },
   "peerDependencies": {
-    "@next/eslint-plugin-next": "*",
+    "@next/eslint-plugin-next": "^14.0.0 || ^15.0.0",
     "eslint": "^9.0.0",
-    "prettier": "*"
+    "prettier": "^3.0.0"
   },
   "peerDependenciesMeta": {
     "@next/eslint-plugin-next": {
@@ -58,9 +56,10 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.3.3",
-    "eslint": "^9.27.0",
-    "prettier": "^3.3.3",
-    "typescript-eslint": "^8.32.1"
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "typescript-eslint": "^8.33.1"
   },
   "files": [
     "src",
