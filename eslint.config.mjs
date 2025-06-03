@@ -1,8 +1,7 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import * as path from 'node:path';
-import baseConfig from '@mui/infra/eslint';
-import testConfig from '@mui/infra/eslint-test';
+import { createBaseConfig, createTestConfig } from '@mui/infra/eslint';
 import { fileURLToPath } from 'url';
 
 const filename = fileURLToPath(import.meta.url);
@@ -14,7 +13,7 @@ export default defineConfig(
   globalIgnores(['packages/mui-infra/src/eslint/material-ui/rules/*.test.*'], 'Global ignores'),
   {
     name: 'Base config',
-    extends: baseConfig,
+    extends: createBaseConfig(),
     settings: {
       'import/resolver': {
         typescript: {
@@ -35,7 +34,7 @@ export default defineConfig(
       // matching the pattern of the test runner
       '**/*.test.?(c|m)[jt]s?(x)',
     ],
-    extends: testConfig,
+    extends: createTestConfig(),
   },
   {
     files: ['**/*.mjs'],

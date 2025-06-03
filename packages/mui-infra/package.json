@@ -22,10 +22,6 @@
     "./eslint-docs": {
       "types": "./src/eslint/index.d.ts",
       "default": "./src/eslint/docs.mjs"
-    },
-    "./eslint-test": {
-      "types": "./src/eslint/test.d.ts",
-      "default": "./src/eslint/test.mjs"
     }
   },
   "dependencies": {

@@ -1,4 +1,9 @@
 import type { InfiniteDepthConfigWithExtends } from 'typescript-eslint';
 
-declare const config: InfiniteDepthConfigWithExtends[];
-export default config;
+type BaseConfigOptions = {
+  reactCompilerEnabled?: boolean;
+};
+
+declare function createCoreConfig(options?: BaseConfigOptions): InfiniteDepthConfigWithExtends[];
+
+export { createCoreConfig };

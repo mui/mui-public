@@ -1,5 +1,10 @@
 import type { ConfigArray } from 'typescript-eslint';
 
-declare const config: ConfigArray;
+type BaseConfigOptions = {
+  enableReactCompiler?: boolean;
+};
 
-export default config;
+declare function createBaseConfig(options?: BaseConfigOptions): ConfigArray;
+declare function createTestConfig(): ConfigArray;
+
+export { createBaseConfig, createTestConfig };
