@@ -13,10 +13,11 @@ const typeLabels = [
   'type: release',
   'type: bug',
   'type: regression',
-  'type: dependencies',
   'type: improvement',
   'type: new feature',
   'type: general',
+  // only used by renovate bot so we can ignore the "type: " prefix here
+  'dependencies',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
