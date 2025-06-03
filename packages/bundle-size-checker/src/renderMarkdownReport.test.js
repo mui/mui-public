@@ -292,15 +292,12 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:** 🔺+600B<sup>(+1.62%)</sup> - **Total Gzip Change:** 🔺+200B<sup>(+1.82%)</sup>
-      Files: 2 total (0 added, 0 removed, 2 changed)
+      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
+      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+200B<sup>(+0.91%)</sup> **gzip:** 🔺+100B<sup>(+1.54%)</sup><details>
+      <summary>Show 2 bundle changes</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+200B<sup>(+0.91%)</sup> **gzip:** 🔺+100B<sup>(+1.54%)</sup>
-      <details>
-      <summary>Show 1 other bundle changes</summary>
-
-      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
 
       </details>
 
@@ -327,21 +324,13 @@ describe('renderMarkdownReport', () => {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
-    // Should show totals as +800/+300 (only tracked bundles), not +1800/+600 (all bundles)
-    expect(result).toContain('+800B');
-    expect(result).toContain('+300B');
-    expect(result).not.toContain('+1.8KB');
-    expect(result).not.toContain('+600B');
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:** 🔺+800B<sup>(+2.16%)</sup> - **Total Gzip Change:** 🔺+300B<sup>(+2.73%)</sup>
-      Files: 2 total (0 added, 0 removed, 2 changed)
+      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+500B<sup>(+3.33%)</sup> **gzip:** 🔺+150B<sup>(+3.33%)</sup>
+      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+300B<sup>(+1.36%)</sup> **gzip:** 🔺+150B<sup>(+2.31%)</sup><details>
+      <summary>Show 2 bundle changes</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+500B<sup>(+3.33%)</sup> **gzip:** 🔺+150B<sup>(+3.33%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+300B<sup>(+1.36%)</sup> **gzip:** 🔺+150B<sup>(+2.31%)</sup>
-      <details>
-      <summary>Show 1 other bundle changes</summary>
-
-      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+1KB<sup>(+100.00%)</sup> **gzip:** 🔺+300B<sup>(+100.00%)</sup>
 
       </details>
 
@@ -368,18 +357,11 @@ describe('renderMarkdownReport', () => {
       track: ['@mui/material/Button/index.js'],
     });
 
-    expect(result).toContain('Show 2 other bundle changes');
-    expect(result).toContain('<details>');
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:** 🔺+400B<sup>(+2.67%)</sup> - **Total Gzip Change:** 🔺+100B<sup>(+2.22%)</sup>
-      Files: 1 total (0 added, 0 removed, 1 changed)
+      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup><details>
+      <summary>Show 1 bundle changes</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
-      <details>
-      <summary>Show 2 other bundle changes</summary>
-
-      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
-      **@mui/icons-material/Delete.js**&emsp;**parsed:** 🔺+100B<sup>(+8.33%)</sup> **gzip:** 🔺+50B<sup>(+14.29%)</sup>
 
       </details>
 
@@ -407,17 +389,8 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
-      Files: 2 total (0 added, 0 removed, 0 changed)
-
-      **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
+      "**@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
-      <details>
-      <summary>Show 1 other bundle changes</summary>
-
-      **@mui/material/Icon/index.js**&emsp;**parsed:** 🔺+100B<sup>(+1.25%)</sup> **gzip:** 🔺+50B<sup>(+2.00%)</sup>
-
-      </details>
 
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
@@ -441,14 +414,10 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:** 🔺+400B<sup>(+2.67%)</sup> - **Total Gzip Change:** 🔺+100B<sup>(+2.22%)</sup>
-      Files: 1 total (0 added, 0 removed, 1 changed)
+      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup><details>
+      <summary>Show 1 bundle changes</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
-      <details>
-      <summary>No other bundles with changes</summary>
-
-      No untracked bundles have size changes.
 
       </details>
 
