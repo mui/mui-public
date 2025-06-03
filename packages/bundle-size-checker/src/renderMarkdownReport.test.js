@@ -52,7 +52,7 @@ describe('renderMarkdownReport', () => {
       Files: 2 total (0 added, 0 removed, 1 changed)
 
       <details>
-      <summary>Show details for 2 bundles</summary>
+      <summary>Show details for 2 more bundles</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
@@ -86,7 +86,7 @@ describe('renderMarkdownReport', () => {
       Files: 2 total (1 added, 0 removed, 0 changed)
 
       <details>
-      <summary>Show details for 2 bundles</summary>
+      <summary>Show details for 2 more bundles</summary>
 
       **@mui/material/Chip/index.js**&emsp;**parsed:** 🔺+3.5KB<sup>(new)</sup> **gzip:** 🔺+1.2KB<sup>(new)</sup>
       **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
@@ -134,7 +134,7 @@ describe('renderMarkdownReport', () => {
       Files: 1 total (0 added, 0 removed, 1 changed)
 
       <details>
-      <summary>Show details for 1 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** ▼-500B<sup>(-3.33%)</sup> **gzip:** ▼-200B<sup>(-4.44%)</sup>
 
@@ -168,7 +168,7 @@ describe('renderMarkdownReport', () => {
       Files: 2 total (0 added, 1 removed, 0 changed)
 
       <details>
-      <summary>Show details for 2 bundles</summary>
+      <summary>Show details for 2 more bundles</summary>
 
       **@mui/material/TextField/index.js**&emsp;**parsed:** ▼-22KB<sup>(removed)</sup> **gzip:** ▼-6.5KB<sup>(removed)</sup>
       **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
@@ -209,7 +209,7 @@ describe('renderMarkdownReport', () => {
       Files: 16 total (0 added, 0 removed, 16 changed)
 
       <details>
-      <summary>Show details for 16 bundles</summary>
+      <summary>Show details for 16 more bundles</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       **@mui/icons-material/Icon1.js**&emsp;**parsed:** 🔺+50B<sup>(+5.00%)</sup> **gzip:** 🔺+10B<sup>(+3.33%)</sup>
@@ -257,7 +257,7 @@ describe('renderMarkdownReport', () => {
       Files: 1 total (0 added, 0 removed, 0 changed)
 
       <details>
-      <summary>Show details for 1 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
 
@@ -289,7 +289,7 @@ describe('renderMarkdownReport', () => {
       Files: 1 total (0 added, 0 removed, 0 changed)
 
       <details>
-      <summary>Show details for 1 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
       **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
 
@@ -325,10 +325,8 @@ describe('renderMarkdownReport', () => {
     expect(result).toMatchInlineSnapshot(`
       "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+200B<sup>(+0.91%)</sup> **gzip:** 🔺+100B<sup>(+1.54%)</sup><details>
-      <summary>Show details for 3 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+200B<sup>(+0.91%)</sup> **gzip:** 🔺+100B<sup>(+1.54%)</sup>
       **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
 
       </details>
@@ -363,11 +361,9 @@ describe('renderMarkdownReport', () => {
     expect(result).toMatchInlineSnapshot(`
       "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+500B<sup>(+3.33%)</sup> **gzip:** 🔺+150B<sup>(+3.33%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+300B<sup>(+1.36%)</sup> **gzip:** 🔺+150B<sup>(+2.31%)</sup><details>
-      <summary>Show details for 3 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
       **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+1KB<sup>(+100.00%)</sup> **gzip:** 🔺+300B<sup>(+100.00%)</sup>
-      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+500B<sup>(+3.33%)</sup> **gzip:** 🔺+150B<sup>(+3.33%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+300B<sup>(+1.36%)</sup> **gzip:** 🔺+150B<sup>(+2.31%)</sup>
 
       </details>
 
@@ -400,9 +396,8 @@ describe('renderMarkdownReport', () => {
 
     expect(result).toMatchInlineSnapshot(`
       "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup><details>
-      <summary>Show details for 3 bundles</summary>
+      <summary>Show details for 2 more bundles</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
       **@mui/icons-material/Delete.js**&emsp;**parsed:** 🔺+100B<sup>(+8.33%)</sup> **gzip:** 🔺+50B<sup>(+14.29%)</sup>
 
@@ -438,11 +433,9 @@ describe('renderMarkdownReport', () => {
     expect(result).toMatchInlineSnapshot(`
       "**@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup><details>
-      <summary>Show details for 3 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
       **@mui/material/Icon/index.js**&emsp;**parsed:** 🔺+100B<sup>(+1.25%)</sup> **gzip:** 🔺+50B<sup>(+2.00%)</sup>
-      **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
 
       </details>
 
@@ -473,9 +466,8 @@ describe('renderMarkdownReport', () => {
 
     expect(result).toMatchInlineSnapshot(`
       "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup><details>
-      <summary>Show details for 2 bundles</summary>
+      <summary>Show details for 1 more bundle</summary>
 
-      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
       **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
 
       </details>

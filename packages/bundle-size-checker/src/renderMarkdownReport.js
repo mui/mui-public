@@ -77,27 +77,24 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
  * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
  * @returns {string} Markdown report
  */
-export function renderMarkdownReportContent(comparison, { track, maxDetailsLines = 100 } = {}) {
+export function renderMarkdownReportContent(
+  comparison,
+  { track = [], maxDetailsLines = 100 } = {},
+) {
   let markdownContent = '';
 
-  // Calculate tracked entries once at the top
-  const trackedEntries =
-    track && track.length > 0
-      ? track.map((bundleId) => {
-          const trackedEntry = comparison.entries.find((entry) => entry.id === bundleId);
-          if (!trackedEntry) {
-            throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
-          }
-          return trackedEntry;
-        })
-      : null;
-
-  if (trackedEntries) {
+  if (track.length > 0) {
+    const entryMap = new Map(comparison.entries.map((entry) => [entry.id, entry]));
+    const trackedEntries = track.map((bundleId) => {
+      const trackedEntry = entryMap.get(bundleId);
+      if (!trackedEntry) {
+        throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
+      }
+      return trackedEntry;
+    });
     // Show all tracked bundles directly (including unchanged ones)
     const trackedChanges = trackedEntries.map(generateEmphasizedChange);
-    if (trackedChanges.length > 0) {
-      markdownContent += `${trackedChanges.join('\n')}`;
-    }
+    markdownContent += `${trackedChanges.join('\n')}`;
   } else {
     markdownContent += `**Total Size Change:** ${formatChange(
       comparison.totals.totalParsed,
@@ -113,15 +110,20 @@ export function renderMarkdownReportContent(comparison, { track, maxDetailsLines
   }
 
   // Show all entries in details section, not just changed ones
+  // Filter out tracked bundles to avoid duplication
+  const trackedIdSet = new Set(track);
+  const detailsEntries = comparison.entries.filter((entry) => !trackedIdSet.has(entry.id));
+
   // Cap at maxDetailsLines bundles to avoid overly large reports
-  const cappedEntries = comparison.entries.slice(0, maxDetailsLines);
-  const hasMore = comparison.entries.length > maxDetailsLines;
+  const cappedEntries = detailsEntries.slice(0, maxDetailsLines);
+  const hasMore = detailsEntries.length > maxDetailsLines;
 
   if (cappedEntries.length > 0) {
     const allChanges = cappedEntries.map(generateEmphasizedChange);
+    const bundleWord = cappedEntries.length === 1 ? 'bundle' : 'bundles';
     const summaryText = hasMore
-      ? `Show details for ${cappedEntries.length} bundles (${comparison.entries.length - maxDetailsLines} more not shown)`
-      : `Show details for ${cappedEntries.length} bundles`;
+      ? `Show details for ${cappedEntries.length} more ${bundleWord} (${detailsEntries.length - maxDetailsLines} more not shown)`
+      : `Show details for ${cappedEntries.length} more ${bundleWord}`;
     markdownContent += `<details>\n<summary>${summaryText}</summary>\n\n`;
     markdownContent += `${allChanges.join('\n')}\n\n`;
     markdownContent += `</details>`;
