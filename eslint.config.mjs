@@ -14,13 +14,6 @@ export default defineConfig(
   {
     name: 'Base config',
     extends: createBaseConfig(),
-    settings: {
-      'import/resolver': {
-        typescript: {
-          project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
-        },
-      },
-    },
     rules: {
       'import/prefer-default-export': 'off',
       // No time for this

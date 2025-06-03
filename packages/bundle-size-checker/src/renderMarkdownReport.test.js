@@ -1,3 +1,4 @@
+/* eslint-disable testing-library/render-result-naming-convention */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import * as fetchSnapshotModule from './fetchSnapshot.js';

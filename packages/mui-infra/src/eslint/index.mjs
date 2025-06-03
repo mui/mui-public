@@ -14,7 +14,7 @@ import airbnbTs from './airbnb/typescript.mjs';
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
 
-export const specBaseRules = {
+export const baseSpecRules = {
   files: ['**/*.spec.*'],
   rules: {
     'no-alert': 'off',
@@ -79,6 +79,11 @@ export function createBaseConfig({ enableReactCompiler = false } = {}) {
         'import/parsers': {
           '@typescript-eslint/parser': ['.ts', '.tsx'],
         },
+        'import/resolver': {
+          typescript: {
+            project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
+          },
+        },
       },
       extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
     },
@@ -100,13 +105,6 @@ export function createTestConfig() {
           ecmaVersion: 7,
         },
         globals: globals.mocha,
-      },
-      settings: {
-        'import/resolver': {
-          typescript: {
-            project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
-          },
-        },
       },
       rules: {
         // does not work with wildcard imports. Mistakes will throw at runtime anyway
