@@ -1,5 +1,5 @@
 import prettier from 'eslint-config-prettier/flat';
-import { importX } from 'eslint-plugin-import-x';
+import { flatConfigs as importFlatConfigs } from 'eslint-plugin-import';
 import { configs as reactHookConfigs } from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
@@ -15,8 +15,8 @@ import muiConfig from './material-ui/config.mjs';
  * @type {import('typescript-eslint').ConfigArray}
  */
 export default tseslint.config(
-  importX.flatConfigs.recommended,
-  importX.flatConfigs.typescript,
+  importFlatConfigs.recommended,
+  importFlatConfigs.typescript,
   reactHookConfigs.recommended,
   airbnbBase,
   airbnbReact,
@@ -38,7 +38,7 @@ export default tseslint.config(
       'material-ui': muiPlugin,
     },
     settings: {
-      'import-x/parsers': {
+      'import/parsers': {
         '@typescript-eslint/parser': ['.ts', '.tsx'],
       },
     },

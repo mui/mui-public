@@ -16,18 +16,18 @@ export default defineConfig(
     name: 'Base config',
     extends: baseConfig,
     settings: {
-      'import-x/resolver': {
+      'import/resolver': {
         typescript: {
           project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
         },
       },
     },
     rules: {
+      'import/prefer-default-export': 'off',
       // No time for this
       'react/prop-types': 'off',
       'jsx-a11y/control-has-associated-label': 'off',
       'jsx-a11y/no-autofocus': 'off',
-      'import-x/extensions': 'off',
     },
   },
   {
@@ -40,40 +40,29 @@ export default defineConfig(
   {
     files: ['**/*.mjs'],
     rules: {
-      'import-x/extensions': ['error', 'ignorePackages'],
-    },
-  },
-  {
-    /**
-     * Examples are for demonstration purposes and should not be considered a part of the library.
-     * They don't contain ESLint setup, so we don't want them to contain ESLint directives
-     * We do, however, want to keep the rules in place to ensure the examples are following
-     * a reasonably similar code style as the library.
-     */
-    files: ['**/examples/**/*'],
-    rules: {
-      'no-console': 'off',
-      'no-underscore-dangle': 'off',
-      'import-x/no-unresolved': 'off',
-      'import-x/namespace': 'off',
-      'import-x/extensions': 'off',
-      'import-x/named': 'off',
-      'import-x/no-duplicates': 'off',
-      'import-x/no-named-as-default': 'off',
-      'import-x/default': 'off',
-      'import-x/no-named-as-default-member': 'off',
-      'import-x/order': 'off',
-      // Reset the default until https://github.com/jsx-eslint/eslint-plugin-react/issues/3672 is fixed.
-      'react/jsx-no-target-blank': ['error', { allowReferrer: false }],
-      'react/prop-types': 'off',
-      'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
+      'import/extensions': ['error', 'ignorePackages'],
     },
   },
   {
     files: ['**/apps/**/*'],
     rules: {
-      'import-x/no-relative-packages': 'off',
+      'import/no-relative-packages': 'off',
       'react/jsx-one-expression-per-line': 'off',
+    },
+  },
+  {
+    files: ['packages/bundle-size-checker/**/*'],
+    rules: {
+      'import/prefer-default-export': 'off',
+      // Allow .js file extensions in import statements for ESM compatibility
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        {
+          js: 'always',
+          mjs: 'always',
+        },
+      ],
     },
   },
 );

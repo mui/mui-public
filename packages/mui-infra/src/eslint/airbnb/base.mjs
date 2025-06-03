@@ -28,12 +28,13 @@ const baseES6Plugin = {
 };
 
 function convertImportToImportX(obj) {
-  return Object.keys(obj).reduce((acc, key) => {
-    if (key.startsWith('import-x/')) {
-      acc[`import-x/${key.substring(7)}`] = obj[key];
-    }
-    return acc;
-  }, {});
+  return obj;
+  // return Object.keys(obj).reduce((acc, key) => {
+  //   if (key.startsWith('import/')) {
+  //     acc[`import-x/${key.substring(7)}`] = obj[key];
+  //   }
+  //   return acc;
+  // }, {});
 }
 
 /**
