@@ -7,6 +7,7 @@ vi.mock('./fetchSnapshot.js');
 
 describe('renderMarkdownReport', () => {
   const mockFetchSnapshot = vi.mocked(fetchSnapshotModule.fetchSnapshot);
+  const mockFetchSnapshotWithFallback = vi.mocked(fetchSnapshotModule.fetchSnapshotWithFallback);
 
   /** @type {PrInfo} */
   const mockPrInfo = {
@@ -24,6 +25,7 @@ describe('renderMarkdownReport', () => {
 
   beforeEach(() => {
     mockFetchSnapshot.mockClear();
+    mockFetchSnapshotWithFallback.mockClear();
   });
 
   it('should generate markdown report with size increases', async () => {
@@ -37,7 +39,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/TextField/index.js': { parsed: 22000, gzip: 6500 }, // no change
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
@@ -66,7 +69,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/Chip/index.js': { parsed: 3500, gzip: 1200 }, // new file
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
@@ -85,32 +89,17 @@ describe('renderMarkdownReport', () => {
     `);
   });
 
-  it('should handle missing base snapshot', async () => {
+  it('should handle missing base snapshot when GitHub API also fails', async () => {
     const prSnapshot = {
       '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
     };
 
-    mockFetchSnapshot
-      .mockRejectedValueOnce(new Error('Not found'))
-      .mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: null, actualCommit: null });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
-    expect(result).toMatchInlineSnapshot(`
-      "_:no_entry_sign: No bundle size snapshot found for base commit abc123._
-
-      **Total Size Change:**  +15KB<sup>(0.00%)</sup> - **Total Gzip Change:**  +4.5KB<sup>(0.00%)</sup>
-      Files: 1 total (1 added, 0 removed, 0 changed)
-
-      <details>
-      <summary>Show 1 bundle changes</summary>
-
-      **@mui/material/Button/index.js**&emsp;**parsed:** 🔺+15KB<sup>(new)</sup> **gzip:** 🔺+4.5KB<sup>(new)</sup>
-
-      </details>
-
-      [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
-    `);
+    expect(result).toContain('No bundle size snapshot found for base commit abc123 or any of its 3 parent commits.');
   });
 
   it('should handle size decreases', async () => {
@@ -122,7 +111,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/Button/index.js': { parsed: 14500, gzip: 4300 }, // -500/-200
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
@@ -152,7 +142,8 @@ describe('renderMarkdownReport', () => {
       // TextField removed
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
@@ -188,7 +179,8 @@ describe('renderMarkdownReport', () => {
     baseSnapshot['@mui/material/Button/index.js'] = { parsed: 15000, gzip: 4500 };
     prSnapshot['@mui/material/Button/index.js'] = { parsed: 15400, gzip: 4600 }; // +400/+100 (over threshold)
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
@@ -234,7 +226,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo, '12345');
 
@@ -258,7 +251,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo);
 
@@ -285,7 +279,8 @@ describe('renderMarkdownReport', () => {
       '@mui/icons-material/Add.js': { parsed: 1100, gzip: 350 }, // +100/+50
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
@@ -318,7 +313,8 @@ describe('renderMarkdownReport', () => {
       '@mui/icons-material/Add.js': { parsed: 2000, gzip: 600 }, // +1000/+300 (not tracked)
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
@@ -351,7 +347,8 @@ describe('renderMarkdownReport', () => {
       '@mui/icons-material/Delete.js': { parsed: 1300, gzip: 400 }, // +100/+50 (not tracked)
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js'],
@@ -382,7 +379,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/Icon/index.js': { parsed: 8100, gzip: 2550 }, // untracked, has change
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
@@ -407,7 +405,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/TextField/index.js': { parsed: 22000, gzip: 6500 }, // untracked, no change
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js'],
@@ -434,7 +433,8 @@ describe('renderMarkdownReport', () => {
       '@mui/material/Button/index.js': { parsed: 15400, gzip: 4600 },
     };
 
-    mockFetchSnapshot.mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(prSnapshot);
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: baseSnapshot, actualCommit: 'abc123' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     await expect(
       renderMarkdownReport(mockPrInfo, undefined, {
@@ -443,5 +443,54 @@ describe('renderMarkdownReport', () => {
     ).rejects.toThrow(
       'Tracked bundle not found in head snapshot: @mui/material/NonExistent/index.js',
     );
+  });
+
+  it('should fallback to parent commit when base snapshot is missing', async () => {
+    const parentSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 14500, gzip: 4300 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: parentSnapshot, actualCommit: 'parent1' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo);
+
+    expect(result).toContain('Using snapshot from parent commit parent1 (fallback from abc123)');
+    expect(result).toContain('baseCommit=parent1');
+  });
+
+  it('should show no snapshot message when fallback fails', async () => {
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: null, actualCommit: null });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo);
+
+    expect(result).toContain('No bundle size snapshot found for base commit abc123 or any of its 3 parent commits.');
+  });
+
+  it('should respect custom fallbackDepth option', async () => {
+    const parentSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 14500, gzip: 4300 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: parentSnapshot, actualCommit: 'parent1' });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo, undefined, { fallbackDepth: 1 });
+
+    expect(result).toContain('Using snapshot from parent commit parent1 (fallback from abc123)');
+    expect(mockFetchSnapshotWithFallback).toHaveBeenCalledWith('mui/material-ui', 'abc123', 1);
   });
 });

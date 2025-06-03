@@ -5,7 +5,7 @@
  */
 
 import { calculateSizeDiff } from './sizeDiff.js';
-import { fetchSnapshot } from './fetchSnapshot.js';
+import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 
 /**
@@ -137,15 +137,16 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
  *
  * @param {PrInfo} prInfo
  * @param {string} [circleciBuildNumber] - The CircleCI build number
+ * @param {string} [actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
  */
-function getDetailsUrl(prInfo, circleciBuildNumber) {
+function getDetailsUrl(prInfo, circleciBuildNumber, actualBaseCommit) {
   const detailedComparisonUrl = new URL(
     `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
   detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
-  detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
+  detailedComparisonUrl.searchParams.set('baseCommit', actualBaseCommit || prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
   if (circleciBuildNumber) {
     detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
@@ -159,24 +160,28 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
  * @param {string} [circleciBuildNumber] - The CircleCI build number
  * @param {Object} [options] - Additional options
  * @param {string[]} [options.track] - Array of bundle IDs to track
+ * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
  * @returns {Promise<string>} Markdown report
  */
-export async function renderMarkdownReport(prInfo, circleciBuildNumber, options) {
+export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
   let markdownContent = '';
 
   const baseCommit = prInfo.base.sha;
   const prCommit = prInfo.head.sha;
   const repo = prInfo.base.repo.full_name;
-  const [baseSnapshot, prSnapshot] = await Promise.all([
-    fetchSnapshot(repo, baseCommit).catch((error) => {
-      console.error(`Error fetching base snapshot: ${error}`);
-      return null;
-    }),
+  const { fallbackDepth = 3 } = options;
+  
+  const [baseResult, prSnapshot] = await Promise.all([
+    fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
     fetchSnapshot(repo, prCommit),
   ]);
 
+  const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
+  
   if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit}._\n\n`;
+    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
+  } else if (actualBaseCommit !== baseCommit) {
+    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from ${baseCommit})._\n\n`;
   }
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
@@ -185,7 +190,7 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options)
 
   markdownContent += report;
 
-  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, circleciBuildNumber)})`;
+  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, circleciBuildNumber, actualBaseCommit)})`;
 
   return markdownContent;
 }
