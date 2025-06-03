@@ -2,7 +2,7 @@
 
 import path from 'path';
 import os from 'os';
-import fse from 'fs-extra';
+import fs from 'fs/promises';
 import yargs from 'yargs';
 import Piscina from 'piscina';
 import micromatch from 'micromatch';
@@ -31,7 +31,8 @@ async function getWebpackSizes(args, config) {
   });
   // Clean and recreate the build directory
   const buildDir = path.join(rootDir, 'build');
-  await fse.emptyDir(buildDir);
+  await fs.rm(buildDir, { recursive: true, force: true });
+  await fs.mkdir(buildDir, { recursive: true });
 
   if (
     !config ||
@@ -89,8 +90,8 @@ async function run(argv) {
   const bundleSizes = Object.fromEntries(webpackSizes.sort((a, b) => a[0].localeCompare(b[0])));
 
   // Ensure output directory exists
-  await fse.mkdirp(path.dirname(snapshotDestPath));
-  await fse.writeJSON(snapshotDestPath, bundleSizes, { spaces: 2 });
+  await fs.mkdir(path.dirname(snapshotDestPath), { recursive: true });
+  await fs.writeFile(snapshotDestPath, JSON.stringify(bundleSizes, null, 2));
 
   // eslint-disable-next-line no-console
   console.log(`Bundle size snapshot written to ${snapshotDestPath}`);
