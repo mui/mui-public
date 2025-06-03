@@ -136,11 +136,13 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
 /**
  *
  * @param {PrInfo} prInfo
- * @param {string | null} [circleciBuildNumber] - The CircleCI build number
- * @param {string | null} [actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
+ * @param {Object} [options] - Optional parameters
+ * @param {string | null} [options.circleciBuildNumber] - The CircleCI build number
+ * @param {string | null} [options.actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
  */
-function getDetailsUrl(prInfo, circleciBuildNumber, actualBaseCommit) {
+function getDetailsUrl(prInfo, options = {}) {
+  const { circleciBuildNumber, actualBaseCommit } = options;
   const detailedComparisonUrl = new URL(
     `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
@@ -190,7 +192,7 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
 
   markdownContent += report;
 
-  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, circleciBuildNumber, actualBaseCommit)})`;
+  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { circleciBuildNumber, actualBaseCommit })})`;
 
   return markdownContent;
 }
