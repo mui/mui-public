@@ -74,9 +74,10 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
  * @param {ComparisonResult} comparison - Comparison result from calculateSizeDiff
  * @param {Object} [options] - Additional options
  * @param {string[]} [options.track] - Array of bundle IDs to track. If specified, totals will only include tracked bundles and all tracked bundles will be shown prominently
+ * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
  * @returns {string} Markdown report
  */
-export function renderMarkdownReportContent(comparison, { track } = {}) {
+export function renderMarkdownReportContent(comparison, { track, maxDetailsLines = 100 } = {}) {
   let markdownContent = '';
 
   // Calculate tracked entries once at the top
@@ -111,21 +112,17 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
     } added, ${comparison.fileCounts.removed} removed, ${comparison.fileCounts.changed} changed)\n\n`;
   }
 
-  // Filter entries with changes
-  let changedEntries = comparison.entries.filter(
-    (entry) => Math.abs(entry.parsed.absoluteDiff) > 0 || Math.abs(entry.gzip.absoluteDiff) > 0,
-  );
+  // Show all entries in details section, not just changed ones
+  // Cap at maxDetailsLines bundles to avoid overly large reports
+  const cappedEntries = comparison.entries.slice(0, maxDetailsLines);
+  const hasMore = comparison.entries.length > maxDetailsLines;
 
-  if (trackedEntries) {
-    // If tracking is enabled, filter to only include tracked entries with changes
-    changedEntries = changedEntries.filter((entry) =>
-      trackedEntries.some((tracked) => tracked.id === entry.id),
-    );
-  }
-
-  if (changedEntries.length > 0) {
-    const allChanges = changedEntries.map(generateEmphasizedChange);
-    markdownContent += `<details>\n<summary>Show ${changedEntries.length} bundle changes</summary>\n\n`;
+  if (cappedEntries.length > 0) {
+    const allChanges = cappedEntries.map(generateEmphasizedChange);
+    const summaryText = hasMore
+      ? `Show details for ${cappedEntries.length} bundles (${comparison.entries.length - maxDetailsLines} more not shown)`
+      : `Show details for ${cappedEntries.length} bundles`;
+    markdownContent += `<details>\n<summary>${summaryText}</summary>\n\n`;
     markdownContent += `${allChanges.join('\n')}\n\n`;
     markdownContent += `</details>`;
   }
@@ -163,6 +160,7 @@ function getDetailsUrl(prInfo, options = {}) {
  * @param {Object} [options] - Additional options
  * @param {string[]} [options.track] - Array of bundle IDs to track
  * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
+ * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
  * @returns {Promise<string>} Markdown report
  */
 export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {

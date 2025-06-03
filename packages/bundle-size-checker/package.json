@@ -13,7 +13,8 @@
     "directory": "packages/bundle-size-checker"
   },
   "scripts": {
-    "typescript": "tsc -p tsconfig.json"
+    "typescript": "tsc -p tsconfig.json",
+    "test": "pnpm -w test --project @mui/internal-bundle-size-checker"
   },
   "sideEffects": false,
   "exports": {
