@@ -136,8 +136,8 @@ export function renderMarkdownReportContent(comparison, { track } = {}) {
 /**
  *
  * @param {PrInfo} prInfo
- * @param {string} [circleciBuildNumber] - The CircleCI build number
- * @param {string} [actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
+ * @param {string | null} [circleciBuildNumber] - The CircleCI build number
+ * @param {string | null} [actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
  */
 function getDetailsUrl(prInfo, circleciBuildNumber, actualBaseCommit) {
@@ -170,14 +170,14 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const prCommit = prInfo.head.sha;
   const repo = prInfo.base.repo.full_name;
   const { fallbackDepth = 3 } = options;
-  
+
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
     fetchSnapshot(repo, prCommit),
   ]);
 
   const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
-  
+
   if (!baseSnapshot) {
     markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
   } else if (actualBaseCommit !== baseCommit) {

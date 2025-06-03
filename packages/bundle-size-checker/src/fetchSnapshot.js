@@ -44,15 +44,18 @@ export async function fetchSnapshot(repo, sha) {
  */
 async function getParentCommits(repo, commit, depth = 4) {
   try {
-    const response = await fetch(`https://api.github.com/repos/${repo}/commits?sha=${commit}&per_page=${depth}`);
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/commits?sha=${commit}&per_page=${depth}`,
+    );
     if (!response.ok) {
       throw new Error(`GitHub API request failed: ${response.status}`);
     }
-    
+
+    /** @type {{ sha: string }[]} */
     const commits = await response.json();
     // Skip the first commit (which is the starting commit) and return the rest
-    return commits.slice(1).map(commit => commit.sha);
-  } catch (error) {
+    return commits.slice(1).map((commitDetails) => commitDetails.sha);
+  } catch (/** @type {any} */ error) {
     console.warn(`Failed to get parent commits for ${commit}: ${error.message}`);
     return [];
   }
@@ -70,22 +73,22 @@ export async function fetchSnapshotWithFallback(repo, commit, fallbackDepth = 3)
   try {
     const snapshot = await fetchSnapshot(repo, commit);
     return { snapshot, actualCommit: commit };
-  } catch (error) {
-    console.error(`Error fetching snapshot for commit ${commit}: ${error.message}`);
+  } catch (/** @type {any} */ error) {
+    // fallthrough to parent commits if the snapshot for the original commit fails
   }
-  
+
   // Get parent commits and try each one
   const parentCommits = await getParentCommits(repo, commit, fallbackDepth + 1);
-  
+
   for (const parentCommit of parentCommits) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       const snapshot = await fetchSnapshot(repo, parentCommit);
-      console.log(`Found snapshot for parent commit ${parentCommit} (fallback from ${commit})`);
       return { snapshot, actualCommit: parentCommit };
-    } catch (error) {
-      console.error(`Error fetching snapshot for parent commit ${parentCommit}: ${error.message}`);
+    } catch {
+      // fallthrough to the next parent commit if fetching fails
     }
   }
-  
+
   return { snapshot: null, actualCommit: null };
 }
