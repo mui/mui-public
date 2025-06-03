@@ -65,12 +65,13 @@ export default [
       ],
 
       // Not sure why it doesn't work
-      'import-x/named': 'off',
-      'import-x/no-cycle': 'off',
+      'import/named': 'off',
+      'import/no-cycle': 'off',
       // Missing yarn workspace support
-      'import-x/no-extraneous-dependencies': 'off',
+      'import/no-extraneous-dependencies': 'off',
       // The code is already coupled to webpack. Prefer explicit coupling.
-      'import-x/no-webpack-loader-syntax': 'off',
+      'import/no-webpack-loader-syntax': 'off',
+      'import/no-relative-packages': 'error',
 
       // doesn't work?
       'jsx-a11y/label-has-associated-control': [

@@ -16,7 +16,7 @@ export const specRules = {
     '@typescript-eslint/no-unused-vars': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
 
-    'import-x/prefer-default-export': 'off',
+    'import/prefer-default-export': 'off',
 
     'jsx-a11y/anchor-has-content': 'off',
     'jsx-a11y/anchor-is-valid': 'off',
@@ -51,8 +51,9 @@ export default tseslint.config(
     },
     rules: {
       // does not work with wildcard imports. Mistakes will throw at runtime anyway
-      'import-x/named': 'off',
+      'import/named': 'off',
       'material-ui/disallow-active-element-as-key-event-target': 'error',
+      'mocha/consistent-spacing-between-blocks': 'off',
 
       // upgraded level from recommended
       'mocha/no-pending-tests': 'error',
@@ -92,5 +93,4 @@ export default tseslint.config(
       'react/no-unused-prop-types': 'off',
     },
   },
-  specRules,
 );
