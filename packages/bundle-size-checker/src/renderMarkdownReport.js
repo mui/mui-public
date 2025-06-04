@@ -5,7 +5,7 @@
  */
 
 import { calculateSizeDiff } from './sizeDiff.js';
-import { fetchSnapshot } from './fetchSnapshot.js';
+import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 
 /**
@@ -66,69 +66,66 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
   const changeParsed = formatChange(parsed.absoluteDiff, parsed.relativeDiff);
   const changeGzip = formatChange(gzip.absoluteDiff, gzip.relativeDiff);
 
-  return `**${bundle}**&emsp;**parsed:**${changeParsed} **gzip:**${changeGzip}`;
+  return `**${bundle}**&emsp;**parsed:** ${changeParsed} **gzip:** ${changeGzip}`;
 }
 
 /**
  * Generates a Markdown report for bundle size changes
  * @param {ComparisonResult} comparison - Comparison result from calculateSizeDiff
  * @param {Object} [options] - Additional options
- * @param {number} [options.visibleLimit=10] - Number of entries to show before collapsing
- * @param {number} [options.parsedSizeChangeThreshold=300] - Threshold for parsed size change by which to show the entry
- * @param {number} [options.gzipSizeChangeThreshold=100] - Threshold for gzipped size change by which to show the entry
+ * @param {string[]} [options.track] - Array of bundle IDs to track. If specified, totals will only include tracked bundles and all tracked bundles will be shown prominently
+ * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
  * @returns {string} Markdown report
  */
 export function renderMarkdownReportContent(
   comparison,
-  { visibleLimit = 10, parsedSizeChangeThreshold = 300, gzipSizeChangeThreshold = 100 } = {},
+  { track = [], maxDetailsLines = 100 } = {},
 ) {
   let markdownContent = '';
 
-  markdownContent += `**Total Size Change:**${formatChange(
-    comparison.totals.totalParsed,
-    comparison.totals.totalParsedPercent,
-  )} - **Total Gzip Change:**${formatChange(
-    comparison.totals.totalGzip,
-    comparison.totals.totalGzipPercent,
-  )}\n`;
+  if (track.length > 0) {
+    const entryMap = new Map(comparison.entries.map((entry) => [entry.id, entry]));
+    const trackedEntries = track.map((bundleId) => {
+      const trackedEntry = entryMap.get(bundleId);
+      if (!trackedEntry) {
+        throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
+      }
+      return trackedEntry;
+    });
+    // Show all tracked bundles directly (including unchanged ones)
+    const trackedChanges = trackedEntries.map(generateEmphasizedChange);
+    markdownContent += `${trackedChanges.join('\n')}`;
+  } else {
+    markdownContent += `**Total Size Change:** ${formatChange(
+      comparison.totals.totalParsed,
+      comparison.totals.totalParsedPercent,
+    )} - **Total Gzip Change:** ${formatChange(
+      comparison.totals.totalGzip,
+      comparison.totals.totalGzipPercent,
+    )}\n`;
 
-  markdownContent += `Files: ${comparison.fileCounts.total} total (${
-    comparison.fileCounts.added
-  } added, ${comparison.fileCounts.removed} removed, ${comparison.fileCounts.changed} changed)\n\n`;
-
-  const changedEntries = comparison.entries.filter(
-    (entry) => Math.abs(entry.parsed.absoluteDiff) > 0 || Math.abs(entry.gzip.absoluteDiff) > 0,
-  );
-
-  const visibleEntries = [];
-  const hiddenEntries = [];
-
-  for (const entry of changedEntries) {
-    const { parsed, gzip } = entry;
-    const isSignificantChange =
-      Math.abs(parsed.absoluteDiff) > parsedSizeChangeThreshold ||
-      Math.abs(gzip.absoluteDiff) > gzipSizeChangeThreshold;
-    if (isSignificantChange && visibleEntries.length < visibleLimit) {
-      visibleEntries.push(entry);
-    } else {
-      hiddenEntries.push(entry);
-    }
+    markdownContent += `Files: ${comparison.fileCounts.total} total (${
+      comparison.fileCounts.added
+    } added, ${comparison.fileCounts.removed} removed, ${comparison.fileCounts.changed} changed)\n\n`;
   }
 
-  const importantChanges = visibleEntries.map(generateEmphasizedChange);
-  const hiddenChanges = hiddenEntries.map(generateEmphasizedChange);
+  // Show all entries in details section, not just changed ones
+  // Filter out tracked bundles to avoid duplication
+  const trackedIdSet = new Set(track);
+  const detailsEntries = comparison.entries.filter((entry) => !trackedIdSet.has(entry.id));
 
-  // Add important changes to markdown
-  if (importantChanges.length > 0) {
-    // Show the most significant changes first, up to the visible limit
-    const visibleChanges = importantChanges.slice(0, visibleLimit);
-    markdownContent += `${visibleChanges.join('\n')}`;
-  }
+  // Cap at maxDetailsLines bundles to avoid overly large reports
+  const cappedEntries = detailsEntries.slice(0, maxDetailsLines);
+  const hasMore = detailsEntries.length > maxDetailsLines;
 
-  // If there are more changes, add them in a collapsible details section
-  if (hiddenChanges.length > 0) {
-    markdownContent += `\n<details>\n<summary>Show ${hiddenChanges.length} more bundle changes</summary>\n\n`;
-    markdownContent += `${hiddenChanges.join('\n')}\n\n`;
+  if (cappedEntries.length > 0) {
+    const allChanges = cappedEntries.map(generateEmphasizedChange);
+    const bundleWord = cappedEntries.length === 1 ? 'bundle' : 'bundles';
+    const summaryText = hasMore
+      ? `Show details for ${cappedEntries.length} more ${bundleWord} (${detailsEntries.length - maxDetailsLines} more not shown)`
+      : `Show details for ${cappedEntries.length} more ${bundleWord}`;
+    markdownContent += `<details>\n<summary>${summaryText}</summary>\n\n`;
+    markdownContent += `${allChanges.join('\n')}\n\n`;
     markdownContent += `</details>`;
   }
 
@@ -138,16 +135,19 @@ export function renderMarkdownReportContent(
 /**
  *
  * @param {PrInfo} prInfo
- * @param {string} [circleciBuildNumber] - The CircleCI build number
+ * @param {Object} [options] - Optional parameters
+ * @param {string | null} [options.circleciBuildNumber] - The CircleCI build number
+ * @param {string | null} [options.actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
  */
-function getDetailsUrl(prInfo, circleciBuildNumber) {
+function getDetailsUrl(prInfo, options = {}) {
+  const { circleciBuildNumber, actualBaseCommit } = options;
   const detailedComparisonUrl = new URL(
     `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
   detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
-  detailedComparisonUrl.searchParams.set('baseCommit', prInfo.base.sha);
+  detailedComparisonUrl.searchParams.set('baseCommit', actualBaseCommit || prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
   if (circleciBuildNumber) {
     detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
@@ -159,33 +159,40 @@ function getDetailsUrl(prInfo, circleciBuildNumber) {
  *
  * @param {PrInfo} prInfo
  * @param {string} [circleciBuildNumber] - The CircleCI build number
+ * @param {Object} [options] - Additional options
+ * @param {string[]} [options.track] - Array of bundle IDs to track
+ * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
+ * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
  * @returns {Promise<string>} Markdown report
  */
-export async function renderMarkdownReport(prInfo, circleciBuildNumber) {
+export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
   let markdownContent = '';
 
   const baseCommit = prInfo.base.sha;
   const prCommit = prInfo.head.sha;
   const repo = prInfo.base.repo.full_name;
-  const [baseSnapshot, prSnapshot] = await Promise.all([
-    fetchSnapshot(repo, baseCommit).catch((error) => {
-      console.error(`Error fetching base snapshot: ${error}`);
-      return null;
-    }),
+  const { fallbackDepth = 3 } = options;
+
+  const [baseResult, prSnapshot] = await Promise.all([
+    fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
     fetchSnapshot(repo, prCommit),
   ]);
 
+  const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
+
   if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit}._\n\n`;
+    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
+  } else if (actualBaseCommit !== baseCommit) {
+    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from ${baseCommit})._\n\n`;
   }
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
 
-  const report = renderMarkdownReportContent(sizeDiff);
+  const report = renderMarkdownReportContent(sizeDiff, options);
 
   markdownContent += report;
 
-  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, circleciBuildNumber)})`;
+  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { circleciBuildNumber, actualBaseCommit })})`;
 
   return markdownContent;
 }

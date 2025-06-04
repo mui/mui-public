@@ -34,3 +34,61 @@ export async function fetchSnapshot(repo, sha) {
 
   throw new Error(`Failed to fetch snapshot`, { cause: lastError });
 }
+
+/**
+ * Gets parent commits for a given commit SHA using GitHub API
+ * @param {string} repo - Repository name (e.g., 'mui/material-ui')
+ * @param {string} commit - The commit SHA to start from
+ * @param {number} depth - How many commits to retrieve (including the starting commit)
+ * @returns {Promise<string[]>} Array of commit SHAs in chronological order (excluding the starting commit)
+ */
+async function getParentCommits(repo, commit, depth = 4) {
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/commits?sha=${commit}&per_page=${depth}`,
+    );
+    if (!response.ok) {
+      throw new Error(`GitHub API request failed: ${response.status}`);
+    }
+
+    /** @type {{ sha: string }[]} */
+    const commits = await response.json();
+    // Skip the first commit (which is the starting commit) and return the rest
+    return commits.slice(1).map((commitDetails) => commitDetails.sha);
+  } catch (/** @type {any} */ error) {
+    console.warn(`Failed to get parent commits for ${commit}: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Attempts to fetch a snapshot with fallback to parent commits
+ * @param {string} repo - Repository name
+ * @param {string} commit - The commit SHA to start from
+ * @param {number} [fallbackDepth=3] - How many parent commits to try as fallback
+ * @returns {Promise<{snapshot: import('./sizeDiff').SizeSnapshot | null, actualCommit: string | null}>}
+ */
+export async function fetchSnapshotWithFallback(repo, commit, fallbackDepth = 3) {
+  // Try the original commit first
+  try {
+    const snapshot = await fetchSnapshot(repo, commit);
+    return { snapshot, actualCommit: commit };
+  } catch (/** @type {any} */ error) {
+    // fallthrough to parent commits if the snapshot for the original commit fails
+  }
+
+  // Get parent commits and try each one
+  const parentCommits = await getParentCommits(repo, commit, fallbackDepth + 1);
+
+  for (const parentCommit of parentCommits) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const snapshot = await fetchSnapshot(repo, parentCommit);
+      return { snapshot, actualCommit: parentCommit };
+    } catch {
+      // fallthrough to the next parent commit if fetching fails
+    }
+  }
+
+  return { snapshot: null, actualCommit: null };
+}
