@@ -13,6 +13,7 @@ const productMap = {
   'Date and Time Pickers': 'pickers',
   Charts: 'charts',
   'Tree View': 'tree view',
+  Scheduler: 'scheduler',
 };
 
 /**
@@ -73,7 +74,7 @@ module.exports = async ({ core, context, github }) => {
     if (products !== '') {
       products.split(',').forEach((product) => {
         if (productMap[product.trim()]) {
-          labels.push(`component: ${productMap[product.trim()]}`);
+          labels.push(`scope: ${productMap[product.trim()]}`);
         }
       });
     }
