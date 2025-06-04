@@ -24,6 +24,9 @@
       "default": "./src/eslint/docs.mjs"
     }
   },
+  "bin": {
+    "mui-release-tag": "./src/cli/releaseTag.mjs"
+  },
   "dependencies": {
     "emoji-regex": "^10.4.0",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -37,9 +40,11 @@
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^6.0.0",
     "eslint-plugin-testing-library": "^7.3.0",
+    "git-url-parse": "^16.1.0",
     "globals": "^16.2.0",
     "minimatch": "^10.0.1",
-    "typescript-eslint": "^8.33.1"
+    "typescript-eslint": "^8.33.1",
+    "yargs": "^18.0.0"
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "^14.0.0 || ^15.0.0",

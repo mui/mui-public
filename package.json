@@ -1,6 +1,7 @@
 {
   "name": "mui-public",
   "private": true,
+  "version": "0.0.1",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "eslint": "eslint . --cache --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
