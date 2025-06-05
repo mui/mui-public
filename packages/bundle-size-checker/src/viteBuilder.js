@@ -2,10 +2,10 @@ import path from 'path';
 import fs from 'fs/promises';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
-
-const gzipAsync = promisify(zlib.gzip);
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+
+const gzipAsync = promisify(zlib.gzip);
 
 const rootDir = process.cwd();
 
