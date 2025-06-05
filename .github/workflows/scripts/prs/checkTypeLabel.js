@@ -13,7 +13,7 @@ const typeLabels = [
   'type: release',
   'type: bug',
   'type: regression',
-  'type: improvement',
+  'type: enhancement',
   'type: new feature',
   'type: general',
   // only used by renovate bot so we can ignore the "type: " prefix here
