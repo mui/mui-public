@@ -168,7 +168,7 @@ async function publishPackage(packagePath, tag, options = {}) {
 async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
   console.log('\n📦 Checking for unpublished regular versions...');
 
-  // run sequentially to avoid any rate limniting issues
+  // run sequentially to avoid any rate limiting issues
   for (const pkg of packages) {
     const { currentVersionExists } = packageVersionInfo.get(pkg.name);
 
