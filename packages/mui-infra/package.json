@@ -1,0 +1,74 @@
+{
+  "name": "@mui/infra",
+  "version": "0.0.1",
+  "description": "Infra scripts and configs to be used across MUI repos.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mui/mui-public.git",
+    "directory": "packages/mui-infra"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./prettier": {
+      "types": "./src/prettier.d.ts",
+      "default": "./src/prettier.mjs"
+    },
+    "./eslint": {
+      "types": "./src/eslint/index.d.ts",
+      "default": "./src/eslint/index.mjs"
+    },
+    "./eslint-docs": {
+      "types": "./src/eslint/docs.d.ts",
+      "default": "./src/eslint/docs.mjs"
+    }
+  },
+  "dependencies": {
+    "emoji-regex": "^10.4.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-module-utils": "^2.12.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-mocha": "^11.1.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
+    "eslint-plugin-react-hooks": "^6.0.0",
+    "eslint-plugin-testing-library": "^7.3.0",
+    "globals": "^16.2.0",
+    "minimatch": "^10.0.1",
+    "typescript-eslint": "^8.33.1"
+  },
+  "peerDependencies": {
+    "@next/eslint-plugin-next": "^14.0.0 || ^15.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@next/eslint-plugin-next": {
+      "optional": true
+    },
+    "prettier": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^15.3.3",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "typescript-eslint": "^8.33.1"
+  },
+  "files": [
+    "src",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
