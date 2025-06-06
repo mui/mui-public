@@ -158,8 +158,9 @@ function updateDependenciesToCanary(dependencies, canaryVersions) {
 async function publishPackage(packagePath, tag, options = {}) {
   const { provenance = false, dryRun = false } = options;
   const provenanceArgs = provenance ? ['--provenance'] : [];
+  const gitChecksArgs = tag === 'canary' ? ['--no-git-checks'] : [];
 
-  await runCmd({ cwd: packagePath, dryRun })`pnpm publish --tag ${tag} ${provenanceArgs}`;
+  await runCmd({ cwd: packagePath, dryRun })`pnpm publish --tag ${tag} ${provenanceArgs} ${gitChecksArgs}`;
 }
 
 /**
