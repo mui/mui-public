@@ -10,14 +10,13 @@ const createEnumerationFromArray = (stringArray) =>
     : stringArray.map((s) => `\`${s}\``).join('');
 
 const typeLabels = [
-  'type: release',
   'type: bug',
   'type: regression',
   'type: enhancement',
   'type: new feature',
-  'type: internal',
   // only used by renovate bot so we can ignore the "type: " prefix here
   'dependencies',
+  'release',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
 
