@@ -54,6 +54,7 @@ module.exports = async ({ core, context, github }) => {
 
     // get a list of the originally requested reviewers
     const requestedReviewers = pr.requested_reviewers.map((reviewer) => reviewer.login);
+    core.info(`>>> Requested reviewers: ${requestedReviewers.join(', ')}`);
 
     // get a list of the reviews done for the PR
     const { data: reviews } = github.rest.pulls.listReviews({
@@ -66,11 +67,11 @@ module.exports = async ({ core, context, github }) => {
     const approvingReviewers =
       reviews?.filter((review) => review.state === 'APPROVED').map((review) => review.user.login) ||
       [];
+    core.info(`>>> Approving reviewers: ${approvingReviewers.join(', ')}`);
 
     // merge the 2 arrays into a single array of unique reviewers
-    const reviewers = [...new Set([...requestedReviewers, ...approvingReviewers])];
-
-    core.info(`>>> Reviewers from original PR: ${reviewers.join(', ')}`);
+    const reviewers = [...new Set([pr.user.login, ...requestedReviewers, ...approvingReviewers])];
+    core.info(`>>> List of reviewers: ${reviewers.join(', ')}`);
 
     core.info(`>>> Creating explanatory comment on PR`);
     await github.rest.issues.createComment({
