@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # Required for provenance
+      id-token: write # Required for provenance and OIDC authentication
 
     steps:
       - name: Checkout
@@ -53,8 +53,6 @@ jobs:
       - name: Publish packages (automatic on push)
         if: github.event_name == 'push'
         run: node scripts/publish.mjs --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish packages (manual trigger)
         if: github.event_name == 'workflow_dispatch'
@@ -70,5 +68,3 @@ jobs:
             ARGS="$ARGS --provenance"
           fi
           node scripts/publish.mjs $ARGS
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
