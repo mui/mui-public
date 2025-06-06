@@ -167,20 +167,26 @@ async function publishCanaryVersions(packages, dryRun = false) {
   const canaryVersions = new Map();
   const originalPackageJsons = new Map();
   
-  // First pass: determine all canary version numbers
-  for (const pkg of packages) {
+  // First pass: determine all canary version numbers in parallel
+  const canaryVersionPromises = packages.map(async (pkg) => {
     const latestCanary = await getLatestCanaryVersion(pkg.name, pkg.version);
     const nextCanaryNumber = getNextCanaryNumber(latestCanary);
     const canaryVersion = `${pkg.version}-canary.${nextCanaryNumber}`;
     
-    canaryVersions.set(pkg.name, canaryVersion);
     console.log(`🏷️  ${pkg.name}: ${canaryVersion}`);
+    return { pkg, canaryVersion };
+  });
+  
+  const canaryResults = await Promise.all(canaryVersionPromises);
+  
+  // Build the canary versions map
+  for (const { pkg, canaryVersion } of canaryResults) {
+    canaryVersions.set(pkg.name, canaryVersion);
   }
   
-  // Second pass: update package.json files with canary versions and dependencies
-  for (const pkg of packages) {
+  // Second pass: read and update package.json files in parallel
+  const packageUpdatePromises = packages.map(async (pkg) => {
     const originalPackageJson = await readPackageJson(pkg.path);
-    originalPackageJsons.set(pkg.name, originalPackageJson);
     
     const canaryVersion = canaryVersions.get(pkg.name);
     const updatedPackageJson = {
@@ -216,9 +222,17 @@ async function publishCanaryVersions(packages, dryRun = false) {
     }
     
     console.log(`📝 Updated ${pkg.name} package.json for canary release`);
+    return { pkg, originalPackageJson };
+  });
+  
+  const updateResults = await Promise.all(packageUpdatePromises);
+  
+  // Build the original package.json map
+  for (const { pkg, originalPackageJson } of updateResults) {
+    originalPackageJsons.set(pkg.name, originalPackageJson);
   }
   
-  // Third pass: publish all canary versions
+  // Third pass: publish all canary versions sequentially to avoid rate limits
   let publishSuccess = false;
   try {
     for (const pkg of packages) {
@@ -229,14 +243,16 @@ async function publishCanaryVersions(packages, dryRun = false) {
     }
     publishSuccess = true;
   } finally {
-    // Always restore original package.json files
+    // Always restore original package.json files in parallel
     if (!dryRun) {
       console.log('\n🔄 Restoring original package.json files...');
-      for (const pkg of packages) {
+      const restorePromises = packages.map(async (pkg) => {
         const originalPackageJson = originalPackageJsons.get(pkg.name);
         await writePackageJson(pkg.path, originalPackageJson);
         console.log(`✅ Restored ${pkg.name}/package.json`);
-      }
+      });
+      
+      await Promise.all(restorePromises);
     }
   }
   
