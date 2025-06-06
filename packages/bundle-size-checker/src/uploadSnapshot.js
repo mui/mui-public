@@ -13,6 +13,22 @@ async function getCurrentCommitSHA() {
 }
 
 /**
+ * Sanitizes a string to be used as an S3 tag value
+ * See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
+ * @param {string} str
+ * @returns {string}
+ */
+function sanitizeS3TagString(str) {
+  // Replace disallowed characters with underscore
+  let safe = str.replace(/[^a-zA-Z0-9 +-=.:/@]/g, '_');
+  safe = safe.replace(/_+/g, '_'); // Replace multiple underscores with single
+
+  // Truncate to max lengths (256 for value)
+  const maxLen = 256;
+  return safe.length > maxLen ? safe.substring(0, maxLen) : safe;
+}
+
+/**
  * Uploads the size snapshot to S3
  * @param {string} snapshotPath - The path to the size snapshot JSON file
  * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
@@ -62,7 +78,7 @@ export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
       Tagging: {
         TagSet: [
           { Key: 'isPullRequest', Value: isPullRequest ? 'yes' : 'no' },
-          { Key: 'branch', Value: branch },
+          { Key: 'branch', Value: sanitizeS3TagString(branch) },
         ],
       },
     }),
