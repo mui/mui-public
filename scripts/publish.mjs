@@ -126,42 +126,7 @@ async function writePackageJson(packagePath, packageJson) {
   await fs.writeFile(path.join(packagePath, 'package.json'), content);
 }
 
-/**
- * Update dependencies to point to canary versions
- */
-function updateDependenciesToCanary(dependencies, canaryVersions) {
-  if (!dependencies) {
-    return dependencies;
-  }
 
-  const updated = { ...dependencies };
-
-  for (const [depName, depVersion] of Object.entries(dependencies)) {
-    if (canaryVersions.has(depName)) {
-      updated[depName] = canaryVersions.get(depName);
-    } else if (depVersion === 'workspace:*') {
-      if (!canaryVersions.has(depName)) {
-        throw new Error(
-          `Cannot resolve workspace dependency "${depName}" - no canary version available`,
-        );
-      }
-      updated[depName] = canaryVersions.get(depName);
-    }
-  }
-
-  return updated;
-}
-
-/**
- * Publish a package
- */
-async function publishPackage(packagePath, tag, options = {}) {
-  const { provenance = false, dryRun = false } = options;
-  const provenanceArgs = provenance ? ['--provenance'] : [];
-  const gitChecksArgs = tag === 'canary' ? ['--no-git-checks'] : [];
-
-  await runCmd({ cwd: packagePath, dryRun })`pnpm publish --tag ${tag} ${provenanceArgs} ${gitChecksArgs}`;
-}
 
 /**
  * Publish regular versions that don't exist on npm
@@ -169,19 +134,32 @@ async function publishPackage(packagePath, tag, options = {}) {
 async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
   console.log('\n📦 Checking for unpublished regular versions...');
 
-  // run sequentially to avoid any rate limniting issues
-  for (const pkg of packages) {
+  const packagesToPublish = packages.filter(pkg => {
     const { currentVersionExists } = packageVersionInfo.get(pkg.name);
-
     if (!currentVersionExists) {
-      console.log(`📤 Publishing ${pkg.name}@${pkg.version}...`);
-      // eslint-disable-next-line no-await-in-loop
-      await publishPackage(pkg.path, 'latest', options);
-      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+      console.log(`📤 Will publish ${pkg.name}@${pkg.version}`);
+      return true;
     } else {
       console.log(`⏭️  ${pkg.name}@${pkg.version} already exists, skipping`);
+      return false;
     }
+  });
+
+  if (packagesToPublish.length === 0) {
+    console.log('No packages need to be published');
+    return;
   }
+
+  // Use pnpm recursive publish with filters for specific packages
+  const filterArgs = packagesToPublish.map(pkg => `--filter=${pkg.name}`);
+  const provenanceArgs = options.provenance ? ['--provenance'] : [];
+  
+  console.log(`Publishing ${packagesToPublish.length} packages...`);
+  await runCmd(options)`pnpm -r publish --tag=latest ${filterArgs} ${provenanceArgs}`;
+  
+  packagesToPublish.forEach(pkg => {
+    console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+  });
 }
 
 /**
@@ -220,28 +198,6 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
       gitSha,
     };
 
-    // Update dependencies to point to canary versions
-    if (updatedPackageJson.dependencies) {
-      updatedPackageJson.dependencies = updateDependenciesToCanary(
-        originalPackageJson.dependencies,
-        canaryVersions,
-      );
-    }
-
-    if (updatedPackageJson.devDependencies) {
-      updatedPackageJson.devDependencies = updateDependenciesToCanary(
-        originalPackageJson.devDependencies,
-        canaryVersions,
-      );
-    }
-
-    if (updatedPackageJson.peerDependencies) {
-      updatedPackageJson.peerDependencies = updateDependenciesToCanary(
-        originalPackageJson.peerDependencies,
-        canaryVersions,
-      );
-    }
-
     await writePackageJson(pkg.path, updatedPackageJson);
 
     console.log(`📝 Updated ${pkg.name} package.json for canary release`);
@@ -255,16 +211,20 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
     originalPackageJsons.set(pkg.name, originalPackageJson);
   }
 
-  // Third pass: publish all canary versions sequentially to avoid rate limits
+  // Third pass: publish all canary versions using recursive publish
   let publishSuccess = false;
   try {
-    for (const pkg of packages) {
+    const filterArgs = packages.map(pkg => `--filter=${pkg.name}`);
+    const provenanceArgs = options.provenance ? ['--provenance'] : [];
+    const gitChecksArgs = ['--no-git-checks'];
+    
+    console.log('📤 Publishing all canary versions...');
+    await runCmd(options)`pnpm -r publish --tag=canary ${filterArgs} ${provenanceArgs} ${gitChecksArgs}`;
+    
+    packages.forEach(pkg => {
       const canaryVersion = canaryVersions.get(pkg.name);
-      console.log(`📤 Publishing ${pkg.name}@${canaryVersion} with canary tag...`);
-      // eslint-disable-next-line no-await-in-loop
-      await publishPackage(pkg.path, 'canary', options);
       console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
-    }
+    });
     publishSuccess = true;
   } finally {
     // Always restore original package.json files in parallel
