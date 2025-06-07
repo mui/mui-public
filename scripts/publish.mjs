@@ -126,23 +126,20 @@ async function writePackageJson(packagePath, packageJson) {
   await fs.writeFile(path.join(packagePath, 'package.json'), content);
 }
 
-
-
 /**
  * Publish regular versions that don't exist on npm
  */
 async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
   console.log('\n📦 Checking for unpublished regular versions...');
 
-  const packagesToPublish = packages.filter(pkg => {
+  const packagesToPublish = packages.filter((pkg) => {
     const { currentVersionExists } = packageVersionInfo.get(pkg.name);
     if (!currentVersionExists) {
       console.log(`📤 Will publish ${pkg.name}@${pkg.version}`);
       return true;
-    } else {
-      console.log(`⏭️  ${pkg.name}@${pkg.version} already exists, skipping`);
-      return false;
     }
+    console.log(`⏭️  ${pkg.name}@${pkg.version} already exists, skipping`);
+    return false;
   });
 
   if (packagesToPublish.length === 0) {
@@ -151,13 +148,13 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
   }
 
   // Use pnpm recursive publish with filters for specific packages
-  const filterArgs = packagesToPublish.map(pkg => `--filter=${pkg.name}`);
+  const filterArgs = packagesToPublish.map((pkg) => `--filter=${pkg.name}`);
   const provenanceArgs = options.provenance ? ['--provenance'] : [];
-  
+
   console.log(`Publishing ${packagesToPublish.length} packages...`);
   await runCmd(options)`pnpm -r publish --tag=latest ${filterArgs} ${provenanceArgs}`;
-  
-  packagesToPublish.forEach(pkg => {
+
+  packagesToPublish.forEach((pkg) => {
     console.log(`✅ Published ${pkg.name}@${pkg.version}`);
   });
 }
@@ -214,14 +211,16 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
   // Third pass: publish all canary versions using recursive publish
   let publishSuccess = false;
   try {
-    const filterArgs = packages.map(pkg => `--filter=${pkg.name}`);
+    const filterArgs = packages.map((pkg) => `--filter=${pkg.name}`);
     const provenanceArgs = options.provenance ? ['--provenance'] : [];
     const gitChecksArgs = ['--no-git-checks'];
-    
+
     console.log('📤 Publishing all canary versions...');
-    await runCmd(options)`pnpm -r publish --tag=canary ${filterArgs} ${provenanceArgs} ${gitChecksArgs}`;
-    
-    packages.forEach(pkg => {
+    await runCmd(
+      options,
+    )`pnpm -r publish --tag=canary ${filterArgs} ${provenanceArgs} ${gitChecksArgs}`;
+
+    packages.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);
       console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
     });
@@ -232,7 +231,6 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
     const restorePromises = packages.map(async (pkg) => {
       const originalPackageJson = originalPackageJsons.get(pkg.name);
       await writePackageJson(pkg.path, originalPackageJson);
-      console.log(`✅ Restored ${pkg.name}/package.json`);
     });
 
     await Promise.all(restorePromises);
