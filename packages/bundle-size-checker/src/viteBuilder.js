@@ -1,8 +1,11 @@
 import path from 'path';
 import fs from 'fs/promises';
-import { gzipSync } from 'zlib';
+import * as zlib from 'zlib';
+import { promisify } from 'util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+
+const gzipAsync = promisify(zlib.gzip);
 
 const rootDir = process.cwd();
 
@@ -199,11 +202,12 @@ async function processBundleSizes(outDir, entryName) {
 
     // Calculate sizes
     const parsed = Buffer.byteLength(fileContent);
-    const gzip = Buffer.byteLength(gzipSync(fileContent));
+    const gzipBuffer = await gzipAsync(fileContent, { level: zlib.constants.Z_BEST_COMPRESSION });
+    const gzipSize = Buffer.byteLength(gzipBuffer);
 
     // Use chunk key as the name, or fallback to entry name for main chunk
     const chunkName = chunkKey === 'virtual:entry.tsx' ? entryName : chunkKey;
-    return /** @type {const} */ ([chunkName, { parsed, gzip }]);
+    return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
   const chunkEntries = await Promise.all(chunkPromises);
