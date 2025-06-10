@@ -24,12 +24,12 @@ importers:
       '@eslint/compat':
         specifier: ^1.2.9
         version: 1.2.9(eslint@9.27.0(jiti@2.4.2))
-      '@mui/infra':
-        specifier: workspace:*
-        version: link:packages/mui-infra
       '@mui/internal-bundle-size-checker':
         specifier: workspace:*
         version: link:packages/bundle-size-checker
+      '@mui/internal-code-infra':
+        specifier: workspace:*
+        version: link:packages/mui-internal-code-infra
       '@typescript-eslint/eslint-plugin':
         specifier: 7.12.0
         version: 7.12.0(@typescript-eslint/parser@7.12.0(eslint@9.27.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.27.0(jiti@2.4.2))(typescript@5.8.3)
@@ -340,7 +340,7 @@ importers:
         specifier: ^17.0.33
         version: 17.0.33
 
-  packages/mui-infra:
+  packages/mui-internal-code-infra:
     dependencies:
       emoji-regex:
         specifier: ^10.4.0

@@ -1,7 +1,7 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import * as path from 'node:path';
-import { createBaseConfig, createTestConfig } from '@mui/infra/eslint';
+import { createBaseConfig, createTestConfig } from '@mui/internal-code-infra/eslint';
 import { fileURLToPath } from 'url';
 
 const filename = fileURLToPath(import.meta.url);
@@ -10,7 +10,10 @@ const dirname = path.dirname(filename);
 export default defineConfig(
   includeIgnoreFile(path.join(dirname, '.gitignore')),
   includeIgnoreFile(path.join(dirname, '.eslintignore')),
-  globalIgnores(['packages/mui-infra/src/eslint/material-ui/rules/*.test.*'], 'Global ignores'),
+  globalIgnores(
+    ['packages/mui-internal-code-infra/src/eslint/material-ui/rules/*.test.*'],
+    'Global ignores',
+  ),
   {
     name: 'Base config',
     extends: createBaseConfig(),

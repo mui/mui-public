@@ -1,12 +1,12 @@
 {
-  "name": "@mui/infra",
+  "name": "@mui/internal-code-infra",
   "version": "0.0.1",
   "description": "Infra scripts and configs to be used across MUI repos.",
   "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/mui/mui-public.git",
-    "directory": "packages/mui-infra"
+    "directory": "packages/mui-internal-code-infra"
   },
   "sideEffects": false,
   "exports": {

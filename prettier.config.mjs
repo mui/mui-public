@@ -1,3 +1,3 @@
-import { createBaseConfig } from '@mui/infra/prettier';
+import { createBaseConfig } from '@mui/internal-code-infra/prettier';
 
 export default createBaseConfig();
