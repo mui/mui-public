@@ -1,6 +1,6 @@
 // @ts-check
 const vBranchRegex = /^v\d{1,3}\.x$/;
-const transferLabels = ['cherry-pick'];
+// const transferLabels = ['cherry-pick'];
 
 /**
  * @param {Object} params

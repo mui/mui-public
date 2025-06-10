@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import type { Handler } from '@netlify/functions';
 import zlib from 'zlib';
 import util from 'util';

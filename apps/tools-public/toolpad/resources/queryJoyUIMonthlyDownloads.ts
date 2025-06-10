@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import { formatDatePart, getDateString, getMonthKey } from './queryHeadlessLibrariesDownloads';
 
 const prepareData = (inData) => {
