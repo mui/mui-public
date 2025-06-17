@@ -38,12 +38,11 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         with:
           node-version: '22'
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
+          registry-url: '//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
