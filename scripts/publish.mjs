@@ -7,27 +7,6 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * Wrapper for $ that supports dry run mode
- */
-function runCmd(options = {}) {
-  const { dryRun = false, ...execaOptions } = options;
-
-  if (dryRun) {
-    return function dryRunExec(templateStrings, ...values) {
-      // Reconstruct the command string
-      let command = templateStrings[0];
-      for (let i = 0; i < values.length; i += 1) {
-        command += String(values[i]) + templateStrings[i + 1];
-      }
-      console.log(`[DRY RUN] Would execute: ${command}`);
-      return Promise.resolve({ stdout: '', stderr: '' });
-    };
-  }
-
-  return $(execaOptions);
-}
-
-/**
  * Get all workspace packages that are public
  */
 async function getWorkspacePackages() {
@@ -61,22 +40,28 @@ async function getWorkspacePackages() {
  */
 async function getPackageVersionInfo(packageName, baseVersion) {
   try {
-    const result = await $`pnpm view ${packageName} versions --json`;
-    const versions = JSON.parse(result.stdout);
+    // Check if current stable version exists
+    let currentVersionExists = false;
+    try {
+      await $`pnpm view ${packageName}@${baseVersion} version`;
+      currentVersionExists = true;
+    } catch {
+      currentVersionExists = false;
+    }
 
-    // Check if current version exists
-    const currentVersionExists = versions.includes(baseVersion);
+    // Get canary dist-tag to find latest canary version
+    let latestCanaryVersion = null;
+    try {
+      const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
+      const canaryTag = canaryResult.stdout.trim();
 
-    // Find latest canary version
-    const canaryVersions = versions
-      .filter((v) => v.startsWith(`${baseVersion}-canary.`))
-      .map((v) => {
-        const match = v.match(/canary\.(\d+)$/);
-        return { version: v, number: match ? parseInt(match[1], 10) : 0 };
-      })
-      .sort((a, b) => b.number - a.number);
-
-    const latestCanaryVersion = canaryVersions[0]?.version || null;
+      // Check if canary tag matches our base version pattern
+      if (canaryTag && canaryTag.startsWith(`${baseVersion}-canary.`)) {
+        latestCanaryVersion = canaryTag;
+      }
+    } catch {
+      // No canary dist-tag found, that's fine
+    }
 
     return {
       currentVersionExists,
@@ -108,6 +93,33 @@ function getNextCanaryNumber(latestCanaryVersion) {
 async function getCurrentGitSha() {
   const result = await $`git rev-parse HEAD`;
   return result.stdout.trim();
+}
+
+/**
+ * Publish packages with the given options
+ */
+async function publishPackages(packages, tag, options = {}) {
+  const args = [];
+
+  // Add package filters
+  packages.forEach((pkg) => {
+    args.push('--filter', pkg.name);
+  });
+
+  // Add conditional flags
+  if (options.provenance) {
+    args.push('--provenance');
+  }
+
+  if (options.dryRun) {
+    args.push('--dry-run');
+  }
+
+  if (options.noGitChecks) {
+    args.push('--no-git-checks');
+  }
+
+  await $({ stdio: 'inherit' })`pnpm -r publish --tag=${tag} ${args}`;
 }
 
 /**
@@ -147,12 +159,8 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
     return;
   }
 
-  // Use pnpm recursive publish with filters for specific packages
-  const filterArgs = packagesToPublish.map((pkg) => `--filter=${pkg.name}`);
-  const provenanceArgs = options.provenance ? ['--provenance'] : [];
-
   console.log(`Publishing ${packagesToPublish.length} packages...`);
-  await runCmd(options)`pnpm -r publish --tag=latest ${filterArgs} ${provenanceArgs}`;
+  await publishPackages(packagesToPublish, 'latest', options);
 
   packagesToPublish.forEach((pkg) => {
     console.log(`✅ Published ${pkg.name}@${pkg.version}`);
@@ -211,14 +219,8 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
   // Third pass: publish all canary versions using recursive publish
   let publishSuccess = false;
   try {
-    const filterArgs = packages.map((pkg) => `--filter=${pkg.name}`);
-    const provenanceArgs = options.provenance ? ['--provenance'] : [];
-    const gitChecksArgs = ['--no-git-checks'];
-
     console.log('📤 Publishing all canary versions...');
-    await runCmd(
-      options,
-    )`pnpm -r publish --tag=canary ${filterArgs} ${provenanceArgs} ${gitChecksArgs}`;
+    await publishPackages(packages, 'canary', { ...options, noGitChecks: true });
 
     packages.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);
