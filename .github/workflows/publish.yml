@@ -42,7 +42,7 @@ jobs:
           node-version: '22'
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
-          registry-url: '//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -58,6 +58,8 @@ jobs:
       - name: Publish packages (automatic on push)
         if: github.event_name == 'push'
         run: node scripts/publish.mjs --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish packages (manual trigger)
         if: github.event_name == 'workflow_dispatch'
@@ -73,3 +75,5 @@ jobs:
             ARGS="$ARGS --provenance"
           fi
           node scripts/publish.mjs $ARGS
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
