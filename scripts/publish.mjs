@@ -103,7 +103,7 @@ async function publishPackages(packages, tag, options = {}) {
 
   // Add package filters
   packages.forEach((pkg) => {
-    args.push(`--filter=${pkg.name}`);
+    args.push('--filter', pkg.name);
   });
 
   // Add conditional flags
