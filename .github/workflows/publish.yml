@@ -58,7 +58,7 @@ jobs:
         if: github.event_name == 'push'
         run: node scripts/publish.mjs --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm_config_//registry.npmjs.org/:_authToken: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish packages (manual trigger)
         if: github.event_name == 'workflow_dispatch'
@@ -75,4 +75,4 @@ jobs:
           fi
           node scripts/publish.mjs $ARGS
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm_config_//registry.npmjs.org/:_authToken: ${{ secrets.NPM_TOKEN }}
