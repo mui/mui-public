@@ -1,4 +1,4 @@
-export default {
+export default /** @type {import('eslint').Rule.RuleModule} */ ({
   create: (context) => {
     const { sourceCode } = context;
     sourceCode.getAllComments().forEach((comment) => {
@@ -23,4 +23,4 @@ export default {
 
     return {};
   },
-};
+});

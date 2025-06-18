@@ -1,12 +1,19 @@
+/**
+ * @type {import('eslint').Rule.RuleModule}
+ */
 export default {
   meta: {
     type: 'problem',
   },
   create(context) {
+    /**
+     * @param {import("estree").BlockStatement & import("eslint").Rule.NodeParentExtension | null} componentBlockNode
+     * @returns {import("estree").ObjectPattern | undefined} The props object pattern of the component block node.
+     */
     function getComponentProps(componentBlockNode) {
       // finds the declarator in `const {...} = props;`
       let componentPropsDeclarator = null;
-      componentBlockNode.body.forEach((node) => {
+      componentBlockNode?.body.forEach((node) => {
         if (node.type === 'VariableDeclaration') {
           const propsDeclarator = node.declarations.find(
             (declarator) => declarator.init && declarator.init.name === 'props',
@@ -20,6 +27,9 @@ export default {
       return componentPropsDeclarator !== null ? componentPropsDeclarator.id : undefined;
     }
 
+    /**
+     * @param {import("estree").CallExpression & import("eslint").Rule.NodeParentExtension} hookCallNode
+     */
     function getComponentBlockNode(hookCallNode) {
       let node = hookCallNode.parent;
       while (node !== undefined) {
@@ -96,6 +106,7 @@ export default {
             if (!isPassedToVariantProps) {
               context.report({
                 node: variantProps,
+
                 message: `Prop \`${componentProp.key.name}\` is not passed to \`useThemeVariants\` props.`,
               });
             }

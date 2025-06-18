@@ -1,5 +1,5 @@
 import { includeIgnoreFile } from '@eslint/compat';
-import { defineConfig, globalIgnores } from 'eslint/config';
+import { defineConfig } from 'eslint/config';
 import * as path from 'node:path';
 import { createBaseConfig, createTestConfig } from '@mui/internal-code-infra/eslint';
 import { fileURLToPath } from 'url';
@@ -10,10 +10,6 @@ const dirname = path.dirname(filename);
 export default defineConfig(
   includeIgnoreFile(path.join(dirname, '.gitignore')),
   includeIgnoreFile(path.join(dirname, '.eslintignore')),
-  globalIgnores(
-    ['packages/mui-internal-code-infra/src/eslint/material-ui/rules/*.test.*'],
-    'Global ignores',
-  ),
   {
     name: 'Base config',
     extends: createBaseConfig(),
@@ -35,13 +31,19 @@ export default defineConfig(
   {
     files: ['**/*.mjs'],
     rules: {
-      'import/extensions': ['error', 'ignorePackages'],
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        {
+          js: 'always',
+          mjs: 'always',
+        },
+      ],
     },
   },
   {
     files: ['**/apps/**/*'],
     rules: {
-      'import/no-relative-packages': 'off',
       'react/jsx-one-expression-per-line': 'off',
     },
   },

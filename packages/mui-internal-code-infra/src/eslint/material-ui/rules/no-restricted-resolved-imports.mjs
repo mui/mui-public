@@ -15,10 +15,8 @@ const resolve = resolveModule.default || resolveModule;
 /**
  * Creates an ESLint rule that restricts imports based on their resolved paths.
  * Works with both ESM (import) and CommonJS (require) imports.
- *
- * @type {import('eslint').Rule.RuleModule}
  */
-export default {
+export default /** @type {import('eslint').Rule.RuleModule} */ ({
   meta: {
     docs: {
       description: 'Disallow imports that resolve to certain patterns.',
@@ -53,6 +51,7 @@ export default {
     return moduleVisitor(
       (source, node) => {
         // Get the resolved path of the import
+
         const resolvedPath = resolve(source.value, context);
 
         if (!resolvedPath) {
@@ -83,7 +82,8 @@ export default {
           }
         }
       },
+
       { commonjs: true, es6: true },
     ); // This handles both require() and import statements
   },
-};
+});

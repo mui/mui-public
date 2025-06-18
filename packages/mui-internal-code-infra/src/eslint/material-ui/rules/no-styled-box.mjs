@@ -2,8 +2,8 @@
 // Why is this not exported by ESLint?
 /**
  * Retrieve `ChainExpression#expression` value if the given node a `ChainExpression` node. Otherwise, pass through it.
- * @param {ASTNode} node The node to address.
- * @returns {ASTNode} The `ChainExpression#expression` value if the node is a `ChainExpression` node. Otherwise, the node.
+ * @param {any} node The node to address.
+ * @returns {any} The `ChainExpression#expression` value if the node is a `ChainExpression` node. Otherwise, the node.
  */
 function skipChainExpression(node) {
   return node && node.type === 'ChainExpression' ? node.expression : node;

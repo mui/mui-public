@@ -2,7 +2,7 @@ import createEmojiRegex from 'emoji-regex';
 
 const defaultAllow = ['API'];
 
-export default {
+export default /** @type {import('eslint').Rule.RuleModule} */ ({
   meta: {
     messages: {
       'literal-label':
@@ -36,6 +36,9 @@ export default {
 
     const allow = defaultAllow.concat(allowOption);
 
+    /**
+     * @param {string} value
+     */
     function valueViolatesRule(value) {
       const sanitizedValue = typeof value === 'string' ? value.trim() : value;
       const hasTranslateableContent =
@@ -74,4 +77,4 @@ export default {
       },
     };
   },
-};
+});
