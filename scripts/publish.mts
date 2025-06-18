@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-check
 
 /* eslint-disable no-console */
 
@@ -9,56 +8,63 @@ import path from 'path';
 
 const CANARY_TAG = 'canary';
 
-/**
- * @typedef {Object} Package
- * @property {string} name - Package name
- * @property {string} version - Package version
- * @property {string} path - Package directory path
- */
+interface Package {
+  name: string;
+  version: string;
+  path: string;
+}
 
-/**
- * @typedef {Object} VersionInfo
- * @property {boolean} currentVersionExists - Whether current version exists on npm
- * @property {string|null} latestCanaryVersion - Latest canary version if available
- */
+interface VersionInfo {
+  currentVersionExists: boolean;
+  latestCanaryVersion: string | null;
+}
 
-/**
- * @typedef {Object} PublishOptions
- * @property {boolean} [dryRun] - Whether to run in dry-run mode
- * @property {boolean} [provenance] - Whether to include provenance information
- * @property {boolean} [noGitChecks] - Whether to skip git checks
- */
+interface PublishOptions {
+  dryRun?: boolean;
+  provenance?: boolean;
+  noGitChecks?: boolean;
+}
+
+interface ListResult {
+  name?: string;
+  version?: string;
+  private: boolean;
+  path: string;
+}
 
 /**
  * Get all workspace packages that are public
- * @param {string|null} [sinceRef] - Git reference to filter changes since
- * @returns {Promise<Package[]>} Array of public packages
  */
-async function getWorkspacePackages(sinceRef = null) {
+async function getWorkspacePackages(sinceRef: string | null = null): Promise<Package[]> {
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
   const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
-  const packageData = JSON.parse(result.stdout);
+  const packageData: ListResult[] = JSON.parse(result.stdout);
 
   // Filter out private packages and format the response
   const publicPackages = packageData
     .filter((pkg) => !pkg.private)
-    .map((pkg) => ({
-      name: pkg.name,
-      version: pkg.version,
-      path: pkg.path,
-    }));
+    .map((pkg) => {
+      if (!pkg.name || !pkg.version) {
+        throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
+      }
+      return {
+        name: pkg.name,
+        version: pkg.version,
+        path: pkg.path,
+      };
+    });
 
   return publicPackages;
 }
 
 /**
  * Get package version info from registry
- * @param {string} packageName - Name of the package
- * @param {string} baseVersion - Base version to check
- * @returns {Promise<VersionInfo>} Version information
  */
-async function getPackageVersionInfo(packageName, baseVersion) {
+async function getPackageVersionInfo(
+  packageName: string,
+  baseVersion: string,
+): Promise<VersionInfo> {
   try {
     // Check if current stable version exists
     let currentVersionExists = false;
@@ -97,10 +103,8 @@ async function getPackageVersionInfo(packageName, baseVersion) {
 
 /**
  * Get the next canary number
- * @param {string|null} latestCanaryVersion - Latest canary version string
- * @returns {number} Next canary number
  */
-function getNextCanaryNumber(latestCanaryVersion) {
+function getNextCanaryNumber(latestCanaryVersion: string | null): number {
   if (!latestCanaryVersion) {
     return 0;
   }
@@ -111,18 +115,16 @@ function getNextCanaryNumber(latestCanaryVersion) {
 
 /**
  * Get current git SHA
- * @returns {Promise<string>} Current git commit SHA
  */
-async function getCurrentGitSha() {
+async function getCurrentGitSha(): Promise<string> {
   const result = await $`git rev-parse HEAD`;
   return result.stdout.trim();
 }
 
 /**
  * Check if the canary git tag exists
- * @returns {Promise<string|null>} Canary tag name if exists, null otherwise
  */
-async function getLastCanaryTag() {
+async function getLastCanaryTag(): Promise<string | null> {
   try {
     await $`git rev-parse --verify ${CANARY_TAG}`;
     return CANARY_TAG;
@@ -133,10 +135,8 @@ async function getLastCanaryTag() {
 
 /**
  * Create or update the canary git tag
- * @param {boolean} [dryRun=false] - Whether to run in dry-run mode
- * @returns {Promise<void>}
  */
-async function createCanaryTag(dryRun = false) {
+async function createCanaryTag(dryRun: boolean = false): Promise<void> {
   try {
     if (dryRun) {
       console.log('🏷️  Would update and push canary tag (dry-run)');
@@ -145,7 +145,7 @@ async function createCanaryTag(dryRun = false) {
       await $`git push origin ${CANARY_TAG} --force`;
       console.log('🏷️  Updated and pushed canary tag');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to create/push canary tag:', error.message);
     throw error;
   }
@@ -153,12 +153,12 @@ async function createCanaryTag(dryRun = false) {
 
 /**
  * Publish packages with the given options
- * @param {Package[]} packages - Packages to publish
- * @param {string} tag - npm tag to publish with
- * @param {PublishOptions} [options={}] - Publishing options
- * @returns {Promise<void>}
  */
-async function publishPackages(packages, tag, options = {}) {
+async function publishPackages(
+  packages: Package[],
+  tag: string,
+  options: PublishOptions = {},
+): Promise<void> {
   const args = [];
 
   // Add package filters
@@ -184,33 +184,28 @@ async function publishPackages(packages, tag, options = {}) {
 
 /**
  * Read package.json from a directory
- * @param {string} packagePath - Path to package directory
- * @returns {Promise<Object>} Parsed package.json content
  */
-async function readPackageJson(packagePath) {
+async function readPackageJson(packagePath: string): Promise<any> {
   const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');
   return JSON.parse(content);
 }
 
 /**
  * Write package.json to a directory
- * @param {string} packagePath - Path to package directory
- * @param {Object} packageJson - Package.json object to write
- * @returns {Promise<void>}
  */
-async function writePackageJson(packagePath, packageJson) {
+async function writePackageJson(packagePath: string, packageJson: any): Promise<void> {
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
   await fs.writeFile(path.join(packagePath, 'package.json'), content);
 }
 
 /**
  * Publish regular versions that don't exist on npm
- * @param {Package[]} packages - Packages to check for publishing
- * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
- * @param {PublishOptions} [options={}] - Publishing options
- * @returns {Promise<void>}
  */
-async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
+async function publishRegularVersions(
+  packages: Package[],
+  packageVersionInfo: Map<string, VersionInfo>,
+  options: PublishOptions = {},
+): Promise<void> {
   console.log('\n📦 Checking for unpublished regular versions...');
 
   const packagesToPublish = packages.filter((pkg) => {
@@ -241,18 +236,13 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
 
 /**
  * Publish canary versions with updated dependencies
- * @param {Package[]} packagesToPublish - Packages that need canary publishing
- * @param {Package[]} allPackages - All workspace packages
- * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
- * @param {PublishOptions} [options={}] - Publishing options
- * @returns {Promise<void>}
  */
 async function publishCanaryVersions(
-  packagesToPublish,
-  allPackages,
-  packageVersionInfo,
-  options = {},
-) {
+  packagesToPublish: Package[],
+  allPackages: Package[],
+  packageVersionInfo: Map<string, VersionInfo>,
+  options: PublishOptions = {},
+): Promise<void> {
   console.log('\n🔥 Publishing canary versions...');
 
   // Early return if no packages need canary publishing
@@ -345,9 +335,8 @@ async function publishCanaryVersions(
 
 /**
  * Main publishing function
- * @returns {Promise<void>}
  */
-async function main() {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const canaryOnly = args.includes('--canary-only');

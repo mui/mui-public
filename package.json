@@ -13,7 +13,7 @@
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm --filter \"./packages/**\" run build",
-    "release:publish": "pnpm publish --recursive --tag latest",
+    "release:publish": "tsx scripts/publish.mts",
     "pkg-pr-new-packages": "pnpm ls -r --parseable --depth -1 -F \"./packages/**\""
   },
   "devDependencies": {
@@ -21,6 +21,8 @@
     "@actions/github": "^6.0.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/monorepo": "https://github.com/mui/material-ui.git#010de4505361345951824d905d1508d6f258ba67",
+    "@tsconfig/node22": "^22.0.2",
+    "@types/node": "^24.0.3",
     "@typescript-eslint/eslint-plugin": "7.12.0",
     "@typescript-eslint/parser": "7.12.0",
     "eslint": "8.57.0",
@@ -41,6 +43,7 @@
     "lerna": "^8.2.2",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.3"
   },
