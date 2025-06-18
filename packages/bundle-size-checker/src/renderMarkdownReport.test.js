@@ -323,13 +323,12 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+200B<sup>(+0.91%)</sup> **gzip:** 🔺+100B<sup>(+1.54%)</sup><details>
-      <summary>Show details for 1 more bundle</summary>
+      "| Bundle | Parsed Size | Gzip Size |
+      |----------|----------:|----------:|
+      | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
+      | @mui/material/TextField/index.js | 🔺+200B<sup>(+0.91%)</sup> | 🔺+100B<sup>(+1.54%)</sup> |
 
-      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
 
-      </details>
 
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
@@ -359,13 +358,12 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+500B<sup>(+3.33%)</sup> **gzip:** 🔺+150B<sup>(+3.33%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:** 🔺+300B<sup>(+1.36%)</sup> **gzip:** 🔺+150B<sup>(+2.31%)</sup><details>
-      <summary>Show details for 1 more bundle</summary>
+      "| Bundle | Parsed Size | Gzip Size |
+      |----------|----------:|----------:|
+      | @mui/material/Button/index.js | 🔺+500B<sup>(+3.33%)</sup> | 🔺+150B<sup>(+3.33%)</sup> |
+      | @mui/material/TextField/index.js | 🔺+300B<sup>(+1.36%)</sup> | 🔺+150B<sup>(+2.31%)</sup> |
 
-      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+1KB<sup>(+100.00%)</sup> **gzip:** 🔺+300B<sup>(+100.00%)</sup>
 
-      </details>
 
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
@@ -395,13 +393,11 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup><details>
-      <summary>Show details for 2 more bundles</summary>
+      "| Bundle | Parsed Size | Gzip Size |
+      |----------|----------:|----------:|
+      | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
 
-      **@mui/icons-material/Add.js**&emsp;**parsed:** 🔺+100B<sup>(+10.00%)</sup> **gzip:** 🔺+50B<sup>(+16.67%)</sup>
-      **@mui/icons-material/Delete.js**&emsp;**parsed:** 🔺+100B<sup>(+8.33%)</sup> **gzip:** 🔺+50B<sup>(+14.29%)</sup>
 
-      </details>
 
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
@@ -431,13 +427,12 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
-      **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup><details>
-      <summary>Show details for 1 more bundle</summary>
+      "| Bundle | Parsed Size | Gzip Size |
+      |----------|----------:|----------:|
+      | @mui/material/Button/index.js |  0B<sup>(0.00%)</sup> |  0B<sup>(0.00%)</sup> |
+      | @mui/material/TextField/index.js |  0B<sup>(0.00%)</sup> |  0B<sup>(0.00%)</sup> |
 
-      **@mui/material/Icon/index.js**&emsp;**parsed:** 🔺+100B<sup>(+1.25%)</sup> **gzip:** 🔺+50B<sup>(+2.00%)</sup>
 
-      </details>
 
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
@@ -465,12 +460,11 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "**@mui/material/Button/index.js**&emsp;**parsed:** 🔺+400B<sup>(+2.67%)</sup> **gzip:** 🔺+100B<sup>(+2.22%)</sup><details>
-      <summary>Show details for 1 more bundle</summary>
+      "| Bundle | Parsed Size | Gzip Size |
+      |----------|----------:|----------:|
+      | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
 
-      **@mui/material/TextField/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
 
-      </details>
 
       [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456)"
     `);
