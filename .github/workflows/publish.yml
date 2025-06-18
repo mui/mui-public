@@ -1,0 +1,79 @@
+name: Publish Packages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no actual publishing)'
+        required: false
+        default: false
+        type: boolean
+      canary_only:
+        description: 'Only publish canary versions'
+        required: false
+        default: false
+        type: boolean
+      provenance:
+        description: 'Enable provenance'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for provenance
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.6.2'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm run release:build
+
+      - name: Publish packages (automatic on push)
+        if: github.event_name == 'push'
+        run: node scripts/publish.mjs --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish packages (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ inputs.canary_only }}" = "true" ]; then
+            ARGS="$ARGS --canary-only"
+          fi
+          if [ "${{ inputs.provenance }}" = "true" ]; then
+            ARGS="$ARGS --provenance"
+          fi
+          node scripts/publish.mjs $ARGS
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
