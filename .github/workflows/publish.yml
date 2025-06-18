@@ -57,7 +57,7 @@ jobs:
 
       - name: Publish packages (automatic on push)
         if: github.event_name == 'push'
-        run: pnpm release:publish --provenance
+        run: node scripts/publish.mjs --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -74,6 +74,6 @@ jobs:
           if [ "${{ inputs.provenance }}" = "true" ]; then
             ARGS="$ARGS --provenance"
           fi
-          pnpm release:publish $ARGS
+          node scripts/publish.mjs $ARGS
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
