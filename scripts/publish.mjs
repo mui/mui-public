@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 
 /* eslint-disable no-console */
 
@@ -9,7 +10,29 @@ import path from 'path';
 const CANARY_TAG = 'canary';
 
 /**
+ * @typedef {Object} Package
+ * @property {string} name - Package name
+ * @property {string} version - Package version
+ * @property {string} path - Package directory path
+ */
+
+/**
+ * @typedef {Object} VersionInfo
+ * @property {boolean} currentVersionExists - Whether current version exists on npm
+ * @property {string|null} latestCanaryVersion - Latest canary version if available
+ */
+
+/**
+ * @typedef {Object} PublishOptions
+ * @property {boolean} [dryRun] - Whether to run in dry-run mode
+ * @property {boolean} [provenance] - Whether to include provenance information
+ * @property {boolean} [noGitChecks] - Whether to skip git checks
+ */
+
+/**
  * Get all workspace packages that are public
+ * @param {string|null} [sinceRef] - Git reference to filter changes since
+ * @returns {Promise<Package[]>} Array of public packages
  */
 async function getWorkspacePackages(sinceRef = null) {
   // Build command with conditional filter
@@ -31,6 +54,9 @@ async function getWorkspacePackages(sinceRef = null) {
 
 /**
  * Get package version info from registry
+ * @param {string} packageName - Name of the package
+ * @param {string} baseVersion - Base version to check
+ * @returns {Promise<VersionInfo>} Version information
  */
 async function getPackageVersionInfo(packageName, baseVersion) {
   try {
@@ -71,6 +97,8 @@ async function getPackageVersionInfo(packageName, baseVersion) {
 
 /**
  * Get the next canary number
+ * @param {string|null} latestCanaryVersion - Latest canary version string
+ * @returns {number} Next canary number
  */
 function getNextCanaryNumber(latestCanaryVersion) {
   if (!latestCanaryVersion) {
@@ -83,6 +111,7 @@ function getNextCanaryNumber(latestCanaryVersion) {
 
 /**
  * Get current git SHA
+ * @returns {Promise<string>} Current git commit SHA
  */
 async function getCurrentGitSha() {
   const result = await $`git rev-parse HEAD`;
@@ -91,6 +120,7 @@ async function getCurrentGitSha() {
 
 /**
  * Check if the canary git tag exists
+ * @returns {Promise<string|null>} Canary tag name if exists, null otherwise
  */
 async function getLastCanaryTag() {
   try {
@@ -103,6 +133,8 @@ async function getLastCanaryTag() {
 
 /**
  * Create or update the canary git tag
+ * @param {boolean} [dryRun=false] - Whether to run in dry-run mode
+ * @returns {Promise<void>}
  */
 async function createCanaryTag(dryRun = false) {
   try {
@@ -121,6 +153,10 @@ async function createCanaryTag(dryRun = false) {
 
 /**
  * Publish packages with the given options
+ * @param {Package[]} packages - Packages to publish
+ * @param {string} tag - npm tag to publish with
+ * @param {PublishOptions} [options={}] - Publishing options
+ * @returns {Promise<void>}
  */
 async function publishPackages(packages, tag, options = {}) {
   const args = [];
@@ -148,6 +184,8 @@ async function publishPackages(packages, tag, options = {}) {
 
 /**
  * Read package.json from a directory
+ * @param {string} packagePath - Path to package directory
+ * @returns {Promise<Object>} Parsed package.json content
  */
 async function readPackageJson(packagePath) {
   const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');
@@ -156,6 +194,9 @@ async function readPackageJson(packagePath) {
 
 /**
  * Write package.json to a directory
+ * @param {string} packagePath - Path to package directory
+ * @param {Object} packageJson - Package.json object to write
+ * @returns {Promise<void>}
  */
 async function writePackageJson(packagePath, packageJson) {
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
@@ -164,13 +205,20 @@ async function writePackageJson(packagePath, packageJson) {
 
 /**
  * Publish regular versions that don't exist on npm
+ * @param {Package[]} packages - Packages to check for publishing
+ * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
+ * @param {PublishOptions} [options={}] - Publishing options
+ * @returns {Promise<void>}
  */
 async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
   console.log('\n📦 Checking for unpublished regular versions...');
 
   const packagesToPublish = packages.filter((pkg) => {
-    const { currentVersionExists } = packageVersionInfo.get(pkg.name);
-    if (!currentVersionExists) {
+    const versionInfo = packageVersionInfo.get(pkg.name);
+    if (!versionInfo) {
+      throw new Error(`No version info found for package ${pkg.name}`);
+    }
+    if (!versionInfo.currentVersionExists) {
       console.log(`📤 Will publish ${pkg.name}@${pkg.version}`);
       return true;
     }
@@ -193,6 +241,11 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
 
 /**
  * Publish canary versions with updated dependencies
+ * @param {Package[]} packagesToPublish - Packages that need canary publishing
+ * @param {Package[]} allPackages - All workspace packages
+ * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
+ * @param {PublishOptions} [options={}] - Publishing options
+ * @returns {Promise<void>}
  */
 async function publishCanaryVersions(
   packagesToPublish,
@@ -217,18 +270,21 @@ async function publishCanaryVersions(
   const changedPackageNames = new Set(packagesToPublish.map((pkg) => pkg.name));
 
   for (const pkg of allPackages) {
-    const { latestCanaryVersion } = packageVersionInfo.get(pkg.name);
+    const versionInfo = packageVersionInfo.get(pkg.name);
+    if (!versionInfo) {
+      throw new Error(`No version info found for package ${pkg.name}`);
+    }
 
     if (changedPackageNames.has(pkg.name)) {
       // Generate new canary version for changed packages
-      const nextCanaryNumber = getNextCanaryNumber(latestCanaryVersion);
+      const nextCanaryNumber = getNextCanaryNumber(versionInfo.latestCanaryVersion);
       const canaryVersion = `${pkg.version}-canary.${nextCanaryNumber}`;
       canaryVersions.set(pkg.name, canaryVersion);
       console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
-    } else if (latestCanaryVersion) {
+    } else if (versionInfo.latestCanaryVersion) {
       // Reuse existing canary version for unchanged packages
-      canaryVersions.set(pkg.name, latestCanaryVersion);
-      console.log(`🏷️  ${pkg.name}: ${latestCanaryVersion} (reused)`);
+      canaryVersions.set(pkg.name, versionInfo.latestCanaryVersion);
+      console.log(`🏷️  ${pkg.name}: ${versionInfo.latestCanaryVersion} (reused)`);
     }
   }
 
@@ -289,6 +345,7 @@ async function publishCanaryVersions(
 
 /**
  * Main publishing function
+ * @returns {Promise<void>}
  */
 async function main() {
   const args = process.argv.slice(2);
