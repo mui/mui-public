@@ -9,10 +9,7 @@ import noStyledBox from './rules/no-styled-box.mjs';
 import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
 import straightQuotes from './rules/straight-quotes.mjs';
 
-/**
- * @type {import('eslint').ESLint.Plugin}
- */
-export default {
+export default /** @type {import('eslint').ESLint.Plugin} */ ({
   meta: {
     name: '@mui/eslint-plugin-material-ui',
     version: '0.1.0',
@@ -29,4 +26,4 @@ export default {
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
     'no-restricted-resolved-imports': noRestrictedResolvedImports,
   },
-};
+});

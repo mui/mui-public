@@ -60,6 +60,7 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.3.3",
+    "@types/eslint-plugin-jsx-a11y": "^6.10.0",
     "@types/estree": "^1.0.8",
     "@typescript-eslint/parser": "^8.33.1",
     "eslint": "^9.28.0",

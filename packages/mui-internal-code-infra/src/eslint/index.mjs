@@ -95,6 +95,7 @@ export function createBaseConfig({ enableReactCompiler = false } = {}) {
  */
 export function createTestConfig() {
   return tseslint.config(
+    // @ts-expect-error The types don't make sense here.
     mochaPlugin.configs.recommended,
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],

@@ -42,7 +42,9 @@ const airbnbReactA11yPlugin = {
   rules: airbnbReactA11y.rules,
 };
 
-export default tseslint.config(
-  { name: 'airbnb-react', ...airbnbReactPlugin },
-  { name: 'airbnb-react-a11y', ...airbnbReactA11yPlugin },
+export default /** @type {import('typescript-eslint').ConfigArray} */ (
+  tseslint.config(
+    { name: 'airbnb-react', ...airbnbReactPlugin },
+    { name: 'airbnb-react-a11y', ...airbnbReactA11yPlugin },
+  )
 );

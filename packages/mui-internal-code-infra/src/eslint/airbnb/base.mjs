@@ -27,16 +27,6 @@ const baseES6Plugin = {
   rules: baseEs6.rules,
 };
 
-function convertImportToImportX(obj) {
-  return obj;
-  // return Object.keys(obj).reduce((acc, key) => {
-  //   if (key.startsWith('import/')) {
-  //     acc[`import-x/${key.substring(7)}`] = obj[key];
-  //   }
-  //   return acc;
-  // }, {});
-}
-
 /**
  * @type {import('typescript-eslint').InfiniteDepthConfigWithExtends}
  */
@@ -47,8 +37,8 @@ const baseImportPlugin = {
     },
     parserOptions: baseImports.parserOptions,
   },
-  settings: convertImportToImportX(baseImports.settings),
-  rules: convertImportToImportX(baseImports.rules),
+  settings: baseImports.settings,
+  rules: baseImports.rules,
 };
 
 /**
@@ -63,22 +53,24 @@ const baseNodePlugin = {
   rules: baseNode.rules,
 };
 
-export default tseslint.config(
-  {
-    name: 'base-best-practices',
-    ...baseBestPractices,
-  },
-  {
-    name: 'base-errors',
-    ...baseErrors,
-  },
-  {
-    name: 'base-node',
-    ...baseNodePlugin,
-  },
-  { name: 'base-style', ...baseStyle },
-  { name: 'base-variables', ...baseVariables },
-  { name: 'base-es6-plugin', ...baseES6Plugin },
-  { name: 'base-import-plugin', ...baseImportPlugin },
-  { name: 'base-strict', ...baseStrict },
+export default /** @type {import('typescript-eslint').ConfigArray} */ (
+  tseslint.config(
+    {
+      name: 'base-best-practices',
+      ...baseBestPractices,
+    },
+    {
+      name: 'base-errors',
+      ...baseErrors,
+    },
+    {
+      name: 'base-node',
+      ...baseNodePlugin,
+    },
+    { name: 'base-style', ...baseStyle },
+    { name: 'base-variables', ...baseVariables },
+    { name: 'base-es6-plugin', ...baseES6Plugin },
+    { name: 'base-import-plugin', ...baseImportPlugin },
+    { name: 'base-strict', ...baseStrict },
+  )
 );
