@@ -6,37 +6,70 @@ import { $ } from 'execa';
 import fs from 'fs/promises';
 import path from 'path';
 
+const CANARY_TAG = 'canary';
+
+/**
+ * @typedef {Object} Package
+ * @property {string} name - Package name
+ * @property {string} version - Package version
+ * @property {string} path - Package directory path
+ */
+
+/**
+ * @typedef {Object} VersionInfo
+ * @property {boolean} currentVersionExists - Whether current version exists on npm
+ * @property {string|null} latestCanaryVersion - Latest canary version if available
+ */
+
+/**
+ * @typedef {Object} PublishOptions
+ * @property {boolean} [dryRun] - Whether to run in dry-run mode
+ * @property {boolean} [provenance] - Whether to include provenance information
+ * @property {boolean} [noGitChecks] - Whether to skip git checks
+ */
+
+/**
+ * @typedef {Object} PnpmListResultItem
+ * @property {string} [name] - Package name
+ * @property {string} [version] - Package version
+ * @property {string} path - Package directory path
+ * @property {boolean} private - Whether the package is private
+ */
+
 /**
  * Get all workspace packages that are public
+ * @param {string|null} [sinceRef] - Git reference to filter changes since
+ * @returns {Promise<Package[]>} Array of public packages
  */
-async function getWorkspacePackages() {
-  const result = await $`pnpm ls -r --parseable --depth -1`;
-  const packagePaths = result.stdout.trim().split('\n').filter(Boolean);
+async function getWorkspacePackages(sinceRef = null) {
+  // Build command with conditional filter
+  const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
+  const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
+  /** @type {PnpmListResultItem[]} */
+  const packageData = JSON.parse(result.stdout);
 
-  // Read all package.json files in parallel
-  const packageJsonPromises = packagePaths.map(async (packagePath) => {
-    const packageJsonPath = path.join(packagePath, 'package.json');
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
-    return { packagePath, packageJson };
-  });
-
-  const packageResults = await Promise.all(packageJsonPromises);
-
-  // Filter out private packages
-  const publicPackages = packageResults
-    .filter(({ packageJson }) => !packageJson.private)
-    .map(({ packagePath, packageJson }) => ({
-      name: packageJson.name,
-      version: packageJson.version,
-      path: packagePath,
-      packageJson,
-    }));
+  // Filter out private packages and format the response
+  const publicPackages = packageData
+    .filter((pkg) => !pkg.private)
+    .map((pkg) => {
+      if (!pkg.name || !pkg.version) {
+        throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
+      }
+      return {
+        name: pkg.name,
+        version: pkg.version,
+        path: pkg.path,
+      };
+    });
 
   return publicPackages;
 }
 
 /**
  * Get package version info from registry
+ * @param {string} packageName - Name of the package
+ * @param {string} baseVersion - Base version to check
+ * @returns {Promise<VersionInfo>} Version information
  */
 async function getPackageVersionInfo(packageName, baseVersion) {
   try {
@@ -77,6 +110,8 @@ async function getPackageVersionInfo(packageName, baseVersion) {
 
 /**
  * Get the next canary number
+ * @param {string|null} latestCanaryVersion - Latest canary version string
+ * @returns {number} Next canary number
  */
 function getNextCanaryNumber(latestCanaryVersion) {
   if (!latestCanaryVersion) {
@@ -89,6 +124,7 @@ function getNextCanaryNumber(latestCanaryVersion) {
 
 /**
  * Get current git SHA
+ * @returns {Promise<string>} Current git commit SHA
  */
 async function getCurrentGitSha() {
   const result = await $`git rev-parse HEAD`;
@@ -96,7 +132,44 @@ async function getCurrentGitSha() {
 }
 
 /**
+ * Check if the canary git tag exists
+ * @returns {Promise<string|null>} Canary tag name if exists, null otherwise
+ */
+async function getLastCanaryTag() {
+  try {
+    await $`git rev-parse --verify ${CANARY_TAG}`;
+    return CANARY_TAG;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Create or update the canary git tag
+ * @param {boolean} [dryRun=false] - Whether to run in dry-run mode
+ * @returns {Promise<void>}
+ */
+async function createCanaryTag(dryRun = false) {
+  try {
+    if (dryRun) {
+      console.log('🏷️  Would update and push canary tag (dry-run)');
+    } else {
+      await $`git tag -f ${CANARY_TAG}`;
+      await $`git push origin ${CANARY_TAG} --force`;
+      console.log('🏷️  Updated and pushed canary tag');
+    }
+  } catch (/** @type {any} */ error) {
+    console.error('Failed to create/push canary tag:', error.message);
+    throw error;
+  }
+}
+
+/**
  * Publish packages with the given options
+ * @param {Package[]} packages - Packages to publish
+ * @param {string} tag - npm tag to publish with
+ * @param {PublishOptions} [options={}] - Publishing options
+ * @returns {Promise<void>}
  */
 async function publishPackages(packages, tag, options = {}) {
   const args = [];
@@ -124,6 +197,8 @@ async function publishPackages(packages, tag, options = {}) {
 
 /**
  * Read package.json from a directory
+ * @param {string} packagePath - Path to package directory
+ * @returns {Promise<Object>} Parsed package.json content
  */
 async function readPackageJson(packagePath) {
   const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');
@@ -132,6 +207,9 @@ async function readPackageJson(packagePath) {
 
 /**
  * Write package.json to a directory
+ * @param {string} packagePath - Path to package directory
+ * @param {Object} packageJson - Package.json object to write
+ * @returns {Promise<void>}
  */
 async function writePackageJson(packagePath, packageJson) {
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
@@ -140,13 +218,20 @@ async function writePackageJson(packagePath, packageJson) {
 
 /**
  * Publish regular versions that don't exist on npm
+ * @param {Package[]} packages - Packages to check for publishing
+ * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
+ * @param {PublishOptions} [options={}] - Publishing options
+ * @returns {Promise<void>}
  */
 async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
   console.log('\n📦 Checking for unpublished regular versions...');
 
   const packagesToPublish = packages.filter((pkg) => {
-    const { currentVersionExists } = packageVersionInfo.get(pkg.name);
-    if (!currentVersionExists) {
+    const versionInfo = packageVersionInfo.get(pkg.name);
+    if (!versionInfo) {
+      throw new Error(`No version info found for package ${pkg.name}`);
+    }
+    if (!versionInfo.currentVersionExists) {
       console.log(`📤 Will publish ${pkg.name}@${pkg.version}`);
       return true;
     }
@@ -169,43 +254,69 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
 
 /**
  * Publish canary versions with updated dependencies
+ * @param {Package[]} packagesToPublish - Packages that need canary publishing
+ * @param {Package[]} allPackages - All workspace packages
+ * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
+ * @param {PublishOptions} [options={}] - Publishing options
+ * @returns {Promise<void>}
  */
-async function publishCanaryVersions(packages, packageVersionInfo, options = {}) {
+async function publishCanaryVersions(
+  packagesToPublish,
+  allPackages,
+  packageVersionInfo,
+  options = {},
+) {
   console.log('\n🔥 Publishing canary versions...');
+
+  // Early return if no packages need canary publishing
+  if (packagesToPublish.length === 0) {
+    console.log('✅ No packages have changed since last canary publish');
+    await createCanaryTag(options.dryRun);
+    return;
+  }
 
   const gitSha = await getCurrentGitSha();
   const canaryVersions = new Map();
   const originalPackageJsons = new Map();
 
-  // First pass: determine all canary version numbers
-  const canaryResults = packages.map((pkg) => {
-    const { latestCanaryVersion } = packageVersionInfo.get(pkg.name);
-    const nextCanaryNumber = getNextCanaryNumber(latestCanaryVersion);
-    const canaryVersion = `${pkg.version}-canary.${nextCanaryNumber}`;
+  // First pass: determine canary version numbers for all packages
+  const changedPackageNames = new Set(packagesToPublish.map((pkg) => pkg.name));
 
-    console.log(`🏷️  ${pkg.name}: ${canaryVersion}`);
-    return { pkg, canaryVersion };
-  });
+  for (const pkg of allPackages) {
+    const versionInfo = packageVersionInfo.get(pkg.name);
+    if (!versionInfo) {
+      throw new Error(`No version info found for package ${pkg.name}`);
+    }
 
-  // Build the canary versions map
-  for (const { pkg, canaryVersion } of canaryResults) {
-    canaryVersions.set(pkg.name, canaryVersion);
+    if (changedPackageNames.has(pkg.name)) {
+      // Generate new canary version for changed packages
+      const nextCanaryNumber = getNextCanaryNumber(versionInfo.latestCanaryVersion);
+      const canaryVersion = `${pkg.version}-canary.${nextCanaryNumber}`;
+      canaryVersions.set(pkg.name, canaryVersion);
+      console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
+    } else if (versionInfo.latestCanaryVersion) {
+      // Reuse existing canary version for unchanged packages
+      canaryVersions.set(pkg.name, versionInfo.latestCanaryVersion);
+      console.log(`🏷️  ${pkg.name}: ${versionInfo.latestCanaryVersion} (reused)`);
+    }
   }
 
-  // Second pass: read and update package.json files in parallel
-  const packageUpdatePromises = packages.map(async (pkg) => {
+  // Second pass: read and update ALL package.json files in parallel
+  const packageUpdatePromises = allPackages.map(async (pkg) => {
     const originalPackageJson = await readPackageJson(pkg.path);
 
     const canaryVersion = canaryVersions.get(pkg.name);
-    const updatedPackageJson = {
-      ...originalPackageJson,
-      version: canaryVersion,
-      gitSha,
-    };
+    if (canaryVersion) {
+      const updatedPackageJson = {
+        ...originalPackageJson,
+        version: canaryVersion,
+        gitSha,
+      };
 
-    await writePackageJson(pkg.path, updatedPackageJson);
+      await writePackageJson(pkg.path, updatedPackageJson);
+      console.log(`📝 Updated ${pkg.name} package.json to ${canaryVersion}`);
+    }
 
-    console.log(`📝 Updated ${pkg.name} package.json for canary release`);
     return { pkg, originalPackageJson };
   });
 
@@ -216,13 +327,13 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
     originalPackageJsons.set(pkg.name, originalPackageJson);
   }
 
-  // Third pass: publish all canary versions using recursive publish
+  // Third pass: publish only the changed packages using recursive publish
   let publishSuccess = false;
   try {
-    console.log('📤 Publishing all canary versions...');
-    await publishPackages(packages, 'canary', { ...options, noGitChecks: true });
+    console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
+    await publishPackages(packagesToPublish, 'canary', { ...options, noGitChecks: true });
 
-    packages.forEach((pkg) => {
+    packagesToPublish.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);
       console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
     });
@@ -230,7 +341,7 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
-    const restorePromises = packages.map(async (pkg) => {
+    const restorePromises = allPackages.map(async (pkg) => {
       const originalPackageJson = originalPackageJsons.get(pkg.name);
       await writePackageJson(pkg.path, originalPackageJson);
     });
@@ -239,12 +350,15 @@ async function publishCanaryVersions(packages, packageVersionInfo, options = {})
   }
 
   if (publishSuccess) {
+    // Create/update the canary tag after successful publish
+    await createCanaryTag(options.dryRun);
     console.log('\n🎉 All canary versions published successfully!');
   }
 }
 
 /**
  * Main publishing function
+ * @returns {Promise<void>}
  */
 async function main() {
   const args = process.argv.slice(2);
@@ -262,22 +376,33 @@ async function main() {
     console.log('🔐 Provenance enabled - packages will include provenance information\n');
   }
 
-  console.log('🔍 Discovering workspace packages...');
-  const packages = await getWorkspacePackages();
+  // Always get all packages first
+  console.log('🔍 Discovering all workspace packages...');
+  const allPackages = await getWorkspacePackages();
 
-  if (packages.length === 0) {
+  if (allPackages.length === 0) {
     console.log('⚠️  No public packages found in workspace');
     return;
   }
 
-  console.log(`📋 Found ${packages.length} public packages:`);
+  // Check for canary tag to determine selective publishing
+  const canaryTag = await getLastCanaryTag();
+
+  console.log(
+    canaryTag
+      ? '🔍 Checking for packages changed since canary tag...'
+      : '🔍 No canary tag found, will publish all packages',
+  );
+  const packages = canaryTag ? await getWorkspacePackages(canaryTag) : allPackages;
+
+  console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
   packages.forEach((pkg) => {
     console.log(`   • ${pkg.name}@${pkg.version}`);
   });
 
   // Fetch version info for all packages in parallel
   console.log('\n🔍 Fetching package version information...');
-  const versionInfoPromises = packages.map(async (pkg) => {
+  const versionInfoPromises = allPackages.map(async (pkg) => {
     const versionInfo = await getPackageVersionInfo(pkg.name, pkg.version);
     return { packageName: pkg.name, versionInfo };
   });
@@ -290,10 +415,10 @@ async function main() {
   }
 
   if (!canaryOnly) {
-    await publishRegularVersions(packages, packageVersionInfo, options);
+    await publishRegularVersions(allPackages, packageVersionInfo, options);
   }
 
-  await publishCanaryVersions(packages, packageVersionInfo, options);
+  await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
 
   console.log('\n🏁 Publishing complete!');
 }
