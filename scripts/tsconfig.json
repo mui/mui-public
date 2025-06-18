@@ -1,6 +1,10 @@
 {
   "extends": "@tsconfig/node22/tsconfig.json",
   "compilerOptions": {
-    "types": ["node"]
-  }
+    "composite": true,
+    "checkJs": true,
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs"]
 }

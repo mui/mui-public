@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-check
 
 /* eslint-disable no-console */
 
@@ -30,6 +29,14 @@ const CANARY_TAG = 'canary';
  */
 
 /**
+ * @typedef {Object} PnpmListResultItem
+ * @property {string} [name] - Package name
+ * @property {string} [version] - Package version
+ * @property {string} path - Package directory path
+ * @property {boolean} private - Whether the package is private
+ */
+
+/**
  * Get all workspace packages that are public
  * @param {string|null} [sinceRef] - Git reference to filter changes since
  * @returns {Promise<Package[]>} Array of public packages
@@ -38,16 +45,22 @@ async function getWorkspacePackages(sinceRef = null) {
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
   const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
+  /** @type {PnpmListResultItem[]} */
   const packageData = JSON.parse(result.stdout);
 
   // Filter out private packages and format the response
   const publicPackages = packageData
     .filter((pkg) => !pkg.private)
-    .map((pkg) => ({
-      name: pkg.name,
-      version: pkg.version,
-      path: pkg.path,
-    }));
+    .map((pkg) => {
+      if (!pkg.name || !pkg.version) {
+        throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
+      }
+      return {
+        name: pkg.name,
+        version: pkg.version,
+        path: pkg.path,
+      };
+    });
 
   return publicPackages;
 }
@@ -145,7 +158,7 @@ async function createCanaryTag(dryRun = false) {
       await $`git push origin ${CANARY_TAG} --force`;
       console.log('🏷️  Updated and pushed canary tag');
     }
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     console.error('Failed to create/push canary tag:', error.message);
     throw error;
   }
