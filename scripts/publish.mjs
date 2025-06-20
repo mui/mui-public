@@ -3,9 +3,9 @@
 /* eslint-disable no-console */
 
 import { $ } from 'execa';
-import fs from 'fs/promises';
-import path from 'path';
-import semver from 'semver';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as semver from 'semver';
 
 const CANARY_TAG = 'canary';
 
