@@ -109,7 +109,6 @@ async function getPackageVersionInfo(packageName, baseVersion) {
   }
 }
 
-
 /**
  * Get current git SHA
  * @returns {Promise<string>} Current git commit SHA
