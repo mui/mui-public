@@ -46,8 +46,6 @@ jobs:
           else
             git commit -m "chore: update npm download statistics
 
-            🤖 Automated weekly update of npm download statistics
-
-            Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            🤖 Automated weekly update of npm download statistics"
             git push
           fi
