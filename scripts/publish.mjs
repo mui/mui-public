@@ -3,8 +3,9 @@
 /* eslint-disable no-console */
 
 import { $ } from 'execa';
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as semver from 'semver';
 
 const CANARY_TAG = 'canary';
 
@@ -106,20 +107,6 @@ async function getPackageVersionInfo(packageName, baseVersion) {
       latestCanaryVersion: null,
     };
   }
-}
-
-/**
- * Get the next canary number
- * @param {string|null} latestCanaryVersion - Latest canary version string
- * @returns {number} Next canary number
- */
-function getNextCanaryNumber(latestCanaryVersion) {
-  if (!latestCanaryVersion) {
-    return 0;
-  }
-
-  const match = latestCanaryVersion.match(/canary\.(\d+)$/);
-  return match ? parseInt(match[1], 10) + 1 : 0;
 }
 
 /**
@@ -290,8 +277,9 @@ async function publishCanaryVersions(
 
     if (changedPackageNames.has(pkg.name)) {
       // Generate new canary version for changed packages
-      const nextCanaryNumber = getNextCanaryNumber(versionInfo.latestCanaryVersion);
-      const canaryVersion = `${pkg.version}-canary.${nextCanaryNumber}`;
+      const baseVersion =
+        versionInfo.latestCanaryVersion || semver.inc(pkg.version, 'patch') || '0.0.0';
+      const canaryVersion = semver.inc(baseVersion, 'prerelease', 'canary');
       canaryVersions.set(pkg.name, canaryVersion);
       console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
     } else if (versionInfo.latestCanaryVersion) {
