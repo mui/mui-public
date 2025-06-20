@@ -277,7 +277,8 @@ async function publishCanaryVersions(
 
     if (changedPackageNames.has(pkg.name)) {
       // Generate new canary version for changed packages
-      const baseVersion = versionInfo.latestCanaryVersion || semver.inc(pkg.version, 'patch') || '0.0.0';
+      const baseVersion =
+        versionInfo.latestCanaryVersion || semver.inc(pkg.version, 'patch') || '0.0.0';
       const canaryVersion = semver.inc(baseVersion, 'prerelease', 'canary');
       canaryVersions.set(pkg.name, canaryVersion);
       console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
