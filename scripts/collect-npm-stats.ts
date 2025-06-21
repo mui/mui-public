@@ -118,7 +118,7 @@ async function processPackage(packageName: string): Promise<void> {
   const updatedData = await updateHistoricalData(packageName, allVersionDownloads, existingData);
 
   // Write back to file
-  await writeFile(filePath, JSON.stringify(updatedData, null, 2));
+  await writeFile(filePath, JSON.stringify(updatedData));
 
   console.log(`✅ Updated stats for ${packageName}`);
   console.log(`   Versions: ${Object.keys(allVersionDownloads).join(', ')}`);
