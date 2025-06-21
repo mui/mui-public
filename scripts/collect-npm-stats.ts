@@ -22,6 +22,8 @@ interface HistoricalData {
   downloads: Record<string, number[]>;
 }
 
+const PACKAGES = ['@mui/material', '@base-ui-components/react'];
+
 async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   let response;
 
@@ -155,18 +157,11 @@ async function processPackage(packageName: string): Promise<void> {
 }
 
 async function main() {
-  const packages = process.argv.slice(2);
-
-  if (packages.length === 0) {
-    console.error('Usage: tsx collect-npm-stats.ts <package1> [package2] ...');
-    process.exit(1);
-  }
-
-  console.log(`Collecting npm stats for ${packages.length} package(s): ${packages.join(', ')}`);
+  console.log(`Collecting npm stats for ${PACKAGES.length} package(s): ${PACKAGES.join(', ')}`);
 
   // Process all packages in parallel with individual error handling
   const results = await Promise.allSettled(
-    packages.map(async (packageName) => {
+    PACKAGES.map(async (packageName) => {
       try {
         await processPackage(packageName);
         return { package: packageName, success: true };
@@ -186,9 +181,9 @@ async function main() {
 
   // Summary report
   const successful = results.filter((r) => r.status === 'fulfilled' && r.value.success).length;
-  const failed = packages.length - successful;
+  const failed = PACKAGES.length - successful;
 
-  console.log(`\n📊 Summary: ${successful}/${packages.length} packages processed successfully`);
+  console.log(`\n📊 Summary: ${successful}/${PACKAGES.length} packages processed successfully`);
   if (failed > 0) {
     console.log(`⚠️  ${failed} package(s) failed`);
   } else {

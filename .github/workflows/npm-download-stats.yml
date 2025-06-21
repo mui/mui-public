@@ -31,7 +31,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Collect npm statistics
-        run: pnpm collect-npm-stats @mui/material @base-ui-components/react
+        run: pnpm collect-npm-stats
 
       - name: Configure git
         run: |
