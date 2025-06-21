@@ -1,6 +1,12 @@
 #!/usr/bin/env tsx
 /* eslint-disable no-console */
 
+/**
+ * Collect per-version npm download statistics for specified packages.
+ * This script stores under a size efficient data structure as these files will
+ * be loaded directly in the browser.
+ */
+
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
