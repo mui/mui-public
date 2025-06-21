@@ -9,6 +9,7 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 
 interface NpmDownloadResponse {
   package: string;
@@ -21,19 +22,43 @@ interface HistoricalData {
   downloads: Record<string, number[]>;
 }
 
+async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+  let response;
+
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    // Network error - retry if retries left
+    if (retries <= 0) {
+      throw error;
+    }
+  }
+
+  if (response) {
+    // Handle successful responses
+    if (response.ok) {
+      return response;
+    }
+
+    // Don't retry on 4xx client errors or no retries left
+    if ((response.status >= 400 && response.status < 500) || retries <= 0) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  }
+
+  // Retry after delay
+  console.log(`Retrying in 1s (${retries} retries left)...`);
+  await setTimeout(1000);
+  return fetchWithRetry(url, retries - 1);
+}
+
 async function fetchPackageStats(packageName: string): Promise<NpmDownloadResponse> {
   const encodedPackage = encodeURIComponent(packageName);
   const url = `https://api.npmjs.org/versions/${encodedPackage}/last-week`;
 
   console.log(`Fetching stats for ${packageName}...`);
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch stats for ${packageName}: ${response.status} ${response.statusText}`,
-    );
-  }
-
+  const response = await fetchWithRetry(url);
   return response.json() as Promise<NpmDownloadResponse>;
 }
 
