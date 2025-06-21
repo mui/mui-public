@@ -127,10 +127,6 @@ async function processPackage(packageName: string): Promise<void> {
   await writeFile(filePath, JSON.stringify(updatedData));
 
   console.log(`✅ Updated stats for ${packageName}`);
-  console.log(`   Versions: ${Object.keys(allVersionDownloads).join(', ')}`);
-  console.log(
-    `   Total downloads: ${Object.values(allVersionDownloads).reduce((a, b) => a + b, 0)}`,
-  );
 }
 
 async function main() {
@@ -143,14 +139,35 @@ async function main() {
 
   console.log(`Collecting npm stats for ${packages.length} package(s): ${packages.join(', ')}`);
 
-  try {
-    // Process all packages in parallel
-    await Promise.all(packages.map(processPackage));
+  // Process all packages in parallel with individual error handling
+  const results = await Promise.allSettled(
+    packages.map(async (packageName) => {
+      try {
+        await processPackage(packageName);
+        return { package: packageName, success: true };
+      } catch (error) {
+        console.error(
+          `❌ Failed to process ${packageName}:`,
+          error instanceof Error ? error.message : error,
+        );
+        return {
+          package: packageName,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
 
+  // Summary report
+  const successful = results.filter((r) => r.status === 'fulfilled' && r.value.success).length;
+  const failed = packages.length - successful;
+
+  console.log(`\n📊 Summary: ${successful}/${packages.length} packages processed successfully`);
+  if (failed > 0) {
+    console.log(`⚠️  ${failed} package(s) failed`);
+  } else {
     console.log('🎉 All packages processed successfully!');
-  } catch (error) {
-    console.error('❌ Failed to collect npm stats:', error);
-    process.exit(1);
   }
 }
 
