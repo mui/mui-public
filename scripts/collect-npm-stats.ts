@@ -91,45 +91,40 @@ async function updateHistoricalData(
 }
 
 async function processPackage(packageName: string): Promise<void> {
-  try {
-    // Fetch current stats
-    const stats = await fetchPackageStats(packageName);
+  // Fetch current stats
+  const stats = await fetchPackageStats(packageName);
 
-    // Check if package has any download statistics
-    if (!stats.downloads || Object.keys(stats.downloads).length === 0) {
-      throw new Error(
-        `Package ${packageName} has no download statistics - it may not exist or have no downloads`,
-      );
-    }
-
-    // Use all versions without aggregation
-    const allVersionDownloads = stats.downloads;
-
-    // Determine file path
-    const dataDir = join(process.cwd(), 'data', 'npm-versions');
-    const filePath = join(dataDir, `${packageName}.json`);
-
-    // Ensure directory exists
-    await mkdir(dirname(filePath), { recursive: true });
-
-    // Read existing data
-    const existingData = await readExistingData(filePath);
-
-    // Update historical data
-    const updatedData = await updateHistoricalData(packageName, allVersionDownloads, existingData);
-
-    // Write back to file
-    await writeFile(filePath, JSON.stringify(updatedData, null, 2));
-
-    console.log(`✅ Updated stats for ${packageName}`);
-    console.log(`   Versions: ${Object.keys(allVersionDownloads).join(', ')}`);
-    console.log(
-      `   Total downloads: ${Object.values(allVersionDownloads).reduce((a, b) => a + b, 0)}`,
+  // Check if package has any download statistics
+  if (!stats.downloads || Object.keys(stats.downloads).length === 0) {
+    throw new Error(
+      `Package ${packageName} has no download statistics - it may not exist or have no downloads`,
     );
-  } catch (error) {
-    console.error(`❌ Failed to process ${packageName}:`, error);
-    throw error;
   }
+
+  // Use all versions without aggregation
+  const allVersionDownloads = stats.downloads;
+
+  // Determine file path
+  const dataDir = join(process.cwd(), 'data', 'npm-versions');
+  const filePath = join(dataDir, `${packageName}.json`);
+
+  // Ensure directory exists
+  await mkdir(dirname(filePath), { recursive: true });
+
+  // Read existing data
+  const existingData = await readExistingData(filePath);
+
+  // Update historical data
+  const updatedData = await updateHistoricalData(packageName, allVersionDownloads, existingData);
+
+  // Write back to file
+  await writeFile(filePath, JSON.stringify(updatedData, null, 2));
+
+  console.log(`✅ Updated stats for ${packageName}`);
+  console.log(`   Versions: ${Object.keys(allVersionDownloads).join(', ')}`);
+  console.log(
+    `   Total downloads: ${Object.values(allVersionDownloads).reduce((a, b) => a + b, 0)}`,
+  );
 }
 
 async function main() {
