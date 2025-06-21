@@ -3,7 +3,6 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import * as semver from 'semver';
 
 interface NpmDownloadResponse {
   package: string;
@@ -32,22 +31,6 @@ async function fetchPackageStats(packageName: string): Promise<NpmDownloadRespon
   return response.json() as Promise<NpmDownloadResponse>;
 }
 
-function aggregateByMajorVersion(downloads: Record<string, number>): Record<string, number> {
-  const majorVersions: Record<string, number> = {};
-
-  for (const [version, count] of Object.entries(downloads)) {
-    const major = semver.major(version);
-    const majorKey = major.toString();
-
-    if (!majorVersions[majorKey]) {
-      majorVersions[majorKey] = 0;
-    }
-    majorVersions[majorKey] += count;
-  }
-
-  return majorVersions;
-}
-
 async function readExistingData(filePath: string): Promise<HistoricalData | null> {
   try {
     const content = await readFile(filePath, 'utf-8');
@@ -70,8 +53,8 @@ async function updateHistoricalData(
   if (!existingData) {
     // Create new data structure
     const downloads: Record<string, number[]> = {};
-    for (const [major, count] of Object.entries(newDownloads)) {
-      downloads[major] = [count];
+    for (const [version, count] of Object.entries(newDownloads)) {
+      downloads[version] = [count];
     }
 
     return {
@@ -89,18 +72,18 @@ async function updateHistoricalData(
   };
 
   // Add new download counts
-  for (const [major, count] of Object.entries(newDownloads)) {
-    if (!updatedData.downloads[major]) {
-      // New major version - backfill with zeros for historical timestamps
-      updatedData.downloads[major] = new Array(existingData.timestamps.length).fill(0);
+  for (const [version, count] of Object.entries(newDownloads)) {
+    if (!updatedData.downloads[version]) {
+      // New version - backfill with zeros for historical timestamps
+      updatedData.downloads[version] = new Array(existingData.timestamps.length).fill(0);
     }
-    updatedData.downloads[major].push(count);
+    updatedData.downloads[version].push(count);
   }
 
-  // Ensure all existing major versions have a new entry (fill with 0 if no downloads)
-  for (const major of Object.keys(existingData.downloads)) {
-    if (!newDownloads[major]) {
-      updatedData.downloads[major].push(0);
+  // Ensure all existing versions have a new entry (fill with 0 if no downloads)
+  for (const version of Object.keys(existingData.downloads)) {
+    if (!newDownloads[version]) {
+      updatedData.downloads[version].push(0);
     }
   }
 
@@ -112,8 +95,15 @@ async function processPackage(packageName: string): Promise<void> {
     // Fetch current stats
     const stats = await fetchPackageStats(packageName);
 
-    // Aggregate by major version
-    const aggregatedDownloads = aggregateByMajorVersion(stats.downloads);
+    // Check if package has any download statistics
+    if (!stats.downloads || Object.keys(stats.downloads).length === 0) {
+      throw new Error(
+        `Package ${packageName} has no download statistics - it may not exist or have no downloads`,
+      );
+    }
+
+    // Use all versions without aggregation
+    const allVersionDownloads = stats.downloads;
 
     // Determine file path
     const dataDir = join(process.cwd(), 'data', 'npm-versions');
@@ -126,15 +116,15 @@ async function processPackage(packageName: string): Promise<void> {
     const existingData = await readExistingData(filePath);
 
     // Update historical data
-    const updatedData = await updateHistoricalData(packageName, aggregatedDownloads, existingData);
+    const updatedData = await updateHistoricalData(packageName, allVersionDownloads, existingData);
 
     // Write back to file
     await writeFile(filePath, JSON.stringify(updatedData, null, 2));
 
     console.log(`✅ Updated stats for ${packageName}`);
-    console.log(`   Major versions: ${Object.keys(aggregatedDownloads).join(', ')}`);
+    console.log(`   Versions: ${Object.keys(allVersionDownloads).join(', ')}`);
     console.log(
-      `   Total downloads: ${Object.values(aggregatedDownloads).reduce((a, b) => a + b, 0)}`,
+      `   Total downloads: ${Object.values(allVersionDownloads).reduce((a, b) => a + b, 0)}`,
     );
   } catch (error) {
     console.error(`❌ Failed to process ${packageName}:`, error);
