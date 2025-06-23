@@ -9,7 +9,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "checkJs": true
+    "checkJs": true,
+    "noEmit": true
   },
-  "include": [".eslintrc.*"]
+  "include": [".eslintrc.*", "eslint.config.*", "prettier.config.*"],
 }

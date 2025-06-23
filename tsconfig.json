@@ -15,6 +15,7 @@
     { "path": "packages/babel-plugin-resolve-imports" },
     { "path": "packages/bundle-size-checker" },
     { "path": "packages/mui-internal-code-infra" },
+    { "path": "tsconfig.node.json" },
     { "path": "scripts" }
   ],
   "files": []
