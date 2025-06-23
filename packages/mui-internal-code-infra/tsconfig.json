@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
@@ -11,8 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "outDir": "./build",
-    "noEmit": true,
-    "composite": true
+    "noEmit": true
   },
   "include": ["src"],
   "exclude": ["node_modules", "build"]
