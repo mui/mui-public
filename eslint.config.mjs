@@ -3,7 +3,8 @@ import { defineConfig } from 'eslint/config';
 import * as path from 'node:path';
 import { createBaseConfig, createTestConfig } from '@mui/internal-code-infra/eslint';
 
-export default defineConfig(
+
+export default /** @type {import('eslint').Linter.Config} */ (defineConfig(
   includeIgnoreFile(path.join(import.meta.dirname, '.gitignore')),
   includeIgnoreFile(path.join(import.meta.dirname, '.eslintignore')),
   {
@@ -58,4 +59,4 @@ export default defineConfig(
       ],
     },
   },
-);
+));
