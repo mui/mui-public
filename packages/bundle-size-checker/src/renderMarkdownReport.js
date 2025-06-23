@@ -70,6 +70,51 @@ function generateEmphasizedChange({ id: bundle, parsed, gzip }) {
 }
 
 /**
+ * @typedef {Object} ColumnDefinition
+ * @property {string} field - The property key to extract from data objects
+ * @property {string} [header] - Column header (defaults to field name)
+ * @property {'left'|'center'|'right'} [align='left'] - Column alignment
+ */
+
+/**
+ * Formats data as a markdown table
+ * @param {ColumnDefinition[]} columns - Column definitions
+ * @param {Partial<Record<string, unknown>>[]} data - Array of data objects
+ * @returns {string} Formatted markdown table
+ */
+function formatMarkdownTable(columns, data) {
+  let table = '';
+
+  // Extract headers and alignments from column definitions
+  const headers = columns.map((col) => col.header || col.field);
+  const alignments = columns.map((col) => col.align || 'left');
+
+  // Header row
+  table += `| ${headers.join(' | ')} |\n`;
+
+  // Separator row with alignment
+  const separators = alignments.map((align) => {
+    switch (align) {
+      case 'center':
+        return ':----------:';
+      case 'right':
+        return '----------:';
+      default:
+        return '----------';
+    }
+  });
+  table += `|${separators.join('|')}|\n`;
+
+  // Data rows
+  data.forEach((row) => {
+    const cells = columns.map((col) => row[col.field] ?? '');
+    table += `| ${cells.join(' | ')} |\n`;
+  });
+
+  return table;
+}
+
+/**
  * Generates a Markdown report for bundle size changes
  * @param {ComparisonResult} comparison - Comparison result from calculateSizeDiff
  * @param {Object} [options] - Additional options
@@ -92,9 +137,20 @@ export function renderMarkdownReportContent(
       }
       return trackedEntry;
     });
-    // Show all tracked bundles directly (including unchanged ones)
-    const trackedChanges = trackedEntries.map(generateEmphasizedChange);
-    markdownContent += `${trackedChanges.join('\n')}`;
+
+    markdownContent += formatMarkdownTable(
+      [
+        { field: 'id', header: 'Bundle' },
+        { field: 'parsed', header: 'Parsed Size', align: 'right' },
+        { field: 'gzip', header: 'Gzip Size', align: 'right' },
+      ],
+      trackedEntries.map(({ id, parsed, gzip }) => ({
+        id,
+        parsed: formatChange(parsed.absoluteDiff, parsed.relativeDiff),
+        gzip: formatChange(gzip.absoluteDiff, gzip.relativeDiff),
+      })),
+    );
+    markdownContent += '\n';
   } else {
     markdownContent += `**Total Size Change:** ${formatChange(
       comparison.totals.totalParsed,
@@ -107,26 +163,26 @@ export function renderMarkdownReportContent(
     markdownContent += `Files: ${comparison.fileCounts.total} total (${
       comparison.fileCounts.added
     } added, ${comparison.fileCounts.removed} removed, ${comparison.fileCounts.changed} changed)\n\n`;
-  }
 
-  // Show all entries in details section, not just changed ones
-  // Filter out tracked bundles to avoid duplication
-  const trackedIdSet = new Set(track);
-  const detailsEntries = comparison.entries.filter((entry) => !trackedIdSet.has(entry.id));
+    // Show all entries in details section, not just changed ones
+    // Filter out tracked bundles to avoid duplication
+    const trackedIdSet = new Set(track);
+    const detailsEntries = comparison.entries.filter((entry) => !trackedIdSet.has(entry.id));
 
-  // Cap at maxDetailsLines bundles to avoid overly large reports
-  const cappedEntries = detailsEntries.slice(0, maxDetailsLines);
-  const hasMore = detailsEntries.length > maxDetailsLines;
+    // Cap at maxDetailsLines bundles to avoid overly large reports
+    const cappedEntries = detailsEntries.slice(0, maxDetailsLines);
+    const hasMore = detailsEntries.length > maxDetailsLines;
 
-  if (cappedEntries.length > 0) {
-    const allChanges = cappedEntries.map(generateEmphasizedChange);
-    const bundleWord = cappedEntries.length === 1 ? 'bundle' : 'bundles';
-    const summaryText = hasMore
-      ? `Show details for ${cappedEntries.length} more ${bundleWord} (${detailsEntries.length - maxDetailsLines} more not shown)`
-      : `Show details for ${cappedEntries.length} more ${bundleWord}`;
-    markdownContent += `<details>\n<summary>${summaryText}</summary>\n\n`;
-    markdownContent += `${allChanges.join('\n')}\n\n`;
-    markdownContent += `</details>`;
+    if (cappedEntries.length > 0) {
+      const allChanges = cappedEntries.map(generateEmphasizedChange);
+      const bundleWord = cappedEntries.length === 1 ? 'bundle' : 'bundles';
+      const summaryText = hasMore
+        ? `Show details for ${cappedEntries.length} more ${bundleWord} (${detailsEntries.length - maxDetailsLines} more not shown)`
+        : `Show details for ${cappedEntries.length} more ${bundleWord}`;
+      markdownContent += `<details>\n<summary>${summaryText}</summary>\n\n`;
+      markdownContent += `${allChanges.join('\n')}\n\n`;
+      markdownContent += `</details>`;
+    }
   }
 
   return markdownContent;
