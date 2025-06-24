@@ -9,6 +9,7 @@ import './index.css';
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
+const NpmVersions = React.lazy(() => import('./pages/NpmVersions'));
 
 // Redirect component for size comparison with query params
 function SizeComparisonRedirect() {
@@ -193,6 +194,14 @@ function App() {
                 element={
                   <React.Suspense fallback={<div>Loading...</div>}>
                     <RepositoryPRs />
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="/npm-versions"
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <NpmVersions />
                   </React.Suspense>
                 }
               />
