@@ -2,8 +2,8 @@
   "compilerOptions": {
     "composite": true,
     "target": "ES2022",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "module": "es2015",
+    "moduleResolution": "bundler",
     "allowJs": true,
     "checkJs": true,
     "skipLibCheck": true,

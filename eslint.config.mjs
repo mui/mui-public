@@ -16,6 +16,13 @@ export default defineConfig(
       'jsx-a11y/control-has-associated-label': 'off',
       'jsx-a11y/no-autofocus': 'off',
     },
+    settings: {
+      'import/resolver': {
+        typescript: {
+          project: ['tsconfig.json'],
+        },
+      },
+    },
   },
   {
     files: [
