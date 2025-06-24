@@ -111,6 +111,53 @@ function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
   );
 }
 
+interface VersionPieChartProps {
+  state: BreakdownState;
+  size?: number;
+  onItemClick?: (nextVersion: string | null) => void;
+  onItemHover?: (itemId: string | null) => void;
+}
+
+function VersionPieChart({ state, size = 400, onItemClick, onItemHover }: VersionPieChartProps) {
+  // Generate chart data
+  const chartData = state.breakdownItems.map((item, index) => ({
+    id: item.id,
+    label: `${item.label} (${item.percentage.toFixed(1)}%)`,
+    value: item.downloads,
+    color: COLORS[index % COLORS.length],
+  }));
+
+  // Handle chart clicks
+  const handleChartClick = (event: any, item: PieItemIdentifier) => {
+    if (onItemClick && state.breakdownItems[item.dataIndex]) {
+      const breakdownItem = state.breakdownItems[item.dataIndex];
+      if (breakdownItem.nextVersion !== null) {
+        onItemClick(breakdownItem.nextVersion);
+      }
+    }
+  };
+
+  return (
+    <PieChart
+      series={[{ data: chartData }]}
+      width={size}
+      height={size}
+      onItemClick={state.canGoForward && onItemClick ? handleChartClick : undefined}
+      margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
+      onHighlightChange={(highlightedItem) => {
+        if (highlightedItem === null || highlightedItem.dataIndex === undefined) {
+          onItemHover?.(null);
+        } else {
+          const item = state.breakdownItems[highlightedItem.dataIndex];
+          const itemId = item?.id || null;
+          onItemHover?.(itemId);
+        }
+      }}
+      hideLegend
+    />
+  );
+}
+
 interface BreakdownVisualizationProps {
   state?: BreakdownState | null;
   onItemClick?: (nextVersion: string | null) => void;
@@ -118,43 +165,6 @@ interface BreakdownVisualizationProps {
 
 function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
   const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
-  const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
-  /* 
-  // Show loading state
-  if (!state) {
-    return (
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-          <Skeleton variant="circular" width={400} height={400} />
-          <Box sx={{ flex: 1 }}>
-            <Skeleton variant="rectangular" height={400} />
-          </Box>
-        </Box>
-      </Box>
-    );
-  } */
-
-  // Generate chart data
-  const chartData = state
-    ? state.breakdownItems.map((item, index) => ({
-        id: item.id,
-        label: `${item.label} (${item.percentage.toFixed(1)}%)`,
-        value: item.downloads,
-        color: COLORS[index % COLORS.length],
-      }))
-    : [];
-
-  // Handle chart clicks
-  const handleChartClick = state
-    ? (event: any, item: PieItemIdentifier) => {
-        if (onItemClick && state.breakdownItems[item.dataIndex]) {
-          const breakdownItem = state.breakdownItems[item.dataIndex];
-          if (breakdownItem.nextVersion !== null) {
-            onItemClick(breakdownItem.nextVersion);
-          }
-        }
-      }
-    : undefined;
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -180,34 +190,9 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
           }}
         >
           {state ? (
-            <PieChart
-              series={[{ data: chartData }]}
-              width={400}
-              height={400}
-              margin={{ top: 40, bottom: 40, left: 40, right: 40 }}
-              onItemClick={state.canGoForward && onItemClick ? handleChartClick : undefined}
-              onHighlightChange={(highlightedItem) => {
-                if (highlightedItem === null || highlightedItem.dataIndex === undefined) {
-                  setHoveredItem(null);
-                } else {
-                  const item = state.breakdownItems[highlightedItem.dataIndex];
-                  const itemId = item?.id || null;
-                  setHoveredItem(itemId);
-
-                  // Scroll the corresponding list item into view
-                  if (itemId && listItemRefs.current[itemId]) {
-                    listItemRefs.current[itemId]?.scrollIntoView({
-                      behavior: 'smooth',
-                      block: 'nearest',
-                      inline: 'nearest',
-                    });
-                  }
-                }
-              }}
-              hideLegend
-            />
+            <VersionPieChart state={state} size={400} onItemClick={onItemClick} />
           ) : (
-            <Skeleton variant="circular" width={400} height={400} />
+            <Skeleton variant="circular" width={320} height={320} sx={{ margin: 10 }} />
           )}
         </Box>
 
@@ -222,9 +207,6 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
                   return (
                     <React.Fragment key={item.id}>
                       <ListItemButton
-                        ref={(el: HTMLElement | null) => {
-                          listItemRefs.current[item.id] = el;
-                        }}
                         onClick={isClickable ? () => onItemClick!(item.nextVersion) : undefined}
                         disabled={!isClickable}
                         onMouseEnter={() => setHoveredItem(item.id)}
@@ -309,39 +291,40 @@ function PackageVersionsSection({
     return `?${newSearchParams.toString()}`;
   };
 
+  const breadcrumbs = state
+    ? state.breadcrumbs
+    : [{ label: <Skeleton width={100} />, version: null, isActive: true }];
+
   return (
     <div>
       <Typography variant="h3" sx={{ mb: 2 }}>
         Version Breakdown
       </Typography>
 
-      {/* Breadcrumbs - only show if we have state */}
-      {state && (
-        <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
-          {state.breadcrumbs.map((breadcrumb, index) =>
-            breadcrumb.isActive ? (
-              <Typography key={index} color="text.primary">
-                {breadcrumb.label}
-              </Typography>
-            ) : (
-              <Link
-                key={index}
-                component={RouterLink}
-                to={createVersionUrl(breadcrumb.version)}
-                sx={{
-                  textDecoration: 'none',
-                  color: 'primary.main',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                {breadcrumb.label}
-              </Link>
-            ),
-          )}
-        </Breadcrumbs>
-      )}
+      <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
+        {breadcrumbs.map((breadcrumb, index) =>
+          breadcrumb.isActive ? (
+            <Typography key={index} color="text.primary">
+              {breadcrumb.label}
+            </Typography>
+          ) : (
+            <Link
+              key={index}
+              component={RouterLink}
+              to={createVersionUrl(breadcrumb.version)}
+              sx={{
+                textDecoration: 'none',
+                color: 'primary.main',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              {breadcrumb.label}
+            </Link>
+          ),
+        )}
+      </Breadcrumbs>
 
       {/* Error State */}
       {error && (
