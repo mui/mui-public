@@ -87,6 +87,19 @@ export function createBaseConfig({ enableReactCompiler = false } = {}) {
       },
       extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
     },
+    {
+      files: ['**/*.mjs'],
+      rules: {
+        'import/extensions': [
+          'error',
+          'ignorePackages',
+          {
+            js: 'always',
+            mjs: 'always',
+          },
+        ],
+      },
+    },
   );
 }
 

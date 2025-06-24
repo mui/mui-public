@@ -14,5 +14,5 @@
     "allowJs": true,
     "noEmit": true
   },
-  "include": [".eslintrc.*", "eslint.config.*", "prettier.config.*"],
+  "include": ["eslint.config.*", "prettier.config.*"]
 }

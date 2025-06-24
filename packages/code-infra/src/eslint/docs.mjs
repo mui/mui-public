@@ -16,8 +16,6 @@ export function createDocsConfig() {
       },
     },
     rules: {
-      // We're not using the Image component at the moment
-      '@next/next/no-img-element': 'off',
       'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
     },
   });

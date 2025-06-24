@@ -10,7 +10,6 @@ export default defineConfig(
     name: 'Base config',
     extends: createBaseConfig(),
     rules: {
-      'import/prefer-default-export': 'off',
       // No time for this
       'react/prop-types': 'off',
       'jsx-a11y/control-has-associated-label': 'off',
@@ -30,19 +29,6 @@ export default defineConfig(
       '**/*.test.?(c|m)[jt]s?(x)',
     ],
     extends: createTestConfig(),
-  },
-  {
-    files: ['**/*.mjs'],
-    rules: {
-      'import/extensions': [
-        'error',
-        'ignorePackages',
-        {
-          js: 'always',
-          mjs: 'always',
-        },
-      ],
-    },
   },
   {
     files: ['**/apps/**/*'],

@@ -67,6 +67,8 @@ export function createCoreConfig(options = {}) {
           },
         ],
 
+        // Not needed in general, can be turned on for specific files
+        'import/prefer-default-export': 'off',
         // Not sure why it doesn't work
         'import/named': 'off',
         'import/no-cycle': 'off',
@@ -184,6 +186,7 @@ export function createCoreConfig(options = {}) {
         ...(options.reactCompilerEnabled ? { 'react-compiler/react-compiler': 'error' } : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
+        '@typescript-eslint/return-await': 'off',
       },
     },
   ];
