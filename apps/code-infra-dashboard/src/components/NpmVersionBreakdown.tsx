@@ -31,6 +31,12 @@ export interface UseNpmPackage {
   error: Error | null;
 }
 
+const valueFormatter = (date: Date) =>
+  date.toLocaleDateString('fr-FR', {
+    month: '2-digit',
+    day: '2-digit',
+  });
+
 export function useNpmPackage(packageName: string | null): UseNpmPackage {
   const {
     data = null,
@@ -306,6 +312,7 @@ function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTre
             {
               data: historicalChartData.timestamps,
               scaleType: 'time',
+              valueFormatter,
               label: 'Date',
             },
           ]}
@@ -567,7 +574,7 @@ function getHistoricalBreakdownData(
   historicalData: HistoricalData,
   selectedVersion: null | string = null,
 ): {
-  timestamps: number[];
+  timestamps: Date[];
   series: {
     id: string;
     label: string;
@@ -618,7 +625,7 @@ function getHistoricalBreakdownData(
   });
 
   return {
-    timestamps: historicalData.timestamps,
+    timestamps: historicalData.timestamps.map((ts) => new Date(ts)),
     series: timeSeriesData.sort((a, b) => b.sortKey - a.sortKey),
   };
 }
