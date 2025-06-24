@@ -95,7 +95,7 @@ function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
   return (
     <Box sx={{ mb: 3 }}>
       <Typography variant="h2" sx={{ mb: 1 }}>
-        {packageDetails ? packageDetails.name : <Skeleton width={200} />}
+        {packageDetails?.name ?? packageName ?? <Skeleton width={200} />}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         {packageDetails ? (
@@ -111,16 +111,18 @@ function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
   );
 }
 
-interface VersionPieChartProps {
-  state: BreakdownState;
-  size?: number;
-  onItemClick?: (nextVersion: string | null) => void;
-  onItemHover?: (itemId: string | null) => void;
+interface BreakdownVisualizationProps {
+  state?: BreakdownState | null;
+  onItemClick: (nextVersion: string | null) => void;
 }
 
-function VersionPieChart({ state, size = 400, onItemClick, onItemHover }: VersionPieChartProps) {
+function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
+  const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
+
+  const breakdownItems = state?.breakdownItems ?? [];
+
   // Generate chart data
-  const chartData = state.breakdownItems.map((item, index) => ({
+  const chartData = breakdownItems.map((item, index) => ({
     id: item.id,
     label: `${item.label} (${item.percentage.toFixed(1)}%)`,
     value: item.downloads,
@@ -129,42 +131,13 @@ function VersionPieChart({ state, size = 400, onItemClick, onItemHover }: Versio
 
   // Handle chart clicks
   const handleChartClick = (event: any, item: PieItemIdentifier) => {
-    if (onItemClick && state.breakdownItems[item.dataIndex]) {
-      const breakdownItem = state.breakdownItems[item.dataIndex];
+    if (onItemClick && breakdownItems[item.dataIndex]) {
+      const breakdownItem = breakdownItems[item.dataIndex];
       if (breakdownItem.nextVersion !== null) {
         onItemClick(breakdownItem.nextVersion);
       }
     }
   };
-
-  return (
-    <PieChart
-      series={[{ data: chartData }]}
-      width={size}
-      height={size}
-      onItemClick={state.canGoForward && onItemClick ? handleChartClick : undefined}
-      margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
-      onHighlightChange={(highlightedItem) => {
-        if (highlightedItem === null || highlightedItem.dataIndex === undefined) {
-          onItemHover?.(null);
-        } else {
-          const item = state.breakdownItems[highlightedItem.dataIndex];
-          const itemId = item?.id || null;
-          onItemHover?.(itemId);
-        }
-      }}
-      hideLegend
-    />
-  );
-}
-
-interface BreakdownVisualizationProps {
-  state?: BreakdownState | null;
-  onItemClick?: (nextVersion: string | null) => void;
-}
-
-function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
-  const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -189,11 +162,15 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
             },
           }}
         >
-          {state ? (
-            <VersionPieChart state={state} size={400} onItemClick={onItemClick} />
-          ) : (
-            <Skeleton variant="circular" width={320} height={320} sx={{ margin: 10 }} />
-          )}
+          <PieChart
+            series={[{ data: chartData }]}
+            width={400}
+            height={400}
+            onItemClick={state?.canGoForward ? handleChartClick : undefined}
+            margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
+            loading={!state}
+            hideLegend
+          />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -268,7 +245,7 @@ interface HistoricalTrendsSectionProps {
 function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTrendsSectionProps) {
   // Fetch historical data
   const {
-    data: historicalChartData,
+    data: historicalChartData = { series: [], timestamps: [] },
     isLoading,
     error: historyError,
   } = useQuery({
@@ -290,27 +267,22 @@ function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTre
     return <Alert severity="error">Failed to load historical data: {historyError.message}</Alert>;
   }
 
-  if (!isLoading && !historicalChartData) {
-    return <Alert severity="info">No historical data available for this package</Alert>;
-  }
-
   return (
     <Box sx={{ width: '100%', height: 400 }}>
       {historicalChartData ? (
         <LineChart
-          series={historicalChartData.map((series, index) => ({
-            id: series.id,
-            label: series.label,
-            data: series.data.map((point) => point.totalDownloads),
+          series={historicalChartData.series.map((series, index) => ({
+            ...series,
             color: COLORS[index % COLORS.length],
           }))}
           xAxis={[
             {
-              data: historicalChartData[0]?.data.map((point) => new Date(point.timestamp)),
+              data: historicalChartData.timestamps,
               scaleType: 'time',
               label: 'Date',
             },
           ]}
+          loading={isLoading}
           yAxis={[{ label: 'Downloads' }]}
           height={400}
         />
@@ -352,9 +324,30 @@ function PackageVersionsSection({
     return `?${newSearchParams.toString()}`;
   };
 
-  const breadcrumbs = state
-    ? state.breadcrumbs
-    : [{ label: 'All Versions', version: null, isActive: true }];
+  const selectedParts = selectedVersion ? selectedVersion.split('.') : [];
+  const currentLevel = selectedParts.length;
+
+  // Generate breadcrumbs
+  const breadcrumbs: BreadcrumbItem[] = [
+    {
+      label: 'All Versions',
+      version: null,
+      isActive: currentLevel === 0,
+    },
+  ];
+
+  // Add breadcrumbs for each level
+  for (let i = 0; i < currentLevel; i += 1) {
+    const versionParts = selectedParts.slice(0, i + 1);
+    const version = versionParts.join('.');
+    const isActive = i === currentLevel - 1;
+
+    breadcrumbs.push({
+      label: `v${padVersion(version, 'x', versionParts.length + 1)}`,
+      version,
+      isActive,
+    });
+  }
 
   return (
     <div>
@@ -436,7 +429,6 @@ interface BreadcrumbItem {
 interface BreakdownState {
   canGoBack: boolean;
   canGoForward: boolean;
-  breadcrumbs: BreadcrumbItem[];
   breakdownItems: BreakdownItem[];
   globalTotalDownloads: number;
 }
@@ -540,30 +532,7 @@ function getBreakdownState(
 
   const currentLevel = selectedParts.length;
 
-  // Generate breadcrumbs
-  const breadcrumbs: BreadcrumbItem[] = [
-    {
-      label: 'All Versions',
-      version: null,
-      isActive: currentLevel === 0,
-    },
-  ];
-
-  // Add breadcrumbs for each level
-  for (let i = 0; i < currentLevel; i += 1) {
-    const versionParts = selectedParts.slice(0, i + 1);
-    const version = versionParts.join('.');
-    const isActive = i === currentLevel - 1;
-
-    breadcrumbs.push({
-      label: `v${padVersion(version, 'x', versionParts.length + 1)}`,
-      version,
-      isActive,
-    });
-  }
-
   return {
-    breadcrumbs,
     canGoBack: currentLevel > 0,
     canGoForward: currentLevel < 2,
     breakdownItems,
@@ -574,15 +543,14 @@ function getBreakdownState(
 function getHistoricalBreakdownData(
   historicalData: HistoricalData,
   selectedVersion: null | string = null,
-): Array<{
-  id: string;
-  label: string;
-  data: Array<{ timestamp: number; totalDownloads: number }>;
-}> {
-  if (!historicalData || !historicalData.timestamps.length) {
-    return [];
-  }
-
+): {
+  timestamps: number[];
+  series: {
+    id: string;
+    label: string;
+    data: number[];
+  }[];
+} {
   const versionKeys = Object.keys(historicalData.downloads);
 
   // Filter versions that match the current selection using semver
@@ -610,17 +578,9 @@ function getHistoricalBreakdownData(
     const versions = groupedVersions[key];
 
     // Aggregate downloads for each timestamp
-    const aggregatedData = historicalData.timestamps.map((timestamp, index) => {
-      const totalDownloads = versions.reduce(
-        (sum, version) => sum + historicalData.downloads[version][index],
-        0,
-      );
-
-      return {
-        timestamp,
-        totalDownloads,
-      };
-    });
+    const aggregatedData = historicalData.timestamps.map((timestamp, index) =>
+      versions.reduce((sum, version) => sum + historicalData.downloads[version][index], 0),
+    );
 
     const keyParts = key.split('.');
     const relevantFragment = keyParts[selectedParts.length];
@@ -634,7 +594,10 @@ function getHistoricalBreakdownData(
     };
   });
 
-  return timeSeriesData.sort((a, b) => b.sortKey - a.sortKey);
+  return {
+    timestamps: historicalData.timestamps,
+    series: timeSeriesData.sort((a, b) => b.sortKey - a.sortKey),
+  };
 }
 
 function NpmVersionBreakdown({
