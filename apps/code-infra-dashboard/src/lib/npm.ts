@@ -5,7 +5,6 @@ export interface Package {
   author: string;
   link: string;
   score: number;
-  versions?: Record<string, PackageVersion>;
 }
 
 export interface PackageVersion {

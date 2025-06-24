@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchNpmPackageDetails, Package } from '../lib/npm';
 
 export interface UseNpmPackage {
-  packageDetails: Omit<Package, 'versions'> | null;
+  packageDetails: Package | null;
   isLoading: boolean;
   error: Error | null;
 }

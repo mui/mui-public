@@ -17,10 +17,10 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import { PieItemIdentifier } from '@mui/x-charts';
 import {
-  Package,
   HistoricalData,
   fetchNpmPackageVersions,
   fetchNpmPackageHistory,
+  PackageVersion,
 } from '../lib/npm';
 import { useNpmPackage } from '../hooks/useNpmPackage';
 
@@ -30,10 +30,6 @@ interface PackageDetailsSectionProps {
 
 function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
   const { isLoading, error, packageDetails } = useNpmPackage(packageName);
-
-  if (!packageName) {
-    return null;
-  }
 
   if (error) {
     return (
@@ -137,10 +133,10 @@ function getNextLevelKey(version: string, selectedVersion: null | string): strin
 }
 
 function getBreakdownState(
-  packageData: Package,
+  packageVersions: Record<string, PackageVersion>,
   selectedVersion: null | string = null,
 ): BreakdownState {
-  const versionKeys = Object.keys(packageData.versions || {});
+  const versionKeys = Object.keys(packageVersions || {});
 
   // Filter versions that match the current selection using semver
   const matchingVersions = selectedVersion
@@ -152,7 +148,7 @@ function getBreakdownState(
 
   // Calculate global total downloads
   const globalTotalDownloads = versionKeys.reduce(
-    (sum, version) => sum + (packageData.versions?.[version]?.downloads || 0),
+    (sum, version) => sum + (packageVersions?.[version]?.downloads || 0),
     0,
   );
 
@@ -174,13 +170,13 @@ function getBreakdownState(
     .map((key) => {
       const versions = groupedVersions[key];
       const downloads = versions.reduce(
-        (sum, version) => sum + (packageData.versions?.[version]?.downloads || 0),
+        (sum, version) => sum + (packageVersions?.[version]?.downloads || 0),
         0,
       );
 
       // Find the newest published date in the group
       const newestPublishedAt = versions.reduce<string | null>((newest, version) => {
-        const publishedAt = packageData.versions?.[version]?.publishedAt;
+        const publishedAt = packageVersions?.[version]?.publishedAt;
         if (!publishedAt) {
           return newest;
         }
@@ -318,13 +314,6 @@ function NpmVersionBreakdown({
   const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
   const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
 
-  // Fetch package details using custom hook
-  const packageState = useNpmPackage(packageName);
-  const packageDetails =
-    packageState.isLoading || packageState.error ? null : packageState.packageDetails;
-  const isLoadingDetails = packageState.isLoading;
-  const detailsError = packageState.isLoading || !packageState.error ? null : packageState.error;
-
   // Fetch version data
   const {
     data: versions = {},
@@ -354,37 +343,6 @@ function NpmVersionBreakdown({
     return null;
   }
 
-  // Show loading state if package details are still loading
-  if (isLoadingDetails) {
-    return (
-      <Box sx={{ mt: 2 }}>
-        <PackageDetailsSection packageName={packageName} />
-        <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
-      </Box>
-    );
-  }
-
-  // Show error if package details failed
-  if (detailsError) {
-    return (
-      <Box sx={{ mt: 2 }}>
-        <PackageDetailsSection packageName={packageName} />
-      </Box>
-    );
-  }
-
-  // Show error if no package details
-  if (!packageDetails) {
-    return (
-      <Box sx={{ mt: 2 }}>
-        <PackageDetailsSection packageName={packageName} />
-      </Box>
-    );
-  }
-
-  // Combine package details with versions for the breakdown logic
-  const packageData: Package = { ...packageDetails, versions };
-
   // Helper function to create URLs preserving other search params
   const createVersionUrl = (version: string | null): string => {
     const newSearchParams = new URLSearchParams(searchParams);
@@ -398,7 +356,7 @@ function NpmVersionBreakdown({
 
   // Get current breakdown state (only if we have version data)
   const state =
-    Object.keys(versions).length > 0 ? getBreakdownState(packageData, selectedVersion) : null;
+    Object.keys(versions).length > 0 ? getBreakdownState(versions, selectedVersion) : null;
   const filteredBreakdown = state ? state.breakdownItems.filter((item) => item.downloads > 0) : [];
 
   // Generate chart data
