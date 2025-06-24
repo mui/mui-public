@@ -6,7 +6,6 @@ import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
 import Heading from '../components/Heading';
 import NpmVersionBreakdown from '../components/NpmVersionBreakdown';
@@ -30,6 +29,13 @@ export default function NpmVersions() {
     enabled: !!searchQuery.trim(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  React.useEffect(() => {
+    if (searchError) {
+      // TODO: Handle search error gracefully, make Autocomplete show error state
+      console.error('Error fetching npm package search results:', searchError);
+    }
+  }, [searchError]);
 
   // Update input value when package parameter changes
   React.useEffect(() => {
@@ -132,12 +138,6 @@ export default function NpmVersions() {
           )}
           sx={{ mb: 2 }}
         />
-
-        {searchError && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            Search Error: {searchError.message}
-          </Alert>
-        )}
       </Paper>
 
       {/* Package Details and Version Breakdown */}
