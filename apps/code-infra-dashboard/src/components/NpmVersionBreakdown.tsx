@@ -183,9 +183,6 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            '& .MuiChartsLegend-root': {
-              display: 'none',
-            },
           }}
         >
           <PieChart
