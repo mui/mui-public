@@ -427,10 +427,8 @@ interface BreadcrumbItem {
 }
 
 interface BreakdownState {
-  canGoBack: boolean;
   canGoForward: boolean;
   breakdownItems: BreakdownItem[];
-  globalTotalDownloads: number;
 }
 
 function padVersion(version: string, padWith: string = '0', length = 3): string {
@@ -533,10 +531,8 @@ function getBreakdownState(
   const currentLevel = selectedParts.length;
 
   return {
-    canGoBack: currentLevel > 0,
     canGoForward: currentLevel < 2,
     breakdownItems,
-    globalTotalDownloads,
   };
 }
 
