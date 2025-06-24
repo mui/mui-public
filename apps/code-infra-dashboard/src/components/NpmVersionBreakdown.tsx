@@ -260,6 +260,67 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
   );
 }
 
+interface HistoricalTrendsSectionProps {
+  packageName: string | null;
+  selectedVersion: string | null;
+}
+
+function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTrendsSectionProps) {
+  // Fetch historical data
+  const {
+    data: historicalChartData,
+    isLoading,
+    error: historyError,
+  } = useQuery({
+    queryKey: ['npmPackageHistory', packageName, selectedVersion],
+    queryFn: async () => {
+      const packageHistory = await fetchNpmPackageHistory(packageName!);
+      return getHistoricalBreakdownData(packageHistory, selectedVersion);
+    },
+    enabled: !!packageName,
+    staleTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  // Early return if no package name
+  if (!packageName) {
+    return null;
+  }
+
+  if (historyError) {
+    return <Alert severity="error">Failed to load historical data: {historyError.message}</Alert>;
+  }
+
+  if (!isLoading && !historicalChartData) {
+    return <Alert severity="info">No historical data available for this package</Alert>;
+  }
+
+  return (
+    <Box sx={{ width: '100%', height: 400 }}>
+      {historicalChartData ? (
+        <LineChart
+          series={historicalChartData.map((series, index) => ({
+            id: series.id,
+            label: series.label,
+            data: series.data.map((point) => point.totalDownloads),
+            color: COLORS[index % COLORS.length],
+          }))}
+          xAxis={[
+            {
+              data: historicalChartData[0]?.data.map((point) => new Date(point.timestamp)),
+              scaleType: 'time',
+              label: 'Date',
+            },
+          ]}
+          yAxis={[{ label: 'Downloads' }]}
+          height={400}
+        />
+      ) : (
+        <Skeleton variant="rectangular" height={400} />
+      )}
+    </Box>
+  );
+}
+
 interface PackageVersionsSectionProps {
   packageName: string | null;
   selectedVersion: string | null;
@@ -293,7 +354,7 @@ function PackageVersionsSection({
 
   const breadcrumbs = state
     ? state.breadcrumbs
-    : [{ label: <Skeleton width={100} />, version: null, isActive: true }];
+    : [{ label: 'All Versions', version: null, isActive: true }];
 
   return (
     <div>
@@ -337,6 +398,14 @@ function PackageVersionsSection({
       {!error && (
         <BreakdownVisualization state={isLoading ? null : state} onItemClick={onVersionChange} />
       )}
+
+      {/* Historical Trends */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h3" sx={{ mb: 2 }}>
+          Historical Download Trends
+        </Typography>
+        <HistoricalTrendsSection packageName={packageName} selectedVersion={selectedVersion} />
+      </Box>
     </div>
   );
 }
@@ -573,28 +642,10 @@ function NpmVersionBreakdown({
   selectedVersion,
   onVersionChange,
 }: NpmVersionBreakdownProps) {
-  // Fetch historical data
-  const {
-    data: historicalData = null,
-    isLoading: isLoadingHistory,
-    error: historyError,
-  } = useQuery({
-    queryKey: ['npmPackageHistory', packageName],
-    queryFn: () => fetchNpmPackageHistory(packageName!),
-    enabled: !!packageName,
-    staleTime: 60 * 60 * 1000, // 1 hour
-  });
-
   // Early return if no package name
   if (!packageName) {
     return null;
   }
-
-  // Generate historical chart data
-  const historicalChartData = historicalData
-    ? getHistoricalBreakdownData(historicalData, selectedVersion)
-    : [];
-  const hasHistoricalData = historicalData && historicalChartData.length > 0;
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -607,47 +658,6 @@ function NpmVersionBreakdown({
         selectedVersion={selectedVersion}
         onVersionChange={onVersionChange}
       />
-
-      {/* Historical Data Section */}
-      <Box sx={{ mt: hasHistoricalData || isLoadingHistory ? 4 : 0 }}>
-        <Typography variant="h3" sx={{ mb: 2 }}>
-          Historical Download Trends
-        </Typography>
-
-        {isLoadingHistory ? (
-          <Box sx={{ width: '100%', height: 400 }}>
-            <Skeleton variant="rectangular" height={400} />
-          </Box>
-        ) : historyError ? (
-          <Alert severity="error">Failed to load historical data: {historyError.message}</Alert>
-        ) : hasHistoricalData && historicalChartData.length > 0 ? (
-          <Box sx={{ width: '100%', height: 400 }}>
-            <LineChart
-              series={historicalChartData.map((series, index) => ({
-                id: series.id,
-                label: series.label,
-                data: series.data.map((point) => point.totalDownloads),
-                color: COLORS[index % COLORS.length],
-              }))}
-              xAxis={[
-                {
-                  data: historicalChartData[0]?.data.map((point) => new Date(point.timestamp)),
-                  scaleType: 'time',
-                  label: 'Date',
-                },
-              ]}
-              yAxis={[
-                {
-                  label: 'Downloads',
-                },
-              ]}
-              height={400}
-            />
-          </Box>
-        ) : (
-          <Alert severity="info">No historical data available for this package</Alert>
-        )}
-      </Box>
     </Box>
   );
 }
