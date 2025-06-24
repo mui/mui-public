@@ -195,6 +195,8 @@ function NpmVersionBreakdown({
   onVersionChange,
 }: NpmVersionBreakdownProps) {
   const [searchParams] = useSearchParams();
+  const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
+  const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
   if (!packageData.versions) {
     return (
       <Alert severity="info" sx={{ mt: 2 }}>
@@ -286,53 +288,108 @@ function NpmVersionBreakdown({
       </Breadcrumbs>
 
       {filteredBreakdown.length > 0 ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Box sx={{ height: 400 }}>
-              <PieChart
-                series={[{ data: chartData }]}
-                height={400}
-                onItemClick={state.canGoForward ? handleChartClick : undefined}
-                hideLegend
-              />
-            </Box>
-          </Grid>
+        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+          <Box 
+            sx={{ 
+              width: { xs: '100%', md: 400 },
+              height: 400,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              '& .MuiChartsLegend-root': {
+                display: 'none',
+              },
+            }}
+          >
+            <PieChart
+              series={[{ data: chartData }]}
+              width={400}
+              height={400}
+              margin={{ top: 40, bottom: 40, left: 40, right: 40 }}
+              onItemClick={state.canGoForward ? handleChartClick : undefined}
+              onHighlightChange={(highlightedItem) => {
+                if (highlightedItem === null) {
+                  setHoveredItem(null);
+                } else {
+                  const item = filteredBreakdown[highlightedItem.dataIndex];
+                  const itemId = item?.id || null;
+                  setHoveredItem(itemId);
+                  
+                  // Scroll the corresponding list item into view
+                  if (itemId && listItemRefs.current[itemId]) {
+                    listItemRefs.current[itemId]?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'nearest',
+                      inline: 'nearest',
+                    });
+                  }
+                }
+              }}
+              hideLegend
+            />
+          </Box>
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <List sx={{ maxHeight: 350, overflow: 'auto' }}>
-              {state.breakdownItems.map((item) => (
-                <React.Fragment key={item.id}>
-                  <ListItemButton
-                    component={item.nextVersion !== null ? RouterLink : 'div'}
-                    to={item.nextVersion !== null ? createVersionUrl(item.nextVersion) : undefined}
-                    disabled={item.nextVersion === null}
-                    sx={{ borderRadius: 1, mb: 1 }}
-                  >
-                    <ListItemText
-                      primary={item.label}
-                      secondary={
-                        <React.Fragment>
-                          {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%) - last 7 days`}
-                          <br />
-                          {`Contains ${item.count} version${item.count === 1 ? '' : 's'}`}
-                          <br />
-                          {item.publishedAt
-                            ? `Latest: ${new Date(item.publishedAt).toLocaleDateString()}`
-                            : 'Release date unknown'}
-                        </React.Fragment>
-                      }
-                      slotProps={{
-                        secondary: { component: 'div' },
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <List sx={{ maxHeight: 400, overflow: 'auto' }}>
+              {state.breakdownItems.map((item, index) => {
+                const color = COLORS[index % COLORS.length];
+                const isHovered = hoveredItem === item.id;
+                
+                return (
+                  <React.Fragment key={item.id}>
+                    <ListItemButton
+                      ref={(el) => {
+                        listItemRefs.current[item.id] = el;
                       }}
-                    />
-                    {item.nextVersion !== null && <ChevronRightIcon color="action" />}
-                  </ListItemButton>
-                  <Divider />
-                </React.Fragment>
-              ))}
+                      component={item.nextVersion !== null ? RouterLink : 'div'}
+                      to={item.nextVersion !== null ? createVersionUrl(item.nextVersion) : undefined}
+                      disabled={item.nextVersion === null}
+                      onMouseEnter={() => setHoveredItem(item.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                      sx={{ 
+                        borderRadius: 1, 
+                        mb: 1,
+                        backgroundColor: isHovered ? 'action.hover' : 'transparent',
+                        transition: 'background-color 0.2s ease',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 16,
+                          height: 16,
+                          backgroundColor: color,
+                          borderRadius: '50%',
+                          mr: 2,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <ListItemText
+                        primary={item.label}
+                        secondary={
+                          <React.Fragment>
+                            {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%) - last 7 days`}
+                            <br />
+                            {`Contains ${item.count} version${item.count === 1 ? '' : 's'}`}
+                            <br />
+                            {item.publishedAt
+                              ? `Latest: ${new Date(item.publishedAt).toLocaleDateString()}`
+                              : 'Release date unknown'}
+                          </React.Fragment>
+                        }
+                        slotProps={{
+                          secondary: { component: 'div' },
+                        }}
+                      />
+                      {item.nextVersion !== null && <ChevronRightIcon color="action" />}
+                    </ListItemButton>
+                    <Divider />
+                  </React.Fragment>
+                );
+              })}
             </List>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       ) : (
         <Alert severity="info">No version data available</Alert>
       )}
