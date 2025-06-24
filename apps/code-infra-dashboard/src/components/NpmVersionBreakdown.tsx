@@ -19,10 +19,56 @@ import { PieItemIdentifier } from '@mui/x-charts';
 import {
   Package,
   HistoricalData,
-  fetchNpmPackageDetails,
   fetchNpmPackageVersions,
   fetchNpmPackageHistory,
 } from '../lib/npm';
+import { useNpmPackage } from '../hooks/useNpmPackage';
+
+interface PackageDetailsSectionProps {
+  packageName: string | null;
+}
+
+function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
+  const { isLoading, error, packageDetails } = useNpmPackage(packageName);
+
+  if (!packageName) {
+    return null;
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mb: 3 }}>
+        Failed to load package details: {error.message}
+      </Alert>
+    );
+  }
+
+  if (!isLoading && !packageDetails) {
+    return (
+      <Alert severity="info" sx={{ mb: 3 }}>
+        No package data available
+      </Alert>
+    );
+  }
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h2" sx={{ mb: 1 }}>
+        {packageDetails ? packageDetails.name : <Skeleton width={200} />}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {packageDetails ? (
+          `Author: ${packageDetails.author} • Latest: v${packageDetails.version}`
+        ) : (
+          <Skeleton width={300} />
+        )}
+      </Typography>
+      <Typography variant="body1" color="text.secondary" paragraph>
+        {packageDetails ? packageDetails.description : <Skeleton width="80%" />}
+      </Typography>
+    </Box>
+  );
+}
 
 interface NpmVersionBreakdownProps {
   packageName: string | null;
@@ -272,17 +318,12 @@ function NpmVersionBreakdown({
   const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
   const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
 
-  // Fetch package details
-  const {
-    data: packageDetails = null,
-    isLoading: isLoadingDetails,
-    error: detailsError,
-  } = useQuery({
-    queryKey: ['npmPackageDetails', packageName],
-    queryFn: () => fetchNpmPackageDetails(packageName!),
-    enabled: !!packageName,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
+  // Fetch package details using custom hook
+  const packageState = useNpmPackage(packageName);
+  const packageDetails =
+    packageState.isLoading || packageState.error ? null : packageState.packageDetails;
+  const isLoadingDetails = packageState.isLoading;
+  const detailsError = packageState.isLoading || !packageState.error ? null : packageState.error;
 
   // Fetch version data
   const {
@@ -317,7 +358,7 @@ function NpmVersionBreakdown({
   if (isLoadingDetails) {
     return (
       <Box sx={{ mt: 2 }}>
-        <Skeleton variant="text" width="60%" height={40} />
+        <PackageDetailsSection packageName={packageName} />
         <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
       </Box>
     );
@@ -326,18 +367,18 @@ function NpmVersionBreakdown({
   // Show error if package details failed
   if (detailsError) {
     return (
-      <Alert severity="error" sx={{ mt: 2 }}>
-        Failed to load package details: {detailsError.message}
-      </Alert>
+      <Box sx={{ mt: 2 }}>
+        <PackageDetailsSection packageName={packageName} />
+      </Box>
     );
   }
 
   // Show error if no package details
   if (!packageDetails) {
     return (
-      <Alert severity="info" sx={{ mt: 2 }}>
-        No package data available
-      </Alert>
+      <Box sx={{ mt: 2 }}>
+        <PackageDetailsSection packageName={packageName} />
+      </Box>
     );
   }
 
@@ -391,17 +432,7 @@ function NpmVersionBreakdown({
   return (
     <Box sx={{ mt: 2 }}>
       {/* Package Info Section */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h2" sx={{ mb: 1 }}>
-          {packageDetails.name}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Author: {packageDetails.author} • Latest: v{packageDetails.version}
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          {packageDetails.description}
-        </Typography>
-      </Box>
+      <PackageDetailsSection packageName={packageName} />
 
       <Typography variant="h3" sx={{ mb: 2 }}>
         Version Breakdown

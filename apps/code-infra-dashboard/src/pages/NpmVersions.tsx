@@ -8,13 +8,9 @@ import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
-import Skeleton from '@mui/material/Skeleton';
 import Heading from '../components/Heading';
 import NpmVersionBreakdown from '../components/NpmVersionBreakdown';
-import {
-  fetchNpmPackageSearch,
-  Package,
-} from '../lib/npm';
+import { fetchNpmPackageSearch, Package } from '../lib/npm';
 
 export default function NpmVersions() {
   const [searchParams, setSearchParams] = useSearchParams();
