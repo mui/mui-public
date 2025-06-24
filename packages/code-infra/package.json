@@ -16,9 +16,6 @@
     },
     "./eslint": {
       "default": "./src/eslint/index.mjs"
-    },
-    "./eslint-docs": {
-      "default": "./src/eslint/docs.mjs"
     }
   },
   "scripts": {

@@ -1,3 +1,4 @@
+import nextjs from '@next/eslint-plugin-next';
 import prettier from 'eslint-config-prettier/flat';
 import mochaPlugin from 'eslint-plugin-mocha';
 import reactCompilerPlugin from 'eslint-plugin-react-compiler';
@@ -6,10 +7,10 @@ import testingLibrary from 'eslint-plugin-testing-library';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
 
-import { createCoreConfig } from './material-ui/config.mjs';
-import muiPlugin from './material-ui/index.mjs';
 import { createAirbnbConfig } from './airbnb/base.mjs';
 import airbnbTypescript from './airbnb/typescript.mjs';
+import { createCoreConfig } from './material-ui/config.mjs';
+import muiPlugin from './material-ui/index.mjs';
 
 export const baseSpecRules = {
   files: ['**/*.spec.*'],
@@ -160,4 +161,20 @@ export function createTestConfig() {
       },
     },
   );
+}
+
+/**
+ * @returns {import('eslint').Linter.Config[]}
+ */
+export function createDocsConfig() {
+  return tseslint.config(nextjs.flatConfig.recommended, {
+    settings: {
+      next: {
+        rootDir: 'docs',
+      },
+    },
+    rules: {
+      'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
+    },
+  });
 }
