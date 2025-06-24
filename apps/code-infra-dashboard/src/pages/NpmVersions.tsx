@@ -18,7 +18,7 @@ export default function NpmVersions() {
   const versionParam = searchParams.get('version');
 
   const [inputValue, setInputValue] = React.useState(packageParam || '');
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const searchQuery = inputValue.length > 2 ? inputValue : '';
 
   const {
     data: searchResults = [],
@@ -38,8 +38,11 @@ export default function NpmVersions() {
     }
   }, [packageParam]);
 
-  const handlePackageSelect = (event: React.SyntheticEvent, value: Package | null) => {
-    if (value) {
+  const handlePackageSelect = (event: React.SyntheticEvent, value: Package | string | null) => {
+    if (typeof value === 'string') {
+      // If a string is selected, treat it as a package name
+      setSearchParams({ package: value });
+    } else if (value) {
       // Reset version when switching packages
       setSearchParams({ package: value.name });
     } else {
@@ -61,11 +64,6 @@ export default function NpmVersions() {
 
   const handleInputChange = (event: React.SyntheticEvent, value: string) => {
     setInputValue(value);
-    if (value.length > 2) {
-      setSearchQuery(value);
-    } else {
-      setSearchQuery('');
-    }
   };
 
   return (
@@ -83,10 +81,11 @@ export default function NpmVersions() {
           inputValue={inputValue}
           onInputChange={handleInputChange}
           options={searchResults}
-          getOptionLabel={(option) => option.name}
+          getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
           loading={isSearching}
           loadingText="Searching packages..."
           noOptionsText="Type to search for packages"
+          freeSolo
           filterOptions={(x) => x} // Disable client-side filtering since we use server search
           renderInput={(params) => (
             <TextField
@@ -95,14 +94,16 @@ export default function NpmVersions() {
               placeholder="e.g., react, lodash, express"
               variant="outlined"
               fullWidth
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <React.Fragment>
-                    {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
-                    {params.InputProps.endAdornment}
-                  </React.Fragment>
-                ),
+              slotProps={{
+                input: {
+                  ...params.InputProps,
+                  endAdornment: (
+                    <React.Fragment>
+                      {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </React.Fragment>
+                  ),
+                },
               }}
             />
           )}

@@ -271,18 +271,22 @@ interface HistoricalTrendsSectionProps {
 function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTrendsSectionProps) {
   // Fetch historical data
   const {
-    data: historicalChartData = { series: [], timestamps: [] },
+    data: historicalData,
     isLoading,
     error: historyError,
   } = useQuery({
-    queryKey: ['npmPackageHistory', packageName, selectedVersion],
-    queryFn: async () => {
-      const packageHistory = await fetchNpmPackageHistory(packageName!);
-      return getHistoricalBreakdownData(packageHistory, selectedVersion);
-    },
+    queryKey: ['npmPackageHistory', packageName],
+    queryFn: () => fetchNpmPackageHistory(packageName!),
     enabled: !!packageName,
     staleTime: 60 * 60 * 1000, // 1 hour
   });
+
+  const historicalChartData = React.useMemo(() => {
+    if (!historicalData) {
+      return { timestamps: [], series: [] };
+    }
+    return getHistoricalBreakdownData(historicalData, selectedVersion);
+  }, [historicalData, selectedVersion]);
 
   // Early return if no package name
   if (!packageName) {
