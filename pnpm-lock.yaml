@@ -148,7 +148,7 @@ importers:
         version: 6.1.5
       '@toolpad/studio':
         specifier: ^0.12.0
-        version: 0.12.0(@types/react@19.1.0)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(terser@5.39.0)(webpack@5.94.0)
+        version: 0.12.0(@types/react@19.1.0)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(luxon@3.6.1)(terser@5.39.0)(webpack@5.94.0)
       axios:
         specifier: ^1.8.2
         version: 1.8.3
@@ -409,7 +409,7 @@ importers:
     devDependencies:
       '@types/eslint-plugin-jsx-a11y':
         specifier: ^6.10.0
-        version: 6.10.0(jiti@2.4.2)
+        version: 6.10.0
       '@types/estree':
         specifier: ^1.0.8
         version: 1.0.8
@@ -4481,6 +4481,9 @@ packages:
 
   '@types/eslint-plugin-jsx-a11y@6.10.0':
     resolution: {integrity: sha512-TGKmk2gO6DrvTVADNOGQMqn3SzqcFcJILFnXNllQA34us9uClS3/AsL/cERPz6jS9ePI3bx+1q8/d2GZsxPVYw==}
+
+  '@types/eslint@9.6.1':
+    resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
 
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
@@ -16548,7 +16551,7 @@ snapshots:
       - nodemailer
       - react-dom
 
-  '@toolpad/studio@0.12.0(@types/react@19.1.0)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(terser@5.39.0)(webpack@5.94.0)':
+  '@toolpad/studio@0.12.0(@types/react@19.1.0)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(luxon@3.6.1)(terser@5.39.0)(webpack@5.94.0)':
     dependencies:
       '@auth/core': 0.37.4
       '@emotion/cache': 11.14.0
@@ -16579,7 +16582,7 @@ snapshots:
       '@types/cors': 2.8.17
       '@types/json-schema': 7.0.15
       '@types/node': 20.17.47
-      '@types/react-dev-utils': 9.0.15(jiti@2.4.2)
+      '@types/react-dev-utils': 9.0.15
       '@vitejs/plugin-react': 4.3.4(vite@5.4.11(@types/node@20.17.47)(terser@5.39.0))
       '@webcontainer/env': 1.1.1
       abort-controller: 3.0.0
@@ -16655,7 +16658,6 @@ snapshots:
       - debug
       - encoding
       - eslint
-      - jiti
       - less
       - lightningcss
       - luxon
@@ -16793,12 +16795,14 @@ snapshots:
 
   '@types/env-ci@3.1.4': {}
 
-  '@types/eslint-plugin-jsx-a11y@6.10.0(jiti@2.4.2)':
+  '@types/eslint-plugin-jsx-a11y@6.10.0':
     dependencies:
-      '@types/eslint': eslint@9.29.0(jiti@2.4.2)
-    transitivePeerDependencies:
-      - jiti
-      - supports-color
+      '@types/eslint': 9.6.1
+
+  '@types/eslint@9.6.1':
+    dependencies:
+      '@types/estree': 1.0.8
+      '@types/json-schema': 7.0.15
 
   '@types/estree@1.0.7': {}
 
@@ -16904,9 +16908,9 @@ snapshots:
 
   '@types/range-parser@1.2.7': {}
 
-  '@types/react-dev-utils@9.0.15(jiti@2.4.2)':
+  '@types/react-dev-utils@9.0.15':
     dependencies:
-      '@types/eslint': eslint@9.29.0(jiti@2.4.2)
+      '@types/eslint': 9.6.1
       '@types/express': 4.17.21
       '@types/html-webpack-plugin': 3.2.9
       '@types/node': 22.14.0
@@ -16914,8 +16918,6 @@ snapshots:
       '@types/webpack-dev-server': 3.11.6
     transitivePeerDependencies:
       - debug
-      - jiti
-      - supports-color
 
   '@types/react-dom@19.1.2(@types/react@19.1.0)':
     dependencies:

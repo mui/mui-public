@@ -1,11 +1,15 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import { defineConfig } from 'eslint/config';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createBaseConfig, createTestConfig } from '@mui/internal-code-infra/eslint';
 
+const filename = fileURLToPath(import.meta.url);
+const dirname = path.dirname(filename);
+
 export default defineConfig(
-  includeIgnoreFile(path.join(import.meta.dirname, '.gitignore')),
-  includeIgnoreFile(path.join(import.meta.dirname, '.eslintignore')),
+  includeIgnoreFile(path.join(dirname, '.gitignore')),
+  includeIgnoreFile(path.join(dirname, '.eslintignore')),
   {
     name: 'Base config',
     extends: createBaseConfig(),
@@ -31,7 +35,7 @@ export default defineConfig(
     extends: createTestConfig(),
   },
   {
-    files: ['**/apps/**/*'],
+    files: ['apps/**/*'],
     rules: {
       'react/jsx-one-expression-per-line': 'off',
     },
