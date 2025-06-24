@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
@@ -9,16 +10,22 @@ import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
+import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import { PieItemIdentifier } from '@mui/x-charts';
-import { Package, HistoricalData } from '../lib/npm';
+import {
+  Package,
+  HistoricalData,
+  fetchNpmPackageDetails,
+  fetchNpmPackageVersions,
+  fetchNpmPackageHistory,
+} from '../lib/npm';
 
 interface NpmVersionBreakdownProps {
-  packageData: Package;
-  historicalData?: HistoricalData | null;
+  packageName: string | null;
   selectedVersion?: string | null;
   onVersionChange: (version: string | null) => void;
 }
@@ -257,41 +264,85 @@ function getHistoricalBreakdownData(
 }
 
 function NpmVersionBreakdown({
-  packageData,
-  historicalData,
+  packageName,
   selectedVersion,
   onVersionChange,
 }: NpmVersionBreakdownProps) {
   const [searchParams] = useSearchParams();
   const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
   const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
-  if (!packageData.versions) {
+
+  // Fetch package details
+  const {
+    data: packageDetails = null,
+    isLoading: isLoadingDetails,
+    error: detailsError,
+  } = useQuery({
+    queryKey: ['npmPackageDetails', packageName],
+    queryFn: () => fetchNpmPackageDetails(packageName!),
+    enabled: !!packageName,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Fetch version data
+  const {
+    data: versions = {},
+    isLoading: isLoadingVersions,
+    error: versionsError,
+  } = useQuery({
+    queryKey: ['npmPackageVersions', packageName],
+    queryFn: () => fetchNpmPackageVersions(packageName!),
+    enabled: !!packageName,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Fetch historical data
+  const {
+    data: historicalData = null,
+    isLoading: isLoadingHistory,
+    error: historyError,
+  } = useQuery({
+    queryKey: ['npmPackageHistory', packageName],
+    queryFn: () => fetchNpmPackageHistory(packageName!),
+    enabled: !!packageName,
+    staleTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  // Early return if no package name
+  if (!packageName) {
+    return null;
+  }
+
+  // Show loading state if package details are still loading
+  if (isLoadingDetails) {
     return (
-      <Alert severity="info" sx={{ mt: 2 }}>
-        No version data available for this package
-      </Alert>
+      <Box sx={{ mt: 2 }}>
+        <Skeleton variant="text" width="60%" height={40} />
+        <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
+      </Box>
     );
   }
 
-  const versionKeys = Object.keys(packageData.versions);
-
-  // Check if we have download data
-  const hasDownloadData = versionKeys.some(
-    (version) => packageData.versions?.[version]?.downloads !== undefined,
-  );
-
-  if (!hasDownloadData) {
+  // Show error if package details failed
+  if (detailsError) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
-        Download statistics are not available for this package. This could be because the package
-        has no recent downloads or the npm API is not responding.
+        Failed to load package details: {detailsError.message}
       </Alert>
     );
   }
 
-  // Get current breakdown state
-  const state = getBreakdownState(packageData, selectedVersion);
-  const filteredBreakdown = state.breakdownItems.filter((item) => item.downloads > 0);
+  // Show error if no package details
+  if (!packageDetails) {
+    return (
+      <Alert severity="info" sx={{ mt: 2 }}>
+        No package data available
+      </Alert>
+    );
+  }
+
+  // Combine package details with versions for the breakdown logic
+  const packageData: Package = { ...packageDetails, versions };
 
   // Helper function to create URLs preserving other search params
   const createVersionUrl = (version: string | null): string => {
@@ -303,6 +354,11 @@ function NpmVersionBreakdown({
     }
     return `?${newSearchParams.toString()}`;
   };
+
+  // Get current breakdown state (only if we have version data)
+  const state =
+    Object.keys(versions).length > 0 ? getBreakdownState(packageData, selectedVersion) : null;
+  const filteredBreakdown = state ? state.breakdownItems.filter((item) => item.downloads > 0) : [];
 
   // Generate chart data
   const chartData = filteredBreakdown.map((item, index) => ({
@@ -334,44 +390,74 @@ function NpmVersionBreakdown({
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Typography variant="h2" sx={{ mb: 2 }}>
+      {/* Package Info Section */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h2" sx={{ mb: 1 }}>
+          {packageDetails.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Author: {packageDetails.author} • Latest: v{packageDetails.version}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" paragraph>
+          {packageDetails.description}
+        </Typography>
+      </Box>
+
+      <Typography variant="h3" sx={{ mb: 2 }}>
         Version Breakdown
       </Typography>
 
-      <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
-        {state.breadcrumbs.map((breadcrumb, index) =>
-          breadcrumb.isActive ? (
-            <Typography key={index} color="text.primary">
-              {breadcrumb.label}
-            </Typography>
-          ) : (
-            <Link
-              key={index}
-              component={RouterLink}
-              to={createVersionUrl(breadcrumb.version)}
-              sx={{
-                textDecoration: 'none',
-                color: 'primary.main',
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              }}
-            >
-              {breadcrumb.label}
-            </Link>
-          ),
-        )}
-      </Breadcrumbs>
+      {/* Breadcrumbs - only show if we have state */}
+      {state && (
+        <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
+          {state.breadcrumbs.map((breadcrumb, index) =>
+            breadcrumb.isActive ? (
+              <Typography key={index} color="text.primary">
+                {breadcrumb.label}
+              </Typography>
+            ) : (
+              <Link
+                key={index}
+                component={RouterLink}
+                to={createVersionUrl(breadcrumb.version)}
+                sx={{
+                  textDecoration: 'none',
+                  color: 'primary.main',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                {breadcrumb.label}
+              </Link>
+            ),
+          )}
+        </Breadcrumbs>
+      )}
 
-      {filteredBreakdown.length > 0 ? (
-        <div>
+      {/* Current Data Section */}
+      {isLoadingVersions ? (
+        <Box sx={{ mb: 4 }}>
+          <Skeleton variant="text" width="40%" height={30} sx={{ mb: 2 }} />
+          <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+            <Skeleton variant="circular" width={400} height={400} />
+            <Box sx={{ flex: 1 }}>
+              <Skeleton variant="rectangular" height={400} />
+            </Box>
+          </Box>
+        </Box>
+      ) : versionsError ? (
+        <Alert severity="error" sx={{ mb: 4 }}>
+          Failed to load version data: {versionsError.message}
+        </Alert>
+      ) : filteredBreakdown.length > 0 ? (
+        <Box sx={{ mb: hasHistoricalData || isLoadingHistory ? 4 : 0 }}>
           {/* Current Data: Pie Chart + List */}
           <Box
             sx={{
               display: 'flex',
               gap: 3,
               flexDirection: { xs: 'column', md: 'row' },
-              mb: hasHistoricalData ? 4 : 0,
             }}
           >
             <Box
@@ -477,42 +563,57 @@ function NpmVersionBreakdown({
               </List>
             </Box>
           </Box>
-
-          {/* Historical Data: Line Chart */}
-          {hasHistoricalData && historicalChartData.length > 0 && (
-            <div>
-              <Typography variant="h3" sx={{ mb: 2 }}>
-                Historical Download Trends
-              </Typography>
-              <Box sx={{ width: '100%', height: 400 }}>
-                <LineChart
-                  series={historicalChartData.map((series, index) => ({
-                    id: series.id,
-                    label: series.label,
-                    data: series.data.map((point) => point.totalDownloads),
-                    color: COLORS[index % COLORS.length],
-                  }))}
-                  xAxis={[
-                    {
-                      data: historicalChartData[0]?.data.map((point) => new Date(point.timestamp)),
-                      scaleType: 'time',
-                      label: 'Date',
-                    },
-                  ]}
-                  yAxis={[
-                    {
-                      label: 'Downloads',
-                    },
-                  ]}
-                  height={400}
-                />
-              </Box>
-            </div>
-          )}
-        </div>
+        </Box>
+      ) : Object.keys(versions).length === 0 && !isLoadingVersions ? (
+        <Alert severity="info" sx={{ mb: 4 }}>
+          No version data available for this package
+        </Alert>
       ) : (
-        <Alert severity="info">No version data available</Alert>
+        <Alert severity="info" sx={{ mb: 4 }}>
+          No download statistics available
+        </Alert>
       )}
+
+      {/* Historical Data Section */}
+      <Box>
+        <Typography variant="h3" sx={{ mb: 2 }}>
+          Historical Download Trends
+        </Typography>
+
+        {isLoadingHistory ? (
+          <Box sx={{ width: '100%', height: 400 }}>
+            <Skeleton variant="rectangular" height={400} />
+          </Box>
+        ) : historyError ? (
+          <Alert severity="error">Failed to load historical data: {historyError.message}</Alert>
+        ) : hasHistoricalData && historicalChartData.length > 0 ? (
+          <Box sx={{ width: '100%', height: 400 }}>
+            <LineChart
+              series={historicalChartData.map((series, index) => ({
+                id: series.id,
+                label: series.label,
+                data: series.data.map((point) => point.totalDownloads),
+                color: COLORS[index % COLORS.length],
+              }))}
+              xAxis={[
+                {
+                  data: historicalChartData[0]?.data.map((point) => new Date(point.timestamp)),
+                  scaleType: 'time',
+                  label: 'Date',
+                },
+              ]}
+              yAxis={[
+                {
+                  label: 'Downloads',
+                },
+              ]}
+              height={400}
+            />
+          </Box>
+        ) : (
+          <Alert severity="info">No historical data available for this package</Alert>
+        )}
+      </Box>
     </Box>
   );
 }

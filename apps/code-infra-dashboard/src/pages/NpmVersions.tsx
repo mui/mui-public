@@ -13,9 +13,6 @@ import Heading from '../components/Heading';
 import NpmVersionBreakdown from '../components/NpmVersionBreakdown';
 import {
   fetchNpmPackageSearch,
-  fetchNpmPackageDetails,
-  fetchNpmPackageVersions,
-  fetchNpmPackageHistory,
   Package,
 } from '../lib/npm';
 
@@ -36,39 +33,6 @@ export default function NpmVersions() {
     queryFn: () => fetchNpmPackageSearch(searchQuery),
     enabled: !!searchQuery.trim(),
     staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  const {
-    data: packageDetails = null,
-    isLoading: isLoadingDetails,
-    error: detailsError,
-  } = useQuery({
-    queryKey: ['npmPackageDetails', packageParam],
-    queryFn: () => fetchNpmPackageDetails(packageParam!),
-    enabled: !!packageParam,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-
-  const {
-    data: versions = {},
-    isLoading: isLoadingVersions,
-    error: versionsError,
-  } = useQuery({
-    queryKey: ['npmPackageVersions', packageParam],
-    queryFn: () => fetchNpmPackageVersions(packageParam!),
-    enabled: !!packageParam,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-
-  const {
-    data: historicalData = null,
-    isLoading: isLoadingHistory,
-    error: historyError,
-  } = useQuery({
-    queryKey: ['npmPackageHistory', packageParam],
-    queryFn: () => fetchNpmPackageHistory(packageParam!),
-    enabled: !!packageParam,
-    staleTime: 60 * 60 * 1000, // 1 hour - historical data changes less frequently
   });
 
   // Update input value when package parameter changes
@@ -118,7 +82,7 @@ export default function NpmVersions() {
         </Typography>
 
         <Autocomplete
-          value={packageDetails}
+          value={null}
           onChange={handlePackageSelect}
           inputValue={inputValue}
           onInputChange={handleInputChange}
@@ -172,66 +136,18 @@ export default function NpmVersions() {
       </Paper>
 
       {/* Package Details and Version Breakdown */}
-      {(packageDetails || isLoadingDetails) && (
+      {packageParam && (
         <Paper sx={{ p: 3 }}>
-          {/* Package Details Section */}
-          {packageDetails && (
-            <React.Fragment>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  mb: 2,
-                }}
-              >
-                <Typography variant="h3">{packageDetails.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Latest: v{packageDetails.version}
-                </Typography>
-              </Box>
-
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Author: {packageDetails.author}
-              </Typography>
-
-              <Typography variant="body1" color="text.secondary" paragraph>
-                {packageDetails.description}
-              </Typography>
-            </React.Fragment>
-          )}
-
-          {/* Loading State */}
-          {(isLoadingDetails || isLoadingVersions || isLoadingHistory) && (
-            <React.Fragment>
-              <Skeleton variant="text" width="60%" height={40} />
-              <Skeleton variant="rectangular" height={400} />
-            </React.Fragment>
-          )}
-
-          {/* Version Breakdown */}
-          {packageDetails && versions && !isLoadingDetails && !isLoadingVersions && (
-            <NpmVersionBreakdown
-              packageData={{ ...packageDetails, versions }}
-              historicalData={historicalData}
-              selectedVersion={versionParam}
-              onVersionChange={handleVersionChange}
-            />
-          )}
+          <NpmVersionBreakdown
+            packageName={packageParam}
+            selectedVersion={versionParam}
+            onVersionChange={handleVersionChange}
+          />
         </Paper>
       )}
 
-      {/* Error State */}
-      {(detailsError || versionsError || historyError) && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {detailsError && `Package Details Error: ${detailsError.message}`}
-          {versionsError && `Versions Error: ${versionsError.message}`}
-          {historyError && `Historical Data Error: ${historyError.message}`}
-        </Alert>
-      )}
-
       {/* Empty State */}
-      {!packageDetails && !isLoadingDetails && (
+      {!packageParam && (
         <Paper sx={{ p: 6, textAlign: 'center' }}>
           <Typography variant="h5" color="text.secondary" gutterBottom>
             Search for an npm package to view its download statistics
