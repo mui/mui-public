@@ -239,6 +239,19 @@ function addDisplayNamesToFunctionComponent(t, path) {
 
     // const componentIdentifier = <Element />
     if (parentPath.isVariableDeclarator()) {
+      // Ternary expression
+      if (t.isConditionalExpression(parentPath.node.init)) {
+        const { consequent, alternate } = parentPath.node.init;
+        const isConsequentFunction =
+          t.isArrowFunctionExpression(consequent) || t.isFunctionExpression(consequent);
+        const isAlternateFunction =
+          t.isArrowFunctionExpression(alternate) || t.isFunctionExpression(alternate);
+
+        // Only add display name if variable is a function
+        if (!isConsequentFunction || !isAlternateFunction) {
+          return false;
+        }
+      }
       assignmentPath = parentPath.parentPath;
       componentIdentifiers.unshift({
         id: /** @type {babel.types.Expression} */ (parentPath.node.id),

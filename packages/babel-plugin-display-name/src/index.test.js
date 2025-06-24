@@ -1045,4 +1045,14 @@ describe('babelDisplayNamePlugin', () => {
       if (process.env.NODE_ENV !== "production") Foo.displayName = "Foo";"
     `);
   });
+
+  it(`shouldn't add display name to variables that are not functions`, () => {
+    expect(
+      transformWithAllowedCallees(`
+      const Test = true ? () => <img/> : (undefined);
+      `),
+    ).toMatchInlineSnapshot(`
+      "const Test = true ? () => React.createElement("img", null) : undefined;"
+    `);
+  });
 });
