@@ -14,7 +14,7 @@
     { "path": "packages/babel-plugin-minify-errors" },
     { "path": "packages/babel-plugin-resolve-imports" },
     { "path": "packages/bundle-size-checker" },
-    { "path": "packages/mui-internal-code-infra" },
+    { "path": "packages/code-infra" },
     { "path": "tsconfig.node.json" },
     { "path": "scripts" }
   ],
