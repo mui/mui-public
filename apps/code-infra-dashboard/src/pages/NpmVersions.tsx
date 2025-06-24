@@ -39,31 +39,34 @@ export default function NpmVersions() {
   }, [packageParam]);
 
   const handlePackageSelect = (event: React.SyntheticEvent, value: Package | string | null) => {
-    if (typeof value === 'string') {
-      // If a string is selected, treat it as a package name
-      setSearchParams({ package: value });
-    } else if (value) {
-      // Reset version when switching packages
-      setSearchParams({ package: value.name });
-    } else {
-      setSearchParams({});
-    }
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params);
+      let packageName = null;
+      if (typeof value === 'string') {
+        packageName = value.trim();
+      } else if (value && value.name) {
+        packageName = value.name.trim();
+      }
+      if (!packageName) {
+        newParams.delete('package');
+      } else {
+        newParams.set('package', packageName);
+      }
+      newParams.delete('version'); // Clear version when package changes
+      return newParams;
+    });
   };
 
   const handleVersionChange = (version: string | null) => {
-    if (!packageParam) {
-      return;
-    }
-
-    const newParams: Record<string, string> = { package: packageParam };
-    if (version) {
-      newParams.version = version;
-    }
-    setSearchParams(newParams);
-  };
-
-  const handleInputChange = (event: React.SyntheticEvent, value: string) => {
-    setInputValue(value);
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params);
+      if (version) {
+        newParams.set('version', version);
+      } else {
+        newParams.delete('version');
+      }
+      return newParams;
+    });
   };
 
   return (
@@ -79,7 +82,9 @@ export default function NpmVersions() {
           value={null}
           onChange={handlePackageSelect}
           inputValue={inputValue}
-          onInputChange={handleInputChange}
+          onInputChange={(event, value) => {
+            setInputValue(value);
+          }}
           options={searchResults}
           getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
           loading={isSearching}
@@ -107,6 +112,9 @@ export default function NpmVersions() {
               }}
             />
           )}
+          onBlur={(event) => {
+            handlePackageSelect(event, inputValue.trim() || null);
+          }}
           renderOption={(props, option) => (
             <Box component="li" {...props}>
               <Box sx={{ flexGrow: 1 }}>
