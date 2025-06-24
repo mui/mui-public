@@ -24,6 +24,51 @@ import {
 } from '../lib/npm';
 import { useNpmPackage } from '../hooks/useNpmPackage';
 
+const COLORS = [
+  '#ea5545',
+  '#f46a9b',
+  '#ef9b20',
+  '#edbf33',
+  '#ede15b',
+  '#bdcf32',
+  '#87bc45',
+  '#27aeef',
+  '#b33dc6',
+];
+
+interface UsePackageVersions {
+  isLoading: boolean;
+  error: Error | null;
+  state: BreakdownState | null;
+}
+
+function usePackageVersions(
+  packageName: string | null,
+  selectedVersion: string | null,
+): UsePackageVersions {
+  // Fetch version data
+  const {
+    data: versions = {},
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['npmPackageVersions', packageName],
+    queryFn: () => fetchNpmPackageVersions(packageName!),
+    enabled: !!packageName,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Get current breakdown state (only if we have version data)
+  const state =
+    Object.keys(versions).length > 0 ? getBreakdownState(versions, selectedVersion) : null;
+
+  return {
+    isLoading,
+    error: error as Error | null,
+    state,
+  };
+}
+
 interface PackageDetailsSectionProps {
   packageName: string | null;
 }
@@ -66,23 +111,258 @@ function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
   );
 }
 
-interface NpmVersionBreakdownProps {
+interface BreakdownVisualizationProps {
+  state?: BreakdownState | null;
+  onItemClick?: (nextVersion: string | null) => void;
+}
+
+function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
+  const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
+  const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
+  /* 
+  // Show loading state
+  if (!state) {
+    return (
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+          <Skeleton variant="circular" width={400} height={400} />
+          <Box sx={{ flex: 1 }}>
+            <Skeleton variant="rectangular" height={400} />
+          </Box>
+        </Box>
+      </Box>
+    );
+  } */
+
+  // Generate chart data
+  const chartData = state
+    ? state.breakdownItems.map((item, index) => ({
+        id: item.id,
+        label: `${item.label} (${item.percentage.toFixed(1)}%)`,
+        value: item.downloads,
+        color: COLORS[index % COLORS.length],
+      }))
+    : [];
+
+  // Handle chart clicks
+  const handleChartClick = state
+    ? (event: any, item: PieItemIdentifier) => {
+        if (onItemClick && state.breakdownItems[item.dataIndex]) {
+          const breakdownItem = state.breakdownItems[item.dataIndex];
+          if (breakdownItem.nextVersion !== null) {
+            onItemClick(breakdownItem.nextVersion);
+          }
+        }
+      }
+    : undefined;
+
+  return (
+    <Box sx={{ mb: 4 }}>
+      {/* Pie Chart + List */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 3,
+          flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: '100%', md: 400 },
+            height: 400,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            '& .MuiChartsLegend-root': {
+              display: 'none',
+            },
+          }}
+        >
+          {state ? (
+            <PieChart
+              series={[{ data: chartData }]}
+              width={400}
+              height={400}
+              margin={{ top: 40, bottom: 40, left: 40, right: 40 }}
+              onItemClick={state.canGoForward && onItemClick ? handleChartClick : undefined}
+              onHighlightChange={(highlightedItem) => {
+                if (highlightedItem === null || highlightedItem.dataIndex === undefined) {
+                  setHoveredItem(null);
+                } else {
+                  const item = state.breakdownItems[highlightedItem.dataIndex];
+                  const itemId = item?.id || null;
+                  setHoveredItem(itemId);
+
+                  // Scroll the corresponding list item into view
+                  if (itemId && listItemRefs.current[itemId]) {
+                    listItemRefs.current[itemId]?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'nearest',
+                      inline: 'nearest',
+                    });
+                  }
+                }
+              }}
+              hideLegend
+            />
+          ) : (
+            <Skeleton variant="circular" width={400} height={400} />
+          )}
+        </Box>
+
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <List sx={{ maxHeight: 400, overflow: 'auto' }}>
+            {state
+              ? state.breakdownItems.map((item, index) => {
+                  const color = COLORS[index % COLORS.length];
+                  const isHovered = hoveredItem === item.id;
+                  const isClickable = item.nextVersion !== null && onItemClick;
+
+                  return (
+                    <React.Fragment key={item.id}>
+                      <ListItemButton
+                        ref={(el: HTMLElement | null) => {
+                          listItemRefs.current[item.id] = el;
+                        }}
+                        onClick={isClickable ? () => onItemClick!(item.nextVersion) : undefined}
+                        disabled={!isClickable}
+                        onMouseEnter={() => setHoveredItem(item.id)}
+                        onMouseLeave={() => setHoveredItem(null)}
+                        sx={{
+                          borderRadius: 1,
+                          mb: 1,
+                          backgroundColor: isHovered ? 'action.hover' : 'transparent',
+                          transition: 'background-color 0.2s ease',
+                          cursor: isClickable ? 'pointer' : 'default',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 16,
+                            height: 16,
+                            backgroundColor: color,
+                            borderRadius: '50%',
+                            mr: 2,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <ListItemText
+                          primary={item.label}
+                          secondary={
+                            <React.Fragment>
+                              {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%) - last 7 days`}
+                              <br />
+                              {`Contains ${item.count} version${item.count === 1 ? '' : 's'}`}
+                              <br />
+                              {item.publishedAt
+                                ? `Latest: ${new Date(item.publishedAt).toLocaleDateString()}`
+                                : 'Release date unknown'}
+                            </React.Fragment>
+                          }
+                          slotProps={{
+                            secondary: { component: 'div' },
+                          }}
+                        />
+                        {isClickable && <ChevronRightIcon color="action" />}
+                      </ListItemButton>
+                      <Divider />
+                    </React.Fragment>
+                  );
+                })
+              : null}
+          </List>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+interface PackageVersionsSectionProps {
   packageName: string | null;
-  selectedVersion?: string | null;
+  selectedVersion: string | null;
   onVersionChange: (version: string | null) => void;
 }
 
-const COLORS = [
-  '#ea5545',
-  '#f46a9b',
-  '#ef9b20',
-  '#edbf33',
-  '#ede15b',
-  '#bdcf32',
-  '#87bc45',
-  '#27aeef',
-  '#b33dc6',
-];
+function PackageVersionsSection({
+  packageName,
+  selectedVersion,
+  onVersionChange,
+}: PackageVersionsSectionProps) {
+  const [searchParams] = useSearchParams();
+
+  const { isLoading, error, state } = usePackageVersions(packageName, selectedVersion);
+
+  // Early return if no package name
+  if (!packageName) {
+    return null;
+  }
+
+  // Helper function to create URLs preserving other search params
+  const createVersionUrl = (version: string | null): string => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (version === null) {
+      newSearchParams.delete('version');
+    } else {
+      newSearchParams.set('version', version);
+    }
+    return `?${newSearchParams.toString()}`;
+  };
+
+  return (
+    <div>
+      <Typography variant="h3" sx={{ mb: 2 }}>
+        Version Breakdown
+      </Typography>
+
+      {/* Breadcrumbs - only show if we have state */}
+      {state && (
+        <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
+          {state.breadcrumbs.map((breadcrumb, index) =>
+            breadcrumb.isActive ? (
+              <Typography key={index} color="text.primary">
+                {breadcrumb.label}
+              </Typography>
+            ) : (
+              <Link
+                key={index}
+                component={RouterLink}
+                to={createVersionUrl(breadcrumb.version)}
+                sx={{
+                  textDecoration: 'none',
+                  color: 'primary.main',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                {breadcrumb.label}
+              </Link>
+            ),
+          )}
+        </Breadcrumbs>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 4 }}>
+          Failed to load version data: {error.message}
+        </Alert>
+      )}
+
+      {/* Visualization */}
+      {!error && (
+        <BreakdownVisualization state={isLoading ? null : state} onItemClick={onVersionChange} />
+      )}
+    </div>
+  );
+}
+
+interface NpmVersionBreakdownProps {
+  packageName: string | null;
+  selectedVersion: string | null;
+  onVersionChange: (version: string | null) => void;
+}
 
 interface BreakdownItem {
   id: string;
@@ -310,22 +590,6 @@ function NpmVersionBreakdown({
   selectedVersion,
   onVersionChange,
 }: NpmVersionBreakdownProps) {
-  const [searchParams] = useSearchParams();
-  const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
-  const listItemRefs = React.useRef<Record<string, HTMLElement | null>>({});
-
-  // Fetch version data
-  const {
-    data: versions = {},
-    isLoading: isLoadingVersions,
-    error: versionsError,
-  } = useQuery({
-    queryKey: ['npmPackageVersions', packageName],
-    queryFn: () => fetchNpmPackageVersions(packageName!),
-    enabled: !!packageName,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-
   // Fetch historical data
   const {
     data: historicalData = null,
@@ -343,228 +607,26 @@ function NpmVersionBreakdown({
     return null;
   }
 
-  // Helper function to create URLs preserving other search params
-  const createVersionUrl = (version: string | null): string => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    if (version === null) {
-      newSearchParams.delete('version');
-    } else {
-      newSearchParams.set('version', version);
-    }
-    return `?${newSearchParams.toString()}`;
-  };
-
-  // Get current breakdown state (only if we have version data)
-  const state =
-    Object.keys(versions).length > 0 ? getBreakdownState(versions, selectedVersion) : null;
-  const filteredBreakdown = state ? state.breakdownItems.filter((item) => item.downloads > 0) : [];
-
-  // Generate chart data
-  const chartData = filteredBreakdown.map((item, index) => ({
-    id: item.id,
-    label: `${item.label} (${item.percentage.toFixed(1)}%)`,
-    value: item.downloads,
-    color: COLORS[index % COLORS.length],
-  }));
-
   // Generate historical chart data
   const historicalChartData = historicalData
     ? getHistoricalBreakdownData(historicalData, selectedVersion)
     : [];
   const hasHistoricalData = historicalData && historicalChartData.length > 0;
 
-  // Handle clicks
-  const handleItemClick = (nextVersion: string | null) => {
-    onVersionChange(nextVersion);
-  };
-
-  const handleChartClick = (event: any, item: PieItemIdentifier) => {
-    if (filteredBreakdown[item.dataIndex]) {
-      const breakdownItem = filteredBreakdown[item.dataIndex];
-      if (breakdownItem.nextVersion !== null) {
-        handleItemClick(breakdownItem.nextVersion);
-      }
-    }
-  };
-
   return (
     <Box sx={{ mt: 2 }}>
       {/* Package Info Section */}
       <PackageDetailsSection packageName={packageName} />
 
-      <Typography variant="h3" sx={{ mb: 2 }}>
-        Version Breakdown
-      </Typography>
-
-      {/* Breadcrumbs - only show if we have state */}
-      {state && (
-        <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
-          {state.breadcrumbs.map((breadcrumb, index) =>
-            breadcrumb.isActive ? (
-              <Typography key={index} color="text.primary">
-                {breadcrumb.label}
-              </Typography>
-            ) : (
-              <Link
-                key={index}
-                component={RouterLink}
-                to={createVersionUrl(breadcrumb.version)}
-                sx={{
-                  textDecoration: 'none',
-                  color: 'primary.main',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                {breadcrumb.label}
-              </Link>
-            ),
-          )}
-        </Breadcrumbs>
-      )}
-
-      {/* Current Data Section */}
-      {isLoadingVersions ? (
-        <Box sx={{ mb: 4 }}>
-          <Skeleton variant="text" width="40%" height={30} sx={{ mb: 2 }} />
-          <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-            <Skeleton variant="circular" width={400} height={400} />
-            <Box sx={{ flex: 1 }}>
-              <Skeleton variant="rectangular" height={400} />
-            </Box>
-          </Box>
-        </Box>
-      ) : versionsError ? (
-        <Alert severity="error" sx={{ mb: 4 }}>
-          Failed to load version data: {versionsError.message}
-        </Alert>
-      ) : filteredBreakdown.length > 0 ? (
-        <Box sx={{ mb: hasHistoricalData || isLoadingHistory ? 4 : 0 }}>
-          {/* Current Data: Pie Chart + List */}
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 3,
-              flexDirection: { xs: 'column', md: 'row' },
-            }}
-          >
-            <Box
-              sx={{
-                width: { xs: '100%', md: 400 },
-                height: 400,
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                '& .MuiChartsLegend-root': {
-                  display: 'none',
-                },
-              }}
-            >
-              <PieChart
-                series={[{ data: chartData }]}
-                width={400}
-                height={400}
-                margin={{ top: 40, bottom: 40, left: 40, right: 40 }}
-                onItemClick={state.canGoForward ? handleChartClick : undefined}
-                onHighlightChange={(highlightedItem) => {
-                  if (highlightedItem === null || highlightedItem.dataIndex === undefined) {
-                    setHoveredItem(null);
-                  } else {
-                    const item = filteredBreakdown[highlightedItem.dataIndex];
-                    const itemId = item?.id || null;
-                    setHoveredItem(itemId);
-
-                    // Scroll the corresponding list item into view
-                    if (itemId && listItemRefs.current[itemId]) {
-                      listItemRefs.current[itemId]?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'nearest',
-                      });
-                    }
-                  }
-                }}
-                hideLegend
-              />
-            </Box>
-
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-                {state.breakdownItems.map((item, index) => {
-                  const color = COLORS[index % COLORS.length];
-                  const isHovered = hoveredItem === item.id;
-
-                  return (
-                    <React.Fragment key={item.id}>
-                      <ListItemButton
-                        ref={(el: HTMLElement | null) => {
-                          listItemRefs.current[item.id] = el;
-                        }}
-                        component={item.nextVersion !== null ? RouterLink : 'div'}
-                        to={
-                          item.nextVersion !== null ? createVersionUrl(item.nextVersion) : undefined
-                        }
-                        disabled={item.nextVersion === null}
-                        onMouseEnter={() => setHoveredItem(item.id)}
-                        onMouseLeave={() => setHoveredItem(null)}
-                        sx={{
-                          borderRadius: 1,
-                          mb: 1,
-                          backgroundColor: isHovered ? 'action.hover' : 'transparent',
-                          transition: 'background-color 0.2s ease',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 16,
-                            height: 16,
-                            backgroundColor: color,
-                            borderRadius: '50%',
-                            mr: 2,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <ListItemText
-                          primary={item.label}
-                          secondary={
-                            <React.Fragment>
-                              {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%) - last 7 days`}
-                              <br />
-                              {`Contains ${item.count} version${item.count === 1 ? '' : 's'}`}
-                              <br />
-                              {item.publishedAt
-                                ? `Latest: ${new Date(item.publishedAt).toLocaleDateString()}`
-                                : 'Release date unknown'}
-                            </React.Fragment>
-                          }
-                          slotProps={{
-                            secondary: { component: 'div' },
-                          }}
-                        />
-                        {item.nextVersion !== null && <ChevronRightIcon color="action" />}
-                      </ListItemButton>
-                      <Divider />
-                    </React.Fragment>
-                  );
-                })}
-              </List>
-            </Box>
-          </Box>
-        </Box>
-      ) : Object.keys(versions).length === 0 && !isLoadingVersions ? (
-        <Alert severity="info" sx={{ mb: 4 }}>
-          No version data available for this package
-        </Alert>
-      ) : (
-        <Alert severity="info" sx={{ mb: 4 }}>
-          No download statistics available
-        </Alert>
-      )}
+      {/* Version Breakdown Section */}
+      <PackageVersionsSection
+        packageName={packageName}
+        selectedVersion={selectedVersion}
+        onVersionChange={onVersionChange}
+      />
 
       {/* Historical Data Section */}
-      <Box>
+      <Box sx={{ mt: hasHistoricalData || isLoadingHistory ? 4 : 0 }}>
         <Typography variant="h3" sx={{ mb: 2 }}>
           Historical Download Trends
         </Typography>
