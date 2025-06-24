@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -10,52 +11,66 @@ import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Heading from '../components/Heading';
 import NpmVersionBreakdown from '../components/NpmVersionBreakdown';
-import { useNpmPackageSearch, useNpmPackageDetails, Package } from '../hooks/useNpmPackage';
+import {
+  fetchNpmPackageSearch,
+  fetchNpmPackageDetails,
+  fetchNpmPackageVersions,
+  Package,
+} from '../lib/npm';
 
 export default function NpmVersions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const packageParam = searchParams.get('package');
   const versionParam = searchParams.get('version');
 
-  const [selectedPackage, setSelectedPackage] = React.useState<Package | null>(null);
   const [inputValue, setInputValue] = React.useState(packageParam || '');
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const {
-    searchResults,
+    data: searchResults = [],
     isLoading: isSearching,
     error: searchError,
-    searchPackages,
-  } = useNpmPackageSearch();
+  } = useQuery({
+    queryKey: ['npmPackageSearch', searchQuery],
+    queryFn: () => fetchNpmPackageSearch(searchQuery),
+    enabled: !!searchQuery.trim(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
   const {
-    packageDetails,
+    data: packageDetails = null,
     isLoading: isLoadingDetails,
     error: detailsError,
-    fetchPackageDetails,
-  } = useNpmPackageDetails();
+  } = useQuery({
+    queryKey: ['npmPackageDetails', packageParam],
+    queryFn: () => fetchNpmPackageDetails(packageParam!),
+    enabled: !!packageParam,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
 
-  // Fetch package details when package parameter changes
+  const {
+    data: versions = {},
+    isLoading: isLoadingVersions,
+    error: versionsError,
+  } = useQuery({
+    queryKey: ['npmPackageVersions', packageParam],
+    queryFn: () => fetchNpmPackageVersions(packageParam!),
+    enabled: !!packageParam,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Update input value when package parameter changes
   React.useEffect(() => {
     if (packageParam) {
       setInputValue(packageParam);
-      fetchPackageDetails(packageParam);
     }
-  }, [packageParam, fetchPackageDetails]);
-
-  // Update package details when they're loaded
-  React.useEffect(() => {
-    if (packageDetails) {
-      setSelectedPackage(packageDetails);
-    }
-  }, [packageDetails]);
+  }, [packageParam]);
 
   const handlePackageSelect = (event: React.SyntheticEvent, value: Package | null) => {
     if (value) {
-      setSelectedPackage(value);
       // Reset version when switching packages
       setSearchParams({ package: value.name });
-      fetchPackageDetails(value.name);
     } else {
-      setSelectedPackage(null);
       setSearchParams({});
     }
   };
@@ -75,7 +90,9 @@ export default function NpmVersions() {
   const handleInputChange = (event: React.SyntheticEvent, value: string) => {
     setInputValue(value);
     if (value.length > 2) {
-      searchPackages(value);
+      setSearchQuery(value);
+    } else {
+      setSearchQuery('');
     }
   };
 
@@ -89,7 +106,7 @@ export default function NpmVersions() {
         </Typography>
 
         <Autocomplete
-          value={selectedPackage}
+          value={packageDetails}
           onChange={handlePackageSelect}
           inputValue={inputValue}
           onInputChange={handleInputChange}
@@ -137,16 +154,16 @@ export default function NpmVersions() {
 
         {searchError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            Search Error: {searchError}
+            Search Error: {searchError.message}
           </Alert>
         )}
       </Paper>
 
       {/* Package Details and Version Breakdown */}
-      {(selectedPackage || isLoadingDetails) && (
+      {(packageDetails || isLoadingDetails) && (
         <Paper sx={{ p: 3 }}>
           {/* Package Details Section */}
-          {selectedPackage && (
+          {packageDetails && (
             <React.Fragment>
               <Box
                 sx={{
@@ -156,24 +173,24 @@ export default function NpmVersions() {
                   mb: 2,
                 }}
               >
-                <Typography variant="h3">{selectedPackage.name}</Typography>
+                <Typography variant="h3">{packageDetails.name}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Latest: v{selectedPackage.version}
+                  Latest: v{packageDetails.version}
                 </Typography>
               </Box>
 
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Author: {selectedPackage.author}
+                Author: {packageDetails.author}
               </Typography>
 
               <Typography variant="body1" color="text.secondary" paragraph>
-                {selectedPackage.description}
+                {packageDetails.description}
               </Typography>
             </React.Fragment>
           )}
 
           {/* Loading State */}
-          {isLoadingDetails && (
+          {(isLoadingDetails || isLoadingVersions) && (
             <React.Fragment>
               <Skeleton variant="text" width="60%" height={40} />
               <Skeleton variant="rectangular" height={400} />
@@ -181,9 +198,9 @@ export default function NpmVersions() {
           )}
 
           {/* Version Breakdown */}
-          {packageDetails && !isLoadingDetails && (
+          {packageDetails && versions && !isLoadingDetails && !isLoadingVersions && (
             <NpmVersionBreakdown
-              packageData={packageDetails}
+              packageData={{ ...packageDetails, versions }}
               selectedVersion={versionParam}
               onVersionChange={handleVersionChange}
             />
@@ -192,14 +209,15 @@ export default function NpmVersions() {
       )}
 
       {/* Error State */}
-      {detailsError && (
+      {(detailsError || versionsError) && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          Package Details Error: {detailsError}
+          {detailsError && `Package Details Error: ${detailsError.message}`}
+          {versionsError && `Versions Error: ${versionsError.message}`}
         </Alert>
       )}
 
       {/* Empty State */}
-      {!selectedPackage && !isLoadingDetails && (
+      {!packageDetails && !isLoadingDetails && (
         <Paper sx={{ p: 6, textAlign: 'center' }}>
           <Typography variant="h5" color="text.secondary" gutterBottom>
             Search for an npm package to view its download statistics

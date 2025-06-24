@@ -14,7 +14,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
 import * as semver from 'semver';
 import { PieItemIdentifier } from '@mui/x-charts';
-import { Package } from '../hooks/useNpmPackage';
+import { Package } from '../lib/npm';
 
 interface NpmVersionBreakdownProps {
   packageData: Package;
