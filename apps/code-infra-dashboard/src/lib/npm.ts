@@ -15,6 +15,18 @@ export interface PackageVersion {
   downloads?: number;
 }
 
+export interface HistoricalData {
+  package: string;
+  timestamps: number[];
+  downloads: Record<string, number[]>;
+}
+
+export interface TimeSeriesDataPoint {
+  timestamp: string;
+  value: number;
+  version: string;
+}
+
 export const fetchNpmPackageSearch = async (query: string): Promise<Package[]> => {
   if (!query.trim()) {
     return [];
@@ -99,4 +111,17 @@ export const fetchNpmPackageVersions = async (
   }
 
   return versions;
+};
+
+export const fetchNpmPackageHistory = async (packageName: string): Promise<HistoricalData> => {
+  const encodedPackageName = encodeURIComponent(packageName);
+  const response = await fetch(
+    `https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master/data/${encodedPackageName}.json`,
+  );
+  if (!response.ok) {
+    throw new Error('Failed to fetch historical data');
+  }
+
+  const data = await response.json();
+  return data;
 };

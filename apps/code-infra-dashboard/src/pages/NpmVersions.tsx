@@ -15,6 +15,7 @@ import {
   fetchNpmPackageSearch,
   fetchNpmPackageDetails,
   fetchNpmPackageVersions,
+  fetchNpmPackageHistory,
   Package,
 } from '../lib/npm';
 
@@ -57,6 +58,17 @@ export default function NpmVersions() {
     queryFn: () => fetchNpmPackageVersions(packageParam!),
     enabled: !!packageParam,
     staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  const {
+    data: historicalData = null,
+    isLoading: isLoadingHistory,
+    error: historyError,
+  } = useQuery({
+    queryKey: ['npmPackageHistory', packageParam],
+    queryFn: () => fetchNpmPackageHistory(packageParam!),
+    enabled: !!packageParam,
+    staleTime: 60 * 60 * 1000, // 1 hour - historical data changes less frequently
   });
 
   // Update input value when package parameter changes
@@ -190,7 +202,7 @@ export default function NpmVersions() {
           )}
 
           {/* Loading State */}
-          {(isLoadingDetails || isLoadingVersions) && (
+          {(isLoadingDetails || isLoadingVersions || isLoadingHistory) && (
             <React.Fragment>
               <Skeleton variant="text" width="60%" height={40} />
               <Skeleton variant="rectangular" height={400} />
@@ -201,6 +213,7 @@ export default function NpmVersions() {
           {packageDetails && versions && !isLoadingDetails && !isLoadingVersions && (
             <NpmVersionBreakdown
               packageData={{ ...packageDetails, versions }}
+              historicalData={historicalData}
               selectedVersion={versionParam}
               onVersionChange={handleVersionChange}
             />
@@ -209,10 +222,11 @@ export default function NpmVersions() {
       )}
 
       {/* Error State */}
-      {(detailsError || versionsError) && (
+      {(detailsError || versionsError || historyError) && (
         <Alert severity="error" sx={{ mt: 2 }}>
           {detailsError && `Package Details Error: ${detailsError.message}`}
           {versionsError && `Versions Error: ${versionsError.message}`}
+          {historyError && `Historical Data Error: ${historyError.message}`}
         </Alert>
       )}
 
