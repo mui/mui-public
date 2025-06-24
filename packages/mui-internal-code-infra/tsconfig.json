@@ -11,7 +11,8 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "outDir": "./build",
+    "rootDir": "src",
+    "outDir": "build",
     "noEmit": true
   },
   "include": ["src"],

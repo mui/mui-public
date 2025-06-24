@@ -12,19 +12,18 @@
   "exports": {
     "./package.json": "./package.json",
     "./prettier": {
-      "types": "./src/prettier.d.ts",
       "default": "./src/prettier.mjs"
     },
     "./eslint": {
-      "types": "./src/eslint/index.d.ts",
       "default": "./src/eslint/index.mjs"
     },
     "./eslint-docs": {
-      "types": "./src/eslint/docs.d.ts",
       "default": "./src/eslint/docs.mjs"
     }
   },
   "scripts": {
+    "build:types": "tsc -p tsconfig.json --noEmit false --emitDeclarationsOnly true",
+    "build": "pnpm build:types",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra"
   },

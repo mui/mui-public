@@ -48,7 +48,7 @@ export const baseSpecRules = {
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether the config is for spec files.
- * @returns {import('typescript-eslint').ConfigArray}
+ * @returns {import('eslint').Linter.Config[]}
  */
 export function createBaseConfig({ enableReactCompiler = false } = {}) {
   return tseslint.config(
@@ -91,7 +91,7 @@ export function createBaseConfig({ enableReactCompiler = false } = {}) {
 }
 
 /**
- * @returns {import('typescript-eslint').ConfigArray}
+ * @returns {import('eslint').Linter.Config[]}
  */
 export function createTestConfig() {
   return tseslint.config(

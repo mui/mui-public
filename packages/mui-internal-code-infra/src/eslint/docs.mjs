@@ -6,7 +6,7 @@ import nextjs from '@next/eslint-plugin-next';
 import * as tselint from 'typescript-eslint';
 
 /**
- * @returns {import('typescript-eslint').ConfigArray}
+ * @returns {import('eslint').Linter.Config[]}
  */
 export function createDocsConfig() {
   return tselint.config(nextjs.flatConfig.recommended, {
