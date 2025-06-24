@@ -12,7 +12,9 @@ export default defineConfig(
   includeIgnoreFile(path.join(dirname, '.eslintignore')),
   {
     name: 'Base config',
-    extends: createBaseConfig(),
+    extends: createBaseConfig({
+      baseDirectory: dirname,
+    }),
     rules: {
       // No time for this
       'react/prop-types': 'off',
@@ -43,7 +45,6 @@ export default defineConfig(
   {
     files: ['packages/bundle-size-checker/**/*'],
     rules: {
-      'import/prefer-default-export': 'off',
       // Allow .js file extensions in import statements for ESM compatibility
       'import/extensions': [
         'error',

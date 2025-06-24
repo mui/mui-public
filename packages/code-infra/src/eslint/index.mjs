@@ -1,5 +1,4 @@
 import prettier from 'eslint-config-prettier/flat';
-import { flatConfigs as importFlatConfigs } from 'eslint-plugin-import';
 import mochaPlugin from 'eslint-plugin-mocha';
 import reactCompilerPlugin from 'eslint-plugin-react-compiler';
 import { configs as reactHookConfigs } from 'eslint-plugin-react-hooks';
@@ -7,12 +6,10 @@ import testingLibrary from 'eslint-plugin-testing-library';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
 
-import airbnbBase from './airbnb/base.mjs';
-import airbnbReact from './airbnb/react.mjs';
-import airbnbTs from './airbnb/typescript.mjs';
-
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
+import { createAirbnbConfig } from './airbnb/base.mjs';
+import airbnbTypescript from './airbnb/typescript.mjs';
 
 export const baseSpecRules = {
   files: ['**/*.spec.*'],
@@ -48,17 +45,15 @@ export const baseSpecRules = {
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether the config is for spec files.
+ * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createBaseConfig({ enableReactCompiler = false } = {}) {
+export function createBaseConfig({ enableReactCompiler = false, baseDirectory } = {}) {
   return tseslint.config(
-    importFlatConfigs.recommended,
-    importFlatConfigs.typescript,
+    createAirbnbConfig({ baseDirectory }),
+    airbnbTypescript,
     reactHookConfigs.recommended,
     enableReactCompiler ? reactCompilerPlugin.configs.recommended : {},
-    airbnbBase,
-    airbnbReact,
-    airbnbTs,
     prettier,
     {
       name: 'typescript-eslint-parser',
