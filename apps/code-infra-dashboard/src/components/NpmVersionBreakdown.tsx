@@ -15,7 +15,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
-import { PieItemIdentifier } from '@mui/x-charts';
+import { PieItemIdentifier, PieValueType } from '@mui/x-charts';
 import {
   HistoricalData,
   fetchNpmPackageVersions,
@@ -31,11 +31,19 @@ export interface UseNpmPackage {
   error: Error | null;
 }
 
-const valueFormatter = (date: Date) =>
-  date.toLocaleDateString('fr-FR', {
+function dateValueFormatter(date: Date) {
+  return date.toLocaleDateString(undefined, {
     month: '2-digit',
     day: '2-digit',
   });
+}
+
+function downloadsValueFormatter(value: number) {
+  return value.toLocaleString(undefined, {
+    notation: 'compact',
+    compactDisplay: 'short',
+  });
+}
 
 export function useNpmPackage(packageName: string | null): UseNpmPackage {
   const {
@@ -154,9 +162,9 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
   const breakdownItems = state?.breakdownItems ?? [];
 
   // Generate chart data
-  const chartData = breakdownItems.map((item, index) => ({
+  const chartData: PieValueType[] = breakdownItems.map((item, index) => ({
     id: item.id,
-    label: `${item.label} (${item.percentage.toFixed(1)}%)`,
+    label: item.label,
     value: item.downloads,
     color: COLORS[index % COLORS.length],
   }));
@@ -192,7 +200,20 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
           }}
         >
           <PieChart
-            series={[{ data: chartData }]}
+            series={[
+              {
+                data: chartData,
+                arcLabel: 'label',
+                valueFormatter: (item) => {
+                  let label = `${item.value.toLocaleString()} downloads`;
+                  if (state) {
+                    const percentage = (100 * item.value) / state.globalTotalDownloads;
+                    label += ` (${percentage.toFixed(1)}%)`;
+                  }
+                  return label;
+                },
+              },
+            ]}
             width={400}
             height={400}
             onItemClick={state?.canGoForward ? handleChartClick : undefined}
@@ -239,9 +260,7 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
                           primary={item.label}
                           secondary={
                             <React.Fragment>
-                              {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%) - last 7 days`}
-                              <br />
-                              {`Contains ${item.count} version${item.count === 1 ? '' : 's'}`}
+                              {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%)`}
                               <br />
                               {item.publishedAt
                                 ? `Latest: ${new Date(item.publishedAt).toLocaleDateString()}`
@@ -312,12 +331,12 @@ function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTre
             {
               data: historicalChartData.timestamps,
               scaleType: 'time',
-              valueFormatter,
+              valueFormatter: dateValueFormatter,
               label: 'Date',
             },
           ]}
           loading={isLoading}
-          yAxis={[{ label: 'Downloads' }]}
+          yAxis={[{ label: 'Downloads', valueFormatter: downloadsValueFormatter }]}
           height={400}
         />
       ) : (
@@ -463,6 +482,7 @@ interface BreadcrumbItem {
 interface BreakdownState {
   canGoForward: boolean;
   breakdownItems: BreakdownItem[];
+  globalTotalDownloads: number;
 }
 
 function padVersion(version: string, padWith: string = '0', length = 3): string {
@@ -567,6 +587,7 @@ function getBreakdownState(
   return {
     canGoForward: currentLevel < 2,
     breakdownItems,
+    globalTotalDownloads,
   };
 }
 
