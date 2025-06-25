@@ -204,6 +204,7 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
               {
                 data: chartData,
                 arcLabel: 'label',
+                arcLabelMinAngle: 10,
                 valueFormatter: (item) => {
                   let label = `${item.value.toLocaleString()} downloads`;
                   if (state) {
