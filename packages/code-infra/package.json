@@ -25,7 +25,6 @@
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "emoji-regex": "^10.4.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^10.1.5",

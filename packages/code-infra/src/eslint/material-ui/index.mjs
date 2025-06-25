@@ -4,7 +4,6 @@ import docgenIgnoreBeforeComment from './rules/docgen-ignore-before-comment.mjs'
 import muiNameMatchesComponentName from './rules/mui-name-matches-component-name.mjs';
 import noEmptyBox from './rules/no-empty-box.mjs';
 import noDirectStateAccess from './rules/no-direct-state-access.mjs';
-import noHardcodedLabels from './rules/no-hardcoded-labels.mjs';
 import noRestrictedResolvedImports from './rules/no-restricted-resolved-imports.mjs';
 import noStyledBox from './rules/no-styled-box.mjs';
 import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
@@ -20,7 +19,6 @@ export default /** @type {import('eslint').ESLint.Plugin} */ ({
     'docgen-ignore-before-comment': docgenIgnoreBeforeComment,
     'mui-name-matches-component-name': muiNameMatchesComponentName,
     'no-direct-state-access': noDirectStateAccess,
-    'no-hardcoded-labels': noHardcodedLabels,
     'rules-of-use-theme-variants': rulesOfUseThemeVariants,
     'no-empty-box': noEmptyBox,
     'no-styled-box': noStyledBox,
