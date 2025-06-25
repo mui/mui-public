@@ -18,7 +18,8 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import { HighlightItemData, PieItemIdentifier, PieValueType } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material';
-import { PackageVersion, fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
+import { SeriesValueFormatterContext } from '@mui/x-charts/internals';
+import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
 
 class HoverStore {
   private hoveredIndex: number | null = null;
@@ -116,6 +117,17 @@ const PackageDetailsSection = React.memo(function PackageDetailsSection({
     </Box>
   );
 });
+
+function formatLabel(value: number | null, percentage: number | null): string {
+  if (value === null) {
+    return 'No data';
+  }
+  let label = `${value.toLocaleString()} downloads`;
+  if (percentage !== null) {
+    label += ` (${percentage.toFixed(1)}%)`;
+  }
+  return label;
+}
 
 interface BreakdownTableRowProps {
   item: BreakdownItem | null;
@@ -240,15 +252,11 @@ const PieChartComponent = React.memo(function PieChartComponent({
 
   // Memoize value formatter to prevent recreation on every render
   const valueFormatter = React.useCallback(
-    (item: { value: number }) => {
-      let label = `${item.value.toLocaleString()} downloads`;
-      if (state?.globalTotalDownloads) {
-        const percentage = (100 * item.value) / state.globalTotalDownloads;
-        label += ` (${percentage.toFixed(1)}%)`;
-      }
-      return label;
+    (item: PieValueType, ctx: SeriesValueFormatterContext) => {
+      const breakdownItem = state?.breakdownItems[ctx.dataIndex];
+      return formatLabel(item.value, breakdownItem?.percentage ?? null);
     },
-    [state?.globalTotalDownloads],
+    [state],
   );
 
   const handleChartItemHover = useEventCallback((item: HighlightItemData | null) => {
@@ -412,6 +420,13 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
           ...series,
           color: COLORS[index % COLORS.length],
           highlightScope: { fade: 'global', highlight: 'series' },
+          valueFormatter: (value, ctx) => {
+            const globalTotalDownloads =
+              packageDetails?.historicalTotalGlobalDownloads[ctx.dataIndex];
+            const percentage =
+              value !== null && globalTotalDownloads ? (value / globalTotalDownloads) * 100 : null;
+            return formatLabel(value, percentage);
+          },
           showMark: series.data.length <= 1,
         }))}
         xAxis={[
@@ -453,11 +468,9 @@ function PackageVersionsSection({
     hoverStoreRef.current = new HoverStore();
   }
 
-  const versions = packageDetails?.versions;
-
   const state = React.useMemo(
-    () => (versions ? getBreakdownState(versions, selectedVersion) : null),
-    [versions, selectedVersion],
+    () => (packageDetails ? getBreakdownState(packageDetails, selectedVersion) : null),
+    [packageDetails, selectedVersion],
   );
 
   // Helper function to create URLs preserving other search params
@@ -602,10 +615,10 @@ function getNextLevelKey(version: string, selectedVersion: null | string): strin
 }
 
 function getBreakdownState(
-  packageVersions: Record<string, PackageVersion>,
+  packageDetails: PackageDetails,
   selectedVersion: null | string = null,
 ): BreakdownState {
-  const versionKeys = Object.keys(packageVersions || {});
+  const versionKeys = Object.keys(packageDetails.versions || {});
 
   // Filter versions that match the current selection using semver
   const matchingVersions = selectedVersion
@@ -614,12 +627,6 @@ function getBreakdownState(
         return cleanVersion && semver.satisfies(cleanVersion, selectedVersion);
       })
     : versionKeys;
-
-  // Calculate global total downloads
-  const globalTotalDownloads = versionKeys.reduce(
-    (sum, version) => sum + (packageVersions?.[version]?.downloads || 0),
-    0,
-  );
 
   // Group matching versions by next level
   const groupedVersions: Record<string, string[]> = {};
@@ -639,13 +646,13 @@ function getBreakdownState(
     .map((key) => {
       const versions = groupedVersions[key];
       const downloads = versions.reduce(
-        (sum, version) => sum + (packageVersions?.[version]?.downloads || 0),
+        (sum, version) => sum + (packageDetails.versions?.[version]?.downloads || 0),
         0,
       );
 
       // Find the newest published date in the group
       const newestPublishedAt = versions.reduce<string | null>((newest, version) => {
-        const publishedAt = packageVersions?.[version]?.publishedAt;
+        const publishedAt = packageDetails.versions?.[version]?.publishedAt;
         if (!publishedAt) {
           return newest;
         }
@@ -655,7 +662,10 @@ function getBreakdownState(
         return new Date(publishedAt).getTime() > new Date(newest).getTime() ? publishedAt : newest;
       }, null);
 
-      const percentage = globalTotalDownloads > 0 ? (downloads / globalTotalDownloads) * 100 : 0;
+      const percentage =
+        packageDetails.globalTotalDownloads > 0
+          ? (downloads / packageDetails.globalTotalDownloads) * 100
+          : 0;
 
       // Extract the relevant version fragment for sorting
       const keyParts = key.split('.');
@@ -680,7 +690,7 @@ function getBreakdownState(
   return {
     canGoForward: currentLevel < 2,
     breakdownItems,
-    globalTotalDownloads,
+    globalTotalDownloads: packageDetails.globalTotalDownloads,
   };
 }
 

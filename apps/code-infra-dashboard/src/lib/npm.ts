@@ -8,6 +8,8 @@ export interface PackageDetails {
   timestamp: number;
   historyAvailable: boolean;
   timestamps: number[];
+  globalTotalDownloads: number;
+  historicalTotalGlobalDownloads: number[];
 }
 
 export interface SearchResult {
@@ -91,6 +93,7 @@ export const fetchNpmPackageDetails = async (packageName: string): Promise<Packa
   // Process historical data if available
   const historyAvailable = !!historyResult;
   const timestamps: number[] = historyResult?.timestamps || [];
+  timestamps.push(fetchTimestamp); // Include current fetch timestamp
 
   const versions: Record<string, PackageVersion> = {};
 
@@ -113,6 +116,14 @@ export const fetchNpmPackageDetails = async (packageName: string): Promise<Packa
     };
   });
 
+  const globalTotalDownloads = Object.values(versions).reduce(
+    (total, ver) => total + ver.downloads,
+    0,
+  );
+  const historicalTotalGlobalDownloads = timestamps.map((_, index) => {
+    return Object.values(versions).reduce((total, ver) => total + (ver.history[index] || 0), 0);
+  });
+
   return {
     name: data.name,
     description: data.description,
@@ -122,6 +133,8 @@ export const fetchNpmPackageDetails = async (packageName: string): Promise<Packa
     versions,
     timestamp: fetchTimestamp,
     historyAvailable,
-    timestamps: [...timestamps, fetchTimestamp],
+    timestamps,
+    globalTotalDownloads,
+    historicalTotalGlobalDownloads,
   };
 };
