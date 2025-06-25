@@ -5,11 +5,12 @@ import Typography from '@mui/material/Typography';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
 import { Link as RouterLink, useSearchParams } from 'react-router';
-import List from '@mui/material/List';
-import ListItemText from '@mui/material/ListItemText';
-import ListItemButton from '@mui/material/ListItemButton';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
-import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
@@ -151,14 +152,95 @@ function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
   );
 }
 
+interface BreakdownTableRowProps {
+  item: BreakdownItem | null;
+  color?: string;
+  onItemClick?: (nextVersion: string | null) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}
+
+function BreakdownTableRow({
+  item,
+  color = '#ccc',
+  onItemClick,
+  onMouseEnter,
+  onMouseLeave,
+}: BreakdownTableRowProps) {
+  const isClickable = item?.nextVersion !== null && !!onItemClick;
+
+  return (
+    <TableRow
+      hover={isClickable}
+      onClick={isClickable ? () => onItemClick!(item!.nextVersion) : undefined}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      sx={{
+        '&:last-child td, &:last-child th': { border: 0 },
+        cursor: isClickable ? 'pointer' : 'default',
+        '&:hover': {
+          backgroundColor: isClickable ? 'action.hover' : 'transparent',
+        },
+      }}
+    >
+      <TableCell sx={{ width: 40, textAlign: 'center' }}>
+        {item ? (
+          <Box
+            sx={{
+              width: 16,
+              height: 16,
+              backgroundColor: color,
+              borderRadius: '50%',
+            }}
+          />
+        ) : (
+          <Skeleton variant="circular" width={16} height={16} />
+        )}
+      </TableCell>
+      <TableCell sx={{ width: 100 }}>
+        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+          {item ? item.label : <Skeleton />}
+        </Typography>
+      </TableCell>
+      <TableCell align="right" sx={{ width: 250 }}>
+        <Typography variant="body2">
+          {item ? (
+            `${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%)`
+          ) : (
+            <Skeleton />
+          )}
+        </Typography>
+      </TableCell>
+      <TableCell align="right">
+        <Typography variant="body2" color="text.secondary">
+          {item ? (
+            <React.Fragment>
+              {item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : 'Unknown'}
+            </React.Fragment>
+          ) : (
+            <Skeleton sx={{ display: 'inline-block' }} width={80} />
+          )}
+        </Typography>
+      </TableCell>
+      <TableCell align="right" sx={{ width: 40 }}>
+        <ChevronRightIcon
+          color="action"
+          fontSize="small"
+          sx={{
+            visibility: item && isClickable ? 'visible' : 'hidden',
+          }}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
+
 interface BreakdownVisualizationProps {
   state?: BreakdownState | null;
   onItemClick: (nextVersion: string | null) => void;
 }
 
 function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
-  const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
-
   const breakdownItems = state?.breakdownItems ?? [];
 
   // Generate chart data
@@ -225,61 +307,24 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-            {state
-              ? state.breakdownItems.map((item, index) => {
-                  const color = COLORS[index % COLORS.length];
-                  const isHovered = hoveredItem === item.id;
-                  const isClickable = item.nextVersion !== null && onItemClick;
-
-                  return (
-                    <React.Fragment key={item.id}>
-                      <ListItemButton
-                        onClick={isClickable ? () => onItemClick!(item.nextVersion) : undefined}
-                        disabled={!isClickable}
-                        onMouseEnter={() => setHoveredItem(item.id)}
-                        onMouseLeave={() => setHoveredItem(null)}
-                        sx={{
-                          borderRadius: 1,
-                          mb: 1,
-                          backgroundColor: isHovered ? 'action.hover' : 'transparent',
-                          transition: 'background-color 0.2s ease',
-                          cursor: isClickable ? 'pointer' : 'default',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 16,
-                            height: 16,
-                            backgroundColor: color,
-                            borderRadius: '50%',
-                            mr: 2,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <ListItemText
-                          primary={item.label}
-                          secondary={
-                            <React.Fragment>
-                              {`${item.downloads.toLocaleString()} downloads (${item.percentage.toFixed(1)}%)`}
-                              <br />
-                              {item.publishedAt
-                                ? `Latest: ${new Date(item.publishedAt).toLocaleDateString()}`
-                                : 'Release date unknown'}
-                            </React.Fragment>
-                          }
-                          slotProps={{
-                            secondary: { component: 'div' },
-                          }}
-                        />
-                        {isClickable && <ChevronRightIcon color="action" />}
-                      </ListItemButton>
-                      <Divider />
-                    </React.Fragment>
-                  );
-                })
-              : null}
-          </List>
+          <TableContainer sx={{ maxHeight: 400 }}>
+            <Table stickyHeader size="small">
+              <TableBody>
+                {state
+                  ? state.breakdownItems.map((item, index) => (
+                      <BreakdownTableRow
+                        key={item.id}
+                        item={item}
+                        color={COLORS[index % COLORS.length]}
+                        onItemClick={onItemClick}
+                      />
+                    ))
+                  : Array.from({ length: 3 }, (_, index) => (
+                      <BreakdownTableRow key={`skeleton-${index}`} item={null} />
+                    ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
       </Box>
     </Box>

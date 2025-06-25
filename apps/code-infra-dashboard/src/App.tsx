@@ -167,7 +167,7 @@ function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
+      <CssBaseline enableColorScheme />
       <QueryClientProvider client={queryClient}>
         <div>
           <BrowserRouter>
