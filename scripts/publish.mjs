@@ -84,18 +84,8 @@ async function getPackageVersionInfo(packageName, baseVersion) {
     }
 
     // Get canary dist-tag to find latest canary version
-    let latestCanaryVersion = null;
-    try {
-      const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
-      const canaryTag = canaryResult.stdout.trim();
-
-      // Check if canary tag matches our base version pattern
-      if (canaryTag && canaryTag.startsWith(`${baseVersion}-canary.`)) {
-        latestCanaryVersion = canaryTag;
-      }
-    } catch {
-      // No canary dist-tag found, that's fine
-    }
+    const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
+    const latestCanaryVersion = semver.valid(canaryResult.stdout.trim());
 
     return {
       currentVersionExists,
@@ -240,6 +230,16 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
 }
 
 /**
+ * Get the maximum semver version between two versions
+ * @param {string} a
+ * @param {string} b
+ * @returns {string} The maximum semver version
+ */
+function semverMax(a, b) {
+  return semver.gt(a, b) ? a : b;
+}
+
+/**
  * Publish canary versions with updated dependencies
  * @param {Package[]} packagesToPublish - Packages that need canary publishing
  * @param {Package[]} allPackages - All workspace packages
@@ -277,8 +277,9 @@ async function publishCanaryVersions(
 
     if (changedPackageNames.has(pkg.name)) {
       // Generate new canary version for changed packages
-      const baseVersion =
-        versionInfo.latestCanaryVersion || semver.inc(pkg.version, 'patch') || '0.0.0';
+      const baseVersion = versionInfo.latestCanaryVersion
+        ? semverMax(versionInfo.latestCanaryVersion, pkg.version)
+        : pkg.version;
       const canaryVersion = semver.inc(baseVersion, 'prerelease', 'canary');
       canaryVersions.set(pkg.name, canaryVersion);
       console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
