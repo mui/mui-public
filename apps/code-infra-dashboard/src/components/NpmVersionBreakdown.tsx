@@ -242,11 +242,16 @@ function BreakdownTableRow({
 interface BreakdownVisualizationProps {
   state?: BreakdownState | null;
   onItemClick: (nextVersion: string | null) => void;
+  hoveredIndex: number | null;
+  onHoverChange: (index: number | null) => void;
 }
 
-function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
-  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
-
+function BreakdownVisualization({
+  state,
+  onItemClick,
+  hoveredIndex,
+  onHoverChange,
+}: BreakdownVisualizationProps) {
   // Generate chart data with memoization
   const chartData: PieValueType[] = React.useMemo(
     () =>
@@ -289,12 +294,12 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
 
   // Handle chart hover
   const handleChartItemHover = useEventCallback((item: HighlightItemData | null) => {
-    setHoveredIndex(item?.dataIndex ?? null);
+    onHoverChange(item?.dataIndex ?? null);
   });
 
   // Handle table row hover
   const handleTableRowHover = useEventCallback((index: number | null) => {
-    setHoveredIndex(index);
+    onHoverChange(index);
   });
 
   return (
@@ -372,9 +377,16 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
 interface HistoricalTrendsSectionProps {
   packageName: string | null;
   selectedVersion: string | null;
+  hoveredIndex: number | null;
+  onHoverChange: (index: number | null) => void;
 }
 
-function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTrendsSectionProps) {
+function HistoricalTrendsSection({
+  packageName,
+  selectedVersion,
+  hoveredIndex,
+  onHoverChange,
+}: HistoricalTrendsSectionProps) {
   // Fetch historical data
   const {
     data: historicalData,
@@ -394,6 +406,12 @@ function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTre
     return getHistoricalBreakdownData(historicalData, selectedVersion);
   }, [historicalData, selectedVersion]);
 
+  // Handle line chart hover
+  const handleLineChartHover = useEventCallback((item: HighlightItemData | null) => {
+    const index = historicalChartData.series.findIndex((series) => series.id === item?.seriesId);
+    onHoverChange(index ?? null);
+  });
+
   // Early return if no package name
   if (!packageName) {
     return null;
@@ -405,27 +423,29 @@ function HistoricalTrendsSection({ packageName, selectedVersion }: HistoricalTre
 
   return (
     <Box sx={{ width: '100%', height: 400 }}>
-      {historicalChartData ? (
-        <LineChart
-          series={historicalChartData.series.map((series, index) => ({
-            ...series,
-            color: COLORS[index % COLORS.length],
-          }))}
-          xAxis={[
-            {
-              data: historicalChartData.timestamps,
-              scaleType: 'time',
-              valueFormatter: dateValueFormatter,
-              label: 'Date',
-            },
-          ]}
-          loading={isLoading}
-          yAxis={[{ label: 'Downloads', valueFormatter: downloadsValueFormatter }]}
-          height={400}
-        />
-      ) : (
-        <Skeleton variant="rectangular" height={400} />
-      )}
+      <LineChart
+        series={historicalChartData.series.map((series, index) => ({
+          ...series,
+          color: COLORS[index % COLORS.length],
+          highlightScope: { fade: 'global', highlight: 'series' },
+          showMark: series.data.length <= 1,
+        }))}
+        xAxis={[
+          {
+            data: historicalChartData.timestamps,
+            scaleType: 'time',
+            valueFormatter: dateValueFormatter,
+            label: 'Date',
+          },
+        ]}
+        loading={isLoading}
+        yAxis={[{ label: 'Downloads', valueFormatter: downloadsValueFormatter }]}
+        height={300}
+        highlightedItem={
+          hoveredIndex !== null ? { seriesId: historicalChartData.series[hoveredIndex]?.id } : null
+        }
+        onHighlightChange={handleLineChartHover}
+      />
     </Box>
   );
 }
@@ -442,6 +462,7 @@ function PackageVersionsSection({
   onVersionChange,
 }: PackageVersionsSectionProps) {
   const [searchParams] = useSearchParams();
+  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
   const { isLoading, error, state } = usePackageVersions(packageName, selectedVersion);
 
@@ -526,7 +547,12 @@ function PackageVersionsSection({
 
       {/* Visualization */}
       {!error && (
-        <BreakdownVisualization state={isLoading ? null : state} onItemClick={onVersionChange} />
+        <BreakdownVisualization
+          state={isLoading ? null : state}
+          onItemClick={onVersionChange}
+          hoveredIndex={hoveredIndex}
+          onHoverChange={setHoveredIndex}
+        />
       )}
 
       {/* Historical Trends */}
@@ -534,7 +560,12 @@ function PackageVersionsSection({
         <Typography variant="h3" sx={{ mb: 2 }}>
           Historical Download Trends
         </Typography>
-        <HistoricalTrendsSection packageName={packageName} selectedVersion={selectedVersion} />
+        <HistoricalTrendsSection
+          packageName={packageName}
+          selectedVersion={selectedVersion}
+          hoveredIndex={hoveredIndex}
+          onHoverChange={setHoveredIndex}
+        />
       </Box>
     </div>
   );
