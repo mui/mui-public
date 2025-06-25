@@ -81,16 +81,13 @@ const COLORS = [
 interface UsePackageVersions {
   isLoading: boolean;
   error: Error | null;
-  state: BreakdownState | null;
+  versions: Record<string, PackageVersion> | null;
 }
 
-function usePackageVersions(
-  packageName: string | null,
-  selectedVersion: string | null,
-): UsePackageVersions {
+function usePackageVersions(packageName: string | null): UsePackageVersions {
   // Fetch version data
   const {
-    data: versions = {},
+    data: versions = null,
     isLoading,
     error,
   } = useQuery({
@@ -100,14 +97,10 @@ function usePackageVersions(
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Get current breakdown state (only if we have version data)
-  const state =
-    Object.keys(versions).length > 0 ? getBreakdownState(versions, selectedVersion) : null;
-
   return {
     isLoading,
     error: error as Error | null,
-    state,
+    versions,
   };
 }
 
@@ -390,7 +383,7 @@ function HistoricalTrendsSection({
   // Fetch historical data
   const {
     data: historicalData,
-    isLoading,
+    isLoading: historicalDataLoading,
     error: historyError,
   } = useQuery({
     queryKey: ['npmPackageHistory', packageName],
@@ -399,12 +392,22 @@ function HistoricalTrendsSection({
     staleTime: 60 * 60 * 1000, // 1 hour
   });
 
+  const {
+    isLoading: versionsLoading,
+    error: versionsError,
+    versions,
+  } = usePackageVersions(packageName);
+
+  const isLoading = historicalDataLoading || versionsLoading;
+  const error = historyError || versionsError;
+
   const historicalChartData = React.useMemo(() => {
-    if (!historicalData) {
+    if (!historicalData || !versions) {
       return { timestamps: [], series: [] };
     }
-    return getHistoricalBreakdownData(historicalData, selectedVersion);
-  }, [historicalData, selectedVersion]);
+    const mergedData = mergeHistoricalDataWithLatestVersions(historicalData, versions);
+    return getHistoricalBreakdownData(mergedData, selectedVersion);
+  }, [versions, historicalData, selectedVersion]);
 
   // Handle line chart hover
   const handleLineChartHover = useEventCallback((item: HighlightItemData | null) => {
@@ -412,17 +415,12 @@ function HistoricalTrendsSection({
     onHoverChange(index ?? null);
   });
 
-  // Early return if no package name
-  if (!packageName) {
-    return null;
-  }
-
-  if (historyError) {
-    return <Alert severity="error">Failed to load historical data: {historyError.message}</Alert>;
+  if (error) {
+    return <Alert severity="error">Failed to load historical data: {error.message}</Alert>;
   }
 
   return (
-    <Box sx={{ width: '100%', height: 400 }}>
+    <Box sx={{ width: '100%' }}>
       <LineChart
         series={historicalChartData.series.map((series, index) => ({
           ...series,
@@ -464,12 +462,12 @@ function PackageVersionsSection({
   const [searchParams] = useSearchParams();
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
-  const { isLoading, error, state } = usePackageVersions(packageName, selectedVersion);
+  const { isLoading, error, versions } = usePackageVersions(packageName);
 
-  // Early return if no package name
-  if (!packageName) {
-    return null;
-  }
+  const state = React.useMemo(
+    () => (versions ? getBreakdownState(versions, selectedVersion) : null),
+    [versions, selectedVersion],
+  );
 
   // Helper function to create URLs preserving other search params
   const createVersionUrl = (version: string | null): string => {
@@ -703,6 +701,31 @@ function getBreakdownState(
     canGoForward: currentLevel < 2,
     breakdownItems,
     globalTotalDownloads,
+  };
+}
+
+function mergeHistoricalDataWithLatestVersions(
+  historicalData: HistoricalData,
+  versions: Record<string, PackageVersion>,
+): HistoricalData {
+  // Create a new downloads object with only the latest versions
+  const newDownloads: Record<string, number[]> = {};
+  for (const [version, downloadCounts] of Object.entries(historicalData.downloads)) {
+    newDownloads[version] = [...downloadCounts, versions[version]?.downloads || 0];
+  }
+
+  for (const [version, data] of Object.entries(versions)) {
+    if (!historicalData.downloads[version]) {
+      // If this version is not in historical data, add it with current downloads
+      newDownloads[version] = Array(historicalData.timestamps.length).fill(0);
+      newDownloads[version].push(data.downloads || 0);
+    }
+  }
+
+  return {
+    ...historicalData,
+    timestamps: historicalData.timestamps.concat(Date.now()),
+    downloads: newDownloads,
   };
 }
 
