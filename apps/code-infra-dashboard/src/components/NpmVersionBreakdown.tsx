@@ -16,7 +16,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
-import { PieItemIdentifier, PieValueType } from '@mui/x-charts';
+import { HighlightItemData, PieItemIdentifier, PieValueType } from '@mui/x-charts';
+import { useEventCallback } from '@mui/material';
 import {
   HistoricalData,
   fetchNpmPackageVersions,
@@ -158,6 +159,7 @@ interface BreakdownTableRowProps {
   onItemClick?: (nextVersion: string | null) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  isHovered?: boolean;
 }
 
 function BreakdownTableRow({
@@ -166,6 +168,7 @@ function BreakdownTableRow({
   onItemClick,
   onMouseEnter,
   onMouseLeave,
+  isHovered = false,
 }: BreakdownTableRowProps) {
   const isClickable = item?.nextVersion !== null && !!onItemClick;
 
@@ -178,6 +181,7 @@ function BreakdownTableRow({
       sx={{
         '&:last-child td, &:last-child th': { border: 0 },
         cursor: isClickable ? 'pointer' : 'default',
+        backgroundColor: isHovered ? 'action.hover' : 'transparent',
         '&:hover': {
           backgroundColor: isClickable ? 'action.hover' : 'transparent',
         },
@@ -241,25 +245,57 @@ interface BreakdownVisualizationProps {
 }
 
 function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
-  const breakdownItems = state?.breakdownItems ?? [];
+  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
-  // Generate chart data
-  const chartData: PieValueType[] = breakdownItems.map((item, index) => ({
-    id: item.id,
-    label: item.label,
-    value: item.downloads,
-    color: COLORS[index % COLORS.length],
-  }));
+  // Generate chart data with memoization
+  const chartData: PieValueType[] = React.useMemo(
+    () =>
+      state
+        ? state.breakdownItems.map((item, index) => ({
+            id: item.id,
+            label: item.label,
+            value: item.downloads,
+            color: COLORS[index % COLORS.length],
+          }))
+        : [],
+    [state],
+  );
+
+  // Memoize value formatter to prevent recreation on every render
+  const valueFormatter = React.useCallback(
+    (item: { value: number }) => {
+      let label = `${item.value.toLocaleString()} downloads`;
+      if (state) {
+        const percentage = (100 * item.value) / state.globalTotalDownloads;
+        label += ` (${percentage.toFixed(1)}%)`;
+      }
+      return label;
+    },
+    [state],
+  );
 
   // Handle chart clicks
-  const handleChartClick = (event: any, item: PieItemIdentifier) => {
-    if (onItemClick && breakdownItems[item.dataIndex]) {
-      const breakdownItem = breakdownItems[item.dataIndex];
+  const handleChartClick = useEventCallback((event: any, item: PieItemIdentifier) => {
+    if (!state) {
+      return;
+    }
+    if (onItemClick && state.breakdownItems[item.dataIndex]) {
+      const breakdownItem = state.breakdownItems[item.dataIndex];
       if (breakdownItem.nextVersion !== null) {
         onItemClick(breakdownItem.nextVersion);
       }
     }
-  };
+  });
+
+  // Handle chart hover
+  const handleChartItemHover = useEventCallback((item: HighlightItemData | null) => {
+    setHoveredIndex(item?.dataIndex ?? null);
+  });
+
+  // Handle table row hover
+  const handleTableRowHover = useEventCallback((index: number | null) => {
+    setHoveredIndex(index);
+  });
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -284,22 +320,21 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
           <PieChart
             series={[
               {
+                id: 'versions',
                 data: chartData,
                 arcLabel: 'label',
                 arcLabelMinAngle: 10,
-                valueFormatter: (item) => {
-                  let label = `${item.value.toLocaleString()} downloads`;
-                  if (state) {
-                    const percentage = (100 * item.value) / state.globalTotalDownloads;
-                    label += ` (${percentage.toFixed(1)}%)`;
-                  }
-                  return label;
-                },
+                valueFormatter,
+                highlightScope: { fade: 'global', highlight: 'item' },
               },
             ]}
             width={400}
             height={400}
             onItemClick={state?.canGoForward ? handleChartClick : undefined}
+            highlightedItem={
+              hoveredIndex !== null ? { seriesId: 'versions', dataIndex: hoveredIndex } : null
+            }
+            onHighlightChange={handleChartItemHover}
             margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
             loading={!state}
             hideLegend
@@ -317,6 +352,9 @@ function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationPr
                         item={item}
                         color={COLORS[index % COLORS.length]}
                         onItemClick={onItemClick}
+                        onMouseEnter={() => handleTableRowHover(index)}
+                        onMouseLeave={() => handleTableRowHover(null)}
+                        isHovered={hoveredIndex === index}
                       />
                     ))
                   : Array.from({ length: 3 }, (_, index) => (
