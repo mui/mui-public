@@ -59,6 +59,7 @@
     "@next/eslint-plugin-next": "^15.3.3",
     "@types/eslint-plugin-jsx-a11y": "^6.10.0",
     "@types/estree": "^1.0.8",
+    "@types/estree-jsx": "^1.0.5",
     "@typescript-eslint/parser": "^8.35.0",
     "@typescript-eslint/rule-tester": "^8.35.0",
     "eslint": "^9.29.0",
