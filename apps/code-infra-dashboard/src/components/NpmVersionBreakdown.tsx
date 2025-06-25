@@ -16,7 +16,12 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
-import { HighlightItemData, PieItemIdentifier, PieValueType } from '@mui/x-charts';
+import {
+  AxisValueFormatterContext,
+  HighlightItemData,
+  PieItemIdentifier,
+  PieValueType,
+} from '@mui/x-charts';
 import { useEventCallback } from '@mui/material';
 import { SeriesValueFormatterContext } from '@mui/x-charts/internals';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
@@ -45,10 +50,16 @@ export interface UseNpmPackage {
   error: Error | null;
 }
 
-function dateValueFormatter(date: Date) {
-  return date.toLocaleDateString(undefined, {
-    month: '2-digit',
-    day: '2-digit',
+function dateValueFormatter(date: Date, ctx: AxisValueFormatterContext): string {
+  if (ctx.location === 'tick') {
+    return date.toLocaleDateString(undefined, {
+      month: '2-digit',
+      day: '2-digit',
+    });
+  }
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
   });
 }
 
@@ -434,6 +445,7 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
             data: historicalChartData.timestamps,
             scaleType: 'time',
             valueFormatter: dateValueFormatter,
+            tickMinStep: 3600 * 1000 * 24, // min step: 24h
             label: 'Date',
           },
         ]}
