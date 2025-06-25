@@ -9,7 +9,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Heading from '../components/Heading';
 import NpmVersionBreakdown from '../components/NpmVersionBreakdown';
-import { fetchNpmPackageSearch, Package } from '../lib/npm';
+import { fetchNpmPackageSearch, SearchResult } from '../lib/npm';
 
 export default function NpmVersions() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,7 +44,10 @@ export default function NpmVersions() {
     }
   }, [packageParam]);
 
-  const handlePackageSelect = (event: React.SyntheticEvent, value: Package | string | null) => {
+  const handlePackageSelect = (
+    event: React.SyntheticEvent,
+    value: SearchResult | string | null,
+  ) => {
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params);
       let packageName = null;

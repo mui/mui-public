@@ -19,16 +19,13 @@ import * as semver from 'semver';
 import { HighlightItemData, PieItemIdentifier, PieValueType } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material';
 import {
-  HistoricalData,
-  fetchNpmPackageVersions,
-  fetchNpmPackageHistory,
   PackageVersion,
   fetchNpmPackageDetails,
-  Package,
+  PackageDetails,
 } from '../lib/npm';
 
 export interface UseNpmPackage {
-  packageDetails: Package | null;
+  packageDetails: PackageDetails | null;
   isLoading: boolean;
   error: Error | null;
 }
@@ -78,55 +75,12 @@ const COLORS = [
   '#b33dc6',
 ];
 
-interface UsePackageVersions {
-  isLoading: boolean;
-  error: Error | null;
-  versions: Record<string, PackageVersion> | null;
-}
-
-function usePackageVersions(packageName: string | null): UsePackageVersions {
-  // Fetch version data
-  const {
-    data: versions = null,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['npmPackageVersions', packageName],
-    queryFn: () => fetchNpmPackageVersions(packageName!),
-    enabled: !!packageName,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-
-  return {
-    isLoading,
-    error: error as Error | null,
-    versions,
-  };
-}
-
 interface PackageDetailsSectionProps {
-  packageName: string | null;
+  packageName: string;
+  packageDetails: PackageDetails | null;
 }
 
-function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
-  const { isLoading, error, packageDetails } = useNpmPackage(packageName);
-
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ mb: 3 }}>
-        Failed to load package details: {error.message}
-      </Alert>
-    );
-  }
-
-  if (!isLoading && !packageDetails) {
-    return (
-      <Alert severity="info" sx={{ mb: 3 }}>
-        No package data available
-      </Alert>
-    );
-  }
-
+function PackageDetailsSection({ packageDetails, packageName }: PackageDetailsSectionProps) {
   return (
     <Box sx={{ mb: 3 }}>
       <Typography variant="h2" sx={{ mb: 1 }}>
@@ -139,7 +93,7 @@ function PackageDetailsSection({ packageName }: PackageDetailsSectionProps) {
           <Skeleton width={300} />
         )}
       </Typography>
-      <Typography variant="body1" color="text.secondary" paragraph>
+      <Typography variant="body1" color="text.secondary" component="p">
         {packageDetails ? packageDetails.description : <Skeleton width="80%" />}
       </Typography>
     </Box>
@@ -368,46 +322,27 @@ function BreakdownVisualization({
 }
 
 interface HistoricalTrendsSectionProps {
-  packageName: string | null;
+  packageDetails: PackageDetails | null;
   selectedVersion: string | null;
   hoveredIndex: number | null;
   onHoverChange: (index: number | null) => void;
 }
 
 function HistoricalTrendsSection({
-  packageName,
+  packageDetails,
   selectedVersion,
   hoveredIndex,
   onHoverChange,
 }: HistoricalTrendsSectionProps) {
-  // Fetch historical data
-  const {
-    data: historicalData,
-    isLoading: historicalDataLoading,
-    error: historyError,
-  } = useQuery({
-    queryKey: ['npmPackageHistory', packageName],
-    queryFn: () => fetchNpmPackageHistory(packageName!),
-    enabled: !!packageName,
-    staleTime: 60 * 60 * 1000, // 1 hour
-  });
-
-  const {
-    isLoading: versionsLoading,
-    error: versionsError,
-    versions,
-  } = usePackageVersions(packageName);
-
-  const isLoading = historicalDataLoading || versionsLoading;
-  const error = historyError || versionsError;
+  const versions = packageDetails?.versions;
+  const isLoading = !packageDetails;
 
   const historicalChartData = React.useMemo(() => {
-    if (!historicalData || !versions) {
+    if (!packageDetails || !packageDetails.historyAvailable || !versions) {
       return { timestamps: [], series: [] };
     }
-    const mergedData = mergeHistoricalDataWithLatestVersions(historicalData, versions);
-    return getHistoricalBreakdownData(mergedData, selectedVersion);
-  }, [versions, historicalData, selectedVersion]);
+    return getHistoricalBreakdownData(packageDetails, selectedVersion);
+  }, [packageDetails, versions, selectedVersion]);
 
   // Handle line chart hover
   const handleLineChartHover = useEventCallback((item: HighlightItemData | null) => {
@@ -415,8 +350,8 @@ function HistoricalTrendsSection({
     onHoverChange(index ?? null);
   });
 
-  if (error) {
-    return <Alert severity="error">Failed to load historical data: {error.message}</Alert>;
+  if (!packageDetails?.historyAvailable) {
+    return <Alert severity="info">Historical data not available for this package</Alert>;
   }
 
   return (
@@ -449,20 +384,20 @@ function HistoricalTrendsSection({
 }
 
 interface PackageVersionsSectionProps {
-  packageName: string | null;
+  packageDetails: PackageDetails | null;
   selectedVersion: string | null;
   onVersionChange: (version: string | null) => void;
 }
 
 function PackageVersionsSection({
-  packageName,
+  packageDetails,
   selectedVersion,
   onVersionChange,
 }: PackageVersionsSectionProps) {
   const [searchParams] = useSearchParams();
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
-  const { isLoading, error, versions } = usePackageVersions(packageName);
+  const versions = packageDetails?.versions;
 
   const state = React.useMemo(
     () => (versions ? getBreakdownState(versions, selectedVersion) : null),
@@ -536,22 +471,13 @@ function PackageVersionsSection({
         )}
       </Breadcrumbs>
 
-      {/* Error State */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 4 }}>
-          Failed to load version data: {error.message}
-        </Alert>
-      )}
-
       {/* Visualization */}
-      {!error && (
-        <BreakdownVisualization
-          state={isLoading ? null : state}
-          onItemClick={onVersionChange}
-          hoveredIndex={hoveredIndex}
-          onHoverChange={setHoveredIndex}
-        />
-      )}
+      <BreakdownVisualization
+        state={state}
+        onItemClick={onVersionChange}
+        hoveredIndex={hoveredIndex}
+        onHoverChange={setHoveredIndex}
+      />
 
       {/* Historical Trends */}
       <Box sx={{ mt: 4 }}>
@@ -559,7 +485,7 @@ function PackageVersionsSection({
           Historical Download Trends
         </Typography>
         <HistoricalTrendsSection
-          packageName={packageName}
+          packageDetails={packageDetails}
           selectedVersion={selectedVersion}
           hoveredIndex={hoveredIndex}
           onHoverChange={setHoveredIndex}
@@ -570,7 +496,7 @@ function PackageVersionsSection({
 }
 
 interface NpmVersionBreakdownProps {
-  packageName: string | null;
+  packageName: string;
   selectedVersion: string | null;
   onVersionChange: (version: string | null) => void;
 }
@@ -704,33 +630,9 @@ function getBreakdownState(
   };
 }
 
-function mergeHistoricalDataWithLatestVersions(
-  historicalData: HistoricalData,
-  versions: Record<string, PackageVersion>,
-): HistoricalData {
-  // Create a new downloads object with only the latest versions
-  const newDownloads: Record<string, number[]> = {};
-  for (const [version, downloadCounts] of Object.entries(historicalData.downloads)) {
-    newDownloads[version] = [...downloadCounts, versions[version]?.downloads || 0];
-  }
-
-  for (const [version, data] of Object.entries(versions)) {
-    if (!historicalData.downloads[version]) {
-      // If this version is not in historical data, add it with current downloads
-      newDownloads[version] = Array(historicalData.timestamps.length).fill(0);
-      newDownloads[version].push(data.downloads || 0);
-    }
-  }
-
-  return {
-    ...historicalData,
-    timestamps: historicalData.timestamps.concat(Date.now()),
-    downloads: newDownloads,
-  };
-}
 
 function getHistoricalBreakdownData(
-  historicalData: HistoricalData,
+  packageDetails: PackageDetails,
   selectedVersion: null | string = null,
 ): {
   timestamps: Date[];
@@ -740,7 +642,7 @@ function getHistoricalBreakdownData(
     data: number[];
   }[];
 } {
-  const versionKeys = Object.keys(historicalData.downloads);
+  const versionKeys = Object.keys(packageDetails.versions);
 
   // Filter versions that match the current selection using semver
   const matchingVersions = selectedVersion
@@ -766,9 +668,12 @@ function getHistoricalBreakdownData(
   const timeSeriesData = Object.keys(groupedVersions).map((key) => {
     const versions = groupedVersions[key];
 
-    // Aggregate downloads for each timestamp
-    const aggregatedData = historicalData.timestamps.map((timestamp, index) =>
-      versions.reduce((sum, version) => sum + historicalData.downloads[version][index], 0),
+    // Aggregate downloads for each timestamp using the history data from each version
+    const aggregatedData = packageDetails.timestamps.map((timestamp, index) =>
+      versions.reduce((sum, version) => {
+        const versionHistory = packageDetails.versions[version]?.history || [];
+        return sum + (versionHistory[index] || 0);
+      }, 0),
     );
 
     const keyParts = key.split('.');
@@ -784,7 +689,7 @@ function getHistoricalBreakdownData(
   });
 
   return {
-    timestamps: historicalData.timestamps.map((ts) => new Date(ts)),
+    timestamps: packageDetails.timestamps.map((ts) => new Date(ts)),
     series: timeSeriesData.sort((a, b) => b.sortKey - a.sortKey),
   };
 }
@@ -794,19 +699,33 @@ function NpmVersionBreakdown({
   selectedVersion,
   onVersionChange,
 }: NpmVersionBreakdownProps) {
-  // Early return if no package name
-  if (!packageName) {
-    return null;
+  const { packageDetails, isLoading, error } = useNpmPackage(packageName);
+
+  // Handle errors at top level
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        Failed to load package data: {error.message}
+      </Alert>
+    );
+  }
+
+  if (!isLoading && !packageDetails) {
+    return (
+      <Alert severity="info" sx={{ mt: 2 }}>
+        No package data available
+      </Alert>
+    );
   }
 
   return (
     <Box sx={{ mt: 2 }}>
       {/* Package Info Section */}
-      <PackageDetailsSection packageName={packageName} />
+      <PackageDetailsSection packageDetails={packageDetails} packageName={packageName} />
 
       {/* Version Breakdown Section */}
       <PackageVersionsSection
-        packageName={packageName}
+        packageDetails={packageDetails}
         selectedVersion={selectedVersion}
         onVersionChange={onVersionChange}
       />
