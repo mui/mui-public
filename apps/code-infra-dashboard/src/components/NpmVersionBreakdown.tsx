@@ -155,7 +155,7 @@ const BreakdownTableRow = React.memo(function BreakdownTableRow({
         cursor: isClickable ? 'pointer' : 'default',
         backgroundColor: hovered ? 'action.hover' : 'transparent',
         '&:hover': {
-          backgroundColor: isClickable ? 'action.hover' : 'transparent',
+          backgroundColor: 'action.hover',
         },
       }}
     >
