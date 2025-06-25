@@ -39,19 +39,30 @@ export interface TimeSeriesDataPoint {
   version: string;
 }
 
+interface FetchJsonOptions {
+  ignoreHttpErrors?: boolean;
+}
+
+async function fetchJson<T = unknown>(
+  url: string,
+  { ignoreHttpErrors = false }: FetchJsonOptions = {},
+): Promise<T> {
+  const response = await fetch(url);
+  if (!ignoreHttpErrors && !response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText} while fetching ${url}`);
+  }
+  return response.json();
+}
+
 export const fetchNpmPackageSearch = async (query: string): Promise<SearchResult[]> => {
   if (!query.trim()) {
     return [];
   }
 
-  const response = await fetch(
+  const data = await fetchJson<any>(
     `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=20`,
   );
-  if (!response.ok) {
-    throw new Error('Failed to fetch search results');
-  }
 
-  const data = await response.json();
   return data.objects.map((obj: any) => ({
     name: obj.package.name,
     description: obj.package.description,
@@ -67,64 +78,40 @@ export const fetchNpmPackageDetails = async (packageName: string): Promise<Packa
   const fetchTimestamp = Date.now();
 
   // Fetch package data, download statistics, and history in parallel
-  const [response, downloadsResponse, historyResult] = await Promise.all([
-    fetch(`https://registry.npmjs.org/${packageName}`),
-    fetch(`https://api.npmjs.org/versions/${encodedPackageName}/last-week`),
+  const [data, downloadsData, historyResult] = await Promise.all([
+    fetchJson<any>(`https://registry.npmjs.org/${packageName}`),
+    fetchJson<any>(`https://api.npmjs.org/versions/${encodedPackageName}/last-week`),
     // Gracefully handle history fetch failure
-    fetch(`https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master/data/${encodeURIComponent(packageName)}.json`)
-      .then(res => res.ok ? res.json() : null)
-      .catch(() => null),
+    fetchJson<any>(
+      `https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master/data/${encodeURIComponent(packageName)}.json`,
+      { ignoreHttpErrors: true },
+    ).catch(() => null),
   ]);
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch package details');
-  }
-
-  if (!downloadsResponse.ok) {
-    throw new Error('Failed to fetch download statistics');
-  }
-
-  const [data, downloadsData] = await Promise.all([response.json(), downloadsResponse.json()]);
-
   // Process historical data if available
-  const historyAvailable = historyResult !== null;
+  const historyAvailable = !!historyResult;
   const timestamps: number[] = historyResult?.timestamps || [];
-  
+
   const versions: Record<string, PackageVersion> = {};
 
   Object.keys(data.versions || {}).forEach((version) => {
     // Get historical download data for this version
-    const history = historyResult?.downloads?.[version] || [];
-    
+    const downloads = downloadsData.downloads?.[version] || 0;
+
+    let history: number[] = [];
+    if (historyResult) {
+      history = historyResult.downloads?.[version] || historyResult.timestamps.map(() => 0) || [];
+      history = [...history, downloads]; // Append current downloads to history
+    }
+
     versions[version] = {
       version,
       publishedAt: data.time?.[version] || null,
       dependencies: data.versions[version].dependencies || {},
-      downloads: 0, // Will be populated later with current download data
+      downloads,
       history,
     };
   });
-
-  // Map current download data to versions - the API returns { downloads: { "version": count } }
-  if (downloadsData.downloads) {
-    Object.keys(downloadsData.downloads).forEach((version) => {
-      if (versions[version]) {
-        versions[version].downloads = downloadsData.downloads[version] || 0;
-      }
-    });
-  }
-
-  // If we have historical data, add current downloads to history
-  if (historyAvailable) {
-    Object.keys(versions).forEach((version) => {
-      if (versions[version].history.length > 0) {
-        versions[version].history.push(versions[version].downloads);
-      } else {
-        // If no history exists for this version, create array with just current downloads
-        versions[version].history = [versions[version].downloads];
-      }
-    });
-  }
 
   return {
     name: data.name,
@@ -135,19 +122,6 @@ export const fetchNpmPackageDetails = async (packageName: string): Promise<Packa
     versions,
     timestamp: fetchTimestamp,
     historyAvailable,
-    timestamps: historyAvailable ? [...timestamps, fetchTimestamp] : [],
+    timestamps: [...timestamps, fetchTimestamp],
   };
-};
-
-export const fetchNpmPackageHistory = async (packageName: string): Promise<HistoricalData> => {
-  const encodedPackageName = encodeURIComponent(packageName);
-  const response = await fetch(
-    `https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master/data/${encodedPackageName}.json`,
-  );
-  if (!response.ok) {
-    throw new Error('Failed to fetch historical data');
-  }
-
-  const data = await response.json();
-  return data;
 };

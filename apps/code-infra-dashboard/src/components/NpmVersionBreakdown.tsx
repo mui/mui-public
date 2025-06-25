@@ -398,7 +398,7 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
   // Handle line chart hover
   const handleLineChartHover = useEventCallback((item: HighlightItemData | null) => {
     const index = historicalChartData.series.findIndex((series) => series.id === item?.seriesId);
-    hoverStore.setHoveredIndex(index ?? null);
+    hoverStore.setHoveredIndex(index < 0 ? null : index);
   });
 
   if (packageDetails && !packageDetails.historyAvailable) {
