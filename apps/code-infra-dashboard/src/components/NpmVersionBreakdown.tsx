@@ -18,11 +18,25 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import { HighlightItemData, PieItemIdentifier, PieValueType } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material';
-import {
-  PackageVersion,
-  fetchNpmPackageDetails,
-  PackageDetails,
-} from '../lib/npm';
+import { PackageVersion, fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
+
+class HoverStore {
+  private hoveredIndex: number | null = null;
+
+  private listeners = new Set<() => void>();
+
+  subscribe = (callback: () => void): (() => void) => {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  };
+
+  getSnapshot = (): number | null => this.hoveredIndex;
+
+  setHoveredIndex = (index: number | null): void => {
+    this.hoveredIndex = index;
+    this.listeners.forEach((callback) => callback());
+  };
+}
 
 export interface UseNpmPackage {
   packageDetails: PackageDetails | null;
@@ -80,7 +94,10 @@ interface PackageDetailsSectionProps {
   packageDetails: PackageDetails | null;
 }
 
-function PackageDetailsSection({ packageDetails, packageName }: PackageDetailsSectionProps) {
+const PackageDetailsSection = React.memo(function PackageDetailsSection({
+  packageDetails,
+  packageName,
+}: PackageDetailsSectionProps) {
   return (
     <Box sx={{ mb: 3 }}>
       <Typography variant="h2" sx={{ mb: 1 }}>
@@ -98,37 +115,45 @@ function PackageDetailsSection({ packageDetails, packageName }: PackageDetailsSe
       </Typography>
     </Box>
   );
-}
+});
 
 interface BreakdownTableRowProps {
   item: BreakdownItem | null;
   color?: string;
   onItemClick?: (nextVersion: string | null) => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
-  isHovered?: boolean;
+  index: number;
+  hovered?: boolean;
+  hoverStore: HoverStore;
 }
 
-function BreakdownTableRow({
+const BreakdownTableRow = React.memo(function BreakdownTableRow({
   item,
   color = '#ccc',
   onItemClick,
-  onMouseEnter,
-  onMouseLeave,
-  isHovered = false,
+  index,
+  hovered,
+  hoverStore,
 }: BreakdownTableRowProps) {
   const isClickable = item?.nextVersion !== null && !!onItemClick;
+
+  const handleMouseEnter = useEventCallback(() => {
+    hoverStore.setHoveredIndex(index);
+  });
+
+  const handleMouseLeave = useEventCallback(() => {
+    hoverStore.setHoveredIndex(null);
+  });
 
   return (
     <TableRow
       hover={isClickable}
       onClick={isClickable ? () => onItemClick!(item!.nextVersion) : undefined}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       sx={{
         '&:last-child td, &:last-child th': { border: 0 },
         cursor: isClickable ? 'pointer' : 'default',
-        backgroundColor: isHovered ? 'action.hover' : 'transparent',
+        backgroundColor: hovered ? 'action.hover' : 'transparent',
         '&:hover': {
           backgroundColor: isClickable ? 'action.hover' : 'transparent',
         },
@@ -184,21 +209,21 @@ function BreakdownTableRow({
       </TableCell>
     </TableRow>
   );
+});
+
+interface PieChartComponentProps {
+  state: BreakdownState | null;
+  onItemClick?: (event: any, item: PieItemIdentifier) => void;
+  hoverStore: HoverStore;
 }
 
-interface BreakdownVisualizationProps {
-  state?: BreakdownState | null;
-  onItemClick: (nextVersion: string | null) => void;
-  hoveredIndex: number | null;
-  onHoverChange: (index: number | null) => void;
-}
-
-function BreakdownVisualization({
+const PieChartComponent = React.memo(function PieChartComponent({
   state,
   onItemClick,
-  hoveredIndex,
-  onHoverChange,
-}: BreakdownVisualizationProps) {
+  hoverStore,
+}: PieChartComponentProps) {
+  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+
   // Generate chart data with memoization
   const chartData: PieValueType[] = React.useMemo(
     () =>
@@ -217,15 +242,94 @@ function BreakdownVisualization({
   const valueFormatter = React.useCallback(
     (item: { value: number }) => {
       let label = `${item.value.toLocaleString()} downloads`;
-      if (state) {
+      if (state?.globalTotalDownloads) {
         const percentage = (100 * item.value) / state.globalTotalDownloads;
         label += ` (${percentage.toFixed(1)}%)`;
       }
       return label;
     },
-    [state],
+    [state?.globalTotalDownloads],
   );
 
+  const handleChartItemHover = useEventCallback((item: HighlightItemData | null) => {
+    hoverStore.setHoveredIndex(item?.dataIndex ?? null);
+  });
+
+  return (
+    <PieChart
+      series={[
+        {
+          id: 'versions',
+          data: chartData,
+          arcLabel: 'label',
+          arcLabelMinAngle: 10,
+          valueFormatter,
+          highlightScope: { fade: 'global', highlight: 'item' },
+        },
+      ]}
+      width={400}
+      height={400}
+      onItemClick={state?.canGoForward ? onItemClick : undefined}
+      highlightedItem={
+        hoveredIndex !== null ? { seriesId: 'versions', dataIndex: hoveredIndex } : null
+      }
+      onHighlightChange={handleChartItemHover}
+      margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
+      loading={!state}
+      hideLegend
+    />
+  );
+});
+
+interface BreakdownTableProps {
+  state: BreakdownState | null;
+  onItemClick: (nextVersion: string | null) => void;
+  hoverStore: HoverStore;
+}
+
+const BreakdownTable = React.memo(function BreakdownTable({
+  state,
+  onItemClick,
+  hoverStore,
+}: BreakdownTableProps) {
+  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  return (
+    <TableContainer sx={{ maxHeight: 400 }}>
+      <Table stickyHeader size="small">
+        <TableBody>
+          {state
+            ? state.breakdownItems.map((item, index) => (
+                <BreakdownTableRow
+                  key={item.id}
+                  item={item}
+                  color={COLORS[index % COLORS.length]}
+                  onItemClick={onItemClick}
+                  index={index}
+                  hovered={hoveredIndex === index}
+                  hoverStore={hoverStore}
+                />
+              ))
+            : Array.from({ length: 3 }, (_, index) => (
+                <BreakdownTableRow
+                  key={`skeleton-${index}`}
+                  item={null}
+                  index={index}
+                  hoverStore={hoverStore}
+                />
+              ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+});
+
+interface BreakdownVisualizationProps {
+  state: BreakdownState | null;
+  onItemClick: (nextVersion: string | null) => void;
+  hoverStore: HoverStore;
+}
+
+function BreakdownVisualization({ state, onItemClick, hoverStore }: BreakdownVisualizationProps) {
   // Handle chart clicks
   const handleChartClick = useEventCallback((event: any, item: PieItemIdentifier) => {
     if (!state) {
@@ -237,16 +341,6 @@ function BreakdownVisualization({
         onItemClick(breakdownItem.nextVersion);
       }
     }
-  });
-
-  // Handle chart hover
-  const handleChartItemHover = useEventCallback((item: HighlightItemData | null) => {
-    onHoverChange(item?.dataIndex ?? null);
-  });
-
-  // Handle table row hover
-  const handleTableRowHover = useEventCallback((index: number | null) => {
-    onHoverChange(index);
   });
 
   return (
@@ -269,52 +363,11 @@ function BreakdownVisualization({
             justifyContent: 'center',
           }}
         >
-          <PieChart
-            series={[
-              {
-                id: 'versions',
-                data: chartData,
-                arcLabel: 'label',
-                arcLabelMinAngle: 10,
-                valueFormatter,
-                highlightScope: { fade: 'global', highlight: 'item' },
-              },
-            ]}
-            width={400}
-            height={400}
-            onItemClick={state?.canGoForward ? handleChartClick : undefined}
-            highlightedItem={
-              hoveredIndex !== null ? { seriesId: 'versions', dataIndex: hoveredIndex } : null
-            }
-            onHighlightChange={handleChartItemHover}
-            margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
-            loading={!state}
-            hideLegend
-          />
+          <PieChartComponent state={state} onItemClick={handleChartClick} hoverStore={hoverStore} />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <TableContainer sx={{ maxHeight: 400 }}>
-            <Table stickyHeader size="small">
-              <TableBody>
-                {state
-                  ? state.breakdownItems.map((item, index) => (
-                      <BreakdownTableRow
-                        key={item.id}
-                        item={item}
-                        color={COLORS[index % COLORS.length]}
-                        onItemClick={onItemClick}
-                        onMouseEnter={() => handleTableRowHover(index)}
-                        onMouseLeave={() => handleTableRowHover(null)}
-                        isHovered={hoveredIndex === index}
-                      />
-                    ))
-                  : Array.from({ length: 3 }, (_, index) => (
-                      <BreakdownTableRow key={`skeleton-${index}`} item={null} />
-                    ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <BreakdownTable state={state} onItemClick={onItemClick} hoverStore={hoverStore} />
         </Box>
       </Box>
     </Box>
@@ -324,18 +377,16 @@ function BreakdownVisualization({
 interface HistoricalTrendsSectionProps {
   packageDetails: PackageDetails | null;
   selectedVersion: string | null;
-  hoveredIndex: number | null;
-  onHoverChange: (index: number | null) => void;
+  hoverStore: HoverStore;
 }
 
-function HistoricalTrendsSection({
+const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
   packageDetails,
   selectedVersion,
-  hoveredIndex,
-  onHoverChange,
+  hoverStore,
 }: HistoricalTrendsSectionProps) {
+  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
   const versions = packageDetails?.versions;
-  const isLoading = !packageDetails;
 
   const historicalChartData = React.useMemo(() => {
     if (!packageDetails || !packageDetails.historyAvailable || !versions) {
@@ -347,10 +398,10 @@ function HistoricalTrendsSection({
   // Handle line chart hover
   const handleLineChartHover = useEventCallback((item: HighlightItemData | null) => {
     const index = historicalChartData.series.findIndex((series) => series.id === item?.seriesId);
-    onHoverChange(index ?? null);
+    hoverStore.setHoveredIndex(index ?? null);
   });
 
-  if (!packageDetails?.historyAvailable) {
+  if (packageDetails && !packageDetails.historyAvailable) {
     return <Alert severity="info">Historical data not available for this package</Alert>;
   }
 
@@ -371,7 +422,7 @@ function HistoricalTrendsSection({
             label: 'Date',
           },
         ]}
-        loading={isLoading}
+        loading={!packageDetails}
         yAxis={[{ label: 'Downloads', valueFormatter: downloadsValueFormatter }]}
         height={300}
         highlightedItem={
@@ -381,7 +432,7 @@ function HistoricalTrendsSection({
       />
     </Box>
   );
-}
+});
 
 interface PackageVersionsSectionProps {
   packageDetails: PackageDetails | null;
@@ -395,7 +446,12 @@ function PackageVersionsSection({
   onVersionChange,
 }: PackageVersionsSectionProps) {
   const [searchParams] = useSearchParams();
-  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+  const hoverStoreRef = React.useRef<HoverStore>(null);
+
+  // Create hover store once
+  if (!hoverStoreRef.current) {
+    hoverStoreRef.current = new HoverStore();
+  }
 
   const versions = packageDetails?.versions;
 
@@ -475,8 +531,7 @@ function PackageVersionsSection({
       <BreakdownVisualization
         state={state}
         onItemClick={onVersionChange}
-        hoveredIndex={hoveredIndex}
-        onHoverChange={setHoveredIndex}
+        hoverStore={hoverStoreRef.current}
       />
 
       {/* Historical Trends */}
@@ -487,8 +542,7 @@ function PackageVersionsSection({
         <HistoricalTrendsSection
           packageDetails={packageDetails}
           selectedVersion={selectedVersion}
-          hoveredIndex={hoveredIndex}
-          onHoverChange={setHoveredIndex}
+          hoverStore={hoverStoreRef.current}
         />
       </Box>
     </div>
@@ -629,7 +683,6 @@ function getBreakdownState(
     globalTotalDownloads,
   };
 }
-
 
 function getHistoricalBreakdownData(
   packageDetails: PackageDetails,
