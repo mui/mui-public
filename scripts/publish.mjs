@@ -85,11 +85,11 @@ async function getPackageVersionInfo(packageName, baseVersion) {
 
     // Get canary dist-tag to find latest canary version
     const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
-    const canaryVersion = canaryResult.stdout.trim();
+    const latestCanaryVersion = semver.valid(canaryResult.stdout.trim());
 
     return {
       currentVersionExists,
-      latestCanaryVersion: semver.valid(canaryVersion),
+      latestCanaryVersion,
     };
   } catch (error) {
     return {
