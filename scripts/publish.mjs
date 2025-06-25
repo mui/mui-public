@@ -113,12 +113,8 @@ async function getCurrentGitSha() {
  * @returns {Promise<string|null>} Canary tag name if exists, null otherwise
  */
 async function getLastCanaryTag() {
-  try {
-    await $`git rev-parse --verify ${CANARY_TAG}`;
-    return CANARY_TAG;
-  } catch {
-    return null;
-  }
+  const { stdout: remoteCanaryTag } = await $`git ls-remote --tags origin ${CANARY_TAG}`;
+  return remoteCanaryTag.trim() ? CANARY_TAG : null;
 }
 
 /**
