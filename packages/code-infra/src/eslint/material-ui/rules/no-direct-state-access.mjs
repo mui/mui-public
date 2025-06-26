@@ -1,3 +1,6 @@
+import { ESLintUtils, AST_NODE_TYPES } from '@typescript-eslint/utils';
+
+const createESLintRule = ESLintUtils.RuleCreator(() => ``);
 /**
  *
  * @param {import('@typescript-eslint/utils').TSESTree.Expression | import('@typescript-eslint/utils').TSESTree.Super | null | undefined} maybeMemberExpression
@@ -8,15 +11,14 @@ function checkIsAccessingMember(maybeMemberExpression, propertyName) {
   if (!maybeMemberExpression) {
     return undefined;
   }
-  if (maybeMemberExpression.type === 'MemberExpression') {
+  if (maybeMemberExpression.type === AST_NODE_TYPES.MemberExpression) {
     const property = maybeMemberExpression.property;
-    if (property.type === 'Identifier' && property.name === propertyName) {
+    if (property.type === AST_NODE_TYPES.Identifier && property.name === propertyName) {
       return maybeMemberExpression.object;
     }
   }
   return undefined;
 }
-
 /**
  * @param {import('@typescript-eslint/utils').TSESTree.MemberExpression} node
  * @param {import('@typescript-eslint/utils').TSESLint.RuleContext<any, any>} context
@@ -26,13 +28,14 @@ function checkIsAccessingMember(maybeMemberExpression, propertyName) {
 function reportIfDirectlyAccessingState(node, context, nodeToReport = node) {
   const maybeApiRef = checkIsAccessingMember(checkIsAccessingMember(node, 'state'), 'current');
 
-  if (!maybeApiRef || (maybeApiRef && maybeApiRef.type !== 'Identifier')) {
+  if (maybeApiRef && maybeApiRef.type !== AST_NODE_TYPES.Identifier) {
     return;
   }
 
   const { parserServices } = context.sourceCode;
   // @ts-expect-error FIXME: Code wrongly assumes that parserServices is available
   const checker = parserServices.program.getTypeChecker();
+
   // @ts-expect-error FIXME: Code wrongly assumes that parserServices is available
   const originalNode = parserServices.esTreeNodeToTSNodeMap.get(maybeApiRef);
   const nodeType = checker.getTypeAtLocation(originalNode);
@@ -42,16 +45,14 @@ function reportIfDirectlyAccessingState(node, context, nodeToReport = node) {
   }
 }
 
-/**
- * @type {import('@typescript-eslint/utils').TSESLint.AnyRuleModule}
- */
-const rule = {
+const rule = createESLintRule({
+  name: 'no-direct-state-access',
+  // @ts-expect-error FIXME: Ported code doesn't satisfy types
   meta: {
     type: 'problem',
     messages: {
       'direct-access': "Don't access directly state values. Prefer a selector.",
     },
-    schema: [],
   },
   defaultOptions: [],
   create: (context) => {
@@ -62,21 +63,23 @@ const rule = {
         // We're only interested in the nodes after it.
         // apiRef.current.state.rows
         // ^^^^^^^^^^^^^^^^^^^^
-        if (node.parent && node.parent.type === 'MemberExpression') {
+        if (node.parent && node.parent.type === AST_NODE_TYPES.MemberExpression) {
           reportIfDirectlyAccessingState(node, context);
         }
       },
       // Checks `const { rows } = apiRef.current.state;`
       VariableDeclarator(node) {
         // Ensure that the variable id is of form `const { foo } = obj;`
-        if (node.id.type === 'ObjectPattern') {
-          if (node.init?.type === 'MemberExpression') {
+        if (node.id.type === AST_NODE_TYPES.ObjectPattern) {
+          // @ts-expect-error FIXME: Ported code wrongly assumes that node.init is always defined
+          if (node.init.type === AST_NODE_TYPES.MemberExpression) {
+            // @ts-expect-error FIXME: Ported code wrongly assumes that node.init is always defined
             reportIfDirectlyAccessingState(node.init, context, node);
           }
         }
       },
     };
   },
-};
+});
 
 export default rule;

@@ -2,7 +2,6 @@
 
 import eslint from 'eslint';
 import parser from '@typescript-eslint/parser';
-import { test } from 'vitest';
 import rule from './straight-quotes.mjs';
 
 const ruleTester = new eslint.RuleTester({
