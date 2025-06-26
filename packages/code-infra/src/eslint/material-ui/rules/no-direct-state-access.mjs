@@ -1,8 +1,8 @@
 /**
  *
- * @param {import('estree').Expression | import('estree').Super | null | undefined} maybeMemberExpression
+ * @param {import('@typescript-eslint/utils').TSESTree.Expression | import('@typescript-eslint/utils').TSESTree.Super | null | undefined} maybeMemberExpression
  * @param {string} propertyName
- * @returns {import('estree').Expression | import('estree').Super | null | undefined}
+ * @returns {import('@typescript-eslint/utils').TSESTree.Expression | import('@typescript-eslint/utils').TSESTree.Super | null | undefined}
  */
 function checkIsAccessingMember(maybeMemberExpression, propertyName) {
   if (!maybeMemberExpression) {
@@ -18,21 +18,22 @@ function checkIsAccessingMember(maybeMemberExpression, propertyName) {
 }
 
 /**
- * @param {import('estree').Expression} node
- * @param {import('eslint').Rule.RuleContext} context
- * @param {import('estree').Expression | import('estree').VariableDeclarator} nodeToReport
+ * @param {import('@typescript-eslint/utils').TSESTree.MemberExpression} node
+ * @param {import('@typescript-eslint/utils').TSESLint.RuleContext<any, any>} context
+ * @param {import('@typescript-eslint/utils').TSESTree.Expression | import('@typescript-eslint/utils').TSESTree.VariableDeclarator} nodeToReport
  * @returns
  */
 function reportIfDirectlyAccessingState(node, context, nodeToReport = node) {
   const maybeApiRef = checkIsAccessingMember(checkIsAccessingMember(node, 'state'), 'current');
 
-  if (maybeApiRef && maybeApiRef.type !== 'Identifier') {
+  if (!maybeApiRef || (maybeApiRef && maybeApiRef.type !== 'Identifier')) {
     return;
   }
 
   const { parserServices } = context.sourceCode;
+  // @ts-expect-error FIXME: Code wrongly assumes that parserServices is available
   const checker = parserServices.program.getTypeChecker();
-
+  // @ts-expect-error FIXME: Code wrongly assumes that parserServices is available
   const originalNode = parserServices.esTreeNodeToTSNodeMap.get(maybeApiRef);
   const nodeType = checker.getTypeAtLocation(originalNode);
 
@@ -42,7 +43,7 @@ function reportIfDirectlyAccessingState(node, context, nodeToReport = node) {
 }
 
 /**
- * @type {import('eslint').Rule.RuleModule}
+ * @type {import('@typescript-eslint/utils').TSESLint.AnyRuleModule}
  */
 const rule = {
   meta: {
@@ -50,7 +51,9 @@ const rule = {
     messages: {
       'direct-access': "Don't access directly state values. Prefer a selector.",
     },
+    schema: [],
   },
+  defaultOptions: [],
   create: (context) => {
     return {
       // Checks `const rows = apiRef.current.state.rows;`
