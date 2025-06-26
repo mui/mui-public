@@ -45,41 +45,45 @@ function reportIfDirectlyAccessingState(node, context, nodeToReport = node) {
   }
 }
 
-const rule = createESLintRule({
-  name: 'no-direct-state-access',
-  // @ts-expect-error FIXME: Ported code doesn't satisfy types
-  meta: {
-    type: 'problem',
-    messages: {
-      'direct-access': "Don't access directly state values. Prefer a selector.",
-    },
-  },
-  defaultOptions: [],
-  create: (context) => {
-    return {
-      // Checks `const rows = apiRef.current.state.rows;`
-      MemberExpression(node) {
-        // We can ignore the rightmost path since it doesn't make difference.
-        // We're only interested in the nodes after it.
-        // apiRef.current.state.rows
-        // ^^^^^^^^^^^^^^^^^^^^
-        if (node.parent && node.parent.type === AST_NODE_TYPES.MemberExpression) {
-          reportIfDirectlyAccessingState(node, context);
-        }
+const rule = /** @type {import('eslint').Rule.RuleModule} */ (
+  /** @type {unknown} */ (
+    createESLintRule({
+      name: 'no-direct-state-access',
+      // @ts-expect-error FIXME: Ported code doesn't satisfy types
+      meta: {
+        type: 'problem',
+        messages: {
+          'direct-access': "Don't access directly state values. Prefer a selector.",
+        },
       },
-      // Checks `const { rows } = apiRef.current.state;`
-      VariableDeclarator(node) {
-        // Ensure that the variable id is of form `const { foo } = obj;`
-        if (node.id.type === AST_NODE_TYPES.ObjectPattern) {
-          // @ts-expect-error FIXME: Ported code wrongly assumes that node.init is always defined
-          if (node.init.type === AST_NODE_TYPES.MemberExpression) {
-            // @ts-expect-error FIXME: Ported code wrongly assumes that node.init is always defined
-            reportIfDirectlyAccessingState(node.init, context, node);
-          }
-        }
+      defaultOptions: [],
+      create: (context) => {
+        return {
+          // Checks `const rows = apiRef.current.state.rows;`
+          MemberExpression(node) {
+            // We can ignore the rightmost path since it doesn't make difference.
+            // We're only interested in the nodes after it.
+            // apiRef.current.state.rows
+            // ^^^^^^^^^^^^^^^^^^^^
+            if (node.parent && node.parent.type === AST_NODE_TYPES.MemberExpression) {
+              reportIfDirectlyAccessingState(node, context);
+            }
+          },
+          // Checks `const { rows } = apiRef.current.state;`
+          VariableDeclarator(node) {
+            // Ensure that the variable id is of form `const { foo } = obj;`
+            if (node.id.type === AST_NODE_TYPES.ObjectPattern) {
+              // @ts-expect-error FIXME: Ported code wrongly assumes that node.init is always defined
+              if (node.init.type === AST_NODE_TYPES.MemberExpression) {
+                // @ts-expect-error FIXME: Ported code wrongly assumes that node.init is always defined
+                reportIfDirectlyAccessingState(node.init, context, node);
+              }
+            }
+          },
+        };
       },
-    };
-  },
-});
+    })
+  )
+);
 
 export default rule;
