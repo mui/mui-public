@@ -11,20 +11,19 @@ const ruleTester = new eslint.RuleTester({
   },
 });
 
-test('straight-quotes', () => {
-  ruleTester.run('straight-quotes', rule, {
-    valid: [
-      `
+ruleTester.run('straight-quotes', rule, {
+  valid: [
+    `
 const values = [
   {
     title: 'Put community first 💙',
   },
 ];
   `,
-    ],
-    invalid: [
-      {
-        code: `
+  ],
+  invalid: [
+    {
+      code: `
 const values = [
   {
     title: 'Put community first 💙',
@@ -32,41 +31,40 @@ const values = [
   },
 ];
       `,
-        errors: [
-          {
-            messageId: 'wrongQuotes',
-            line: 5,
-          },
-        ],
-      },
-      {
-        code: `
+      errors: [
+        {
+          messageId: 'wrongQuotes',
+          line: 5,
+        },
+      ],
+    },
+    {
+      code: `
 // reference ID (also known as “SHA” or “hash”) of the commit we're building.
 const values = 'foo';
       `,
-        errors: [
-          {
-            line: 2,
-            column: 32,
-            messageId: 'wrongQuotes',
-          },
-          {
-            line: 2,
-            column: 36,
-            messageId: 'wrongQuotes',
-          },
-          {
-            line: 2,
-            column: 41,
-            messageId: 'wrongQuotes',
-          },
-          {
-            line: 2,
-            column: 46,
-            messageId: 'wrongQuotes',
-          },
-        ],
-      },
-    ],
-  });
+      errors: [
+        {
+          line: 2,
+          column: 32,
+          messageId: 'wrongQuotes',
+        },
+        {
+          line: 2,
+          column: 36,
+          messageId: 'wrongQuotes',
+        },
+        {
+          line: 2,
+          column: 41,
+          messageId: 'wrongQuotes',
+        },
+        {
+          line: 2,
+          column: 46,
+          messageId: 'wrongQuotes',
+        },
+      ],
+    },
+  ],
 });
