@@ -2,6 +2,7 @@ import { includeIgnoreFile } from '@eslint/compat';
 import { defineConfig } from 'eslint/config';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// eslint-disable-next-line import/no-unresolved
 import { createBaseConfig, createTestConfig } from '@mui/internal-code-infra/eslint';
 
 const filename = fileURLToPath(import.meta.url);

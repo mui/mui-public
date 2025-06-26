@@ -15,6 +15,9 @@ import airbnbTypescript from './airbnb/typescript.mjs';
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
 
+/**
+ * @type {import('eslint').Linter.Config}
+ */
 export const baseSpecRules = {
   files: ['**/*.spec.*'],
   rules: {

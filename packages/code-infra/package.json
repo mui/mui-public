@@ -12,14 +12,17 @@
   "exports": {
     "./package.json": "./package.json",
     "./prettier": {
+      "types": "./build/src/prettier.d.mts",
       "default": "./src/prettier.mjs"
     },
     "./eslint": {
+      "types": "./build/src/eslint/index.d.mts",
       "default": "./src/eslint/index.mjs"
     }
   },
   "scripts": {
-    "build:types": "tsc -p tsconfig.json --declaration --emitDeclarationOnly",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build": "pnpm build:types",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra"
   },
@@ -66,10 +69,9 @@
     "typescript-eslint": "^8.35.0"
   },
   "files": [
+    "build",
     "src",
-    "package.json",
     "README.md",
-    "CHANGELOG.md",
     "LICENSE"
   ],
   "publishConfig": {
