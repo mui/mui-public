@@ -31,34 +31,45 @@ const rule = {
     const [options = {}] = context.options;
     const { customHooks = [] } = options;
 
+    /**
+     * Resolves the name literal from the useThemeProps call.
+     * @param {import('estree').CallExpression & import('eslint').Rule.NodeParentExtension} node
+     */
     function resolveUseThemePropsNameLiteral(node) {
-      if (!node.arguments[0].properties) {
+      const firstArg = /** @type {import('estree').ObjectExpression} */ (node.arguments[0]);
+      if (!firstArg.properties) {
         return null;
       }
-      const nameProperty = node.arguments[0].properties.find(
-        (property) => property.key.name === 'name',
+      const nameProperty = firstArg.properties.find(
+        (property) =>
+          property.type === 'Property' &&
+          /** @type {import('estree').Identifier} */ (property.key).name === 'name',
       );
       if (nameProperty === undefined) {
         context.report({
-          node: node.arguments[0],
+          node: firstArg,
           messageId: 'noNameProperty',
         });
         return null;
       }
-      if (nameProperty.value.type !== 'Literal') {
+      if (nameProperty.type === 'Property' && nameProperty.value.type !== 'Literal') {
         context.report({ node: nameProperty.value, messageId: 'noNameValue' });
         return null;
       }
-      return nameProperty.value;
+      return /** @type {import('estree').Property} */ (nameProperty).value;
     }
 
+    /**
+     * Resolves the name literal from the useThemeProps call.
+     * @param {import('estree').CallExpression & import('eslint').Rule.NodeParentExtension} node
+     */
     function resolveCustomHookNameLiteral(node) {
       const secondArgument = node.arguments[1];
       if (secondArgument === undefined) {
         context.report({
           node: node.arguments[0],
           messageId: 'noNameSecondArgument',
-          data: { customHook: node.callee.name },
+          data: { customHook: /** @type {import('estree').Identifier} */ (node.callee).name },
         });
         return null;
       }
@@ -72,14 +83,17 @@ const rule = {
     return {
       CallExpression(node) {
         let nameLiteral = null;
+        const callee = /** @type {import('estree').Identifier} */ (node.callee);
         const isUseDefaultPropsCall =
-          node.callee.name === 'useDefaultProps' || node.callee.name === 'useThemeProps';
+          callee.name === 'useDefaultProps' || callee.name === 'useThemeProps';
         if (isUseDefaultPropsCall) {
           let isCalledFromCustomHook = false;
           let { parent } = node;
           while (parent != null) {
             if (parent.type === 'FunctionExpression' || parent.type === 'FunctionDeclaration') {
-              if (customHooks.includes(parent.id.name)) {
+              if (
+                customHooks.includes(/** @type {import('estree').Identifier} */ (parent.id).name)
+              ) {
                 isCalledFromCustomHook = true;
               }
               break;
@@ -90,7 +104,9 @@ const rule = {
           if (!isCalledFromCustomHook) {
             nameLiteral = resolveUseThemePropsNameLiteral(node);
           }
-        } else if (customHooks.includes(node.callee.name)) {
+        } else if (
+          customHooks.includes(/** @type {import('estree').Identifier} */ (node.callee).name)
+        ) {
           nameLiteral = resolveCustomHookNameLiteral(node);
         }
 
@@ -99,27 +115,34 @@ const rule = {
           let { parent } = node;
           while (parent != null && componentName === null) {
             if (parent.type === 'FunctionExpression' || parent.type === 'FunctionDeclaration') {
-              componentName = parent.id.name;
+              componentName = /** @type {import('estree').Identifier} */ (parent.id).name;
             }
 
             if (
               parent.type === 'VariableDeclarator' &&
-              parent.init.type.match(/(CallExpression|TSAsExpression)/)
+              parent.init &&
+              (parent.init.type === 'CallExpression' || parent.init.type === 'TSAsExpression')
             ) {
-              const callee =
+              const parentCallee =
                 parent.init.type === 'TSAsExpression'
-                  ? parent.init.expression.callee
+                  ? /** @type {import('estree').CallExpression} */ (parent.init.expression).callee
                   : parent.init.callee;
-              if (callee.name.includes(parent.id.name)) {
+              if (
+                /** @type {import('estree').Identifier} */ (parentCallee).name.includes(
+                  /** @type {import('estree').Identifier} */ (parent.id).name,
+                )
+              ) {
                 // For component factory, for example const Container = createContainer({ ... })
-                componentName = parent.id.name;
+                componentName = /** @type {import('estree').Identifier} */ (parent.id).name;
               }
             }
 
             parent = parent.parent;
           }
 
-          const name = nameLiteral.value;
+          const name = /** @type {string} */ (
+            /** @type {import('estree').Literal} */ (nameLiteral).value
+          );
           if (componentName === null) {
             context.report({ node, messageId: 'noComponent' });
           } else if (name !== `Mui${componentName}`) {

@@ -11,20 +11,25 @@ const rule = {
   create(context) {
     /**
      * @param {import('estree').Node} node
+     * @returns {boolean}
      */
     function isDocumentActiveElementNode(node) {
       return (
         node.type === 'MemberExpression' &&
-        node.object.name === 'document' &&
-        node.property.name === 'activeElement'
+        /** @type {import('estree').MemberExpression} */ (node).object.type === 'Identifier' &&
+        /** @type {import('estree').Identifier} */ (
+          /** @type {import('estree').MemberExpression} */ (node).object
+        ).name === 'document' &&
+        /** @type {import('estree').MemberExpression} */ (node).property.type === 'Identifier' &&
+        /** @type {import('estree').Identifier} */ (
+          /** @type {import('estree').MemberExpression} */ (node).property
+        ).name === 'activeElement'
       );
     }
 
     return {
-      /**
-       * @param {import('estree').CallExpression} node
-       */
       CallExpression(node) {
+        /** @type {string[]} */
         const keyboardEventDispatchers = ['keyDown', 'keyUp'];
         const {
           arguments: [firstArgument],
@@ -32,8 +37,17 @@ const rule = {
         } = node;
         const isFireKeyboardEvent =
           callee.type === 'MemberExpression' &&
-          keyboardEventDispatchers.includes(callee.property.name) &&
-          callee.object.name === 'fireEvent';
+          /** @type {import('estree').MemberExpression} */ (callee).property.type ===
+            'Identifier' &&
+          keyboardEventDispatchers.includes(
+            /** @type {import('estree').Identifier} */ (
+              /** @type {import('estree').MemberExpression} */ (callee).property
+            ).name,
+          ) &&
+          /** @type {import('estree').MemberExpression} */ (callee).object.type === 'Identifier' &&
+          /** @type {import('estree').Identifier} */ (
+            /** @type {import('estree').MemberExpression} */ (callee).object
+          ).name === 'fireEvent';
         const targetsDocumentActiveElement =
           firstArgument !== undefined &&
           (firstArgument.type === 'TSNonNullExpression'

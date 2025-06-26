@@ -15,8 +15,9 @@ const rule = {
   },
   create(context) {
     return {
+      /** @param {import('estree-jsx').JSXOpeningElement} node */
       JSXOpeningElement(node) {
-        if (node.name.name !== 'Box') {
+        if (/** @type {import('estree-jsx').JSXIdentifier} */ (node.name).name !== 'Box') {
           return;
         }
 
@@ -33,7 +34,8 @@ const rule = {
           const { name } = decl.name;
 
           if (name === 'component') {
-            component = decl.value.value;
+            const value = /** @type {import('estree').Literal} */ (decl.value).value;
+            component = /** @type {string} */ (value);
             return;
           }
 

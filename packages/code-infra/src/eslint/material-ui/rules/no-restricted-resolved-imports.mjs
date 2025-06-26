@@ -3,8 +3,14 @@ import resolveModule from 'eslint-module-utils/resolve';
 import { minimatch } from 'minimatch';
 import * as path from 'node:path';
 
-const moduleVisitor = moduleVisitorModule.default || moduleVisitorModule;
-const resolve = resolveModule.default || resolveModule;
+/**
+ * @type {import('eslint-module-utils/moduleVisitor').default}
+ */
+const moduleVisitor = /** @type {any} */ (moduleVisitorModule).default || moduleVisitorModule;
+/**
+ * @type {import('eslint-module-utils/resolve').default}
+ */
+const resolve = /** @type {any} */ (resolveModule).default || resolveModule;
 
 /**
  * @typedef {Object} PatternConfig
@@ -49,7 +55,7 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
     }
 
     return moduleVisitor(
-      (source, node) => {
+      (/** @type {any} */ source, /** @type {any} */ node) => {
         // Get the resolved path of the import
 
         const resolvedPath = resolve(source.value, context);
@@ -83,7 +89,7 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
         }
       },
 
-      { commonjs: true, es6: true },
+      { commonjs: true, esmodule: true },
     ); // This handles both require() and import statements
   },
 });
