@@ -7,28 +7,25 @@ export default {
   },
   create(context) {
     /**
-     * @param {import("estree").BlockStatement & import("eslint").Rule.NodeParentExtension} componentBlockNode
-     * @returns {import("estree").ObjectPattern | undefined} The props object pattern of the component block node.
+     * @param {(import("estree").BlockStatement & import("eslint").Rule.NodeParentExtension)} componentBlockNode
      */
     function getComponentProps(componentBlockNode) {
       // finds the declarator in `const {...} = props;`
-      /**
-       * @type {import('estree').VariableDeclarator | undefined }
-       */
-      let componentPropsDeclarator;
+      let componentPropsDeclarator = null;
       componentBlockNode.body.forEach((node) => {
         if (node.type === 'VariableDeclaration') {
-          const propsDeclarator = node.declarations.find(
-            (declarator) =>
-              declarator.init &&
-              /** @type {import('estree').Identifier} */ (declarator.init).name === 'props',
-          );
-          componentPropsDeclarator = propsDeclarator;
+          const propsDeclarator = node.declarations.find((declarator) => {
+            // @ts-expect-error FIXME: Untyped code made wrong assumptions before we added types
+            return declarator.init && declarator.init.name === 'props';
+          });
+          if (propsDeclarator !== undefined) {
+            componentPropsDeclarator = propsDeclarator;
+          }
         }
       });
 
-      // @ts-ignore
-      return componentPropsDeclarator ? componentPropsDeclarator.id : undefined;
+      // @ts-expect-error FIXME: Untyped code made wrong assumptions before we added types
+      return componentPropsDeclarator !== null ? componentPropsDeclarator.id : undefined;
     }
 
     /**
@@ -47,19 +44,22 @@ export default {
 
     return {
       CallExpression(node) {
-        if (/** @type {import('estree').Identifier} */ (node.callee).name === 'useThemeVariants') {
+        // @ts-expect-error FIXME: Untyped code made wrong assumptions before we added types
+        if (node.callee.name === 'useThemeVariants') {
           const componentBlockNode = getComponentBlockNode(node);
 
-          const componentProps = componentBlockNode
-            ? getComponentProps(componentBlockNode)
-            : undefined;
+          // @ts-expect-error FIXME: Untyped code made wrong assumptions before we added types
+          const componentProps = getComponentProps(componentBlockNode);
           const defaultProps =
             componentProps === undefined
               ? []
               : componentProps.properties.filter(
-                  (objectProperty) =>
-                    objectProperty.type === 'Property' &&
-                    objectProperty.value.type === 'AssignmentPattern',
+                  (/** @type {{ type: string; value: { type: string; }; }} */ objectProperty) => {
+                    return (
+                      objectProperty.type === 'Property' &&
+                      objectProperty.value.type === 'AssignmentPattern'
+                    );
+                  },
                 );
 
           const [variantProps] = node.arguments;
@@ -86,9 +86,9 @@ export default {
             return;
           }
 
-          const variantPropsRestNode = variantProps.properties.find(
-            (objectProperty) => objectProperty.type === 'SpreadElement',
-          );
+          const variantPropsRestNode = variantProps.properties.find((objectProperty) => {
+            return objectProperty.type === 'SpreadElement';
+          });
 
           if (
             variantPropsRestNode !== undefined &&
@@ -102,25 +102,18 @@ export default {
             });
           }
 
-          defaultProps.forEach((componentProp) => {
-            const componentPropKey = /** @type {import('estree').AssignmentProperty} */ (
-              componentProp
-            ).key;
-            const componentPropKeyName = /** @type {import('estree').Identifier} */ (
-              componentPropKey
-            ).name;
+          defaultProps.forEach((/** @type {{ key: { name: any; }; }} */ componentProp) => {
             const isPassedToVariantProps =
-              variantProps.properties.find(
-                (variantProp) =>
-                  variantProp.type === 'Property' &&
-                  componentPropKeyName ===
-                    /** @type {import('estree').Identifier} */ (variantProp.key).name,
-              ) !== undefined;
+              variantProps.properties.find((variantProp) => {
+                return (
+                  // @ts-expect-error FIXME: Untyped code made wrong assumptions before we added types
+                  variantProp.type === 'Property' && componentProp.key.name === variantProp.key.name
+                );
+              }) !== undefined;
             if (!isPassedToVariantProps) {
               context.report({
                 node: variantProps,
-
-                message: `Prop \`${componentPropKeyName}\` is not passed to \`useThemeVariants\` props.`,
+                message: `Prop \`${componentProp.key.name}\` is not passed to \`useThemeVariants\` props.`,
               });
             }
           });
