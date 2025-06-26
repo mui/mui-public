@@ -13,7 +13,7 @@ const ruleTester = new RuleTester({
   },
 });
 
-ruleTester.run('no-direct-state-access', rule, {
+ruleTester.run('no-direct-state-access', /** @type {any} */ (rule), {
   valid: [
     {
       name: 'assigning received grid state to a variable',
