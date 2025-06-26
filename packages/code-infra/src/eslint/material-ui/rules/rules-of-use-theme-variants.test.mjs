@@ -1,6 +1,6 @@
 import eslint from 'eslint';
 import parser from '@typescript-eslint/parser';
-import { test } from 'vitest';
+import { test, describe, it } from 'vitest';
 import rule from './rules-of-use-theme-variants.mjs';
 
 const ruleTester = new eslint.RuleTester({
@@ -12,32 +12,50 @@ const ruleTester = new eslint.RuleTester({
   },
 });
 
+eslint.RuleTester.describe = describe;
+eslint.RuleTester.it = it;
+eslint.RuleTester.itOnly = it.only;
+
 test('rules-of-use-theme-variants', () => {
   ruleTester.run('rules-of-use-theme-variants', rule, {
     valid: [
       // allowed but dangerous
-      `
+      {
+        name: 'custom useThemeVariants hook',
+        code: `
 {
   const useCustomThemeVariants = props => useThemeVariants(props);
 }`,
-      `
+      },
+      {
+        name: 'basic useThemeVariants call',
+        code: `
 {
   useThemeVariants(props);
 }
 `,
-      `
+      },
+      {
+        name: 'useThemeVariants with destructured props',
+        code: `
 {
   const { className, value: valueProp, ...other } = props;
   useThemeVariants(props);
 }
 `,
-      `
+      },
+      {
+        name: 'useThemeVariants with disabled prop override',
+        code: `
 {
   const { className, disabled = false, value: valueProp, ...other } = props;
   useThemeVariants({ ...props, disabled });
 }
 `,
-      `
+      },
+      {
+        name: 'useThemeVariants with state variables',
+        code: `
 {
   const { className, value: valueProp, ...other } = props;
   const [stateA, setStateA] = React.useState(0);
@@ -45,16 +63,21 @@ test('rules-of-use-theme-variants', () => {
   useThemeVariants({ stateA, ...props, stateB });
 }
 `,
+      },
       // unnecessary spread but it's not the responsibility of this rule to catch "unnecessary" spread
-      `
+      {
+        name: 'useThemeVariants with unnecessary spread',
+        code: `
 {
   const { className, value: valueProp, ...other } = props;
   useThemeVariants({ ...props});
 }
   `,
+      },
     ],
     invalid: [
       {
+        name: 'disabled prop not passed to useThemeVariants',
         code: `
 {
   const { disabled = false, ...other } = props;
@@ -72,6 +95,7 @@ test('rules-of-use-theme-variants', () => {
         ],
       },
       {
+        name: 'variant prop not passed to useThemeVariants',
         code: `
 {
   const { disabled = false, variant = 'text', ...other } = props;
@@ -89,6 +113,7 @@ test('rules-of-use-theme-variants', () => {
         ],
       },
       {
+        name: 'props spread must come first',
         code: `
 {
   const { disabled = false, ...other } = props;
@@ -108,6 +133,7 @@ test('rules-of-use-theme-variants', () => {
       },
       // this is valid code but not analyzable by this rule
       {
+        name: 'cannot analyze identifier pattern',
         code: `
 {
   const { disabled = false, ...other } = props;

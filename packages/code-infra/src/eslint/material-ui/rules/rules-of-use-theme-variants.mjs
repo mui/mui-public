@@ -7,28 +7,28 @@ export default {
   },
   create(context) {
     /**
-     * @param {import("estree").BlockStatement & import("eslint").Rule.NodeParentExtension | null} componentBlockNode
+     * @param {import("estree").BlockStatement & import("eslint").Rule.NodeParentExtension} componentBlockNode
      * @returns {import("estree").ObjectPattern | undefined} The props object pattern of the component block node.
      */
     function getComponentProps(componentBlockNode) {
       // finds the declarator in `const {...} = props;`
       /**
-       * @type {import('estree').VariableDeclarator | null }
+       * @type {import('estree').VariableDeclarator | undefined }
        */
-      let componentPropsDeclarator = null;
-      componentBlockNode?.body.forEach((node) => {
+      let componentPropsDeclarator;
+      componentBlockNode.body.forEach((node) => {
         if (node.type === 'VariableDeclaration') {
           const propsDeclarator = node.declarations.find(
             (declarator) =>
               declarator.init &&
               /** @type {import('estree').Identifier} */ (declarator.init).name === 'props',
           );
-          componentPropsDeclarator = propsDeclarator ?? null;
+          componentPropsDeclarator = propsDeclarator;
         }
       });
 
       // @ts-ignore
-      return componentPropsDeclarator !== null ? componentPropsDeclarator.id : undefined;
+      return componentPropsDeclarator ? componentPropsDeclarator.id : undefined;
     }
 
     /**
@@ -50,7 +50,9 @@ export default {
         if (/** @type {import('estree').Identifier} */ (node.callee).name === 'useThemeVariants') {
           const componentBlockNode = getComponentBlockNode(node);
 
-          const componentProps = getComponentProps(componentBlockNode);
+          const componentProps = componentBlockNode
+            ? getComponentProps(componentBlockNode)
+            : undefined;
           const defaultProps =
             componentProps === undefined
               ? []
