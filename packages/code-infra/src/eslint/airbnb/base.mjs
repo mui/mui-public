@@ -19,5 +19,5 @@ export function createAirbnbConfig({ baseDirectory } = {}) {
    */
   const extendsConfig = (name) => compat.extends(name);
   const airbnbConfig = extendsConfig('airbnb');
-  return tseslint.config(airbnbConfig);
+  return /** @type {import('eslint').Linter.Config[]} */ (tseslint.config(airbnbConfig));
 }

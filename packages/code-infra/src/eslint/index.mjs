@@ -50,52 +50,54 @@ export const baseSpecRules = {
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createBaseConfig({ enableReactCompiler = false, baseDirectory } = {}) {
-  return tseslint.config(
-    createAirbnbConfig({ baseDirectory }),
-    airbnbTypescript,
-    reactHookConfigs.recommended,
-    enableReactCompiler ? reactCompilerPlugin.configs.recommended : {},
-    prettier,
-    {
-      name: 'typescript-eslint-parser',
-      languageOptions: {
-        parser: tseslint.parser,
-        ecmaVersion: 7,
-        globals: {
-          ...globals.es2020,
-          ...globals.browser,
-          ...globals.node,
-        },
-      },
-      plugins: {
-        '@typescript-eslint': tseslint.plugin,
-        'material-ui': muiPlugin,
-      },
-      settings: {
-        'import/parsers': {
-          '@typescript-eslint/parser': ['.ts', '.tsx'],
-        },
-        'import/resolver': {
-          typescript: {
-            project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
+  return /** @type {import('eslint').Linter.Config[]} */ (
+    tseslint.config(
+      createAirbnbConfig({ baseDirectory }),
+      airbnbTypescript,
+      reactHookConfigs.recommended,
+      enableReactCompiler ? reactCompilerPlugin.configs.recommended : {},
+      prettier,
+      {
+        name: 'typescript-eslint-parser',
+        languageOptions: {
+          parser: tseslint.parser,
+          ecmaVersion: 7,
+          globals: {
+            ...globals.es2020,
+            ...globals.browser,
+            ...globals.node,
           },
         },
-      },
-      extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
-    },
-    {
-      files: ['**/*.mjs'],
-      rules: {
-        'import/extensions': [
-          'error',
-          'ignorePackages',
-          {
-            js: 'always',
-            mjs: 'always',
+        plugins: {
+          '@typescript-eslint': tseslint.plugin,
+          'material-ui': muiPlugin,
+        },
+        settings: {
+          'import/parsers': {
+            '@typescript-eslint/parser': ['.ts', '.tsx'],
           },
-        ],
+          'import/resolver': {
+            typescript: {
+              project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
+            },
+          },
+        },
+        extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
       },
-    },
+      {
+        files: ['**/*.mjs'],
+        rules: {
+          'import/extensions': [
+            'error',
+            'ignorePackages',
+            {
+              js: 'always',
+              mjs: 'always',
+            },
+          ],
+        },
+      },
+    )
   );
 }
 
@@ -103,63 +105,65 @@ export function createBaseConfig({ enableReactCompiler = false, baseDirectory } 
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createTestConfig() {
-  return tseslint.config(
-    // @ts-expect-error The types don't make sense here.
-    mochaPlugin.configs.recommended,
-    testingLibrary.configs['flat/dom'],
-    testingLibrary.configs['flat/react'],
-    {
-      languageOptions: {
-        parser: tseslint.parser,
-        parserOptions: {
-          ecmaVersion: 7,
+  return /** @type {import('eslint').Linter.Config[]} */ (
+    tseslint.config(
+      // @ts-expect-error The types don't make sense here.
+      mochaPlugin.configs.recommended,
+      testingLibrary.configs['flat/dom'],
+      testingLibrary.configs['flat/react'],
+      {
+        languageOptions: {
+          parser: tseslint.parser,
+          parserOptions: {
+            ecmaVersion: 7,
+          },
+          globals: globals.mocha,
         },
-        globals: globals.mocha,
+        rules: {
+          // does not work with wildcard imports. Mistakes will throw at runtime anyway
+          'import/named': 'off',
+          'material-ui/disallow-active-element-as-key-event-target': 'error',
+          'mocha/consistent-spacing-between-blocks': 'off',
+
+          // upgraded level from recommended
+          'mocha/no-pending-tests': 'error',
+
+          // no rationale provided in /recommended
+          'mocha/no-mocha-arrows': 'off',
+          // definitely a useful rule but too many false positives
+          // due to `describeConformance`
+          // "If you're using dynamically generated tests, you should disable this rule.""
+          'mocha/no-setup-in-describe': 'off',
+          // `beforeEach` for a single case is optimized for change
+          // when we add a test we don't have to refactor the existing
+          // test to `beforeEach`.
+          // `beforeEach`+`afterEach` also means that the `beforeEach`
+          // is cleaned up in `afterEach` if the test causes a crash
+          'mocha/no-hooks-for-single-case': 'off',
+
+          // disable eslint-plugin-jsx-a11y
+          // tests are not driven by assistive technology
+          // add `jsx-a11y` rules once you encounter them in tests
+          'jsx-a11y/click-events-have-key-events': 'off',
+          'jsx-a11y/control-has-associated-label': 'off',
+          'jsx-a11y/iframe-has-title': 'off',
+          'jsx-a11y/label-has-associated-control': 'off',
+          'jsx-a11y/mouse-events-have-key-events': 'off',
+          'jsx-a11y/no-noninteractive-tabindex': 'off',
+          'jsx-a11y/no-static-element-interactions': 'off',
+          'jsx-a11y/tabindex-no-positive': 'off',
+
+          // In tests this is generally intended.
+          'react/button-has-type': 'off',
+          // They are accessed to test custom validator implementation with PropTypes.checkPropTypes
+          'react/forbid-foreign-prop-types': 'off',
+          // components that are defined in test are isolated enough
+          // that they don't need type-checking
+          'react/prop-types': 'off',
+          'react/no-unused-prop-types': 'off',
+        },
       },
-      rules: {
-        // does not work with wildcard imports. Mistakes will throw at runtime anyway
-        'import/named': 'off',
-        'material-ui/disallow-active-element-as-key-event-target': 'error',
-        'mocha/consistent-spacing-between-blocks': 'off',
-
-        // upgraded level from recommended
-        'mocha/no-pending-tests': 'error',
-
-        // no rationale provided in /recommended
-        'mocha/no-mocha-arrows': 'off',
-        // definitely a useful rule but too many false positives
-        // due to `describeConformance`
-        // "If you're using dynamically generated tests, you should disable this rule.""
-        'mocha/no-setup-in-describe': 'off',
-        // `beforeEach` for a single case is optimized for change
-        // when we add a test we don't have to refactor the existing
-        // test to `beforeEach`.
-        // `beforeEach`+`afterEach` also means that the `beforeEach`
-        // is cleaned up in `afterEach` if the test causes a crash
-        'mocha/no-hooks-for-single-case': 'off',
-
-        // disable eslint-plugin-jsx-a11y
-        // tests are not driven by assistive technology
-        // add `jsx-a11y` rules once you encounter them in tests
-        'jsx-a11y/click-events-have-key-events': 'off',
-        'jsx-a11y/control-has-associated-label': 'off',
-        'jsx-a11y/iframe-has-title': 'off',
-        'jsx-a11y/label-has-associated-control': 'off',
-        'jsx-a11y/mouse-events-have-key-events': 'off',
-        'jsx-a11y/no-noninteractive-tabindex': 'off',
-        'jsx-a11y/no-static-element-interactions': 'off',
-        'jsx-a11y/tabindex-no-positive': 'off',
-
-        // In tests this is generally intended.
-        'react/button-has-type': 'off',
-        // They are accessed to test custom validator implementation with PropTypes.checkPropTypes
-        'react/forbid-foreign-prop-types': 'off',
-        // components that are defined in test are isolated enough
-        // that they don't need type-checking
-        'react/prop-types': 'off',
-        'react/no-unused-prop-types': 'off',
-      },
-    },
+    )
   );
 }
 
@@ -167,14 +171,16 @@ export function createTestConfig() {
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createDocsConfig() {
-  return tseslint.config(nextjs.flatConfig.recommended, {
-    settings: {
-      next: {
-        rootDir: 'docs',
+  return /** @type {import('eslint').Linter.Config[]} */ (
+    tseslint.config(nextjs.flatConfig.recommended, {
+      settings: {
+        next: {
+          rootDir: 'docs',
+        },
       },
-    },
-    rules: {
-      'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
-    },
-  });
+      rules: {
+        'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
+      },
+    })
+  );
 }

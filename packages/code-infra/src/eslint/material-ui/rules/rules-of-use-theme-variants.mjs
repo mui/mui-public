@@ -12,18 +12,22 @@ export default {
      */
     function getComponentProps(componentBlockNode) {
       // finds the declarator in `const {...} = props;`
+      /**
+       * @type {import('estree').VariableDeclarator | null }
+       */
       let componentPropsDeclarator = null;
       componentBlockNode?.body.forEach((node) => {
         if (node.type === 'VariableDeclaration') {
           const propsDeclarator = node.declarations.find(
-            (declarator) => declarator.init && declarator.init.name === 'props',
+            (declarator) =>
+              declarator.init &&
+              /** @type {import('estree').Identifier} */ (declarator.init).name === 'props',
           );
-          if (propsDeclarator !== undefined) {
-            componentPropsDeclarator = propsDeclarator;
-          }
+          componentPropsDeclarator = propsDeclarator ?? null;
         }
       });
 
+      // @ts-ignore
       return componentPropsDeclarator !== null ? componentPropsDeclarator.id : undefined;
     }
 
@@ -43,7 +47,7 @@ export default {
 
     return {
       CallExpression(node) {
-        if (node.callee.name === 'useThemeVariants') {
+        if (/** @type {import('estree').Identifier} */ (node.callee).name === 'useThemeVariants') {
           const componentBlockNode = getComponentBlockNode(node);
 
           const componentProps = getComponentProps(componentBlockNode);
@@ -97,17 +101,24 @@ export default {
           }
 
           defaultProps.forEach((componentProp) => {
+            const componentPropKey = /** @type {import('estree').AssignmentProperty} */ (
+              componentProp
+            ).key;
+            const componentPropKeyName = /** @type {import('estree').Identifier} */ (
+              componentPropKey
+            ).name;
             const isPassedToVariantProps =
               variantProps.properties.find(
                 (variantProp) =>
                   variantProp.type === 'Property' &&
-                  componentProp.key.name === variantProp.key.name,
+                  componentPropKeyName ===
+                    /** @type {import('estree').Identifier} */ (variantProp.key).name,
               ) !== undefined;
             if (!isPassedToVariantProps) {
               context.report({
                 node: variantProps,
 
-                message: `Prop \`${componentProp.key.name}\` is not passed to \`useThemeVariants\` props.`,
+                message: `Prop \`${componentPropKeyName}\` is not passed to \`useThemeVariants\` props.`,
               });
             }
           });
