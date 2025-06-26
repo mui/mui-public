@@ -13,11 +13,6 @@ export function createAirbnbConfig({ baseDirectory } = {}) {
   const compat = new FlatCompat({
     baseDirectory,
   });
-  /**
-   * Get the ESLint configuration for a specific Airbnb preset.
-   * @param {string} name - The name of the Airbnb preset.
-   */
-  const extendsConfig = (name) => compat.extends(name);
-  const airbnbConfig = extendsConfig('airbnb');
+  const airbnbConfig = compat.extends('eslint-config-airbnb');
   return /** @type {import('eslint').Linter.Config[]} */ (tseslint.config(airbnbConfig));
 }
