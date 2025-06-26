@@ -21,8 +21,6 @@
     }
   },
   "scripts": {
-    "build:types": "tsc -p tsconfig.build.json",
-    "build": "pnpm build:types",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra"
   },
