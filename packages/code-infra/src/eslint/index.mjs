@@ -1,3 +1,6 @@
+/// <reference types="../estree-typescript" />
+/// <reference types="../untyped-plugins" />
+
 import nextjs from '@next/eslint-plugin-next';
 import prettier from 'eslint-config-prettier/flat';
 import mochaPlugin from 'eslint-plugin-mocha';
