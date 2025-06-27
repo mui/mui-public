@@ -170,12 +170,31 @@ async function publishPackages(packages, tag, options = {}) {
 }
 
 /**
+ * Get the actual package.json path to use for reading/writing
+ * @param {string} packagePath - Path to package directory
+ * @returns {Promise<string>} Path to the package.json file to use
+ */
+async function getPackageJsonPath(packagePath) {
+  const sourcePackageJsonPath = path.join(packagePath, 'package.json');
+  const sourceContent = await fs.readFile(sourcePackageJsonPath, 'utf8');
+  const sourcePackageJson = JSON.parse(sourceContent);
+
+  // If publishConfig.directory is set, use the build directory instead
+  if (sourcePackageJson.publishConfig?.directory) {
+    return path.join(packagePath, sourcePackageJson.publishConfig.directory, 'package.json');
+  }
+
+  return sourcePackageJsonPath;
+}
+
+/**
  * Read package.json from a directory
  * @param {string} packagePath - Path to package directory
  * @returns {Promise<Object>} Parsed package.json content
  */
 async function readPackageJson(packagePath) {
-  const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');
+  const packageJsonPath = await getPackageJsonPath(packagePath);
+  const content = await fs.readFile(packageJsonPath, 'utf8');
   return JSON.parse(content);
 }
 
@@ -186,8 +205,9 @@ async function readPackageJson(packagePath) {
  * @returns {Promise<void>}
  */
 async function writePackageJson(packagePath, packageJson) {
+  const packageJsonPath = await getPackageJsonPath(packagePath);
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
-  await fs.writeFile(path.join(packagePath, 'package.json'), content);
+  await fs.writeFile(packageJsonPath, content);
 }
 
 /**
