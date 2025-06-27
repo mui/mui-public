@@ -139,7 +139,7 @@ async function publishCanaryVersions(
 
   // Run release build after updating package.json files
   console.log('\n🔨 Running release build...');
-  await $`pnpm release:build`;
+  await $({ stdio: 'inherit' })`pnpm release:build`;
   console.log('✅ Release build completed successfully');
 
   // Third pass: publish only the changed packages using recursive publish
