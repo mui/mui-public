@@ -166,7 +166,7 @@ async function publishPackages(packages, tag, options = {}) {
     args.push('--no-git-checks');
   }
 
-  await $({ stdio: 'inherit' })`pnpm -r publish --tag=${tag} ${args}`;
+  await $({ stdio: 'inherit' })`pnpm -r publish  --access public --tag=${tag} ${args}`;
 }
 
 /**
