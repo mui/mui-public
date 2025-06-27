@@ -120,6 +120,7 @@ export async function publishPackages(packages, tag, options = {}) {
   }
 
   // Set up environment variables
+  /** @type {Record<string, string>} */
   const env = {};
   if (options.provenance) {
     env.NPM_CONFIG_PROVENANCE = 'true';
