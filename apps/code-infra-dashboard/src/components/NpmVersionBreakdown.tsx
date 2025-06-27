@@ -14,7 +14,7 @@ import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PieChart } from '@mui/x-charts/PieChart';
-import { LineChart } from '@mui/x-charts/LineChart';
+import { AnimatedLineProps, LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import {
   AxisValueFormatterContext,
@@ -42,6 +42,34 @@ class HoverStore {
     this.hoveredIndex = index;
     this.listeners.forEach((callback) => callback());
   };
+}
+
+// https://github.com/mui/mui-x/pull/18539
+function CustomLine(props: AnimatedLineProps) {
+  const { d, ownerState, className, ...other } = props;
+
+  return (
+    <React.Fragment>
+      <path
+        d={d}
+        stroke={ownerState.gradientId ? `url(#${ownerState.gradientId})` : ownerState.color}
+        strokeWidth={ownerState.isHighlighted ? 4 : 2}
+        strokeLinejoin="round"
+        fill="none"
+        filter={ownerState.isHighlighted ? 'brightness(120%)' : undefined}
+        opacity={ownerState.isFaded ? 0.3 : 1}
+        className={className}
+      />
+      <path
+        d={d}
+        stroke="transparent"
+        strokeWidth={25}
+        fill="none"
+        className="interaction-area"
+        {...other}
+      />
+    </React.Fragment>
+  );
 }
 
 export interface UseNpmPackage {
@@ -456,6 +484,8 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
           hoveredIndex !== null ? { seriesId: historicalChartData.series[hoveredIndex]?.id } : null
         }
         onHighlightChange={handleLineChartHover}
+        // https://github.com/mui/mui-x/pull/18539
+        slots={{ line: CustomLine }}
       />
     </Box>
   );
