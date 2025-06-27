@@ -47,7 +47,7 @@ export function createTestConfig(options = {}) {
   return /** @type {import('eslint').Linter.Config[]} */ (
     tseslint.config(
       // @ts-expect-error The types don't make sense here.
-      useMocha ? mochaPlugin.configs.recommended : null,
+      useMocha ? mochaPlugin.configs.recommended : {},
       testingLibrary.configs['flat/dom'],
       testingLibrary.configs['flat/react'],
       {
