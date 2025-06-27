@@ -2,7 +2,11 @@ import { includeIgnoreFile } from '@eslint/compat';
 import { defineConfig } from 'eslint/config';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createBaseConfig, createTestConfig } from '@mui/internal-code-infra/eslint';
+import {
+  createBaseConfig,
+  createTestConfig,
+  EXTENSION_TEST_FILE,
+} from '@mui/internal-code-infra/eslint';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -32,7 +36,7 @@ export default defineConfig(
   {
     files: [
       // matching the pattern of the test runner
-      '**/*.test.?(c|m)[jt]s?(x)',
+      `**/*${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig(),
   },
