@@ -125,7 +125,7 @@ export async function publishPackages(packages, tag, options = {}) {
     env.NPM_CONFIG_PROVENANCE = 'true';
   }
 
-  await $({ stdio: 'inherit', env })`pnpm -r publish --tag=${tag} ${args}`;
+  await $({ stdio: 'inherit', env })`pnpm -r publish --access public --tag=${tag} ${args}`;
 }
 
 /**
