@@ -12,11 +12,9 @@
   "exports": {
     "./package.json": "./package.json",
     "./prettier": {
-      "types": "./build/src/prettier.d.mts",
       "default": "./src/prettier.mjs"
     },
     "./eslint": {
-      "types": "./build/src/eslint/index.d.mts",
       "default": "./src/eslint/index.mjs"
     }
   },
@@ -26,7 +24,6 @@
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@typescript-eslint/utils": "^8.35.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^10.1.5",
