@@ -1,12 +1,10 @@
 // @ts-check
 const createEnumerationFromArray = (stringArray) =>
   stringArray.length > 1
-    ? stringArray
+    ? `${stringArray
         .slice(0, -1)
         .map((s) => `\`${s}\``)
-        .join(', ') +
-      ' or ' +
-      `\`${stringArray.slice(-1)}\``
+        .join(', ')} or \`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
 const typeLabels = [
@@ -48,7 +46,7 @@ module.exports = async ({ core, context, github }) => {
       ?.map((label) => label.name)
       .filter((labelName) => labelRegex.test(labelName));
 
-    const { data: prComments } = await github.rest.issues.listComments({
+    await github.rest.issues.listComments({
       owner,
       repo,
       issue_number: pullNumber,

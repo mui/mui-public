@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   rules: {
     // keeps test simple
     'no-unreachable': 'off',

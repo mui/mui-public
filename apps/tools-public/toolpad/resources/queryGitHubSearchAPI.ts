@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import { rawRequest } from 'graphql-request';
 
 export async function queryGitHubSearchAPI(queryInput = '', type = 'ISSUE') {
