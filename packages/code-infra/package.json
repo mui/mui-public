@@ -1,0 +1,76 @@
+{
+  "name": "@mui/internal-code-infra",
+  "version": "0.0.1",
+  "description": "Infra scripts and configs to be used across MUI repos.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mui/mui-public.git",
+    "directory": "packages/mui-internal-code-infra"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./prettier": {
+      "default": "./src/prettier.mjs"
+    },
+    "./eslint": {
+      "default": "./src/eslint/index.mjs"
+    }
+  },
+  "scripts": {
+    "typescript": "tsc -p tsconfig.json",
+    "test": "pnpm -w test --project @mui/internal-code-infra"
+  },
+  "dependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-import-resolver-typescript": "^4.4.3",
+    "eslint-module-utils": "^2.12.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-mocha": "^11.1.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
+    "eslint-plugin-react-hooks": "^6.0.0-rc.1",
+    "eslint-plugin-testing-library": "^7.5.3",
+    "@next/eslint-plugin-next": "^15.0.0",
+    "globals": "^16.2.0",
+    "minimatch": "^10.0.3",
+    "typescript-eslint": "^8.35.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    },
+    "prettier": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^15.3.3",
+    "@types/eslint-plugin-jsx-a11y": "^6.10.0",
+    "@types/estree": "^1.0.8",
+    "@types/estree-jsx": "^1.0.5",
+    "@typescript-eslint/parser": "^8.35.0",
+    "@typescript-eslint/rule-tester": "^8.35.0",
+    "eslint": "^9.29.0",
+    "prettier": "^3.5.3",
+    "typescript-eslint": "^8.35.0"
+  },
+  "files": [
+    "build",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

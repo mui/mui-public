@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import dayjs from 'dayjs';
 import { sheets } from '@googleapis/sheets';
 import { JWT } from 'google-auth-library';
