@@ -137,6 +137,11 @@ async function publishCanaryVersions(
     originalPackageJsons.set(pkg.name, originalPackageJson);
   }
 
+  // Run release build after updating package.json files
+  console.log('\n🔨 Running release build...');
+  await $`pnpm release:build`;
+  console.log('✅ Release build completed successfully');
+
   // Third pass: publish only the changed packages using recursive publish
   let publishSuccess = false;
   try {
