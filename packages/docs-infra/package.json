@@ -1,0 +1,88 @@
+{
+  "name": "@mui/internal-docs-infra",
+  "version": "0.1.0",
+  "author": "MUI Team",
+  "description": "MUI Infra - internal documentation creation tools.",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./*": "./*/index.js"
+  },
+  "keywords": [
+    "react",
+    "react-component",
+    "material-ui",
+    "material design",
+    "docs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/mui-docs"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mui/mui-public/issues"
+  },
+  "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
+  "scripts": {
+    "build": "pnpm build:node && pnpm build:stable && pnpm build:types && pnpm build:copy-files",
+    "build:node": "node ./scripts/build.mjs node",
+    "build:stable": "node ./scripts/build.mjs stable",
+    "build:types": "tsx ./scripts/buildTypes.mts",
+    "build:copy-files": "node ./scripts/copyFiles.mjs",
+    "prebuild": "rimraf build",
+    "release": "pnpm build && pnpm publish --no-git-checks",
+    "test": "exit 0",
+    "typescript": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.27.6",
+    "@types/hast": "^3.0.4",
+    "clipboard-copy": "^4.0.1",
+    "hast": "^1.0.0",
+    "hast-util-to-jsx-runtime": "^2.3.6",
+    "hast-util-to-text": "^4.0.2",
+    "kebab-case": "^2.0.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.27.2",
+    "@babel/core": "^7.27.4",
+    "@babel/plugin-transform-react-constant-elements": "^7.27.1",
+    "@babel/plugin-transform-runtime": "^7.27.4",
+    "@types/node": "^20.19.1",
+    "@types/react": "^19.1.8",
+    "babel-plugin-istanbul": "^7.0.0",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-plugin-optimize-clsx": "^2.6.2",
+    "babel-plugin-react-remove-properties": "^0.3.0",
+    "babel-plugin-transform-inline-environment-variables": "^0.4.4",
+    "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
+    "csstype": "^3.1.3",
+    "execa": "^7.2.0",
+    "fast-glob": "^3.3.2",
+    "fs-extra": "^11.3.0",
+    "jsonc-parser": "^3.3.1",
+    "next": "^15.3.4",
+    "react": "^19.1.0",
+    "rimraf": "^6.0.1",
+    "yargs": "^17.7.2"
+  },
+  "peerDependencies": {
+    "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "next": "^13.5.1 || ^14 || ^15.0.0",
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "build"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
