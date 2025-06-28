@@ -94,3 +94,5 @@ workflows:
           <<: *default-context
       - test_static:
           <<: *default-context
+      - test_unit:
+          <<: *default-context
