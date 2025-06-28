@@ -1055,4 +1055,24 @@ describe('babelDisplayNamePlugin', () => {
       "const Test = true ? () => React.createElement("img", null) : undefined;"
     `);
   });
+
+  it(`shouldn't add display name to variables that are not functions 2`, () => {
+    expect(
+      transformWithAllowedCallees(`
+      const Test = true && (() => <img/>) || (undefined);
+      `),
+    ).toMatchInlineSnapshot(`
+      "const Test = true && (() => React.createElement("img", null)) || undefined;"
+    `);
+  });
+
+  it(`shouldn't add display name to variables that are not functions 3`, () => {
+    expect(
+      transformWithAllowedCallees(`
+      const Test = (true && (() => <img/>)) ?? (undefined);
+      `),
+    ).toMatchInlineSnapshot(`
+      "const Test = (true && (() => React.createElement("img", null))) ?? undefined;"
+    `);
+  });
 });
