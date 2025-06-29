@@ -2,100 +2,135 @@
 
 /* eslint-disable no-console */
 
-import { $ } from 'execa';
+/**
+ * @typedef {import('./shared/pnpm.mjs').Package} Package
+ * @typedef {import('./shared/pnpm.mjs').PublishOptions} PublishOptions
+ */
+
+import { Octokit } from '@octokit/rest';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import * as semver from 'semver';
-
-const CANARY_TAG = 'canary';
-
-/**
- * @typedef {Object} Package
- * @property {string} name - Package name
- * @property {string} version - Package version
- * @property {string} path - Package directory path
- */
+import gitUrlParse from 'git-url-parse';
+import { $ } from 'execa';
+import { getWorkspacePackages, publishPackages } from './shared/pnpm.mjs';
 
 /**
- * @typedef {Object} VersionInfo
- * @property {boolean} currentVersionExists - Whether current version exists on npm
- * @property {string|null} latestCanaryVersion - Latest canary version if available
+ * Get the version to release from the root package.json
+ * @returns {Promise<string>} Version string
  */
+async function getReleaseVersion() {
+  const result = await $`pnpm pkg get version`;
+  const versionData = JSON.parse(result.stdout.trim());
+  const version = versionData.version;
 
-/**
- * @typedef {Object} PublishOptions
- * @property {boolean} [dryRun] - Whether to run in dry-run mode
- * @property {boolean} [provenance] - Whether to include provenance information
- * @property {boolean} [noGitChecks] - Whether to skip git checks
- */
+  const validVersion = semver.valid(version);
+  if (!validVersion) {
+    throw new Error(`Invalid version in root package.json: ${version}`);
+  }
 
-/**
- * @typedef {Object} PnpmListResultItem
- * @property {string} [name] - Package name
- * @property {string} [version] - Package version
- * @property {string} path - Package directory path
- * @property {boolean} private - Whether the package is private
- */
-
-/**
- * Get all workspace packages that are public
- * @param {string|null} [sinceRef] - Git reference to filter changes since
- * @returns {Promise<Package[]>} Array of public packages
- */
-async function getWorkspacePackages(sinceRef = null) {
-  // Build command with conditional filter
-  const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
-  const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
-  /** @type {PnpmListResultItem[]} */
-  const packageData = JSON.parse(result.stdout);
-
-  // Filter out private packages and format the response
-  const publicPackages = packageData
-    .filter((pkg) => !pkg.private)
-    .map((pkg) => {
-      if (!pkg.name || !pkg.version) {
-        throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
-      }
-      return {
-        name: pkg.name,
-        version: pkg.version,
-        path: pkg.path,
-      };
-    });
-
-  return publicPackages;
+  return validVersion;
 }
 
 /**
- * Get package version info from registry
- * @param {string} packageName - Name of the package
- * @param {string} baseVersion - Base version to check
- * @returns {Promise<VersionInfo>} Version information
+ * Parse changelog to extract content for a specific version
+ * @param {string} changelogPath - Path to CHANGELOG.md
+ * @param {string} version - Version to extract
+ * @returns {Promise<string>} Changelog content for the version
  */
-async function getPackageVersionInfo(packageName, baseVersion) {
+async function parseChangelog(changelogPath, version) {
   try {
-    // Check if current stable version exists
-    let currentVersionExists = false;
-    try {
-      await $`pnpm view ${packageName}@${baseVersion} version`;
-      currentVersionExists = true;
-    } catch {
-      currentVersionExists = false;
+    const content = await fs.readFile(changelogPath, 'utf8');
+    const lines = content.split('\n');
+
+    const versionHeader = `## ${version}`;
+    const startIndex = lines.findIndex((line) => line.startsWith(versionHeader));
+
+    if (startIndex === -1) {
+      throw new Error(`Version ${version} not found in changelog`);
     }
 
-    // Get canary dist-tag to find latest canary version
-    const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
-    const latestCanaryVersion = semver.valid(canaryResult.stdout.trim());
+    // Skip the version header and find content start
+    let contentStartIndex = startIndex + 1;
+
+    // Skip whitespace and comment lines
+    while (contentStartIndex < lines.length) {
+      const line = lines[contentStartIndex].trim();
+      if (line === '' || line.startsWith('<!--')) {
+        contentStartIndex += 1;
+      } else {
+        break;
+      }
+    }
+
+    // Check if first content line is a date line
+    if (contentStartIndex < lines.length) {
+      const line = lines[contentStartIndex].trim();
+      // Remove leading/trailing underscores if present
+      const cleanLine = line.replace(/^_+|_+$/g, '');
+      // Try to parse as date
+      if (cleanLine && !Number.isNaN(Date.parse(cleanLine))) {
+        contentStartIndex += 1; // Skip date line
+      }
+    }
+
+    // Find the end of this version's content (next ## header)
+    let endIndex = lines.length;
+    for (let i = contentStartIndex; i < lines.length; i += 1) {
+      if (lines[i].startsWith('## ')) {
+        endIndex = i;
+        break;
+      }
+    }
+
+    return lines.slice(contentStartIndex, endIndex).join('\n').trim();
+  } catch (/** @type {any} */ error) {
+    if (error.code === 'ENOENT') {
+      throw new Error('CHANGELOG.md not found');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if GitHub release already exists
+ * @param {Octokit} octokit - GitHub API client
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} version - Version to check
+ * @returns {Promise<boolean>} True if release exists
+ */
+async function checkGitHubReleaseExists(octokit, owner, repo, version) {
+  try {
+    await octokit.repos.getReleaseByTag({ owner, repo, tag: `v${version}` });
+    return true;
+  } catch (/** @type {any} */ error) {
+    if (error.status === 404) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get current repository info from git remote
+ * @returns {Promise<{owner: string, repo: string}>} Repository owner and name
+ */
+async function getRepositoryInfo() {
+  try {
+    const result = await $`git remote get-url origin`;
+    const url = result.stdout.trim();
+
+    const parsed = gitUrlParse(url);
+    if (parsed.source !== 'github.com') {
+      throw new Error('Repository is not hosted on GitHub');
+    }
 
     return {
-      currentVersionExists,
-      latestCanaryVersion,
+      owner: parsed.owner,
+      repo: parsed.name,
     };
-  } catch (error) {
-    return {
-      currentVersionExists: false,
-      latestCanaryVersion: null,
-    };
+  } catch (/** @type {any} */ error) {
+    throw new Error(`Failed to get repository info: ${error.message}`);
   }
 }
 
@@ -109,257 +144,110 @@ async function getCurrentGitSha() {
 }
 
 /**
- * Check if the canary git tag exists
- * @returns {Promise<string|null>} Canary tag name if exists, null otherwise
- */
-async function getLastCanaryTag() {
-  await $`git fetch origin tag ${CANARY_TAG}`;
-  const { stdout: remoteCanaryTag } = await $`git ls-remote --tags origin ${CANARY_TAG}`;
-  return remoteCanaryTag.trim() ? CANARY_TAG : null;
-}
-
-/**
- * Create or update the canary git tag
+ * Create and push a git tag
+ * @param {string} version - Version to tag
  * @param {boolean} [dryRun=false] - Whether to run in dry-run mode
  * @returns {Promise<void>}
  */
-async function createCanaryTag(dryRun = false) {
+async function createGitTag(version, dryRun = false) {
+  const tagName = `v${version}`;
+
   try {
-    if (dryRun) {
-      console.log('🏷️  Would update and push canary tag (dry-run)');
-    } else {
-      await $`git tag -f ${CANARY_TAG}`;
-      await $`git push origin ${CANARY_TAG} --force`;
-      console.log('🏷️  Updated and pushed canary tag');
-    }
+    await $`git tag ${tagName}`;
+    const pushArgs = dryRun ? ['--dry-run'] : [];
+    await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
+
+    console.log(`🏷️  Created and pushed git tag ${tagName}${dryRun ? ' (dry-run)' : ''}`);
   } catch (/** @type {any} */ error) {
-    console.error('Failed to create/push canary tag:', error.message);
-    throw error;
+    throw new Error(`Failed to create git tag: ${error.message}`);
   }
 }
 
 /**
- * Publish packages with the given options
+ * Validate GitHub release requirements
+ * @param {string} version - Version to validate
+ * @returns {Promise<{changelogContent: string, repoInfo: {owner: string, repo: string}}>}
+ */
+async function validateGitHubRelease(version) {
+  console.log('🔍 Validating GitHub release requirements...');
+
+  // Check if CHANGELOG.md exists and parse it
+  console.log(`📄 Parsing CHANGELOG.md for version ${version}...`);
+  const changelogContent = await parseChangelog('CHANGELOG.md', version);
+  console.log('✅ Found changelog content for version');
+
+  // Get repository info
+  const repoInfo = await getRepositoryInfo();
+  console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
+
+  // Check if release already exists on GitHub
+  const octokit = new Octokit({
+    auth: process.env.GITHUB_TOKEN,
+  });
+
+  console.log(`🔍 Checking if GitHub release v${version} already exists...`);
+  const releaseExists = await checkGitHubReleaseExists(
+    octokit,
+    repoInfo.owner,
+    repoInfo.repo,
+    version,
+  );
+
+  if (releaseExists) {
+    throw new Error(`GitHub release v${version} already exists`);
+  }
+  console.log('✅ GitHub release does not exist yet');
+
+  return { changelogContent, repoInfo };
+}
+
+/**
+ * Publish packages to npm
  * @param {Package[]} packages - Packages to publish
- * @param {string} tag - npm tag to publish with
- * @param {PublishOptions} [options={}] - Publishing options
+ * @param {PublishOptions} options - Publishing options
  * @returns {Promise<void>}
  */
-async function publishPackages(packages, tag, options = {}) {
-  const args = [];
-
-  // Add package filters
+async function publishToNpm(packages, options) {
+  console.log('\n📦 Publishing packages to npm...');
+  console.log(`📋 Found ${packages.length} packages:`);
   packages.forEach((pkg) => {
-    args.push('--filter', pkg.name);
+    console.log(`   • ${pkg.name}@${pkg.version}`);
   });
 
-  // Add conditional flags
-  if (options.provenance) {
-    args.push('--provenance');
-  }
-
-  if (options.dryRun) {
-    args.push('--dry-run');
-  }
-
-  if (options.noGitChecks) {
-    args.push('--no-git-checks');
-  }
-
-  await $({ stdio: 'inherit' })`pnpm -r publish  --access public --tag=${tag} ${args}`;
+  // Use pnpm's built-in duplicate checking - no need to check versions ourselves
+  await publishPackages(packages, 'latest', options);
+  console.log('✅ Successfully published to npm');
 }
 
 /**
- * Get the actual package.json path to use for reading/writing
- * @param {string} packagePath - Path to package directory
- * @returns {Promise<string>} Path to the package.json file to use
- */
-async function getPackageJsonPath(packagePath) {
-  const sourcePackageJsonPath = path.join(packagePath, 'package.json');
-  const sourceContent = await fs.readFile(sourcePackageJsonPath, 'utf8');
-  const sourcePackageJson = JSON.parse(sourceContent);
-
-  // If publishConfig.directory is set, use the build directory instead
-  if (sourcePackageJson.publishConfig?.directory) {
-    return path.join(packagePath, sourcePackageJson.publishConfig.directory, 'package.json');
-  }
-
-  return sourcePackageJsonPath;
-}
-
-/**
- * Read package.json from a directory
- * @param {string} packagePath - Path to package directory
- * @returns {Promise<Object>} Parsed package.json content
- */
-async function readPackageJson(packagePath) {
-  const packageJsonPath = await getPackageJsonPath(packagePath);
-  const content = await fs.readFile(packageJsonPath, 'utf8');
-  return JSON.parse(content);
-}
-
-/**
- * Write package.json to a directory
- * @param {string} packagePath - Path to package directory
- * @param {Object} packageJson - Package.json object to write
+ * Create GitHub release after npm publishing
+ * @param {string} version - Version to release
+ * @param {string} changelogContent - Changelog content
+ * @param {{owner: string, repo: string}} repoInfo - Repository info
  * @returns {Promise<void>}
  */
-async function writePackageJson(packagePath, packageJson) {
-  const packageJsonPath = await getPackageJsonPath(packagePath);
-  const content = `${JSON.stringify(packageJson, null, 2)}\n`;
-  await fs.writeFile(packageJsonPath, content);
-}
+async function createRelease(version, changelogContent, repoInfo) {
+  console.log('\n🚀 Creating GitHub draft release...');
 
-/**
- * Publish regular versions that don't exist on npm
- * @param {Package[]} packages - Packages to check for publishing
- * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
- * @param {PublishOptions} [options={}] - Publishing options
- * @returns {Promise<void>}
- */
-async function publishRegularVersions(packages, packageVersionInfo, options = {}) {
-  console.log('\n📦 Checking for unpublished regular versions...');
-
-  const packagesToPublish = packages.filter((pkg) => {
-    const versionInfo = packageVersionInfo.get(pkg.name);
-    if (!versionInfo) {
-      throw new Error(`No version info found for package ${pkg.name}`);
-    }
-    if (!versionInfo.currentVersionExists) {
-      console.log(`📤 Will publish ${pkg.name}@${pkg.version}`);
-      return true;
-    }
-    console.log(`⏭️  ${pkg.name}@${pkg.version} already exists, skipping`);
-    return false;
+  const octokit = new Octokit({
+    auth: process.env.GITHUB_TOKEN,
   });
 
-  if (packagesToPublish.length === 0) {
-    console.log('No packages need to be published');
-    return;
-  }
+  const sha = await getCurrentGitSha();
 
-  console.log(`Publishing ${packagesToPublish.length} packages...`);
-  await publishPackages(packagesToPublish, 'latest', options);
-
-  packagesToPublish.forEach((pkg) => {
-    console.log(`✅ Published ${pkg.name}@${pkg.version}`);
-  });
-}
-
-/**
- * Get the maximum semver version between two versions
- * @param {string} a
- * @param {string} b
- * @returns {string} The maximum semver version
- */
-function semverMax(a, b) {
-  return semver.gt(a, b) ? a : b;
-}
-
-/**
- * Publish canary versions with updated dependencies
- * @param {Package[]} packagesToPublish - Packages that need canary publishing
- * @param {Package[]} allPackages - All workspace packages
- * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
- * @param {PublishOptions} [options={}] - Publishing options
- * @returns {Promise<void>}
- */
-async function publishCanaryVersions(
-  packagesToPublish,
-  allPackages,
-  packageVersionInfo,
-  options = {},
-) {
-  console.log('\n🔥 Publishing canary versions...');
-
-  // Early return if no packages need canary publishing
-  if (packagesToPublish.length === 0) {
-    console.log('✅ No packages have changed since last canary publish');
-    await createCanaryTag(options.dryRun);
-    return;
-  }
-
-  const gitSha = await getCurrentGitSha();
-  const canaryVersions = new Map();
-  const originalPackageJsons = new Map();
-
-  // First pass: determine canary version numbers for all packages
-  const changedPackageNames = new Set(packagesToPublish.map((pkg) => pkg.name));
-
-  for (const pkg of allPackages) {
-    const versionInfo = packageVersionInfo.get(pkg.name);
-    if (!versionInfo) {
-      throw new Error(`No version info found for package ${pkg.name}`);
-    }
-
-    if (changedPackageNames.has(pkg.name)) {
-      // Generate new canary version for changed packages
-      const baseVersion = versionInfo.latestCanaryVersion
-        ? semverMax(versionInfo.latestCanaryVersion, pkg.version)
-        : pkg.version;
-      const canaryVersion = semver.inc(baseVersion, 'prerelease', 'canary');
-      canaryVersions.set(pkg.name, canaryVersion);
-      console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
-    } else if (versionInfo.latestCanaryVersion) {
-      // Reuse existing canary version for unchanged packages
-      canaryVersions.set(pkg.name, versionInfo.latestCanaryVersion);
-      console.log(`🏷️  ${pkg.name}: ${versionInfo.latestCanaryVersion} (reused)`);
-    }
-  }
-
-  // Second pass: read and update ALL package.json files in parallel
-  const packageUpdatePromises = allPackages.map(async (pkg) => {
-    const originalPackageJson = await readPackageJson(pkg.path);
-
-    const canaryVersion = canaryVersions.get(pkg.name);
-    if (canaryVersion) {
-      const updatedPackageJson = {
-        ...originalPackageJson,
-        version: canaryVersion,
-        gitSha,
-      };
-
-      await writePackageJson(pkg.path, updatedPackageJson);
-      console.log(`📝 Updated ${pkg.name} package.json to ${canaryVersion}`);
-    }
-
-    return { pkg, originalPackageJson };
+  await octokit.repos.createRelease({
+    owner: repoInfo.owner,
+    repo: repoInfo.repo,
+    tag_name: `v${version}`,
+    target_commitish: sha,
+    name: `v${version}`,
+    body: changelogContent,
+    draft: true,
   });
 
-  const updateResults = await Promise.all(packageUpdatePromises);
-
-  // Build the original package.json map
-  for (const { pkg, originalPackageJson } of updateResults) {
-    originalPackageJsons.set(pkg.name, originalPackageJson);
-  }
-
-  // Third pass: publish only the changed packages using recursive publish
-  let publishSuccess = false;
-  try {
-    console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, 'canary', { ...options, noGitChecks: true });
-
-    packagesToPublish.forEach((pkg) => {
-      const canaryVersion = canaryVersions.get(pkg.name);
-      console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
-    });
-    publishSuccess = true;
-  } finally {
-    // Always restore original package.json files in parallel
-    console.log('\n🔄 Restoring original package.json files...');
-    const restorePromises = allPackages.map(async (pkg) => {
-      const originalPackageJson = originalPackageJsons.get(pkg.name);
-      await writePackageJson(pkg.path, originalPackageJson);
-    });
-
-    await Promise.all(restorePromises);
-  }
-
-  if (publishSuccess) {
-    // Create/update the canary tag after successful publish
-    await createCanaryTag(options.dryRun);
-    console.log('\n🎉 All canary versions published successfully!');
-  }
+  console.log(
+    `✅ Created draft release v${version} at https://github.com/${repoInfo.owner}/${repoInfo.repo}/releases`,
+  );
 }
 
 /**
@@ -369,8 +257,8 @@ async function publishCanaryVersions(
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
-  const canaryOnly = args.includes('--canary-only');
   const provenance = args.includes('--provenance');
+  const githubRelease = args.includes('--github-release');
 
   const options = { dryRun, provenance };
 
@@ -382,7 +270,7 @@ async function main() {
     console.log('🔐 Provenance enabled - packages will include provenance information\n');
   }
 
-  // Always get all packages first
+  // Get all packages
   console.log('🔍 Discovering all workspace packages...');
   const allPackages = await getWorkspacePackages();
 
@@ -391,43 +279,34 @@ async function main() {
     return;
   }
 
-  // Check for canary tag to determine selective publishing
-  const canaryTag = await getLastCanaryTag();
+  // Get version from root package.json
+  const version = await getReleaseVersion();
+  console.log(`📋 Release version: ${version}`);
 
-  console.log(
-    canaryTag
-      ? '🔍 Checking for packages changed since canary tag...'
-      : '🔍 No canary tag found, will publish all packages',
-  );
-  const packages = canaryTag ? await getWorkspacePackages(canaryTag) : allPackages;
-
-  console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
-  packages.forEach((pkg) => {
-    console.log(`   • ${pkg.name}@${pkg.version}`);
-  });
-
-  // Fetch version info for all packages in parallel
-  console.log('\n🔍 Fetching package version information...');
-  const versionInfoPromises = allPackages.map(async (pkg) => {
-    const versionInfo = await getPackageVersionInfo(pkg.name, pkg.version);
-    return { packageName: pkg.name, versionInfo };
-  });
-
-  const versionInfoResults = await Promise.all(versionInfoPromises);
-  const packageVersionInfo = new Map();
-
-  for (const { packageName, versionInfo } of versionInfoResults) {
-    packageVersionInfo.set(packageName, versionInfo);
+  // Early validation for GitHub release (before any publishing)
+  let githubReleaseData = null;
+  if (githubRelease) {
+    githubReleaseData = await validateGitHubRelease(version);
   }
 
-  if (!canaryOnly) {
-    await publishRegularVersions(allPackages, packageVersionInfo, options);
-  }
+  // Publish to npm (pnpm handles duplicate checking automatically)
+  await publishToNpm(allPackages, options);
 
-  await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
+  // Create GitHub release or git tag after successful npm publishing
+  if (githubRelease && githubReleaseData && !dryRun) {
+    await createRelease(version, githubReleaseData.changelogContent, githubReleaseData.repoInfo);
+  } else if (githubRelease && dryRun) {
+    console.log('\n🚀 Would create GitHub draft release (dry-run)');
+  } else {
+    // Create git tag when not doing GitHub release
+    await createGitTag(version, dryRun);
+  }
 
   console.log('\n🏁 Publishing complete!');
 }
 
 // Run the script
-main();
+main().catch((error) => {
+  console.error('❌ Publishing failed:', error.message);
+  process.exit(1);
+});
