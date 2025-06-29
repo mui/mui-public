@@ -38,13 +38,16 @@ export const baseSpecRules = {
 };
 
 /**
+ * @param {Object} [options]
+ * @param {boolean} [options.useMocha]
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createTestConfig() {
+export function createTestConfig(options = {}) {
+  const { useMocha = true } = options;
   return /** @type {import('eslint').Linter.Config[]} */ (
     tseslint.config(
       // @ts-expect-error The types don't make sense here.
-      mochaPlugin.configs.recommended,
+      useMocha ? mochaPlugin.configs.recommended : {},
       testingLibrary.configs['flat/dom'],
       testingLibrary.configs['flat/react'],
       {
@@ -59,23 +62,6 @@ export function createTestConfig() {
           // does not work with wildcard imports. Mistakes will throw at runtime anyway
           'import/named': 'off',
           'material-ui/disallow-active-element-as-key-event-target': 'error',
-          'mocha/consistent-spacing-between-blocks': 'off',
-
-          // upgraded level from recommended
-          'mocha/no-pending-tests': 'error',
-
-          // no rationale provided in /recommended
-          'mocha/no-mocha-arrows': 'off',
-          // definitely a useful rule but too many false positives
-          // due to `describeConformance`
-          // "If you're using dynamically generated tests, you should disable this rule.""
-          'mocha/no-setup-in-describe': 'off',
-          // `beforeEach` for a single case is optimized for change
-          // when we add a test we don't have to refactor the existing
-          // test to `beforeEach`.
-          // `beforeEach`+`afterEach` also means that the `beforeEach`
-          // is cleaned up in `afterEach` if the test causes a crash
-          'mocha/no-hooks-for-single-case': 'off',
 
           // disable eslint-plugin-jsx-a11y
           // tests are not driven by assistive technology
@@ -97,6 +83,27 @@ export function createTestConfig() {
           // that they don't need type-checking
           'react/prop-types': 'off',
           'react/no-unused-prop-types': 'off',
+          ...(useMocha
+            ? {
+                'mocha/consistent-spacing-between-blocks': 'off',
+
+                // upgraded level from recommended
+                'mocha/no-pending-tests': 'error',
+
+                // no rationale provided in /recommended
+                'mocha/no-mocha-arrows': 'off',
+                // definitely a useful rule but too many false positives
+                // due to `describeConformance`
+                // "If you're using dynamically generated tests, you should disable this rule.""
+                'mocha/no-setup-in-describe': 'off',
+                // `beforeEach` for a single case is optimized for change
+                // when we add a test we don't have to refactor the existing
+                // test to `beforeEach`.
+                // `beforeEach`+`afterEach` also means that the `beforeEach`
+                // is cleaned up in `afterEach` if the test causes a crash
+                'mocha/no-hooks-for-single-case': 'off',
+              }
+            : {}),
         },
       },
     )
