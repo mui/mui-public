@@ -31,9 +31,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm run release:build
-
       - name: Publish canary packages
         run: pnpm release:publish-canary:ci --provenance
         env:
