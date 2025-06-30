@@ -13,8 +13,6 @@
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm --filter \"./packages/**\" run build",
-    "release:publish:ci": "tsx scripts/publish.mjs",
-    "release:publish-canary:ci": "tsx scripts/publish-canary.mjs",
     "pkg-pr-new-packages": "pnpm ls -r --parseable --depth -1 -F \"./packages/**\""
   },
   "pnpm": {
