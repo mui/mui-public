@@ -17,40 +17,37 @@
     "pkg-pr-new-packages": "pnpm ls -r --parseable --depth -1 -F \"./packages/**\"",
     "clean": "pnpm -r exec rm -rf build"
   },
-  "devDependencies": {
+  "pnpm": {
+    "packageExtensions": {
+      "@eslint/config-helpers@*": {
+        "peerDependencies": {
+          "eslint": "*"
+        },
+        "peerDependenciesMeta": {
+          "eslint": {
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
     "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
+    "@eslint/compat": "^1.3.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
-    "@mui/monorepo": "https://github.com/mui/material-ui.git#010de4505361345951824d905d1508d6f258ba67",
+    "@mui/internal-code-infra": "workspace:*",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^24.0.3",
     "@types/semver": "^7.7.0",
     "@typescript-eslint/eslint-plugin": "7.12.0",
     "@typescript-eslint/parser": "7.12.0",
-    "eslint": "8.57.0",
-    "eslint-config-airbnb": "19.0.4",
-    "eslint-config-airbnb-typescript": "18.0.0",
-    "eslint-config-prettier": "9.1.0",
-    "eslint-import-resolver-typescript": "^4.3.4",
-    "eslint-plugin-filenames": "1.3.2",
-    "eslint-plugin-import": "2.29.1",
-    "eslint-plugin-jsx-a11y": "6.8.0",
-    "eslint-plugin-material-ui": "workspace:*",
-    "eslint-plugin-mocha": "10.4.3",
-    "eslint-plugin-react": "7.34.2",
-    "eslint-plugin-react-compiler": "latest",
-    "eslint-plugin-react-hooks": "4.6.2",
-    "eslint-plugin-testing-library": "^6.2.2",
-    "eslint-plugin-typescript-enum": "2.1.0",
+    "eslint": "^9.29.0",
     "lerna": "^8.2.2",
-    "prettier": "^3.3.3",
-    "pretty-quick": "^4.0.0",
+    "prettier": "^3.5.3",
+    "pretty-quick": "^4.2.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.3"
-  },
-  "dependencies": {
-    "@next/eslint-plugin-next": "^14.2.4",
     "execa": "^7.2.0",
     "semver": "^7.7.2",
     "vitest": "^3.1.3"

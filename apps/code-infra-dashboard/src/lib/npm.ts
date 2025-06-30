@@ -1,5 +1,6 @@
 // const HISTORIC_DATA_BASE_URL = 'https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master';
-const HISTORIC_DATA_BASE_URL = 'https://raw.githubusercontent.com/alexfauquette/npm-versions-tracker/refs/heads/seed';
+const HISTORIC_DATA_BASE_URL =
+  'https://raw.githubusercontent.com/alexfauquette/npm-versions-tracker/refs/heads/seed';
 
 export interface PackageDetails {
   name: string;
@@ -87,10 +88,9 @@ export const fetchNpmPackageDetails = async (packageName: string): Promise<Packa
     fetchJson<any>(`https://registry.npmjs.org/${packageName}`),
     fetchJson<any>(`https://api.npmjs.org/versions/${encodedPackageName}/last-week`),
     // Gracefully handle history fetch failure
-    fetchJson<any>(
-      `${HISTORIC_DATA_BASE_URL}/data/${encodeURIComponent(packageName)}.json`,
-      { ignoreHttpErrors: true },
-    ).catch(() => null),
+    fetchJson<any>(`${HISTORIC_DATA_BASE_URL}/data/${encodeURIComponent(packageName)}.json`, {
+      ignoreHttpErrors: true,
+    }).catch(() => null),
   ]);
 
   // Process historical data if available

@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "checkJs": true
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true
   },
-  "include": [".eslintrc.*"]
+  "include": ["eslint.config.*", "prettier.config.*"]
 }

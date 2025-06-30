@@ -84,18 +84,8 @@ async function getPackageVersionInfo(packageName, baseVersion) {
     }
 
     // Get canary dist-tag to find latest canary version
-    let latestCanaryVersion = null;
-    try {
-      const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
-      const canaryTag = canaryResult.stdout.trim();
-
-      // Check if canary tag matches our base version pattern
-      if (canaryTag && canaryTag.startsWith(`${baseVersion}-canary.`)) {
-        latestCanaryVersion = canaryTag;
-      }
-    } catch {
-      // No canary dist-tag found, that's fine
-    }
+    const canaryResult = await $`pnpm view ${packageName} dist-tags.canary`;
+    const latestCanaryVersion = semver.valid(canaryResult.stdout.trim());
 
     return {
       currentVersionExists,
@@ -123,12 +113,9 @@ async function getCurrentGitSha() {
  * @returns {Promise<string|null>} Canary tag name if exists, null otherwise
  */
 async function getLastCanaryTag() {
-  try {
-    await $`git rev-parse --verify ${CANARY_TAG}`;
-    return CANARY_TAG;
-  } catch {
-    return null;
-  }
+  await $`git fetch origin tag ${CANARY_TAG}`;
+  const { stdout: remoteCanaryTag } = await $`git ls-remote --tags origin ${CANARY_TAG}`;
+  return remoteCanaryTag.trim() ? CANARY_TAG : null;
 }
 
 /**
@@ -179,7 +166,25 @@ async function publishPackages(packages, tag, options = {}) {
     args.push('--no-git-checks');
   }
 
-  await $({ stdio: 'inherit' })`pnpm -r publish --tag=${tag} ${args}`;
+  await $({ stdio: 'inherit' })`pnpm -r publish  --access public --tag=${tag} ${args}`;
+}
+
+/**
+ * Get the actual package.json path to use for reading/writing
+ * @param {string} packagePath - Path to package directory
+ * @returns {Promise<string>} Path to the package.json file to use
+ */
+async function getPackageJsonPath(packagePath) {
+  const sourcePackageJsonPath = path.join(packagePath, 'package.json');
+  const sourceContent = await fs.readFile(sourcePackageJsonPath, 'utf8');
+  const sourcePackageJson = JSON.parse(sourceContent);
+
+  // If publishConfig.directory is set, use the build directory instead
+  if (sourcePackageJson.publishConfig?.directory) {
+    return path.join(packagePath, sourcePackageJson.publishConfig.directory, 'package.json');
+  }
+
+  return sourcePackageJsonPath;
 }
 
 /**
@@ -188,7 +193,8 @@ async function publishPackages(packages, tag, options = {}) {
  * @returns {Promise<Object>} Parsed package.json content
  */
 async function readPackageJson(packagePath) {
-  const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');
+  const packageJsonPath = await getPackageJsonPath(packagePath);
+  const content = await fs.readFile(packageJsonPath, 'utf8');
   return JSON.parse(content);
 }
 
@@ -199,8 +205,9 @@ async function readPackageJson(packagePath) {
  * @returns {Promise<void>}
  */
 async function writePackageJson(packagePath, packageJson) {
+  const packageJsonPath = await getPackageJsonPath(packagePath);
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
-  await fs.writeFile(path.join(packagePath, 'package.json'), content);
+  await fs.writeFile(packageJsonPath, content);
 }
 
 /**
@@ -237,6 +244,16 @@ async function publishRegularVersions(packages, packageVersionInfo, options = {}
   packagesToPublish.forEach((pkg) => {
     console.log(`✅ Published ${pkg.name}@${pkg.version}`);
   });
+}
+
+/**
+ * Get the maximum semver version between two versions
+ * @param {string} a
+ * @param {string} b
+ * @returns {string} The maximum semver version
+ */
+function semverMax(a, b) {
+  return semver.gt(a, b) ? a : b;
 }
 
 /**
@@ -277,8 +294,9 @@ async function publishCanaryVersions(
 
     if (changedPackageNames.has(pkg.name)) {
       // Generate new canary version for changed packages
-      const baseVersion =
-        versionInfo.latestCanaryVersion || semver.inc(pkg.version, 'patch') || '0.0.0';
+      const baseVersion = versionInfo.latestCanaryVersion
+        ? semverMax(versionInfo.latestCanaryVersion, pkg.version)
+        : pkg.version;
       const canaryVersion = semver.inc(baseVersion, 'prerelease', 'canary');
       canaryVersions.set(pkg.name, canaryVersion);
       console.log(`🏷️  ${pkg.name}: ${canaryVersion} (new)`);
