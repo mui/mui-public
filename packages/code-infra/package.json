@@ -43,7 +43,7 @@
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.5.3"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.3.3",
