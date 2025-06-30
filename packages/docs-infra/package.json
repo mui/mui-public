@@ -39,6 +39,7 @@
   "dependencies": {
     "@babel/runtime": "^7.27.6",
     "@types/hast": "^3.0.4",
+    "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
     "hast": "^1.0.0",
     "hast-util-to-jsx-runtime": "^2.3.6",
