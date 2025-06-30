@@ -3,8 +3,8 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./shared/pnpm.mjs').Package} Package
- * @typedef {import('./shared/pnpm.mjs').PublishOptions} PublishOptions
+ * @typedef {import('./pnpm.mjs').Package} Package
+ * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
  */
 
 import { Octokit } from '@octokit/rest';
@@ -12,7 +12,14 @@ import * as fs from 'fs/promises';
 import * as semver from 'semver';
 import gitUrlParse from 'git-url-parse';
 import { $ } from 'execa';
-import { getWorkspacePackages, publishPackages } from './shared/pnpm.mjs';
+import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
+
+/**
+ * @typedef {Object} Args
+ * @property {boolean} dry-run Run in dry-run mode without publishing
+ * @property {boolean} no-git-checks - Skip git checks before publishing
+ * @property {boolean} provenance - Enable provenance tracking for the publish
+ */
 
 /**
  * Get the version to release from the root package.json
@@ -250,63 +257,72 @@ async function createRelease(version, changelogContent, repoInfo) {
   );
 }
 
-/**
- * Main publishing function
- * @returns {Promise<void>}
- */
-async function main() {
-  const args = process.argv.slice(2);
-  const dryRun = args.includes('--dry-run');
-  const provenance = args.includes('--provenance');
-  const githubRelease = args.includes('--github-release');
+export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+  command: 'publish',
+  describe: 'Publish packages to npm',
+  builder: (yargs) => {
+    return yargs
+      .option('dry-run', {
+        type: 'boolean',
+        default: false,
+        description: 'Run in dry-run mode without publishing',
+      })
+      .option('no-git-checks', {
+        type: 'boolean',
+        default: false,
+        description: 'Skip git checks before publishing',
+      })
+      .option('provenance', {
+        type: 'boolean',
+        default: false,
+        description: 'Enable provenance tracking for the publish',
+      });
+  },
+  handler: async (argv) => {
+    const { dryRun = false, provenance = false, githubRelease = false } = argv;
 
-  const options = { dryRun, provenance };
+    const options = { dryRun, provenance };
 
-  if (dryRun) {
-    console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
-  }
+    if (dryRun) {
+      console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
+    }
 
-  if (provenance) {
-    console.log('🔐 Provenance enabled - packages will include provenance information\n');
-  }
+    if (provenance) {
+      console.log('🔐 Provenance enabled - packages will include provenance information\n');
+    }
 
-  // Get all packages
-  console.log('🔍 Discovering all workspace packages...');
-  const allPackages = await getWorkspacePackages();
+    // Get all packages
+    console.log('🔍 Discovering all workspace packages...');
+    const allPackages = await getWorkspacePackages();
 
-  if (allPackages.length === 0) {
-    console.log('⚠️  No public packages found in workspace');
-    return;
-  }
+    if (allPackages.length === 0) {
+      console.log('⚠️  No public packages found in workspace');
+      return;
+    }
 
-  // Get version from root package.json
-  const version = await getReleaseVersion();
-  console.log(`📋 Release version: ${version}`);
+    // Get version from root package.json
+    const version = await getReleaseVersion();
+    console.log(`📋 Release version: ${version}`);
 
-  // Early validation for GitHub release (before any publishing)
-  let githubReleaseData = null;
-  if (githubRelease) {
-    githubReleaseData = await validateGitHubRelease(version);
-  }
+    // Early validation for GitHub release (before any publishing)
+    let githubReleaseData = null;
+    if (githubRelease) {
+      githubReleaseData = await validateGitHubRelease(version);
+    }
 
-  // Publish to npm (pnpm handles duplicate checking automatically)
-  await publishToNpm(allPackages, options);
+    // Publish to npm (pnpm handles duplicate checking automatically)
+    await publishToNpm(allPackages, options);
 
-  // Create GitHub release or git tag after successful npm publishing
-  if (githubRelease && githubReleaseData && !dryRun) {
-    await createRelease(version, githubReleaseData.changelogContent, githubReleaseData.repoInfo);
-  } else if (githubRelease && dryRun) {
-    console.log('\n🚀 Would create GitHub draft release (dry-run)');
-  } else {
-    // Create git tag when not doing GitHub release
-    await createGitTag(version, dryRun);
-  }
+    // Create GitHub release or git tag after successful npm publishing
+    if (githubRelease && githubReleaseData && !dryRun) {
+      await createRelease(version, githubReleaseData.changelogContent, githubReleaseData.repoInfo);
+    } else if (githubRelease && dryRun) {
+      console.log('\n🚀 Would create GitHub draft release (dry-run)');
+    } else {
+      // Create git tag when not doing GitHub release
+      await createGitTag(version, dryRun);
+    }
 
-  console.log('\n🏁 Publishing complete!');
-}
-
-// Run the script
-main().catch((error) => {
-  console.error('❌ Publishing failed:', error.message);
-  process.exit(1);
+    console.log('\n🏁 Publishing complete!');
+  },
 });

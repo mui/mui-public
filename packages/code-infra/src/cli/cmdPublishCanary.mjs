@@ -2,13 +2,19 @@
 
 /* eslint-disable no-console */
 
+/**
+ * @typedef {import('./pnpm.mjs').Package} Package
+ * @typedef {import('./pnpm.mjs').VersionInfo} VersionInfo
+ * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
+ */
+
 import { $ } from 'execa';
 import * as semver from 'semver';
 
 /**
- * @typedef {import('./shared/pnpm.mjs').Package} Package
- * @typedef {import('./shared/pnpm.mjs').VersionInfo} VersionInfo
- * @typedef {import('./shared/pnpm.mjs').PublishOptions} PublishOptions
+ * @typedef {Object} Args
+ * @property {boolean} [dryRun] - Whether to run in dry-run mode
+ * @property {boolean} [provenance] - Whether to include provenance information
  */
 
 import {
@@ -19,7 +25,7 @@ import {
   writePackageJson,
   getCurrentGitSha,
   semverMax,
-} from './shared/pnpm.mjs';
+} from './pnpm.mjs';
 
 const CANARY_TAG = 'canary';
 
@@ -171,67 +177,75 @@ async function publishCanaryVersions(
   }
 }
 
-/**
- * Main publishing function
- * @returns {Promise<void>}
- */
-async function main() {
-  const args = process.argv.slice(2);
-  const dryRun = args.includes('--dry-run');
-  const provenance = args.includes('--provenance');
+export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+  command: 'publish-canary',
+  describe: 'Publish canary packages to npm',
+  builder: (yargs) => {
+    return yargs
+      .option('dry-run', {
+        type: 'boolean',
+        default: false,
+        description: 'Run in dry-run mode without publishing',
+      })
+      .option('provenance', {
+        type: 'boolean',
+        default: false,
+        description: 'Include provenance information in published packages',
+      });
+  },
+  handler: async (argv) => {
+    const { dryRun = false, provenance = false } = argv;
 
-  const options = { dryRun, provenance };
+    const options = { dryRun, provenance };
 
-  if (dryRun) {
-    console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
-  }
+    if (dryRun) {
+      console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
+    }
 
-  if (provenance) {
-    console.log('🔐 Provenance enabled - packages will include provenance information\n');
-  }
+    if (provenance) {
+      console.log('🔐 Provenance enabled - packages will include provenance information\n');
+    }
 
-  // Always get all packages first
-  console.log('🔍 Discovering all workspace packages...');
-  const allPackages = await getWorkspacePackages();
+    // Always get all packages first
+    console.log('🔍 Discovering all workspace packages...');
+    const allPackages = await getWorkspacePackages();
 
-  if (allPackages.length === 0) {
-    console.log('⚠️  No public packages found in workspace');
-    return;
-  }
+    if (allPackages.length === 0) {
+      console.log('⚠️  No public packages found in workspace');
+      return;
+    }
 
-  // Check for canary tag to determine selective publishing
-  const canaryTag = await getLastCanaryTag();
+    // Check for canary tag to determine selective publishing
+    const canaryTag = await getLastCanaryTag();
 
-  console.log(
-    canaryTag
-      ? '🔍 Checking for packages changed since canary tag...'
-      : '🔍 No canary tag found, will publish all packages',
-  );
-  const packages = canaryTag ? await getWorkspacePackages(canaryTag) : allPackages;
+    console.log(
+      canaryTag
+        ? '🔍 Checking for packages changed since canary tag...'
+        : '🔍 No canary tag found, will publish all packages',
+    );
+    const packages = canaryTag ? await getWorkspacePackages(canaryTag) : allPackages;
 
-  console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
-  packages.forEach((pkg) => {
-    console.log(`   • ${pkg.name}@${pkg.version}`);
-  });
+    console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
+    packages.forEach((pkg) => {
+      console.log(`   • ${pkg.name}@${pkg.version}`);
+    });
 
-  // Fetch version info for all packages in parallel
-  console.log('\n🔍 Fetching package version information...');
-  const versionInfoPromises = allPackages.map(async (pkg) => {
-    const versionInfo = await getPackageVersionInfo(pkg.name, pkg.version);
-    return { packageName: pkg.name, versionInfo };
-  });
+    // Fetch version info for all packages in parallel
+    console.log('\n🔍 Fetching package version information...');
+    const versionInfoPromises = allPackages.map(async (pkg) => {
+      const versionInfo = await getPackageVersionInfo(pkg.name, pkg.version);
+      return { packageName: pkg.name, versionInfo };
+    });
 
-  const versionInfoResults = await Promise.all(versionInfoPromises);
-  const packageVersionInfo = new Map();
+    const versionInfoResults = await Promise.all(versionInfoPromises);
+    const packageVersionInfo = new Map();
 
-  for (const { packageName, versionInfo } of versionInfoResults) {
-    packageVersionInfo.set(packageName, versionInfo);
-  }
+    for (const { packageName, versionInfo } of versionInfoResults) {
+      packageVersionInfo.set(packageName, versionInfo);
+    }
 
-  await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
+    await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
 
-  console.log('\n🏁 Publishing complete!');
-}
-
-// Run the script
-main();
+    console.log('\n🏁 Publishing complete!');
+  },
+});

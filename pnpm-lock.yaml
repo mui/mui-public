@@ -370,6 +370,9 @@ importers:
       '@next/eslint-plugin-next':
         specifier: ^15.0.0
         version: 15.3.4
+      '@octokit/rest':
+        specifier: ^22.0.0
+        version: 22.0.0
       eslint-config-airbnb:
         specifier: ^19.0.4
         version: 19.0.4(eslint-plugin-import@2.32.0)(eslint-plugin-jsx-a11y@6.10.2(eslint@9.29.0(jiti@2.4.2)))(eslint-plugin-react-hooks@6.0.0(eslint@9.29.0(jiti@2.4.2)))(eslint-plugin-react@7.37.5(eslint@9.29.0(jiti@2.4.2)))(eslint@9.29.0(jiti@2.4.2))
@@ -406,15 +409,30 @@ importers:
       eslint-plugin-testing-library:
         specifier: ^7.5.3
         version: 7.5.3(eslint@9.29.0(jiti@2.4.2))(typescript@5.8.3)
+      execa:
+        specifier: ^7.2.0
+        version: 7.2.0
+      git-url-parse:
+        specifier: ^16.1.0
+        version: 16.1.0
       globals:
         specifier: ^16.2.0
         version: 16.2.0
       minimatch:
         specifier: ^10.0.3
         version: 10.0.3
+      semver:
+        specifier: ^7.7.2
+        version: 7.7.2
+      tsx:
+        specifier: ^4.20.3
+        version: 4.20.3
       typescript-eslint:
         specifier: ^8.35.0
         version: 8.35.0(eslint@9.29.0(jiti@2.4.2))(typescript@5.8.3)
+      yargs:
+        specifier: ^17.7.2
+        version: 17.7.2
     devDependencies:
       '@types/eslint-plugin-jsx-a11y':
         specifier: ^6.10.0
@@ -425,6 +443,9 @@ importers:
       '@types/estree-jsx':
         specifier: ^1.0.5
         version: 1.0.5
+      '@types/yargs':
+        specifier: ^17.0.33
+        version: 17.0.33
       '@typescript-eslint/parser':
         specifier: ^8.35.0
         version: 8.35.0(eslint@9.29.0(jiti@2.4.2))(typescript@5.8.3)
