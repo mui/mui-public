@@ -1,6 +1,5 @@
-// const HISTORIC_DATA_BASE_URL = 'https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master';
 const HISTORIC_DATA_BASE_URL =
-  'https://raw.githubusercontent.com/alexfauquette/npm-versions-tracker/refs/heads/seed';
+  'https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master';
 
 export interface PackageDetails {
   name: string;
