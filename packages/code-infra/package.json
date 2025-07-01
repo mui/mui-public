@@ -23,11 +23,10 @@
     "test": "pnpm -w test --project @mui/internal-code-infra"
   },
   "dependencies": {
-    "@eslint/eslintrc": "^3.3.1",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^10.1.5",
-    "eslint-import-resolver-typescript": "^4.4.3",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-module-utils": "^2.12.1",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -39,11 +38,11 @@
     "@next/eslint-plugin-next": "^15.0.0",
     "globals": "^16.2.0",
     "minimatch": "^10.0.3",
-    "typescript-eslint": "^8.35.0"
+    "typescript-eslint": "^8.35.1"
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.5.3"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.3.3",
