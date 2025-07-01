@@ -22,7 +22,8 @@ export function createBaseConfig(
 ) {
   const ignoreRules = /** @type {import('@eslint/compat').FlatConfig[]} */ (
     // All repos should use .lintignore going forward.
-    ['.gitignore', '.lintignore']
+    // .eslintignore is for backward compatibility. Should be removed in future.
+    ['.gitignore', '.lintignore', '.eslintignore']
       .map((file) => {
         if (fs.existsSync(`${baseDirectory}/${file}`)) {
           return includeIgnoreFile(path.join(baseDirectory, file), `Ignore rules from ${file}`);
