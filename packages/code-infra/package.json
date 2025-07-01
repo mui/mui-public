@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/mui/mui-public.git",
-    "directory": "packages/mui-internal-code-infra"
+    "directory": "packages/code-infra"
   },
   "sideEffects": false,
   "exports": {
@@ -27,12 +27,12 @@
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@next/eslint-plugin-next": "^15.0.0",
+    "@next/eslint-plugin-next": "^15.3.3",
     "@octokit/rest": "^22.0.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^10.1.5",
-    "eslint-import-resolver-typescript": "^4.4.3",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-module-utils": "^2.12.1",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -46,23 +46,14 @@
     "globals": "^16.2.0",
     "minimatch": "^10.0.3",
     "semver": "^7.7.2",
-    "typescript-eslint": "^8.35.0",
+    "typescript-eslint": "^8.35.1",
     "yargs": "^17.7.2"
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
-    "prettier": "^3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "eslint": {
-      "optional": true
-    },
-    "prettier": {
-      "optional": true
-    }
+    "prettier": "^3.5.3"
   },
   "devDependencies": {
-    "@next/eslint-plugin-next": "^15.3.3",
     "@types/eslint-plugin-jsx-a11y": "^6.10.0",
     "@types/estree": "^1.0.8",
     "@types/estree-jsx": "^1.0.5",
