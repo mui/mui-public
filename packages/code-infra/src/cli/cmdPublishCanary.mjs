@@ -223,7 +223,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         ? '🔍 Checking for packages changed since canary tag...'
         : '🔍 No canary tag found, will publish all packages',
     );
-    const packages = canaryTag ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true }) : allPackages;
+    const packages = canaryTag
+      ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
+      : allPackages;
 
     console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
     packages.forEach((pkg) => {

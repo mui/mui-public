@@ -40,15 +40,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const { publicOnly = false, json = false, sinceRef } = argv;
 
     try {
+      // Get packages using our helper function
+      const packages = await getWorkspacePackages({ sinceRef, publicOnly });
+
       if (json) {
-        // Return raw JSON from pnpm ls
-        const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
-        const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
-        console.log(result.stdout);
+        // Serialize packages to JSON
+        console.log(JSON.stringify(packages, null, 2));
       } else {
-        // Get packages using our helper function
-        const packages = await getWorkspacePackages({ sinceRef, publicOnly });
-        
         // Print package names only
         packages.forEach((pkg) => {
           console.log(pkg.name);

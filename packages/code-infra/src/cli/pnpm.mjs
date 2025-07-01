@@ -46,7 +46,7 @@ import * as semver from 'semver';
  */
 export async function getWorkspacePackages(options = {}) {
   const { sinceRef = null, publicOnly = false } = options;
-  
+
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
   const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
