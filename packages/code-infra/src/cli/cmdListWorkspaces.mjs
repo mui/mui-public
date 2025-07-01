@@ -6,7 +6,6 @@
  * @typedef {import('./pnpm.mjs').Package} Package
  */
 
-import { $ } from 'execa';
 import { getWorkspacePackages } from './pnpm.mjs';
 
 /**
