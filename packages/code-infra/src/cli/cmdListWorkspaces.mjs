@@ -6,6 +6,8 @@
  * @typedef {import('./pnpm.mjs').Package} Package
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { getWorkspacePackages } from './pnpm.mjs';
 
 /**
@@ -27,10 +29,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('output', {
         type: 'string',
-        choices: ['json', 'path', 'name'],
+        choices: ['json', 'path', 'name', 'publish-dir'],
         default: 'name',
         description:
-          'Output format: name (package names), path (package paths), or json (full JSON)',
+          'Output format: name (package names), path (package paths), publish-dir (publish directories), or json (full JSON)',
       })
       .option('since-ref', {
         type: 'string',
@@ -51,6 +53,29 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         // Print package paths
         packages.forEach((pkg) => {
           console.log(pkg.path);
+        });
+      } else if (output === 'publish-dir') {
+        // Print publish directories (package.json publishConfig.directory or package path)
+        const publishDirs = await Promise.all(
+          packages.map(async (pkg) => {
+            try {
+              const packageJsonPath = path.join(pkg.path, 'package.json');
+              const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');
+              const packageJson = JSON.parse(packageJsonContent);
+
+              if (packageJson.publishConfig?.directory) {
+                return path.join(pkg.path, packageJson.publishConfig.directory);
+              }
+              return pkg.path;
+            } catch (error) {
+              // If we can't read package.json, fall back to package path
+              return pkg.path;
+            }
+          }),
+        );
+
+        publishDirs.forEach((dir) => {
+          console.log(dir);
         });
       } else {
         // Print package names (default)
