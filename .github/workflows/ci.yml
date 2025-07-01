@@ -30,4 +30,4 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install
       - run: pnpm release:build
-      - run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=path) --pnpm --comment=off --peerDeps --compact
+      - run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=path) --pnpm --packageManager=pnpm --comment=off --peerDeps --compact
