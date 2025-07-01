@@ -1,4 +1,7 @@
-import CodeHighlighter, { ContentProps, hastOrJsonToJsx } from '../../CodeHighlighter';
+import CodeHighlighter, {
+  ContentProps,
+  hastOrJsonToJsx,
+} from '@mui/internal-docs-infra/CodeHighlighter/';
 
 function CodeContent(props: ContentProps) {
   return (

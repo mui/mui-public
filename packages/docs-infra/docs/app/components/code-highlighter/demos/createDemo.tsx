@@ -1,7 +1,12 @@
 import * as React from 'react';
-import CodeHighlighter from '../../CodeHighlighter';
-import type { CodeHighlighterProps, Components, ContentProps } from '../../CodeHighlighter';
-import { hastOrJsonToJsx } from '../../CodeHighlighter';
+import CodeHighlighter from '@mui/internal-docs-infra/CodeHighlighter/';
+import { hastOrJsonToJsx } from '@mui/internal-docs-infra/CodeHighlighter/';
+
+import type {
+  CodeHighlighterProps,
+  Components,
+  ContentProps,
+} from '@mui/internal-docs-infra/CodeHighlighter/';
 
 function DemoContent(props: ContentProps) {
   return (
@@ -51,22 +56,4 @@ function createDemo(
   return Component as Demo;
 }
 
-const Demo = createDemo(
-  import.meta.url,
-  {
-    Default: () => <div>Default Demo Component</div>,
-  },
-  {
-    name: 'Demo',
-    slug: 'demo',
-    description: 'This is a demo component for CodeHighlighter.',
-    code: {
-      Default: {
-        fileName: 'index.js',
-        source: `() => <div>Default Demo Component</div>`,
-      },
-    },
-  },
-);
-
-export default Demo;
+export default createDemo;

@@ -1,3 +1,2 @@
-import CodeHighlighter from './CodeHighlighter';
-
-export default CodeHighlighter;
+export * from './CodeHighlighter';
+export { default } from './CodeHighlighter';
