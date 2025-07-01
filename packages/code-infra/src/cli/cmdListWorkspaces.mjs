@@ -55,6 +55,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           console.log(pkg.path);
         });
       } else if (output === 'publish-dir') {
+        // TODO: Remove this option once https://github.com/stackblitz-labs/pkg.pr.new/issues/389 is resolved
         // Print publish directories (package.json publishConfig.directory or package path)
         const publishDirs = await Promise.all(
           packages.map(async (pkg) => {
@@ -73,11 +74,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         publishDirs.forEach((dir) => {
           console.log(dir);
         });
-      } else {
+      } else if (output === 'name') {
         // Print package names (default)
         packages.forEach((pkg) => {
           console.log(pkg.name);
         });
+      } else {
+        throw new Error(`Unsupported output format: ${output}`);
       }
     } catch (/** @type {any} */ error) {
       console.error('Error listing workspaces:', error.message);
