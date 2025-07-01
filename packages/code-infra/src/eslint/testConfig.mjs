@@ -74,6 +74,7 @@ export function createTestConfig(options = {}) {
           'jsx-a11y/no-noninteractive-tabindex': 'off',
           'jsx-a11y/no-static-element-interactions': 'off',
           'jsx-a11y/tabindex-no-positive': 'off',
+          'jsx-a11y/anchor-is-valid': 'off',
 
           // In tests this is generally intended.
           'react/button-has-type': 'off',

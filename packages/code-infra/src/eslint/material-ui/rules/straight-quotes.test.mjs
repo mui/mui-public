@@ -1,5 +1,3 @@
-/* eslint-disable material-ui/straight-quotes */
-
 import eslint from 'eslint';
 import parser from '@typescript-eslint/parser';
 import rule from './straight-quotes.mjs';
