@@ -16,7 +16,7 @@ export function createCoreConfig(options = {}) {
       name: 'material-ui-base',
       rules: {
         'no-redeclare': 'off',
-        '@typescript-eslint/no-redeclare': 'error',
+        '@typescript-eslint/no-redeclare': 'off',
         'consistent-this': ['error', 'self'],
         curly: ['error', 'all'],
         'dot-notation': 'error',
@@ -94,7 +94,7 @@ export function createCoreConfig(options = {}) {
         'material-ui/rules-of-use-theme-variants': 'error',
         'material-ui/no-empty-box': 'error',
         'material-ui/no-styled-box': 'error',
-        'material-ui/straight-quotes': 'error',
+        'material-ui/straight-quotes': 'off',
 
         'react-hooks/exhaustive-deps': ['error', { additionalHooks: 'useEnhancedEffect' }],
         'react-hooks/rules-of-hooks': 'error',
