@@ -11,7 +11,7 @@ import { getWorkspacePackages } from './pnpm.mjs';
 /**
  * @typedef {Object} Args
  * @property {boolean} [publicOnly] - Whether to filter to only public packages
- * @property {boolean} [json] - Whether to return raw JSON output
+ * @property {'json'|'path'|'name'} [output] - Output format (name, path, or json)
  * @property {string} [sinceRef] - Git reference to filter changes since
  */
 
@@ -25,10 +25,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Filter to only public packages',
       })
-      .option('json', {
-        type: 'boolean',
-        default: false,
-        description: 'Return raw JSON from pnpm ls',
+      .option('output', {
+        type: 'string',
+        choices: ['json', 'path', 'name'],
+        default: 'name',
+        description:
+          'Output format: name (package names), path (package paths), or json (full JSON)',
       })
       .option('since-ref', {
         type: 'string',
@@ -36,17 +38,22 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   handler: async (argv) => {
-    const { publicOnly = false, json = false, sinceRef } = argv;
+    const { publicOnly = false, output = 'name', sinceRef } = argv;
 
     try {
       // Get packages using our helper function
       const packages = await getWorkspacePackages({ sinceRef, publicOnly });
 
-      if (json) {
+      if (output === 'json') {
         // Serialize packages to JSON
         console.log(JSON.stringify(packages, null, 2));
+      } else if (output === 'path') {
+        // Print package paths
+        packages.forEach((pkg) => {
+          console.log(pkg.path);
+        });
       } else {
-        // Print package names only
+        // Print package names (default)
         packages.forEach((pkg) => {
           console.log(pkg.name);
         });
