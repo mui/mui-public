@@ -34,20 +34,28 @@ import * as semver from 'semver';
  */
 
 /**
- * Get all workspace packages that are public
- * @param {string|null} [sinceRef] - Git reference to filter changes since
- * @returns {Promise<Package[]>} Array of public packages
+ * @typedef {Object} GetWorkspacePackagesOptions
+ * @property {string|null} [sinceRef] - Git reference to filter changes since
+ * @property {boolean} [publicOnly=false] - Whether to filter to only public packages
  */
-export async function getWorkspacePackages(sinceRef = null) {
+
+/**
+ * Get workspace packages with optional filtering
+ * @param {GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<Package[]>} Array of packages
+ */
+export async function getWorkspacePackages(options = {}) {
+  const { sinceRef = null, publicOnly = false } = options;
+
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
   const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
   /** @type {PnpmListResultItem[]} */
   const packageData = JSON.parse(result.stdout);
 
-  // Filter out private packages and format the response
-  const publicPackages = packageData
-    .filter((pkg) => !pkg.private)
+  // Filter packages based on options
+  const filteredPackages = packageData
+    .filter((pkg) => !publicOnly || !pkg.private)
     .map((pkg) => {
       if (!pkg.name || !pkg.version) {
         throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
@@ -59,7 +67,7 @@ export async function getWorkspacePackages(sinceRef = null) {
       };
     });
 
-  return publicPackages;
+  return filteredPackages;
 }
 
 /**
