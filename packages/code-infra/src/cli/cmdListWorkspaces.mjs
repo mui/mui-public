@@ -13,7 +13,7 @@ import { getWorkspacePackages } from './pnpm.mjs';
 /**
  * @typedef {Object} Args
  * @property {boolean} [publicOnly] - Whether to filter to only public packages
- * @property {'json'|'path'|'name'} [output] - Output format (name, path, or json)
+ * @property {'json'|'path'|'name'|'publish-dir'} [output] - Output format (name, path, or json)
  * @property {string} [sinceRef] - Git reference to filter changes since
  */
 
