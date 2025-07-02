@@ -208,7 +208,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Always get all packages first
     console.log('🔍 Discovering all workspace packages...');
-    const allPackages = await getWorkspacePackages();
+    const allPackages = await getWorkspacePackages({ publicOnly: true });
 
     if (allPackages.length === 0) {
       console.log('⚠️  No public packages found in workspace');
@@ -223,7 +223,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         ? '🔍 Checking for packages changed since canary tag...'
         : '🔍 No canary tag found, will publish all packages',
     );
-    const packages = canaryTag ? await getWorkspacePackages(canaryTag) : allPackages;
+    const packages = canaryTag
+      ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
+      : allPackages;
 
     console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
     packages.forEach((pkg) => {

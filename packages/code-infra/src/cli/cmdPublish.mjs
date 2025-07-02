@@ -293,7 +293,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
-    const allPackages = await getWorkspacePackages();
+    const allPackages = await getWorkspacePackages({ publicOnly: true });
 
     if (allPackages.length === 0) {
       console.log('⚠️  No public packages found in workspace');
