@@ -3,11 +3,6 @@
   "version": "0.1.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
-  "main": "./index.js",
-  "exports": {
-    ".": "./index.js",
-    "./*": "./*/index.js"
-  },
   "keywords": [
     "react",
     "react-component",
