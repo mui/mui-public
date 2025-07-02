@@ -28,6 +28,8 @@ jobs:
           node-version: '22'
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
-      - run: pnpm release:prepare
+      - run: pnpm install
       - run: pnpm release:build
-      - run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=path) --pnpm --comment=off --peerDeps --compact
+      - run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=off --peerDeps --compact
+      # TODO: Replace with the following when https://github.com/stackblitz-labs/pkg.pr.new/issues/389 is resolved
+      # - run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=path) --pnpm --packageManager=pnpm --comment=off --peerDeps --compact
