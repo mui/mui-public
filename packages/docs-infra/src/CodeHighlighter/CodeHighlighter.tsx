@@ -1,125 +1,36 @@
+import type {
+  Code,
+  CodeHighlighterProps,
+  ContentLoadingProps,
+  Fallback,
+  VariantCode,
+  VariantExtraFiles,
+  VariantSource,
+} from './types';
+
 import * as React from 'react';
-import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
-import { toText } from 'hast-util-to-text';
-import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
+import { loadVariant } from './loadVariant';
+import { loadFallbackVariant } from './loadFallbackVariant';
+import { stringOrHastToJsx } from './hast';
 
-import type { Nodes as HastNodes } from 'hast';
+interface CodeHighlighterInnerProps extends Omit<CodeHighlighterProps, 'precompute'> {
+  fallback?: Fallback;
+}
 
-export type Components = { [key: string]: React.ReactNode };
-
-type CodeMeta = {
-  fileName: string;
-};
-type VariantExtraFiles = {
-  [fileName: string]: null | (CodeMeta & { source?: string | HastNodes | { hastJson: string } });
-};
-type VariantCode = CodeMeta & {
-  source?: string | HastNodes | { hastJson: string };
-  extraFiles?: VariantExtraFiles;
-};
-type Code = { [key: string]: VariantCode };
-type ParsedVariantCode = CodeMeta & {
-  source: HastNodes | { hastJson: string };
-  extraFiles: { [fileName: string]: CodeMeta & { source: HastNodes | { hastJson: string } } };
-};
-type ParsedCode = { [key: string]: ParsedVariantCode };
-
-type Options = { name?: string; slug?: string; description?: string };
-export type ContentProps = { code: ParsedCode; components?: Components } & Options;
-export type ContentLoadingProps = { fileNames: string[]; source: React.ReactNode };
-
-type ErrorHandler = React.ComponentType<{ error: Error }>;
-
-export type CodeHighlighterClientProps = Options & {
-  Content: React.ComponentType<ContentProps>;
-  code?: Code;
-  components?: Components;
-  variant?: string;
-  defaultVariant?: string;
-  ErrorHandler?: ErrorHandler;
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
-  url?: string;
-  fallback?: React.ReactNode;
-};
-
-export type CodeHighlighterInnerProps = Options & {
-  Content: React.ComponentType<ContentProps>;
-  code?: Code;
-  components?: Components;
-  variant?: string;
-  defaultVariant?: string;
-  ErrorHandler?: ErrorHandler;
-  clientOnly?: boolean;
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
-  url?: string;
-  fallback?: React.ReactNode;
-  loadVariantCode?: (variantName: string, url?: string) => Promise<VariantCode>;
-  loadSource?: (variantName: string, fileName: string, url?: string) => Promise<string>;
-  parseSource?: (source: string) => Promise<HastNodes>;
-};
-
-type CodeHighlighterWithInitialSourceProps = Options & {
-  Content: React.ComponentType<ContentProps>;
-  code: Code; // e
-  initialVariant: string; // e
-  initialFilename: string; // e
-  initialSource: string | HastNodes | { hastJson: string }; // e
-  initialExtraFiles?: VariantExtraFiles; // e
-  components?: Components;
-  variant?: string;
-  defaultVariant?: string;
-  ContentLoading: React.ComponentType<ContentLoadingProps>; // e
-  ErrorHandler?: ErrorHandler;
-  clientOnly?: boolean;
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
-  fallbackUsesExtraFiles?: boolean;
-  fallbackUsesAllVariants?: boolean;
-  url?: string;
-  loadVariantCode?: (variantName: string, url?: string) => Promise<VariantCode>;
-  loadSource?: (variantName: string, fileName: string, url?: string) => Promise<string>;
-  parseSource?: (source: string) => Promise<HastNodes>;
-};
-
-type CodeInitialSourceLoaderProps = Options & {
-  Content: React.ComponentType<ContentProps>;
-  code?: Code;
-  components?: Components;
-  variant?: string;
-  initialVariant: string; // e
-  initial?: VariantCode; // e
-  defaultVariant?: string;
-  precompute?: boolean | Code;
+interface CodeHighlighterWithInitialSourceProps extends Omit<CodeHighlighterProps, 'precompute'> {
+  code: Code;
+  initialVariant: string;
+  initialFilename: string;
+  initialSource: VariantSource;
+  initialExtraFiles?: VariantExtraFiles;
   ContentLoading: React.ComponentType<ContentLoadingProps>;
-  ErrorHandler?: ErrorHandler;
-  clientOnly?: boolean;
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
-  fallbackUsesExtraFiles?: boolean;
-  fallbackUsesAllVariants?: boolean;
-  url?: string;
-  loadVariantCode?: (variantName: string, url?: string) => Promise<VariantCode>;
-  loadSource?: (variantName: string, fileName: string, url?: string) => Promise<string>;
-  parseSource?: (source: string) => Promise<HastNodes>;
-};
+}
 
-export type CodeHighlighterProps = Options & {
-  Content: React.ComponentType<ContentProps>;
-  code?: Code;
-  components?: Components;
-  variant?: string;
-  initialVariant?: string;
-  defaultVariant?: string;
-  precompute?: boolean | Code;
-  ContentLoading?: React.ComponentType<ContentLoadingProps>;
-  ErrorHandler?: ErrorHandler;
-  clientOnly?: boolean;
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
-  fallbackUsesExtraFiles?: boolean;
-  fallbackUsesAllVariants?: boolean;
-  url?: string;
-  loadVariantCode?: (variantName: string, url?: string) => Promise<VariantCode>;
-  loadSource?: (variantName: string, fileName: string, url?: string) => Promise<string>;
-  parseSource?: (source: string) => Promise<HastNodes>;
-};
+interface CodeInitialSourceLoaderProps extends Omit<CodeHighlighterProps, 'precompute'> {
+  initialVariant: string;
+  initial?: VariantCode;
+  ContentLoading: React.ComponentType<ContentLoadingProps>;
+}
 
 const DEFAULT_HIGHLIGHT_AT = 'stream';
 
@@ -127,10 +38,7 @@ function HighlightErrorHandler({ error }: { error: Error }) {
   return <div>Error: {error.message}</div>;
 }
 
-function isSourceLoaded(
-  code: { source?: string | HastNodes | { hastJson: string } },
-  highlightAt?: string,
-): boolean {
+function isSourceLoaded(code: { source?: VariantSource }, highlightAt?: string): boolean {
   if (!code.source) {
     return false;
   }
@@ -151,81 +59,8 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
 
   const variantNames = Object.keys(props.components || props.code || {});
   const variantCodes = await Promise.all(
-    variantNames.map(
-      async (variant): Promise<{ error: Error } | { variant: string; code: VariantCode }> => {
-        let codeVariant = props.code?.[variant];
-        if (!codeVariant) {
-          const loadVariantCode = props.loadVariantCode;
-          if (!loadVariantCode) {
-            return {
-              error: new Error(
-                '"loadVariantCode" function is required when filenames are not provided',
-              ),
-            };
-          }
-
-          try {
-            codeVariant = await loadVariantCode(variant, props.url);
-          } catch (error) {
-            return {
-              error: new Error(
-                `Failed to load variant code (variant: ${variant}, url: ${props.url}): ${JSON.stringify(error)}`,
-              ),
-            };
-          }
-        }
-
-        const filename = codeVariant.fileName;
-        let source = codeVariant.source;
-        if (!source) {
-          const loadSource = props.loadSource;
-          if (!loadSource) {
-            return {
-              error: new Error('"loadSource" function is required when source is not provided'),
-            };
-          }
-
-          try {
-            source = await loadSource(variant, filename, props.url);
-            codeVariant = { ...codeVariant, source };
-          } catch (error) {
-            return {
-              error: new Error(
-                `Failed to load source code (variant: ${variant}, file: ${filename}, url: ${props.url}): ${JSON.stringify(error)}`,
-              ),
-            };
-          }
-        }
-
-        if (typeof source === 'string') {
-          const parseSource = props.parseSource;
-          if (!parseSource) {
-            return {
-              error: new Error(
-                '"parseSource" function is required when source is a string and highlightAt is "init"',
-              ),
-            };
-          }
-
-          try {
-            source = await parseSource(source);
-            codeVariant = { ...codeVariant, source };
-          } catch (error) {
-            return {
-              error: new Error(
-                `Failed to parse source code (variant: ${variant}, file: ${filename}, url: ${props.url}): ${JSON.stringify(error)}`,
-              ),
-            };
-          }
-        }
-
-        // TODO: extraFiles handling
-
-        return {
-          variant,
-          code: codeVariant,
-        };
-      },
+    variantNames.map((variantName) =>
+      loadVariant(variantName, props.url, props.code?.[variantName]).catch((error) => ({ error })),
     ),
   );
 
@@ -291,49 +126,11 @@ function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
   return <div>test</div>; // TODO: to codehighlighterclient
 }
 
-export function hastToJsx(hast: HastNodes): React.ReactNode {
-  return toJsxRuntime(hast, { Fragment, jsx, jsxs });
-}
-
-export function hastOrJsonToJsx(hastOrJson: HastNodes | { hastJson: string }): React.ReactNode {
-  let hast: HastNodes;
-  if ('hastJson' in hastOrJson) {
-    try {
-      hast = JSON.parse(hastOrJson.hastJson);
-    } catch (error) {
-      throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
-    }
-  } else {
-    hast = hastOrJson;
-  }
-
-  return toJsxRuntime(hast, { Fragment, jsx, jsxs });
-}
-
-function stringOrHastToJsx(
-  source: string | HastNodes | { hastJson: string },
-  highlighted?: boolean,
-): React.ReactNode {
-  if (typeof source === 'string') {
-    return <pre>{source}</pre>;
-  }
-
-  let hast: HastNodes;
-  if ('hastJson' in source) {
-    try {
-      hast = JSON.parse(source.hastJson);
-    } catch (error) {
-      throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
-    }
-  } else {
-    hast = source;
-  }
-
-  if (highlighted) {
-    return <pre>{hastToJsx(hast)}</pre>;
-  }
-
-  return <pre>{toText(hast)}</pre>;
+/**
+ * Ensures that the suspense boundary is always rendered, even if none of the children have async operations.
+ */
+async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
+  return props.children;
 }
 
 function CodeHighlighterWithInitialSource(props: CodeHighlighterWithInitialSourceProps) {
@@ -347,13 +144,9 @@ function CodeHighlighterWithInitialSource(props: CodeHighlighterWithInitialSourc
     ...props,
     fallback,
   };
-  delete (innerProps as any).ContentLoading;
-  delete (innerProps as any).initialVariant;
   delete (innerProps as any).initialFilename;
   delete (innerProps as any).initialSource;
   delete (innerProps as any).initialExtraFiles;
-  delete (innerProps as any).fallbackUsesExtraFiles;
-  delete (innerProps as any).fallbackUsesAllVariants;
 
   if (props.clientOnly) {
     return <CodeHighlighterInner {...innerProps} />;
@@ -361,8 +154,9 @@ function CodeHighlighterWithInitialSource(props: CodeHighlighterWithInitialSourc
 
   return (
     <React.Suspense fallback={fallback}>
-      {/* TODO: We need to wrap this in async so it always fallsback */}
-      <CodeHighlighterInner {...innerProps} />
+      <CodeHighlighterSuspense>
+        <CodeHighlighterInner {...innerProps} />
+      </CodeHighlighterSuspense>
     </React.Suspense>
   );
 }
@@ -370,104 +164,24 @@ function CodeHighlighterWithInitialSource(props: CodeHighlighterWithInitialSourc
 async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  const code = props.code || {};
-  let initial = props.initial;
-  if (!initial) {
-    const loadVariantCode = props.loadVariantCode;
-    if (!loadVariantCode) {
-      return (
-        <ErrorHandler
-          error={
-            new Error(
-              '"loadVariantCode" function is required when initial filenames are not provided',
-            )
-          }
-        />
-      );
-    }
-
-    try {
-      initial = await loadVariantCode(props.initialVariant, props.url);
-      code[props.initialVariant] = initial;
-    } catch (error) {
-      return (
-        <ErrorHandler
-          error={
-            new Error(
-              `Failed to load initial variant code (variant: ${props.initialVariant}, url: ${props.url}): ${JSON.stringify(error)}`,
-            )
-          }
-        />
-      );
-    }
+  const loaded = await loadFallbackVariant(
+    props.initialVariant,
+    props.highlightAt === 'init',
+    props.code || {},
+    props.initial,
+  ).catch((error) => ({ error }));
+  if ('error' in loaded) {
+    return <ErrorHandler error={loaded.error} />;
   }
 
-  const initialFilename = initial.fileName;
-  let initialSource = initial.source;
-  if (!initialSource) {
-    const loadSource = props.loadSource;
-    if (!loadSource) {
-      return (
-        <ErrorHandler
-          error={new Error('"loadSource" function is required when initial source is not provided')}
-        />
-      );
-    }
-
-    try {
-      initialSource = await loadSource(props.initialVariant, initialFilename, props.url);
-      code[props.initialVariant] = { ...(code[props.initialVariant] || {}), source: initialSource };
-    } catch (error) {
-      return (
-        <ErrorHandler
-          error={
-            new Error(
-              `Failed to load initial source code (variant: ${props.initialVariant}, file: ${initialFilename}, url: ${props.url}): ${JSON.stringify(error)}`,
-            )
-          }
-        />
-      );
-    }
-  }
-
-  if (props.highlightAt === 'init' && typeof initialSource === 'string') {
-    const parseSource = props.parseSource;
-    if (!parseSource) {
-      return (
-        <ErrorHandler
-          error={
-            new Error(
-              '"parseSource" function is required when initial source is a string and highlightAt is "init"',
-            )
-          }
-        />
-      );
-    }
-
-    try {
-      initialSource = await parseSource(initialSource);
-      code[props.initialVariant] = { ...(code[props.initialVariant] || {}), source: initialSource };
-    } catch (error) {
-      return (
-        <ErrorHandler
-          error={
-            new Error(
-              `Failed to parse initial source code (variant: ${props.initialVariant}, file: ${initialFilename}, url: ${props.url}): ${JSON.stringify(error)}`,
-            )
-          }
-        />
-      );
-    }
-  }
-
-  // TODO: handle fallbackUsesExtraFiles and fallbackUsesAllVariants
+  const { code, initialFilename, initialSource, initialExtraFiles } = loaded;
 
   const propsWithInitialSource: CodeHighlighterWithInitialSourceProps = {
     ...props,
     code,
     initialFilename,
     initialSource,
-    initialExtraFiles: initial.extraFiles || {},
+    initialExtraFiles,
   };
   delete (propsWithInitialSource as any).initial;
 
@@ -476,6 +190,7 @@ async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
 
 function CodeHighlighter(props: CodeHighlighterProps) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+
   if (props.precompute === true) {
     return <ErrorHandler error={new Error('Precompute enabled, but not provided')} />;
   }
@@ -501,11 +216,7 @@ function CodeHighlighter(props: CodeHighlighterProps) {
       ...props,
       code,
     };
-    delete (innerProps as any).ContentLoading;
     delete (innerProps as any).precompute;
-    delete (innerProps as any).initialVariant;
-    delete (innerProps as any).fallbackUsesExtraFiles;
-    delete (innerProps as any).fallbackUsesAllVariants;
 
     return <CodeHighlighterInner {...innerProps} />;
   }
@@ -540,14 +251,15 @@ function CodeHighlighter(props: CodeHighlighterProps) {
       );
     }
 
-    return (
-      <CodeInitialSourceLoader
-        {...props}
-        ContentLoading={ContentLoading}
-        initialVariant={initialKey}
-        initial={initial}
-      />
-    );
+    const propsWithInitial: CodeInitialSourceLoaderProps = {
+      ...props,
+      ContentLoading,
+      initialVariant: initialKey,
+      initial,
+    };
+    delete (propsWithInitial as any).precompute;
+
+    return <CodeInitialSourceLoader {...propsWithInitial} />;
   }
 
   const propsWithInitialSource: CodeHighlighterWithInitialSourceProps = {
@@ -559,6 +271,7 @@ function CodeHighlighter(props: CodeHighlighterProps) {
     initialSource,
     initialExtraFiles: initial.extraFiles,
   };
+  delete (propsWithInitialSource as any).precompute;
 
   return <CodeHighlighterWithInitialSource {...propsWithInitialSource} />;
 }

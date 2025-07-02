@@ -1,5 +1,6 @@
-import CodeHighlighter, { ContentProps } from './CodeHighlighter';
-import { hastOrJsonToJsx } from './CodeHighlighter';
+import type { ContentProps } from './types';
+import CodeHighlighter from './CodeHighlighter';
+import { hastOrJsonToJsx } from './hast';
 
 function Content(props: ContentProps) {
   return <div>{hastOrJsonToJsx(props.code.Default.source)}</div>;
