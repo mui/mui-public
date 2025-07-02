@@ -60,6 +60,9 @@ jobs:
       - run:
           name: Typescript
           command: pnpm typescript
+      - run:
+          name: JSON
+          command: pnpm code-infra jsonlint --silent
   test_static:
     <<: *default-job
     steps:

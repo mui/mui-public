@@ -1,4 +1,3 @@
-// eslint-disable-next-line material-ui/straight-quotes
 const nonStraightQuotes = /[‘’“”]/gm;
 
 /**

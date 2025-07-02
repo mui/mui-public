@@ -13,6 +13,7 @@ export function createDocsConfig() {
         },
       },
       rules: {
+        'jsx-a11y/anchor-is-valid': 'off',
         'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
       },
     })
