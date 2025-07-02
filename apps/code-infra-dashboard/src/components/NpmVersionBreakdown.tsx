@@ -20,10 +20,10 @@ import {
   AxisValueFormatterContext,
   HighlightItemData,
   PieItemIdentifier,
+  PieSeriesType,
   PieValueType,
 } from '@mui/x-charts';
-import { useEventCallback } from '@mui/material';
-import { SeriesValueFormatterContext } from '@mui/x-charts/internals';
+import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
 
 class HoverStore {
@@ -290,8 +290,8 @@ const PieChartComponent = React.memo(function PieChartComponent({
   );
 
   // Memoize value formatter to prevent recreation on every render
-  const valueFormatter = React.useCallback(
-    (item: PieValueType, ctx: SeriesValueFormatterContext) => {
+  const valueFormatter = React.useCallback<NonNullable<PieSeriesType['valueFormatter']>>(
+    (item, ctx) => {
       const breakdownItem = state?.breakdownItems[ctx.dataIndex];
       return formatLabel(item.value, breakdownItem?.percentage ?? null);
     },
