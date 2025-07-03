@@ -8,17 +8,11 @@ import * as path from 'path';
 import { globby } from 'globby';
 import { upload } from '@argos-ci/core';
 
-const BATCH_SIZE = 200;
-
 /**
- * @param {any[]} array
- * @param {number} size
- * @returns {any[][]}
+ * Alternatve to `@argos-ci/cli` that can upload screenshots in batches.
  */
-const chunk = (array, size) =>
-  Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size),
-  );
+
+const BATCH_SIZE = 200;
 
 /**
  * @typedef {Object} Args
@@ -75,14 +69,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         });
       }
 
-      const chunks = chunk(screenshots, BATCH_SIZE);
+      const batches = [];
+      for (let i = 0; i < screenshots.length; i += BATCH_SIZE) {
+        batches.push(screenshots.slice(i, i + BATCH_SIZE));
+      }
 
       await Promise.all(
-        chunks.map((screenshotChunk, chunkIndex) =>
+        batches.map((screenshotBatch, batchIndex) =>
           Promise.all(
-            screenshotChunk.map(async (screenshot) => {
+            screenshotBatch.map(async (screenshot) => {
               const relativePath = path.relative(folder, screenshot);
-              const targetPath = path.join(tempDir, `${chunkIndex}`, relativePath);
+              const targetPath = path.join(tempDir, `${batchIndex}`, relativePath);
               const targetDir = path.dirname(targetPath);
 
               await fs.mkdir(targetDir, { recursive: true });
@@ -92,7 +89,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         ),
       );
 
-      for (let i = 0; i < chunks.length; i += 1) {
+      for (let i = 0; i < batches.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         const result = await upload({
           root: `${tempDir}/${i}`,
@@ -100,13 +97,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           branch: process.env.CIRCLE_BRANCH,
           token: process.env.ARGOS_TOKEN,
           parallel: {
-            total: chunks.length,
+            total: batches.length,
             nonce: process.env.CIRCLE_BUILD_NUM,
           },
         });
 
         console.log(
-          `Batch of ${chunks[i].length} screenshots uploaded. Build URL: ${result.build.url}`,
+          `Batch of ${batches[i].length} screenshots uploaded. Build URL: ${result.build.url}`,
         );
       }
     } finally {
