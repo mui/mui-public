@@ -7,6 +7,7 @@
 import { calculateSizeDiff } from './sizeDiff.js';
 import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
+import { octokit } from './github.js';
 
 /**
  * Generates a symbol based on the relative change value.
@@ -224,10 +225,18 @@ function getDetailsUrl(prInfo, options = {}) {
 export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
   let markdownContent = '';
 
-  const baseCommit = prInfo.base.sha;
   const prCommit = prInfo.head.sha;
   const repo = prInfo.base.repo.full_name;
   const { fallbackDepth = 3 } = options;
+
+  const [owner, repoName] = repo.split('/');
+  const { data } = await octokit.repos.compareCommits({
+    owner,
+    repo: repoName,
+    base: prInfo.base.sha,
+    head: prCommit,
+  });
+  const baseCommit = data.merge_base_commit.sha;
 
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
@@ -237,9 +246,9 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
 
   if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
+    markdownContent += `_:no_entry_sign: No bundle size snapshot found for merge base ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
   } else if (actualBaseCommit !== baseCommit) {
-    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from ${baseCommit})._\n\n`;
+    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from merge base ${baseCommit})._\n\n`;
   }
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
