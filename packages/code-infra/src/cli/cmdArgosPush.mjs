@@ -9,6 +9,18 @@ import { globby } from 'globby';
 import { upload } from '@argos-ci/core';
 
 /**
+ * @param {string} name
+ * @returns {string}
+ */
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    throw new Error(`Missing required env var: ${name}`);
+  }
+  return val;
+}
+
+/**
  * Alternatve to `@argos-ci/cli` that can upload screenshots in batches.
  */
 
@@ -40,19 +52,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   handler: async (argv) => {
     const { folder, verbose = false } = argv;
 
-    // Validate required environment variables
-    if (!process.env.ARGOS_TOKEN) {
-      throw new Error('Missing required environment variable: ARGOS_TOKEN');
-    }
-    if (!process.env.CIRCLE_SHA1) {
-      throw new Error('Missing required environment variable: CIRCLE_SHA1');
-    }
-    if (!process.env.CIRCLE_BRANCH) {
-      throw new Error('Missing required environment variable: CIRCLE_BRANCH');
-    }
-    if (!process.env.CIRCLE_BUILD_NUM) {
-      throw new Error('Missing required environment variable: CIRCLE_BUILD_NUM');
-    }
+    const argosToken = requireEnv('ARGOS_TOKEN');
+    const circleSha1 = requireEnv('CIRCLE_SHA1');
+    const circleBranch = requireEnv('CIRCLE_BRANCH');
+    const circleBuildNum = requireEnv('CIRCLE_BUILD_NUM');
 
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'argos-screenshots-'));
 
@@ -93,12 +96,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         // eslint-disable-next-line no-await-in-loop
         const result = await upload({
           root: `${tempDir}/${i}`,
-          commit: process.env.CIRCLE_SHA1,
-          branch: process.env.CIRCLE_BRANCH,
-          token: process.env.ARGOS_TOKEN,
+          commit: circleSha1,
+          branch: circleBranch,
+          token: argosToken,
           parallel: {
             total: batches.length,
-            nonce: process.env.CIRCLE_BUILD_NUM,
+            nonce: circleBuildNum,
           },
         });
 
