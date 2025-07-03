@@ -6,8 +6,11 @@ import fs from 'fs/promises';
 import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
+import { execa } from 'execa';
+import gitUrlParse from 'git-url-parse';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
+import { renderMarkdownReport } from './renderMarkdownReport.js';
 
 /**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
@@ -17,6 +20,41 @@ import { uploadSnapshot } from './uploadSnapshot.js';
 const DEFAULT_CONCURRENCY = os.availableParallelism();
 
 const rootDir = process.cwd();
+
+/**
+ * Gets the current repository owner and name from git remote
+ * @returns {Promise<{owner: string | null, repo: string | null}>}
+ */
+async function getCurrentRepoInfo() {
+  try {
+    const { stdout } = await execa('git', ['remote', 'get-url', 'origin']);
+    const parsed = gitUrlParse(stdout.trim());
+    return {
+      owner: parsed.owner,
+      repo: parsed.name,
+    };
+  } catch (error) {
+    return {
+      owner: null,
+      repo: null,
+    };
+  }
+}
+
+/**
+ * Fetches PR information from GitHub API
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} prNumber - Pull request number
+ * @returns {Promise<any>} PR information from GitHub API
+ */
+async function fetchPrInfo(owner, repo, prNumber) {
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`);
+  if (!response.ok) {
+    throw new Error(`GitHub API request failed: ${response.status}`);
+  }
+  return response.json();
+}
 
 /**
  * creates size snapshot for every bundle that built with webpack
@@ -70,6 +108,37 @@ async function getWebpackSizes(args, config) {
   );
 
   return sizeArrays.flat();
+}
+
+/**
+ * Report command handler
+ * @param {Object} argv - Command line arguments
+ * @param {number} argv.pr - Pull request number
+ * @param {string} [argv.owner] - Repository owner
+ * @param {string} [argv.repo] - Repository name
+ */
+async function reportCommand(argv) {
+  const { pr, owner: argOwner, repo: argRepo } = argv;
+
+  // Get current repo info and coerce with provided arguments
+  const currentRepo = await getCurrentRepoInfo();
+  const owner = argOwner ?? currentRepo.owner;
+  const repo = argRepo ?? currentRepo.repo;
+
+  // Validate that both owner and repo are available
+  if (!owner || !repo) {
+    throw new Error(
+      'Repository owner and name are required. Please provide --owner and --repo options, or run this command from within a git repository.',
+    );
+  }
+
+  // Fetch PR information
+  const prInfo = await fetchPrInfo(owner, repo, pr);
+
+  // Generate and print the markdown report
+  const report = await renderMarkdownReport(prInfo);
+  // eslint-disable-next-line no-console
+  console.log(report);
 }
 
 /**
@@ -158,6 +227,28 @@ yargs(process.argv.slice(2))
         });
     },
     handler: run,
+  })
+  // @ts-expect-error
+  .command({
+    command: 'report',
+    describe: 'Generate a markdown report for a pull request',
+    builder: (cmdYargs) => {
+      return cmdYargs
+        .option('pr', {
+          describe: 'Pull request number',
+          type: 'number',
+          demandOption: true,
+        })
+        .option('owner', {
+          describe: 'Repository owner (defaults to current git repo owner)',
+          type: 'string',
+        })
+        .option('repo', {
+          describe: 'Repository name (defaults to current git repo name)',
+          type: 'string',
+        });
+    },
+    handler: reportCommand,
   })
   .help()
   .strict(true)
