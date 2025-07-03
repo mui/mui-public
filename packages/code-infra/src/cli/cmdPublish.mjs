@@ -222,7 +222,7 @@ async function publishToNpm(packages, options) {
   });
 
   // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  await publishPackages(packages, 'latest', options);
+  await publishPackages('latest', options);
   console.log('✅ Successfully published to npm');
 }
 

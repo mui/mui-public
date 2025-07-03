@@ -152,7 +152,7 @@ async function publishCanaryVersions(
   let publishSuccess = false;
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, 'canary', { ...options, noGitChecks: true });
+    await publishPackages('canary', { ...options, noGitChecks: true });
 
     packagesToPublish.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);

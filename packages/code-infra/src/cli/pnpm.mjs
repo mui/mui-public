@@ -105,18 +105,12 @@ export async function getPackageVersionInfo(packageName, baseVersion) {
 
 /**
  * Publish packages with the given options
- * @param {Package[]} packages - Packages to publish
  * @param {string} tag - npm tag to publish with
  * @param {PublishOptions} [options={}] - Publishing options
  * @returns {Promise<void>}
  */
-export async function publishPackages(packages, tag, options = {}) {
+export async function publishPackages(tag, options = {}) {
   const args = [];
-
-  // Add package filters
-  packages.forEach((pkg) => {
-    args.push('--filter', pkg.name);
-  });
 
   // Add conditional flags
   if (options.dryRun) {
