@@ -16,19 +16,13 @@ import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.
  * @returns {Promise<string>} The merge base commit SHA
  */
 async function getMergeBase(repo, base, head) {
-  try {
-    const response = await fetch(`https://api.github.com/repos/${repo}/compare/${base}...${head}`);
-    if (!response.ok) {
-      throw new Error(`GitHub API request failed: ${response.status}`);
-    }
-
-    const comparison = await response.json();
-    return comparison.merge_base_commit.sha;
-  } catch (/** @type (any) */ error) {
-    throw new Error(
-      `Failed to get merge base for ${repo} between ${base} and ${head}: ${error.message}`,
-    );
+  const response = await fetch(`https://api.github.com/repos/${repo}/compare/${base}...${head}`);
+  if (!response.ok) {
+    throw new Error(`GitHub API request failed: ${response.status}`);
   }
+
+  const comparison = await response.json();
+  return comparison.merge_base_commit.sha;
 }
 
 /**
