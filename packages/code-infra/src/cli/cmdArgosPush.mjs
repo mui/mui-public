@@ -109,9 +109,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           `Batch of ${chunks[i].length} screenshots uploaded. Build URL: ${result.build.url}`,
         );
       }
-    } catch (/** @type {any} */ error) {
-      console.error('Error uploading screenshots:', error.message);
-      process.exit(1);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
