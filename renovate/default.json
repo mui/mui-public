@@ -1,0 +1,81 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "name": "renovate-mui-config",
+  "description": "Renovate configuration for MUI repositories.",
+  "automerge": false,
+  "commitMessageAction": "Bump",
+  "commitMessageExtra": "to {{newValue}}",
+  "commitMessageTopic": "{{depName}}",
+  "dependencyDashboard": true,
+  "rebaseWhen": "conflicted",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": "before 6:00am on the first day of the month"
+  },
+  "postUpdateOptions": ["pnpmDedupe"],
+  "prConcurrentLimit": 30,
+  "prHourlyLimit": 0,
+  "rangeStrategy": "bump",
+  "schedule": "on sunday before 6:00am",
+  "timezone": "UTC",
+  "ignorePaths": ["examples/**"],
+  "packageRules": [
+    {
+      "matchDepTypes": ["peerDependencies"],
+      "rangeStrategy": "widen"
+    },
+    {
+      "groupName": "babel",
+      "matchPackageNames": ["^@babel/", "^@types/babel"]
+    },
+    {
+      "groupName": "Infra packages",
+      "matchPackageNames": ["@mui/internal-*"],
+      "followTag": "canary",
+      "schedule": null
+    },
+    {
+      "groupName": "core-js",
+      "matchPackageNames": ["core-js"],
+      "allowedVersions": "< 2.0.0"
+    },
+    {
+      "groupName": "Emotion",
+      "matchPackageNames": ["@emotion/*"]
+    },
+    {
+      "groupName": "React",
+      "matchPackageNames": ["react", "react-dom", "react-is", "@types/react", "@types/react-dom"]
+    },
+    {
+      "groupName": "Playwright",
+      "matchPackageNames": ["@playwright/test", "mcr.microsoft.com/playwright"]
+    },
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"]
+    },
+    {
+      "matchDepTypes": ["action"],
+      "pinDigests": true
+    },
+    {
+      "groupName": "@definitelytyped tools",
+      "matchPackageNames": ["@definitelytyped/*"]
+    },
+    {
+      "groupName": "Testing libraries",
+      "matchPackageNames": ["@testing-library/*"]
+    },
+    {
+      "groupName": "node",
+      "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
+      "enabled": false
+    },
+    {
+      "groupName": "tseslint",
+      "matchPackageNames": ["typescript-eslint", "@typescript-eslint/*"]
+    }
+  ]
+}
