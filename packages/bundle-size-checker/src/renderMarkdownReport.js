@@ -9,6 +9,29 @@ import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 
 /**
+ * Gets the merge base commit between two branches using GitHub API
+ * @param {string} repo - Repository name (e.g., 'mui/material-ui')
+ * @param {string} base - Base branch or commit SHA
+ * @param {string} head - Head branch or commit SHA
+ * @returns {Promise<string>} The merge base commit SHA
+ */
+async function getMergeBase(repo, base, head) {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${repo}/compare/${base}...${head}`);
+    if (!response.ok) {
+      throw new Error(`GitHub API request failed: ${response.status}`);
+    }
+
+    const comparison = await response.json();
+    return comparison.merge_base_commit.sha;
+  } catch (/** @type (any) */ error) {
+    throw new Error(
+      `Failed to get merge base for ${repo} between ${base} and ${head}: ${error.message}`,
+    );
+  }
+}
+
+/**
  * Generates a symbol based on the relative change value.
  * @param {number|null} relative - The relative change as a Number
  * @returns {string} Formatted size change string with symbol
@@ -224,10 +247,11 @@ function getDetailsUrl(prInfo, options = {}) {
 export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
   let markdownContent = '';
 
-  const baseCommit = prInfo.base.sha;
   const prCommit = prInfo.head.sha;
   const repo = prInfo.base.repo.full_name;
   const { fallbackDepth = 3 } = options;
+
+  const baseCommit = await getMergeBase(repo, prInfo.base.sha, prCommit);
 
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
@@ -237,9 +261,9 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
 
   if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
+    markdownContent += `_:no_entry_sign: No bundle size snapshot found for merge base ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
   } else if (actualBaseCommit !== baseCommit) {
-    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from ${baseCommit})._\n\n`;
+    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from merge base ${baseCommit})._\n\n`;
   }
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
