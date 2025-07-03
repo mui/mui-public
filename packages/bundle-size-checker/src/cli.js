@@ -11,6 +11,7 @@ import gitUrlParse from 'git-url-parse';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
+import { octokit } from './github.js';
 
 /**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
@@ -39,21 +40,6 @@ async function getCurrentRepoInfo() {
       repo: null,
     };
   }
-}
-
-/**
- * Fetches PR information from GitHub API
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} prNumber - Pull request number
- * @returns {Promise<any>} PR information from GitHub API
- */
-async function fetchPrInfo(owner, repo, prNumber) {
-  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`);
-  if (!response.ok) {
-    throw new Error(`GitHub API request failed: ${response.status}`);
-  }
-  return response.json();
 }
 
 /**
@@ -133,7 +119,11 @@ async function reportCommand(argv) {
   }
 
   // Fetch PR information
-  const prInfo = await fetchPrInfo(owner, repo, pr);
+  const { data: prInfo } = await octokit.pulls.get({
+    owner,
+    repo,
+    pull_number: pr,
+  });
 
   // Generate and print the markdown report
   const report = await renderMarkdownReport(prInfo);

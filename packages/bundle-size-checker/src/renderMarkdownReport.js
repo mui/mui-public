@@ -7,23 +7,7 @@
 import { calculateSizeDiff } from './sizeDiff.js';
 import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
-
-/**
- * Gets the merge base commit between two branches using GitHub API
- * @param {string} repo - Repository name (e.g., 'mui/material-ui')
- * @param {string} base - Base branch or commit SHA
- * @param {string} head - Head branch or commit SHA
- * @returns {Promise<string>} The merge base commit SHA
- */
-async function getMergeBase(repo, base, head) {
-  const response = await fetch(`https://api.github.com/repos/${repo}/compare/${base}...${head}`);
-  if (!response.ok) {
-    throw new Error(`GitHub API request failed: ${response.status}`);
-  }
-
-  const comparison = await response.json();
-  return comparison.merge_base_commit.sha;
-}
+import { octokit } from './github.js';
 
 /**
  * Generates a symbol based on the relative change value.
@@ -245,7 +229,14 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const repo = prInfo.base.repo.full_name;
   const { fallbackDepth = 3 } = options;
 
-  const baseCommit = await getMergeBase(repo, prInfo.base.sha, prCommit);
+  const [owner, repoName] = repo.split('/');
+  const { data } = await octokit.repos.compareCommits({
+    owner,
+    repo: repoName,
+    base: prInfo.base.sha,
+    head: prCommit,
+  });
+  const baseCommit = data.merge_base_commit.sha;
 
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),

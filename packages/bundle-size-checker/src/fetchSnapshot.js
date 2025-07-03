@@ -1,3 +1,5 @@
+import { octokit } from './github.js';
+
 /**
  *
  * @param {string} repo - The name of the repository e.g. 'mui/material-ui'
@@ -36,32 +38,6 @@ export async function fetchSnapshot(repo, sha) {
 }
 
 /**
- * Gets parent commits for a given commit SHA using GitHub API
- * @param {string} repo - Repository name (e.g., 'mui/material-ui')
- * @param {string} commit - The commit SHA to start from
- * @param {number} depth - How many commits to retrieve (including the starting commit)
- * @returns {Promise<string[]>} Array of commit SHAs in chronological order (excluding the starting commit)
- */
-async function getParentCommits(repo, commit, depth = 4) {
-  try {
-    const response = await fetch(
-      `https://api.github.com/repos/${repo}/commits?sha=${commit}&per_page=${depth}`,
-    );
-    if (!response.ok) {
-      throw new Error(`GitHub API request failed: ${response.status}`);
-    }
-
-    /** @type {{ sha: string }[]} */
-    const commits = await response.json();
-    // Skip the first commit (which is the starting commit) and return the rest
-    return commits.slice(1).map((commitDetails) => commitDetails.sha);
-  } catch (/** @type {any} */ error) {
-    console.warn(`Failed to get parent commits for ${commit}: ${error.message}`);
-    return [];
-  }
-}
-
-/**
  * Attempts to fetch a snapshot with fallback to parent commits
  * @param {string} repo - Repository name
  * @param {string} commit - The commit SHA to start from
@@ -78,16 +54,30 @@ export async function fetchSnapshotWithFallback(repo, commit, fallbackDepth = 3)
   }
 
   // Get parent commits and try each one
-  const parentCommits = await getParentCommits(repo, commit, fallbackDepth + 1);
+  try {
+    const [owner, repoName] = repo.split('/');
 
-  for (const parentCommit of parentCommits) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const snapshot = await fetchSnapshot(repo, parentCommit);
-      return { snapshot, actualCommit: parentCommit };
-    } catch {
-      // fallthrough to the next parent commit if fetching fails
+    const { data: commits } = await octokit.repos.listCommits({
+      owner,
+      repo: repoName,
+      sha: commit,
+      per_page: fallbackDepth + 1,
+    });
+
+    // Skip the first commit (which is the starting commit) and return the rest
+    const parentCommits = commits.slice(1).map((commitDetails) => commitDetails.sha);
+
+    for (const parentCommit of parentCommits) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const snapshot = await fetchSnapshot(repo, parentCommit);
+        return { snapshot, actualCommit: parentCommit };
+      } catch {
+        // fallthrough to the next parent commit if fetching fails
+      }
     }
+  } catch (/** @type {any} */ error) {
+    console.warn(`Failed to get parent commits for ${commit}: ${error.message}`);
   }
 
   return { snapshot: null, actualCommit: null };
