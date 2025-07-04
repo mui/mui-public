@@ -1,0 +1,103 @@
+version: 2.1
+
+description: Shared CircleCI configuration for MUI organization
+
+parameters:
+  node-version:
+    type: string
+    description: Node.js version to use (required)
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:<< pipeline.parameters.node-version >>
+    working_directory: /tmp/mui
+
+commands:
+  install_js:
+    description: Install JavaScript dependencies using pnpm
+    steps:
+      - run:
+          name: Install corepack
+          command: corepack enable --install-directory ~/bin
+      - run:
+          name: View install environment
+          command: |
+            node --version
+      - run:
+          name: Install js dependencies
+          command: pnpm install
+
+jobs:
+  checkout:
+    executor: node
+    description: Checkout code and install dependencies with git checks
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Should not have any git not staged
+          command: git add -A && git diff --exit-code --staged
+      - run:
+          name: '`pnpm dedupe` was run?'
+          command: |
+            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
+            then
+                echo "no changes to dependencies detected, skipping..."
+            else
+                pnpm dedupe --check
+            fi
+
+  test_lint:
+    executor: node
+    description: Run linting and type checking
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Eslint
+          command: pnpm eslint:ci
+      - run:
+          name: Typescript
+          command: pnpm typescript
+      - run:
+          name: JSON
+          command: pnpm code-infra jsonlint --silent
+
+  test_static:
+    executor: node
+    description: Run static analysis checks
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: '`pnpm prettier` changes committed?'
+          command: pnpm prettier --check
+      - run:
+          name: '`pnpm update-netlify-ignore` changes committed?'
+          command: |
+            pnpm update-netlify-ignore
+            git add -A && git diff --exit-code --staged
+
+  test_unit:
+    executor: node
+    description: Run unit tests
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: 'Run tests'
+          command: pnpm test
+
+workflows:
+  pipeline:
+    description: Standard CI pipeline workflow
+    jobs:
+      - checkout:
+          context: org-global
+      - test_lint:
+          context: org-global
+      - test_static:
+          context: org-global
+      - test_unit:
+          context: org-global

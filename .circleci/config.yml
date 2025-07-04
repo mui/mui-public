@@ -5,97 +5,25 @@ parameters:
     description: The name of the workflow to run
     type: string
     default: pipeline
+  node-version:
+    description: Node.js version to use
+    type: string
+    default: '24.3'
 
-default-job: &default-job
-  working_directory: /tmp/mui
-  docker:
-    - image: cimg/node:24.3
+orbs:
+  base: .circleci/base
 
-default-context: &default-context
-  context:
-    - org-global
-
-commands:
-  install_js:
-    steps:
-      - run:
-          name: Install corepack
-          # See https://stackoverflow.com/a/73411601
-          command: corepack enable --install-directory ~/bin
-      - run:
-          name: View install environment
-          command: |
-            node --version
-      - run:
-          name: Install js dependencies
-          command: pnpm install
-
-jobs:
-  checkout:
-    <<: *default-job
-    steps:
-      - checkout
-      - install_js
-      - run:
-          name: Should not have any git not staged
-          command: git add -A && git diff --exit-code --staged
-      - run:
-          name: '`pnpm dedupe` was run?'
-          command: |
-            # #default-branch-switch
-            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
-            then
-                echo "no changes to dependencies detected, skipping..."
-            else
-                pnpm dedupe --check
-            fi
-  test_lint:
-    <<: *default-job
-    steps:
-      - checkout
-      - install_js
-      - run:
-          name: Eslint
-          command: pnpm eslint:ci
-      - run:
-          name: Typescript
-          command: pnpm typescript
-      - run:
-          name: JSON
-          command: pnpm code-infra jsonlint --silent
-  test_static:
-    <<: *default-job
-    steps:
-      - checkout
-      - install_js
-      - run:
-          name: '`pnpm prettier` changes committed?'
-          command: pnpm prettier --check
-      - run:
-          # make sure the netlify ignore command has the correct dependencies
-          name: '`pnpm update-netlify-ignore` changes committed?'
-          command: |
-            pnpm update-netlify-ignore
-            git add -A && git diff --exit-code --staged
-  test_unit:
-    <<: *default-job
-    steps:
-      - checkout
-      - install_js
-      - run:
-          name: 'Run tests'
-          command: pnpm test
 workflows:
   version: 2
   pipeline:
     when:
       equal: [pipeline, << pipeline.parameters.workflow >>]
     jobs:
-      - checkout:
-          <<: *default-context
-      - test_lint:
-          <<: *default-context
-      - test_static:
-          <<: *default-context
-      - test_unit:
-          <<: *default-context
+      - base/checkout:
+          context: org-global
+      - base/test_lint:
+          context: org-global
+      - base/test_static:
+          context: org-global
+      - base/test_unit:
+          context: org-global
