@@ -46,7 +46,14 @@
     },
     {
       "groupName": "React",
-      "matchPackageNames": ["react", "react-dom", "react-is", "@types/react", "@types/react-dom"]
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "react-is",
+        "@types/react",
+        "@types/react-dom",
+        "@types/react-is"
+      ]
     },
     {
       "groupName": "Playwright",
@@ -75,12 +82,22 @@
       "enabled": false
     },
     {
-      "groupName": "tseslint",
-      "matchPackageNames": ["typescript-eslint", "@typescript-eslint/*"]
+      "groupName": "eslint",
+      "matchPackageNames": [
+        "eslint",
+        "eslint-*",
+        "typescript-eslint",
+        "@typescript-eslint/*",
+        "@types/eslint-*"
+      ]
     },
     {
       "groupName": "Vite & Vitest",
-      "matchPackageNames": ["@vitejs/**", "/vitest/", "esbuild"]
+      "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
+    },
+    {
+      "automerge": true,
+      "matchPackageNames": ["@types/**"]
     }
   ]
 }
