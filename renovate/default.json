@@ -31,7 +31,7 @@
     },
     {
       "groupName": "Infra packages",
-      "matchPackageNames": ["@mui/internal-*"],
+      "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
       "schedule": null
     },
@@ -58,7 +58,8 @@
     },
     {
       "matchDepTypes": ["action"],
-      "pinDigests": true
+      "pinDigests": true,
+      "automerge": true
     },
     {
       "groupName": "@definitelytyped tools",
@@ -76,6 +77,10 @@
     {
       "groupName": "tseslint",
       "matchPackageNames": ["typescript-eslint", "@typescript-eslint/*"]
+    },
+    {
+      "groupName": "Vite & Vitest",
+      "matchPackageNames": ["@vitejs/**", "/vitest/", "esbuild"]
     }
   ]
 }
