@@ -12,7 +12,13 @@
     "typescript": "tsc --build --verbose",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm -r -F \"./packages/*\" run build",
-    "clean": "pnpm -r exec rm -rf build"
+    "clean": "pnpm -r exec rm -rf build",
+    "pkg-pr-new-release": "pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=off --peerDeps --compact",
+    "validate-declarations": "pnpm -v"
+  },
+  "scriptsComments": {
+    "validate-declarations": "This script is a dummy command as its not yet needed in this repo",
+    "pkg-pr-new-release": "TODO: Replace with the following when https://github.com/stackblitz-labs/pkg.pr.new/issues/389 is resolved 'pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=path) --pnpm --packageManager=pnpm --comment=off --peerDeps --compact'"
   },
   "pnpm": {
     "packageExtensions": {
