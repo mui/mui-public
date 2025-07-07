@@ -19,7 +19,6 @@
   "rangeStrategy": "bump",
   "schedule": "on sunday before 6:00am",
   "timezone": "UTC",
-  "ignorePaths": ["examples/**"],
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
@@ -27,7 +26,7 @@
     },
     {
       "groupName": "babel",
-      "matchPackageNames": ["^@babel/", "^@types/babel"]
+      "matchPackageNames": ["^@babel/", "^@types/babel", "^babel-"]
     },
     {
       "groupName": "Infra packages",
@@ -94,10 +93,6 @@
     {
       "groupName": "Vite & Vitest",
       "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
-    },
-    {
-      "automerge": true,
-      "matchPackageNames": ["@types/**"]
     }
   ]
 }
