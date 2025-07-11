@@ -1,12 +1,14 @@
 import * as React from 'react';
-import CodeHighlighter from '@mui/internal-docs-infra/CodeHighlighter/';
-import { hastOrJsonToJsx } from '@mui/internal-docs-infra/CodeHighlighter/';
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastOrJsonToJsx } from '@mui/internal-docs-infra/CodeHighlighter';
 
 import type {
   CodeHighlighterProps,
   Components,
   ContentProps,
-} from '@mui/internal-docs-infra/CodeHighlighter/';
+} from '@mui/internal-docs-infra/CodeHighlighter';
+
+import '@wooorm/starry-night/style/both.css';
 
 function DemoContent(props: ContentProps) {
   return (
@@ -22,7 +24,9 @@ function DemoContent(props: ContentProps) {
 type DemoProps = Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'clientOnly'>;
 type Demo = React.ComponentType<DemoProps>;
 
-type Options = Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'precompute' | 'code'>;
+type Options = Partial<
+  Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'precompute' | 'code'>
+>;
 
 function createDemo(
   url: string,

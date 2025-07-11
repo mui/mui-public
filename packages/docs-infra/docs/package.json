@@ -11,9 +11,9 @@
   "dependencies": {
     "@mdx-js/loader": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
+    "@mui/internal-docs-infra": "workspace:^",
     "@next/mdx": "^15.3.4",
     "@types/mdx": "^2.0.13",
-    "@mui/internal-docs-infra": "workspace:^",
     "next": "15.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

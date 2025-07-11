@@ -1,2 +1,3 @@
 export * from './CodeHighlighter';
-export { default } from './CodeHighlighter';
+export * from './CodeHighlighterClient';
+export * from './types';

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
-  "main": "./index.js",
   "keywords": [
     "react",
     "react-component",
@@ -34,19 +33,24 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.27.6",
-    "@types/hast": "^3.0.4",
     "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
-    "hast": "^1.0.0",
     "hast-util-to-jsx-runtime": "^2.3.6",
+    "hast-util-to-mdast": "^10.1.2",
     "hast-util-to-text": "^4.0.2",
-    "kebab-case": "^2.0.2"
+    "kebab-case": "^2.0.2",
+    "rehype-parse": "^9.0.1",
+    "rehype-remark": "^10.0.1",
+    "rehype-sanitize": "^6.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "@babel/cli": "^7.27.2",
     "@babel/core": "^7.27.4",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.27.4",
+    "@types/hast": "^3.0.4",
     "@types/node": "^24.0.3",
     "@types/react": "^19.1.8",
     "babel-plugin-istanbul": "^7.0.0",
@@ -75,9 +79,28 @@
       "optional": true
     }
   },
+  "exports": {
+    "./*": {
+      "import": "./build/esm/*/index.js",
+      "require": "./build/*/index.js",
+      "types": "./build/*/index.d.ts"
+    },
+    "./*/types": {
+      "import": "./build/esm/*/types.js",
+      "require": "./build/*/types.js",
+      "types": "./build/*/types.d.ts"
+    },
+    "./*/errors": {
+      "import": "./build/esm/*/errors.js",
+      "require": "./build/*/errors.js",
+      "types": "./build/*/errors.d.ts"
+    }
+  },
+  "files": [
+    "build/**/*"
+  ],
   "publishConfig": {
-    "access": "public",
-    "directory": "build"
+    "access": "public"
   },
   "engines": {
     "node": ">=14.0.0"

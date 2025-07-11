@@ -13,50 +13,69 @@ export type VariantExtraFiles = {
 export type VariantCode = CodeMeta & {
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
+  filesOrder?: string[];
 };
-export type Code = { [key: string]: VariantCode };
+export type Code = { [key: string]: VariantCode }; // TODO: only preload should be able to pass highlighted code
 
 type ParsedVariantCode = CodeMeta & {
   source: HastNodes | { hastJson: string };
   extraFiles: { [fileName: string]: CodeMeta & { source: HastNodes | { hastJson: string } } };
+  filesOrder?: string[];
 };
 type ParsedCode = { [key: string]: ParsedVariantCode };
 
 type Options = { name?: string; slug?: string; description?: string };
 export type ContentProps = { code: ParsedCode; components?: Components } & Options;
-export type ContentLoadingProps = { fileNames: string[]; source: React.ReactNode };
+export type ContentLoadingVariant = {
+  fileNames?: string[];
+  source?: React.ReactNode;
+  extraSource?: { [fileName: string]: React.ReactNode };
+};
+export type ContentLoadingProps = ContentLoadingVariant & {
+  extraVariants?: Record<string, ContentLoadingVariant>;
+} & Options;
 
 type ErrorHandler = React.ComponentType<{ error: Error }>;
 
 interface CodeHighlighterBaseProps extends Options {
-  Content: React.ComponentType<ContentProps>;
   code?: Code;
-  components?: Components;
+  components?: Components; // TODO: rename to preview
+  variants?: string[];
   variant?: string;
+  fileName?: string;
   initialVariant?: string;
   defaultVariant?: string;
   precompute?: boolean | Code;
-  ErrorHandler?: ErrorHandler;
-  ContentLoading?: React.ComponentType<ContentLoadingProps>;
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   url?: string;
+  controlled?: boolean;
 }
 
-export type Fallback = React.ReactNode;
-
 export interface CodeHighlighterClientProps extends CodeHighlighterBaseProps {
+  content: React.ReactNode;
+  errorHandler?: React.ReactNode;
+  fallback?: React.ReactNode;
+  skipFallback?: boolean;
+  /**
+   * @default 'hydration'
+   */
   highlightAt?: 'init' | 'hydration' | 'idle';
-  fallback?: Fallback;
 }
 
 export type LoadVariantCode = (variantName: string, url?: string) => Promise<VariantCode>;
-export type LoadSource = (variantName: string, fileName: string, url?: string) => Promise<string>;
-export type ParseSource = (source: string) => Promise<HastNodes>;
+export type LoadSource = (variantName: string, fileName: string, url?: string) => Promise<string>; // TODO: return transforms
+export type ParseSource = (source: string, fileName: string) => Promise<HastNodes>; // TODO: handle highlighting transforms
 
 export interface CodeHighlighterProps extends CodeHighlighterBaseProps {
+  Content: React.ComponentType<ContentProps>;
+  ErrorHandler?: ErrorHandler;
+  ContentLoading?: React.ComponentType<ContentLoadingProps>;
+  /**
+   * @default 'stream'
+   */
   highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
-  clientOnly?: boolean;
+  forceClient?: boolean;
   loadVariantCode?: LoadVariantCode;
   loadSource?: LoadSource;
   parseSource?: ParseSource;

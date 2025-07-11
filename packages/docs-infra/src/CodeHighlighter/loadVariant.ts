@@ -47,7 +47,7 @@ export async function loadVariant(
     }
 
     try {
-      source = await parseSource(source);
+      source = await parseSource(source, filename);
       variant = { ...variant, source };
     } catch (error) {
       throw new Error(

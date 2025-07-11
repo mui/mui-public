@@ -1,7 +1,8 @@
-import CodeHighlighter, {
-  ContentProps,
-  hastOrJsonToJsx,
-} from '@mui/internal-docs-infra/CodeHighlighter/';
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastOrJsonToJsx } from '@mui/internal-docs-infra/CodeHighlighter';
+
+import '@wooorm/starry-night/style/both.css';
 
 function CodeContent(props: ContentProps) {
   return (
@@ -12,9 +13,21 @@ function CodeContent(props: ContentProps) {
   );
 }
 
-function Code({ children, fileName = 'index.js' }: { children: string; fileName?: string }) {
+function Code({
+  children,
+  fileName = 'index.js',
+  forceClient,
+}: {
+  children: string;
+  fileName?: string;
+  forceClient?: boolean;
+}) {
   return (
-    <CodeHighlighter code={{ Default: { fileName, source: children } }} Content={CodeContent} />
+    <CodeHighlighter
+      code={{ Default: { fileName, source: children } }}
+      Content={CodeContent}
+      forceClient={forceClient}
+    />
   );
 }
 

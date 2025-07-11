@@ -28,7 +28,7 @@ export function stringOrHastToJsx(
   highlighted?: boolean,
 ): React.ReactNode {
   if (typeof source === 'string') {
-    return <pre>{source}</pre>;
+    return source;
   }
 
   let hast: HastNodes;
@@ -43,8 +43,8 @@ export function stringOrHastToJsx(
   }
 
   if (highlighted) {
-    return <pre>{hastToJsx(hast)}</pre>;
+    return hastToJsx(hast);
   }
 
-  return <pre>{toText(hast)}</pre>;
+  return toText(hast);
 }

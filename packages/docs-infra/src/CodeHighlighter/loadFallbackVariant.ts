@@ -19,15 +19,13 @@ export async function loadFallbackVariant(
   initialVariant: string,
   shouldHighlight?: boolean,
   loaded?: Code,
-  initial?: VariantCode,
+  initial?: VariantCode, // TODO: do we really need this prop?
   url?: string,
   parseSource?: ParseSource,
   loadSource?: LoadSource,
   loadVariantCode?: LoadVariantCode,
 ): Promise<FallbackVariants> {
-  if (!loaded) {
-    loaded = {};
-  }
+  loaded = { ...loaded };
 
   if (!initial) {
     if (!loadVariantCode) {
@@ -47,7 +45,7 @@ export async function loadFallbackVariant(
   }
 
   const initialFilename = initial.fileName;
-  let initialSource = initial.source;
+  let initialSource = initial.source; // TODO: if filesOrder is provided, we need to determine which source to use
   if (!initialSource) {
     if (!loadSource) {
       throw new Error('"loadSource" function is required when initial source is not provided');
@@ -71,7 +69,7 @@ export async function loadFallbackVariant(
     }
 
     try {
-      initialSource = await parseSource(initialSource);
+      initialSource = await parseSource(initialSource, initialFilename);
       loaded[initialVariant] = { ...(loaded[initialVariant] || {}), source: initialSource };
     } catch (error) {
       throw new Error(
@@ -79,8 +77,6 @@ export async function loadFallbackVariant(
       );
     }
   }
-
-  initialSource;
 
   // TODO: handle fallbackUsesExtraFiles and fallbackUsesAllVariants
 
