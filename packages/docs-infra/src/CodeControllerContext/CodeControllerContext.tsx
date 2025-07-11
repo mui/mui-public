@@ -3,13 +3,13 @@
 import * as React from 'react';
 import { Code } from '../CodeHighlighter/types';
 
-type Selection = { variant?: string; fileName?: string };
+export type Selection = { variant: string; fileName?: string };
 
 export interface CodeControllerContext {
   code?: Code;
   selection?: Selection;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
-  setSelection: React.Dispatch<React.SetStateAction<string>>;
+  setSelection: React.Dispatch<React.SetStateAction<Selection>>;
   components: Record<string, React.ReactNode> | undefined;
 }
 

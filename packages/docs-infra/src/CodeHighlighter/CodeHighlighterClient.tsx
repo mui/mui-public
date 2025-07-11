@@ -3,13 +3,13 @@
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps } from './types';
-import { CodeHighlighterContext } from './CodeHighlighterContext';
+import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeInitialData } from './maybeInitialData';
 import { loadFallbackVariant } from './loadFallbackVariant';
 import { hasAllVariants } from './hasAllVariants';
 import { loadVariant } from './loadVariant';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
-import { useControlledCode } from '../CodeControllerContext';
+import { Selection, useControlledCode } from '../CodeControllerContext';
 import { useOnHydrate } from '../useOnHydrate';
 import { useOnIdle } from '../useOnIdle';
 import { codeToFallbackProps } from './codeToFallbackProps';
@@ -42,7 +42,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // TODO: setCode from upstream is also valid
 
   // TODO: if using props.variant, then the variant is controlled and we can't use our own state
-  const [selection, setSelection] = React.useState({
+  const [selection, setSelection] = React.useState<Selection>({
     variant: props.initialVariant || props.defaultVariant || 'Default',
   });
 
@@ -273,7 +273,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     ],
   );
 
-  const context: CodeHighlighterContext = React.useMemo(
+  const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode || controlledCode || code,
       setCode: controlledSetCode || setCode,
