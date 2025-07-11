@@ -1,0 +1,26 @@
+'use client';
+import * as React from 'react';
+import { Code } from './types';
+import { Selection } from '../CodeControllerContext';
+
+export interface CodeHighlighterContextType {
+  code?: Code;
+  setCode?: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  selection?: Selection;
+  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
+  components?: Record<string, React.ReactNode>;
+}
+
+export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(
+  undefined,
+);
+
+export function useCodeHighlighterContext() {
+  const context = React.useContext(CodeHighlighterContext);
+  if (context === undefined) {
+    throw new Error(
+      'CodeHighlighterContext is missing. `useCodeHighlighterContext` must be used within a `CodeHighlighter` component.',
+    );
+  }
+  return context;
+}
