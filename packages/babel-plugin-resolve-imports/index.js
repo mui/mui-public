@@ -39,7 +39,7 @@ function pathToNodeImportSpecifier(importPath) {
 module.exports = function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
   const cache = new Map();
-  const extensions = ['.ts', '.tsx', '.js', '.jsx'];
+  const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
   const extensionsSet = new Set(extensions);
 
   /**
