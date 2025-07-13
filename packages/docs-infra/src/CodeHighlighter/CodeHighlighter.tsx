@@ -52,7 +52,15 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
   const variantNames = Object.keys(props.components || props.code || {});
   const variantCodes = await Promise.all(
     variantNames.map((variantName) =>
-      loadVariant(variantName, props.url, props.code?.[variantName]).catch((error) => ({ error })),
+      loadVariant(
+        variantName,
+        props.url,
+        props.code?.[variantName],
+        props.parseSource,
+        props.loadSource,
+        props.loadVariantCode,
+        props.sourceTransformers,
+      ).catch((error) => ({ error })),
     ),
   );
 
@@ -69,9 +77,7 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
   if (errors.length > 0) {
     return (
       <ErrorHandler
-        error={
-          new Error(`Failed loading code: ${errors.map((err) => JSON.stringify(err)).join('\n ')}`)
-        }
+        error={new Error(`Failed loading code: ${errors.map((err) => err.message).join('\n ')}`)}
       />
     );
   }
@@ -87,7 +93,7 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
     fallback: props.fallback,
     children: (
       <props.Content
-        code={props.code}
+        code={code}
         components={props.components}
         name={props.name}
         slug={props.slug}
@@ -138,7 +144,7 @@ function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
     fallback: props.fallback,
     children: (
       <props.Content
-        code={props.code}
+        code={code}
         components={props.components}
         name={props.name}
         slug={props.slug}

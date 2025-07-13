@@ -1,4 +1,5 @@
 import { transformSource } from './transformSource';
+import { transformParsedSource } from './transformParsedSource';
 import type {
   VariantCode,
   ParseSource,
@@ -61,11 +62,24 @@ export async function loadVariant(
     }
 
     try {
+      const sourceString = source;
       source = await parseSource(source, filename);
-      variant = { ...variant, source };
+
+      let transforms = variant.transforms;
+      if (transforms) {
+        transforms = await transformParsedSource(
+          sourceString,
+          source,
+          filename,
+          transforms,
+          parseSource,
+        );
+      }
+
+      variant = { ...variant, source, transforms };
     } catch (error) {
       throw new Error(
-        `Failed to parse source code (variant: ${variantName}, file: ${filename}, url: ${url}): ${JSON.stringify(error)}`,
+        `Failed to parse source code (variant: ${variantName}, file: ${filename}, url: ${url}): ${error instanceof Error ? error.message : ''}`,
       );
     }
   }

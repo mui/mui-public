@@ -1,12 +1,12 @@
-import { createStarryNight, common } from '@wooorm/starry-night';
+import { createStarryNight } from '@wooorm/starry-night';
 import { ParseSource } from '../CodeHighlighter';
-import { extensionMap } from './extensionMap';
+import { grammars, extensionMap } from './grammars';
 
 const starryNight: { highlight?: ReturnType<typeof createStarryNight> } = {};
 
 export const parseSource: ParseSource = async (source, fileName) => {
   if (!starryNight.highlight) {
-    starryNight.highlight = createStarryNight(common);
+    starryNight.highlight = createStarryNight(grammars);
   }
 
   const fileType = fileName.slice(fileName.lastIndexOf('.')) || 'plaintext';

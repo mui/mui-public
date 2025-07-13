@@ -1,38 +1,32 @@
 'use client';
 
 import * as React from 'react';
-import { common, createStarryNight } from '@wooorm/starry-night';
+import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
-import { ParseSource } from '../CodeHighlighter';
+import { LoadSource, LoadVariantCode, ParseSource } from '../CodeHighlighter';
+import { extensionMap, grammars } from '../parseSource/grammars';
 
-const extensionToLanguage: Record<string, string | undefined> = {
-  // TODO: I'm not sure this is correct
-  '.js': 'javascript',
-  '.jsx': 'javascript',
-  '.ts': 'typescript',
-  '.tsx': 'typescript',
-  '.md': 'markdown',
-  '.mdx': 'markdown',
-  '.css': 'css',
-};
+export function CodeProvider({
+  children,
+  loadVariantCode,
+  loadSource,
+}: {
+  children: React.ReactNode;
+  loadVariantCode: LoadVariantCode;
+  loadSource: LoadSource;
+}) {
+  const sn = React.useRef(createStarryNight(grammars));
+  const parseSource = React.useCallback<ParseSource>(async (source: string, fileName: string) => {
+    const starryNight = await sn.current;
+    const fileType = fileName.slice(fileName.lastIndexOf('.')) || 'plaintext';
 
-export function CodeProvider({ children }: { children: React.ReactNode }) {
-  const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
-
-  const context = React.useMemo(() => ({ parseSource }), [parseSource]);
-
-  // TODO: fix race condition where parseSource is not set before the first render
-  React.useEffect(() => {
-    (async () => {
-      const starryNight = await createStarryNight(common);
-      const highlight: ParseSource = async (code, fileName) =>
-        starryNight.highlight(
-          code,
-          extensionToLanguage[fileName.slice(fileName.lastIndexOf('.'))] || 'plaintext',
-        );
-      setParseSource(highlight);
-    })();
+    return starryNight.highlight(source, extensionMap[fileType] || 'plaintext');
   }, []);
+
+  const context = React.useMemo(
+    () => ({ parseSource, loadSource, loadVariantCode }),
+    [parseSource, loadSource, loadVariantCode],
+  );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;
 }

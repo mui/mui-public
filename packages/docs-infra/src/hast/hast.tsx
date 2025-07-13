@@ -23,6 +23,25 @@ export function hastOrJsonToJsx(hastOrJson: HastNodes | { hastJson: string }): R
   return toJsxRuntime(hast, { Fragment, jsx, jsxs });
 }
 
+export function stringOrHastToString(source: string | HastNodes | { hastJson: string }): string {
+  if (typeof source === 'string') {
+    return source;
+  }
+
+  let hast: HastNodes;
+  if ('hastJson' in source) {
+    try {
+      hast = JSON.parse(source.hastJson);
+    } catch (error) {
+      throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
+    }
+  } else {
+    hast = source;
+  }
+
+  return toText(hast, { whitespace: 'pre' });
+}
+
 export function stringOrHastToJsx(
   source: string | HastNodes | { hastJson: string },
   highlighted?: boolean,
@@ -46,5 +65,5 @@ export function stringOrHastToJsx(
     return hastToJsx(hast);
   }
 
-  return toText(hast);
+  return toText(hast, { whitespace: 'pre' });
 }
