@@ -12,8 +12,8 @@ export function CodeProvider({
   loadSource,
 }: {
   children: React.ReactNode;
-  loadVariantCode: LoadVariantCode;
-  loadSource: LoadSource;
+  loadVariantCode?: LoadVariantCode;
+  loadSource?: LoadSource;
 }) {
   const sn = React.useRef(createStarryNight(grammars));
   const parseSource = React.useCallback<ParseSource>(async (source: string, fileName: string) => {

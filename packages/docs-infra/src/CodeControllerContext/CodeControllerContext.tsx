@@ -8,9 +8,9 @@ export type Selection = { variant: string; fileName?: string };
 export interface CodeControllerContext {
   code?: Code;
   selection?: Selection;
-  setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
-  setSelection: React.Dispatch<React.SetStateAction<Selection>>;
-  components: Record<string, React.ReactNode> | undefined;
+  setCode?: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
+  components?: Record<string, React.ReactNode> | undefined;
 }
 
 export const CodeControllerContext = React.createContext<CodeControllerContext | undefined>(

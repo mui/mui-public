@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { stringOrHastToJsx } from '@mui/internal-docs-infra/hast';
+import { stringOrHastToJsx, stringOrHastToString } from '@mui/internal-docs-infra/hast';
 import { parseSource } from '@mui/internal-docs-infra/parseSource';
 
 import type {
@@ -8,9 +8,11 @@ import type {
   Components,
   ContentProps,
 } from '@mui/internal-docs-infra/CodeHighlighter';
+// import { patch } from 'jsondiffpatch';
 
-import '@wooorm/starry-night/style/both';
-import transformTsToJs from '../../../../../build/transformTsToJs/transformTsToJs';
+import '@wooorm/starry-night/style/light';
+import { transformTsToJs } from '@mui/internal-docs-infra/transformTsToJs';
+import { Nodes } from 'hast';
 
 function DemoContent(props: ContentProps) {
   const code = props.code?.Default;
@@ -18,10 +20,24 @@ function DemoContent(props: ContentProps) {
     return <div>No code available</div>;
   }
 
+  let source = code.source && stringOrHastToJsx(code.source, true);
+  // const delta = code.transforms?.js?.delta;
+  // if (delta) {
+  //   if (typeof code.source === 'string') {
+  //     const patched = patch(stringOrHastToString(code.source).split('\n'), delta);
+  //     if (Array.isArray(patched)) {
+  //       source = patched.join('\n');
+  //     }
+  //   } else {
+  //     source = stringOrHastToJsx(patch(code.source, delta) as Nodes, true);
+  //   }
+  // }
+
   return (
     <div style={{ border: '1px solid #ccc', padding: '16px' }}>
-      <div>{props.components?.Default}</div>
-      {code.source && <pre>{stringOrHastToJsx(code.source)}</pre>}
+      <div style={{ marginBottom: '16px' }}>{props.components?.Default}</div>
+      <span style={{ textDecoration: 'underline' }}>{code.fileName}</span>
+      <pre>{source}</pre>
     </div>
   );
 }
@@ -55,6 +71,7 @@ function createDemo(
         components={renderedComponents}
         Content={DemoContent}
         parseSource={parseSource}
+        sourceTransformers={[{ extensions: ['ts', 'tsx'], transformer: transformTsToJs }]}
       />
     );
   }

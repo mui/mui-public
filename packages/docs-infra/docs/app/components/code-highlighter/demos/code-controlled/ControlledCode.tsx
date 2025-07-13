@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { HighlightProvider } from '../../../../../../build/esm/CodeProvider';
+import { CodeProvider } from '../../../../../../build/esm/CodeProvider';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import { CodeController } from './CodeController';
 import { EditableCode } from './EditableCode';
@@ -13,10 +13,10 @@ export default function ControlledCode() {
   };
 
   return (
-    <HighlightProvider>
+    <CodeProvider>
       <CodeController initialCode={initialCode}>
         <CodeHighlighter controlled code={initialCode} Content={EditableCode} />
       </CodeController>
-    </HighlightProvider>
+    </CodeProvider>
   );
 }

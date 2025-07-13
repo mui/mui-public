@@ -103,10 +103,10 @@
       "require": "./build/*/errors.js",
       "types": "./build/*/errors.d.ts"
     },
-    "./*/esm": {
-      "import": "./build/esm/*/index.js",
-      "require": "./build/esm/*/index.js",
-      "types": "./build/esm/*/index.d.ts"
+    "./remarkRelativeUrls/esm": {
+      "import": "./build/esm/remarkRelativeUrls/index.js",
+      "require": "./build/esm/remarkRelativeUrls/index.js",
+      "types": "./build/esm/remarkRelativeUrls/index.d.ts"
     }
   },
   "files": [

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import type { Code } from '@mui/internal-docs-infra/CodeHighlighter';
-import { CodeControllerContext } from '@mui/internal-docs-infra/CodeController';
+import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
 
 export function CodeController({
   children,

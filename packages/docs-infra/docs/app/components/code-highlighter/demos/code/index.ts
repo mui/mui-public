@@ -1,9 +1,9 @@
-import createDemo from '../createDemo';
-import BasicCode from './BasicCode';
+import createDemo from '../createDemo'
+import Default from './BasicCode'
 
 export const CodeDemo = createDemo(
   import.meta.url,
-  { Default: BasicCode }, // TODO: it would be nice to just do import.meta.url, BasicCode, {
+  { Default }, // TODO: it would be nice to just do import.meta.url, BasicCode, {
   {
     name: 'Basic Code Block',
     slug: 'code',
@@ -47,5 +47,5 @@ export default Code;
         },
       },
     },
-  },
-);
+  }
+)
