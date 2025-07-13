@@ -1,19 +1,14 @@
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
-import { stringOrHastToJsx } from '@mui/internal-docs-infra/hast';
+import { hastOrJsonToJsx } from '@mui/internal-docs-infra/CodeHighlighter';
 
-import '@wooorm/starry-night/style/both';
+import '@wooorm/starry-night/style/both.css';
 
 function CodeContent(props: ContentProps) {
-  const code = props.code?.Default;
-  if (!code) {
-    return <div>No code available</div>;
-  }
-
   return (
-    <div style={{ border: '1px solid #ccc', padding: '16px' }}>
-      <span style={{ textDecoration: 'underline' }}>{code.fileName}</span>
-      {code.source && <pre>{stringOrHastToJsx(code.source)}</pre>}
+    <div>
+      <h2>{props.code.Default.fileName}</h2>
+      <pre>{hastOrJsonToJsx(props.code.Default.source)}</pre>
     </div>
   );
 }
@@ -35,5 +30,3 @@ function Code({
     />
   );
 }
-
-export default Code;

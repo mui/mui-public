@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { hastOrJsonToJsx } from '@mui/internal-docs-infra/CodeHighlighter';
+import { stringOrHastToJsx } from '@mui/internal-docs-infra/hast';
+import { parseSource } from '@mui/internal-docs-infra/parseSource';
 
 import type {
   CodeHighlighterProps,
@@ -8,21 +9,25 @@ import type {
   ContentProps,
 } from '@mui/internal-docs-infra/CodeHighlighter';
 
-import '@wooorm/starry-night/style/both.css';
+import '@wooorm/starry-night/style/both';
+import transformTsToJs from '../../../../../build/transformTsToJs/transformTsToJs';
 
 function DemoContent(props: ContentProps) {
+  const code = props.code?.Default;
+  if (!code) {
+    return <div>No code available</div>;
+  }
+
   return (
-    <div>
+    <div style={{ border: '1px solid #ccc', padding: '16px' }}>
       <div>{props.components?.Default}</div>
-      <h2>{props.name}</h2>
-      <p>{props.description}</p>
-      <pre>{hastOrJsonToJsx(props.code?.Default?.source)}</pre>
+      {code.source && <pre>{stringOrHastToJsx(code.source)}</pre>}
     </div>
   );
 }
 
-type DemoProps = Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'clientOnly'>;
-type Demo = React.ComponentType<DemoProps>;
+type DemoProps = Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'forceClient'>;
+type Demo = React.ComponentType<DemoProps> & { Title: React.ComponentType };
 
 type Options = Partial<
   Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'precompute' | 'code'>
@@ -49,9 +54,12 @@ function createDemo(
         url={url}
         components={renderedComponents}
         Content={DemoContent}
+        parseSource={parseSource}
       />
     );
   }
+
+  Component.Title = () => <h2 id={opts.slug}>{opts.name}</h2>;
 
   if (process.env.NODE_ENV !== 'production') {
     Component.displayName = `${opts.name}Demo`; // TODO: should have displayName instead

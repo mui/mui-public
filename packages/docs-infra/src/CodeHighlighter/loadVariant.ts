@@ -1,4 +1,11 @@
-import type { VariantCode, ParseSource, LoadSource, LoadVariantCode } from './types';
+import { transformSource } from './transformSource';
+import type {
+  VariantCode,
+  ParseSource,
+  LoadSource,
+  LoadVariantCode,
+  SourceTransformers,
+} from './types';
 
 export async function loadVariant(
   variantName: any,
@@ -7,6 +14,7 @@ export async function loadVariant(
   parseSource?: ParseSource,
   loadSource?: LoadSource,
   loadVariantCode?: LoadVariantCode,
+  sourceTransformers?: SourceTransformers,
 ): Promise<{ variant: string; code: VariantCode }> {
   if (!variant) {
     if (!loadVariantCode) {
@@ -39,8 +47,14 @@ export async function loadVariant(
     }
   }
 
+  if (sourceTransformers && !('transforms' in variant)) {
+    const transforms = await transformSource(source, filename, sourceTransformers);
+    variant = { ...variant, transforms };
+  }
+
   if (typeof source === 'string') {
     if (!parseSource) {
+      // TODO: this needs to check shouldHighlight
       throw new Error(
         '"parseSource" function is required when source is a string and highlightAt is "init"',
       );

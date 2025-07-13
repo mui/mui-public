@@ -14,6 +14,8 @@ export function CodeController({
   const [code, setCode] = React.useState(initialCode);
   const context = React.useMemo(() => ({ code, setCode }), [code, setCode]);
 
+  // TODO: if there's no initialCode, code is undefined until it is edited
+
   return (
     <CodeControllerContext.Provider value={context}>{children}</CodeControllerContext.Provider>
   );

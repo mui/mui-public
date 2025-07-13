@@ -21,6 +21,7 @@ export function CodeProvider({ children }: { children: React.ReactNode }) {
 
   const context = React.useMemo(() => ({ parseSource }), [parseSource]);
 
+  // TODO: fix race condition where parseSource is not set before the first render
   React.useEffect(() => {
     (async () => {
       const starryNight = await createStarryNight(common);

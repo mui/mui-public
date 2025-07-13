@@ -76,16 +76,30 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
     );
   }
 
+  // type Options = { name?: string; slug?: string; description?: string };
+  // export type ContentProps = { code: Code; components?: Components } & Options;
+
   const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
   const clientProps: CodeHighlighterClientProps = {
     ...props,
     code,
     highlightAt: highlightAt || 'init',
+    fallback: props.fallback,
+    children: (
+      <props.Content
+        code={props.code}
+        components={props.components}
+        name={props.name}
+        slug={props.slug}
+        description={props.description}
+      />
+    ),
   };
   delete (clientProps as any).forceClient;
   delete (clientProps as any).loadVariantCode;
   delete (clientProps as any).loadSource;
   delete (clientProps as any).parseSource;
+  delete (clientProps as any).sourceTransformers;
 
   // TODO:
   delete (clientProps as any).Content;
@@ -121,11 +135,22 @@ function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
     ...props,
     code,
     highlightAt: highlightAt || 'init',
+    fallback: props.fallback,
+    children: (
+      <props.Content
+        code={props.code}
+        components={props.components}
+        name={props.name}
+        slug={props.slug}
+        description={props.description}
+      />
+    ),
   };
   delete (clientProps as any).forceClient;
   delete (clientProps as any).loadVariantCode;
   delete (clientProps as any).loadSource;
   delete (clientProps as any).parseSource;
+  delete (clientProps as any).sourceTransformers;
 
   // TODO:
   delete (clientProps as any).Content;

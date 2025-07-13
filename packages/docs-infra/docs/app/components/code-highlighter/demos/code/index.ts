@@ -7,7 +7,6 @@ export const CodeDemo = createDemo(
   {
     name: 'Basic Code Block',
     slug: 'code',
-    description: 'This shows a basic code block with syntax highlighting.',
     // precompute: true, TODO: enable this
     code: {
       Default: {

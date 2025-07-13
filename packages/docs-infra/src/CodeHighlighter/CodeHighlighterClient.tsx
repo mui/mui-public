@@ -16,46 +16,31 @@ import { codeToFallbackProps } from './codeToFallbackProps';
 
 const DEBUG = false; // Set to true for debugging purposes
 
-export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
-  const { parseSource, loadVariantCode, loadSource } = useCodeContext(); // TODO: use to highlight on the client
+function useInitialData({
+  variants,
+  variantName,
+  code,
+  setCode,
+  fileName,
+  url,
+  highlightAt,
+  fallbackUsesExtraFiles,
+  fallbackUsesAllVariants,
+  isControlled,
+}: {
+  variants: string[];
+  variantName: string;
+  code?: Code;
+  setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  fileName?: string;
+  url?: string;
+  highlightAt?: 'init' | 'hydration' | 'idle';
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  isControlled: boolean;
+}) {
+  const { parseSource, loadVariantCode, loadSource } = useCodeContext();
 
-  const {
-    controlledCode,
-    controlledSelection,
-    controlledSetCode,
-    controlledSetSelection,
-    controlledComponents,
-  } = useControlledCode();
-
-  const isControlled = Boolean(props.code || controlledCode);
-
-  // TODO: props.code is for controlled components, props.precompute is for precomputed code
-  // props.code should only be highlighted, but no additional fetching should be done
-  // this is the case with live demos where the code can be edited by the user
-  // then maybe props.code shouldn't allow highlighted code, only strings?
-  // this is a code highlighter afterall, why would they want to control the highlighting aspect?
-
-  // TODO: should we empty this state if controlled?
-  const [code, setCode] = React.useState(
-    typeof props.precompute === 'object' ? props.precompute : undefined,
-  );
-  // TODO: setCode from upstream is also valid
-
-  // TODO: if using props.variant, then the variant is controlled and we can't use our own state
-  const [selection, setSelection] = React.useState<Selection>({
-    variant: props.initialVariant || props.defaultVariant || 'Default',
-  });
-
-  const variantName = controlledSelection?.variant || props.variant || selection.variant;
-  const activeCode = controlledCode || props.code || code;
-  const initialFilename = activeCode?.[variantName]?.filesOrder
-    ? activeCode[variantName].filesOrder[0]
-    : activeCode?.[variantName]?.fileName;
-  const fileName = controlledSelection?.fileName || props.fileName || initialFilename;
-
-  // TODO: if controlled, they might also have a setVariantName provided that we should use instead
-
-  const variants = props.variants || Object.keys(props.components || code || {});
   const { initialData, reason } = React.useMemo(
     () =>
       maybeInitialData(
@@ -63,18 +48,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
         variantName,
         code,
         fileName,
-        props.highlightAt === 'init',
-        props.fallbackUsesExtraFiles,
-        props.fallbackUsesAllVariants,
+        highlightAt === 'init',
+        fallbackUsesExtraFiles,
+        fallbackUsesAllVariants,
       ),
     [
       variants,
       variantName,
       code,
       fileName,
-      props.highlightAt,
-      props.fallbackUsesExtraFiles,
-      props.fallbackUsesAllVariants,
+      highlightAt,
+      fallbackUsesExtraFiles,
+      fallbackUsesAllVariants,
     ],
   );
 
@@ -95,10 +80,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
       const loaded = await loadFallbackVariant(
         variantName,
-        props.highlightAt === 'init',
+        highlightAt === 'init',
         code,
         code?.[variantName],
-        props.url,
+        url,
         parseSource,
         loadSource,
         loadVariantCode,
@@ -116,22 +101,32 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     isControlled,
     variantName,
     code,
-    props.highlightAt,
-    props.url,
+    setCode,
+    highlightAt,
+    url,
     parseSource,
     loadSource,
     loadVariantCode,
   ]);
+}
 
-  const readyForContent = React.useMemo(() => {
-    if (!activeCode) {
-      return false;
-    }
+function useAllVariants({
+  readyForContent,
+  variants,
+  isControlled,
+  url,
+  code,
+  setCode,
+}: {
+  readyForContent: boolean;
+  variants: string[];
+  isControlled: boolean;
+  url?: string;
+  code?: Code;
+  setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
+}) {
+  const { parseSource, loadVariantCode, loadSource } = useCodeContext();
 
-    return hasAllVariants(variants, activeCode);
-  }, [activeCode, variants]);
-
-  // Load full data if it's not already loaded
   React.useEffect(() => {
     if (readyForContent || isControlled) {
       return;
@@ -140,16 +135,12 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     // TODO: abort controller
 
     (async () => {
+      // TODO: avoid highlighting at this stage
       const result = await Promise.all(
         variants.map((name) =>
-          loadVariant(
-            name,
-            props.url,
-            code?.[name],
-            parseSource,
-            loadSource,
-            loadVariantCode,
-          ).catch((error) => ({ error })),
+          loadVariant(name, url, code?.[name], parseSource, loadSource, loadVariantCode).catch(
+            (error) => ({ error }),
+          ),
         ),
       );
 
@@ -173,13 +164,33 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     readyForContent,
     isControlled,
     variants,
-    props.url,
+    url,
     code,
+    setCode,
     parseSource,
     loadSource,
     loadVariantCode,
   ]);
 
+  return { readyForContent };
+}
+
+function useHighlighter({
+  highlightAt = 'hydration',
+  isControlled,
+  activeCode,
+  readyForContent,
+  variants,
+  setCode,
+}: {
+  readyForContent: boolean;
+  highlightAt?: 'init' | 'hydration' | 'idle';
+  isControlled: boolean;
+  activeCode?: Code;
+  variants: string[];
+  setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
+}) {
+  const { parseSource } = useCodeContext();
   const isHydrated = useOnHydrate();
   const isIdle = useOnIdle();
   const [overlaidCode, setOverlaidCode] = React.useState<Code | undefined>();
@@ -190,7 +201,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       return;
     }
 
-    const highlightAt = props.highlightAt || 'hydration';
     if (highlightAt === 'hydration' && !isHydrated) {
       return;
     }
@@ -249,12 +259,92 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     isHydrated,
     isIdle,
     parseSource,
-    props.highlightAt,
+    highlightAt,
     readyForContent,
     variants,
+    setCode,
   ]);
 
-  // Prepare fallback context
+  return { overlaidCode };
+}
+
+export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
+  const {
+    controlledCode,
+    controlledSelection,
+    controlledSetCode,
+    controlledSetSelection,
+    controlledComponents,
+  } = useControlledCode();
+
+  const isControlled = Boolean(props.code || controlledCode);
+
+  // TODO: props.code is for controlled components, props.precompute is for precomputed code
+  // props.code should only be highlighted, but no additional fetching should be done
+  // this is the case with live demos where the code can be edited by the user
+  // then maybe props.code shouldn't allow highlighted code, only strings?
+  // this is a code highlighter afterall, why would they want to control the highlighting aspect?
+
+  // TODO: should we empty this state if controlled?
+  const [code, setCode] = React.useState(
+    typeof props.precompute === 'object' ? props.precompute : undefined,
+  );
+
+  // TODO: if using props.variant, then the variant is controlled and we can't use our own state
+  // does props.variant make any sense instead of controlledSelection?.variant?
+  const [selection, setSelection] = React.useState<Selection>({
+    variant: props.initialVariant || props.defaultVariant || 'Default',
+  });
+
+  const variantName = controlledSelection?.variant || props.variant || selection.variant;
+  const activeCode = controlledCode || props.code || code;
+  const initialFilename = activeCode?.[variantName]?.filesOrder
+    ? activeCode[variantName].filesOrder[0]
+    : activeCode?.[variantName]?.fileName;
+  const fileName = controlledSelection?.fileName || props.fileName || initialFilename;
+
+  const variants = props.variants || Object.keys(props.components || activeCode || {});
+  const { url, highlightAt, fallbackUsesExtraFiles, fallbackUsesAllVariants } = props;
+
+  useInitialData({
+    variants,
+    variantName,
+    code,
+    setCode,
+    fileName,
+    url,
+    highlightAt,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    isControlled,
+  });
+
+  const readyForContent = React.useMemo(() => {
+    if (!activeCode) {
+      return false;
+    }
+
+    return hasAllVariants(variants, activeCode);
+  }, [activeCode, variants]);
+
+  useAllVariants({
+    readyForContent,
+    variants,
+    isControlled,
+    url,
+    code,
+    setCode,
+  });
+
+  const { overlaidCode } = useHighlighter({
+    highlightAt,
+    isControlled,
+    activeCode,
+    readyForContent,
+    variants,
+    setCode,
+  });
+
   const fallbackContext = React.useMemo(
     () =>
       codeToFallbackProps(
@@ -295,7 +385,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     ],
   );
 
-  if (!props.variants && !props.components && !code) {
+  if (!props.variants && !props.components && !activeCode) {
     throw new Error(
       'CodeHighlighterClient requires either `variants`, `components`, or `code` to be provided.',
     );
@@ -312,7 +402,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   return (
     <CodeHighlighterContext.Provider value={context}>
-      {props.content}
+      {props.children}
     </CodeHighlighterContext.Provider>
   );
 

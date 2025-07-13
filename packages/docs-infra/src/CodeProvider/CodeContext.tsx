@@ -1,10 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { LoadSource, LoadVariantCode, ParseSource } from '../CodeHighlighter';
+import type {
+  LoadSource,
+  LoadVariantCode,
+  ParseSource,
+  SourceTransformers,
+} from '../CodeHighlighter';
 
 export interface CodeContext {
   parseSource?: ParseSource;
+  sourceTransformers?: SourceTransformers;
   loadSource?: LoadSource;
   loadVariantCode?: LoadVariantCode;
 }

@@ -1,0 +1,25 @@
+.body {
+  font-family: var(--font-geist-sans);
+  margin: 0;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px 12px 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.header a {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
