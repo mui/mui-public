@@ -42,7 +42,7 @@ export async function transformSource(
         return undefined;
       } catch (error) {
         throw new Error(
-          `Failed to transform source code (file: ${fileName}): ${JSON.stringify(error)}`,
+          `Failed to transform source code (file: ${fileName}): ${error instanceof Error && error.message}`,
         );
       }
     }),
