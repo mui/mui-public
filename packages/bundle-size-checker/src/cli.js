@@ -98,10 +98,7 @@ async function getWebpackSizes(args, config) {
 
 /**
  * Report command handler
- * @param {Object} argv - Command line arguments
- * @param {number} argv.pr - Pull request number
- * @param {string} [argv.owner] - Repository owner
- * @param {string} [argv.repo] - Repository name
+ * @param {ReportCommandArgs} argv - Command line arguments
  */
 async function reportCommand(argv) {
   const { pr, owner: argOwner, repo: argRepo } = argv;
@@ -110,6 +107,10 @@ async function reportCommand(argv) {
   const currentRepo = await getCurrentRepoInfo();
   const owner = argOwner ?? currentRepo.owner;
   const repo = argRepo ?? currentRepo.repo;
+
+  if (typeof pr !== 'number') {
+    throw new Error('Invalid pull request number. Please provide a valid --pr option.');
+  }
 
   // Validate that both owner and repo are available
   if (!owner || !repo) {
@@ -172,74 +173,76 @@ async function run(argv) {
 }
 
 yargs(process.argv.slice(2))
-  // @ts-expect-error
-  .command({
-    command: '$0',
-    describe: 'Saves a size snapshot in size-snapshot.json',
-    builder: (cmdYargs) => {
-      return cmdYargs
-        .option('analyze', {
-          default: false,
-          describe: 'Creates a webpack-bundle-analyzer report for each bundle.',
-          type: 'boolean',
-        })
-        .option('accurateBundles', {
-          default: false,
-          describe: 'Displays used bundles accurately at the cost of more CPU cycles.',
-          type: 'boolean',
-        })
-        .option('verbose', {
-          default: false,
-          describe: 'Show more detailed information during compilation.',
-          type: 'boolean',
-        })
-        .option('vite', {
-          default: false,
-          describe: 'Use Vite instead of webpack for bundling.',
-          type: 'boolean',
-        })
-        .option('output', {
-          alias: 'o',
-          describe:
-            'Path to output the size snapshot JSON file (defaults to size-snapshot.json in current directory).',
-          type: 'string',
-        })
-        .option('filter', {
-          alias: 'F',
-          describe: 'Filter entry points by glob pattern(s) applied to their IDs',
-          type: 'array',
-        })
-        .option('concurrency', {
-          alias: 'c',
-          describe: 'Number of workers to use for parallel processing',
-          type: 'number',
-          default: DEFAULT_CONCURRENCY,
-        });
-    },
-    handler: run,
-  })
-  // @ts-expect-error
-  .command({
-    command: 'report',
-    describe: 'Generate a markdown report for a pull request',
-    builder: (cmdYargs) => {
-      return cmdYargs
-        .option('pr', {
-          describe: 'Pull request number',
-          type: 'number',
-          demandOption: true,
-        })
-        .option('owner', {
-          describe: 'Repository owner (defaults to current git repo owner)',
-          type: 'string',
-        })
-        .option('repo', {
-          describe: 'Repository name (defaults to current git repo name)',
-          type: 'string',
-        });
-    },
-    handler: reportCommand,
-  })
+  .command(
+    /** @type {import('yargs').CommandModule<{}, CommandLineArgs>} */ ({
+      command: '$0',
+      describe: 'Saves a size snapshot in size-snapshot.json',
+      builder: (cmdYargs) => {
+        return cmdYargs
+          .option('analyze', {
+            default: false,
+            describe: 'Creates a webpack-bundle-analyzer report for each bundle.',
+            type: 'boolean',
+          })
+          .option('accurateBundles', {
+            default: false,
+            describe: 'Displays used bundles accurately at the cost of more CPU cycles.',
+            type: 'boolean',
+          })
+          .option('verbose', {
+            default: false,
+            describe: 'Show more detailed information during compilation.',
+            type: 'boolean',
+          })
+          .option('vite', {
+            default: false,
+            describe: 'Use Vite instead of webpack for bundling.',
+            type: 'boolean',
+          })
+          .option('output', {
+            alias: 'o',
+            describe:
+              'Path to output the size snapshot JSON file (defaults to size-snapshot.json in current directory).',
+            type: 'string',
+          })
+          .option('filter', {
+            alias: 'F',
+            describe: 'Filter entry points by glob pattern(s) applied to their IDs',
+            type: 'array',
+          })
+          .option('concurrency', {
+            alias: 'c',
+            describe: 'Number of workers to use for parallel processing',
+            type: 'number',
+            default: DEFAULT_CONCURRENCY,
+          });
+      },
+      handler: run,
+    }),
+  )
+  .command(
+    /** @type {import('yargs').CommandModule<{}, ReportCommandArgs>} */ ({
+      command: 'report',
+      describe: 'Generate a markdown report for a pull request',
+      builder: (cmdYargs) => {
+        return cmdYargs
+          .option('pr', {
+            describe: 'Pull request number',
+            type: 'number',
+            demandOption: true,
+          })
+          .option('owner', {
+            describe: 'Repository owner (defaults to current git repo owner)',
+            type: 'string',
+          })
+          .option('repo', {
+            describe: 'Repository name (defaults to current git repo name)',
+            type: 'string',
+          });
+      },
+      handler: reportCommand,
+    }),
+  )
   .help()
   .strict(true)
   .version(false)

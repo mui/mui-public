@@ -73,6 +73,12 @@ interface CommandLineArgs {
   vite?: boolean;
 }
 
+interface ReportCommandArgs {
+  pr?: number;
+  owner?: string;
+  repo?: string;
+}
+
 // Diff command argument types
 interface DiffCommandArgs {
   base: string;
