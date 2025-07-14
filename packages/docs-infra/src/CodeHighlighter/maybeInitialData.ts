@@ -65,6 +65,7 @@ export function maybeInitialData(
 
   // TODO, filename might need to be determined from filesOrder if provided?
   const file = fileName ? variantCode?.extraFiles?.[fileName] : variantCode;
+  const initialFilename = fileName || variantCode.fileName;
   if (!file || !file.source) {
     return {
       initialData: false,
@@ -82,7 +83,7 @@ export function maybeInitialData(
   return {
     initialData: {
       code,
-      initialFilename: file.fileName,
+      initialFilename,
       initialSource: file.source,
       initialExtraFiles: variantCode?.extraFiles,
     },

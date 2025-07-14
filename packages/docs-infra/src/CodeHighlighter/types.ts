@@ -11,7 +11,7 @@ export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
 
 export type VariantSource = string | HastNodes | { hastJson: string };
 export type VariantExtraFiles = {
-  [fileName: string]: null | (CodeMeta & { source?: VariantSource });
+  [fileName: string]: null | { source?: VariantSource; transforms?: Transforms };
 };
 export type VariantCode = CodeMeta & {
   source?: VariantSource;
