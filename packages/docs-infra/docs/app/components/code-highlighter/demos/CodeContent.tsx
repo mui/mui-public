@@ -25,8 +25,8 @@ export function CodeContent(props: ContentProps) {
     let source = code.source && stringOrHastToJsx(code.source, true);
     let fileName = code.fileName || 'index.js';
     if (transform && showJs) {
+      fileName = transform.fileName || fileName;
       if (typeof code.source === 'string') {
-        fileName = transform.fileName || fileName;
         const patched = patch(stringOrHastToString(code.source).split('\n'), transform.delta);
         if (Array.isArray(patched)) {
           source = patched.join('\n');

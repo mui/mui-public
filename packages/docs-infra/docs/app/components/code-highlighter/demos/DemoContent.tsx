@@ -20,30 +20,32 @@ export function DemoContent(props: ContentProps) {
     setShowJs((prev) => !prev);
   }, []);
 
-  const delta = code.transforms?.js?.delta;
-  const shownSource = React.useMemo(() => {
+  const transform = code.transforms?.js;
+  const { source, fileName } = React.useMemo(() => {
     let source = code.source && stringOrHastToJsx(code.source, true);
-    if (delta && showJs) {
+    let fileName = code.fileName || 'index.js';
+    if (transform && showJs) {
+      fileName = transform.fileName || fileName;
       if (typeof code.source === 'string') {
-        const patched = patch(stringOrHastToString(code.source).split('\n'), delta);
+        const patched = patch(stringOrHastToString(code.source).split('\n'), transform.delta);
         if (Array.isArray(patched)) {
           source = patched.join('\n');
         }
       } else {
-        source = stringOrHastToJsx(patch(clone(code.source), delta) as Nodes, true);
+        source = stringOrHastToJsx(patch(clone(code.source), transform.delta) as Nodes, true);
       }
     }
 
-    return source;
-  }, [code.source, code.transforms?.js?.delta, showJs]);
+    return { source, fileName };
+  }, [code.source, transform, showJs]);
 
   return (
     <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
       <div style={{ padding: '24px' }}>{props.components?.Default}</div>
       <div style={{ borderTop: '1px solid #ccc', padding: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ textDecoration: 'underline' }}>{code.fileName}</span>
-          <div style={{ display: delta ? 'flex' : 'none' }}>
+          <span style={{ textDecoration: 'underline' }}>{fileName}</span>
+          <div style={{ display: transform ? 'flex' : 'none' }}>
             <Switch
               value={showJs}
               onChange={toggleJs}
@@ -54,7 +56,7 @@ export function DemoContent(props: ContentProps) {
             />
           </div>
         </div>
-        <pre>{shownSource}</pre>
+        <pre>{source}</pre>
       </div>
     </div>
   );
