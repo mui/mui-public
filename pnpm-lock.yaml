@@ -52,9 +52,6 @@ importers:
       execa:
         specifier: ^7.2.0
         version: 7.2.0
-      git-url-parse:
-        specifier: ^16.1.0
-        version: 16.1.0
       lerna:
         specifier: ^8.2.2
         version: 8.2.2(babel-plugin-macros@3.1.0)(encoding@0.1.13)
@@ -303,6 +300,9 @@ importers:
       '@babel/preset-typescript':
         specifier: ^7.27.1
         version: 7.27.1(@babel/core@7.27.4)
+      '@octokit/rest':
+        specifier: ^22.0.0
+        version: 22.0.0
       babel-loader:
         specifier: ^10.0.0
         version: 10.0.0(@babel/core@7.27.4)(webpack@5.94.0)
@@ -327,6 +327,9 @@ importers:
       file-loader:
         specifier: ^6.2.0
         version: 6.2.0(webpack@5.94.0)
+      git-url-parse:
+        specifier: ^16.1.0
+        version: 16.1.0
       micromatch:
         specifier: ^4.0.8
         version: 4.0.8

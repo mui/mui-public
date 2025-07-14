@@ -5,6 +5,18 @@ import * as fetchSnapshotModule from './fetchSnapshot.js';
 
 // Mock the fetchSnapshot module
 vi.mock('./fetchSnapshot.js');
+// Mock the @octokit/rest module
+vi.mock('@octokit/rest', () => ({
+  Octokit: vi.fn(() => ({
+    repos: {
+      compareCommits: vi.fn(),
+      listCommits: vi.fn(),
+    },
+    pulls: {
+      get: vi.fn(),
+    },
+  })),
+}));
 
 describe('renderMarkdownReport', () => {
   const mockFetchSnapshot = vi.mocked(fetchSnapshotModule.fetchSnapshot);
@@ -24,9 +36,26 @@ describe('renderMarkdownReport', () => {
     },
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetchSnapshot.mockClear();
     mockFetchSnapshotWithFallback.mockClear();
+
+    // Import and mock the octokit instance after mocking the module
+    const { octokit } = await import('./github.js');
+
+    // Set up default mock for compareCommits to return the base commit SHA
+    vi.mocked(octokit.repos.compareCommits).mockResolvedValue(
+      /** @type {any} */ ({
+        data: {
+          merge_base_commit: {
+            sha: mockPrInfo.base.sha,
+          },
+        },
+      }),
+    );
+
+    // Clear any previous mock calls
+    vi.mocked(octokit.repos.compareCommits).mockClear();
   });
 
   it('should generate markdown report with size increases', async () => {
@@ -109,7 +138,7 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toContain(
-      'No bundle size snapshot found for base commit abc123 or any of its 3 parent commits.',
+      'No bundle size snapshot found for merge base abc123 or any of its 3 parent commits.',
     );
   });
 
@@ -512,7 +541,9 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo);
 
-    expect(result).toContain('Using snapshot from parent commit parent1 (fallback from abc123)');
+    expect(result).toContain(
+      'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
+    );
     expect(result).toContain('baseCommit=parent1');
   });
 
@@ -527,7 +558,7 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toContain(
-      'No bundle size snapshot found for base commit abc123 or any of its 3 parent commits.',
+      'No bundle size snapshot found for merge base abc123 or any of its 3 parent commits.',
     );
   });
 
@@ -548,7 +579,9 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, { fallbackDepth: 1 });
 
-    expect(result).toContain('Using snapshot from parent commit parent1 (fallback from abc123)');
+    expect(result).toContain(
+      'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
+    );
     expect(mockFetchSnapshotWithFallback).toHaveBeenCalledWith('mui/material-ui', 'abc123', 1);
   });
 });
