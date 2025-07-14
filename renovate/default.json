@@ -51,12 +51,14 @@
         "react-is",
         "@types/react",
         "@types/react-dom",
-        "@types/react-is"
+        "@types/react-is",
+        "use-sync-external-store",
+        "@types/use-sync-external-store"
       ]
     },
     {
       "groupName": "Playwright",
-      "matchPackageNames": ["@playwright/test", "mcr.microsoft.com/playwright"]
+      "matchPackageNames": ["@playwright/*", "playwright", "mcr.microsoft.com/playwright"]
     },
     {
       "groupName": "GitHub Actions",
@@ -77,6 +79,7 @@
     },
     {
       "groupName": "node",
+      "matchDatasources": ["docker", "node-version"],
       "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
       "enabled": false
     },
