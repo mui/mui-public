@@ -336,6 +336,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     setCode,
   });
 
+  // When the content uses setCode, it needs to first setOverlaidCode, then setCode
+  // this ensures that the text is updated before the component controlled by the controller is
+  // we also need a cache for the overlaid code to avoid rehighlighting unchanged code
+  // TODO: we also need to highlight the transforms and memoize them
   const { overlaidCode } = useHighlighter({
     highlightAt,
     isControlled,
@@ -344,6 +348,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     variants,
     setCode,
   });
+
+  // TODO: there seems to be some kind of infinite loop in this component
 
   const fallbackContext = React.useMemo(
     () =>
@@ -405,11 +411,4 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       {props.children}
     </CodeHighlighterContext.Provider>
   );
-
-  // TODO: typescript/javascript switch can be implemented using a <Content/> wrapper and a different useDemo() hook
-  // this would remove the types from .ts files at runtime, but what about build time?
-  // I'm thinking a CodeVariant could return a transforms: { js: { [0]: string or hastLine, [5]: string or hastLine, [6]: null (delete line) } }
-  // if setTransforms(['js']) is set, it returns a transformed version
-  // if setTransforms() is set, it returns the original version
-  // initial transforms can be set with a cookie
 }

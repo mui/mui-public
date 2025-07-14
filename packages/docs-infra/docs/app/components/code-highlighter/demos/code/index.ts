@@ -1,5 +1,5 @@
-import createDemo from '../createDemo'
-import Default from './BasicCode'
+import createDemo from '../createDemo';
+import Default from './BasicCode';
 
 export const CodeDemo = createDemo(
   import.meta.url,
@@ -13,11 +13,14 @@ export const CodeDemo = createDemo(
         fileName: 'BasicCode.tsx',
         source: `import Code from '../Code';
 
+type Test = boolean | string | number;
+
 function BasicCode() {
   return <Code>{\`console.log('Hello, world!');\`}</Code>;
 }
 
-export default BasicCode;`,
+export default BasicCode;
+`,
         extraFiles: {
           Code: {
             fileName: '../Code.tsx',
@@ -47,5 +50,5 @@ export default Code;
         },
       },
     },
-  }
-)
+  },
+);

@@ -85,34 +85,44 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
   // type Options = { name?: string; slug?: string; description?: string };
   // export type ContentProps = { code: Code; components?: Components } & Options;
 
-  const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
-  const clientProps: CodeHighlighterClientProps = {
-    ...props,
-    code,
-    highlightAt: highlightAt || 'init',
-    fallback: props.fallback,
-    children: (
-      <props.Content
-        code={code}
-        components={props.components}
-        name={props.name}
-        slug={props.slug}
-        description={props.description}
-      />
-    ),
-  };
-  delete (clientProps as any).forceClient;
-  delete (clientProps as any).loadVariantCode;
-  delete (clientProps as any).loadSource;
-  delete (clientProps as any).parseSource;
-  delete (clientProps as any).sourceTransformers;
+  return (
+    <props.Content
+      code={code}
+      components={props.components}
+      name={props.name}
+      slug={props.slug}
+      description={props.description}
+    />
+  );
 
-  // TODO:
-  delete (clientProps as any).Content;
-  delete (clientProps as any).ContentLoading;
-  delete (clientProps as any).ErrorHandler;
+  // const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
+  // const clientProps: CodeHighlighterClientProps = {
+  //   ...props,
+  //   code,
+  //   highlightAt: highlightAt || 'init',
+  //   fallback: props.fallback,
+  //   children: (
+  //     <props.Content
+  //       code={code}
+  //       components={props.components}
+  //       name={props.name}
+  //       slug={props.slug}
+  //       description={props.description}
+  //     />
+  //   ),
+  // };
+  // delete (clientProps as any).forceClient;
+  // delete (clientProps as any).loadVariantCode;
+  // delete (clientProps as any).loadSource;
+  // delete (clientProps as any).parseSource;
+  // delete (clientProps as any).sourceTransformers;
 
-  return <CodeHighlighterClient {...clientProps} />;
+  // // TODO:
+  // delete (clientProps as any).Content;
+  // delete (clientProps as any).ContentLoading;
+  // delete (clientProps as any).ErrorHandler;
+
+  // return <CodeHighlighterClient {...clientProps} />;
 
   // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no setCode() or setSelection()
 }

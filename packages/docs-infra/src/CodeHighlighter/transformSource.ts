@@ -3,7 +3,7 @@ import { toText } from 'hast-util-to-text';
 import type { Nodes as HastNodes } from 'hast';
 import type { VariantSource, SourceTransformers, Transforms } from './types';
 
-const differ = create({ omitRemovedValues: true });
+const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 
 export async function transformSource(
   source: VariantSource,

@@ -2,7 +2,7 @@ import { create, patch } from 'jsondiffpatch';
 import type { Nodes } from 'hast';
 import { ParseSource, Transforms } from './types';
 
-const differ = create({ omitRemovedValues: true });
+const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 
 export async function transformParsedSource(
   source: string,
@@ -21,6 +21,7 @@ export async function transformParsedSource(
       const transformedSource = patched.join('\n');
       const parsedTransform = await parseSource(transformedSource, transform.fileName || filename);
 
+      // TODO: further optimize this delta, it looks a little noisy
       const delta = differ.diff(parsedSource, parsedTransform);
 
       return {

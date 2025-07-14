@@ -1,46 +1,10 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { stringOrHastToJsx, stringOrHastToString } from '@mui/internal-docs-infra/hast';
 import { parseSource } from '@mui/internal-docs-infra/parseSource';
-
-import type {
-  CodeHighlighterProps,
-  Components,
-  ContentProps,
-} from '@mui/internal-docs-infra/CodeHighlighter';
-// import { patch } from 'jsondiffpatch';
-
-import '@wooorm/starry-night/style/light';
 import { transformTsToJs } from '@mui/internal-docs-infra/transformTsToJs';
-import { Nodes } from 'hast';
+import type { CodeHighlighterProps, Components } from '@mui/internal-docs-infra/CodeHighlighter';
 
-function DemoContent(props: ContentProps) {
-  const code = props.code?.Default;
-  if (!code) {
-    return <div>No code available</div>;
-  }
-
-  let source = code.source && stringOrHastToJsx(code.source, true);
-  // const delta = code.transforms?.js?.delta;
-  // if (delta) {
-  //   if (typeof code.source === 'string') {
-  //     const patched = patch(stringOrHastToString(code.source).split('\n'), delta);
-  //     if (Array.isArray(patched)) {
-  //       source = patched.join('\n');
-  //     }
-  //   } else {
-  //     source = stringOrHastToJsx(patch(code.source, delta) as Nodes, true);
-  //   }
-  // }
-
-  return (
-    <div style={{ border: '1px solid #ccc', padding: '16px' }}>
-      <div style={{ marginBottom: '16px' }}>{props.components?.Default}</div>
-      <span style={{ textDecoration: 'underline' }}>{code.fileName}</span>
-      <pre>{source}</pre>
-    </div>
-  );
-}
+import { DemoContent } from './DemoContent';
 
 type DemoProps = Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'forceClient'>;
 type Demo = React.ComponentType<DemoProps> & { Title: React.ComponentType };
@@ -76,10 +40,12 @@ function createDemo(
     );
   }
 
-  Component.Title = () => <h2 id={opts.slug}>{opts.name}</h2>;
+  Component.Title = (() => <h2 id={opts.slug}>{opts.name}</h2>) as React.ComponentType;
 
   if (process.env.NODE_ENV !== 'production') {
-    Component.displayName = `${opts.name}Demo`; // TODO: should have displayName instead
+    const displayName = `${opts.name?.replace(/ /g, '')}Demo`;
+    Component.Title.displayName = `${displayName}Title`;
+    Component.displayName = displayName; // TODO: should have displayName instead
   }
 
   return Component as Demo;
