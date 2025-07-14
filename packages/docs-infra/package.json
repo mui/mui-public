@@ -107,6 +107,11 @@
       "import": "./build/esm/remarkRelativeUrls/index.js",
       "require": "./build/esm/remarkRelativeUrls/index.js",
       "types": "./build/esm/remarkRelativeUrls/index.d.ts"
+    },
+    "./codeHighlighterPrecomputeLoader/esm": {
+      "import": "./build/esm/codeHighlighterPrecomputeLoader/index.js",
+      "require": "./build/esm/codeHighlighterPrecomputeLoader/index.js",
+      "types": "./build/esm/codeHighlighterPrecomputeLoader/index.d.ts"
     }
   },
   "files": [

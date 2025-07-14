@@ -14,4 +14,6 @@ npm install @mui/internal-docs-infra
 
 ## Documentation
 
-We have no documentation for these components.
+This is stored in the `docs` directory.
+
+[Read More](./docs/README.md)

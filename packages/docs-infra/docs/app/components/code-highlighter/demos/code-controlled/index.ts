@@ -1,4 +1,4 @@
-import createDemo from '../createDemo';
+import { createDemo } from '@/functions/createDemo';
 import Default from './ControlledCode';
 
 export const ControlledCodeDemo = createDemo(

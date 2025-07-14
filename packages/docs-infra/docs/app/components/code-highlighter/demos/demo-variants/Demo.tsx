@@ -1,4 +1,4 @@
-import createDemo from '../createDemo';
+import { createDemo } from '@/functions/createDemo';
 
 const Demo = createDemo(
   import.meta.url,

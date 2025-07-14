@@ -1,4 +1,4 @@
-import createDemo from '../createDemo';
+import { createDemo } from '../createDemo';
 import { default as Default } from './default';
 
 const DemoDemo = createDemo(

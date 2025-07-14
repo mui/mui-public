@@ -13,7 +13,7 @@ type Options = Partial<
   Pick<CodeHighlighterProps, 'name' | 'slug' | 'description' | 'precompute' | 'code'>
 >;
 
-function createDemo(
+export function createDemo(
   url: string,
   components: { [key: string]: React.ComponentType },
   opts: Options,
@@ -50,5 +50,3 @@ function createDemo(
 
   return Component as Demo;
 }
-
-export default createDemo;

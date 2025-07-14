@@ -1,4 +1,4 @@
-import createDemo from '../../../code-highlighter/demos/createDemo';
+import { createDemo } from '@/functions/createDemo';
 import Default from './HighlightProvider';
 
 export const BaseHighlightProviderDemo = createDemo(

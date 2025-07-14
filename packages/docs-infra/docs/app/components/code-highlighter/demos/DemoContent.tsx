@@ -42,9 +42,17 @@ export function DemoContent(props: ContentProps) {
   return (
     <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
       <div style={{ padding: '24px' }}>{props.components?.Default}</div>
-      <div style={{ borderTop: '1px solid #ccc', padding: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ textDecoration: 'underline' }}>{fileName}</span>
+      <div style={{ borderTop: '1px solid #ccc' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid #ccc',
+            padding: '12px',
+          }}
+        >
+          <span>{fileName}</span>
           <div style={{ display: transform ? 'flex' : 'none' }}>
             <Switch
               value={showJs}
@@ -56,7 +64,7 @@ export function DemoContent(props: ContentProps) {
             />
           </div>
         </div>
-        <pre>{source}</pre>
+        <pre style={{ padding: '12px' }}>{source}</pre>
       </div>
     </div>
   );

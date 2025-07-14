@@ -40,9 +40,17 @@ export function CodeContent(props: ContentProps) {
   }, [code.source, transform, showJs]);
 
   return (
-    <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ textDecoration: 'underline' }}>{fileName}</span>
+    <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px',
+          borderBottom: '1px solid #ccc',
+        }}
+      >
+        <span>{fileName}</span>
         <div style={{ display: transform ? 'flex' : 'none' }}>
           <Switch
             value={showJs}
@@ -54,7 +62,7 @@ export function CodeContent(props: ContentProps) {
           />
         </div>
       </div>
-      <pre>{source}</pre>
+      <pre style={{ padding: '12px' }}>{source}</pre>
     </div>
   );
 }

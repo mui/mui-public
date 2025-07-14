@@ -133,8 +133,7 @@ function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
 
   const code = props.code; // TODO: precompute?
   const variants = props.variants || Object.keys(props.components || code || {});
-  const allCodeVariantsLoaded =
-    code && hasAllVariants(variants, code, props.highlightAt === 'stream') && false; // TODO: temp
+  const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
 
   if (!allCodeVariantsLoaded) {
     if (props.forceClient) {

@@ -1,4 +1,4 @@
-import createDemo from '../../createDemo';
+import { createDemo } from '@/functions/createDemo';
 import { BasicCheckbox } from './BasicCheckbox';
 
 const CheckboxDemo = createDemo(
