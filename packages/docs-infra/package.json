@@ -28,7 +28,8 @@
     "build:copy-files": "node ./scripts/copyFiles.mjs",
     "prebuild": "rimraf build",
     "release": "pnpm build && pnpm publish --no-git-checks",
-    "test": "exit 0",
+    "test": "pnpm -w test --project @mui/internal-docs-infra",
+    "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {

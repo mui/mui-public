@@ -2,11 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { LoadVariantCode, VariantCode, VariantExtraFiles } from '../CodeHighlighter';
 import {
-  resolveDemoImports,
   resolveImports,
   resolveModulePath,
   rewriteImportsToSameDirectory,
 } from '../resolveImports';
+import { parseCreateFactoryCall } from '../codeHighlighterPrecomputeLoader/parseCreateFactoryCall';
 
 interface LoadDependenciesOptions {
   maxDepth?: number;
@@ -43,7 +43,8 @@ async function serverLoadVariantCodeWithOptions(
 
   url = url.replace('file://', '');
   const code = await readFile(url, 'utf8');
-  const imports = await resolveDemoImports(code, url);
+  const factoryCall = await parseCreateFactoryCall(code, url);
+  const imports = factoryCall?.variants || {};
   const variantImport = imports[variantName];
 
   if (!variantImport) {

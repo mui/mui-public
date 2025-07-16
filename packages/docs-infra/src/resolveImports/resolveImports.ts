@@ -3,6 +3,13 @@ export async function resolveImports(code: string, filePath: string): Promise<st
   return Array.from(importMap.values());
 }
 
+export async function resolveImportMap(
+  code: string,
+  filePath: string,
+): Promise<Map<string, string>> {
+  return buildImportMap(code, filePath);
+}
+
 function buildImportMap(code: string, filePath: string): Map<string, string> {
   const importMap = new Map<string, string>();
   const importRegex = /import\s+(?:(\w+)|\*\s+as\s+(\w+)|{[^}]+})\s+from\s+['"]([^'"]+)['"]/g;
@@ -35,42 +42,4 @@ function buildImportMap(code: string, filePath: string): Map<string, string> {
   }
 
   return importMap;
-}
-
-export async function resolveDemoImports(
-  code: string,
-  filePath: string,
-): Promise<Record<string, string>> {
-  const demoImports: Record<string, string> = {};
-
-  // Use the shared buildImportMap function to get import mappings
-  const importMap = buildImportMap(code, filePath);
-
-  // Find createDemo calls and extract the demo object
-  const createDemoRegex = /createDemo\s*\(\s*[^,]+,\s*({[^}]*})/g;
-  let demoMatch = createDemoRegex.exec(code);
-
-  while (demoMatch !== null) {
-    const demoObjectStr = demoMatch[1];
-
-    // Parse the demo object to extract key-value pairs
-    // Handle both { Default: BasicCode } and { Default } syntax
-    const objectContentRegex = /(\w+)(?:\s*:\s*(\w+))?/g;
-    let objectMatch = objectContentRegex.exec(demoObjectStr);
-
-    while (objectMatch !== null) {
-      const [, key, value] = objectMatch;
-      const importName = value || key; // Use value if provided, otherwise use key (shorthand syntax)
-
-      if (importMap.has(importName)) {
-        demoImports[key] = importMap.get(importName)!;
-      }
-
-      objectMatch = objectContentRegex.exec(demoObjectStr);
-    }
-
-    demoMatch = createDemoRegex.exec(code);
-  }
-
-  return demoImports;
 }
