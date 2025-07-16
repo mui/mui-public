@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type {
+  LoadCode,
   LoadSource,
   LoadVariantCode,
   ParseSource,
@@ -13,6 +14,7 @@ export interface CodeContext {
   sourceTransformers?: SourceTransformers;
   loadSource?: LoadSource;
   loadVariantCode?: LoadVariantCode;
+  loadCode?: LoadCode;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

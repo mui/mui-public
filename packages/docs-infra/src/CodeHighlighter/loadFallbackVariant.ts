@@ -1,11 +1,11 @@
 import type {
   Code,
-  VariantCode,
   VariantExtraFiles,
   ParseSource,
   LoadSource,
   LoadVariantCode,
   VariantSource,
+  LoadCode,
 } from './types';
 
 export type FallbackVariants = {
@@ -16,30 +16,46 @@ export type FallbackVariants = {
 };
 
 export async function loadFallbackVariant(
+  url: string,
   initialVariant: string,
+  loaded: Code | undefined,
   shouldHighlight?: boolean,
-  loaded?: Code,
-  initial?: VariantCode, // TODO: do we really need this prop?
-  url?: string,
   parseSource?: ParseSource,
   loadSource?: LoadSource,
   loadVariantCode?: LoadVariantCode,
+  loadCode?: LoadCode,
 ): Promise<FallbackVariants> {
   loaded = { ...loaded };
 
+  let initial = loaded[initialVariant];
   if (!initial) {
-    if (!loadVariantCode) {
-      throw new Error(
-        '"loadVariantCode" function is required when initial filenames are not provided',
-      );
+    if (!loadCode) {
+      throw new Error('"loadCode" function is required when initial variant is not provided');
     }
 
     try {
-      initial = await loadVariantCode(initialVariant, url);
-      loaded[initialVariant] = initial;
+      loaded = await loadCode(url);
+    } catch (error) {
+      throw new Error(`Failed to load code from URL: ${url}. Error: ${JSON.stringify(error)}`);
+    }
+
+    initial = loaded[initialVariant];
+    if (!initial) {
+      throw new Error(`Initial variant "${initialVariant}" not found in loaded code.`);
+    }
+  }
+
+  if (typeof initial === 'string') {
+    if (!loadVariantCode) {
+      throw new Error('"loadVariantCode" function is required when initial variant is a string');
+    }
+
+    try {
+      initial = await loadVariantCode(initialVariant, initial);
+      loaded = { ...loaded, [initialVariant]: initial };
     } catch (error) {
       throw new Error(
-        `Failed to load initial variant code (variant: ${initialVariant}, url: ${url}): ${JSON.stringify(error)}`,
+        `Failed to load initial variant code (variant: ${initialVariant}, url: ${initial}): ${JSON.stringify(error)}`,
       );
     }
   }
@@ -53,7 +69,7 @@ export async function loadFallbackVariant(
 
     try {
       initialSource = await loadSource(initialVariant, initialFilename, url);
-      loaded[initialVariant] = { ...(loaded[initialVariant] || {}), source: initialSource };
+      loaded = { ...loaded, [initialVariant]: { ...(initial || {}), source: initialSource } };
     } catch (error) {
       throw new Error(
         `Failed to load initial source code (variant: ${initialVariant}, file: ${initialFilename}, url: ${url}): ${JSON.stringify(error)}`,
@@ -70,7 +86,7 @@ export async function loadFallbackVariant(
 
     try {
       initialSource = await parseSource(initialSource, initialFilename);
-      loaded[initialVariant] = { ...(loaded[initialVariant] || {}), source: initialSource };
+      loaded = { ...loaded, [initialVariant]: { ...(initial || {}), source: initialSource } };
     } catch (error) {
       throw new Error(
         `Failed to parse initial source code (variant: ${initialVariant}, file: ${initialFilename}, url: ${url}): ${JSON.stringify(error)}`,

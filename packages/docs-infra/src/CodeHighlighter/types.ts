@@ -11,7 +11,7 @@ export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
 
 export type VariantSource = string | HastNodes | { hastJson: string };
 export type VariantExtraFiles = {
-  [fileName: string]: null | { source?: VariantSource; transforms?: Transforms };
+  [fileName: string]: string | { source?: VariantSource; transforms?: Transforms };
 };
 export type VariantCode = CodeMeta & {
   source?: VariantSource;
@@ -19,7 +19,7 @@ export type VariantCode = CodeMeta & {
   filesOrder?: string[];
   transforms?: Transforms;
 };
-export type Code = { [key: string]: VariantCode }; // TODO: only preload should be able to pass highlighted code
+export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
 
 type Options = { name?: string; slug?: string; description?: string };
 export type ContentProps = { code?: Code; components?: Components } & Options;
@@ -45,7 +45,7 @@ interface CodeHighlighterBaseProps extends Options {
   precompute?: boolean | Code;
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
-  url?: string;
+  url: string;
   controlled?: boolean;
 }
 
@@ -60,8 +60,13 @@ export interface CodeHighlighterClientProps extends CodeHighlighterBaseProps {
   highlightAt?: 'init' | 'hydration' | 'idle';
 }
 
-export type LoadVariantCode = (variantName: string, url?: string) => Promise<VariantCode>;
-export type LoadSource = (variantName: string, fileName: string, url?: string) => Promise<string>;
+export type LoadCode = (url: string) => Promise<Code>;
+export type LoadVariantCode = (variantName: string, url: string) => Promise<VariantCode>;
+export type LoadSource = (
+  variantName: string,
+  fileName: string,
+  url?: string,
+) => Promise<{ source: string; extraFiles?: VariantExtraFiles } | string>;
 export type TransformSource = (
   source: string,
   fileName: string,
@@ -82,6 +87,7 @@ export interface CodeHighlighterProps extends CodeHighlighterBaseProps {
    */
   highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
   forceClient?: boolean;
+  loadCode?: LoadCode;
   loadVariantCode?: LoadVariantCode;
   loadSource?: LoadSource;
   sourceTransformers?: SourceTransformers;

@@ -76,24 +76,28 @@ async function loadSingleFile(
 }
 
 export async function loadVariant(
-  variantName: any,
-  url?: string,
-  variant?: VariantCode,
+  url: string,
+  variantName: string,
+  variant: VariantCode | string | undefined,
   parseSource?: ParseSource,
   loadSource?: LoadSource,
   loadVariantCode?: LoadVariantCode,
   sourceTransformers?: SourceTransformers,
 ): Promise<{ variant: string; code: VariantCode }> {
   if (!variant) {
+    throw new Error(`Variant is missing from code: ${variantName}`);
+  }
+
+  if (typeof variant === 'string') {
     if (!loadVariantCode) {
-      throw new Error('"loadVariantCode" function is required when filenames are not provided');
+      throw new Error('"loadVariantCode" function is required when loadCode returns strings');
     }
 
     try {
-      variant = await loadVariantCode(variantName, url);
+      variant = await loadVariantCode(variantName, variant);
     } catch (error) {
       throw new Error(
-        `Failed to load variant code (variant: ${variantName}, url: ${url}): ${JSON.stringify(error)}`,
+        `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,
       );
     }
   }

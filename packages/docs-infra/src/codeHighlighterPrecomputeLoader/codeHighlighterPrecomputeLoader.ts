@@ -119,8 +119,8 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
         // 2. transformTsToJs: Creates JavaScript variants for TypeScript files
         // 3. Processes all extra files with the same transformations
         const { code: processedVariant } = await loadVariant(
+          resolvedVariantPath,
           variantName,
-          `file://${resolvedVariantPath}`, // Use the resolved variant entry point path consistently
           variantResult.variant, // Use the variant property from the new interface
           parseSource,
           undefined, // loadSource - not needed since we already have the variant

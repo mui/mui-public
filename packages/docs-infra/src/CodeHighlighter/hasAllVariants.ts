@@ -17,7 +17,11 @@ function isSourceLoaded(code: { source?: VariantSource }, needsHighlight?: boole
 export function hasAllVariants(variants: string[], code: Code, needsHighlight?: boolean) {
   return variants.every((variant) => {
     const codeVariant = code?.[variant];
-    if (!codeVariant || !isSourceLoaded(codeVariant, needsHighlight)) {
+    if (
+      !codeVariant ||
+      typeof codeVariant === 'string' ||
+      !isSourceLoaded(codeVariant, needsHighlight)
+    ) {
       return false;
     }
 

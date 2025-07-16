@@ -1,3 +1,4 @@
+import { hasAllVariants } from './hasAllVariants';
 import { Code, VariantExtraFiles, VariantSource } from './types';
 
 export function maybeInitialData(
@@ -26,8 +27,7 @@ export function maybeInitialData(
     };
   }
 
-  if (needsAllVariants && !variants.every((v) => code[v] !== undefined)) {
-    // If we need all variants, we check if the code has all the variants
+  if (needsAllVariants && !hasAllVariants(variants, code, needsHighlight)) {
     return {
       initialData: false,
       reason: 'Not all variants are available',
@@ -35,6 +35,13 @@ export function maybeInitialData(
   }
 
   const variantCode = code[variant];
+  if (!variantCode || typeof variantCode === 'string') {
+    return {
+      initialData: false,
+      reason: 'Variant code is not loaded yet',
+    };
+  }
+
   if (needsAllFiles) {
     if (!variantCode) {
       return {

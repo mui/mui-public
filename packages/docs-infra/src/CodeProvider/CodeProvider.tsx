@@ -3,15 +3,17 @@
 import * as React from 'react';
 import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
-import { LoadSource, LoadVariantCode, ParseSource } from '../CodeHighlighter';
+import { LoadCode, LoadSource, LoadVariantCode, ParseSource } from '../CodeHighlighter';
 import { extensionMap, grammars } from '../parseSource/grammars';
 
 export function CodeProvider({
   children,
+  loadCode,
   loadVariantCode,
   loadSource,
 }: {
   children: React.ReactNode;
+  loadCode?: LoadCode;
   loadVariantCode?: LoadVariantCode;
   loadSource?: LoadSource;
 }) {
@@ -24,8 +26,8 @@ export function CodeProvider({
   }, []);
 
   const context = React.useMemo(
-    () => ({ parseSource, loadSource, loadVariantCode }),
-    [parseSource, loadSource, loadVariantCode],
+    () => ({ parseSource, loadSource, loadVariantCode, loadCode }),
+    [parseSource, loadSource, loadVariantCode, loadCode],
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

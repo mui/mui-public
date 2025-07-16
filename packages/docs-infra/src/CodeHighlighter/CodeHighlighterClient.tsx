@@ -33,13 +33,13 @@ function useInitialData({
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
   fileName?: string;
-  url?: string;
+  url: string;
   highlightAt?: 'init' | 'hydration' | 'idle';
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   isControlled: boolean;
 }) {
-  const { parseSource, loadVariantCode, loadSource } = useCodeContext();
+  const { parseSource, loadCode, loadVariantCode, loadSource } = useCodeContext();
 
   const { initialData, reason } = React.useMemo(
     () =>
@@ -79,14 +79,14 @@ function useInitialData({
       }
 
       const loaded = await loadFallbackVariant(
-        variantName,
-        highlightAt === 'init',
-        code,
-        code?.[variantName],
         url,
+        variantName,
+        code,
+        highlightAt === 'init',
         parseSource,
         loadSource,
         loadVariantCode,
+        loadCode,
       ).catch((error) => ({ error }));
 
       if ('error' in loaded) {
@@ -107,6 +107,7 @@ function useInitialData({
     parseSource,
     loadSource,
     loadVariantCode,
+    loadCode,
   ]);
 }
 
@@ -121,11 +122,11 @@ function useAllVariants({
   readyForContent: boolean;
   variants: string[];
   isControlled: boolean;
-  url?: string;
+  url: string;
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
 }) {
-  const { parseSource, loadVariantCode, loadSource } = useCodeContext();
+  const { parseSource, loadCode, loadVariantCode, loadSource } = useCodeContext();
 
   React.useEffect(() => {
     if (readyForContent || isControlled) {
@@ -135,10 +136,19 @@ function useAllVariants({
     // TODO: abort controller
 
     (async () => {
+      let loadedCode = code;
+      if (!loadedCode) {
+        if (!loadCode) {
+          throw new Error('"loadCode" function is required when no code is provided');
+        }
+
+        loadedCode = await loadCode(url);
+      }
+
       // TODO: avoid highlighting at this stage
       const result = await Promise.all(
         variants.map((name) =>
-          loadVariant(name, url, code?.[name], parseSource, loadSource, loadVariantCode).catch(
+          loadVariant(url, name, loadedCode[name], parseSource, loadSource, loadVariantCode).catch(
             (error) => ({ error }),
           ),
         ),
@@ -170,6 +180,7 @@ function useAllVariants({
     parseSource,
     loadSource,
     loadVariantCode,
+    loadCode,
   ]);
 
   return { readyForContent };
@@ -215,6 +226,10 @@ function useHighlighter({
       const result = await Promise.all(
         variants.map(async (name) => {
           const codeVariant = activeCode?.[name];
+          if (!codeVariant || typeof codeVariant === 'string') {
+            throw new Error(`Variant is missing from code: ${name}`);
+          }
+
           if (typeof codeVariant?.source === 'string') {
             if (!parseSource) {
               return { error: new Error('Source is not a string or parseSource is not provided') };
@@ -298,10 +313,12 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const variantName = controlledSelection?.variant || props.variant || selection.variant;
   const activeCode = controlledCode || props.code || code;
-  const initialFilename = activeCode?.[variantName]?.filesOrder
-    ? activeCode[variantName].filesOrder[0]
-    : activeCode?.[variantName]?.fileName;
-  const fileName = controlledSelection?.fileName || props.fileName || initialFilename;
+  const initialFilename =
+    typeof activeCode?.[variantName] === 'object' &&
+    (activeCode?.[variantName]?.filesOrder
+      ? activeCode[variantName].filesOrder[0]
+      : activeCode?.[variantName]?.fileName);
+  const fileName = controlledSelection?.fileName || props.fileName || initialFilename || 'index.js';
 
   const variants = props.variants || Object.keys(props.components || activeCode || {});
   const { url, highlightAt, fallbackUsesExtraFiles, fallbackUsesAllVariants } = props;

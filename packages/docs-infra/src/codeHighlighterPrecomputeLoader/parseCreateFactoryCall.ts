@@ -57,6 +57,7 @@ function validateUrlParameter(url: string, functionName: string, filePath: strin
   }
 
   // Check for CJS equivalent: require('url').pathToFileURL(__filename).toString()
+  // https://github.com/javiertury/babel-plugin-transform-import-meta#importmetaurl
   const cjsPattern =
     /require\s*\(\s*['"`]url['"`]\s*\)\s*\.\s*pathToFileURL\s*\(\s*__filename\s*\)\s*\.\s*toString\s*\(\s*\)/;
   if (cjsPattern.test(trimmedUrl)) {
