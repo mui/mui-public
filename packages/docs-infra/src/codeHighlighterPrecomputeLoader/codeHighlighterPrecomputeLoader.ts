@@ -4,6 +4,8 @@ import { parseSource } from '../parseSource';
 import { transformTsToJs } from '../transformTsToJs';
 import type { SourceTransformers } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
+import { resolveModulePathsWithFs } from '../resolveImports/resolveModulePathWithFs';
+import { replacePrecomputeValue } from './replacePrecomputeValue';
 
 interface LoaderContext {
   resourcePath: string;
@@ -17,18 +19,21 @@ interface LoaderContext {
  *
  * This loader:
  * 1. Parses demo files to find a single createDemo call with precompute: true
- * 2. Loads all variant code and dependencies using serverLoadVariantCodeWithOptions
- * 3. Processes code with parseSource (syntax highlighting) and transformTsToJs (TypeScript to JavaScript conversion)
- * 4. Adds all dependencies to webpack's watch list
- * 5. Replaces precompute: true with the actual precomputed data
+ * 2. Resolves all variant entry point paths using resolveModulePathsWithFs
+ * 3. Loads all variant code and dependencies using serverLoadVariantCodeWithOptions with resolved paths
+ * 4. Processes code with parseSource (syntax highlighting) and transformTsToJs (TypeScript to JavaScript conversion)
+ * 5. Adds all dependencies to webpack's watch list
+ * 6. Replaces precompute: true with the actual precomputed data using replacePrecomputeValue
  *
  * Note: Only supports one createDemo call per file. Will throw an error if multiple calls are found.
  *
  * Features:
+ * - Proper variant entry point resolution using resolveModulePathsWithFs
  * - Syntax highlighting using Starry Night (via parseSource)
  * - TypeScript to JavaScript transformation (via transformTsToJs)
  * - Recursive dependency loading
  * - Webpack dependency tracking for hot reloading
+ * - Precise precompute value replacement (via replacePrecomputeValue)
  *
  * Example input:
  * ```typescript
@@ -78,15 +83,24 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
     const variantData: Record<string, any> = {};
     const allDependencies: string[] = [];
 
+    // First, resolve all variant entry point paths using resolveModulePathsWithFs
+    const variantPaths = Object.values(demoCall.variants);
+    const resolvedVariantPaths = await resolveModulePathsWithFs(variantPaths);
+
     // Process variants in parallel
     const variantEntries = Object.entries(demoCall.variants);
     const variantPromises = variantEntries.map(async ([variantName, variantPath]) => {
       try {
-        // Load the variant code with dependencies using the current file path
-        // Since demoCall.url is typically "import.meta.url", we use this.resourcePath instead
+        // Get the resolved entry point path for this variant
+        const resolvedVariantPath = resolvedVariantPaths.get(variantPath);
+        if (!resolvedVariantPath) {
+          throw new Error(`Could not resolve variant path: ${variantPath}`);
+        }
+
+        // Load the variant code with dependencies using the resolved entry point path
         const variantResult = await serverLoadVariantCodeWithOptions(
           variantName,
-          `file://${this.resourcePath}`, // Use the current file being processed by the loader
+          `file://${resolvedVariantPath}`, // Use the resolved variant entry point path
           {
             includeDependencies: true,
             maxDepth: 5,
@@ -106,7 +120,7 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
         // 3. Processes all extra files with the same transformations
         const { code: processedVariant } = await loadVariant(
           variantName,
-          `file://${this.resourcePath}`, // Use the current file path consistently
+          `file://${resolvedVariantPath}`, // Use the resolved variant entry point path consistently
           variantResult.variant, // Use the variant property from the new interface
           parseSource,
           undefined, // loadSource - not needed since we already have the variant
@@ -137,14 +151,8 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
       }
     }
 
-    // Replace only the 'true' value in 'precompute: true' with the actual data
-    // Find and replace just the true value, keeping the rest of the source unchanged
-    const precomputeRegex = /precompute\s*:\s*true/g;
-    const precomputeData = JSON.stringify(variantData, null, 2);
-
-    // Replace 'precompute: true' with 'precompute: {data}'
-    // The regex will match the exact pattern and we replace just that part
-    const modifiedSource = source.replace(precomputeRegex, `precompute: ${precomputeData}`);
+    // Replace 'precompute: true' with the actual precomputed data
+    const modifiedSource = replacePrecomputeValue(source, variantData);
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => this.addDependency(dep));

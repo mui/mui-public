@@ -1,12 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { LoadVariantCode, VariantCode, VariantExtraFiles } from '../CodeHighlighter';
-import {
-  resolveImports,
-  resolveModulePath,
-  rewriteImportsToSameDirectory,
-} from '../resolveImports';
-import { parseCreateFactoryCall } from '../codeHighlighterPrecomputeLoader/parseCreateFactoryCall';
+import { resolveImports, rewriteImportsToSameDirectory } from '../resolveImports';
+import { resolveModulePathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 
 interface LoadDependenciesOptions {
   maxDepth?: number;
@@ -25,45 +21,34 @@ export interface VariantCodeWithFiles {
  * Enhanced version of serverLoadVariantCode that supports loading relative dependencies.
  * This function recursively loads all relative imports of the variant code with configurable limits.
  *
- * @param variantName - The name of the variant to load
- * @param url - The URL/path to the file containing the variant
+ * @param variantName - The name of the variant to load (used for the fileName)
+ * @param variantUrl - The URL/path to the variant entrypoint file
  * @param options - Configuration options for dependency loading
  * @returns Promise<VariantCodeWithFiles> with variant data and visitedFiles separately
  */
 async function serverLoadVariantCodeWithOptions(
   variantName: string,
-  url: string | undefined,
+  variantUrl: string | undefined,
   options: LoadDependenciesOptions = {},
 ): Promise<VariantCodeWithFiles> {
   const { includeDependencies = true, maxDepth = 5, maxFiles = 50 } = options;
 
-  if (!url) {
-    throw new Error('URL is required to load variant code');
+  if (!variantUrl) {
+    throw new Error('Variant URL is required to load variant code');
   }
 
-  url = url.replace('file://', '');
-  const code = await readFile(url, 'utf8');
-  const factoryCall = await parseCreateFactoryCall(code, url);
-  const imports = factoryCall?.variants || {};
-  const variantImport = imports[variantName];
-
-  if (!variantImport) {
-    throw new Error(`Variant "${variantName}" not found in imports`);
-  }
-
-  // Use the resolveModulePath function to find the actual file
-  const resolvedPath = await resolveModulePath(variantImport);
-  let variantCode = await readFile(resolvedPath, 'utf8');
+  const cleanVariantUrl = variantUrl.replace('file://', '');
+  let variantCode = await readFile(cleanVariantUrl, 'utf8');
 
   let extraFiles: VariantExtraFiles | undefined;
   let filesOrder: string[] | undefined;
-  let visitedFiles: string[] = [url, resolvedPath]; // Always include the main file
+  let visitedFiles: string[] = [cleanVariantUrl]; // Always include the main file
 
   // Load all relative dependencies if enabled
   if (includeDependencies) {
     const visited = new Set<string>();
     extraFiles = await loadRelativeDependencies(
-      resolvedPath,
+      cleanVariantUrl,
       variantCode,
       {
         maxDepth,
@@ -73,7 +58,7 @@ async function serverLoadVariantCodeWithOptions(
     );
 
     // Create a set of all file paths for import rewriting
-    const allFilePaths = new Set([resolvedPath, ...Array.from(visited)]);
+    const allFilePaths = new Set([cleanVariantUrl, ...Array.from(visited)]);
 
     // Rewrite imports in the main variant code
     const rewrittenVariantCode = rewriteImportsToSameDirectory(variantCode, allFilePaths);
@@ -104,21 +89,20 @@ async function serverLoadVariantCodeWithOptions(
 
     // Convert the visited set to an array, ensuring the main file is first
     visitedFiles = [
-      url,
-      resolvedPath,
-      ...Array.from(visited).filter((path) => path !== resolvedPath),
+      cleanVariantUrl,
+      ...Array.from(visited).filter((path) => path !== cleanVariantUrl),
     ];
-    filesOrder = extraFiles ? [basename(resolvedPath), ...Object.keys(extraFiles)] : undefined;
+    filesOrder = extraFiles ? [basename(cleanVariantUrl), ...Object.keys(extraFiles)] : undefined;
   } else {
     // Even when not loading dependencies, rewrite imports in the main file
     // to handle any relative imports that might exist
-    const allFilePaths = new Set([resolvedPath]);
+    const allFilePaths = new Set([cleanVariantUrl]);
     variantCode = rewriteImportsToSameDirectory(variantCode, allFilePaths);
   }
 
   return {
     variant: {
-      fileName: basename(resolvedPath),
+      fileName: basename(cleanVariantUrl),
       source: variantCode,
       extraFiles,
       filesOrder,
@@ -133,9 +117,9 @@ export { serverLoadVariantCodeWithOptions };
 // Default export that matches the LoadVariantCode interface
 export const serverLoadVariantCode: LoadVariantCode = async (
   variantName,
-  url,
+  variantUrl,
 ): Promise<VariantCode> => {
-  const result = await serverLoadVariantCodeWithOptions(variantName, url, {
+  const result = await serverLoadVariantCodeWithOptions(variantName, variantUrl, {
     includeDependencies: true,
     maxDepth: 5,
     maxFiles: 50,
@@ -179,26 +163,29 @@ async function loadRelativeDependencies(
     // Process imports in parallel, but limit the number to avoid hitting the maxFiles limit
     const importsToProcess = relativePaths.slice(0, maxFiles - visited.size);
 
-    const dependencyPromises = importsToProcess.map(async (importPath) => {
-      try {
-        // Resolve the import path to an actual file
-        const resolvedImportPath = await resolveModulePath(importPath);
+    // Resolve all import paths in batch using resolveModulePathsWithFs
+    const resolvedPathsMap = await resolveModulePathsWithFs(importsToProcess);
 
-        if (!visited.has(resolvedImportPath)) {
-          // Read the dependency file
-          const dependencyContent = await readFile(resolvedImportPath, 'utf8');
+    // Read all resolved files in parallel
+    const dependencyPromises = Array.from(resolvedPathsMap.entries()).map(
+      async ([importPath, resolvedImportPath]) => {
+        try {
+          if (!visited.has(resolvedImportPath)) {
+            // Read the dependency file
+            const dependencyContent = await readFile(resolvedImportPath, 'utf8');
 
-          return {
-            path: resolvedImportPath,
-            content: dependencyContent,
-          };
+            return {
+              path: resolvedImportPath,
+              content: dependencyContent,
+            };
+          }
+        } catch (error) {
+          // Skip files that can't be read
+          console.warn(`Could not load dependency: ${importPath} -> ${resolvedImportPath}`, error);
         }
-      } catch (error) {
-        // Skip files that can't be resolved or read
-        console.warn(`Could not load dependency: ${importPath}`, error);
-      }
-      return null;
-    });
+        return null;
+      },
+    );
 
     const dependencies = (await Promise.all(dependencyPromises)).filter(
       (dep): dep is { path: string; content: string } => dep !== null,
