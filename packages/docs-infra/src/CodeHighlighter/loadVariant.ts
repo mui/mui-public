@@ -130,7 +130,54 @@ async function loadSingleFile(
       finalSource = loadResult.source;
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
+
+      // Validate that extraFiles from loadSource contain only absolute URLs as values
+      if (extraFilesFromSource) {
+        for (const [extraFileName, fileData] of Object.entries(extraFilesFromSource)) {
+          // Validate that keys are relative paths (not absolute)
+          if (extraFileName.includes('://') || extraFileName.startsWith('/')) {
+            throw new Error(
+              `Invalid extraFiles from loadSource: key "${extraFileName}" appears to be an absolute path. ` +
+                `extraFiles keys should be relative paths from the current file.`,
+            );
+          }
+
+          // Validate that values are absolute URLs (not relative paths)
+          if (typeof fileData === 'string' && fileData.startsWith('.')) {
+            throw new Error(
+              `Invalid extraFiles from loadSource: "${extraFileName}" has relative path "${fileData}". ` +
+                `All extraFiles values must be absolute URLs.`,
+            );
+          }
+        }
+      }
+
+      // Validate that extraDependencies from loadSource contain only absolute URLs
+      if (extraDependenciesFromSource) {
+        for (const dependency of extraDependenciesFromSource) {
+          if (dependency.startsWith('.')) {
+            throw new Error(
+              `Invalid extraDependencies from loadSource: "${dependency}" is a relative path. ` +
+                `All extraDependencies must be absolute URLs.`,
+            );
+          }
+          if (dependency === url) {
+            throw new Error(
+              `Invalid extraDependencies from loadSource: "${dependency}" is the same as the input URL. ` +
+                `extraDependencies should not include the file being loaded.`,
+            );
+          }
+        }
+      }
     } catch (error) {
+      // Re-throw validation errors without wrapping them
+      if (
+        error instanceof Error &&
+        (error.message.startsWith('Invalid extraFiles from loadSource:') ||
+          error.message.startsWith('Invalid extraDependencies from loadSource:'))
+      ) {
+        throw error;
+      }
       throw new Error(
         `Failed to load source code (variant: ${variantName}, file: ${fileName}, url: ${url}): ${JSON.stringify(error)}`,
       );
@@ -389,6 +436,19 @@ export async function loadVariant(
   }
 
   let allExtraFiles: VariantExtraFiles = {};
+
+  // Validate extraFiles keys from variant definition
+  if (variant.extraFiles) {
+    for (const extraFileName of Object.keys(variant.extraFiles)) {
+      // Check if key is an absolute URL (should be relative)
+      if (extraFileName.includes('://') || extraFileName.startsWith('/')) {
+        throw new Error(
+          `Invalid extraFiles key in variant: "${extraFileName}" appears to be an absolute path. ` +
+            `extraFiles keys in variant definition should be relative paths from the main file.`,
+        );
+      }
+    }
+  }
 
   // Collect extra files from variant definition and from loaded source
   const extraFilesToLoad: VariantExtraFiles = {

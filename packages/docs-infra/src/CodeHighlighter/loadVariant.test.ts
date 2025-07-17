@@ -650,6 +650,323 @@ describe('loadVariant', () => {
         ),
       ).rejects.toThrow('Failed to parse source code');
     });
+
+    it('should throw error when loadSource returns relative paths in extraFiles', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraFiles: {
+          'helper.ts': '../helper.ts', // Invalid: relative path as value
+        },
+      });
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraFiles from loadSource: "helper.ts" has relative path "../helper.ts". All extraFiles values must be absolute URLs.',
+      );
+    });
+
+    it('should throw error when loadSource returns absolute paths as keys in extraFiles', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraFiles: {
+          'file:///helper.ts': 'file:///helper.ts', // Invalid: absolute path as key
+        },
+      });
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraFiles from loadSource: key "file:///helper.ts" appears to be an absolute path. extraFiles keys should be relative paths from the current file.',
+      );
+    });
+
+    it('should throw error when loadSource returns filesystem absolute paths as keys in extraFiles', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraFiles: {
+          '/absolute/helper.ts': 'file:///helper.ts', // Invalid: absolute filesystem path as key
+        },
+      });
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraFiles from loadSource: key "/absolute/helper.ts" appears to be an absolute path. extraFiles keys should be relative paths from the current file.',
+      );
+    });
+
+    it('should throw error when loadSource returns relative paths in extraDependencies', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraDependencies: ['../dependency.ts'], // Invalid: relative path in extraDependencies
+      });
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraDependencies from loadSource: "../dependency.ts" is a relative path. All extraDependencies must be absolute URLs.',
+      );
+    });
+
+    it('should throw error when loadSource returns input URL in extraDependencies', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraDependencies: ['file:///main.ts'], // Invalid: input URL in extraDependencies
+      });
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraDependencies from loadSource: "file:///main.ts" is the same as the input URL. extraDependencies should not include the file being loaded.',
+      );
+    });
+
+    it('should throw error when variant extraFiles has absolute paths as keys', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          'file:///helper.ts': 'file:///helper.ts', // Invalid: absolute path as key
+        },
+      };
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraFiles key in variant: "file:///helper.ts" appears to be an absolute path. extraFiles keys in variant definition should be relative paths from the main file.',
+      );
+    });
+
+    it('should throw error when variant extraFiles has absolute filesystem paths as keys', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          '/absolute/path/helper.ts': 'file:///helper.ts', // Invalid: absolute filesystem path as key
+        },
+      };
+
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(
+        'Invalid extraFiles key in variant: "/absolute/path/helper.ts" appears to be an absolute path. extraFiles keys in variant definition should be relative paths from the main file.',
+      );
+    });
+
+    it('should allow relative paths as keys with absolute URLs as values in variant extraFiles', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          '../helper.ts': 'file:///helper.ts', // Valid: relative key, absolute value
+        },
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const helper = true;',
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///helper.ts');
+      expect((result.code.extraFiles!['../helper.ts'] as any).source).toBe('const helper = true;');
+    });
+
+    it('should allow valid extraDependencies from loadSource', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraDependencies: ['file:///bundled-dep.ts', 'https://example.com/external.js'], // Valid: absolute URLs, different from input
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.dependencies).toEqual([
+        'file:///main.ts',
+        'file:///bundled-dep.ts',
+        'https://example.com/external.js',
+      ]);
+    });
+
+    it('should handle edge cases in extraDependencies validation', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      // Test empty string
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraDependencies: [''], // Edge case: empty string
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Empty string should be allowed (might represent base URL)
+      expect(result.dependencies).toEqual(['file:///main.ts', '']);
+    });
+
+    it('should allow valid extraFiles from loadSource with relative keys and absolute values', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///main.ts') {
+          return Promise.resolve({
+            source: 'const main = true;',
+            extraFiles: {
+              '../helper.ts': 'file:///helper.ts', // Valid: relative key, absolute value
+              './utils.ts': 'file:///utils.ts', // Valid: relative key, absolute value
+            },
+          });
+        }
+        if (url === 'file:///helper.ts') {
+          return Promise.resolve({ source: 'const helper = true;' });
+        }
+        if (url === 'file:///utils.ts') {
+          return Promise.resolve({ source: 'const utils = true;' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.extraFiles).toBeDefined();
+      expect((result.code.extraFiles!['../helper.ts'] as any).source).toBe('const helper = true;');
+      expect((result.code.extraFiles!['./utils.ts'] as any).source).toBe('const utils = true;');
+      expect(result.dependencies).toEqual([
+        'file:///main.ts',
+        'file:///helper.ts',
+        'file:///utils.ts',
+      ]);
+    });
   });
 
   describe('transforms handling', () => {
@@ -729,9 +1046,9 @@ describe('loadVariant', () => {
         url: 'file:///components/switch/demo/demo.ts',
         source: 'const demo = true;',
         extraFiles: {
-          '../../../utils/helper.ts': '../../../utils/helper.ts',
-          '../../shared.ts': '../../shared.ts',
-          './local.ts': './local.ts',
+          '../../../utils/helper.ts': 'file:///utils/helper.ts',
+          '../../shared.ts': 'file:///components/shared.ts',
+          './local.ts': 'file:///components/switch/demo/local.ts',
         },
       };
 
