@@ -10,15 +10,6 @@ import type {
   LoadFileOptions,
 } from './types';
 
-// Mock the transform functions
-vi.mock('./transformSource', () => ({
-  transformSource: vi.fn(),
-}));
-
-vi.mock('./transformParsedSource', () => ({
-  transformParsedSource: vi.fn(),
-}));
-
 describe('loadVariant', () => {
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
@@ -33,7 +24,7 @@ describe('loadVariant', () => {
     mockLoadVariantCode = vi.fn();
     mockSourceTransformers = [
       {
-        extensions: ['.ts', '.tsx'],
+        extensions: ['ts', 'tsx'],
         transformer: vi.fn().mockResolvedValue(undefined),
       },
     ];
@@ -326,52 +317,62 @@ describe('loadVariant', () => {
   });
 
   describe('relative path resolution', () => {
-    it('should resolve relative paths correctly', async () => {
-      const variant: VariantCode = {
-        fileName: 'demo.ts',
-        url: 'file:///components/switch/demo/demo.ts',
-        source: 'const demo = true;',
-        extraFiles: {
-          '../Switch.ts': '../Switch.ts',
-          './helper.ts': './helper.ts',
-        },
-      };
+    it.each([
+      {
+        name: 'parent directory navigation',
+        baseUrl: 'file:///components/switch/demo/demo.ts',
+        relativePath: '../Switch.ts',
+        expectedUrl: 'file:///components/switch/Switch.ts',
+        expectedSource: 'const Switch = true;',
+      },
+      {
+        name: 'current directory files',
+        baseUrl: 'file:///components/switch/demo/demo.ts',
+        relativePath: './helper.ts',
+        expectedUrl: 'file:///components/switch/demo/helper.ts',
+        expectedSource: 'const helper = true;',
+      },
+      {
+        name: 'multiple level navigation',
+        baseUrl: 'file:///components/switch/demo/demo.ts',
+        relativePath: '../../../utils/shared.ts',
+        expectedUrl: 'file:///utils/shared.ts',
+        expectedSource: 'const shared = true;',
+      },
+    ])(
+      'should resolve $name ($relativePath)',
+      async ({ baseUrl, relativePath, expectedUrl, expectedSource }) => {
+        const variant: VariantCode = {
+          fileName: baseUrl.split('/').pop()!,
+          url: baseUrl,
+          source: 'const demo = true;',
+          extraFiles: {
+            [relativePath]: relativePath,
+          },
+        };
 
-      mockLoadSource.mockImplementation((url: string) => {
-        if (url === 'file:///components/switch/Switch.ts') {
-          return Promise.resolve({
-            source: 'const Switch = true;',
-          });
-        }
-        if (url === 'file:///components/switch/demo/helper.ts') {
-          return Promise.resolve({
-            source: 'const helper = true;',
-          });
-        }
-        throw new Error(`Unexpected URL: ${url}`);
-      });
+        mockLoadSource.mockImplementation((url: string) => {
+          if (url === expectedUrl) {
+            return Promise.resolve({ source: expectedSource });
+          }
+          throw new Error(`Unexpected URL: ${url}`);
+        });
 
-      const result = await loadVariant(
-        'file:///components/switch/demo/demo.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantCode,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep sources as strings
-      );
+        const result = await loadVariant(
+          baseUrl,
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+          { disableParsing: true },
+        );
 
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/Switch.ts');
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/demo/helper.ts');
-      expect((result.code.extraFiles!['../Switch.ts'] as any).source).toBe('const Switch = true;');
-      expect((result.code.extraFiles!['./helper.ts'] as any).source).toBe('const helper = true;');
-      expect(result.dependencies).toEqual([
-        'file:///components/switch/demo/demo.ts',
-        'file:///components/switch/Switch.ts',
-        'file:///components/switch/demo/helper.ts',
-      ]);
-    });
+        expect(mockLoadSource).toHaveBeenCalledWith(expectedUrl);
+        expect((result.code.extraFiles![relativePath] as any).source).toBe(expectedSource);
+      },
+    );
 
     it('should handle non-relative paths as-is', async () => {
       const variant: VariantCode = {
@@ -395,7 +396,7 @@ describe('loadVariant', () => {
         mockLoadSource,
         mockLoadVariantCode,
         mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep sources as strings
+        { disableParsing: true },
       );
 
       expect(mockLoadSource).toHaveBeenCalledWith('file:///absolute/path/absolute.ts');
@@ -449,24 +450,39 @@ describe('loadVariant', () => {
         source: 'const x = 1;',
       };
 
+      const transformerSpy = vi.fn().mockResolvedValue({
+        'test-transform': {
+          delta: { 0: ['// transformed'] },
+          fileName: 'test.ts',
+        },
+      });
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
       const options: LoadFileOptions = {
         disableTransforms: true,
       };
 
-      await loadVariant(
+      const result = await loadVariant(
         'file:///test.ts',
         'default',
         variant,
         mockParseSource,
         mockLoadSource,
         mockLoadVariantCode,
-        mockSourceTransformers,
+        sourceTransformersWithSpy,
         options,
       );
 
-      // transformSource should not be called due to disableTransforms
-      const { transformSource } = await import('./transformSource');
-      expect(transformSource).not.toHaveBeenCalled();
+      // Transformer should not be called due to disableTransforms
+      expect(transformerSpy).not.toHaveBeenCalled();
+      // Should not have any transforms applied
+      expect(result.code.transforms).toBeUndefined();
     });
 
     it('should respect disableParsing option', async () => {
@@ -538,105 +554,82 @@ describe('loadVariant', () => {
   });
 
   describe('error handling', () => {
-    it('should throw error when variant is missing', async () => {
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          undefined,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow('Variant is missing from code: default');
-    });
+    // Missing dependencies and function validation
+    it.each([
+      {
+        name: 'variant is missing',
+        variant: undefined,
+        parseSource: mockParseSource,
+        loadSource: mockLoadSource,
+        loadVariantCode: mockLoadVariantCode,
+        expectedError: 'Variant is missing from code: default',
+      },
+      {
+        name: 'loadSource is required but not provided',
+        variant: { fileName: 'test.ts', url: 'file:///test.ts' } as VariantCode,
+        parseSource: mockParseSource,
+        loadSource: undefined,
+        loadVariantCode: mockLoadVariantCode,
+        expectedError: '"loadSource" function is required when source is not provided',
+      },
+      {
+        name: 'parseSource is required but not provided',
+        variant: {
+          fileName: 'test.ts',
+          url: 'file:///test.ts',
+          source: 'const x = 1;',
+        } as VariantCode,
+        parseSource: undefined,
+        loadSource: mockLoadSource,
+        loadVariantCode: mockLoadVariantCode,
+        expectedError:
+          '"parseSource" function is required when source is a string and highlightAt is "init"',
+      },
+      {
+        name: 'loadVariantCode is required but not provided',
+        variant: 'file:///variant.ts',
+        parseSource: mockParseSource,
+        loadSource: mockLoadSource,
+        loadVariantCode: undefined,
+        expectedError: '"loadVariantCode" function is required when loadCode returns strings',
+      },
+    ])(
+      'should throw error when $name',
+      async ({ variant, parseSource, loadSource, loadVariantCode, expectedError }) => {
+        await expect(
+          loadVariant(
+            'file:///test.ts',
+            'default',
+            variant,
+            parseSource,
+            loadSource,
+            loadVariantCode,
+            mockSourceTransformers,
+          ),
+        ).rejects.toThrow(expectedError);
+      },
+    );
 
-    it('should throw error when loadSource is required but not provided', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        // source is missing, so loadSource is required
-      };
-
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          variant,
-          mockParseSource,
-          undefined, // loadSource not provided
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow('"loadSource" function is required when source is not provided');
-    });
-
-    it('should throw error when parseSource is required but not provided', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;', // string source requires parseSource
-      };
-
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          variant,
-          undefined, // parseSource not provided
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        '"parseSource" function is required when source is a string and highlightAt is "init"',
-      );
-    });
-
-    it('should throw error when loadVariantCode is required but not provided', async () => {
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          'file:///variant.ts', // string variant requires loadVariantCode
-          mockParseSource,
-          mockLoadSource,
-          undefined, // loadVariantCode not provided
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow('"loadVariantCode" function is required when loadCode returns strings');
-    });
-
-    it('should handle loadSource errors gracefully', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-      };
-
-      mockLoadSource.mockRejectedValue(new Error('Network error'));
-
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow('Failed to load source code');
-    });
-
-    it('should handle parseSource errors gracefully', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'invalid syntax',
-      };
-
-      mockParseSource.mockRejectedValue(new Error('Parse error'));
+    // Runtime error handling
+    it.each([
+      {
+        name: 'loadSource fails',
+        variant: { fileName: 'test.ts', url: 'file:///test.ts' } as VariantCode,
+        setupMock: () => mockLoadSource.mockRejectedValue(new Error('Network error')),
+        expectedError: 'Failed to load source code',
+      },
+      {
+        name: 'parseSource fails',
+        variant: {
+          fileName: 'test.ts',
+          url: 'file:///test.ts',
+          source: 'invalid syntax',
+        } as VariantCode,
+        setupMock: () => mockParseSource.mockRejectedValue(new Error('Parse error')),
+        expectedError: 'Failed to parse source code',
+      },
+    ])('should handle $name gracefully', async ({ variant, setupMock, expectedError }) => {
+      setupMock();
 
       await expect(
         loadVariant(
@@ -648,179 +641,73 @@ describe('loadVariant', () => {
           mockLoadVariantCode,
           mockSourceTransformers,
         ),
-      ).rejects.toThrow('Failed to parse source code');
+      ).rejects.toThrow(expectedError);
     });
 
-    it('should throw error when loadSource returns relative paths in extraFiles', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const main = true;',
-        extraFiles: {
-          'helper.ts': '../helper.ts', // Invalid: relative path as value
+    // Path validation errors
+    it.each([
+      {
+        name: 'loadSource returns relative path in extraFiles value',
+        setupMock: (mock: MockedFunction<LoadSource>) => {
+          mock.mockResolvedValue({
+            source: 'const main = true;',
+            extraFiles: { 'helper.ts': '../helper.ts' },
+          });
         },
-      });
-
-      await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        'Invalid extraFiles from loadSource: "helper.ts" has relative path "../helper.ts". All extraFiles values must be absolute URLs.',
-      );
-    });
-
-    it('should throw error when loadSource returns absolute paths as keys in extraFiles', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const main = true;',
-        extraFiles: {
-          'file:///helper.ts': 'file:///helper.ts', // Invalid: absolute path as key
+        expectedError:
+          'Invalid extraFiles from loadSource: "helper.ts" has relative path "../helper.ts". All extraFiles values must be absolute URLs.',
+      },
+      {
+        name: 'loadSource returns absolute URL as extraFiles key',
+        setupMock: (mock: MockedFunction<LoadSource>) => {
+          mock.mockResolvedValue({
+            source: 'const main = true;',
+            extraFiles: { 'file:///helper.ts': 'file:///helper.ts' },
+          });
         },
-      });
-
-      await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        'Invalid extraFiles from loadSource: key "file:///helper.ts" appears to be an absolute path. extraFiles keys should be relative paths from the current file.',
-      );
-    });
-
-    it('should throw error when loadSource returns filesystem absolute paths as keys in extraFiles', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const main = true;',
-        extraFiles: {
-          '/absolute/helper.ts': 'file:///helper.ts', // Invalid: absolute filesystem path as key
+        expectedError:
+          'Invalid extraFiles from loadSource: key "file:///helper.ts" appears to be an absolute path. extraFiles keys should be relative paths from the current file.',
+      },
+      {
+        name: 'loadSource returns filesystem absolute path as extraFiles key',
+        setupMock: (mock: MockedFunction<LoadSource>) => {
+          mock.mockResolvedValue({
+            source: 'const main = true;',
+            extraFiles: { '/absolute/helper.ts': 'file:///helper.ts' },
+          });
         },
-      });
-
-      await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        'Invalid extraFiles from loadSource: key "/absolute/helper.ts" appears to be an absolute path. extraFiles keys should be relative paths from the current file.',
-      );
-    });
-
-    it('should throw error when loadSource returns relative paths in extraDependencies', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const main = true;',
-        extraDependencies: ['../dependency.ts'], // Invalid: relative path in extraDependencies
-      });
-
-      await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        'Invalid extraDependencies from loadSource: "../dependency.ts" is a relative path. All extraDependencies must be absolute URLs.',
-      );
-    });
-
-    it('should throw error when loadSource returns input URL in extraDependencies', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const main = true;',
-        extraDependencies: ['file:///main.ts'], // Invalid: input URL in extraDependencies
-      });
-
-      await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        'Invalid extraDependencies from loadSource: "file:///main.ts" is the same as the input URL. extraDependencies should not include the file being loaded.',
-      );
-    });
-
-    it('should throw error when variant extraFiles has absolute paths as keys', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
-        source: 'const main = true;',
-        extraFiles: {
-          'file:///helper.ts': 'file:///helper.ts', // Invalid: absolute path as key
+        expectedError:
+          'Invalid extraFiles from loadSource: key "/absolute/helper.ts" appears to be an absolute path. extraFiles keys should be relative paths from the current file.',
+      },
+      {
+        name: 'loadSource returns relative path in extraDependencies',
+        setupMock: (mock: MockedFunction<LoadSource>) => {
+          mock.mockResolvedValue({
+            source: 'const main = true;',
+            extraDependencies: ['../dependency.ts'],
+          });
         },
-      };
-
-      await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantCode,
-          mockSourceTransformers,
-        ),
-      ).rejects.toThrow(
-        'Invalid extraFiles key in variant: "file:///helper.ts" appears to be an absolute path. extraFiles keys in variant definition should be relative paths from the main file.',
-      );
-    });
-
-    it('should throw error when variant extraFiles has absolute filesystem paths as keys', async () => {
+        expectedError:
+          'Invalid extraDependencies from loadSource: "../dependency.ts" is a relative path. All extraDependencies must be absolute URLs.',
+      },
+      {
+        name: 'loadSource returns input URL in extraDependencies',
+        setupMock: (mock: MockedFunction<LoadSource>) => {
+          mock.mockResolvedValue({
+            source: 'const main = true;',
+            extraDependencies: ['file:///main.ts'],
+          });
+        },
+        expectedError:
+          'Invalid extraDependencies from loadSource: "file:///main.ts" is the same as the input URL. extraDependencies should not include the file being loaded.',
+      },
+    ])('should throw error when $name', async ({ setupMock, expectedError }) => {
       const variant: VariantCode = {
         fileName: 'main.ts',
         url: 'file:///main.ts',
-        source: 'const main = true;',
-        extraFiles: {
-          '/absolute/path/helper.ts': 'file:///helper.ts', // Invalid: absolute filesystem path as key
-        },
       };
+
+      setupMock(mockLoadSource);
 
       await expect(
         loadVariant(
@@ -832,9 +719,45 @@ describe('loadVariant', () => {
           mockLoadVariantCode,
           mockSourceTransformers,
         ),
-      ).rejects.toThrow(
-        'Invalid extraFiles key in variant: "/absolute/path/helper.ts" appears to be an absolute path. extraFiles keys in variant definition should be relative paths from the main file.',
-      );
+      ).rejects.toThrow(expectedError);
+    });
+
+    // Variant validation errors
+    it.each([
+      {
+        name: 'variant extraFiles has absolute URL as key',
+        variantData: {
+          fileName: 'main.ts',
+          url: 'file:///main.ts',
+          source: 'const main = true;',
+          extraFiles: { 'file:///helper.ts': 'file:///helper.ts' },
+        } as VariantCode,
+        expectedError:
+          'Invalid extraFiles key in variant: "file:///helper.ts" appears to be an absolute path. extraFiles keys in variant definition should be relative paths from the main file.',
+      },
+      {
+        name: 'variant extraFiles has filesystem absolute path as key',
+        variantData: {
+          fileName: 'main.ts',
+          url: 'file:///main.ts',
+          source: 'const main = true;',
+          extraFiles: { '/absolute/path/helper.ts': 'file:///helper.ts' },
+        } as VariantCode,
+        expectedError:
+          'Invalid extraFiles key in variant: "/absolute/path/helper.ts" appears to be an absolute path. extraFiles keys in variant definition should be relative paths from the main file.',
+      },
+    ])('should throw error when $name', async ({ variantData, expectedError }) => {
+      await expect(
+        loadVariant(
+          'file:///main.ts',
+          'default',
+          variantData,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          mockSourceTransformers,
+        ),
+      ).rejects.toThrow(expectedError);
     });
 
     it('should allow relative paths as keys with absolute URLs as values in variant extraFiles', async () => {
@@ -969,11 +892,55 @@ describe('loadVariant', () => {
     });
   });
 
-  describe('transforms handling', () => {
-    it('should preserve existing transforms', async () => {
+  describe('sourceTransformers integration', () => {
+    it('should apply sourceTransformers when no existing transforms', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockTransforms = {
+        'syntax-highlight': {
+          source: 'const x = 1; // highlighted',
+          fileName: 'test.ts',
+        },
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue(mockTransforms);
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        'file:///test.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        sourceTransformersWithSpy,
+        { disableParsing: true }, // Disable parsing to keep source as string
+      );
+
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(result.code.transforms).toEqual({
+        'syntax-highlight': {
+          delta: expect.any(Object), // Delta object from jsondiffpatch
+          fileName: 'test.ts',
+        },
+      });
+      expect(result.dependencies).toEqual(['file:///test.ts']);
+    });
+
+    it('should not apply sourceTransformers when transforms already exist', async () => {
       const existingTransforms: Transforms = {
-        'test-transform': {
-          delta: {},
+        'existing-transform': {
+          delta: { 0: ['// existing'] },
           fileName: 'test.ts',
         },
       };
@@ -985,6 +952,20 @@ describe('loadVariant', () => {
         transforms: existingTransforms,
       };
 
+      const transformerSpy = vi.fn().mockResolvedValue({
+        'should-not-be-called': {
+          delta: { 0: ['// should not appear'] },
+          fileName: 'test.ts',
+        },
+      });
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
       const result = await loadVariant(
         'file:///test.ts',
         'default',
@@ -992,30 +973,89 @@ describe('loadVariant', () => {
         mockParseSource,
         mockLoadSource,
         mockLoadVariantCode,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep source as string
+        sourceTransformersWithSpy,
+        { disableParsing: true },
       );
 
+      // Should not call transformer when transforms already exist
+      expect(transformerSpy).not.toHaveBeenCalled();
+      // Should preserve existing transforms
       expect(result.code.transforms).toEqual(existingTransforms);
-      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
 
-    it('should apply source transformers when no existing transforms', async () => {
+    it('should apply sourceTransformers that match file extension', async () => {
+      const variant: VariantCode = {
+        fileName: 'component.tsx',
+        url: 'file:///component.tsx',
+        source: 'const Component = () => <div />;',
+      };
+
+      const tsxTransformerSpy = vi.fn().mockResolvedValue({
+        'jsx-highlight': {
+          source: 'const Component = () => <div />; // jsx highlighted',
+          fileName: 'component.tsx',
+        },
+      });
+
+      const jsTransformerSpy = vi.fn().mockResolvedValue({
+        'js-highlight': {
+          source: 'const Component = () => <div />; // js highlighted',
+          fileName: 'component.tsx',
+        },
+      });
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['js'],
+          transformer: jsTransformerSpy,
+        },
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: tsxTransformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        'file:///component.tsx',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        sourceTransformersWithSpy,
+        { disableParsing: true },
+      );
+
+      // Only the .tsx transformer should be called
+      expect(tsxTransformerSpy).toHaveBeenCalledWith(
+        'const Component = () => <div />;',
+        'component.tsx',
+      );
+      expect(jsTransformerSpy).not.toHaveBeenCalled();
+
+      expect(result.code.transforms).toEqual({
+        'jsx-highlight': {
+          delta: expect.any(Object), // Delta object from jsondiffpatch
+          fileName: 'component.tsx',
+        },
+      });
+    });
+
+    it('should handle sourceTransformers that return undefined', async () => {
       const variant: VariantCode = {
         fileName: 'test.ts',
         url: 'file:///test.ts',
         source: 'const x = 1;',
       };
 
-      const mockTransforms: Transforms = {
-        'generated-transform': {
-          delta: {},
-          fileName: 'test.ts',
-        },
-      };
+      const transformerSpy = vi.fn().mockResolvedValue(undefined);
 
-      const { transformSource } = await import('./transformSource');
-      (transformSource as any).mockResolvedValue(mockTransforms);
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
 
       const result = await loadVariant(
         'file:///test.ts',
@@ -1024,79 +1064,366 @@ describe('loadVariant', () => {
         mockParseSource,
         mockLoadSource,
         mockLoadVariantCode,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep source as string
+        sourceTransformersWithSpy,
+        { disableParsing: true },
       );
 
-      expect(transformSource).toHaveBeenCalledWith(
-        'const x = 1;',
-        'test.ts',
-        mockSourceTransformers,
-      );
-      expect(result.code.transforms).toEqual(mockTransforms);
-      expect(result.dependencies).toEqual(['file:///test.ts']);
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      // Should not have transforms when transformer returns undefined
+      expect(result.code.transforms).toBeUndefined();
     });
-  });
 
-  describe('resolveRelativePath helper', () => {
-    // Import the function for testing - we'll need to expose it or test it indirectly
-    it('should resolve relative paths correctly via URL constructor', async () => {
+    it('should handle sourceTransformers errors gracefully', async () => {
       const variant: VariantCode = {
-        fileName: 'demo.ts',
-        url: 'file:///components/switch/demo/demo.ts',
-        source: 'const demo = true;',
-        extraFiles: {
-          '../../../utils/helper.ts': 'file:///utils/helper.ts',
-          '../../shared.ts': 'file:///components/shared.ts',
-          './local.ts': 'file:///components/switch/demo/local.ts',
-        },
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
       };
 
-      mockLoadSource.mockImplementation((url: string) => {
-        if (url === 'file:///utils/helper.ts') {
-          return Promise.resolve({
-            source: 'const helper = true;',
-          });
-        }
-        if (url === 'file:///components/shared.ts') {
-          return Promise.resolve({
-            source: 'const shared = true;',
-          });
-        }
-        if (url === 'file:///components/switch/demo/local.ts') {
-          return Promise.resolve({
-            source: 'const local = true;',
-          });
-        }
-        throw new Error(`Unexpected URL: ${url}`);
+      const transformerSpy = vi.fn().mockRejectedValue(new Error('Transform failed'));
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      await expect(
+        loadVariant(
+          'file:///test.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          sourceTransformersWithSpy,
+          { disableParsing: true },
+        ),
+      ).rejects.toThrow('Transform failed');
+    });
+
+    it('should apply multiple sourceTransformers for matching extensions', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const highlightTransformerSpy = vi.fn().mockResolvedValue({
+        'syntax-highlight': {
+          source: 'const x = 1; // highlighted',
+          fileName: 'test.ts',
+        },
       });
 
+      const lintTransformerSpy = vi.fn().mockResolvedValue({
+        'lint-errors': {
+          source: 'const x = 1; // lint error',
+          fileName: 'test.ts',
+        },
+      });
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: highlightTransformerSpy,
+        },
+        {
+          extensions: ['ts'],
+          transformer: lintTransformerSpy,
+        },
+      ];
+
       const result = await loadVariant(
-        'file:///components/switch/demo/demo.ts',
+        'file:///test.ts',
         'default',
         variant,
         mockParseSource,
         mockLoadSource,
         mockLoadVariantCode,
-        mockSourceTransformers,
+        sourceTransformersWithSpy,
         { disableParsing: true },
       );
 
-      // Verify the resolved URLs were correct
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///utils/helper.ts');
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/shared.ts');
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/demo/local.ts');
+      // Both transformers should be called
+      expect(highlightTransformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(lintTransformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
 
-      expect(result.code.extraFiles).toBeDefined();
-      expect((result.code.extraFiles!['../../../utils/helper.ts'] as any).source).toBe(
-        'const helper = true;',
-      );
-      expect((result.code.extraFiles!['../../shared.ts'] as any).source).toBe(
-        'const shared = true;',
-      );
-      expect((result.code.extraFiles!['./local.ts'] as any).source).toBe('const local = true;');
+      // Should merge transforms from both transformers
+      expect(result.code.transforms).toEqual({
+        'syntax-highlight': {
+          delta: expect.any(Object), // Delta object from jsondiffpatch
+          fileName: 'test.ts',
+        },
+        'lint-errors': {
+          delta: expect.any(Object), // Delta object from jsondiffpatch
+          fileName: 'test.ts',
+        },
+      });
     });
 
+    it('should apply sourceTransformers and then transform parsed source', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      // Create a transform that adds a comment (will change the source)
+      const initialTransforms = {
+        'syntax-highlight': {
+          source: 'const x = 1;\n// highlighted comment',
+          fileName: 'test.ts',
+        },
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue(initialTransforms);
+
+      // Mock parseSource to return different AST for original vs transformed source
+      mockParseSource.mockImplementation((source: string) => {
+        if (source === 'const x = 1;') {
+          return Promise.resolve({
+            type: 'root',
+            children: [
+              { type: 'element', tagName: 'code', children: [{ type: 'text', value: source }] },
+            ],
+          } as any);
+        }
+        if (source === 'const x = 1;\n// highlighted comment') {
+          return Promise.resolve({
+            type: 'root',
+            children: [
+              { type: 'element', tagName: 'code', children: [{ type: 'text', value: source }] },
+              {
+                type: 'element',
+                tagName: 'span',
+                className: ['comment'],
+                children: [{ type: 'text', value: '// highlighted comment' }],
+              },
+            ],
+          } as any);
+        }
+        throw new Error(`Unexpected source: ${source}`);
+      });
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        'file:///test.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        sourceTransformersWithSpy,
+        // Enable both transforms and parsing
+      );
+
+      // Should call the source transformer first
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      // Should call parseSource to convert original string to AST
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      // Should call parseSource again to convert transformed string to AST for delta comparison
+      expect(mockParseSource).toHaveBeenCalledWith(
+        'const x = 1;\n// highlighted comment',
+        'test.ts',
+      );
+
+      // Source should be the parsed version of the original
+      expect(result.code.source).toEqual({
+        type: 'root',
+        children: [
+          { type: 'element', tagName: 'code', children: [{ type: 'text', value: 'const x = 1;' }] },
+        ],
+      });
+
+      // Should have transforms with delta representing the difference between original and transformed AST
+      expect(result.code.transforms).toBeDefined();
+      expect(result.code.transforms!['syntax-highlight']).toBeDefined();
+      expect(result.code.transforms!['syntax-highlight'].fileName).toBe('test.ts');
+      // The delta should exist since the ASTs are different
+      expect(result.code.transforms!['syntax-highlight'].delta).toBeDefined();
+    });
+
+    it('should skip transformParsedSource when no initial transforms exist', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue(undefined); // No transforms
+      const mockParsedSource = {
+        type: 'root',
+        children: [{ type: 'element', tagName: 'pre', children: [] }],
+      };
+
+      mockParseSource.mockResolvedValue(mockParsedSource as any);
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        'file:///test.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        sourceTransformersWithSpy,
+        // Enable both transforms and parsing
+      );
+
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+
+      // Source should be parsed but no transforms
+      expect(result.code.source).toEqual(mockParsedSource);
+      expect(result.code.transforms).toBeUndefined();
+    });
+
+    it('should handle parsing errors gracefully', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue({
+        'syntax-highlight': {
+          source: 'const x = 1; // highlighted',
+          fileName: 'test.ts',
+        },
+      });
+
+      mockParseSource.mockRejectedValue(new Error('Parse error'));
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      await expect(
+        loadVariant(
+          'file:///test.ts',
+          'default',
+          variant,
+          mockParseSource,
+          mockLoadSource,
+          mockLoadVariantCode,
+          sourceTransformersWithSpy,
+          // Enable both transforms and parsing
+        ),
+      ).rejects.toThrow('Failed to parse source code');
+    });
+
+    it('should preserve existing transforms when parsing is enabled', async () => {
+      const existingTransforms: Transforms = {
+        'existing-transform': {
+          // Delta that replaces line 0 with a comment
+          delta: { '0': ['const x = 1;', '// existing comment\nconst x = 1;'] },
+          fileName: 'test.ts',
+        },
+      };
+
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+        transforms: existingTransforms,
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue({
+        'should-not-be-called': {
+          source: 'should not appear',
+          fileName: 'test.ts',
+        },
+      });
+
+      // Mock parseSource to return different AST for original vs transformed source
+      mockParseSource.mockImplementation((source: string) => {
+        if (source === 'const x = 1;') {
+          return Promise.resolve({
+            type: 'root',
+            children: [
+              { type: 'element', tagName: 'code', children: [{ type: 'text', value: source }] },
+            ],
+          } as any);
+        }
+        if (source === '// existing comment\nconst x = 1;') {
+          return Promise.resolve({
+            type: 'root',
+            children: [
+              {
+                type: 'element',
+                tagName: 'span',
+                className: ['comment'],
+                children: [{ type: 'text', value: '// existing comment' }],
+              },
+              {
+                type: 'element',
+                tagName: 'code',
+                children: [{ type: 'text', value: 'const x = 1;' }],
+              },
+            ],
+          } as any);
+        }
+        throw new Error(`Unexpected source: ${source}`);
+      });
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        'file:///test.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        sourceTransformersWithSpy,
+        // Enable parsing but transforms already exist
+      );
+
+      // Should not call transformer when transforms already exist
+      expect(transformerSpy).not.toHaveBeenCalled();
+      // Should call parseSource to convert string to AST
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+
+      // Source should be parsed
+      expect(result.code.source).toEqual({
+        type: 'root',
+        children: [
+          { type: 'element', tagName: 'code', children: [{ type: 'text', value: 'const x = 1;' }] },
+        ],
+      });
+
+      // Should have transforms processed by transformParsedSource
+      expect(result.code.transforms).toBeDefined();
+      expect(result.code.transforms!['existing-transform']).toBeDefined();
+      expect(result.code.transforms!['existing-transform'].fileName).toBe('test.ts');
+      // The delta should be modified by transformParsedSource to represent AST differences
+      expect(result.code.transforms!['existing-transform'].delta).toBeDefined();
+    });
+  });
+
+  describe('URL scheme handling', () => {
     it('should handle URL schemes other than file://', async () => {
       const variant: VariantCode = {
         fileName: 'main.js',
@@ -1127,34 +1454,110 @@ describe('loadVariant', () => {
     });
   });
 
-  it('should include extraDependencies from loadSource in dependencies', async () => {
-    const variant: VariantCode = {
-      fileName: 'main.ts',
-      url: 'file:///main.ts',
-    };
+  describe('extraDependencies integration', () => {
+    it('should include extraDependencies from loadSource in dependencies', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
 
-    // Mock loadSource to return extraDependencies
-    mockLoadSource.mockResolvedValue({
-      source: 'const main = true;',
-      extraDependencies: ['file:///bundled-dep1.ts', 'file:///bundled-dep2.ts'],
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        extraDependencies: ['file:///bundled-dep1.ts', 'file:///bundled-dep2.ts'],
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.source).toBe('const main = true;');
+      expect(result.dependencies).toEqual([
+        'file:///main.ts',
+        'file:///bundled-dep1.ts',
+        'file:///bundled-dep2.ts',
+      ]);
+    });
+  });
+});
+
+describe('loadVariant - helper functions', () => {
+  // Tests for helper function behavior through integration
+  describe('resolveRelativePath behavior', () => {
+    let mockLoadSource: MockedFunction<LoadSource>;
+    let mockParseSource: MockedFunction<ParseSource>;
+    let mockLoadVariantCode: MockedFunction<LoadVariantCode>;
+    let mockSourceTransformers: SourceTransformers;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      mockLoadSource = vi.fn();
+      mockParseSource = vi.fn();
+      mockLoadVariantCode = vi.fn();
+      mockSourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: vi.fn().mockResolvedValue(undefined),
+        },
+      ];
     });
 
-    const result = await loadVariant(
-      'file:///main.ts',
-      'default',
-      variant,
-      mockParseSource,
-      mockLoadSource,
-      mockLoadVariantCode,
-      mockSourceTransformers,
-      { disableParsing: true },
-    );
+    it('should resolve complex relative paths correctly via URL constructor', async () => {
+      const variant: VariantCode = {
+        fileName: 'demo.ts',
+        url: 'file:///components/switch/demo/demo.ts',
+        source: 'const demo = true;',
+        extraFiles: {
+          '../../../utils/helper.ts': 'file:///utils/helper.ts',
+          '../../shared.ts': 'file:///components/shared.ts',
+          './local.ts': 'file:///components/switch/demo/local.ts',
+        },
+      };
 
-    expect(result.code.source).toBe('const main = true;');
-    expect(result.dependencies).toEqual([
-      'file:///main.ts',
-      'file:///bundled-dep1.ts',
-      'file:///bundled-dep2.ts',
-    ]);
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///utils/helper.ts') {
+          return Promise.resolve({ source: 'const helper = true;' });
+        }
+        if (url === 'file:///components/shared.ts') {
+          return Promise.resolve({ source: 'const shared = true;' });
+        }
+        if (url === 'file:///components/switch/demo/local.ts') {
+          return Promise.resolve({ source: 'const local = true;' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///components/switch/demo/demo.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Verify the resolved URLs were correct
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///utils/helper.ts');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/shared.ts');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/demo/local.ts');
+
+      expect(result.code.extraFiles).toBeDefined();
+      expect((result.code.extraFiles!['../../../utils/helper.ts'] as any).source).toBe(
+        'const helper = true;',
+      );
+      expect((result.code.extraFiles!['../../shared.ts'] as any).source).toBe(
+        'const shared = true;',
+      );
+      expect((result.code.extraFiles!['./local.ts'] as any).source).toBe('const local = true;');
+    });
   });
 });
