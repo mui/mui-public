@@ -58,9 +58,9 @@ describe('loadVariant', () => {
         { disableParsing: true }, // Disable parsing to keep source as string
       );
 
-      expect(result.variant).toBe('default');
       expect(result.code.source).toBe('const x = 1;');
       expect(result.code.fileName).toBe('test.ts');
+      expect(result.dependencies).toEqual(['file:///test.ts']);
       expect(mockLoadSource).not.toHaveBeenCalled();
     });
 
@@ -87,6 +87,7 @@ describe('loadVariant', () => {
 
       expect(mockLoadSource).toHaveBeenCalledWith('file:///test.ts');
       expect(result.code.source).toBe('const loaded = true;');
+      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
 
     it('should handle string variants', async () => {
@@ -112,6 +113,7 @@ describe('loadVariant', () => {
 
       expect(mockLoadVariantCode).toHaveBeenCalledWith('default', variantUrl);
       expect(result.code.source).toBe('const variant = true;');
+      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
 
     it('should parse source when parseSource is provided and parsing is enabled', async () => {
@@ -137,6 +139,7 @@ describe('loadVariant', () => {
 
       expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
       expect(result.code.source).toEqual(mockParsedSource);
+      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
   });
 
@@ -172,6 +175,7 @@ describe('loadVariant', () => {
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['helper.ts'] as any).source).toBe('const helper = true;');
       expect((result.code.extraFiles!['utils.ts'] as any).source).toBe('const utils = true;');
+      expect(result.dependencies).toEqual(['file:///main.ts', 'file:///helper.ts']);
     });
 
     it('should load extra files returned by loadSource', async () => {
@@ -212,6 +216,7 @@ describe('loadVariant', () => {
       expect((result.code.extraFiles!['dependency.ts'] as any).source).toBe(
         'const dependency = true;',
       );
+      expect(result.dependencies).toEqual(['file:///main.ts', 'file:///dependency.ts']);
     });
 
     it('should handle recursive extra files', async () => {
@@ -255,6 +260,11 @@ describe('loadVariant', () => {
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['level1.ts'] as any).source).toBe('const level1 = true;');
       expect((result.code.extraFiles!['level2.ts'] as any).source).toBe('const level2 = true;');
+      expect(result.dependencies).toEqual([
+        'file:///main.ts',
+        'file:///level1.ts',
+        'file:///level2.ts',
+      ]);
     });
 
     it('should resolve relative paths for nested extra files correctly', async () => {
@@ -307,6 +317,11 @@ describe('loadVariant', () => {
 
       // Should NOT have the original relative path from a.js
       expect(result.code.extraFiles!['../index.js']).toBeUndefined();
+      expect(result.dependencies).toEqual([
+        'file:///a/b/entry.js',
+        'file:///a/a.js',
+        'file:///index.js',
+      ]);
     });
   });
 
@@ -351,6 +366,11 @@ describe('loadVariant', () => {
       expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/demo/helper.ts');
       expect((result.code.extraFiles!['../Switch.ts'] as any).source).toBe('const Switch = true;');
       expect((result.code.extraFiles!['./helper.ts'] as any).source).toBe('const helper = true;');
+      expect(result.dependencies).toEqual([
+        'file:///components/switch/demo/demo.ts',
+        'file:///components/switch/Switch.ts',
+        'file:///components/switch/demo/helper.ts',
+      ]);
     });
 
     it('should handle non-relative paths as-is', async () => {
@@ -380,6 +400,7 @@ describe('loadVariant', () => {
 
       expect(mockLoadSource).toHaveBeenCalledWith('file:///absolute/path/absolute.ts');
       expect((result.code.extraFiles!['absolute.ts'] as any).source).toBe('const absolute = true;');
+      expect(result.dependencies).toEqual(['file:///main.ts', 'file:///absolute/path/absolute.ts']);
     });
   });
 
@@ -472,6 +493,7 @@ describe('loadVariant', () => {
 
       expect(mockParseSource).not.toHaveBeenCalled();
       expect(result.code.source).toBe('const x = 1;'); // Should remain as string
+      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
 
     it('should respect maxDepth option', async () => {
@@ -658,6 +680,7 @@ describe('loadVariant', () => {
       );
 
       expect(result.code.transforms).toEqual(existingTransforms);
+      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
 
     it('should apply source transformers when no existing transforms', async () => {
@@ -694,6 +717,7 @@ describe('loadVariant', () => {
         mockSourceTransformers,
       );
       expect(result.code.transforms).toEqual(mockTransforms);
+      expect(result.dependencies).toEqual(['file:///test.ts']);
     });
   });
 
@@ -784,5 +808,36 @@ describe('loadVariant', () => {
       expect(mockLoadSource).toHaveBeenCalledWith('https://example.com/utils.js');
       expect((result.code.extraFiles!['../utils.js'] as any).source).toBe('const utils = true;');
     });
+  });
+
+  it('should include extraDependencies from loadSource in dependencies', async () => {
+    const variant: VariantCode = {
+      fileName: 'main.ts',
+      url: 'file:///main.ts',
+    };
+
+    // Mock loadSource to return extraDependencies
+    mockLoadSource.mockResolvedValue({
+      source: 'const main = true;',
+      extraDependencies: ['file:///bundled-dep1.ts', 'file:///bundled-dep2.ts'],
+    });
+
+    const result = await loadVariant(
+      'file:///main.ts',
+      'default',
+      variant,
+      mockParseSource,
+      mockLoadSource,
+      mockLoadVariantCode,
+      mockSourceTransformers,
+      { disableParsing: true },
+    );
+
+    expect(result.code.source).toBe('const main = true;');
+    expect(result.dependencies).toEqual([
+      'file:///main.ts',
+      'file:///bundled-dep1.ts',
+      'file:///bundled-dep2.ts',
+    ]);
   });
 });

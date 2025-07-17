@@ -65,7 +65,7 @@ export type LoadCode = (url: string) => Promise<Code>;
 export type LoadVariantCode = (variantName: string, url: string) => Promise<VariantCode>;
 export type LoadSource = (
   url: string,
-) => Promise<{ source: string; extraFiles?: VariantExtraFiles }>;
+) => Promise<{ source: string; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>;
 export type TransformSource = (
   source: string,
   fileName: string,
