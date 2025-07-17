@@ -14,6 +14,7 @@ export type VariantExtraFiles = {
   [fileName: string]: string | { source?: VariantSource; transforms?: Transforms };
 };
 export type VariantCode = CodeMeta & {
+  url: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
   filesOrder?: string[];
@@ -63,10 +64,8 @@ export interface CodeHighlighterClientProps extends CodeHighlighterBaseProps {
 export type LoadCode = (url: string) => Promise<Code>;
 export type LoadVariantCode = (variantName: string, url: string) => Promise<VariantCode>;
 export type LoadSource = (
-  variantName: string,
-  fileName: string,
-  url?: string,
-) => Promise<{ source: string; extraFiles?: VariantExtraFiles } | string>;
+  url: string,
+) => Promise<{ source: string; extraFiles?: VariantExtraFiles }>;
 export type TransformSource = (
   source: string,
   fileName: string,
@@ -77,6 +76,20 @@ export type SourceTransformers = Array<{
   extensions: string[];
   transformer: TransformSource;
 }>;
+
+/**
+ * Options for controlling file loading behavior
+ */
+export interface LoadFileOptions {
+  /** Disable applying source transformers */
+  disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
+  disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
+  maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
+  loadedFiles?: Set<string>;
+}
 
 export interface CodeHighlighterProps extends CodeHighlighterBaseProps {
   Content: React.ComponentType<ContentProps>;
