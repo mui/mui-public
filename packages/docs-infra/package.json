@@ -104,15 +104,15 @@
       "require": "./build/*/errors.js",
       "types": "./build/*/errors.d.ts"
     },
-    "./remarkRelativeUrls/esm": {
-      "import": "./build/esm/remarkRelativeUrls/index.js",
-      "require": "./build/esm/remarkRelativeUrls/index.js",
-      "types": "./build/esm/remarkRelativeUrls/index.d.ts"
+    "./transformRelativeMarkdownPaths/esm": {
+      "import": "./build/esm/transformRelativeMarkdownPaths/index.js",
+      "require": "./build/esm/transformRelativeMarkdownPaths/index.js",
+      "types": "./build/esm/transformRelativeMarkdownPaths/index.d.ts"
     },
-    "./codeHighlighterPrecomputeLoader/esm": {
-      "import": "./build/esm/codeHighlighterPrecomputeLoader/index.js",
-      "require": "./build/esm/codeHighlighterPrecomputeLoader/index.js",
-      "types": "./build/esm/codeHighlighterPrecomputeLoader/index.d.ts"
+    "./loadPrecomputedCodeHighlighter/esm": {
+      "import": "./build/esm/loadPrecomputedCodeHighlighter/index.js",
+      "require": "./build/esm/loadPrecomputedCodeHighlighter/index.js",
+      "types": "./build/esm/loadPrecomputedCodeHighlighter/index.d.ts"
     }
   },
   "files": [

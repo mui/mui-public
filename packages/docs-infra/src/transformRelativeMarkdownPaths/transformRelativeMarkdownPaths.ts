@@ -13,7 +13,7 @@ import path from 'path';
  * - ./code-highlighter/page.mdx -> /components/code-highlighter (when processed from /components/page.mdx)
  * This allows URLs to resolve when reading in VSCode and Github
  */
-export const remarkRelativeUrls: Plugin = () => {
+export const transformRelativeMarkdownPaths: Plugin = () => {
   return (tree, file) => {
     visit(tree, 'link', (node: Link) => {
       if (node.url) {

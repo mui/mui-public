@@ -16,7 +16,10 @@ const nextConfig = {
 
 const withMDX = createMDX({
   options: {
-    remarkPlugins: [['remark-gfm'], ['@mui/internal-docs-infra/remarkRelativeUrls/esm']],
+    remarkPlugins: [
+      ['remark-gfm'],
+      ['@mui/internal-docs-infra/transformRelativeMarkdownPaths/esm'],
+    ],
     rehypePlugins: [],
   },
 });
