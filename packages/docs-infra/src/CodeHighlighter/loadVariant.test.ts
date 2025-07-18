@@ -1485,6 +1485,168 @@ describe('loadVariant', () => {
       ]);
     });
   });
+
+  describe('caching behavior', () => {
+    it('should cache loadSource calls and not call loadSource twice for the same URL', async () => {
+      // Setup: Create a scenario where multiple extra files depend on the same shared utility
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          'component1.ts': 'file:///component1.ts',
+          'component2.ts': 'file:///component2.ts',
+        },
+      };
+
+      // Mock loadSource to return extra files that both depend on the same shared utility
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url === 'file:///main.ts') {
+          return {
+            source: 'const main = true;',
+          };
+        }
+        if (url === 'file:///component1.ts') {
+          return {
+            source: 'import { shared } from "./shared.ts";',
+            extraFiles: {
+              'shared.ts': 'file:///shared.ts', // Both components depend on the same shared file
+            },
+          };
+        }
+        if (url === 'file:///component2.ts') {
+          return {
+            source: 'import { shared } from "./shared.ts";',
+            extraFiles: {
+              'shared.ts': 'file:///shared.ts', // Same shared file
+            },
+          };
+        }
+        if (url === 'file:///shared.ts') {
+          return {
+            source: 'export const shared = "shared utility";',
+          };
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Verify that loadSource was called for each unique URL exactly once (main.ts not called because source provided)
+      expect(mockLoadSource).toHaveBeenCalledTimes(3); // component1.ts, component2.ts, shared.ts
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///component1.ts');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///component2.ts');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///shared.ts');
+
+      // Verify that shared.ts was only called once despite being referenced twice
+      const sharedCalls = mockLoadSource.mock.calls.filter(
+        (call: any) => call[0] === 'file:///shared.ts',
+      );
+      expect(sharedCalls).toHaveLength(1);
+
+      // Verify the result structure is correct
+      expect(result.code.extraFiles).toBeDefined();
+      expect(result.code.extraFiles!['component1.ts']).toBeDefined();
+      expect(result.code.extraFiles!['component2.ts']).toBeDefined();
+      expect(result.code.extraFiles!['shared.ts']).toBeDefined();
+      expect((result.code.extraFiles!['shared.ts'] as any).source).toBe(
+        'export const shared = "shared utility";',
+      );
+
+      // Verify dependencies include all unique URLs
+      expect(result.dependencies).toEqual([
+        'file:///main.ts',
+        'file:///component1.ts',
+        'file:///component2.ts',
+        'file:///shared.ts',
+      ]);
+    });
+
+    it('should handle concurrent requests for the same URL correctly', async () => {
+      // Create a scenario with deeply nested dependencies that reference the same file
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          'module1/index.ts': 'file:///module1/index.ts',
+          'module2/index.ts': 'file:///module2/index.ts',
+        },
+      };
+
+      let sharedCallCount = 0;
+
+      // Mock loadSource with a delay to simulate network requests
+      mockLoadSource.mockImplementation(async (url: string) => {
+        // Add a small delay to make concurrent calls more likely
+        await new Promise<void>((resolve) => {
+          setTimeout(() => resolve(), 10);
+        });
+
+        if (url === 'file:///main.ts') {
+          return { source: 'const main = true;' };
+        }
+        if (url === 'file:///module1/index.ts') {
+          return {
+            source: 'import { utils } from "../shared/utils.ts";',
+            extraFiles: {
+              '../shared/utils.ts': 'file:///shared/utils.ts',
+            },
+          };
+        }
+        if (url === 'file:///module2/index.ts') {
+          return {
+            source: 'import { utils } from "../shared/utils.ts";',
+            extraFiles: {
+              '../shared/utils.ts': 'file:///shared/utils.ts',
+            },
+          };
+        }
+        if (url === 'file:///shared/utils.ts') {
+          sharedCallCount += 1;
+          return {
+            source: 'export const utils = "shared utilities";',
+          };
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantCode,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Verify that the shared utility was only loaded once despite concurrent requests
+      expect(sharedCallCount).toBe(1);
+      expect(mockLoadSource).toHaveBeenCalledTimes(3); // module1, module2, shared (main not called because source provided)
+
+      // Verify the result is correct - the shared file should be present somewhere in extraFiles
+      const extraFilesKeys = Object.keys(result.code.extraFiles!);
+      const sharedKey = extraFilesKeys.find(
+        (key) => key.includes('shared') || key.includes('utils'),
+      );
+      expect(sharedKey).toBeDefined();
+      expect(result.code.extraFiles![sharedKey!]).toBeDefined();
+      expect((result.code.extraFiles![sharedKey!] as any).source).toBe(
+        'export const utils = "shared utilities";',
+      );
+    });
+  });
 });
 
 describe('loadVariant - helper functions', () => {

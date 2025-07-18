@@ -101,6 +101,10 @@ async function loadSingleFile(
   loadSource: LoadSource | undefined,
   parseSource: ParseSource | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  loadSourceCache: Map<
+    string,
+    Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
+  >,
   transforms?: Transforms,
   options: LoadFileOptions = {},
 ): Promise<{
@@ -126,7 +130,14 @@ async function loadSingleFile(
     }
 
     try {
-      const loadResult = await loadSource(url);
+      // Check cache first to avoid duplicate loadSource calls
+      let loadPromise = loadSourceCache.get(url);
+      if (!loadPromise) {
+        loadPromise = loadSource(url);
+        loadSourceCache.set(url, loadPromise);
+      }
+
+      const loadResult = await loadPromise;
       finalSource = loadResult.source;
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
@@ -239,6 +250,10 @@ async function loadExtraFiles(
   loadSource: LoadSource | undefined,
   parseSource: ParseSource | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  loadSourceCache: Map<
+    string,
+    Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
+  >,
   options: LoadFileOptions = {},
 ): Promise<{ extraFiles: VariantExtraFiles; allFilesUsed: string[] }> {
   const { maxDepth = 10, loadedFiles = new Set() } = options;
@@ -283,6 +298,7 @@ async function loadExtraFiles(
         loadSource,
         parseSource,
         sourceTransformers,
+        loadSourceCache,
         transforms,
         { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
       );
@@ -346,6 +362,7 @@ async function loadExtraFiles(
           loadSource,
           parseSource,
           sourceTransformers,
+          loadSourceCache,
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
         ).then((nestedResult) => ({
           files: nestedResult.extraFiles,
@@ -398,6 +415,12 @@ export async function loadVariant(
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
 
+  // Create a cache for loadSource calls scoped to this loadVariant call
+  const loadSourceCache = new Map<
+    string,
+    Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
+  >();
+
   if (typeof variant === 'string') {
     if (!loadVariantCode) {
       throw new Error('"loadVariantCode" function is required when loadCode returns strings');
@@ -426,6 +449,7 @@ export async function loadVariant(
     loadSource,
     parseSource,
     sourceTransformers,
+    loadSourceCache,
     variant.transforms,
     { ...options, loadedFiles },
   );
@@ -466,6 +490,7 @@ export async function loadVariant(
       loadSource,
       parseSource,
       sourceTransformers,
+      loadSourceCache,
       { ...options, loadedFiles },
     );
     allExtraFiles = extraFilesResult.extraFiles;
