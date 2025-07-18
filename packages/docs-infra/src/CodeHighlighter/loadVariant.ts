@@ -1,6 +1,6 @@
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
-import { getFileNameFromUrl } from '../resolveImports';
+import { getFileNameFromUrl } from '../loaderUtils';
 import type {
   VariantCode,
   VariantSource,

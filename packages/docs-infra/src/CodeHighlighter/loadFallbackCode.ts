@@ -9,7 +9,7 @@ import type {
   VariantCode,
 } from './types';
 import { loadVariant } from './loadVariant';
-import { getFileNameFromUrl } from '../resolveImports';
+import { getFileNameFromUrl } from '../loaderUtils';
 
 // Helper function to get the source for a specific filename from a variant
 async function getFileSource(

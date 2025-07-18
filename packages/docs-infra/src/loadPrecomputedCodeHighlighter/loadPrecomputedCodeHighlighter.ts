@@ -3,7 +3,7 @@ import { parseSource } from '../parseSource';
 import { transformTsToJs } from '../transformTsToJs';
 import type { SourceTransformers } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
-import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createServerLoadSource } from '../serverLoadSource';
 

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { LoadCodeMeta, Code } from '../CodeHighlighter/types';
-import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 
 export interface CreateLoadCodeMetaOptions {

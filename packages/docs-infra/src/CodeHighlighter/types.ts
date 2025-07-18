@@ -75,10 +75,11 @@ export type TransformSource = (
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
 export type ParseSource = (source: string, fileName: string) => Promise<HastNodes>;
 
-export type SourceTransformers = Array<{
+export type SourceTransformer = {
   extensions: string[];
   transformer: TransformSource;
-}>;
+};
+export type SourceTransformers = Array<SourceTransformer>;
 
 /**
  * Options for controlling file loading behavior

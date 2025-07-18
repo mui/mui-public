@@ -1,4 +1,4 @@
-import { resolveImports } from '../resolveImports';
+import { resolveImports } from '../loaderUtils';
 import { parseFunctionParameters } from './parseFunctionParameters';
 
 /**

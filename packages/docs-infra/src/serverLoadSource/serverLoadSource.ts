@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import type { LoadSource } from '../CodeHighlighter/types';
-import { resolveImports } from '../resolveImports/resolveImports';
-import { resolveImportResultWithFs } from '../resolveImports/resolveModulePathWithFs';
-import { processImportsWithStoreAt, type StoreAtMode } from '../resolveImports/processImports';
-import { isJavaScriptModule } from '../resolveImports/resolveModulePath';
+import { resolveImports } from '../loaderUtils/resolveImports';
+import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { processImportsWithStoreAt, type StoreAtMode } from '../loaderUtils/processImports';
+import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
 interface LoadSourceOptions {
   maxDepth?: number;
