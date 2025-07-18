@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { sha256 } from 'js-sha256';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
@@ -10,10 +11,10 @@ import { hasAllVariants } from './hasAllVariants';
 import { loadVariant } from './loadVariant';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
-import { useOnHydrate } from '../useOnHydrate';
-import { useOnIdle } from '../useOnIdle';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import { applyTransform, getTransformKeys } from './applyTransform';
+import { useHighlighted } from './useHighlighted';
+import { useTransformer } from './useTransformer';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -131,7 +132,7 @@ function useAllVariants({
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
 }) {
-  const { parseSource, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
+  const { loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
   React.useEffect(() => {
     if (readyForContent || isControlled) {
@@ -150,10 +151,19 @@ function useAllVariants({
         loadedCode = await loadCodeMeta(url);
       }
 
-      // TODO: avoid highlighting at this stage
+      // Load variant data without parsing or transforming
       const result = await Promise.all(
         variants.map((name) =>
-          loadVariant(url, name, loadedCode[name], parseSource, loadSource, loadVariantMeta)
+          loadVariant(
+            url,
+            name,
+            loadedCode[name],
+            undefined, // parseSource - skip parsing
+            loadSource,
+            loadVariantMeta,
+            undefined, // sourceTransformers - skip transforming
+            { disableParsing: true, disableTransforms: true },
+          )
             .then((variant) => ({ name, variant }))
             .catch((error) => ({ error })),
         ),
@@ -182,110 +192,12 @@ function useAllVariants({
     url,
     code,
     setCode,
-    parseSource,
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
   ]);
 
   return { readyForContent };
-}
-
-function useHighlighter({
-  highlightAt = 'hydration',
-  isControlled,
-  activeCode,
-  readyForContent,
-  variants,
-  setCode,
-}: {
-  readyForContent: boolean;
-  highlightAt?: 'init' | 'hydration' | 'idle';
-  isControlled: boolean;
-  activeCode?: Code;
-  variants: string[];
-  setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
-}) {
-  const { parseSource } = useCodeContext();
-  const isHydrated = useOnHydrate();
-  const isIdle = useOnIdle();
-  const [overlaidCode, setOverlaidCode] = React.useState<Code | undefined>();
-
-  // Ensure all the code is highlighted
-  React.useEffect(() => {
-    if (!readyForContent) {
-      return;
-    }
-
-    if (highlightAt === 'hydration' && !isHydrated) {
-      return;
-    }
-
-    if (highlightAt === 'idle' && !isIdle) {
-      return;
-    }
-
-    // TODO: abort controller
-
-    (async () => {
-      const result = await Promise.all(
-        variants.map(async (name) => {
-          const codeVariant = activeCode?.[name];
-          if (!codeVariant || typeof codeVariant === 'string') {
-            throw new Error(`Variant is missing from code: ${name}`);
-          }
-
-          if (typeof codeVariant?.source === 'string') {
-            if (!parseSource) {
-              return { error: new Error('Source is not a string or parseSource is not provided') };
-            }
-
-            return parseSource(codeVariant?.source, codeVariant.fileName)
-              .then((parsedSource) => ({
-                variant: name,
-                code: { ...codeVariant, source: parsedSource },
-              }))
-              .catch((error) => ({ error }));
-          }
-
-          // TODO: handle extraFiles
-
-          return { variant: name, code: codeVariant };
-        }),
-      );
-
-      const resultCode: Code = {};
-      const errors: Error[] = [];
-      for (const variant of result) {
-        if ('error' in variant) {
-          errors.push(variant.error);
-        } else if (variant.code) {
-          resultCode[variant.variant] = variant.code;
-        }
-      }
-
-      if (errors.length > 0) {
-        // TODO: handle error
-      } else if (isControlled) {
-        setOverlaidCode(resultCode);
-      } else {
-        setCode(resultCode);
-        setOverlaidCode(undefined);
-      }
-    })();
-  }, [
-    isControlled,
-    activeCode,
-    isHydrated,
-    isIdle,
-    parseSource,
-    highlightAt,
-    readyForContent,
-    variants,
-    setCode,
-  ]);
-
-  return { overlaidCode };
 }
 
 /**
@@ -296,15 +208,20 @@ function useTransforms({
   readyForContent,
   variantName,
   transformKey,
+  transformCache,
+  isControlled,
 }: {
   activeCode?: Code;
   readyForContent: boolean;
   variantName: string;
   transformKey?: string;
+  transformCache?: React.MutableRefObject<Map<string, Record<string, string>>>;
+  isControlled: boolean;
 }) {
   // Get available transforms for the current variant
   const availableTransforms = React.useMemo(() => {
-    if (!readyForContent || !activeCode) {
+    if (!readyForContent || !activeCode || isControlled) {
+      // Don't show transforms for controlled code
       return [];
     }
 
@@ -318,11 +235,12 @@ function useTransforms({
     }
 
     return getTransformKeys(codeVariant.transforms);
-  }, [readyForContent, activeCode, variantName]);
+  }, [readyForContent, activeCode, variantName, isControlled]);
 
   // Apply transform to get the current transformed code
   const transformedCode = React.useMemo(() => {
-    if (!readyForContent || !activeCode || !transformKey) {
+    if (!readyForContent || !activeCode || !transformKey || isControlled) {
+      // Don't transform controlled code
       return undefined;
     }
 
@@ -335,6 +253,18 @@ function useTransforms({
       return undefined;
     }
 
+    // Check if we have cached transformed sources
+    if (transformCache && typeof codeVariant.source === 'string') {
+      const sourceHash = `${codeVariant.fileName}:${sha256(
+        codeVariant.source + JSON.stringify(codeVariant.transforms),
+      )}`;
+      const cachedTransforms = transformCache.current.get(sourceHash);
+      if (cachedTransforms && cachedTransforms[transformKey]) {
+        return cachedTransforms[transformKey];
+      }
+    }
+
+    // Fall back to real-time transformation
     try {
       return applyTransform(codeVariant.source || '', codeVariant.transforms, transformKey);
     } catch (error) {
@@ -344,7 +274,7 @@ function useTransforms({
       );
       return undefined;
     }
-  }, [readyForContent, activeCode, variantName, transformKey]);
+  }, [readyForContent, activeCode, variantName, transformKey, transformCache, isControlled]);
 
   return {
     availableTransforms,
@@ -425,22 +355,32 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // When the content uses setCode, it needs to first setOverlaidCode, then setCode
   // this ensures that the text is updated before the component controlled by the controller is
   // we also need a cache for the overlaid code to avoid rehighlighting unchanged code
-  // TODO: we also need to highlight the transforms and memoize them
-  const { overlaidCode } = useHighlighter({
+  const { overlaidCode, contextSetCode } = useHighlighted({
     highlightAt,
     isControlled,
     activeCode,
     readyForContent,
     variants,
     setCode,
+    controlledSetCode,
+  });
+
+  // Transform all parsed code with per-file caching
+  useTransformer({
+    code, // only transform internally loaded code
+    readyForContent,
+    variants,
+    setCode,
   });
 
   // Provide transform utilities for applying specific transforms to code variants
-  const { availableTransforms, transformedCode } = useTransforms({
-    activeCode,
+  const { availableTransforms, transformedCode: currentTransformedCode } = useTransforms({
+    activeCode: overlaidCode || activeCode,
     readyForContent,
     variantName,
     transformKey: controlledSelection?.transformKey || selection.transformKey,
+    transformCache: undefined, // No longer using cache
+    isControlled: Boolean(overlaidCode || controlledCode),
   });
 
   // TODO: there seems to be some kind of infinite loop in this component
@@ -466,26 +406,26 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode || controlledCode || code,
-      setCode: controlledSetCode || setCode,
+      setCode: controlledSetCode ? contextSetCode : undefined,
       selection: controlledSelection || selection,
       setSelection: controlledSetSelection || setSelection,
       components: controlledComponents || props.components,
       availableTransforms,
-      transformedCode,
+      transformedCode: currentTransformedCode,
     }),
     [
       overlaidCode,
       controlledCode,
       code,
       controlledSetCode,
-      setCode,
+      contextSetCode,
       selection,
       controlledSelection,
       controlledSetSelection,
       controlledComponents,
       props.components,
       availableTransforms,
-      transformedCode,
+      currentTransformedCode,
     ],
   );
 
