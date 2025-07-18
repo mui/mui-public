@@ -8,7 +8,7 @@ const nextConfig = {
     rules: {
       './app/**/demos/*/index.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/codeHighlighterPrecomputeLoader/esm'],
+        loaders: ['@mui/internal-docs-infra/loadPrecomputedCodeHighlighter/esm'],
       },
     },
   },

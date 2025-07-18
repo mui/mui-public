@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolveModulePathsWithFs } from '../resolveImports/resolveModulePathWithFs';
-import { parseCreateFactoryCall } from '../codeHighlighterPrecomputeLoader/parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 
 /**
  * Loads variant entrypoint URLs from a factory file that contains multiple variants.

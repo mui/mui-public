@@ -63,7 +63,10 @@ interface LoaderContext {
  * - extraFiles: Object containing additional dependency files
  * - transforms: Object with language variants (e.g., JavaScript version from TypeScript)
  */
-export async function loadDemoCode(this: LoaderContext, source: string): Promise<void> {
+export async function loadPrecomputedCodeHighlighter(
+  this: LoaderContext,
+  source: string,
+): Promise<void> {
   const callback = this.async();
   this.cacheable();
 
@@ -155,6 +158,3 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }
-
-// Default export for webpack loader
-export default loadDemoCode;
