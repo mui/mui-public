@@ -5,7 +5,6 @@ import type {
   CodeHighlighterClientProps,
   CodeHighlighterProps,
   ContentLoadingProps,
-  VariantCode,
   VariantExtraFiles,
   VariantSource,
 } from './types';
@@ -17,23 +16,42 @@ import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
 
-interface CodeHighlighterInnerProps extends Omit<CodeHighlighterProps, 'precompute'> {
+// Common props shared across helper functions
+type BaseHelperProps = Pick<
+  CodeHighlighterProps,
+  | 'url'
+  | 'code'
+  | 'components'
+  | 'variants'
+  | 'highlightAt'
+  | 'Content'
+  | 'ErrorHandler'
+  | 'name'
+  | 'slug'
+  | 'description'
+  | 'loadCodeMeta'
+  | 'loadVariantMeta'
+  | 'loadSource'
+  | 'parseSource'
+  | 'sourceTransformers'
+  | 'precompute'
+  | 'controlled'
+  | 'variant'
+  | 'fileName'
+  | 'initialVariant'
+  | 'defaultVariant'
+  | 'forceClient'
+>;
+
+interface CodeSourceLoaderProps extends BaseHelperProps {
   fallback?: React.ReactNode;
   skipFallback?: boolean;
 }
 
-interface CodeHighlighterWithInitialSourceProps extends Omit<CodeHighlighterProps, 'precompute'> {
-  code: Code;
+interface CodeInitialSourceLoaderProps extends BaseHelperProps {
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
   initialVariant: string;
-  initialFilename: string;
-  initialSource: VariantSource;
-  initialExtraFiles?: VariantExtraFiles;
-  ContentLoading: React.ComponentType<ContentLoadingProps>;
-}
-
-interface CodeInitialSourceLoaderProps extends Omit<CodeHighlighterProps, 'precompute'> {
-  initialVariant: string;
-  initial?: VariantCode | string;
   ContentLoading: React.ComponentType<ContentLoadingProps>;
 }
 
@@ -44,11 +62,49 @@ function HighlightErrorHandler({ error }: { error: Error }) {
   return <div>Error: {error.message}</div>;
 }
 
-async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
+function createClientProps(
+  props: BaseHelperProps & {
+    code: Code;
+    fallback?: React.ReactNode;
+    skipFallback?: boolean;
+  },
+): CodeHighlighterClientProps {
+  const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
+
+  return {
+    url: props.url,
+    code: props.code,
+    components: props.components,
+    variants: props.variants,
+    variant: props.variant,
+    fileName: props.fileName,
+    initialVariant: props.initialVariant,
+    defaultVariant: props.defaultVariant,
+    highlightAt: highlightAt || 'init',
+    fallback: props.fallback,
+    skipFallback: props.skipFallback,
+    controlled: props.controlled,
+    name: props.name,
+    slug: props.slug,
+    description: props.description,
+    children: (
+      <props.Content
+        code={props.code}
+        components={props.components}
+        name={props.name}
+        slug={props.slug}
+        description={props.description}
+      />
+    ),
+  };
+}
+
+async function CodeSourceLoader(props: CodeSourceLoaderProps) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  let code = props.code;
-  if (!code) {
+  // Start with the loaded code from precompute, or load it if needed
+  let loadedCode = props.code;
+  if (!loadedCode) {
     if (!props.loadCodeMeta) {
       return (
         <ErrorHandler
@@ -58,7 +114,7 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
     }
 
     try {
-      code = await props.loadCodeMeta(props.url);
+      loadedCode = await props.loadCodeMeta(props.url);
     } catch (error) {
       return (
         <ErrorHandler
@@ -72,13 +128,13 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
 
   // TODO: if props.variant is provided, we should only load that variant
 
-  const variantNames = Object.keys(props.components || props.code || {});
+  const variantNames = Object.keys(props.components || loadedCode || {});
   const variantCodes = await Promise.all(
     variantNames.map((variantName) =>
       loadVariant(
         props.url,
         variantName,
-        code[variantName],
+        loadedCode[variantName],
         props.parseSource,
         props.loadSource,
         props.loadVariantMeta,
@@ -89,13 +145,13 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
     ),
   );
 
-  const result: Code = {};
+  const processedCode: Code = {};
   const errors: Error[] = [];
   for (const item of variantCodes) {
     if ('error' in item) {
       errors.push(item.error);
     } else {
-      result[item.name] = item.variant.code;
+      processedCode[item.name] = item.variant.code;
     }
   }
 
@@ -107,56 +163,25 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
     );
   }
 
-  // type Options = { name?: string; slug?: string; description?: string };
-  // export type ContentProps = { code: Code; components?: Components } & Options;
+  const clientProps = createClientProps({
+    ...props,
+    code: processedCode,
+  });
 
-  return (
-    <props.Content
-      code={result}
-      components={props.components}
-      name={props.name}
-      slug={props.slug}
-      description={props.description}
-    />
-  );
-
-  // const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
-  // const clientProps: CodeHighlighterClientProps = {
-  //   ...props,
-  //   code,
-  //   highlightAt: highlightAt || 'init',
-  //   fallback: props.fallback,
-  //   children: (
-  //     <props.Content
-  //       code={code}
-  //       components={props.components}
-  //       name={props.name}
-  //       slug={props.slug}
-  //       description={props.description}
-  //     />
-  //   ),
-  // };
-  // delete (clientProps as any).forceClient;
-  // delete (clientProps as any).loadVariantMeta;
-  // delete (clientProps as any).loadSource;
-  // delete (clientProps as any).parseSource;
-  // delete (clientProps as any).sourceTransformers;
-
-  // // TODO:
-  // delete (clientProps as any).Content;
-  // delete (clientProps as any).ContentLoading;
-  // delete (clientProps as any).ErrorHandler;
-
-  // return <CodeHighlighterClient {...clientProps} />;
+  return <CodeHighlighterClient {...clientProps} />;
 
   // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no setCode() or setSelection()
 }
 
-// TODO: refactor Inner component out?
-function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
+function renderCodeHighlighter(
+  props: BaseHelperProps & {
+    fallback?: React.ReactNode;
+    skipFallback?: boolean;
+  },
+) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  const code = props.code; // TODO: precompute?
+  const code = props.code;
   const variants = props.variants || Object.keys(props.components || code || {});
   const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
 
@@ -170,45 +195,14 @@ function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
     return <CodeSourceLoader {...props} />;
   }
 
-  return (
-    <props.Content
-      code={code}
-      components={props.components}
-      name={props.name}
-      slug={props.slug}
-      description={props.description}
-    />
-  );
+  const clientProps = createClientProps({
+    ...props,
+    code,
+  });
 
-  // const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
-  // const clientProps: CodeHighlighterClientProps = {
-  //   ...props,
-  //   code,
-  //   highlightAt: highlightAt || 'init',
-  //   fallback: props.fallback,
-  //   children: (
-  //     <props.Content
-  //       code={code}
-  //       components={props.components}
-  //       name={props.name}
-  //       slug={props.slug}
-  //       description={props.description}
-  //     />
-  //   ),
-  // };
-  // delete (clientProps as any).forceClient;
-  // delete (clientProps as any).loadVariantMeta;
-  // delete (clientProps as any).loadSource;
-  // delete (clientProps as any).parseSource;
-  // delete (clientProps as any).sourceTransformers;
+  return <CodeHighlighterClient {...clientProps} />;
 
-  // // TODO:
-  // delete (clientProps as any).Content;
-  // delete (clientProps as any).ContentLoading;
-  // delete (clientProps as any).ErrorHandler;
-
-  // return <CodeHighlighterClient {...clientProps} />;
-  // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no setCode() or setVariantName()
+  // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no props.controlled
 }
 
 /**
@@ -218,29 +212,37 @@ async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
   return props.children;
 }
 
-function CodeHighlighterWithInitialSource(props: CodeHighlighterWithInitialSourceProps) {
-  const fileNames = [props.initialFilename, ...Object.keys(props.initialExtraFiles || {})]; // TODO: use filesOrder if provided
+function renderWithInitialSource(
+  props: BaseHelperProps & {
+    code: Code;
+    initialVariant: string;
+    initialFilename: string;
+    initialSource: VariantSource;
+    initialExtraFiles?: VariantExtraFiles;
+    ContentLoading: React.ComponentType<ContentLoadingProps>;
+  },
+) {
+  const fileNames = [props.initialFilename, ...Object.keys(props.initialExtraFiles || {})];
   const source = stringOrHastToJsx(props.initialSource, props.highlightAt === 'init');
 
   const ContentLoading = props.ContentLoading;
   const fallback = <ContentLoading fileNames={fileNames} source={source} />;
 
-  const innerProps: CodeHighlighterInnerProps = {
-    ...props,
-    fallback,
-  };
-  delete (innerProps as any).initialFilename;
-  delete (innerProps as any).initialSource;
-  delete (innerProps as any).initialExtraFiles;
-
   if (props.forceClient) {
-    return <CodeHighlighterInner {...innerProps} />;
+    return renderCodeHighlighter({
+      ...props,
+      fallback,
+    });
   }
 
   return (
     <React.Suspense fallback={fallback}>
       <CodeHighlighterSuspense>
-        <CodeHighlighterInner {...innerProps} skipFallback />
+        {renderCodeHighlighter({
+          ...props,
+          fallback,
+          skipFallback: true,
+        })}
       </CodeHighlighterSuspense>
     </React.Suspense>
   );
@@ -265,18 +267,16 @@ async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
     return <ErrorHandler error={loaded.error} />;
   }
 
-  const { code, initialFilename, initialSource, initialExtraFiles, allFileNames } = loaded;
+  const { code, initialFilename, initialSource, initialExtraFiles } = loaded;
 
-  const propsWithInitialSource: CodeHighlighterWithInitialSourceProps = {
+  return renderWithInitialSource({
     ...props,
     code,
     initialFilename,
     initialSource,
     initialExtraFiles,
-  };
-  delete (propsWithInitialSource as any).initial;
-
-  return <CodeHighlighterWithInitialSource {...propsWithInitialSource} />;
+    ContentLoading: props.ContentLoading,
+  });
 }
 
 export function CodeHighlighter(props: CodeHighlighterProps) {
@@ -287,7 +287,7 @@ export function CodeHighlighter(props: CodeHighlighterProps) {
   }
 
   const code = props.precompute || props.code;
-  const variants = Object.keys(props.components || code || {});
+  const variants = Object.keys(props.components || props.precompute || props.code || {});
   if (variants.length === 0) {
     return <ErrorHandler error={new Error('No code or components provided')} />;
   }
@@ -303,13 +303,9 @@ export function CodeHighlighter(props: CodeHighlighterProps) {
       );
     }
 
-    const innerProps: CodeHighlighterInnerProps = {
+    return renderCodeHighlighter({
       ...props,
-      code,
-    };
-    delete (innerProps as any).precompute;
-
-    return <CodeHighlighterInner {...innerProps} />;
+    });
   }
 
   const initialKey = props.initialVariant || props.variant || props.defaultVariant || 'Default';
@@ -356,18 +352,16 @@ export function CodeHighlighter(props: CodeHighlighterProps) {
       );
     }
 
-    const propsWithInitial: CodeInitialSourceLoaderProps = {
-      ...props,
-      ContentLoading,
-      initialVariant: initialKey,
-      initial,
-    };
-    delete (propsWithInitial as any).precompute;
-
-    return <CodeInitialSourceLoader {...propsWithInitial} />;
+    return (
+      <CodeInitialSourceLoader
+        {...props}
+        ContentLoading={ContentLoading}
+        initialVariant={initialKey}
+      />
+    );
   }
 
-  const propsWithInitialSource: CodeHighlighterWithInitialSourceProps = {
+  return renderWithInitialSource({
     ...props,
     code: initialData.code,
     ContentLoading,
@@ -375,8 +369,5 @@ export function CodeHighlighter(props: CodeHighlighterProps) {
     initialFilename: initialData.initialFilename,
     initialSource: initialData.initialSource,
     initialExtraFiles: initialData.initialExtraFiles,
-  };
-  delete (propsWithInitialSource as any).precompute;
-
-  return <CodeHighlighterWithInitialSource {...propsWithInitialSource} />;
+  });
 }
