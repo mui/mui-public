@@ -28,23 +28,38 @@
     "build:copy-files": "node ./scripts/copyFiles.mjs",
     "prebuild": "rimraf build",
     "release": "pnpm build && pnpm publish --no-git-checks",
-    "test": "exit 0",
+    "test": "pnpm -w test --project @mui/internal-docs-infra",
+    "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@babel/runtime": "^7.27.6",
-    "@types/hast": "^3.0.4",
+    "@babel/standalone": "^7.28.1",
+    "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
-    "hast": "^1.0.0",
     "hast-util-to-jsx-runtime": "^2.3.6",
+    "hast-util-to-mdast": "^10.1.2",
     "hast-util-to-text": "^4.0.2",
-    "kebab-case": "^2.0.2"
+    "jsondiffpatch": "^0.7.3",
+    "kebab-case": "^2.0.2",
+    "prettier": "^3.5.3",
+    "rehype-parse": "^9.0.1",
+    "rehype-remark": "^10.0.1",
+    "rehype-sanitize": "^6.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "vscode-oniguruma": "^2.0.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.27.2",
     "@babel/core": "^7.27.4",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.27.4",
+    "@types/babel__standalone": "^7.1.9",
+    "@types/babel__traverse": "^7.20.7",
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
     "@types/node": "^24.0.3",
     "@types/react": "^19.1.8",
     "babel-plugin-istanbul": "^7.0.0",
@@ -73,9 +88,38 @@
       "optional": true
     }
   },
+  "exports": {
+    "./*": {
+      "import": "./build/esm/*/index.js",
+      "require": "./build/*/index.js",
+      "types": "./build/*/index.d.ts"
+    },
+    "./*/types": {
+      "import": "./build/esm/*/types.js",
+      "require": "./build/*/types.js",
+      "types": "./build/*/types.d.ts"
+    },
+    "./*/errors": {
+      "import": "./build/esm/*/errors.js",
+      "require": "./build/*/errors.js",
+      "types": "./build/*/errors.d.ts"
+    },
+    "./transformRelativeMarkdownPaths/esm": {
+      "import": "./build/esm/transformRelativeMarkdownPaths/index.js",
+      "require": "./build/esm/transformRelativeMarkdownPaths/index.js",
+      "types": "./build/esm/transformRelativeMarkdownPaths/index.d.ts"
+    },
+    "./loadPrecomputedCodeHighlighter/esm": {
+      "import": "./build/esm/loadPrecomputedCodeHighlighter/index.js",
+      "require": "./build/esm/loadPrecomputedCodeHighlighter/index.js",
+      "types": "./build/esm/loadPrecomputedCodeHighlighter/index.d.ts"
+    }
+  },
+  "files": [
+    "build/**/*"
+  ],
   "publishConfig": {
-    "access": "public",
-    "directory": "build"
+    "access": "public"
   },
   "engines": {
     "node": ">=14.0.0"

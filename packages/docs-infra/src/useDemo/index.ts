@@ -33,6 +33,7 @@ function toComponent(source: Source) {
   return toJsxRuntime(source, { Fragment, jsx, jsxs });
 }
 
+// TODO: take initialVariant and initialTransforms as parameters
 export function useDemo(demo: Demo, opts?: UseDemoOpts) {
   const { copy: copyOpts, defaultOpen = false } = opts || {};
 

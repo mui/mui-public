@@ -1,0 +1,373 @@
+import * as React from 'react';
+
+import type {
+  Code,
+  CodeHighlighterClientProps,
+  CodeHighlighterProps,
+  ContentLoadingProps,
+  VariantExtraFiles,
+  VariantSource,
+} from './types';
+
+import { loadVariant } from './loadVariant';
+import { loadFallbackCode } from './loadFallbackCode';
+import { stringOrHastToJsx } from '../hast';
+import { CodeHighlighterClient } from './CodeHighlighterClient';
+import { maybeInitialData } from './maybeInitialData';
+import { hasAllVariants } from './hasAllVariants';
+
+// Common props shared across helper functions
+type BaseHelperProps = Pick<
+  CodeHighlighterProps,
+  | 'url'
+  | 'code'
+  | 'components'
+  | 'variants'
+  | 'highlightAt'
+  | 'Content'
+  | 'ErrorHandler'
+  | 'name'
+  | 'slug'
+  | 'description'
+  | 'loadCodeMeta'
+  | 'loadVariantMeta'
+  | 'loadSource'
+  | 'parseSource'
+  | 'sourceTransformers'
+  | 'precompute'
+  | 'controlled'
+  | 'variant'
+  | 'fileName'
+  | 'initialVariant'
+  | 'defaultVariant'
+  | 'forceClient'
+>;
+
+interface CodeSourceLoaderProps extends BaseHelperProps {
+  fallback?: React.ReactNode;
+  skipFallback?: boolean;
+}
+
+interface CodeInitialSourceLoaderProps extends BaseHelperProps {
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  initialVariant: string;
+  ContentLoading: React.ComponentType<ContentLoadingProps>;
+}
+
+const DEFAULT_HIGHLIGHT_AT = 'stream';
+const DEBUG = false; // Set to true for debugging purposes
+
+function HighlightErrorHandler({ error }: { error: Error }) {
+  return <div>Error: {error.message}</div>;
+}
+
+function createClientProps(
+  props: BaseHelperProps & {
+    code: Code;
+    fallback?: React.ReactNode;
+    skipFallback?: boolean;
+  },
+): CodeHighlighterClientProps {
+  const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
+
+  return {
+    url: props.url,
+    code: props.code,
+    components: props.components,
+    variants: props.variants,
+    variant: props.variant,
+    fileName: props.fileName,
+    initialVariant: props.initialVariant,
+    defaultVariant: props.defaultVariant,
+    highlightAt: highlightAt || 'init',
+    fallback: props.fallback,
+    skipFallback: props.skipFallback,
+    controlled: props.controlled,
+    name: props.name,
+    slug: props.slug,
+    description: props.description,
+    children: (
+      <props.Content
+        code={props.code}
+        components={props.components}
+        name={props.name}
+        slug={props.slug}
+        description={props.description}
+      />
+    ),
+  };
+}
+
+async function CodeSourceLoader(props: CodeSourceLoaderProps) {
+  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+
+  // Start with the loaded code from precompute, or load it if needed
+  let loadedCode = props.code;
+  if (!loadedCode) {
+    if (!props.loadCodeMeta) {
+      return (
+        <ErrorHandler
+          error={new Error('No code provided and "loadCodeMeta" function is not defined')}
+        />
+      );
+    }
+
+    try {
+      loadedCode = await props.loadCodeMeta(props.url);
+    } catch (error) {
+      return (
+        <ErrorHandler
+          error={
+            new Error(`Failed to load code from URL: ${props.url}. Error: ${JSON.stringify(error)}`)
+          }
+        />
+      );
+    }
+  }
+
+  // TODO: if props.variant is provided, we should only load that variant
+
+  const variantNames = Object.keys(props.components || loadedCode || {});
+  const variantCodes = await Promise.all(
+    variantNames.map((variantName) =>
+      loadVariant(
+        props.url,
+        variantName,
+        loadedCode[variantName],
+        props.parseSource,
+        props.loadSource,
+        props.loadVariantMeta,
+        props.sourceTransformers,
+      )
+        .then((variant) => ({ name: variantName, variant }))
+        .catch((error) => ({ error })),
+    ),
+  );
+
+  const processedCode: Code = {};
+  const errors: Error[] = [];
+  for (const item of variantCodes) {
+    if ('error' in item) {
+      errors.push(item.error);
+    } else {
+      processedCode[item.name] = item.variant.code;
+    }
+  }
+
+  if (errors.length > 0) {
+    return (
+      <ErrorHandler
+        error={new Error(`Failed loading code: ${errors.map((err) => err.message).join('\n ')}`)}
+      />
+    );
+  }
+
+  const clientProps = createClientProps({
+    ...props,
+    code: processedCode,
+  });
+
+  return <CodeHighlighterClient {...clientProps} />;
+
+  // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no setCode() or setSelection()
+}
+
+function renderCodeHighlighter(
+  props: BaseHelperProps & {
+    fallback?: React.ReactNode;
+    skipFallback?: boolean;
+  },
+) {
+  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+
+  const code = props.code;
+  const variants = props.variants || Object.keys(props.components || code || {});
+  const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
+
+  if (!allCodeVariantsLoaded) {
+    if (props.forceClient) {
+      return (
+        <ErrorHandler error={new Error('Client only mode requires precomputed source code')} />
+      );
+    }
+
+    return <CodeSourceLoader {...props} />;
+  }
+
+  const clientProps = createClientProps({
+    ...props,
+    code,
+  });
+
+  return <CodeHighlighterClient {...clientProps} />;
+
+  // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no props.controlled
+}
+
+/**
+ * Ensures that the suspense boundary is always rendered, even if none of the children have async operations.
+ */
+async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
+  return props.children;
+}
+
+function renderWithInitialSource(
+  props: BaseHelperProps & {
+    code: Code;
+    initialVariant: string;
+    initialFilename: string;
+    initialSource: VariantSource;
+    initialExtraFiles?: VariantExtraFiles;
+    ContentLoading: React.ComponentType<ContentLoadingProps>;
+  },
+) {
+  const fileNames = [props.initialFilename, ...Object.keys(props.initialExtraFiles || {})];
+  const source = stringOrHastToJsx(props.initialSource, props.highlightAt === 'init');
+
+  const ContentLoading = props.ContentLoading;
+  const fallback = <ContentLoading fileNames={fileNames} source={source} />;
+
+  if (props.forceClient) {
+    return renderCodeHighlighter({
+      ...props,
+      fallback,
+    });
+  }
+
+  return (
+    <React.Suspense fallback={fallback}>
+      <CodeHighlighterSuspense>
+        {renderCodeHighlighter({
+          ...props,
+          fallback,
+          skipFallback: true,
+        })}
+      </CodeHighlighterSuspense>
+    </React.Suspense>
+  );
+}
+
+async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
+  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+
+  const loaded = await loadFallbackCode(
+    props.url,
+    props.initialVariant,
+    props.code,
+    props.highlightAt === 'init',
+    props.fallbackUsesExtraFiles,
+    props.fallbackUsesAllVariants,
+    props.parseSource,
+    props.loadSource,
+    props.loadVariantMeta,
+    props.loadCodeMeta,
+  ).catch((error) => ({ error }));
+  if ('error' in loaded) {
+    return <ErrorHandler error={loaded.error} />;
+  }
+
+  const { code, initialFilename, initialSource, initialExtraFiles } = loaded;
+
+  return renderWithInitialSource({
+    ...props,
+    code,
+    initialFilename,
+    initialSource,
+    initialExtraFiles,
+    ContentLoading: props.ContentLoading,
+  });
+}
+
+export function CodeHighlighter(props: CodeHighlighterProps) {
+  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+
+  if (props.precompute === true) {
+    return <ErrorHandler error={new Error('Precompute enabled, but not provided')} />;
+  }
+
+  const code = props.precompute || props.code;
+  const variants = Object.keys(props.components || props.precompute || props.code || {});
+  if (variants.length === 0) {
+    return <ErrorHandler error={new Error('No code or components provided')} />;
+  }
+
+  const ContentLoading = props.ContentLoading;
+  if (!ContentLoading) {
+    if (props.highlightAt === 'stream') {
+      // if the user explicitly sets highlightAt to 'stream', we need a ContentLoading component
+      return (
+        <ErrorHandler
+          error={new Error('ContentLoading component is required for stream highlighting')}
+        />
+      );
+    }
+
+    return renderCodeHighlighter({
+      ...props,
+    });
+  }
+
+  const initialKey = props.initialVariant || props.variant || props.defaultVariant || 'Default';
+  const initial = code?.[initialKey];
+  if (!initial && !props.components?.[initialKey]) {
+    return <ErrorHandler error={new Error(`No code or component for variant "${initialKey}"`)} />;
+  }
+
+  // TODO: use initial.filesOrder to determing which source to use
+  const highlightAt = props.highlightAt || DEFAULT_HIGHLIGHT_AT;
+
+  const { initialData, reason } = maybeInitialData(
+    variants,
+    initialKey,
+    code,
+    undefined, // TODO: use initial.filesOrder if provided?
+    highlightAt === 'init',
+    props.fallbackUsesExtraFiles,
+    props.fallbackUsesAllVariants,
+  );
+
+  if (!initialData) {
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log('Initial data not found:', reason);
+    }
+
+    if (props.forceClient) {
+      if (highlightAt === 'init') {
+        return (
+          <ErrorHandler
+            error={
+              new Error(
+                'Client only mode with highlightAt: init requires precomputed and parsed source code',
+              )
+            }
+          />
+        );
+      }
+
+      // TODO: send directly to client component?
+      return (
+        <ErrorHandler error={new Error('Client only mode requires precomputed source code')} />
+      );
+    }
+
+    return (
+      <CodeInitialSourceLoader
+        {...props}
+        ContentLoading={ContentLoading}
+        initialVariant={initialKey}
+      />
+    );
+  }
+
+  return renderWithInitialSource({
+    ...props,
+    code: initialData.code,
+    ContentLoading,
+    initialVariant: initialKey,
+    initialFilename: initialData.initialFilename,
+    initialSource: initialData.initialSource,
+    initialExtraFiles: initialData.initialExtraFiles,
+  });
+}
