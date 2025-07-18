@@ -13,6 +13,14 @@ interface LoadSourceOptions {
 }
 
 /**
+ * Default serverLoadSource function that reads a file and extracts its dependencies.
+ * This function is used to load source files for demos, resolving their imports and dependencies.
+ * It reads the source file, resolves its imports, and returns the processed source along with any
+ * additional files and dependencies that were found.
+ */
+export const serverLoadSource = createServerLoadSource();
+
+/**
  * Creates a loadSource function that reads a file and extracts its dependencies.
  *
  * @param options.storeAt - Controls how imports are stored in extraFiles:
@@ -20,7 +28,7 @@ interface LoadSourceOptions {
  *   - 'import': Import path with file extension (e.g., '../Component.js')
  *   - 'flat': Flattened to current directory with rewritten imports (e.g., './Component.js')
  */
-export function createLoadSource(options: LoadSourceOptions = {}): LoadSource {
+export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSource {
   const { includeDependencies = true, storeAt = 'flat' } = options;
 
   return async function loadSource(url: string) {

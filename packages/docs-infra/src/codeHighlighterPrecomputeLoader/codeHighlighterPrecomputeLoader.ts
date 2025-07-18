@@ -5,7 +5,7 @@ import type { SourceTransformers } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
-import { createLoadSource } from './createLoadSource';
+import { createServerLoadSource } from '../serverLoadSource';
 
 interface LoaderContext {
   resourcePath: string;
@@ -91,7 +91,7 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
     const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants);
 
     // Create loader functions
-    const loadSource = createLoadSource({
+    const loadSource = createServerLoadSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
     });

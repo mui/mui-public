@@ -1,11 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import type { LoadCodeMeta, Code } from '../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
-import { parseCreateFactoryCall } from './parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../codeHighlighterPrecomputeLoader/parseCreateFactoryCall';
 
 export interface CreateLoadCodeMetaOptions {
   // No options needed for simple path resolution
 }
+
+/**
+ * Default serverLoadCodeMeta function that resolves variant paths from demo files.
+ * This function is used to load code metadata for demos, specifically resolving paths for variants defined in the demo files.
+ * It reads the demo file, parses it to find `createDemo` calls with variants, and resolves the paths for those variants.
+ * It returns a Code object mapping variant names to their resolved file URLs.
+ */
+export const serverLoadCodeMeta = createServerLoadCodeMeta();
 
 /**
  * Creates a loadCodeMeta function that resolves variant paths from demo files.
@@ -21,7 +29,7 @@ export interface CreateLoadCodeMetaOptions {
  * @param options - Configuration options (currently unused)
  * @returns LoadCodeMeta function that takes a URL and returns Promise<Code>
  */
-export function createLoadCodeMeta(_options: CreateLoadCodeMetaOptions = {}): LoadCodeMeta {
+export function createServerLoadCodeMeta(_options: CreateLoadCodeMetaOptions = {}): LoadCodeMeta {
   return async function loadCodeMeta(url: string): Promise<Code> {
     // Remove file:// prefix if present to get file path
     const filePath = url.replace('file://', '');
