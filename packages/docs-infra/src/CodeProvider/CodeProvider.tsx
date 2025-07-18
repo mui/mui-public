@@ -3,18 +3,18 @@
 import * as React from 'react';
 import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
-import { LoadCode, LoadSource, LoadVariantCode, ParseSource } from '../CodeHighlighter';
+import { LoadCodeMeta, LoadSource, LoadVariantMeta, ParseSource } from '../CodeHighlighter';
 import { extensionMap, grammars } from '../parseSource/grammars';
 
 export function CodeProvider({
   children,
-  loadCode,
-  loadVariantCode,
+  loadCodeMeta,
+  loadVariantMeta,
   loadSource,
 }: {
   children: React.ReactNode;
-  loadCode?: LoadCode;
-  loadVariantCode?: LoadVariantCode;
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
   loadSource?: LoadSource;
 }) {
   const sn = React.useRef(createStarryNight(grammars));
@@ -26,8 +26,8 @@ export function CodeProvider({
   }, []);
 
   const context = React.useMemo(
-    () => ({ parseSource, loadSource, loadVariantCode, loadCode }),
-    [parseSource, loadSource, loadVariantCode, loadCode],
+    () => ({ parseSource, loadSource, loadVariantMeta, loadCodeMeta }),
+    [parseSource, loadSource, loadVariantMeta, loadCodeMeta],
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

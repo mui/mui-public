@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import type {
-  LoadCode,
+  LoadCodeMeta,
   LoadSource,
-  LoadVariantCode,
+  LoadVariantMeta,
   ParseSource,
   SourceTransformers,
 } from '../CodeHighlighter';
@@ -13,8 +13,8 @@ export interface CodeContext {
   parseSource?: ParseSource;
   sourceTransformers?: SourceTransformers;
   loadSource?: LoadSource;
-  loadVariantCode?: LoadVariantCode;
-  loadCode?: LoadCode;
+  loadVariantMeta?: LoadVariantMeta;
+  loadCodeMeta?: LoadCodeMeta;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

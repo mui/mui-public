@@ -49,16 +49,16 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
 
   let code = props.code;
   if (!code) {
-    if (!props.loadCode) {
+    if (!props.loadCodeMeta) {
       return (
         <ErrorHandler
-          error={new Error('No code provided and "loadCode" function is not defined')}
+          error={new Error('No code provided and "loadCodeMeta" function is not defined')}
         />
       );
     }
 
     try {
-      code = await props.loadCode(props.url);
+      code = await props.loadCodeMeta(props.url);
     } catch (error) {
       return (
         <ErrorHandler
@@ -81,7 +81,7 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
         code[variantName],
         props.parseSource,
         props.loadSource,
-        props.loadVariantCode,
+        props.loadVariantMeta,
         props.sourceTransformers,
       )
         .then((variant) => ({ name: variantName, variant }))
@@ -137,7 +137,7 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
   //   ),
   // };
   // delete (clientProps as any).forceClient;
-  // delete (clientProps as any).loadVariantCode;
+  // delete (clientProps as any).loadVariantMeta;
   // delete (clientProps as any).loadSource;
   // delete (clientProps as any).parseSource;
   // delete (clientProps as any).sourceTransformers;
@@ -197,7 +197,7 @@ function CodeHighlighterInner(props: CodeHighlighterInnerProps) {
   //   ),
   // };
   // delete (clientProps as any).forceClient;
-  // delete (clientProps as any).loadVariantCode;
+  // delete (clientProps as any).loadVariantMeta;
   // delete (clientProps as any).loadSource;
   // delete (clientProps as any).parseSource;
   // delete (clientProps as any).sourceTransformers;
@@ -258,8 +258,8 @@ async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
     props.fallbackUsesAllVariants,
     props.parseSource,
     props.loadSource,
-    props.loadVariantCode,
-    props.loadCode,
+    props.loadVariantMeta,
+    props.loadCodeMeta,
   ).catch((error) => ({ error }));
   if ('error' in loaded) {
     return <ErrorHandler error={loaded.error} />;

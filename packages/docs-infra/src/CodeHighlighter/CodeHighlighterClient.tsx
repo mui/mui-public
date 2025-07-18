@@ -39,7 +39,7 @@ function useInitialData({
   fallbackUsesAllVariants?: boolean;
   isControlled: boolean;
 }) {
-  const { parseSource, loadCode, loadVariantCode, loadSource } = useCodeContext();
+  const { parseSource, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
   const { initialData, reason } = React.useMemo(
     () =>
@@ -87,8 +87,8 @@ function useInitialData({
         fallbackUsesAllVariants,
         parseSource,
         loadSource,
-        loadVariantCode,
-        loadCode,
+        loadVariantMeta,
+        loadCodeMeta,
       ).catch((error) => ({ error }));
 
       if ('error' in loaded) {
@@ -108,8 +108,8 @@ function useInitialData({
     url,
     parseSource,
     loadSource,
-    loadVariantCode,
-    loadCode,
+    loadVariantMeta,
+    loadCodeMeta,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
   ]);
@@ -130,7 +130,7 @@ function useAllVariants({
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
 }) {
-  const { parseSource, loadCode, loadVariantCode, loadSource } = useCodeContext();
+  const { parseSource, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
   React.useEffect(() => {
     if (readyForContent || isControlled) {
@@ -142,17 +142,17 @@ function useAllVariants({
     (async () => {
       let loadedCode = code;
       if (!loadedCode) {
-        if (!loadCode) {
-          throw new Error('"loadCode" function is required when no code is provided');
+        if (!loadCodeMeta) {
+          throw new Error('"loadCodeMeta" function is required when no code is provided');
         }
 
-        loadedCode = await loadCode(url);
+        loadedCode = await loadCodeMeta(url);
       }
 
       // TODO: avoid highlighting at this stage
       const result = await Promise.all(
         variants.map((name) =>
-          loadVariant(url, name, loadedCode[name], parseSource, loadSource, loadVariantCode)
+          loadVariant(url, name, loadedCode[name], parseSource, loadSource, loadVariantMeta)
             .then((variant) => ({ name, variant }))
             .catch((error) => ({ error })),
         ),
@@ -183,8 +183,8 @@ function useAllVariants({
     setCode,
     parseSource,
     loadSource,
-    loadVariantCode,
-    loadCode,
+    loadVariantMeta,
+    loadCodeMeta,
   ]);
 
   return { readyForContent };

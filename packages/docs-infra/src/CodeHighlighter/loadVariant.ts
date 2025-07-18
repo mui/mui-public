@@ -7,7 +7,7 @@ import type {
   Transforms,
   ParseSource,
   LoadSource,
-  LoadVariantCode,
+  LoadVariantMeta,
   SourceTransformers,
   LoadFileOptions,
 } from './types';
@@ -395,6 +395,8 @@ async function loadExtraFiles(
   return { extraFiles: processedExtraFiles, allFilesUsed };
 }
 
+// TODO: throw error if hasAllFiles is true, but a new file is discovered
+
 /**
  * Loads a variant with support for recursive extra file loading.
  * The loadSource function can now return extraFiles that will be loaded recursively.
@@ -407,7 +409,7 @@ export async function loadVariant(
   variant: VariantCode | string | undefined,
   parseSource?: ParseSource,
   loadSource?: LoadSource,
-  loadVariantCode?: LoadVariantCode,
+  loadVariantMeta?: LoadVariantMeta,
   sourceTransformers?: SourceTransformers,
   options: LoadFileOptions = {},
 ): Promise<{ code: VariantCode; dependencies: string[] }> {
@@ -422,13 +424,13 @@ export async function loadVariant(
   >();
 
   if (typeof variant === 'string') {
-    if (!loadVariantCode) {
-      throw new Error('"loadVariantCode" function is required when loadCode returns strings');
+    if (!loadVariantMeta) {
+      throw new Error('"loadVariantMeta" function is required when loadCodeMeta returns strings');
       // TODO: maybe we can fall back to loadSource in this case?
     }
 
     try {
-      variant = await loadVariantCode(variantName, variant);
+      variant = await loadVariantMeta(variantName, variant);
     } catch (error) {
       throw new Error(
         `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,

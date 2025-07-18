@@ -6,7 +6,7 @@ import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadSource } from './createLoadSource';
-import { createLoadVariantCode } from './createLoadVariantCode';
+import { createLoadVariantMeta } from './createLoadVariantMeta';
 
 interface LoaderContext {
   resourcePath: string;
@@ -23,7 +23,7 @@ interface LoaderContext {
  * 2. Resolves all variant entry point paths using resolveModulePathsWithFs
  * 3. Uses loadVariant to handle all loading, parsing, and transformation:
  *    - loadSource: Loads individual files and extracts dependencies
- *    - loadVariantCode: Creates basic variant structure
+ *    - loadVariantMeta: Creates basic variant structure
  *    - parseSource: Applies syntax highlighting using Starry Night
  *    - sourceTransformers: Handles TypeScript to JavaScript conversion
  * 4. loadVariant handles recursive dependency loading automatically
@@ -96,7 +96,7 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
     });
-    const loadVariantCode = createLoadVariantCode();
+    const loadVariantMeta = createLoadVariantMeta();
 
     // Setup source transformers for TypeScript to JavaScript conversion
     const sourceTransformers: SourceTransformers = [
@@ -112,10 +112,10 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
           const { code: processedVariant, dependencies } = await loadVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
-            fileUrl, // Let loadVariantCode handle creating the initial variant
+            fileUrl, // Let loadVariantMeta handle creating the initial variant
             parseSource, // For syntax highlighting
             loadSource, // For loading source files and dependencies
-            loadVariantCode, // For creating basic variant structure
+            loadVariantMeta, // For creating basic variant structure
             sourceTransformers, // For TypeScript to JavaScript conversion
             {
               maxDepth: 5,

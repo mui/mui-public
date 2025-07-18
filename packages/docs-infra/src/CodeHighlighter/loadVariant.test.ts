@@ -5,7 +5,7 @@ import type {
   Transforms,
   ParseSource,
   LoadSource,
-  LoadVariantCode,
+  LoadVariantMeta,
   SourceTransformers,
   LoadFileOptions,
 } from './types';
@@ -13,7 +13,7 @@ import type {
 describe('loadVariant', () => {
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
-  let mockLoadVariantCode: MockedFunction<LoadVariantCode>;
+  let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
   let mockSourceTransformers: SourceTransformers;
 
   beforeEach(() => {
@@ -21,7 +21,7 @@ describe('loadVariant', () => {
 
     mockLoadSource = vi.fn();
     mockParseSource = vi.fn();
-    mockLoadVariantCode = vi.fn();
+    mockLoadVariantMeta = vi.fn();
     mockSourceTransformers = [
       {
         extensions: ['ts', 'tsx'],
@@ -44,7 +44,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true }, // Disable parsing to keep source as string
       );
@@ -71,7 +71,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true }, // Disable parsing to keep source as string
       );
@@ -89,7 +89,7 @@ describe('loadVariant', () => {
         source: 'const variant = true;',
       };
 
-      mockLoadVariantCode.mockResolvedValue(variantCode);
+      mockLoadVariantMeta.mockResolvedValue(variantCode);
 
       const result = await loadVariant(
         'file:///test.ts',
@@ -97,12 +97,12 @@ describe('loadVariant', () => {
         variantUrl,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true }, // Disable parsing to keep source as string
       );
 
-      expect(mockLoadVariantCode).toHaveBeenCalledWith('default', variantUrl);
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
       expect(result.code.source).toBe('const variant = true;');
       expect(result.dependencies).toEqual(['file:///test.ts']);
     });
@@ -123,7 +123,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         // Don't disable parsing here
       );
@@ -158,7 +158,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true }, // Disable parsing to keep sources as strings
       );
@@ -198,7 +198,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true }, // Disable parsing to keep sources as strings
       );
@@ -243,7 +243,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true }, // Disable parsing to keep sources as strings
       );
@@ -291,7 +291,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -364,7 +364,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           mockSourceTransformers,
           { disableParsing: true },
         );
@@ -394,7 +394,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -435,7 +435,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           mockSourceTransformers,
         ),
       ).rejects.toThrow('Circular dependency detected: file:///main.ts');
@@ -474,7 +474,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         options,
       );
@@ -502,7 +502,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         options,
       );
@@ -545,7 +545,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           mockSourceTransformers,
           options,
         ),
@@ -561,7 +561,7 @@ describe('loadVariant', () => {
         variant: undefined,
         parseSource: mockParseSource,
         loadSource: mockLoadSource,
-        loadVariantCode: mockLoadVariantCode,
+        loadVariantMeta: mockLoadVariantMeta,
         expectedError: 'Variant is missing from code: default',
       },
       {
@@ -569,7 +569,7 @@ describe('loadVariant', () => {
         variant: { fileName: 'test.ts', url: 'file:///test.ts' } as VariantCode,
         parseSource: mockParseSource,
         loadSource: undefined,
-        loadVariantCode: mockLoadVariantCode,
+        loadVariantMeta: mockLoadVariantMeta,
         expectedError: '"loadSource" function is required when source is not provided',
       },
       {
@@ -581,21 +581,21 @@ describe('loadVariant', () => {
         } as VariantCode,
         parseSource: undefined,
         loadSource: mockLoadSource,
-        loadVariantCode: mockLoadVariantCode,
+        loadVariantMeta: mockLoadVariantMeta,
         expectedError:
           '"parseSource" function is required when source is a string and highlightAt is "init"',
       },
       {
-        name: 'loadVariantCode is required but not provided',
+        name: 'loadVariantMeta is required but not provided',
         variant: 'file:///variant.ts',
         parseSource: mockParseSource,
         loadSource: mockLoadSource,
-        loadVariantCode: undefined,
-        expectedError: '"loadVariantCode" function is required when loadCode returns strings',
+        loadVariantMeta: undefined,
+        expectedError: '"loadVariantMeta" function is required when loadCodeMeta returns strings',
       },
     ])(
       'should throw error when $name',
-      async ({ variant, parseSource, loadSource, loadVariantCode, expectedError }) => {
+      async ({ variant, parseSource, loadSource, loadVariantMeta, expectedError }) => {
         await expect(
           loadVariant(
             'file:///test.ts',
@@ -603,7 +603,7 @@ describe('loadVariant', () => {
             variant,
             parseSource,
             loadSource,
-            loadVariantCode,
+            loadVariantMeta,
             mockSourceTransformers,
           ),
         ).rejects.toThrow(expectedError);
@@ -638,7 +638,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           mockSourceTransformers,
         ),
       ).rejects.toThrow(expectedError);
@@ -716,7 +716,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           mockSourceTransformers,
         ),
       ).rejects.toThrow(expectedError);
@@ -754,7 +754,7 @@ describe('loadVariant', () => {
           variantData,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           mockSourceTransformers,
         ),
       ).rejects.toThrow(expectedError);
@@ -780,7 +780,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -806,7 +806,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -836,7 +836,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -876,7 +876,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -922,7 +922,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         { disableParsing: true }, // Disable parsing to keep source as string
       );
@@ -972,7 +972,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         { disableParsing: true },
       );
@@ -1021,7 +1021,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         { disableParsing: true },
       );
@@ -1063,7 +1063,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         { disableParsing: true },
       );
@@ -1096,7 +1096,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           sourceTransformersWithSpy,
           { disableParsing: true },
         ),
@@ -1141,7 +1141,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         { disableParsing: true },
       );
@@ -1220,7 +1220,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         // Enable both transforms and parsing
       );
@@ -1279,7 +1279,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         // Enable both transforms and parsing
       );
@@ -1322,7 +1322,7 @@ describe('loadVariant', () => {
           variant,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
+          mockLoadVariantMeta,
           sourceTransformersWithSpy,
           // Enable both transforms and parsing
         ),
@@ -1396,7 +1396,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         sourceTransformersWithSpy,
         // Enable parsing but transforms already exist
       );
@@ -1444,7 +1444,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -1472,7 +1472,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -1536,7 +1536,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -1626,7 +1626,7 @@ describe('loadVariant', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );
@@ -1654,7 +1654,7 @@ describe('loadVariant - helper functions', () => {
   describe('resolveRelativePath behavior', () => {
     let mockLoadSource: MockedFunction<LoadSource>;
     let mockParseSource: MockedFunction<ParseSource>;
-    let mockLoadVariantCode: MockedFunction<LoadVariantCode>;
+    let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
     let mockSourceTransformers: SourceTransformers;
 
     beforeEach(() => {
@@ -1662,7 +1662,7 @@ describe('loadVariant - helper functions', () => {
 
       mockLoadSource = vi.fn();
       mockParseSource = vi.fn();
-      mockLoadVariantCode = vi.fn();
+      mockLoadVariantMeta = vi.fn();
       mockSourceTransformers = [
         {
           extensions: ['ts', 'tsx'],
@@ -1702,7 +1702,7 @@ describe('loadVariant - helper functions', () => {
         variant,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
+        mockLoadVariantMeta,
         mockSourceTransformers,
         { disableParsing: true },
       );

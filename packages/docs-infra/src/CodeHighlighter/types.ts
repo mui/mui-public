@@ -62,8 +62,8 @@ export interface CodeHighlighterClientProps extends CodeHighlighterBaseProps {
   highlightAt?: 'init' | 'hydration' | 'idle';
 }
 
-export type LoadCode = (url: string) => Promise<Code>;
-export type LoadVariantCode = (variantName: string, url: string) => Promise<VariantCode>;
+export type LoadCodeMeta = (url: string) => Promise<Code>;
+export type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
 export type LoadSource = (url: string) => Promise<{
   source: string;
   extraFiles?: VariantExtraFiles;
@@ -103,8 +103,8 @@ export interface CodeHighlighterProps extends CodeHighlighterBaseProps {
    */
   highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
   forceClient?: boolean;
-  loadCode?: LoadCode;
-  loadVariantCode?: LoadVariantCode;
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
   loadSource?: LoadSource;
   sourceTransformers?: SourceTransformers;
   parseSource?: ParseSource;

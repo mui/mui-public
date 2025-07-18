@@ -3,9 +3,9 @@ import type {
   VariantExtraFiles,
   ParseSource,
   LoadSource,
-  LoadVariantCode,
+  LoadVariantMeta,
   VariantSource,
-  LoadCode,
+  LoadCodeMeta,
   VariantCode,
 } from './types';
 import { loadVariant } from './loadVariant';
@@ -62,8 +62,8 @@ export async function loadFallbackCode(
   fallbackUsesAllVariants?: boolean,
   parseSource?: ParseSource,
   loadSource?: LoadSource,
-  loadVariantCode?: LoadVariantCode,
-  loadCode?: LoadCode,
+  loadVariantMeta?: LoadVariantMeta,
+  loadCodeMeta?: LoadCodeMeta,
   initialFilename?: string,
 ): Promise<FallbackVariants> {
   loaded = { ...loaded };
@@ -71,12 +71,12 @@ export async function loadFallbackCode(
   // Step 1: Ensure we have the initial variant loaded
   let initial = loaded[initialVariant];
   if (!initial) {
-    if (!loadCode) {
-      throw new Error('"loadCode" function is required when initial variant is not provided');
+    if (!loadCodeMeta) {
+      throw new Error('"loadCodeMeta" function is required when initial variant is not provided');
     }
 
     try {
-      loaded = await loadCode(url);
+      loaded = await loadCodeMeta(url);
     } catch (error) {
       throw new Error(`Failed to load code from URL: ${url}. Error: ${JSON.stringify(error)}`);
     }
@@ -87,7 +87,7 @@ export async function loadFallbackCode(
     }
   }
 
-  // Check if we can return early after loadCode
+  // Check if we can return early after loadCodeMeta
   if (
     typeof initial !== 'string' &&
     initial.allFilesListed &&
@@ -143,10 +143,10 @@ export async function loadFallbackCode(
   }
 
   // Step 2: Try to get variant metadata quickly first
-  if (typeof initial === 'string' && loadVariantCode) {
+  if (typeof initial === 'string' && loadVariantMeta) {
     try {
       // Load the variant code to check if it has allFilesListed
-      const quickVariant = await loadVariantCode(initialVariant, initial);
+      const quickVariant = await loadVariantMeta(initialVariant, initial);
       loaded = { ...loaded, [initialVariant]: quickVariant };
       initial = quickVariant;
 
@@ -214,7 +214,7 @@ export async function loadFallbackCode(
       initial,
       shouldHighlight ? parseSource : undefined,
       loadSource,
-      loadVariantCode,
+      loadVariantMeta,
       undefined, // sourceTransformers - skip transforms for fallback
       {
         disableTransforms: true, // Don't apply transforms for fallback
@@ -254,7 +254,7 @@ export async function loadFallbackCode(
           variant,
           shouldHighlight ? parseSource : undefined,
           loadSource,
-          loadVariantCode,
+          loadVariantMeta,
           undefined, // sourceTransformers
           {
             disableTransforms: true,

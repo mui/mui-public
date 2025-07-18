@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { LoadVariantCode, VariantCode, VariantExtraFiles } from '../CodeHighlighter';
+import { LoadVariantMeta, VariantCode, VariantExtraFiles } from '../CodeHighlighter';
 import { resolveImports, rewriteImportsToSameDirectory } from '../resolveImports';
 import { resolveModulePathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 
@@ -18,7 +18,7 @@ export interface VariantCodeWithFiles {
 }
 
 /**
- * Enhanced version of serverLoadVariantCode that supports loading relative dependencies.
+ * Enhanced version of serverLoadVariantMeta that supports loading relative dependencies.
  * This function recursively loads all relative imports of the variant code with configurable limits.
  *
  * @param variantName - The name of the variant to load (used for the fileName)
@@ -26,7 +26,7 @@ export interface VariantCodeWithFiles {
  * @param options - Configuration options for dependency loading
  * @returns Promise<VariantCodeWithFiles> with variant data and visitedFiles separately
  */
-async function serverLoadVariantCodeWithOptions(
+async function serverLoadVariantMetaWithOptions(
   variantName: string,
   variantUrl: string | undefined,
   options: LoadDependenciesOptions = {},
@@ -118,14 +118,14 @@ async function serverLoadVariantCodeWithOptions(
 }
 
 // Export the extended version for users who want to configure the options
-export { serverLoadVariantCodeWithOptions };
+export { serverLoadVariantMetaWithOptions };
 
-// Default export that matches the LoadVariantCode interface
-export const serverLoadVariantCode: LoadVariantCode = async (
+// Default export that matches the LoadVariantMeta interface
+export const serverLoadVariantMeta: LoadVariantMeta = async (
   variantName,
   variantUrl,
 ): Promise<VariantCode> => {
-  const result = await serverLoadVariantCodeWithOptions(variantName, variantUrl, {
+  const result = await serverLoadVariantMetaWithOptions(variantName, variantUrl, {
     includeDependencies: true,
     maxDepth: 5,
     maxFiles: 50,

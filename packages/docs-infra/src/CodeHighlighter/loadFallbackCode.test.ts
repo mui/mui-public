@@ -4,23 +4,23 @@ import type { MockedFunction } from 'vitest';
 import { loadFallbackCode } from './loadFallbackCode';
 import type {
   Code,
-  LoadCode,
-  LoadVariantCode,
+  LoadCodeMeta,
+  LoadVariantMeta,
   LoadSource,
   ParseSource,
   VariantCode,
 } from './types';
 
 describe('loadFallbackCode', () => {
-  let mockLoadCode: MockedFunction<LoadCode>;
-  let mockLoadVariantCode: MockedFunction<LoadVariantCode>;
+  let mockLoadCodeMeta: MockedFunction<LoadCodeMeta>;
+  let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLoadCode = vi.fn();
-    mockLoadVariantCode = vi.fn();
+    mockLoadCodeMeta = vi.fn();
+    mockLoadVariantMeta = vi.fn();
     mockLoadSource = vi.fn();
     mockParseSource = vi.fn();
   });
@@ -50,8 +50,8 @@ describe('loadFallbackCode', () => {
         false, // fallbackUsesAllVariants
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
       // Verify the optimization worked - we got the right results
@@ -82,8 +82,8 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
       expect(mockParseSource).toHaveBeenCalledWith(
@@ -119,8 +119,8 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
         'utils.ts', // initialFilename
       );
 
@@ -130,8 +130,8 @@ describe('loadFallbackCode', () => {
     });
   });
 
-  describe('Early return with loadVariantCode optimization', () => {
-    it('should use loadVariantCode and return early when allFilesListed=true', async () => {
+  describe('Early return with loadVariantMeta optimization', () => {
+    it('should use loadVariantMeta and return early when allFilesListed=true', async () => {
       const loaded: Code = { default: 'http://example.com/default' };
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
@@ -140,7 +140,7 @@ describe('loadFallbackCode', () => {
         allFilesListed: true,
       };
 
-      mockLoadVariantCode.mockResolvedValue(variantCode);
+      mockLoadVariantMeta.mockResolvedValue(variantCode);
 
       const result = await loadFallbackCode(
         'http://example.com',
@@ -151,11 +151,11 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
-      expect(mockLoadVariantCode).toHaveBeenCalledWith('default', 'http://example.com/default');
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', 'http://example.com/default');
       expect(result.allFileNames).toEqual(['App.tsx']);
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
     });
@@ -181,8 +181,8 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
       // Verify we got the expected results (loadVariant processes the variant)
@@ -209,8 +209,8 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
@@ -242,7 +242,7 @@ describe('loadFallbackCode', () => {
         allFilesListed: true,
       };
 
-      mockLoadVariantCode.mockResolvedValue(variant2);
+      mockLoadVariantMeta.mockResolvedValue(variant2);
 
       const result = await loadFallbackCode(
         'http://example.com',
@@ -253,11 +253,11 @@ describe('loadFallbackCode', () => {
         true, // fallbackUsesAllVariants
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
-      expect(mockLoadVariantCode).toHaveBeenCalledWith(
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith(
         'typescript',
         'http://example.com/typescript',
       );
@@ -266,8 +266,8 @@ describe('loadFallbackCode', () => {
   });
 
   describe('Error handling', () => {
-    it('should throw error when initial variant not found after loadCode', async () => {
-      mockLoadCode.mockResolvedValue({ otherVariant: 'something' });
+    it('should throw error when initial variant not found after loadCodeMeta', async () => {
+      mockLoadCodeMeta.mockResolvedValue({ otherVariant: 'something' });
 
       await expect(
         loadFallbackCode(
@@ -279,13 +279,13 @@ describe('loadFallbackCode', () => {
           false,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
-          mockLoadCode,
+          mockLoadVariantMeta,
+          mockLoadCodeMeta,
         ),
       ).rejects.toThrow('Initial variant "nonexistent" not found in loaded code.');
     });
 
-    it('should throw error when loadCode is required but not provided', async () => {
+    it('should throw error when loadCodeMeta is required but not provided', async () => {
       await expect(
         loadFallbackCode(
           'http://example.com',
@@ -296,10 +296,10 @@ describe('loadFallbackCode', () => {
           false,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
-          undefined, // no loadCode function
+          mockLoadVariantMeta,
+          undefined, // no loadCodeMeta function
         ),
-      ).rejects.toThrow('"loadCode" function is required when initial variant is not provided');
+      ).rejects.toThrow('"loadCodeMeta" function is required when initial variant is not provided');
     });
 
     it('should throw error when requested file cannot be found', async () => {
@@ -322,16 +322,16 @@ describe('loadFallbackCode', () => {
           false,
           mockParseSource,
           mockLoadSource,
-          mockLoadVariantCode,
-          mockLoadCode,
+          mockLoadVariantMeta,
+          mockLoadCodeMeta,
           'nonexistent.ts', // initialFilename that doesn't exist
         ),
       ).rejects.toThrow('Failed to get source for file nonexistent.ts in variant default');
     });
   });
 
-  describe('loadCode optimization', () => {
-    it('should call loadCode when no initial variant is provided', async () => {
+  describe('loadCodeMeta optimization', () => {
+    it('should call loadCodeMeta when no initial variant is provided', async () => {
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
         url: 'http://example.com/App.tsx',
@@ -339,7 +339,7 @@ describe('loadFallbackCode', () => {
         allFilesListed: true,
       };
 
-      mockLoadCode.mockResolvedValue({ default: variantCode });
+      mockLoadCodeMeta.mockResolvedValue({ default: variantCode });
 
       const result = await loadFallbackCode(
         'http://example.com',
@@ -350,11 +350,11 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
-      expect(mockLoadCode).toHaveBeenCalledWith('http://example.com');
+      expect(mockLoadCodeMeta).toHaveBeenCalledWith('http://example.com');
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
     });
   });
@@ -385,8 +385,8 @@ describe('loadFallbackCode', () => {
         false,
         mockParseSource,
         mockLoadSource,
-        mockLoadVariantCode,
-        mockLoadCode,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
       );
 
       // Verify loadVariant processed the variant and loaded dependencies
