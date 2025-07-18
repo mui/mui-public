@@ -1,4 +1,5 @@
 import { basename } from 'node:path';
+import { JAVASCRIPT_MODULE_EXTENSIONS, isJavaScriptModule } from './resolveModulePath';
 
 /**
  * Rewrites relative imports in source code to assume all files are in the same directory.
@@ -24,20 +25,31 @@ export function rewriteImportsToSameDirectory(source: string, filePaths: Set<str
       // Extract the filename from the path
       const filename = basename(modulePath);
 
-      // Check if this file is in our dependency list
-      const matchingPath = Array.from(filePaths).find(
-        (path) =>
-          basename(path) === filename ||
-          basename(path, '.ts') === filename ||
-          basename(path, '.tsx') === filename ||
-          basename(path, '.js') === filename ||
-          basename(path, '.jsx') === filename,
-      );
+      // For static assets (CSS, JSON, etc.), use the filename as-is
+      if (!isJavaScriptModule(modulePath)) {
+        const matchingPath = Array.from(filePaths).find((path) => basename(path) === filename);
+        if (matchingPath) {
+          return `import ${importPart}'./${filename}'`;
+        }
+      } else {
+        // For JS/TS modules, check against all possible extensions
+        const matchingPath = Array.from(filePaths).find((path) => {
+          const pathBasename = basename(path);
+          return (
+            pathBasename === filename ||
+            JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => basename(path, ext) === filename)
+          );
+        });
 
-      if (matchingPath) {
-        // Rewrite to same directory
-        const newPath = `./${basename(matchingPath, '.ts').replace(/\.(tsx|js|jsx)$/, '')}`;
-        return `import ${importPart}'${newPath}'`;
+        if (matchingPath) {
+          // For JS/TS modules, rewrite to same directory without extension
+          const pathBasename = basename(matchingPath);
+          const nameWithoutExt = JAVASCRIPT_MODULE_EXTENSIONS.reduce(
+            (name, ext) => name.replace(new RegExp(`\\${ext}$`), ''),
+            pathBasename,
+          );
+          return `import ${importPart}'./${nameWithoutExt}'`;
+        }
       }
     }
 

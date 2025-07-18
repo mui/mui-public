@@ -11,7 +11,7 @@ import type {
 } from './types';
 
 import { loadVariant } from './loadVariant';
-import { loadFallbackVariant } from './loadFallbackVariant';
+import { loadFallbackCode } from './loadFallbackCode';
 import { stringOrHastToJsx } from '../hast';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
@@ -83,17 +83,19 @@ async function CodeSourceLoader(props: CodeHighlighterInnerProps) {
         props.loadSource,
         props.loadVariantCode,
         props.sourceTransformers,
-      ).catch((error) => ({ error })),
+      )
+        .then((variant) => ({ name: variantName, variant }))
+        .catch((error) => ({ error })),
     ),
   );
 
   const result: Code = {};
   const errors: Error[] = [];
-  for (const variant of variantCodes) {
-    if ('error' in variant) {
-      errors.push(variant.error);
+  for (const item of variantCodes) {
+    if ('error' in item) {
+      errors.push(item.error);
     } else {
-      result[variant.variant] = variant.code;
+      result[item.name] = item.variant.code;
     }
   }
 
@@ -247,11 +249,13 @@ function CodeHighlighterWithInitialSource(props: CodeHighlighterWithInitialSourc
 async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  const loaded = await loadFallbackVariant(
+  const loaded = await loadFallbackCode(
     props.url,
     props.initialVariant,
     props.code,
     props.highlightAt === 'init',
+    props.fallbackUsesExtraFiles,
+    props.fallbackUsesAllVariants,
     props.parseSource,
     props.loadSource,
     props.loadVariantCode,
@@ -261,7 +265,7 @@ async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
     return <ErrorHandler error={loaded.error} />;
   }
 
-  const { code, initialFilename, initialSource, initialExtraFiles } = loaded;
+  const { code, initialFilename, initialSource, initialExtraFiles, allFileNames } = loaded;
 
   const propsWithInitialSource: CodeHighlighterWithInitialSourceProps = {
     ...props,

@@ -59,9 +59,10 @@ export function maybeInitialData(
 
     if (
       variantCode.extraFiles &&
-      !Object.keys(variantCode.extraFiles).every(
-        (file) => variantCode.extraFiles?.[file]?.source !== undefined,
-      )
+      !Object.keys(variantCode.extraFiles).every((file) => {
+        const fileData = variantCode.extraFiles?.[file];
+        return typeof fileData === 'object' && fileData?.source !== undefined;
+      })
     ) {
       return {
         initialData: false,
@@ -71,16 +72,39 @@ export function maybeInitialData(
   }
 
   // TODO, filename might need to be determined from filesOrder if provided?
-  const file = fileName ? variantCode?.extraFiles?.[fileName] : variantCode;
   const initialFilename = fileName || variantCode.fileName;
-  if (!file || !file.source) {
+  let fileSource: VariantSource | undefined;
+
+  if (fileName) {
+    const fileData = variantCode?.extraFiles?.[fileName];
+    if (!fileData) {
+      return {
+        initialData: false,
+        reason: `File not found in code`,
+      };
+    }
+
+    if (typeof fileData === 'string') {
+      // It's a URL, not actual source content
+      return {
+        initialData: false,
+        reason: `File is not loaded yet`,
+      };
+    }
+
+    fileSource = fileData.source;
+  } else {
+    fileSource = variantCode.source;
+  }
+
+  if (!fileSource) {
     return {
       initialData: false,
-      reason: `File not found in code`,
+      reason: `File source not found`,
     };
   }
 
-  if (needsHighlight && typeof file.source === 'string') {
+  if (needsHighlight && typeof fileSource === 'string') {
     return {
       initialData: false,
       reason: 'File needs highlighting',
@@ -91,7 +115,7 @@ export function maybeInitialData(
     initialData: {
       code,
       initialFilename,
-      initialSource: file.source,
+      initialSource: fileSource,
       initialExtraFiles: variantCode?.extraFiles,
     },
   };

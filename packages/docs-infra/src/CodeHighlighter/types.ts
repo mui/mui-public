@@ -19,6 +19,7 @@ export type VariantCode = CodeMeta & {
   extraFiles?: VariantExtraFiles;
   filesOrder?: string[];
   transforms?: Transforms;
+  allFilesListed?: boolean;
 };
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
 
@@ -63,9 +64,11 @@ export interface CodeHighlighterClientProps extends CodeHighlighterBaseProps {
 
 export type LoadCode = (url: string) => Promise<Code>;
 export type LoadVariantCode = (variantName: string, url: string) => Promise<VariantCode>;
-export type LoadSource = (
-  url: string,
-) => Promise<{ source: string; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>;
+export type LoadSource = (url: string) => Promise<{
+  source: string;
+  extraFiles?: VariantExtraFiles;
+  extraDependencies?: string[];
+}>;
 export type TransformSource = (
   source: string,
   fileName: string,

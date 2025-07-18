@@ -4,7 +4,7 @@ import { stringOrHastToJsx } from '../hast/hast';
 function toExtraSource(variantCode: VariantCode, fileName?: string) {
   return Object.entries(variantCode.extraFiles || {}).reduce(
     (acc, [name, file]) => {
-      if (name !== fileName && file?.source) {
+      if (name !== fileName && typeof file === 'object' && file?.source) {
         acc[name] = stringOrHastToJsx(file.source);
       }
       return acc;
@@ -21,13 +21,21 @@ export function codeToFallbackProps(
   needsAllVariants = false,
 ): ContentLoadingProps {
   const variantCode = code?.[variant];
-  if (!variantCode) {
+  if (!variantCode || typeof variantCode === 'string') {
     return {};
   }
 
   const fileNames = [variantCode.fileName, ...Object.keys(variantCode.extraFiles || {})];
-  const sourceRaw = fileName ? variantCode.extraFiles?.[fileName]?.source : variantCode.source;
-  const source = sourceRaw && stringOrHastToJsx(sourceRaw);
+  let source;
+
+  if (fileName) {
+    const fileData = variantCode.extraFiles?.[fileName];
+    if (fileData && typeof fileData === 'object' && 'source' in fileData && fileData.source) {
+      source = stringOrHastToJsx(fileData.source);
+    }
+  } else if (variantCode.source) {
+    source = stringOrHastToJsx(variantCode.source);
+  }
 
   if (needsAllVariants || needsAllFiles) {
     const extraSource = toExtraSource(variantCode, fileName);
@@ -35,7 +43,7 @@ export function codeToFallbackProps(
     if (needsAllVariants) {
       const extraVariants = Object.entries(code || {}).reduce(
         (acc, [name, vCode]) => {
-          if (name !== variant) {
+          if (name !== variant && vCode && typeof vCode !== 'string') {
             const extraVariantExtraSource = toExtraSource(vCode, vCode.fileName);
 
             acc[name] = {

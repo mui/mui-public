@@ -1,5 +1,24 @@
 import { join, extname } from 'node:path';
 
+/**
+ * Default file extensions for JavaScript/TypeScript modules that can be resolved
+ */
+export const JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'] as const;
+
+/**
+ * Checks if a file path or import path represents a JavaScript/TypeScript module
+ * @param path - The file path or import path to check
+ * @returns true if it's a JS/TS module, false otherwise
+ */
+export function isJavaScriptModule(path: string): boolean {
+  // If the path has an extension, check if it's one of the JS/TS extensions
+  if (/\.[^/]+$/.test(path)) {
+    return JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => path.endsWith(ext));
+  }
+  // If no extension, assume it's a JS/TS module (will be resolved to one)
+  return true;
+}
+
 export interface DirectoryEntry {
   name: string;
   isFile: boolean;
@@ -35,7 +54,7 @@ export async function resolveModulePath(
   readDirectory: DirectoryReader,
   options: ResolveModulePathOptions = {},
 ): Promise<string> {
-  const { extensions = ['.ts', '.tsx', '.js', '.jsx'] } = options;
+  const { extensions = JAVASCRIPT_MODULE_EXTENSIONS } = options;
 
   // Extract the parent directory and the module name
   const lastSlashIndex = modulePath.lastIndexOf('/');
@@ -281,4 +300,88 @@ export async function resolveModulePaths(
   }
 
   return results;
+}
+
+/**
+ * Resolves import result by separating JavaScript modules from static assets,
+ * only resolving JavaScript modules and returning a combined map.
+ * This function uses the resolveModulePaths function internally but requires
+ * a DirectoryReader to be provided.
+ *
+ * @param importResult - The result from resolveImports containing all imports
+ * @param readDirectory - Function to read directory contents
+ * @param options - Configuration options for module resolution
+ * @returns Promise<Map<string, string>> - Map from import path to resolved file path
+ */
+export async function resolveImportResult(
+  importResult: Record<string, { path: string; names: string[] }>,
+  readDirectory: DirectoryReader,
+  options: ResolveModulePathOptions = {},
+): Promise<Map<string, string>> {
+  const resolvedPathsMap = new Map<string, string>();
+
+  // Separate JS/TS imports from static asset imports
+  const jsImportPaths: string[] = [];
+  const staticAssetPaths: string[] = [];
+
+  Object.entries(importResult).forEach(([importPath, { path }]) => {
+    if (isJavaScriptModule(importPath)) {
+      // If the import path already has a JS/TS extension, use it as-is
+      if (JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => importPath.endsWith(ext))) {
+        resolvedPathsMap.set(path, path);
+      } else {
+        // Otherwise, it needs to be resolved (extensionless import)
+        jsImportPaths.push(path);
+      }
+    } else {
+      staticAssetPaths.push(path);
+    }
+  });
+
+  // Resolve JS/TS import paths using the provided directory reader
+  if (jsImportPaths.length > 0) {
+    const resolvedJsMap = await resolveModulePaths(jsImportPaths, readDirectory, options);
+    resolvedJsMap.forEach((resolvedPath, importPath) => {
+      resolvedPathsMap.set(importPath, resolvedPath);
+    });
+  }
+
+  // For static assets, use the path as-is since they already have extensions
+  staticAssetPaths.forEach((path) => {
+    resolvedPathsMap.set(path, path);
+  });
+
+  return resolvedPathsMap;
+}
+
+/**
+ * Resolves variant paths from a variants object mapping variant names to their file paths.
+ * This function extracts the paths, resolves them using resolveModulePaths, and returns
+ * a map from variant name to resolved file URL.
+ *
+ * @param variants - Object mapping variant names to their file paths
+ * @param readDirectory - Function to read directory contents
+ * @param options - Configuration options for module resolution
+ * @returns Promise<Map<string, string>> - Map from variant name to resolved file URL
+ */
+export async function resolveVariantPaths(
+  variants: Record<string, string>,
+  readDirectory: DirectoryReader,
+  options: ResolveModulePathOptions = {},
+): Promise<Map<string, string>> {
+  // Extract the variant paths and resolve them
+  const variantPaths = Object.values(variants);
+  const resolvedVariantPaths = await resolveModulePaths(variantPaths, readDirectory, options);
+
+  // Build a map from variant name to resolved file URL
+  const variantMap = new Map<string, string>();
+  for (const [variantName, variantPath] of Object.entries(variants)) {
+    const resolvedVariantPath = resolvedVariantPaths.get(variantPath);
+    if (resolvedVariantPath) {
+      // Store as a file URL
+      variantMap.set(variantName, `file://${resolvedVariantPath}`);
+    }
+  }
+
+  return variantMap;
 }

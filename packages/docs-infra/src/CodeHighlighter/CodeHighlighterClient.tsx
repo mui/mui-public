@@ -5,7 +5,7 @@ import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeInitialData } from './maybeInitialData';
-import { loadFallbackVariant } from './loadFallbackVariant';
+import { loadFallbackCode } from './loadFallbackCode';
 import { hasAllVariants } from './hasAllVariants';
 import { loadVariant } from './loadVariant';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
@@ -78,11 +78,13 @@ function useInitialData({
         console.log('Loading initial data for CodeHighlighterClient: ', reason);
       }
 
-      const loaded = await loadFallbackVariant(
+      const loaded = await loadFallbackCode(
         url,
         variantName,
         code,
         highlightAt === 'init',
+        fallbackUsesExtraFiles,
+        fallbackUsesAllVariants,
         parseSource,
         loadSource,
         loadVariantCode,
@@ -108,6 +110,8 @@ function useInitialData({
     loadSource,
     loadVariantCode,
     loadCode,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
   ]);
 }
 
@@ -148,19 +152,19 @@ function useAllVariants({
       // TODO: avoid highlighting at this stage
       const result = await Promise.all(
         variants.map((name) =>
-          loadVariant(url, name, loadedCode[name], parseSource, loadSource, loadVariantCode).catch(
-            (error) => ({ error }),
-          ),
+          loadVariant(url, name, loadedCode[name], parseSource, loadSource, loadVariantCode)
+            .then((variant) => ({ name, variant }))
+            .catch((error) => ({ error })),
         ),
       );
 
       const resultCode: Code = {};
       const errors: Error[] = [];
-      for (const variant of result) {
-        if ('error' in variant) {
-          errors.push(variant.error);
+      for (const item of result) {
+        if ('error' in item) {
+          errors.push(item.error);
         } else {
-          resultCode[variant.variant] = variant.code;
+          resultCode[item.name] = item.variant.code;
         }
       }
 

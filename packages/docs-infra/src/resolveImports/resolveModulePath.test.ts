@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   resolveModulePath,
   resolveModulePaths,
+  isJavaScriptModule,
+  resolveImportResult,
+  resolveVariantPaths,
   type DirectoryEntry,
   type DirectoryReader,
 } from './resolveModulePath.js';
@@ -309,6 +312,358 @@ describe('resolveModulePath', () => {
       expect(mockReader).toHaveBeenCalledWith('/project/src/Component1');
       expect(mockReader).toHaveBeenCalledWith('/project/src/Component2');
       expect(mockReader).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('isJavaScriptModule', () => {
+    it('should return true for .ts files', () => {
+      expect(isJavaScriptModule('./component.ts')).toBe(true);
+    });
+
+    it('should return true for .tsx files', () => {
+      expect(isJavaScriptModule('../component.tsx')).toBe(true);
+    });
+
+    it('should return true for .js files', () => {
+      expect(isJavaScriptModule('./utils.js')).toBe(true);
+    });
+
+    it('should return true for .jsx files', () => {
+      expect(isJavaScriptModule('../Button.jsx')).toBe(true);
+    });
+
+    it('should return true for extensionless imports (assumed to be JS modules)', () => {
+      expect(isJavaScriptModule('./Component')).toBe(true);
+      expect(isJavaScriptModule('../utils/helper')).toBe(true);
+    });
+
+    it('should return false for .css files', () => {
+      expect(isJavaScriptModule('./styles.css')).toBe(false);
+    });
+
+    it('should return false for .json files', () => {
+      expect(isJavaScriptModule('./data.json')).toBe(false);
+    });
+
+    it('should return false for .scss files', () => {
+      expect(isJavaScriptModule('./styles.scss')).toBe(false);
+    });
+
+    it('should return false for .png files', () => {
+      expect(isJavaScriptModule('./image.png')).toBe(false);
+    });
+
+    it('should return false for .svg files', () => {
+      expect(isJavaScriptModule('./icon.svg')).toBe(false);
+    });
+
+    it('should return false for other file extensions', () => {
+      expect(isJavaScriptModule('./config.yaml')).toBe(false);
+      expect(isJavaScriptModule('./README.md')).toBe(false);
+    });
+  });
+
+  describe('resolveImportResult', () => {
+    it('should resolve JS/TS modules and preserve static assets', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [
+          { name: 'Component.ts', isFile: true, isDirectory: false },
+          { name: 'styles.css', isFile: true, isDirectory: false },
+        ],
+      });
+
+      const importResult = {
+        './Component': { path: '/project/src/Component', names: ['Component'] },
+        './styles.css': { path: '/project/src/styles.css', names: [] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(2);
+      expect(result.get('/project/src/Component')).toBe('/project/src/Component.ts');
+      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
+    });
+
+    it('should handle mixed imports with different extensions', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [
+          { name: 'Button.tsx', isFile: true, isDirectory: false },
+          { name: 'utils.js', isFile: true, isDirectory: false },
+        ],
+      });
+
+      const importResult = {
+        './Button': { path: '/project/src/Button', names: ['Button'] },
+        './utils.js': { path: '/project/src/utils.js', names: ['helper'] },
+        './data.json': { path: '/project/src/data.json', names: ['default'] },
+        './component.css': { path: '/project/src/component.css', names: [] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(4);
+      expect(result.get('/project/src/Button')).toBe('/project/src/Button.tsx');
+      expect(result.get('/project/src/utils.js')).toBe('/project/src/utils.js');
+      expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
+      expect(result.get('/project/src/component.css')).toBe('/project/src/component.css');
+    });
+
+    it('should only call resolveModulePaths for JS/TS imports', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [{ name: 'Component.ts', isFile: true, isDirectory: false }],
+      });
+
+      const importResult = {
+        './Component': { path: '/project/src/Component', names: ['Component'] },
+        './styles.css': { path: '/project/src/styles.css', names: [] },
+        './data.json': { path: '/project/src/data.json', names: ['default'] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(3);
+      expect(result.get('/project/src/Component')).toBe('/project/src/Component.ts');
+      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
+      expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
+
+      // Should only read directory for JS/TS resolution, not for static assets
+      expect(mockReader).toHaveBeenCalledWith('/project/src');
+      expect(mockReader).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle empty import result', async () => {
+      const mockReader = createMockDirectoryReader({});
+
+      const importResult = {};
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(0);
+      expect(mockReader).not.toHaveBeenCalled();
+    });
+
+    it('should handle only static assets', async () => {
+      const mockReader = createMockDirectoryReader({});
+
+      const importResult = {
+        './styles.css': { path: '/project/src/styles.css', names: [] },
+        './data.json': { path: '/project/src/data.json', names: ['default'] },
+        './image.png': { path: '/project/src/image.png', names: [] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(3);
+      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
+      expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
+      expect(result.get('/project/src/image.png')).toBe('/project/src/image.png');
+
+      // Should not read any directories since no JS/TS modules to resolve
+      expect(mockReader).not.toHaveBeenCalled();
+    });
+
+    it('should handle only JS/TS modules', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [
+          { name: 'Component.ts', isFile: true, isDirectory: false },
+          { name: 'utils.js', isFile: true, isDirectory: false },
+        ],
+        '/project/lib': [{ name: 'helper', isFile: false, isDirectory: true }],
+        '/project/lib/helper': [{ name: 'index.tsx', isFile: true, isDirectory: false }],
+      });
+
+      const importResult = {
+        './Component': { path: '/project/src/Component', names: ['Component'] },
+        './utils': { path: '/project/src/utils', names: ['helper'] },
+        '../lib/helper': { path: '/project/lib/helper', names: ['default'] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(3);
+      expect(result.get('/project/src/Component')).toBe('/project/src/Component.ts');
+      expect(result.get('/project/src/utils')).toBe('/project/src/utils.js');
+      expect(result.get('/project/lib/helper')).toBe('/project/lib/helper/index.tsx');
+    });
+
+    it('should pass custom extensions to resolveModulePaths', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [{ name: 'Component.vue', isFile: true, isDirectory: false }],
+      });
+
+      const importResult = {
+        './Component': { path: '/project/src/Component', names: ['Component'] },
+        './styles.css': { path: '/project/src/styles.css', names: [] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader, {
+        extensions: ['.vue', '.ts'],
+      });
+
+      expect(result.size).toBe(2);
+      expect(result.get('/project/src/Component')).toBe('/project/src/Component.vue');
+      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
+    });
+
+    it('should handle unresolvable JS/TS modules gracefully', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [{ name: 'Other.ts', isFile: true, isDirectory: false }],
+      });
+
+      const importResult = {
+        './Component': { path: '/project/src/Component', names: ['Component'] },
+        './styles.css': { path: '/project/src/styles.css', names: [] },
+      };
+
+      const result = await resolveImportResult(importResult, mockReader);
+
+      expect(result.size).toBe(1);
+      expect(result.has('/project/src/Component')).toBe(false); // Unresolvable JS module
+      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css'); // Static asset preserved
+    });
+  });
+
+  describe('resolveVariantPaths', () => {
+    it('should resolve variant paths and return file URLs', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos': [
+          { name: 'Basic.tsx', isFile: true, isDirectory: false },
+          { name: 'Advanced.ts', isFile: true, isDirectory: false },
+        ],
+      });
+
+      const variants = {
+        basic: '/project/demos/Basic',
+        advanced: '/project/demos/Advanced',
+      };
+
+      const result = await resolveVariantPaths(variants, mockReader);
+
+      expect(result.size).toBe(2);
+      expect(result.get('basic')).toBe('file:///project/demos/Basic.tsx');
+      expect(result.get('advanced')).toBe('file:///project/demos/Advanced.ts');
+    });
+
+    it('should handle variants with directory index files', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos': [
+          { name: 'Basic', isFile: false, isDirectory: true },
+          { name: 'Advanced.ts', isFile: true, isDirectory: false },
+        ],
+        '/project/demos/Basic': [
+          { name: 'index.tsx', isFile: true, isDirectory: false },
+          { name: 'helper.ts', isFile: true, isDirectory: false },
+        ],
+      });
+
+      const variants = {
+        basic: '/project/demos/Basic',
+        advanced: '/project/demos/Advanced',
+      };
+
+      const result = await resolveVariantPaths(variants, mockReader);
+
+      expect(result.size).toBe(2);
+      expect(result.get('basic')).toBe('file:///project/demos/Basic/index.tsx');
+      expect(result.get('advanced')).toBe('file:///project/demos/Advanced.ts');
+    });
+
+    it('should skip unresolvable variants', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos': [
+          { name: 'Basic.tsx', isFile: true, isDirectory: false },
+          // Missing Advanced.ts file
+        ],
+      });
+
+      const variants = {
+        basic: '/project/demos/Basic',
+        advanced: '/project/demos/Advanced', // This won't resolve
+        missing: '/project/demos/Missing', // This won't resolve
+      };
+
+      const result = await resolveVariantPaths(variants, mockReader);
+
+      expect(result.size).toBe(1);
+      expect(result.get('basic')).toBe('file:///project/demos/Basic.tsx');
+      expect(result.has('advanced')).toBe(false);
+      expect(result.has('missing')).toBe(false);
+    });
+
+    it('should respect custom extensions', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos': [
+          { name: 'Basic.vue', isFile: true, isDirectory: false },
+          { name: 'Advanced.svelte', isFile: true, isDirectory: false },
+        ],
+      });
+
+      const variants = {
+        basic: '/project/demos/Basic',
+        advanced: '/project/demos/Advanced',
+      };
+
+      const result = await resolveVariantPaths(variants, mockReader, {
+        extensions: ['.vue', '.svelte'],
+      });
+
+      expect(result.size).toBe(2);
+      expect(result.get('basic')).toBe('file:///project/demos/Basic.vue');
+      expect(result.get('advanced')).toBe('file:///project/demos/Advanced.svelte');
+    });
+
+    it('should handle empty variants object', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos': [],
+      });
+
+      const variants = {};
+
+      const result = await resolveVariantPaths(variants, mockReader);
+
+      expect(result.size).toBe(0);
+    });
+
+    it('should handle variants in different directories', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos/basic': [{ name: 'Component.tsx', isFile: true, isDirectory: false }],
+        '/project/demos/advanced': [{ name: 'Component.ts', isFile: true, isDirectory: false }],
+        '/project/examples': [{ name: 'Example.js', isFile: true, isDirectory: false }],
+      });
+
+      const variants = {
+        basic: '/project/demos/basic/Component',
+        advanced: '/project/demos/advanced/Component',
+        example: '/project/examples/Example',
+      };
+
+      const result = await resolveVariantPaths(variants, mockReader);
+
+      expect(result.size).toBe(3);
+      expect(result.get('basic')).toBe('file:///project/demos/basic/Component.tsx');
+      expect(result.get('advanced')).toBe('file:///project/demos/advanced/Component.ts');
+      expect(result.get('example')).toBe('file:///project/examples/Example.js');
+    });
+
+    it('should follow extension priority order', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/demos': [
+          { name: 'Component.js', isFile: true, isDirectory: false },
+          { name: 'Component.ts', isFile: true, isDirectory: false },
+          { name: 'Component.tsx', isFile: true, isDirectory: false },
+          { name: 'Component.jsx', isFile: true, isDirectory: false },
+        ],
+      });
+
+      const variants = {
+        component: '/project/demos/Component',
+      };
+
+      const result = await resolveVariantPaths(variants, mockReader);
+
+      expect(result.size).toBe(1);
+      // Should prefer .ts over other extensions based on default priority
+      expect(result.get('component')).toBe('file:///project/demos/Component.ts');
     });
   });
 });

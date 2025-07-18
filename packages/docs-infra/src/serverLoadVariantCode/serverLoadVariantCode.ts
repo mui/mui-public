@@ -68,7 +68,12 @@ async function serverLoadVariantCodeWithOptions(
       const rewrittenExtraFiles: VariantExtraFiles = {};
       for (const [filePath, fileData] of Object.entries(extraFiles)) {
         const fileName = basename(filePath);
-        if (fileData && fileData.source && typeof fileData.source === 'string') {
+        if (
+          fileData &&
+          typeof fileData === 'object' &&
+          fileData.source &&
+          typeof fileData.source === 'string'
+        ) {
           const rewrittenSource = rewriteImportsToSameDirectory(
             fileData.source as string,
             allFilePaths,
@@ -102,6 +107,7 @@ async function serverLoadVariantCodeWithOptions(
 
   return {
     variant: {
+      url: variantUrl,
       fileName: basename(cleanVariantUrl),
       source: variantCode,
       extraFiles,
@@ -158,7 +164,10 @@ async function loadRelativeDependencies(
 
   try {
     // Get all relative imports from the current file
-    const relativePaths = await resolveImports(fileContent, filePath);
+    const importResult = await resolveImports(fileContent, filePath);
+
+    // Extract unique resolved paths from the import result
+    const relativePaths = Array.from(new Set(Object.values(importResult).map(({ path }) => path)));
 
     // Process imports in parallel, but limit the number to avoid hitting the maxFiles limit
     const importsToProcess = relativePaths.slice(0, maxFiles - visited.size);

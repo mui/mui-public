@@ -32,7 +32,11 @@ export function hasAllVariants(variants: string[], code: Code, needsHighlight?: 
 
     return Object.keys(extraFiles).every((file) => {
       const extraFile = extraFiles[file];
-      if (!extraFile || !isSourceLoaded(extraFile, needsHighlight)) {
+      if (
+        !extraFile ||
+        typeof extraFile === 'string' ||
+        !isSourceLoaded(extraFile, needsHighlight)
+      ) {
         return false;
       }
 

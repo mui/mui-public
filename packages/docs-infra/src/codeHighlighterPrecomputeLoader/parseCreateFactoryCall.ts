@@ -1,5 +1,23 @@
-import { resolveImportMap } from '../resolveImports';
+import { resolveImports } from '../resolveImports';
 import { parseFunctionParameters } from './parseFunctionParameters';
+
+/**
+ * Helper function to convert the new resolveImports format to a Map
+ * that maps import names to their resolved paths
+ */
+function buildImportMap(
+  importResult: Record<string, { path: string; names: string[] }>,
+): Map<string, string> {
+  const importMap = new Map<string, string>();
+
+  Object.values(importResult).forEach(({ path, names }) => {
+    names.forEach((name) => {
+      importMap.set(name, path);
+    });
+  });
+
+  return importMap;
+}
 
 export interface FactoryOptions {
   name?: string;
@@ -105,7 +123,8 @@ export async function parseCreateFactoryCall(
   filePath: string,
 ): Promise<ParsedCreateFactory | null> {
   // Get import mappings once for the entire file
-  const importMap = await resolveImportMap(code, filePath);
+  const importResult = await resolveImports(code, filePath);
+  const importMap = buildImportMap(importResult);
 
   // Find all create* calls in the code
   const createFactoryMatches = findCreateFactoryCalls(code, filePath);

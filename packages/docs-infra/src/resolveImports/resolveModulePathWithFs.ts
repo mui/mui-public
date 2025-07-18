@@ -2,6 +2,8 @@ import { readdir } from 'node:fs/promises';
 import {
   resolveModulePath,
   resolveModulePaths,
+  resolveImportResult,
+  resolveVariantPaths,
   type DirectoryEntry,
   type DirectoryReader,
   type ResolveModulePathOptions,
@@ -48,6 +50,39 @@ export async function resolveModulePathsWithFs(
   options: ResolveModulePathOptions = {},
 ): Promise<Map<string, string>> {
   return resolveModulePaths(modulePaths, nodeDirectoryReader, options);
+}
+
+/**
+ * Resolves import result by separating JavaScript modules from static assets,
+ * only resolving JavaScript modules and returning a combined map.
+ * This is a convenience wrapper around the generic resolveImportResult function
+ * that uses Node.js filesystem APIs.
+ *
+ * @param importResult - The result from resolveImports containing all imports
+ * @param options - Configuration options for module resolution
+ * @returns Promise<Map<string, string>> - Map from import path to resolved file path
+ */
+export async function resolveImportResultWithFs(
+  importResult: Record<string, { path: string; names: string[] }>,
+  options: ResolveModulePathOptions = {},
+): Promise<Map<string, string>> {
+  return resolveImportResult(importResult, nodeDirectoryReader, options);
+}
+
+/**
+ * Resolves variant paths from a variants object mapping variant names to their file paths.
+ * This is a convenience wrapper around the generic resolveVariantPaths function
+ * that uses Node.js filesystem APIs.
+ *
+ * @param variants - Object mapping variant names to their file paths
+ * @param options - Configuration options for module resolution
+ * @returns Promise<Map<string, string>> - Map from variant name to resolved file URL
+ */
+export async function resolveVariantPathsWithFs(
+  variants: Record<string, string>,
+  options: ResolveModulePathOptions = {},
+): Promise<Map<string, string>> {
+  return resolveVariantPaths(variants, nodeDirectoryReader, options);
 }
 
 // Re-export types for convenience

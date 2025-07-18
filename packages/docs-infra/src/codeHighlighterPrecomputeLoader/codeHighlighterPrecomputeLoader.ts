@@ -1,11 +1,12 @@
-import { serverLoadVariantCodeWithOptions } from '../serverLoadVariantCode';
 import { loadVariant } from '../CodeHighlighter/loadVariant';
 import { parseSource } from '../parseSource';
 import { transformTsToJs } from '../transformTsToJs';
 import type { SourceTransformers } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
-import { resolveModulePathsWithFs } from '../resolveImports/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
+import { createLoadSource } from './createLoadSource';
+import { createLoadVariantCode } from './createLoadVariantCode';
 
 interface LoaderContext {
   resourcePath: string;
@@ -20,8 +21,12 @@ interface LoaderContext {
  * This loader:
  * 1. Parses demo files to find a single createDemo call with precompute: true
  * 2. Resolves all variant entry point paths using resolveModulePathsWithFs
- * 3. Loads all variant code and dependencies using serverLoadVariantCodeWithOptions with resolved paths
- * 4. Processes code with parseSource (syntax highlighting) and transformTsToJs (TypeScript to JavaScript conversion)
+ * 3. Uses loadVariant to handle all loading, parsing, and transformation:
+ *    - loadSource: Loads individual files and extracts dependencies
+ *    - loadVariantCode: Creates basic variant structure
+ *    - parseSource: Applies syntax highlighting using Starry Night
+ *    - sourceTransformers: Handles TypeScript to JavaScript conversion
+ * 4. loadVariant handles recursive dependency loading automatically
  * 5. Adds all dependencies to webpack's watch list
  * 6. Replaces precompute: true with the actual precomputed data using replacePrecomputeValue
  *
@@ -29,9 +34,9 @@ interface LoaderContext {
  *
  * Features:
  * - Proper variant entry point resolution using resolveModulePathsWithFs
+ * - Complete dependency tree loading handled by loadVariant
  * - Syntax highlighting using Starry Night (via parseSource)
  * - TypeScript to JavaScript transformation (via transformTsToJs)
- * - Recursive dependency loading
  * - Webpack dependency tracking for hot reloading
  * - Precise precompute value replacement (via replacePrecomputeValue)
  *
@@ -83,61 +88,51 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
     const variantData: Record<string, any> = {};
     const allDependencies: string[] = [];
 
-    // First, resolve all variant entry point paths using resolveModulePathsWithFs
-    const variantPaths = Object.values(demoCall.variants);
-    const resolvedVariantPaths = await resolveModulePathsWithFs(variantPaths);
+    // Resolve all variant entry point paths using resolveVariantPathsWithFs
+    const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants);
+
+    // Create loader functions
+    const loadSource = createLoadSource({
+      includeDependencies: true,
+      storeAt: 'flat', // TODO: this should be configurable
+    });
+    const loadVariantCode = createLoadVariantCode();
+
+    // Setup source transformers for TypeScript to JavaScript conversion
+    const sourceTransformers: SourceTransformers = [
+      { extensions: ['ts', 'tsx'], transformer: transformTsToJs },
+    ];
 
     // Process variants in parallel
-    const variantEntries = Object.entries(demoCall.variants);
-    const variantPromises = variantEntries.map(async ([variantName, variantPath]) => {
-      try {
-        // Get the resolved entry point path for this variant
-        const resolvedVariantPath = resolvedVariantPaths.get(variantPath);
-        if (!resolvedVariantPath) {
-          throw new Error(`Could not resolve variant path: ${variantPath}`);
+    const variantPromises = Array.from(resolvedVariantMap.entries()).map(
+      async ([variantName, fileUrl]) => {
+        try {
+          // Use loadVariant to handle all loading, parsing, and transformation
+          // This will recursively load all dependencies using loadSource
+          const { code: processedVariant, dependencies } = await loadVariant(
+            fileUrl, // URL for the variant entry point (already includes file://)
+            variantName,
+            fileUrl, // Let loadVariantCode handle creating the initial variant
+            parseSource, // For syntax highlighting
+            loadSource, // For loading source files and dependencies
+            loadVariantCode, // For creating basic variant structure
+            sourceTransformers, // For TypeScript to JavaScript conversion
+            {
+              maxDepth: 5,
+            },
+          );
+
+          return {
+            variantName,
+            variantData: processedVariant, // processedVariant is a complete VariantCode
+            dependencies, // All files that were loaded
+          };
+        } catch (error) {
+          console.warn(`Failed to load variant ${variantName} from ${fileUrl}:`, error);
+          return null;
         }
-
-        // Load the variant code with dependencies using the resolved entry point path
-        const variantResult = await serverLoadVariantCodeWithOptions(
-          variantName,
-          `file://${resolvedVariantPath}`, // Use the resolved variant entry point path
-          {
-            includeDependencies: true,
-            maxDepth: 5,
-            maxFiles: 50,
-          },
-        );
-
-        // Setup source transformers for TypeScript to JavaScript conversion
-        const sourceTransformers: SourceTransformers = [
-          { extensions: ['ts', 'tsx'], transformer: transformTsToJs },
-        ];
-
-        // Use loadVariant to process the code with parsing and transformations
-        // This applies:
-        // 1. parseSource: Converts source code to HAST nodes with syntax highlighting
-        // 2. transformTsToJs: Creates JavaScript variants for TypeScript files
-        // 3. Processes all extra files with the same transformations
-        const { code: processedVariant } = await loadVariant(
-          resolvedVariantPath,
-          variantName,
-          variantResult.variant, // Use the variant property from the new interface
-          parseSource,
-          undefined, // loadSource - not needed since we already have the variant
-          undefined, // loadVariantCode - not needed since we already have the variant
-          sourceTransformers,
-        );
-
-        return {
-          variantName,
-          variantData: processedVariant, // processedVariant is already a clean VariantCode
-          visitedFiles: variantResult.visitedFiles || [],
-        };
-      } catch (error) {
-        console.warn(`Failed to load variant ${variantName} from ${variantPath}:`, error);
-        return null;
-      }
-    });
+      },
+    );
 
     const variantResults = await Promise.all(variantPromises);
 
@@ -145,7 +140,7 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
     for (const result of variantResults) {
       if (result) {
         variantData[result.variantName] = result.variantData;
-        result.visitedFiles.forEach((file) => {
+        result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
       }

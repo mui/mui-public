@@ -1,45 +1,38 @@
-export async function resolveImports(code: string, filePath: string): Promise<string[]> {
-  const importMap = buildImportMap(code, filePath);
-  return Array.from(importMap.values());
-}
-
-export async function resolveImportMap(
+export async function resolveImports(
   code: string,
   filePath: string,
-): Promise<Map<string, string>> {
-  return buildImportMap(code, filePath);
-}
-
-function buildImportMap(code: string, filePath: string): Map<string, string> {
-  const importMap = new Map<string, string>();
-  const importRegex = /import\s+(?:(\w+)|\*\s+as\s+(\w+)|{[^}]+})\s+from\s+['"]([^'"]+)['"]/g;
+): Promise<Record<string, { path: string; names: string[] }>> {
+  const result: Record<string, { path: string; names: string[] }> = {};
+  const importRegex = /import\s+(?:(\w+)|\*\s+as\s+(\w+)|{([^}]+)})\s+from\s+['"]([^'"]+)['"]/g;
   let importMatch = importRegex.exec(code);
 
   while (importMatch !== null) {
-    const [fullMatch, defaultImport, namespaceImport, modulePath] = importMatch;
+    const [, defaultImport, namespaceImport, namedImportsStr, modulePath] = importMatch;
 
+    // Only process relative imports
     if (modulePath.startsWith('.')) {
       const basePath = filePath.substring(0, filePath.lastIndexOf('/'));
       const resolvedPath = new URL(modulePath, `file://${basePath}/`).pathname;
 
+      if (!result[modulePath]) {
+        result[modulePath] = { path: resolvedPath, names: [] };
+      }
+
       if (defaultImport) {
-        importMap.set(defaultImport, resolvedPath);
+        result[modulePath].names.push(defaultImport);
       } else if (namespaceImport) {
-        importMap.set(namespaceImport, resolvedPath);
-      } else if (fullMatch.includes('{')) {
-        // Handle named imports like { ComponentName }
-        const namedImportsMatch = fullMatch.match(/{\s*([^}]+)\s*}/);
-        if (namedImportsMatch) {
-          const namedImports = namedImportsMatch[1].split(',').map((s) => s.trim());
-          namedImports.forEach((namedImport) => {
-            const cleanImport = namedImport.split(' as ')[0].trim();
-            importMap.set(cleanImport, resolvedPath);
-          });
-        }
+        result[modulePath].names.push(namespaceImport);
+      } else if (namedImportsStr) {
+        // Handle named imports like { ComponentName, Component2 as Alias }
+        const namedImports = namedImportsStr.split(',').map((s) => s.trim());
+        namedImports.forEach((namedImport) => {
+          const cleanImport = namedImport.split(' as ')[0].trim();
+          result[modulePath].names.push(cleanImport);
+        });
       }
     }
     importMatch = importRegex.exec(code);
   }
 
-  return importMap;
+  return result;
 }
