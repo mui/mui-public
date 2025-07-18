@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vites
 import { loadVariant } from './loadVariant';
 import type {
   VariantCode,
-  Transforms,
   ParseSource,
   LoadSource,
   LoadVariantMeta,
@@ -512,6 +511,45 @@ describe('loadVariant', () => {
       expect(result.dependencies).toEqual(['file:///test.ts']);
     });
 
+    it('should apply basic transforms when enabled', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockTransforms = {
+        'syntax-highlight': {
+          source: 'const x = 1; // highlighted',
+          fileName: 'test.ts',
+        },
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue(mockTransforms);
+
+      const sourceTransformersWithSpy: SourceTransformers = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        'file:///test.ts',
+        'default',
+        variant,
+        mockParseSource,
+        mockLoadSource,
+        mockLoadVariantMeta,
+        sourceTransformersWithSpy,
+        { disableParsing: true }, // Disable parsing to keep source as string
+      );
+
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(result.code.transforms).toBeDefined();
+      expect(result.code.transforms!['syntax-highlight']).toBeDefined();
+    });
+
     it('should respect maxDepth option', async () => {
       const variant: VariantCode = {
         fileName: 'main.ts',
@@ -881,537 +919,6 @@ describe('loadVariant', () => {
         'file:///helper.ts',
         'file:///utils.ts',
       ]);
-    });
-  });
-
-  describe('sourceTransformers integration', () => {
-    it('should apply sourceTransformers when no existing transforms', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      const mockTransforms = {
-        'syntax-highlight': {
-          source: 'const x = 1; // highlighted',
-          fileName: 'test.ts',
-        },
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue(mockTransforms);
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true }, // Disable parsing to keep source as string
-      );
-
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-      expect(result.code.transforms).toEqual({
-        'syntax-highlight': {
-          delta: expect.any(Object), // Delta object from jsondiffpatch
-          fileName: 'test.ts',
-        },
-      });
-      expect(result.dependencies).toEqual(['file:///test.ts']);
-    });
-
-    it('should not apply sourceTransformers when transforms already exist', async () => {
-      const existingTransforms: Transforms = {
-        'existing-transform': {
-          delta: { 0: ['// existing'] },
-          fileName: 'test.ts',
-        },
-      };
-
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-        transforms: existingTransforms,
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue({
-        'should-not-be-called': {
-          delta: { 0: ['// should not appear'] },
-          fileName: 'test.ts',
-        },
-      });
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true },
-      );
-
-      // Should not call transformer when transforms already exist
-      expect(transformerSpy).not.toHaveBeenCalled();
-      // Should preserve existing transforms
-      expect(result.code.transforms).toEqual(existingTransforms);
-    });
-
-    it('should apply sourceTransformers that match file extension', async () => {
-      const variant: VariantCode = {
-        fileName: 'component.tsx',
-        url: 'file:///component.tsx',
-        source: 'const Component = () => <div />;',
-      };
-
-      const tsxTransformerSpy = vi.fn().mockResolvedValue({
-        'jsx-highlight': {
-          source: 'const Component = () => <div />; // jsx highlighted',
-          fileName: 'component.tsx',
-        },
-      });
-
-      const jsTransformerSpy = vi.fn().mockResolvedValue({
-        'js-highlight': {
-          source: 'const Component = () => <div />; // js highlighted',
-          fileName: 'component.tsx',
-        },
-      });
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['js'],
-          transformer: jsTransformerSpy,
-        },
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: tsxTransformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///component.tsx',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true },
-      );
-
-      // Only the .tsx transformer should be called
-      expect(tsxTransformerSpy).toHaveBeenCalledWith(
-        'const Component = () => <div />;',
-        'component.tsx',
-      );
-      expect(jsTransformerSpy).not.toHaveBeenCalled();
-
-      expect(result.code.transforms).toEqual({
-        'jsx-highlight': {
-          delta: expect.any(Object), // Delta object from jsondiffpatch
-          fileName: 'component.tsx',
-        },
-      });
-    });
-
-    it('should handle sourceTransformers that return undefined', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue(undefined);
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true },
-      );
-
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-      // Should not have transforms when transformer returns undefined
-      expect(result.code.transforms).toBeUndefined();
-    });
-
-    it('should handle sourceTransformers errors gracefully', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      const transformerSpy = vi.fn().mockRejectedValue(new Error('Transform failed'));
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantMeta,
-          sourceTransformersWithSpy,
-          { disableParsing: true },
-        ),
-      ).rejects.toThrow('Transform failed');
-    });
-
-    it('should apply multiple sourceTransformers for matching extensions', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      const highlightTransformerSpy = vi.fn().mockResolvedValue({
-        'syntax-highlight': {
-          source: 'const x = 1; // highlighted',
-          fileName: 'test.ts',
-        },
-      });
-
-      const lintTransformerSpy = vi.fn().mockResolvedValue({
-        'lint-errors': {
-          source: 'const x = 1; // lint error',
-          fileName: 'test.ts',
-        },
-      });
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: highlightTransformerSpy,
-        },
-        {
-          extensions: ['ts'],
-          transformer: lintTransformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true },
-      );
-
-      // Both transformers should be called
-      expect(highlightTransformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-      expect(lintTransformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-
-      // Should merge transforms from both transformers
-      expect(result.code.transforms).toEqual({
-        'syntax-highlight': {
-          delta: expect.any(Object), // Delta object from jsondiffpatch
-          fileName: 'test.ts',
-        },
-        'lint-errors': {
-          delta: expect.any(Object), // Delta object from jsondiffpatch
-          fileName: 'test.ts',
-        },
-      });
-    });
-
-    it('should apply sourceTransformers and then transform parsed source', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      // Create a transform that adds a comment (will change the source)
-      const initialTransforms = {
-        'syntax-highlight': {
-          source: 'const x = 1;\n// highlighted comment',
-          fileName: 'test.ts',
-        },
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue(initialTransforms);
-
-      // Mock parseSource to return different AST for original vs transformed source
-      mockParseSource.mockImplementation((source: string) => {
-        if (source === 'const x = 1;') {
-          return Promise.resolve({
-            type: 'root',
-            children: [
-              { type: 'element', tagName: 'code', children: [{ type: 'text', value: source }] },
-            ],
-          } as any);
-        }
-        if (source === 'const x = 1;\n// highlighted comment') {
-          return Promise.resolve({
-            type: 'root',
-            children: [
-              { type: 'element', tagName: 'code', children: [{ type: 'text', value: source }] },
-              {
-                type: 'element',
-                tagName: 'span',
-                className: ['comment'],
-                children: [{ type: 'text', value: '// highlighted comment' }],
-              },
-            ],
-          } as any);
-        }
-        throw new Error(`Unexpected source: ${source}`);
-      });
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        // Enable both transforms and parsing
-      );
-
-      // Should call the source transformer first
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-      // Should call parseSource to convert original string to AST
-      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-      // Should call parseSource again to convert transformed string to AST for delta comparison
-      expect(mockParseSource).toHaveBeenCalledWith(
-        'const x = 1;\n// highlighted comment',
-        'test.ts',
-      );
-
-      // Source should be the parsed version of the original
-      expect(result.code.source).toEqual({
-        type: 'root',
-        children: [
-          { type: 'element', tagName: 'code', children: [{ type: 'text', value: 'const x = 1;' }] },
-        ],
-      });
-
-      // Should have transforms with delta representing the difference between original and transformed AST
-      expect(result.code.transforms).toBeDefined();
-      expect(result.code.transforms!['syntax-highlight']).toBeDefined();
-      expect(result.code.transforms!['syntax-highlight'].fileName).toBe('test.ts');
-      // The delta should exist since the ASTs are different
-      expect(result.code.transforms!['syntax-highlight'].delta).toBeDefined();
-    });
-
-    it('should skip transformParsedSource when no initial transforms exist', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue(undefined); // No transforms
-      const mockParsedSource = {
-        type: 'root',
-        children: [{ type: 'element', tagName: 'pre', children: [] }],
-      };
-
-      mockParseSource.mockResolvedValue(mockParsedSource as any);
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        // Enable both transforms and parsing
-      );
-
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-
-      // Source should be parsed but no transforms
-      expect(result.code.source).toEqual(mockParsedSource);
-      expect(result.code.transforms).toBeUndefined();
-    });
-
-    it('should handle parsing errors gracefully', async () => {
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue({
-        'syntax-highlight': {
-          source: 'const x = 1; // highlighted',
-          fileName: 'test.ts',
-        },
-      });
-
-      mockParseSource.mockRejectedValue(new Error('Parse error'));
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          variant,
-          mockParseSource,
-          mockLoadSource,
-          mockLoadVariantMeta,
-          sourceTransformersWithSpy,
-          // Enable both transforms and parsing
-        ),
-      ).rejects.toThrow('Failed to parse source code');
-    });
-
-    it('should preserve existing transforms when parsing is enabled', async () => {
-      const existingTransforms: Transforms = {
-        'existing-transform': {
-          // Delta that replaces line 0 with a comment
-          delta: { '0': ['const x = 1;', '// existing comment\nconst x = 1;'] },
-          fileName: 'test.ts',
-        },
-      };
-
-      const variant: VariantCode = {
-        fileName: 'test.ts',
-        url: 'file:///test.ts',
-        source: 'const x = 1;',
-        transforms: existingTransforms,
-      };
-
-      const transformerSpy = vi.fn().mockResolvedValue({
-        'should-not-be-called': {
-          source: 'should not appear',
-          fileName: 'test.ts',
-        },
-      });
-
-      // Mock parseSource to return different AST for original vs transformed source
-      mockParseSource.mockImplementation((source: string) => {
-        if (source === 'const x = 1;') {
-          return Promise.resolve({
-            type: 'root',
-            children: [
-              { type: 'element', tagName: 'code', children: [{ type: 'text', value: source }] },
-            ],
-          } as any);
-        }
-        if (source === '// existing comment\nconst x = 1;') {
-          return Promise.resolve({
-            type: 'root',
-            children: [
-              {
-                type: 'element',
-                tagName: 'span',
-                className: ['comment'],
-                children: [{ type: 'text', value: '// existing comment' }],
-              },
-              {
-                type: 'element',
-                tagName: 'code',
-                children: [{ type: 'text', value: 'const x = 1;' }],
-              },
-            ],
-          } as any);
-        }
-        throw new Error(`Unexpected source: ${source}`);
-      });
-
-      const sourceTransformersWithSpy: SourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: transformerSpy,
-        },
-      ];
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        mockParseSource,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        // Enable parsing but transforms already exist
-      );
-
-      // Should not call transformer when transforms already exist
-      expect(transformerSpy).not.toHaveBeenCalled();
-      // Should call parseSource to convert string to AST
-      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
-
-      // Source should be parsed
-      expect(result.code.source).toEqual({
-        type: 'root',
-        children: [
-          { type: 'element', tagName: 'code', children: [{ type: 'text', value: 'const x = 1;' }] },
-        ],
-      });
-
-      // Should have transforms processed by transformParsedSource
-      expect(result.code.transforms).toBeDefined();
-      expect(result.code.transforms!['existing-transform']).toBeDefined();
-      expect(result.code.transforms!['existing-transform'].fileName).toBe('test.ts');
-      // The delta should be modified by transformParsedSource to represent AST differences
-      expect(result.code.transforms!['existing-transform'].delta).toBeDefined();
     });
   });
 

@@ -13,6 +13,7 @@ import { Selection, useControlledCode } from '../CodeControllerContext';
 import { useOnHydrate } from '../useOnHydrate';
 import { useOnIdle } from '../useOnIdle';
 import { codeToFallbackProps } from './codeToFallbackProps';
+import { applyTransform, getTransformKeys } from './applyTransform';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -287,6 +288,70 @@ function useHighlighter({
   return { overlaidCode };
 }
 
+/**
+ * Hook to provide transform utilities for the current variant
+ */
+function useTransforms({
+  activeCode,
+  readyForContent,
+  variantName,
+  transformKey,
+}: {
+  activeCode?: Code;
+  readyForContent: boolean;
+  variantName: string;
+  transformKey?: string;
+}) {
+  // Get available transforms for the current variant
+  const availableTransforms = React.useMemo(() => {
+    if (!readyForContent || !activeCode) {
+      return [];
+    }
+
+    const codeVariant = activeCode[variantName];
+    if (!codeVariant || typeof codeVariant === 'string') {
+      return [];
+    }
+
+    if (!codeVariant.transforms) {
+      return [];
+    }
+
+    return getTransformKeys(codeVariant.transforms);
+  }, [readyForContent, activeCode, variantName]);
+
+  // Apply transform to get the current transformed code
+  const transformedCode = React.useMemo(() => {
+    if (!readyForContent || !activeCode || !transformKey) {
+      return undefined;
+    }
+
+    const codeVariant = activeCode[variantName];
+    if (!codeVariant || typeof codeVariant === 'string') {
+      return undefined;
+    }
+
+    if (!codeVariant.transforms) {
+      return undefined;
+    }
+
+    try {
+      return applyTransform(codeVariant.source || '', codeVariant.transforms, transformKey);
+    } catch (error) {
+      console.error(
+        `Failed to apply transform "${transformKey}" to variant "${variantName}":`,
+        error,
+      );
+      return undefined;
+    }
+  }, [readyForContent, activeCode, variantName, transformKey]);
+
+  return {
+    availableTransforms,
+    transformedCode,
+  };
+}
+
 export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const {
     controlledCode,
@@ -370,6 +435,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     setCode,
   });
 
+  // Provide transform utilities for applying specific transforms to code variants
+  const { availableTransforms, transformedCode } = useTransforms({
+    activeCode,
+    readyForContent,
+    variantName,
+    transformKey: controlledSelection?.transformKey || selection.transformKey,
+  });
+
   // TODO: there seems to be some kind of infinite loop in this component
 
   const fallbackContext = React.useMemo(
@@ -397,6 +470,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection: controlledSelection || selection,
       setSelection: controlledSetSelection || setSelection,
       components: controlledComponents || props.components,
+      availableTransforms,
+      transformedCode,
     }),
     [
       overlaidCode,
@@ -409,6 +484,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       controlledSetSelection,
       controlledComponents,
       props.components,
+      availableTransforms,
+      transformedCode,
     ],
   );
 

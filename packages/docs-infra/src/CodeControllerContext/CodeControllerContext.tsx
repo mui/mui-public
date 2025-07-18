@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Code } from '../CodeHighlighter/types';
 
-export type Selection = { variant: string; fileName?: string };
+export type Selection = { variant: string; fileName?: string; transformKey?: string };
 
 export interface CodeControllerContext {
   code?: Code;

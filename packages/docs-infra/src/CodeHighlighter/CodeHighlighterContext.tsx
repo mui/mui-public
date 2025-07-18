@@ -9,6 +9,9 @@ export interface CodeHighlighterContextType {
   selection?: Selection;
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
   components?: Record<string, React.ReactNode>;
+  // Transform utilities
+  availableTransforms?: string[];
+  transformedCode?: string;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(
