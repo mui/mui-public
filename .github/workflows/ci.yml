@@ -16,5 +16,3 @@ jobs:
     uses: ./.github/workflows/ci-base.yml
     with:
       node-version: '22'
-      os: 'ubuntu-latest'
-      publish-extra-args: '--compact'
