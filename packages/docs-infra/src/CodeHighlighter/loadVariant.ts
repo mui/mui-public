@@ -12,6 +12,20 @@ import type {
   LoadFileOptions,
 } from './types';
 
+export function getFileNameFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    const segments = pathname.split('/');
+    return segments[segments.length - 1] || 'index';
+  } catch (error) {
+    // Fallback for non-URL strings
+    const filePath = url.replace('file://', '');
+    const segments = filePath.split('/');
+    return segments[segments.length - 1] || 'index';
+  }
+}
+
 // Helper function to resolve relative paths using URL API
 function resolveRelativePath(basePath: string, relativePath: string): string {
   if (!relativePath.startsWith('.')) {
@@ -425,16 +439,19 @@ export async function loadVariant(
 
   if (typeof variant === 'string') {
     if (!loadVariantMeta) {
-      throw new Error('"loadVariantMeta" function is required when loadCodeMeta returns strings');
-      // TODO: maybe we can fall back to loadSource in this case?
-    }
-
-    try {
-      variant = await loadVariantMeta(variantName, variant);
-    } catch (error) {
-      throw new Error(
-        `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,
-      );
+      // Create a basic loadVariantMeta function as fallback
+      variant = {
+        url: variant,
+        fileName: getFileNameFromUrl(variant),
+      };
+    } else {
+      try {
+        variant = await loadVariantMeta(variantName, variant);
+      } catch (error) {
+        throw new Error(
+          `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,
+        );
+      }
     }
   }
 

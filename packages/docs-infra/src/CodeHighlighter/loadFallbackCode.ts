@@ -8,7 +8,7 @@ import type {
   LoadCodeMeta,
   VariantCode,
 } from './types';
-import { loadVariant } from './loadVariant';
+import { loadVariant, getFileNameFromUrl } from './loadVariant';
 
 // Helper function to get the source for a specific filename from a variant
 async function getFileSource(
@@ -143,10 +143,21 @@ export async function loadFallbackCode(
   }
 
   // Step 2: Try to get variant metadata quickly first
-  if (typeof initial === 'string' && loadVariantMeta) {
+  if (typeof initial === 'string') {
     try {
-      // Load the variant code to check if it has allFilesListed
-      const quickVariant = await loadVariantMeta(initialVariant, initial);
+      let quickVariant: VariantCode;
+
+      if (loadVariantMeta) {
+        // Use provided loadVariantMeta function
+        quickVariant = await loadVariantMeta(initialVariant, initial);
+      } else {
+        // Create a basic variant using fallback logic
+        quickVariant = {
+          url: initial,
+          fileName: getFileNameFromUrl(initial),
+        };
+      }
+
       loaded = { ...loaded, [initialVariant]: quickVariant };
       initial = quickVariant;
 
