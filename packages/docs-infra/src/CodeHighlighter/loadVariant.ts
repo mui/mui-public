@@ -1,5 +1,6 @@
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
+import { getFileNameFromUrl } from '../resolveImports';
 import type {
   VariantCode,
   VariantSource,
@@ -11,20 +12,6 @@ import type {
   SourceTransformers,
   LoadFileOptions,
 } from './types';
-
-export function getFileNameFromUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    const pathname = urlObj.pathname;
-    const segments = pathname.split('/');
-    return segments[segments.length - 1] || 'index';
-  } catch (error) {
-    // Fallback for non-URL strings
-    const filePath = url.replace('file://', '');
-    const segments = filePath.split('/');
-    return segments[segments.length - 1] || 'index';
-  }
-}
 
 // Helper function to resolve relative paths using URL API
 function resolveRelativePath(basePath: string, relativePath: string): string {
@@ -442,7 +429,7 @@ export async function loadVariant(
       // Create a basic loadVariantMeta function as fallback
       variant = {
         url: variant,
-        fileName: getFileNameFromUrl(variant),
+        fileName: getFileNameFromUrl(variant).fileName,
       };
     } else {
       try {

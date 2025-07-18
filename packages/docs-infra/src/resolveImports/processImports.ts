@@ -1,6 +1,6 @@
-import { extname, basename } from 'node:path';
 import { rewriteImportsToSameDirectory } from './rewriteImports';
 import { isJavaScriptModule } from './resolveModulePath';
+import { getFileNameFromUrl } from './getFileNameFromUrl';
 
 export type StoreAtMode = 'canonical' | 'import' | 'flat';
 
@@ -38,7 +38,7 @@ export function processImportsWithStoreAt(
   Object.entries(importResult).forEach(([relativePath, importInfo]) => {
     const resolvedPath = resolvedPathsMap.get(importInfo.path);
     if (resolvedPath) {
-      const fileExtension = extname(resolvedPath);
+      const fileExtension = getFileNameFromUrl(resolvedPath).extension;
       const isJavascriptModule = isJavaScriptModule(relativePath);
       let keyPath: string;
 
@@ -51,7 +51,7 @@ export function processImportsWithStoreAt(
             break;
           case 'flat':
             // For flat mode, use just the filename from the original import
-            keyPath = `./${basename(relativePath)}`;
+            keyPath = `./${getFileNameFromUrl(relativePath).fileName}`;
             break;
           default:
             keyPath = relativePath;
@@ -78,7 +78,7 @@ export function processImportsWithStoreAt(
             // e.g., import '../Component' with '/src/Component/index.js'
             // becomes extraFiles: { './index.js': 'file:///src/Component/index.js' }
             // Note: This mode also requires rewriting imports in the source code (handled above)
-            keyPath = `./${basename(resolvedPath)}`;
+            keyPath = `./${getFileNameFromUrl(resolvedPath).fileName}`;
             break;
 
           default:

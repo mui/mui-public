@@ -6,7 +6,6 @@ import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadSource } from './createLoadSource';
-import { createLoadVariantMeta } from './createLoadVariantMeta';
 
 interface LoaderContext {
   resourcePath: string;
@@ -96,7 +95,6 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
     });
-    const loadVariantMeta = createLoadVariantMeta();
 
     // Setup source transformers for TypeScript to JavaScript conversion
     const sourceTransformers: SourceTransformers = [
@@ -115,7 +113,7 @@ export async function loadDemoCode(this: LoaderContext, source: string): Promise
             fileUrl, // Let loadVariantMeta handle creating the initial variant
             parseSource, // For syntax highlighting
             loadSource, // For loading source files and dependencies
-            loadVariantMeta, // For creating basic variant structure
+            undefined,
             sourceTransformers, // For TypeScript to JavaScript conversion
             {
               maxDepth: 5,

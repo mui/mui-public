@@ -8,7 +8,8 @@ import type {
   LoadCodeMeta,
   VariantCode,
 } from './types';
-import { loadVariant, getFileNameFromUrl } from './loadVariant';
+import { loadVariant } from './loadVariant';
+import { getFileNameFromUrl } from '../resolveImports';
 
 // Helper function to get the source for a specific filename from a variant
 async function getFileSource(
@@ -154,7 +155,7 @@ export async function loadFallbackCode(
         // Create a basic variant using fallback logic
         quickVariant = {
           url: initial,
-          fileName: getFileNameFromUrl(initial),
+          fileName: getFileNameFromUrl(initial).fileName,
         };
       }
 

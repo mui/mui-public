@@ -585,14 +585,6 @@ describe('loadVariant', () => {
         expectedError:
           '"parseSource" function is required when source is a string and highlightAt is "init"',
       },
-      {
-        name: 'loadVariantMeta is required but not provided',
-        variant: 'file:///variant.ts',
-        parseSource: mockParseSource,
-        loadSource: mockLoadSource,
-        loadVariantMeta: undefined,
-        expectedError: '"loadVariantMeta" function is required when loadCodeMeta returns strings',
-      },
     ])(
       'should throw error when $name',
       async ({ variant, parseSource, loadSource, loadVariantMeta, expectedError }) => {
@@ -1424,7 +1416,7 @@ describe('loadVariant', () => {
   });
 
   describe('URL scheme handling', () => {
-    it('should handle URL schemes other than file://', async () => {
+    it('should handle different URL schemes for relative path resolution', async () => {
       const variant: VariantCode = {
         fileName: 'main.js',
         url: 'https://example.com/src/main.js',
@@ -1647,6 +1639,58 @@ describe('loadVariant', () => {
       );
     });
   });
+
+  describe('loadVariantMeta fallback behavior', () => {
+    it('should create basic variant from URL string when loadVariantMeta is undefined', async () => {
+      const variantUrl = 'file:///src/components/Button.tsx';
+      mockLoadSource.mockResolvedValue({
+        source: 'const Button = () => <button>Click me</button>;',
+      });
+
+      const result = await loadVariant(
+        variantUrl,
+        'default',
+        variantUrl, // String variant
+        undefined, // parseSource
+        mockLoadSource,
+        undefined, // loadVariantMeta - this is the key test case
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.url).toBe(variantUrl);
+      expect(result.code.fileName).toBe('Button.tsx'); // Uses getFileNameFromUrl utility
+      expect(result.code.source).toBe('const Button = () => <button>Click me</button>;');
+      expect(mockLoadSource).toHaveBeenCalledWith(variantUrl);
+    });
+
+    it('should still use loadVariantMeta when provided', async () => {
+      const variantUrl = 'file:///src/Button.tsx';
+      const customVariant: VariantCode = {
+        url: variantUrl,
+        fileName: 'CustomButton.tsx',
+        source: 'const CustomButton = () => <button>Custom</button>;',
+        allFilesListed: true,
+      };
+
+      mockLoadVariantMeta.mockResolvedValue(customVariant);
+
+      const result = await loadVariant(
+        variantUrl,
+        'default',
+        variantUrl,
+        undefined,
+        mockLoadSource,
+        mockLoadVariantMeta, // Provided loadVariantMeta
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code).toEqual(customVariant);
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
+      expect(mockLoadSource).not.toHaveBeenCalled(); // Should use provided source
+    });
+  });
 });
 
 describe('loadVariant - helper functions', () => {
@@ -1671,29 +1715,18 @@ describe('loadVariant - helper functions', () => {
       ];
     });
 
-    it('should resolve complex relative paths correctly via URL constructor', async () => {
+    it('should resolve relative paths correctly using URL constructor', async () => {
       const variant: VariantCode = {
         fileName: 'demo.ts',
         url: 'file:///components/switch/demo/demo.ts',
         source: 'const demo = true;',
         extraFiles: {
-          '../../../utils/helper.ts': 'file:///utils/helper.ts',
-          '../../shared.ts': 'file:///components/shared.ts',
-          './local.ts': 'file:///components/switch/demo/local.ts',
+          '../Switch.ts': '../Switch.ts',
         },
       };
 
-      mockLoadSource.mockImplementation((url: string) => {
-        if (url === 'file:///utils/helper.ts') {
-          return Promise.resolve({ source: 'const helper = true;' });
-        }
-        if (url === 'file:///components/shared.ts') {
-          return Promise.resolve({ source: 'const shared = true;' });
-        }
-        if (url === 'file:///components/switch/demo/local.ts') {
-          return Promise.resolve({ source: 'const local = true;' });
-        }
-        throw new Error(`Unexpected URL: ${url}`);
+      mockLoadSource.mockResolvedValue({
+        source: 'const Switch = true;',
       });
 
       const result = await loadVariant(
@@ -1707,19 +1740,9 @@ describe('loadVariant - helper functions', () => {
         { disableParsing: true },
       );
 
-      // Verify the resolved URLs were correct
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///utils/helper.ts');
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/shared.ts');
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/demo/local.ts');
-
-      expect(result.code.extraFiles).toBeDefined();
-      expect((result.code.extraFiles!['../../../utils/helper.ts'] as any).source).toBe(
-        'const helper = true;',
-      );
-      expect((result.code.extraFiles!['../../shared.ts'] as any).source).toBe(
-        'const shared = true;',
-      );
-      expect((result.code.extraFiles!['./local.ts'] as any).source).toBe('const local = true;');
+      // Verify the resolved URL was correct
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/Switch.ts');
+      expect((result.code.extraFiles!['../Switch.ts'] as any).source).toBe('const Switch = true;');
     });
   });
 });

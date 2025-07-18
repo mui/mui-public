@@ -11,6 +11,17 @@ import type {
   VariantCode,
 } from './types';
 
+/**
+ * Tests for loadFallbackCode function.
+ *
+ * This test suite focuses on the core fallback logic and optimization strategies:
+ * - Early return optimizations when allFilesListed=true
+ * - Fallback to loadVariant when extra processing is needed
+ * - Initial filename handling and file selection
+ * - Integration with loadVariantMeta for variant resolution
+ *
+ * Note: URL/filename parsing is thoroughly tested in getFileNameFromUrl.test.ts
+ */
 describe('loadFallbackCode', () => {
   let mockLoadCodeMeta: MockedFunction<LoadCodeMeta>;
   let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
@@ -393,6 +404,116 @@ describe('loadFallbackCode', () => {
       expect(result.allFileNames).toContain('App.tsx');
       expect(result.allFileNames).toContain('utils.ts');
       expect(result.initialSource).toBe('import { helper } from "./utils";');
+    });
+  });
+
+  describe('loadVariantMeta fallback behavior', () => {
+    it('should create basic variant from URL string when loadVariantMeta is undefined', async () => {
+      const variantUrl = 'file:///src/components/Button.tsx';
+      mockLoadCodeMeta.mockResolvedValue({
+        default: variantUrl,
+      });
+      mockLoadSource.mockResolvedValue({
+        source: 'const Button = () => <button>Click me</button>;',
+      });
+
+      const result = await loadFallbackCode(
+        'https://example.com',
+        'default',
+        {}, // loaded
+        false, // shouldHighlight
+        false, // fallbackUsesExtraFiles
+        false, // fallbackUsesAllVariants
+        mockParseSource, // parseSource
+        mockLoadSource, // loadSource
+        undefined, // loadVariantMeta - this is the key test case
+        mockLoadCodeMeta, // loadCodeMeta
+        'Button.tsx', // initialFilename
+      );
+
+      expect(result.code.default).toBeDefined();
+      expect((result.code.default as VariantCode).url).toBe(variantUrl);
+      expect((result.code.default as VariantCode).fileName).toBe('Button.tsx');
+    });
+
+    it('should handle various URL formats in fallback', async () => {
+      const testCases = [
+        {
+          url: 'file:///src/components/Header.tsx',
+          expectedFileName: 'Header.tsx',
+        },
+        {
+          url: 'https://example.com/utils/constants.js',
+          expectedFileName: 'constants.js',
+        },
+        {
+          url: 'file:///index.ts',
+          expectedFileName: 'index.ts',
+        },
+      ];
+
+      for (const { url, expectedFileName } of testCases) {
+        mockLoadCodeMeta.mockResolvedValue({
+          default: url,
+        });
+        mockLoadSource.mockResolvedValue({
+          source: 'const code = true;',
+        });
+
+        // eslint-disable-next-line no-await-in-loop
+        const result = await loadFallbackCode(
+          'https://example.com',
+          'default',
+          {}, // loaded
+          false, // shouldHighlight
+          false, // fallbackUsesExtraFiles
+          false, // fallbackUsesAllVariants
+          mockParseSource, // parseSource
+          mockLoadSource, // loadSource
+          undefined, // loadVariantMeta
+          mockLoadCodeMeta, // loadCodeMeta
+          expectedFileName, // initialFilename
+        );
+
+        expect(result.code.default).toBeDefined();
+        expect((result.code.default as VariantCode).url).toBe(url);
+        expect((result.code.default as VariantCode).fileName).toBe(expectedFileName);
+      }
+    });
+
+    it('should still use loadVariantMeta when provided in loadFallbackCode', async () => {
+      const variantUrl = 'file:///src/Button.tsx';
+      const customVariant: VariantCode = {
+        url: variantUrl,
+        fileName: 'CustomButton.tsx',
+        // Note: No source provided, so it should use loadSource
+      };
+
+      mockLoadCodeMeta.mockResolvedValue({
+        default: variantUrl,
+      });
+      mockLoadVariantMeta.mockResolvedValue(customVariant);
+      mockLoadSource.mockResolvedValue({
+        source: 'const CustomButton = () => <button>Custom</button>;',
+      });
+
+      const result = await loadFallbackCode(
+        'https://example.com',
+        'default',
+        {}, // loaded
+        false, // shouldHighlight
+        false, // fallbackUsesExtraFiles
+        false, // fallbackUsesAllVariants
+        mockParseSource, // parseSource
+        mockLoadSource, // loadSource
+        mockLoadVariantMeta, // Provided loadVariantMeta
+        mockLoadCodeMeta, // loadCodeMeta
+        'Button.tsx', // initialFilename
+      );
+
+      expect(result.code.default).toBeDefined();
+      expect((result.code.default as VariantCode).fileName).toBe('CustomButton.tsx');
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
     });
   });
 });

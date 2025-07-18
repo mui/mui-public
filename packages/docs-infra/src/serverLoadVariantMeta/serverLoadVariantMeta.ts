@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { basename } from 'node:path';
 import { LoadVariantMeta, VariantCode, VariantExtraFiles } from '../CodeHighlighter';
-import { resolveImports, rewriteImportsToSameDirectory } from '../resolveImports';
+import {
+  resolveImports,
+  rewriteImportsToSameDirectory,
+  getFileNameFromUrl,
+} from '../resolveImports';
 import { resolveModulePathsWithFs } from '../resolveImports/resolveModulePathWithFs';
 
 interface LoadDependenciesOptions {
@@ -67,7 +70,7 @@ async function serverLoadVariantMetaWithOptions(
     if (extraFiles) {
       const rewrittenExtraFiles: VariantExtraFiles = {};
       for (const [filePath, fileData] of Object.entries(extraFiles)) {
-        const fileName = basename(filePath);
+        const fileName = getFileNameFromUrl(filePath).fileName;
         if (
           fileData &&
           typeof fileData === 'object' &&
@@ -97,7 +100,9 @@ async function serverLoadVariantMetaWithOptions(
       cleanVariantUrl,
       ...Array.from(visited).filter((path) => path !== cleanVariantUrl),
     ];
-    filesOrder = extraFiles ? [basename(cleanVariantUrl), ...Object.keys(extraFiles)] : undefined;
+    filesOrder = extraFiles
+      ? [getFileNameFromUrl(cleanVariantUrl).fileName, ...Object.keys(extraFiles)]
+      : undefined;
   } else {
     // Even when not loading dependencies, rewrite imports in the main file
     // to handle any relative imports that might exist
@@ -108,7 +113,7 @@ async function serverLoadVariantMetaWithOptions(
   return {
     variant: {
       url: variantUrl,
-      fileName: basename(cleanVariantUrl),
+      fileName: getFileNameFromUrl(cleanVariantUrl).fileName,
       source: variantCode,
       extraFiles,
       filesOrder,
