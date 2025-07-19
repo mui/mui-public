@@ -4,22 +4,24 @@ import type { Code, ParseSource } from './types';
 import { parseCode } from './parseCode';
 
 // Mock parse function that returns proper HAST Root nodes
-const mockParseSource: ParseSource = vi.fn((_source: string, _fileName: string): Root => ({
-  type: 'root',
-  children: [
-    {
-      type: 'element',
-      tagName: 'pre',
-      properties: {},
-      children: [
-        {
-          type: 'text',
-          value: _source,
-        },
-      ],
-    },
-  ],
-}));
+const mockParseSource: ParseSource = vi.fn(
+  (_source: string, _fileName: string): Root => ({
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'pre',
+        properties: {},
+        children: [
+          {
+            type: 'text',
+            value: _source,
+          },
+        ],
+      },
+    ],
+  }),
+);
 
 const createMockHastRoot = (content: string): Root => ({
   type: 'root',
@@ -87,7 +89,8 @@ describe('parseCode', () => {
         throw new Error('Parse error');
       }
       return createMockHastRoot(source);
-    }) as ParseSource;    const code: Code = {
+    }) as ParseSource;
+    const code: Code = {
       Default: {
         fileName: 'index.js',
         url: '/demo',
@@ -139,8 +142,11 @@ describe('parseCode', () => {
     const result = parseCode(code, mockParseSource);
 
     expect(result.Default).toEqual(code.Default);
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to parse hastJson for variant Default:', expect.any(Error));
-    
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to parse hastJson for variant Default:',
+      expect.any(Error),
+    );
+
     consoleSpy.mockRestore();
   });
 
@@ -164,7 +170,7 @@ describe('parseCode', () => {
 
     expect(mockParseSource).toHaveBeenCalledWith('console.log("main");', 'index.js');
     expect(mockParseSource).toHaveBeenCalledWith('export const util = () => {};', 'utils.js');
-    
+
     const defaultResult = result.Default as any;
     expect(defaultResult.extraFiles['utils.js']).toEqual({
       source: expect.objectContaining({
@@ -240,7 +246,7 @@ describe('parseCode', () => {
 
     expect(mockParseSource).toHaveBeenCalledWith('to be parsed', 'string.js');
     expect(mockParseSource).not.toHaveBeenCalledWith('already parsed', expect.any(String));
-    
+
     const defaultResult = result.Default as any;
     expect(defaultResult.source).toBe(hastNodes);
     expect(defaultResult.extraFiles['parsed.js'].source).toBe(hastNodes);
@@ -294,13 +300,13 @@ describe('parseCode', () => {
         fileName: 'index.js',
         url: '/demo/test',
         source: 'console.log("test");',
-        transforms: { 
-          someTransform: { 
-            delta: { 
-              0: ["old line", "new line"] 
-            } as any, 
-            fileName: 'test.js' 
-          } 
+        transforms: {
+          someTransform: {
+            delta: {
+              0: ['old line', 'new line'],
+            } as any,
+            fileName: 'test.js',
+          },
         },
         filesOrder: ['index.js', 'utils.js'],
         allFilesListed: true,
@@ -312,13 +318,13 @@ describe('parseCode', () => {
     const defaultResult = result.Default as any;
     expect(defaultResult.fileName).toBe('index.js');
     expect(defaultResult.url).toBe('/demo/test');
-    expect(defaultResult.transforms).toEqual({ 
-      someTransform: { 
-        delta: { 
-          0: ["old line", "new line"] 
-        }, 
-        fileName: 'test.js' 
-      } 
+    expect(defaultResult.transforms).toEqual({
+      someTransform: {
+        delta: {
+          0: ['old line', 'new line'],
+        },
+        fileName: 'test.js',
+      },
     });
     expect(defaultResult.filesOrder).toEqual(['index.js', 'utils.js']);
     expect(defaultResult.allFilesListed).toBe(true);

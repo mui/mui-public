@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Root } from 'hast';
 import type { Code, ParseSource, VariantCode } from './types';
-import { 
-  getVariantsToTransform, 
-  getAvailableTransforms, 
-  transformVariant, 
-  applyTransforms 
+import {
+  getVariantsToTransform,
+  getAvailableTransforms,
+  transformVariant,
+  applyTransforms,
 } from './transformCode';
 
 const createMockHastRoot = (content: string): Root => ({
@@ -25,8 +25,8 @@ const createMockHastRoot = (content: string): Root => ({
   ],
 });
 
-const mockParseSource = vi.fn((_source: string, _fileName: string): Root => 
-  createMockHastRoot(_source)
+const mockParseSource = vi.fn(
+  (_source: string, _fileName: string): Root => createMockHastRoot(_source),
 ) as ParseSource;
 
 const createVariantCode = (overrides: Partial<VariantCode> = {}): VariantCode => ({
@@ -44,7 +44,7 @@ describe('getVariantsToTransform', () => {
     const parsedCode: Code = {
       Default: createVariantCode({
         source: createMockHastRoot('code'),
-        transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+        transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
       }),
       NoTransforms: createVariantCode({
         source: createMockHastRoot('code'),
@@ -52,7 +52,7 @@ describe('getVariantsToTransform', () => {
       }),
       StringSource: createVariantCode({
         source: 'string source',
-        transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+        transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
       }),
     };
 
@@ -69,11 +69,11 @@ describe('getVariantsToTransform', () => {
         extraFiles: {
           'file1.js': {
             source: createMockHastRoot('extra code'),
-            transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'file1.js' } },
+            transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'file1.js' } },
           },
           'file2.js': {
             source: 'string source', // Won't be transformed
-            transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'file2.js' } },
+            transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'file2.js' } },
           },
         },
       }),
@@ -89,11 +89,11 @@ describe('getVariantsToTransform', () => {
     const parsedCode: Code = {
       Default: createVariantCode({
         source: createMockHastRoot('main code'),
-        transforms: { mainTransform: { delta: { 0: ["old", "new"] }, fileName: 'main.js' } },
+        transforms: { mainTransform: { delta: { 0: ['old', 'new'] }, fileName: 'main.js' } },
         extraFiles: {
           'extra.js': {
             source: createMockHastRoot('extra code'),
-            transforms: { extraTransform: { delta: { 0: ["old", "new"] }, fileName: 'extra.js' } },
+            transforms: { extraTransform: { delta: { 0: ['old', 'new'] }, fileName: 'extra.js' } },
           },
         },
       }),
@@ -109,7 +109,7 @@ describe('getVariantsToTransform', () => {
     const parsedCode: Code = {
       Default: createVariantCode({
         source: { hastJson: JSON.stringify({ type: 'root', children: [] }) },
-        transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+        transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
       }),
     };
 
@@ -136,8 +136,8 @@ describe('getAvailableTransforms', () => {
       Default: createVariantCode({
         source: 'code',
         transforms: {
-          transform1: { delta: { 0: ["old", "new"] }, fileName: 'test.js' },
-          transform2: { delta: { 1: ["old2", "new2"] }, fileName: 'test2.js' },
+          transform1: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
+          transform2: { delta: { 1: ['old2', 'new2'] }, fileName: 'test2.js' },
         },
       }),
     };
@@ -164,7 +164,7 @@ describe('getAvailableTransforms', () => {
     const parsedCode: Code = {
       Default: createVariantCode({
         source: 'code',
-        transforms: { transform1: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+        transforms: { transform1: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
       }),
     };
 
@@ -188,7 +188,7 @@ describe('transformVariant', () => {
   it('should transform main source when applicable', async () => {
     const variantCode = {
       source: createMockHastRoot('original code'),
-      transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+      transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
     };
 
     const result = await transformVariant('Default', variantCode, mockParseSource);
@@ -203,7 +203,7 @@ describe('transformVariant', () => {
       extraFiles: {
         'file1.js': {
           source: createMockHastRoot('extra code'),
-          transforms: { extraTransform: { delta: { 0: ["old", "new"] }, fileName: 'file1.js' } },
+          transforms: { extraTransform: { delta: { 0: ['old', 'new'] }, fileName: 'file1.js' } },
         },
         'file2.js': {
           source: 'string source', // Won't be transformed
@@ -228,7 +228,7 @@ describe('transformVariant', () => {
   it('should skip transformation for hastJson sources', async () => {
     const variantCode = {
       source: { hastJson: JSON.stringify({ type: 'root', children: [] }) },
-      transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+      transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
     };
 
     const result = await transformVariant('Default', variantCode, mockParseSource);
@@ -246,7 +246,7 @@ describe('applyTransforms', () => {
     const parsedCode: Code = {
       Default: createVariantCode({
         source: createMockHastRoot('code'),
-        transforms: { someTransform: { delta: { 0: ["old", "new"] }, fileName: 'test.js' } },
+        transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
       }),
       NoTransforms: createVariantCode({
         source: 'string code',

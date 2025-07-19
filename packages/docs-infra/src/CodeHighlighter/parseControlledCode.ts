@@ -18,10 +18,10 @@ export function parseControlledCode(
 
     if (variantCode && typeof variantCode === 'object') {
       let mainSource;
-      
+
       // Convert null to empty string, then parse
       const sourceToProcess = variantCode.source === null ? '' : variantCode.source;
-      
+
       if (typeof sourceToProcess === 'string') {
         try {
           mainSource = parseSource(sourceToProcess, variantCode.fileName);
@@ -38,11 +38,11 @@ export function parseControlledCode(
       let extraFiles;
       if (variantCode.extraFiles) {
         const parsedExtraFiles: any = {};
-        
+
         for (const [fileName, fileData] of Object.entries(variantCode.extraFiles)) {
           // Convert null to empty string, then parse
           const fileSourceToProcess = fileData.source === null ? '' : fileData.source;
-          
+
           if (typeof fileSourceToProcess === 'string') {
             // Parse string sources
             try {
@@ -57,7 +57,7 @@ export function parseControlledCode(
             parsedExtraFiles[fileName] = { source: fileSourceToProcess };
           }
         }
-        
+
         extraFiles = parsedExtraFiles;
       }
 

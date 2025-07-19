@@ -20,8 +20,8 @@ const createMockHastRoot = (content: string): Root => ({
   ],
 });
 
-const mockParseSource = vi.fn((_source: string, _fileName: string): Root => 
-  createMockHastRoot(_source)
+const mockParseSource = vi.fn(
+  (_source: string, _fileName: string): Root => createMockHastRoot(_source),
 ) as ParseSource;
 
 describe('parseControlledCode', () => {
@@ -117,9 +117,13 @@ describe('parseControlledCode', () => {
     expect(result.Default).toBeDefined();
     const defaultResult = result.Default as any;
     expect(defaultResult.extraFiles).toBeDefined();
-    expect(defaultResult.extraFiles['utils.js'].source).toEqual(createMockHastRoot('export function helper() {}'));
-    expect(defaultResult.extraFiles['config.json'].source).toEqual(createMockHastRoot('{"setting": true}'));
-    
+    expect(defaultResult.extraFiles['utils.js'].source).toEqual(
+      createMockHastRoot('export function helper() {}'),
+    );
+    expect(defaultResult.extraFiles['config.json'].source).toEqual(
+      createMockHastRoot('{"setting": true}'),
+    );
+
     // Both main source and extraFiles get parsed
     expect(mockParseSource).toHaveBeenCalledWith('console.log("main");', 'main.js');
     expect(mockParseSource).toHaveBeenCalledWith('export function helper() {}', 'utils.js');
@@ -145,9 +149,11 @@ describe('parseControlledCode', () => {
     expect(result.Default).toBeDefined();
     const defaultResult = result.Default as any;
     expect(defaultResult.extraFiles).toBeDefined();
-    expect(defaultResult.extraFiles['valid.js'].source).toEqual(createMockHastRoot('console.log("valid");'));
+    expect(defaultResult.extraFiles['valid.js'].source).toEqual(
+      createMockHastRoot('console.log("valid");'),
+    );
     expect(defaultResult.extraFiles['deleted.js'].source).toEqual(createMockHastRoot('')); // null converted to empty string and parsed
-    
+
     expect(mockParseSource).toHaveBeenCalledWith('console.log("main");', 'main.js');
     expect(mockParseSource).toHaveBeenCalledWith('console.log("valid");', 'valid.js');
     expect(mockParseSource).toHaveBeenCalledWith('', 'deleted.js'); // null converted to empty string
@@ -195,7 +201,7 @@ describe('parseControlledCode', () => {
     expect(result.TypeScript).toBeDefined();
     expect(result.JavaScript).toBeUndefined();
     expect(result.Python).toBeUndefined();
-    
+
     const tsResult = result.TypeScript as any;
     expect(tsResult.fileName).toBe('complex.ts');
     expect(tsResult.extraFiles).toBeDefined();
