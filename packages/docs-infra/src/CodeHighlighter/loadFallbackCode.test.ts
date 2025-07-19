@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
 import { loadFallbackCode } from './loadFallbackCode';
+import { maybeInitialData } from './maybeInitialData';
 import type {
   Code,
   LoadCodeMeta,
@@ -580,6 +581,359 @@ describe('loadFallbackCode', () => {
       expect(result.code.default).toBeDefined();
       expect((result.code.default as VariantCode).fileName).toBe('CustomButton.tsx');
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
+    });
+  });
+
+  describe('Integration with maybeInitialData', () => {
+    it('should produce output that passes maybeInitialData validation for needsAllFiles scenario', async () => {
+      // Start with data that fails maybeInitialData because extra files are URLs
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'import { helper } from "./utils";',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeInitialData
+        },
+        allFilesListed: false, // Would fail early return optimizations
+      };
+
+      // Mock loadSource to provide actual content
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const helper = () => "loaded utility";',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback source', extraFiles: {} };
+      });
+
+      // First, verify that maybeInitialData returns false for the initial data
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - this will fail because extraFiles has URLs
+        false, // needsAllVariants
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('Not all extra files are available');
+
+      // Now run loadFallbackCode to process the data
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles - ensure extra files are loaded
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - should now pass since files are loaded
+        false, // needsAllVariants
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'Component.tsx',
+        initialSource: 'import { helper } from "./utils";',
+        initialExtraFiles: expect.any(Object),
+      });
+
+      // Double-check that the extra files are properly loaded with source content
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toEqual({
+        source: 'export const helper = () => "loaded utility";',
+      });
+    });
+
+    it('should produce output that passes maybeInitialData validation for needsHighlight scenario', async () => {
+      // Start with data that has string source but needs highlighting
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;', // String source
+        allFilesListed: true,
+      };
+
+      const parsedSource = { type: 'root', children: [] } as any;
+      mockParseSource.mockReturnValue(parsedSource);
+
+      // Verify that maybeInitialData returns false for highlighting needs
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        true, // needsHighlight - this will fail because source is a string
+        false,
+        false,
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('File needs highlighting');
+
+      // Run loadFallbackCode with highlighting enabled
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        true, // shouldHighlight - this will parse the source
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        true, // needsHighlight - should now pass since source is parsed
+        false,
+        false,
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'App.tsx',
+        initialSource: parsedSource,
+        initialExtraFiles: undefined,
+      });
+    });
+
+    it('should produce output that passes maybeInitialData validation for missing source scenario', async () => {
+      // Start with variant that has no source
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        // No source property
+        allFilesListed: false,
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const App = () => <div>Loaded via fallback</div>;',
+        extraFiles: {},
+      });
+
+      // Verify that maybeInitialData returns false due to missing source
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        false,
+        false,
+        false,
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('File source not found');
+
+      // Run loadFallbackCode to load the source
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        false,
+        false,
+        false,
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'App.tsx',
+        initialSource: 'const App = () => <div>Loaded via fallback</div>;',
+        initialExtraFiles: undefined, // No extra files in this case
+      });
+    });
+
+    it('should produce output that passes maybeInitialData validation for missing requested file scenario', async () => {
+      // Start with variant that has extra files as URLs
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL, needs loading
+        },
+        allFilesListed: false, // This ensures loadVariant processes the files
+      };
+
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const helper = () => "loaded utility";',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback source', extraFiles: {} };
+      });
+
+      // Verify that maybeInitialData returns false when requesting utils.ts file
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        'utils.ts', // Request specific file that's not loaded
+        false,
+        false,
+        false,
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('File is not loaded yet');
+
+      // Run loadFallbackCode to load the requested file
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        'utils.ts', // Request the same file
+      );
+
+      // Check what the processed variant looks like
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toEqual({
+        source: 'export const helper = () => "loaded utility";',
+      });
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        'utils.ts', // Request the same file
+        false,
+        false,
+        false,
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      if (processedValidation.initialData !== false) {
+        expect(processedValidation.initialData).toEqual({
+          code: result.code,
+          initialFilename: 'utils.ts',
+          initialSource: 'export const helper = () => "loaded utility";',
+          initialExtraFiles: expect.any(Object),
+        });
+      }
+    });
+
+    it('should produce output that successfully passes maybeInitialData validation', async () => {
+      // Scenario: Start with data that would fail maybeInitialData,
+      // then verify loadFallbackCode produces data that passes
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'import { helper } from "./utils";',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeInitialData
+        },
+        allFilesListed: false, // Would fail early return optimizations
+      };
+
+      // Mock loadSource to provide actual content
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const helper = () => "loaded utility";',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback source', extraFiles: {} };
+      });
+
+      // First, verify that maybeInitialData would return false for the initial data
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - this will fail because extraFiles has URLs
+        false, // needsAllVariants
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('Not all extra files are available');
+
+      // Now run loadFallbackCode to process the data
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles - ensure extra files are loaded
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - should now pass since files are loaded
+        false, // needsAllVariants
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'Component.tsx',
+        initialSource: 'import { helper } from "./utils";',
+        initialExtraFiles: expect.any(Object),
+      });
+
+      // Double-check that the extra files are properly loaded with source content
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toEqual({
+        source: 'export const helper = () => "loaded utility";',
+      });
     });
   });
 });
