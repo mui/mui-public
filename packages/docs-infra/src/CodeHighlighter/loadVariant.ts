@@ -13,6 +13,11 @@ import type {
   LoadFileOptions,
 } from './types';
 
+// Helper function to check if we're in production
+function isProduction(): boolean {
+  return typeof process !== 'undefined' && process.env.NODE_ENV === 'production';
+}
+
 // Helper function to resolve relative paths using URL API
 function resolveRelativePath(basePath: string, relativePath: string): string {
   if (!relativePath.startsWith('.')) {
@@ -108,6 +113,8 @@ async function loadSingleFile(
   >,
   transforms?: Transforms,
   options: LoadFileOptions = {},
+  allFilesListed: boolean = false,
+  knownExtraFiles: Set<string> = new Set(),
 ): Promise<{
   source: VariantSource;
   transforms?: Transforms;
@@ -181,12 +188,42 @@ async function loadSingleFile(
           }
         }
       }
+
+      // Check for new files when allFilesListed is enabled
+      if (allFilesListed && (extraFilesFromSource || extraDependenciesFromSource)) {
+        const newFiles: string[] = [];
+
+        if (extraFilesFromSource) {
+          // Check if any extraFiles keys are not in the known set
+          for (const extraFileKey of Object.keys(extraFilesFromSource)) {
+            if (!knownExtraFiles.has(extraFileKey)) {
+              newFiles.push(extraFileKey);
+            }
+          }
+        }
+
+        if (newFiles.length > 0) {
+          const message =
+            `Unexpected files discovered via loadSource when allFilesListed=true (variant: ${variantName}, file: ${fileName}). ` +
+            `New files: ${newFiles.join(', ')}. ` +
+            `Please update the loadVariantMeta function to provide the complete list of files upfront.`;
+
+          if (isProduction()) {
+            console.warn(message);
+          } else {
+            throw new Error(message); // TODO: maybe this could use a visual warning instead
+          }
+        }
+      }
     } catch (error) {
       // Re-throw validation errors without wrapping them
       if (
         error instanceof Error &&
         (error.message.startsWith('Invalid extraFiles from loadSource:') ||
-          error.message.startsWith('Invalid extraDependencies from loadSource:'))
+          error.message.startsWith('Invalid extraDependencies from loadSource:') ||
+          error.message.startsWith(
+            'Unexpected files discovered via loadSource when allFilesListed=true',
+          ))
       ) {
         throw error;
       }
@@ -256,6 +293,8 @@ async function loadExtraFiles(
     Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
   >,
   options: LoadFileOptions = {},
+  allFilesListed: boolean = false,
+  knownExtraFiles: Set<string> = new Set(),
 ): Promise<{ extraFiles: VariantExtraFiles; allFilesUsed: string[] }> {
   const { maxDepth = 10, loadedFiles = new Set() } = options;
 
@@ -302,6 +341,8 @@ async function loadExtraFiles(
         loadSourceCache,
         transforms,
         { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
+        allFilesListed,
+        knownExtraFiles,
       );
 
       // Collect files used from this file load
@@ -365,6 +406,8 @@ async function loadExtraFiles(
           sourceTransformers,
           loadSourceCache,
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
+          allFilesListed,
+          knownExtraFiles,
         ).then((nestedResult) => ({
           files: nestedResult.extraFiles,
           allFilesUsed: nestedResult.allFilesUsed,
@@ -395,8 +438,6 @@ async function loadExtraFiles(
 
   return { extraFiles: processedExtraFiles, allFilesUsed };
 }
-
-// TODO: throw error if hasAllFiles is true, but a new file is discovered
 
 /**
  * Loads a variant with support for recursive extra file loading.
@@ -446,6 +487,14 @@ export async function loadVariant(
   loadedFiles.add(url);
   const allFilesUsed = [url]; // Start with the main file URL
 
+  // Build set of known extra files from variant definition
+  const knownExtraFiles = new Set<string>();
+  if (variant.extraFiles) {
+    for (const extraFileName of Object.keys(variant.extraFiles)) {
+      knownExtraFiles.add(extraFileName);
+    }
+  }
+
   // Load main file
   const mainFileResult = await loadSingleFile(
     variantName,
@@ -458,6 +507,8 @@ export async function loadVariant(
     loadSourceCache,
     variant.transforms,
     { ...options, loadedFiles },
+    variant.allFilesListed || false,
+    knownExtraFiles,
   );
 
   // Add files used from main file loading
@@ -498,6 +549,8 @@ export async function loadVariant(
       sourceTransformers,
       loadSourceCache,
       { ...options, loadedFiles },
+      variant.allFilesListed || false,
+      knownExtraFiles,
     );
     allExtraFiles = extraFilesResult.extraFiles;
     allFilesUsed.push(...extraFilesResult.allFilesUsed);

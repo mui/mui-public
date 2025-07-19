@@ -1255,4 +1255,246 @@ describe('loadVariant - helper functions', () => {
       expect((result.code.extraFiles!['../Switch.ts'] as any).source).toBe('const Switch = true;');
     });
   });
+
+  describe('allFilesListed validation', () => {
+    it('should throw error in non-production when allFilesListed=true and loadSource returns unknown extra files', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      try {
+        const mockLoadSource = vi.fn();
+        const mockLoadVariantMeta = vi.fn();
+
+        // Mock loadSource for the main file to return extra files not declared in variant
+        mockLoadSource.mockImplementation((url: string) => {
+          if (url === 'file:///Button.tsx') {
+            return Promise.resolve({
+              source: 'const Button = () => <button>Click</button>;',
+              extraFiles: {
+                'helper.js': 'file:///path/to/helper.js', // This key is NOT in variant.extraFiles
+              },
+            });
+          }
+          // For any other URL, just return a basic source
+          return Promise.resolve({
+            source: '// helper code',
+          });
+        });
+
+        // Mock loadVariantMeta to return variant with allFilesListed=true but no extraFiles
+        mockLoadVariantMeta.mockResolvedValue({
+          url: 'file:///Button.tsx',
+          fileName: 'Button.tsx',
+          allFilesListed: true, // This should prevent discovery of new files
+          // No extraFiles declared, so 'helper.js' is unknown
+        });
+
+        await expect(
+          loadVariant(
+            'file:///Button.tsx',
+            'default',
+            'file:///Button.tsx',
+            undefined,
+            mockLoadSource,
+            mockLoadVariantMeta,
+            undefined,
+            { disableParsing: true },
+          ),
+        ).rejects.toThrow(
+          'Unexpected files discovered via loadSource when allFilesListed=true (variant: default, file: Button.tsx). ' +
+            'New files: helper.js. ' +
+            'Please update the loadVariantMeta function to provide the complete list of files upfront.',
+        );
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('should console.warn in production when allFilesListed=true and loadSource returns unknown extra files', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      try {
+        const mockLoadSource = vi.fn();
+        const mockLoadVariantMeta = vi.fn();
+
+        // Mock loadSource for different files
+        mockLoadSource.mockImplementation((url: string) => {
+          if (url === 'file:///Button.tsx') {
+            return Promise.resolve({
+              source: 'const Button = () => <button>Click</button>;',
+              extraFiles: {
+                'helper.js': 'file:///path/to/helper.js',
+              },
+            });
+          }
+          return Promise.resolve({
+            source: '// helper code',
+          });
+        });
+
+        // Mock loadVariantMeta to return variant with allFilesListed=true but no extraFiles
+        mockLoadVariantMeta.mockResolvedValue({
+          url: 'file:///Button.tsx',
+          fileName: 'Button.tsx',
+          allFilesListed: true,
+        });
+
+        const result = await loadVariant(
+          'file:///Button.tsx',
+          'default',
+          'file:///Button.tsx',
+          undefined,
+          mockLoadSource,
+          mockLoadVariantMeta,
+          undefined,
+          { disableParsing: true },
+        );
+
+        // Should not throw, but should warn
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          'Unexpected files discovered via loadSource when allFilesListed=true (variant: default, file: Button.tsx). ' +
+            'New files: helper.js. ' +
+            'Please update the loadVariantMeta function to provide the complete list of files upfront.',
+        );
+
+        // Should still return the result with the discovered files
+        expect(result.code.extraFiles).toBeDefined();
+        expect(result.code.extraFiles!['helper.js']).toBeDefined();
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+        consoleWarnSpy.mockRestore();
+      }
+    });
+
+    it('should work normally when allFilesListed=true and loadSource returns known extra files', async () => {
+      const mockLoadSource = vi.fn();
+      const mockLoadVariantMeta = vi.fn();
+
+      // Mock loadSource for different files
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///Button.tsx') {
+          return Promise.resolve({
+            source: 'const Button = () => <button>Click</button>;',
+            extraFiles: {
+              'helper.js': 'file:///path/to/helper.js', // This key IS in variant.extraFiles
+            },
+          });
+        }
+        return Promise.resolve({
+          source: '// helper code',
+        });
+      });
+
+      // Mock loadVariantMeta to return variant with allFilesListed=true and the extra file declared
+      mockLoadVariantMeta.mockResolvedValue({
+        url: 'file:///Button.tsx',
+        fileName: 'Button.tsx',
+        allFilesListed: true,
+        extraFiles: {
+          'helper.js': 'file:///path/to/helper.js', // File is known upfront
+        },
+      });
+
+      const result = await loadVariant(
+        'file:///Button.tsx',
+        'default',
+        'file:///Button.tsx',
+        undefined,
+        mockLoadSource,
+        mockLoadVariantMeta,
+        undefined,
+        { disableParsing: true },
+      );
+
+      // Should work normally and include the known files
+      expect(result.code.extraFiles).toBeDefined();
+      expect(result.code.extraFiles!['helper.js']).toBeDefined();
+    });
+
+    it('should work normally when allFilesListed=false and loadSource returns extra files', async () => {
+      const mockLoadSource = vi.fn();
+      const mockLoadVariantMeta = vi.fn();
+
+      // Mock loadSource for different files
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///Button.tsx') {
+          return Promise.resolve({
+            source: 'const Button = () => <button>Click</button>;',
+            extraFiles: {
+              'helper.js': 'file:///path/to/helper.js',
+            },
+          });
+        }
+        return Promise.resolve({
+          source: '// helper code',
+        });
+      });
+
+      // Mock loadVariantMeta to return variant with allFilesListed=false
+      mockLoadVariantMeta.mockResolvedValue({
+        url: 'file:///Button.tsx',
+        fileName: 'Button.tsx',
+        allFilesListed: false, // This allows discovery of new files
+      });
+
+      const result = await loadVariant(
+        'file:///Button.tsx',
+        'default',
+        'file:///Button.tsx',
+        undefined,
+        mockLoadSource,
+        mockLoadVariantMeta,
+        undefined,
+        { disableParsing: true },
+      );
+
+      // Should work normally and include the discovered files
+      expect(result.code.extraFiles).toBeDefined();
+      expect(result.code.extraFiles!['helper.js']).toBeDefined();
+    });
+
+    it('should always check extraDependencies from loadSource when allFilesListed=true', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      try {
+        const mockLoadSource = vi.fn();
+        const mockLoadVariantMeta = vi.fn();
+
+        // Mock loadSource to return extraDependencies
+        mockLoadSource.mockResolvedValue({
+          source: 'const Button = () => <button>Click</button>;',
+          extraDependencies: ['file:///path/to/dependency.js'],
+        });
+
+        // Mock loadVariantMeta to return variant with allFilesListed=true
+        mockLoadVariantMeta.mockResolvedValue({
+          url: 'file:///Button.tsx',
+          fileName: 'Button.tsx',
+          allFilesListed: true,
+        });
+
+        await expect(
+          loadVariant(
+            'file:///Button.tsx',
+            'default',
+            'file:///Button.tsx',
+            undefined,
+            mockLoadSource,
+            mockLoadVariantMeta,
+            undefined,
+            { disableParsing: true },
+          ),
+        ).rejects.toThrow(
+          'Unexpected files discovered via loadSource when allFilesListed=true (variant: default, file: Button.tsx). ' +
+            'New files: file:///path/to/dependency.js. ' +
+            'Please update the loadVariantMeta function to provide the complete list of files upfront.',
+        );
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+  });
 });
