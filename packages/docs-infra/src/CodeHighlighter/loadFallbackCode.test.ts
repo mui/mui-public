@@ -266,6 +266,8 @@ describe('loadFallbackCode', () => {
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
+        undefined, // fileName
+        ['javascript', 'typescript'], // variants - needed for fallbackUsesAllVariants
       );
 
       expect(mockLoadVariantMeta).toHaveBeenCalledWith(
@@ -273,6 +275,70 @@ describe('loadFallbackCode', () => {
         'http://example.com/typescript',
       );
       expect(result.allFileNames).toEqual(['App.tsx', 'types.ts']);
+    });
+
+    it('should infer variants from loaded code when variants parameter is not provided', async () => {
+      const variant1: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = {
+        javascript: variant1,
+        typescript: 'http://example.com/typescript',
+        python: 'http://example.com/python',
+      };
+
+      const variant2: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello TypeScript</div>;',
+        extraFiles: {
+          'types.ts': { source: 'export type Props = {};' },
+        },
+        allFilesListed: true,
+      };
+
+      const variant3: VariantCode = {
+        fileName: 'App.py',
+        url: 'http://example.com/App.py',
+        source: 'def app(): return "Hello Python"',
+        allFilesListed: true,
+      };
+
+      mockLoadVariantMeta.mockImplementation(async (variantName) => {
+        if (variantName === 'typescript') {
+          return variant2;
+        }
+        if (variantName === 'python') {
+          return variant3;
+        }
+        throw new Error(`Unexpected variant: ${variantName}`);
+      });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'javascript',
+        loaded,
+        false,
+        false,
+        true, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // fileName
+        undefined, // variants - not provided, should infer from loaded
+      );
+
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith(
+        'typescript',
+        'http://example.com/typescript',
+      );
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('python', 'http://example.com/python');
+      expect(result.allFileNames).toEqual(['App.tsx', 'types.ts', 'App.py']);
     });
   });
 

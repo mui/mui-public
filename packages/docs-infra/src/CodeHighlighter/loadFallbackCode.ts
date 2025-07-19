@@ -66,6 +66,7 @@ export async function loadFallbackCode(
   loadVariantMeta?: LoadVariantMeta,
   loadCodeMeta?: LoadCodeMeta,
   initialFilename?: string,
+  variants?: string[],
 ): Promise<FallbackVariants> {
   loaded = { ...loaded };
 
@@ -256,49 +257,78 @@ export async function loadFallbackCode(
 
   // Step 4: Handle fallbackUsesAllVariants - load all variants to get all possible files
   if (fallbackUsesAllVariants) {
-    const variantPromises = Object.entries(loaded).map(async ([variantName, variant]) => {
-      if (variantName === initialVariant || !variant) {
-        return { variantName, loadedVariant: null, fileNames: [] };
-      }
+    // Determine all variants to process - use provided variants or infer from loaded code
+    const allVariants = variants || Object.keys(loaded || {});
 
-      try {
-        const { code: loadedVariant } = await loadVariant(
-          url,
-          variantName,
-          variant,
-          sourceParser,
-          loadSource,
-          loadVariantMeta,
-          undefined, // sourceTransformers
-          {
-            disableTransforms: true,
-            disableParsing: !shouldHighlight,
-          },
-        );
-
-        // Collect file names from this variant
-        const fileNames = [loadedVariant.fileName];
-        if (loadedVariant.extraFiles) {
-          fileNames.push(...Object.keys(loadedVariant.extraFiles));
+    if (allVariants.length === 0) {
+      console.warn('No variants found for fallbackUsesAllVariants processing');
+    } else {
+      // Process all required variants, not just the ones already loaded
+      const variantPromises = allVariants.map(async (variantName) => {
+        if (variantName === initialVariant) {
+          // Skip initial variant as it's already processed
+          return { variantName, loadedVariant: null, fileNames: [] };
         }
 
-        return { variantName, loadedVariant, fileNames };
-      } catch (error) {
-        // Log but don't fail - we want to get as many file names as possible
-        console.warn(`Failed to load variant ${variantName} for file listing: ${error}`);
-        return { variantName, loadedVariant: null, fileNames: [] };
-      }
-    });
+        let variant = loaded?.[variantName];
 
-    const variantResults = await Promise.all(variantPromises);
+        // If variant is not loaded yet, load it first using loadCodeMeta
+        if (!variant && loadCodeMeta) {
+          try {
+            const allCode = await loadCodeMeta(url);
+            variant = allCode[variantName];
+            // Update loaded with all variants from loadCodeMeta
+            loaded = { ...loaded, ...allCode };
+          } catch (error) {
+            console.warn(`Failed to load code meta for variant ${variantName}: ${error}`);
+            return { variantName, loadedVariant: null, fileNames: [] };
+          }
+        }
 
-    // Update loaded code and collect file names
-    variantResults.forEach(({ variantName, loadedVariant, fileNames }) => {
-      if (loadedVariant) {
-        loaded = { ...loaded, [variantName]: loadedVariant };
-      }
-      fileNames.forEach((fileName) => allFileNames.add(fileName));
-    });
+        if (!variant) {
+          console.warn(`Variant ${variantName} not found after loading code meta`);
+          return { variantName, loadedVariant: null, fileNames: [] };
+        }
+
+        try {
+          const { code: loadedVariant } = await loadVariant(
+            url,
+            variantName,
+            variant,
+            sourceParser,
+            loadSource,
+            loadVariantMeta,
+            undefined, // sourceTransformers
+            {
+              disableTransforms: true,
+              disableParsing: !shouldHighlight,
+            },
+          );
+
+          // Collect file names from this variant
+          const fileNames = [loadedVariant.fileName];
+          if (loadedVariant.extraFiles) {
+            fileNames.push(...Object.keys(loadedVariant.extraFiles));
+          }
+
+          return { variantName, loadedVariant, fileNames };
+        } catch (error) {
+          // Log but don't fail - we want to get as many file names as possible
+          console.warn(`Failed to load variant ${variantName} for file listing: ${error}`);
+          return { variantName, loadedVariant: null, fileNames: [] };
+        }
+      });
+
+      const variantResults = await Promise.all(variantPromises);
+
+      // Update loaded code and collect file names
+      variantResults.forEach(({ variantName, loadedVariant, fileNames }) => {
+        if (loadedVariant) {
+          loaded = { ...loaded, [variantName]: loadedVariant };
+        }
+        fileNames.forEach((fileName) => allFileNames.add(fileName));
+      });
+    }
   }
 
   // Ensure we have the latest initial variant data

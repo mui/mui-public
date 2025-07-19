@@ -90,6 +90,8 @@ function useInitialData({
         loadSource,
         loadVariantMeta,
         loadCodeMeta,
+        fileName,
+        variants,
       ).catch((error) => ({ error }));
 
       if ('error' in loaded) {
@@ -113,6 +115,8 @@ function useInitialData({
     loadCodeMeta,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
+    fileName,
+    variants,
   ]);
 }
 

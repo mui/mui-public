@@ -262,6 +262,8 @@ async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
     props.loadSource,
     props.loadVariantMeta,
     props.loadCodeMeta,
+    props.fileName,
+    props.variants,
   ).catch((error) => ({ error }));
   if ('error' in loaded) {
     return <ErrorHandler error={loaded.error} />;
@@ -287,7 +289,8 @@ export function CodeHighlighter(props: CodeHighlighterProps) {
   }
 
   const code = props.precompute || props.code;
-  const variants = Object.keys(props.components || props.precompute || props.code || {});
+  const variants =
+    props.variants || Object.keys(props.components || props.precompute || props.code || {});
   if (variants.length === 0) {
     return <ErrorHandler error={new Error('No code or components provided')} />;
   }

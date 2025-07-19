@@ -75,7 +75,7 @@ export function maybeInitialData(
   const initialFilename = fileName || variantCode.fileName;
   let fileSource: VariantSource | undefined;
 
-  if (fileName) {
+  if (fileName && fileName !== variantCode.fileName) {
     const fileData = variantCode?.extraFiles?.[fileName];
     if (!fileData) {
       return {
