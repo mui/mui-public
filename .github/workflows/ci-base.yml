@@ -31,4 +31,4 @@ jobs:
       - run: pnpm install
       - run: pnpm release:build
       - name: Publish packages to pkg.pr.new
-        run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --packageManager=pnpm --comment=off --peerDeps --template './examples/*'
+        run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=off --peerDeps --template './examples/*'
