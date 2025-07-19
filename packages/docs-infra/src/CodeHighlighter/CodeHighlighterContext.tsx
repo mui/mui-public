@@ -11,6 +11,8 @@ export interface CodeHighlighterContextType {
   components?: Record<string, React.ReactNode>;
   // Transform utilities
   availableTransforms?: string[];
+  selectedTransform?: string | null;
+  setSelectedTransform?: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(
@@ -25,4 +27,8 @@ export function useCodeHighlighterContext() {
     );
   }
   return context;
+}
+
+export function useCodeHighlighterContextOptional() {
+  return React.useContext(CodeHighlighterContext);
 }

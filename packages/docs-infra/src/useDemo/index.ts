@@ -1,25 +1,11 @@
 import * as React from 'react';
-import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
-import { Nodes } from 'hast';
-import { toText } from 'hast-util-to-text';
-import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 import kebabCase from 'kebab-case';
 
-import { useCopier, UseCopierOpts } from '../useCopier';
+import { useCode, Variant } from '../useCode';
+import { UseCopierOpts } from '../useCopier';
+import { ContentProps } from '../CodeHighlighter/types';
 
-type Source = Nodes;
-export type Variant = {
-  component: React.ReactNode;
-  fileName: string;
-  source: Source;
-  extraSource?: { [key: string]: Source };
-};
-export type Demo = {
-  name?: string;
-  slug?: string;
-  description?: string;
-  variants: { [key: string]: Variant };
-};
+export type { Variant };
 
 type UseDemoOpts = {
   defaultOpen?: boolean;
@@ -27,85 +13,27 @@ type UseDemoOpts = {
   githubUrlPrefix?: string;
   codeSandboxUrlPrefix?: string;
   stackBlitzPrefix?: string;
+  initialVariant?: string;
+  initialTransform?: string;
 };
 
-function toComponent(source: Source) {
-  return toJsxRuntime(source, { Fragment, jsx, jsxs });
-}
-
 // TODO: take initialVariant and initialTransforms as parameters
-export function useDemo(demo: Demo, opts?: UseDemoOpts) {
-  const { copy: copyOpts, defaultOpen = false } = opts || {};
-
+export function useDemo(contentProps: ContentProps, opts?: UseDemoOpts) {
   const slug = React.useMemo(
-    () => demo.slug || (demo.name ? kebabCase(demo.name, false) : undefined),
-    [demo.slug, demo.name],
-  );
-
-  const [expanded, setExpanded] = React.useState(defaultOpen);
-  const expand = React.useCallback(() => setExpanded(true), []);
-
-  const ref = React.useRef<HTMLDivElement>(null);
-  const resetFocus = React.useCallback(() => {
-    ref.current?.focus();
-  }, []);
-
-  const variantKeys = React.useMemo(() => Object.keys(demo.variants), [demo.variants]);
-  const [selectedVariantKey, setSelectedVariantKey] = React.useState<string>(variantKeys[0]);
-  const selectedVariant = demo.variants[selectedVariantKey];
-
-  const [selectedFileName, setSelectedFileName] = React.useState(selectedVariant.fileName);
-  const selectedFile = React.useMemo(
     () =>
-      selectedFileName === selectedVariant.fileName
-        ? selectedVariant.source
-        : selectedVariant.extraSource?.[selectedFileName],
-    [selectedFileName, selectedVariant],
+      contentProps.slug || (contentProps.name ? kebabCase(contentProps.name, false) : undefined),
+    [contentProps.slug, contentProps.name],
   );
 
-  // if copying, convert the selected file's hast to text
-  const sourceFileToText = React.useCallback(
-    () => selectedFile && toText(selectedFile, { whitespace: 'pre' }), // TODO: allow passing the filename to copy
-    [selectedFile],
-  );
-  const { copy, disabled: copyDisabled } = useCopier(sourceFileToText, copyOpts);
+  // Use the generic useCode hook for all code functionality
+  const codeResult = useCode(contentProps, opts);
 
-  // transform hast source to React components
-  const files = React.useMemo(() => {
-    const extraSource = selectedVariant.extraSource;
-    return [
-      { name: selectedVariant.fileName, component: toComponent(selectedVariant.source) },
-      ...(extraSource
-        ? Object.keys(extraSource).map((name) => ({
-            name,
-            component: toComponent(extraSource[name]),
-          }))
-        : []),
-    ];
-  }, [selectedVariant]);
-  const selectedFileComponent = React.useMemo(() => {
-    const matchedFile = files.find((file) => file.name === selectedFileName);
-    return matchedFile ? matchedFile.component : null;
-  }, [files, selectedFileName]);
-
+  // Return demo-specific interface with additional demo fields
   return {
-    component: selectedVariant.component,
-    name: demo.name,
+    ...codeResult,
+    // Demo-specific additions
+    name: contentProps.name,
     slug,
-    description: demo.description,
-    ref,
-    variants: variantKeys,
-    selectedVariant: selectedVariantKey,
-    selectVariant: setSelectedVariantKey,
-    files,
-    selectedFile: selectedFileComponent,
-    selectedFileName,
-    selectFileName: setSelectedFileName,
-    expanded,
-    expand,
-    setExpanded,
-    resetFocus,
-    copy,
-    copyDisabled,
+    description: contentProps.description,
   };
 }
