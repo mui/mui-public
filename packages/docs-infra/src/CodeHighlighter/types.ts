@@ -23,6 +23,17 @@ export type VariantCode = CodeMeta & {
 };
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
 
+export type ControlledVariantExtraFiles = {
+  [fileName: string]: { source: string | null };
+};
+export type ControlledVariantCode = CodeMeta & {
+  url: string;
+  source?: string | null;
+  extraFiles?: ControlledVariantExtraFiles;
+  filesOrder?: string[];
+};
+export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
+
 type Options = { name?: string; slug?: string; description?: string };
 export type ContentProps = { code?: Code; components?: Components } & Options;
 export type ContentLoadingVariant = {

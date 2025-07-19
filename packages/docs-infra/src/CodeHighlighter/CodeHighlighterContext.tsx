@@ -1,17 +1,16 @@
 'use client';
 import * as React from 'react';
-import { Code } from './types';
+import { Code, ControlledCode } from './types';
 import { Selection } from '../CodeControllerContext';
 
 export interface CodeHighlighterContextType {
   code?: Code;
-  setCode?: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
   selection?: Selection;
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
   components?: Record<string, React.ReactNode>;
   // Transform utilities
   availableTransforms?: string[];
-  transformedCode?: string;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(

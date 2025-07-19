@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { Code } from '../CodeHighlighter/types';
+import { ControlledCode } from '../CodeHighlighter/types';
 
 export type Selection = { variant: string; fileName?: string; transformKey?: string };
 
 export interface CodeControllerContext {
-  code?: Code;
+  code?: ControlledCode;
   selection?: Selection;
-  setCode?: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
   components?: Record<string, React.ReactNode> | undefined;
 }

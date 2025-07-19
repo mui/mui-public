@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { sha256 } from 'js-sha256';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { Code, CodeHighlighterClientProps } from './types';
+import { Code, CodeHighlighterClientProps, ControlledCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeInitialData } from './maybeInitialData';
 import { loadFallbackCode } from './loadFallbackCode';
@@ -12,7 +11,9 @@ import { loadVariant } from './loadVariant';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
-import { applyTransform } from './applyTransform';
+import { parseCode } from './parseCode';
+import { applyTransforms, getAvailableTransforms } from './transformCode';
+import { parseControlledCode } from './parseControlledCode';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -198,6 +199,74 @@ function useAllVariants({
   return { readyForContent };
 }
 
+function useCodeParsing({ code, readyForContent }: { code?: Code; readyForContent: boolean }) {
+  const { parseSource } = useCodeContext();
+
+  // Parse the internal code state when ready
+  const parsedCode = React.useMemo(() => {
+    if (!code || !readyForContent || !parseSource) {
+      return undefined;
+    }
+
+    return parseCode(code, parseSource);
+  }, [code, readyForContent, parseSource]);
+
+  return { parsedCode };
+}
+
+function useCodeTransforms({
+  parsedCode,
+  variantName,
+}: {
+  parsedCode?: Code;
+  variantName: string;
+}) {
+  const { sourceParser } = useCodeContext();
+  const [transformedCode, setTransformedCode] = React.useState<Code | undefined>(undefined);
+
+  // Get available transforms from the current variant (separate memo for efficiency)
+  const availableTransforms = React.useMemo(() => {
+    return getAvailableTransforms(parsedCode, variantName);
+  }, [parsedCode, variantName]);
+
+  // Effect to compute transformations for all variants
+  React.useEffect(() => {
+    if (!parsedCode || !sourceParser) {
+      setTransformedCode(parsedCode);
+      return;
+    }
+
+    // Process transformations for all variants
+    (async () => {
+      try {
+        const parseSource = await sourceParser;
+        const enhanced = await applyTransforms(parsedCode, parseSource);
+        setTransformedCode(enhanced);
+      } catch (error) {
+        console.error('Failed to process transforms:', error);
+        setTransformedCode(parsedCode);
+      }
+    })();
+  }, [parsedCode, sourceParser]);
+
+  return { transformedCode, availableTransforms };
+}
+
+function useControlledCodeParsing({ controlledCode }: { controlledCode?: ControlledCode }) {
+  const { parseSource } = useCodeContext();
+
+  // Parse the controlled code separately (no need to check readyForContent)
+  const parsedControlledCode = React.useMemo(() => {
+    if (!controlledCode || !parseSource) {
+      return undefined;
+    }
+
+    return parseControlledCode(controlledCode, parseSource);
+  }, [controlledCode, parseSource]);
+
+  return { parsedControlledCode };
+}
+
 export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const {
     controlledCode,
@@ -252,12 +321,28 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   });
 
   const readyForContent = React.useMemo(() => {
+    if (!code) {
+      return false;
+    }
+
+    return hasAllVariants(variants, code);
+  }, [code, variants]);
+
+  // Separate check for activeCode to determine when to show fallback
+  const activeCodeReady = React.useMemo(() => {
     if (!activeCode) {
       return false;
     }
 
-    return hasAllVariants(variants, activeCode);
-  }, [activeCode, variants]);
+    // Controlled code is always ready since it comes from editing already-ready code
+    if (controlledCode) {
+      return true;
+    }
+
+    // For regular code, use the existing hasAllVariants function
+    const regularCode = props.code || code;
+    return regularCode ? hasAllVariants(variants, regularCode) : false;
+  }, [activeCode, controlledCode, variants, props.code, code]);
 
   useAllVariants({
     readyForContent,
@@ -268,18 +353,38 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     setCode,
   });
 
+  const { parsedCode } = useCodeParsing({
+    code: props.code || code,
+    readyForContent: readyForContent || Boolean(props.code),
+  });
+
+  const { transformedCode, availableTransforms } = useCodeTransforms({
+    parsedCode,
+    variantName,
+  });
+
+  const { parsedControlledCode } = useControlledCodeParsing({
+    controlledCode,
+  });
+
+  // Determine the final overlaid code (controlled takes precedence)
+  const overlaidCode = parsedControlledCode || transformedCode;
+
+  // For fallback context, use the processed code or fall back to non-controlled code
+  const codeForFallback = overlaidCode || (controlledCode ? undefined : props.code || code);
+
   const fallbackContext = React.useMemo(
     () =>
       codeToFallbackProps(
         variantName,
-        activeCode,
+        codeForFallback,
         fileName,
         props.fallbackUsesExtraFiles,
         props.fallbackUsesAllVariants,
       ),
     [
       variantName,
-      activeCode,
+      codeForFallback,
       fileName,
       props.fallbackUsesExtraFiles,
       props.fallbackUsesAllVariants,
@@ -288,27 +393,23 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
-      code: overlaidCode || controlledCode || code,
-      setCode: controlledSetCode ? contextSetCode : undefined,
+      code: overlaidCode || transformedCode, // Use processed/transformed code
+      setCode: controlledSetCode,
       selection: controlledSelection || selection,
       setSelection: controlledSetSelection || setSelection,
       components: controlledComponents || props.components,
       availableTransforms,
-      transformedCode: currentTransformedCode,
     }),
     [
       overlaidCode,
-      controlledCode,
-      code,
+      transformedCode,
       controlledSetCode,
-      contextSetCode,
       selection,
       controlledSelection,
       controlledSetSelection,
       controlledComponents,
       props.components,
       availableTransforms,
-      currentTransformedCode,
     ],
   );
 
@@ -319,7 +420,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }
 
   const fallback = props.fallback;
-  if (fallback && !props.skipFallback && !readyForContent) {
+  if (fallback && !props.skipFallback && !activeCodeReady) {
     return (
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
         {fallback}
