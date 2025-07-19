@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSource } from '@mui/internal-docs-infra/parseSource';
+import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
 import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
 import type { CodeHighlighterProps, Components } from '@mui/internal-docs-infra/CodeHighlighter';
 
@@ -34,7 +34,7 @@ export function createDemo(
         url={url}
         components={renderedComponents}
         Content={DemoContent}
-        parseSource={parseSource}
+        sourceParser={parseSourceFactory()}
         sourceTransformers={[TsToJsTransformer]}
       />
     );

@@ -10,7 +10,8 @@ import type {
 } from '../CodeHighlighter';
 
 export interface CodeContext {
-  parseSource?: ParseSource;
+  sourceParser?: Promise<ParseSource>;
+  parseSource?: ParseSource; // Sync version when available
   sourceTransformers?: SourceTransformers;
   loadSource?: LoadSource;
   loadVariantMeta?: LoadVariantMeta;

@@ -1,5 +1,5 @@
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSource } from '@mui/internal-docs-infra/parseSource';
+import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
 import { CodeContent } from './CodeContent';
 import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
 
@@ -18,7 +18,7 @@ function Code({
       code={{ Default: { url: 'file://index.js', fileName, source: children } }}
       Content={CodeContent}
       forceClient={forceClient}
-      parseSource={parseSource}
+      sourceParser={parseSourceFactory()}
       sourceTransformers={[TsToJsTransformer]}
     />
   );

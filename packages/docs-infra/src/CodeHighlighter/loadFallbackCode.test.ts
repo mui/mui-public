@@ -59,7 +59,7 @@ describe('loadFallbackCode', () => {
         false, // shouldHighlight
         false, // fallbackUsesExtraFiles
         false, // fallbackUsesAllVariants
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -82,7 +82,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
       const parsedSource = { type: 'root', children: [] } as any;
-      mockParseSource.mockResolvedValue(parsedSource);
+      mockParseSource.mockReturnValue(parsedSource);
 
       const result = await loadFallbackCode(
         'http://example.com',
@@ -91,7 +91,7 @@ describe('loadFallbackCode', () => {
         true, // shouldHighlight
         false,
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -128,7 +128,7 @@ describe('loadFallbackCode', () => {
         false,
         false,
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -160,7 +160,7 @@ describe('loadFallbackCode', () => {
         false,
         false,
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -190,7 +190,7 @@ describe('loadFallbackCode', () => {
         false,
         false,
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -218,7 +218,7 @@ describe('loadFallbackCode', () => {
         false,
         true, // fallbackUsesExtraFiles
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -262,7 +262,7 @@ describe('loadFallbackCode', () => {
         false,
         false,
         true, // fallbackUsesAllVariants
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -288,7 +288,7 @@ describe('loadFallbackCode', () => {
           false,
           false,
           false,
-          mockParseSource,
+          Promise.resolve(mockParseSource),
           mockLoadSource,
           mockLoadVariantMeta,
           mockLoadCodeMeta,
@@ -305,7 +305,7 @@ describe('loadFallbackCode', () => {
           false,
           false,
           false,
-          mockParseSource,
+          Promise.resolve(mockParseSource),
           mockLoadSource,
           mockLoadVariantMeta,
           undefined, // no loadCodeMeta function
@@ -331,7 +331,7 @@ describe('loadFallbackCode', () => {
           false,
           false,
           false,
-          mockParseSource,
+          Promise.resolve(mockParseSource),
           mockLoadSource,
           mockLoadVariantMeta,
           mockLoadCodeMeta,
@@ -359,7 +359,7 @@ describe('loadFallbackCode', () => {
         false,
         false,
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -394,7 +394,7 @@ describe('loadFallbackCode', () => {
         false,
         false,
         false,
-        mockParseSource,
+        Promise.resolve(mockParseSource),
         mockLoadSource,
         mockLoadVariantMeta,
         mockLoadCodeMeta,
@@ -424,7 +424,7 @@ describe('loadFallbackCode', () => {
         false, // shouldHighlight
         false, // fallbackUsesExtraFiles
         false, // fallbackUsesAllVariants
-        mockParseSource, // parseSource
+        Promise.resolve(mockParseSource), // parseSource
         mockLoadSource, // loadSource
         undefined, // loadVariantMeta - this is the key test case
         mockLoadCodeMeta, // loadCodeMeta
@@ -468,7 +468,7 @@ describe('loadFallbackCode', () => {
           false, // shouldHighlight
           false, // fallbackUsesExtraFiles
           false, // fallbackUsesAllVariants
-          mockParseSource, // parseSource
+          Promise.resolve(mockParseSource), // parseSource
           mockLoadSource, // loadSource
           undefined, // loadVariantMeta
           mockLoadCodeMeta, // loadCodeMeta
@@ -504,7 +504,7 @@ describe('loadFallbackCode', () => {
         false, // shouldHighlight
         false, // fallbackUsesExtraFiles
         false, // fallbackUsesAllVariants
-        mockParseSource, // parseSource
+        Promise.resolve(mockParseSource), // parseSource
         mockLoadSource, // loadSource
         mockLoadVariantMeta, // Provided loadVariantMeta
         mockLoadCodeMeta, // loadCodeMeta

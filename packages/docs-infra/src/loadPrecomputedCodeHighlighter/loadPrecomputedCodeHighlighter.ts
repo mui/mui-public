@@ -1,6 +1,6 @@
 import { loadVariant } from '../CodeHighlighter/loadVariant';
-import { parseSource } from '../parseSource';
-import { transformTsToJs } from '../transformTsToJs';
+import { parseSourceFactory } from '../parseSource';
+import { TsToJsTransformer } from '../transformTsToJs';
 import type { SourceTransformers } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
@@ -100,9 +100,10 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
-    const sourceTransformers: SourceTransformers = [
-      { extensions: ['ts', 'tsx'], transformer: transformTsToJs },
-    ];
+    const sourceTransformers: SourceTransformers = [TsToJsTransformer];
+
+    // Create sourceParser promise for syntax highlighting
+    const sourceParser = parseSourceFactory();
 
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
@@ -114,7 +115,7 @@ export async function loadPrecomputedCodeHighlighter(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             fileUrl, // Let loadVariantMeta handle creating the initial variant
-            parseSource, // For syntax highlighting
+            sourceParser, // For syntax highlighting
             loadSource, // For loading source files and dependencies
             undefined,
             sourceTransformers, // For TypeScript to JavaScript conversion

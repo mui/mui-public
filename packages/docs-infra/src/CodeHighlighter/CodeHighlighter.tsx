@@ -32,7 +32,7 @@ type BaseHelperProps = Pick<
   | 'loadCodeMeta'
   | 'loadVariantMeta'
   | 'loadSource'
-  | 'parseSource'
+  | 'sourceParser'
   | 'sourceTransformers'
   | 'precompute'
   | 'controlled'
@@ -64,7 +64,7 @@ function HighlightErrorHandler({ error }: { error: Error }) {
 
 function createClientProps(
   props: BaseHelperProps & {
-    code: Code;
+    code?: Code;
     fallback?: React.ReactNode;
     skipFallback?: boolean;
   },
@@ -74,6 +74,7 @@ function createClientProps(
   return {
     url: props.url,
     code: props.code,
+    precompute: props.precompute,
     components: props.components,
     variants: props.variants,
     variant: props.variant,
@@ -89,7 +90,7 @@ function createClientProps(
     description: props.description,
     children: (
       <props.Content
-        code={props.code}
+        code={typeof props.precompute === 'object' ? props.code || props.precompute : props.code}
         components={props.components}
         name={props.name}
         slug={props.slug}
@@ -135,7 +136,7 @@ async function CodeSourceLoader(props: CodeSourceLoaderProps) {
         props.url,
         variantName,
         loadedCode[variantName],
-        props.parseSource,
+        props.sourceParser,
         props.loadSource,
         props.loadVariantMeta,
         props.sourceTransformers,
@@ -181,7 +182,7 @@ function renderCodeHighlighter(
 ) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  const code = props.code;
+  const code = props.precompute !== true ? props.code || props.precompute : props.code;
   const variants = props.variants || Object.keys(props.components || code || {});
   const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
 
@@ -197,7 +198,6 @@ function renderCodeHighlighter(
 
   const clientProps = createClientProps({
     ...props,
-    code,
   });
 
   return <CodeHighlighterClient {...clientProps} />;
@@ -258,7 +258,7 @@ async function CodeInitialSourceLoader(props: CodeInitialSourceLoaderProps) {
     props.highlightAt === 'init',
     props.fallbackUsesExtraFiles,
     props.fallbackUsesAllVariants,
-    props.parseSource,
+    props.sourceParser,
     props.loadSource,
     props.loadVariantMeta,
     props.loadCodeMeta,

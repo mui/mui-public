@@ -63,22 +63,3 @@ export function applyTransforms(
 
   return currentSource as string;
 }
-
-/**
- * Gets all available transform keys from a transforms object
- * @param transforms - Object containing transforms
- * @returns Array of transform keys
- */
-export function getTransformKeys(transforms: Transforms): string[] {
-  return Object.keys(transforms);
-}
-
-/**
- * Checks if a transform key exists in the transforms object
- * @param transforms - Object containing transforms
- * @param transformKey - The key to check
- * @returns True if the transform exists, false otherwise
- */
-export function hasTransform(transforms: Transforms, transformKey: string): boolean {
-  return transformKey in transforms;
-}

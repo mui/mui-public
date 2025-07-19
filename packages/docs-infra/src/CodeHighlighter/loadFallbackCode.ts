@@ -61,7 +61,7 @@ export async function loadFallbackCode(
   shouldHighlight?: boolean,
   fallbackUsesExtraFiles?: boolean,
   fallbackUsesAllVariants?: boolean,
-  parseSource?: ParseSource,
+  sourceParser?: Promise<ParseSource>,
   loadSource?: LoadSource,
   loadVariantMeta?: LoadVariantMeta,
   loadCodeMeta?: LoadCodeMeta,
@@ -117,9 +117,10 @@ export async function loadFallbackCode(
     }
 
     // If we need highlighting and have a string source, parse it
-    if (shouldHighlight && typeof fileSource === 'string' && parseSource) {
+    if (shouldHighlight && typeof fileSource === 'string' && sourceParser) {
       try {
-        fileSource = await parseSource(fileSource, actualFilename);
+        const parseSource = await sourceParser;
+        fileSource = parseSource(fileSource, actualFilename);
       } catch (error) {
         throw new Error(
           `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
@@ -186,9 +187,10 @@ export async function loadFallbackCode(
         }
 
         // If we need highlighting and have a string source, parse it
-        if (shouldHighlight && typeof fileSource === 'string' && parseSource) {
+        if (shouldHighlight && typeof fileSource === 'string' && sourceParser) {
           try {
-            fileSource = await parseSource(fileSource, actualFilename);
+            const parseSource = await sourceParser;
+            fileSource = parseSource(fileSource, actualFilename);
           } catch (error) {
             throw new Error(
               `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
@@ -224,7 +226,7 @@ export async function loadFallbackCode(
       url,
       initialVariant,
       initial,
-      shouldHighlight ? parseSource : undefined,
+      sourceParser,
       loadSource,
       loadVariantMeta,
       undefined, // sourceTransformers - skip transforms for fallback
@@ -264,7 +266,7 @@ export async function loadFallbackCode(
           url,
           variantName,
           variant,
-          shouldHighlight ? parseSource : undefined,
+          sourceParser,
           loadSource,
           loadVariantMeta,
           undefined, // sourceTransformers

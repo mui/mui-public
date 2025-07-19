@@ -100,7 +100,7 @@ async function loadSingleFile(
   source: VariantSource | undefined,
   url: string | undefined,
   loadSource: LoadSource | undefined,
-  parseSource: ParseSource | undefined,
+  sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
   loadSourceCache: Map<
     string,
@@ -204,16 +204,16 @@ async function loadSingleFile(
 
   // Parse source if it's a string and parsing is not disabled
   if (typeof finalSource === 'string' && !disableParsing) {
-    if (!parseSource) {
-      // TODO: this needs to check shouldHighlight
+    if (!sourceParser) {
       throw new Error(
-        '"parseSource" function is required when source is a string and highlightAt is "init"',
+        '"sourceParser" function is required when source is a string and parsing is not disabled',
       );
     }
 
     try {
       const sourceString = finalSource;
-      finalSource = await parseSource(finalSource, fileName);
+      const parseSource = await sourceParser;
+      finalSource = parseSource(finalSource, fileName);
 
       if (finalTransforms && !disableTransforms) {
         finalTransforms = await transformParsedSource(
@@ -249,7 +249,7 @@ async function loadExtraFiles(
   baseUrl: string,
   entryUrl: string, // Track the original entry file URL
   loadSource: LoadSource | undefined,
-  parseSource: ParseSource | undefined,
+  sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
   loadSourceCache: Map<
     string,
@@ -297,7 +297,7 @@ async function loadExtraFiles(
         sourceData,
         fileUrl,
         loadSource,
-        parseSource,
+        sourceParser,
         sourceTransformers,
         loadSourceCache,
         transforms,
@@ -361,7 +361,7 @@ async function loadExtraFiles(
           sourceFileUrl, // Use the source file's URL as base for its extra files
           entryUrl, // Keep the entry URL for final conversion
           loadSource,
-          parseSource,
+          sourceParser,
           sourceTransformers,
           loadSourceCache,
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
@@ -408,7 +408,7 @@ export async function loadVariant(
   url: string,
   variantName: string,
   variant: VariantCode | string | undefined,
-  parseSource?: ParseSource,
+  sourceParser?: Promise<ParseSource>,
   loadSource?: LoadSource,
   loadVariantMeta?: LoadVariantMeta,
   sourceTransformers?: SourceTransformers,
@@ -453,7 +453,7 @@ export async function loadVariant(
     variant.source,
     url,
     loadSource,
-    parseSource,
+    sourceParser,
     sourceTransformers,
     loadSourceCache,
     variant.transforms,
@@ -494,7 +494,7 @@ export async function loadVariant(
       url,
       url, // Entry URL is the same as the main file URL
       loadSource,
-      parseSource,
+      sourceParser,
       sourceTransformers,
       loadSourceCache,
       { ...options, loadedFiles },

@@ -73,7 +73,7 @@ export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-export type ParseSource = (source: string, fileName: string) => Promise<HastNodes>;
+export type ParseSource = (source: string, fileName: string) => HastNodes;
 
 export type SourceTransformer = {
   extensions: string[];
@@ -108,5 +108,5 @@ export interface CodeHighlighterProps extends CodeHighlighterBaseProps {
   loadVariantMeta?: LoadVariantMeta;
   loadSource?: LoadSource;
   sourceTransformers?: SourceTransformers;
-  parseSource?: ParseSource;
+  sourceParser?: Promise<ParseSource>;
 }

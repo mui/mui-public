@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Nodes as HastNodes } from 'hast';
-import { applyTransform, applyTransforms, getTransformKeys, hasTransform } from './applyTransform';
+import { applyTransform, applyTransforms } from './applyTransform';
 import type { VariantSource, Transforms } from './types';
 
 describe('applyTransform', () => {
@@ -172,58 +172,6 @@ describe('applyTransform', () => {
       expect(() =>
         applyTransforms(source, transforms, ['syntax-highlight', 'non-existent']),
       ).toThrow('Transform "non-existent" not found in transforms');
-    });
-  });
-
-  describe('getTransformKeys', () => {
-    it('should return all transform keys', () => {
-      const transforms: Transforms = {
-        'syntax-highlight': {
-          delta: [['code']],
-        },
-        'add-comments': {
-          delta: [['code with comments']],
-        },
-        'format-code': {
-          delta: [['formatted code']],
-        },
-      };
-
-      const keys = getTransformKeys(transforms);
-      expect(keys).toEqual(['syntax-highlight', 'add-comments', 'format-code']);
-    });
-
-    it('should return empty array for empty transforms', () => {
-      const transforms: Transforms = {};
-      const keys = getTransformKeys(transforms);
-      expect(keys).toEqual([]);
-    });
-  });
-
-  describe('hasTransform', () => {
-    it('should return true for existing transform', () => {
-      const transforms: Transforms = {
-        'syntax-highlight': {
-          delta: [['code']],
-        },
-      };
-
-      expect(hasTransform(transforms, 'syntax-highlight')).toBe(true);
-    });
-
-    it('should return false for non-existing transform', () => {
-      const transforms: Transforms = {
-        'syntax-highlight': {
-          delta: [['code']],
-        },
-      };
-
-      expect(hasTransform(transforms, 'non-existent')).toBe(false);
-    });
-
-    it('should return false for empty transforms', () => {
-      const transforms: Transforms = {};
-      expect(hasTransform(transforms, 'any-key')).toBe(false);
     });
   });
 });
