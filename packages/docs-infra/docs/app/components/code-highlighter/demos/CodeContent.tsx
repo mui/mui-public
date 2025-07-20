@@ -8,18 +8,14 @@ import Switch from '@/components/Switch/Switch';
 import '@wooorm/starry-night/style/light';
 
 export function CodeContent(props: ContentProps) {
-  const codeHook = useCode(props);
+  const code = useCode(props);
 
-  if (!props.code?.Default) {
-    return <div>No code available</div>;
-  }
-
-  const hasJsTransform = codeHook.availableTransforms.includes('js');
-  const isJsSelected = codeHook.selectedTransform === 'js';
+  const hasJsTransform = code.availableTransforms.includes('js');
+  const isJsSelected = code.selectedTransform === 'js';
 
   const toggleJs = React.useCallback(() => {
-    codeHook.selectTransform(isJsSelected ? null : 'js');
-  }, [codeHook, isJsSelected]);
+    code.selectTransform(isJsSelected ? null : 'js');
+  }, [code, isJsSelected]);
 
   return (
     <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
@@ -32,7 +28,7 @@ export function CodeContent(props: ContentProps) {
           borderBottom: '1px solid #ccc',
         }}
       >
-        <span>{codeHook.selectedFileName}</span>
+        <span>{code.selectedFileName}</span>
         <div style={{ display: hasJsTransform ? 'flex' : 'none' }}>
           <Switch
             value={isJsSelected}
@@ -44,7 +40,7 @@ export function CodeContent(props: ContentProps) {
           />
         </div>
       </div>
-      <pre style={{ padding: '12px' }}>{codeHook.selectedFile}</pre>
+      <pre style={{ padding: '12px' }}>{code.selectedFile}</pre>
     </div>
   );
 }

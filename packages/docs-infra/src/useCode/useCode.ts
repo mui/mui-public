@@ -8,15 +8,8 @@ import { useCopier, UseCopierOpts } from '../useCopier';
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import { ContentProps } from '../CodeHighlighter/types';
 import { applyTransform } from '../CodeHighlighter/applyTransform';
-import { stringOrHastToJsx, stringOrHastToString } from '../hast/hast';
 
 type Source = Nodes;
-export type Variant = {
-  component: React.ReactNode;
-  fileName: string;
-  source: Source;
-  extraSource?: { [key: string]: Source };
-};
 
 type UseCodeOpts = {
   defaultOpen?: boolean;
@@ -67,60 +60,30 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
     ref.current?.focus();
   }, []);
 
-  // Convert ContentProps to internal variant format
-  const codeData = React.useMemo(() => {
-    const variants: { [key: string]: Variant } = {};
+  // Get the effective code - context overrides contentProps if available
+  const effectiveCode = React.useMemo(() => {
+    return context?.code || contentProps.code || {};
+  }, [context?.code, contentProps.code]);
 
-    if (contentProps.code) {
-      Object.entries(contentProps.code).forEach(([variantKey, variantValue]) => {
-        if (variantValue && typeof variantValue === 'object' && 'source' in variantValue) {
-          // This is a VariantCode
-          variants[variantKey] = {
-            component: contentProps.components?.[variantKey] || null,
-            fileName: variantValue.fileName,
-            source: variantValue.source as any, // Type assertion needed here
-            extraSource: variantValue.extraFiles as any, // Type assertion needed here
-          };
-        }
-      });
-    }
+  // Get variant keys from effective code
+  const variantKeys = React.useMemo(() => {
+    return Object.keys(effectiveCode).filter((key) => {
+      const variant = effectiveCode[key];
+      return variant && typeof variant === 'object' && 'source' in variant;
+    });
+  }, [effectiveCode]);
 
-    return { variants };
-  }, [contentProps.code, contentProps.components]);
-
-  // If context provides code, it should override the passed contentProps
-  const effectiveCodeData = React.useMemo(() => {
-    if (context?.code) {
-      // Convert context code to CodeData format
-      const contextVariants: { [key: string]: Variant } = {};
-
-      Object.entries(context.code).forEach(([variantKey, variantValue]) => {
-        if (variantValue && typeof variantValue === 'object' && 'source' in variantValue) {
-          // This is a VariantCode
-          contextVariants[variantKey] = {
-            component: context.components?.[variantKey] || null,
-            fileName: variantValue.fileName,
-            source: variantValue.source as any, // Type assertion needed here
-            extraSource: variantValue.extraFiles as any, // Type assertion needed here
-          };
-        }
-      });
-
-      return Object.keys(contextVariants).length > 0 ? { variants: contextVariants } : codeData;
-    }
-    return codeData;
-  }, [context?.code, context?.components, codeData]);
-
-  const variantKeys = React.useMemo(
-    () => Object.keys(effectiveCodeData.variants),
-    [effectiveCodeData.variants],
+  const [selectedVariantKey, setSelectedVariantKey] = React.useState<string>(
+    initialVariant || variantKeys[0] || '',
   );
 
-  // Use context to override initial variant if available
-  const effectiveInitialVariant = initialVariant || variantKeys[0];
-  const [selectedVariantKey, setSelectedVariantKey] =
-    React.useState<string>(effectiveInitialVariant);
-  const selectedVariant = effectiveCodeData.variants[selectedVariantKey];
+  const selectedVariant = React.useMemo(() => {
+    const variant = effectiveCode[selectedVariantKey];
+    if (variant && typeof variant === 'object' && 'source' in variant) {
+      return variant;
+    }
+    return null;
+  }, [effectiveCode, selectedVariantKey]);
 
   // Safety check: if selectedVariant doesn't exist, fall back to first variant
   React.useEffect(() => {
@@ -129,7 +92,7 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
     }
   }, [selectedVariant, variantKeys]);
 
-  // Transform state - get available transforms from context or from the code data
+  // Transform state - get available transforms from context or from the effective code data
   const availableTransforms = React.useMemo(() => {
     // First try to get from context
     if (context?.availableTransforms && context.availableTransforms.length > 0) {
@@ -138,8 +101,8 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
 
     // Otherwise, get from the effective code data
     const transforms = new Set<string>();
-    if (contentProps.code && selectedVariantKey) {
-      const variantCode = contentProps.code[selectedVariantKey];
+    if (effectiveCode && selectedVariantKey) {
+      const variantCode = effectiveCode[selectedVariantKey];
       if (
         variantCode &&
         typeof variantCode === 'object' &&
@@ -153,321 +116,296 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
     }
 
     return Array.from(transforms);
-  }, [context?.availableTransforms, contentProps.code, selectedVariantKey]);
+  }, [context?.availableTransforms, effectiveCode, selectedVariantKey]);
 
-  // Use context transform state if available, otherwise local state
-  const contextHasTransformState =
-    context?.selectedTransform !== undefined || context?.setSelectedTransform !== undefined;
-  const [localSelectedTransform, setLocalSelectedTransform] = React.useState<string | null>(
-    initialTransform || null, // Don't default to first available transform
+  const [selectedTransform, setSelectedTransform] = React.useState<string | null>(
+    initialTransform || null,
   );
 
-  const selectedTransform = contextHasTransformState
-    ? context?.selectedTransform
-    : localSelectedTransform;
-  const setSelectedTransformState = contextHasTransformState
-    ? context?.setSelectedTransform
-    : setLocalSelectedTransform;
-
-  const [selectedFileName, setSelectedFileName] = React.useState(selectedVariant?.fileName || '');
-
-  // Update selectedFileName when transforms change the file names
-  React.useEffect(() => {
-    if (!selectedVariant) {
-      return;
+  // Memoize all transformed files based on selectedTransform
+  const transformedFiles = React.useMemo(() => {
+    // Only create transformed files when there's actually a transform selected
+    if (!selectedVariant || !selectedTransform) {
+      return undefined;
     }
 
-    // Get the transformed name for the current selection
-    const getTransformedFileName = (originalFileName: string) => {
-      // If no transform is selected, use original name
-      if (!selectedTransform) {
-        return originalFileName;
+    const files: Array<{
+      name: string;
+      originalName: string;
+      source: Source;
+      component: React.ReactNode;
+    }> = [];
+    const filenameMap: { [originalName: string]: string } = {};
+
+    // Helper function to apply transform to a source
+    const applyTransformToSource = (source: any, fileName: string, transforms: any) => {
+      if (!transforms?.[selectedTransform]) {
+        return { transformedSource: source, transformedName: fileName };
       }
 
-      // Get the variant code to check for transforms
-      if (contentProps.code && selectedVariantKey) {
-        const variantCode = contentProps.code[selectedVariantKey];
-        if (
-          variantCode &&
-          typeof variantCode === 'object' &&
-          'transforms' in variantCode &&
-          variantCode.transforms
-        ) {
-          // Check main variant transforms
-          if (originalFileName === selectedVariant?.fileName) {
-            const transform = variantCode.transforms[selectedTransform];
-            if (transform?.fileName) {
-              return transform.fileName;
-            }
-          }
-
-          // Check extraFile transforms
-          if (variantCode.extraFiles && variantCode.extraFiles[originalFileName]) {
-            const extraFileData = variantCode.extraFiles[originalFileName];
-            if (
-              extraFileData &&
-              typeof extraFileData === 'object' &&
-              'transforms' in extraFileData &&
-              extraFileData.transforms
-            ) {
-              const extraTransform = extraFileData.transforms[selectedTransform];
-              if (extraTransform?.fileName) {
-                return extraTransform.fileName;
-              }
-            }
-          }
+      try {
+        // Get transform data
+        const transformData = transforms[selectedTransform];
+        if (!transformData || typeof transformData !== 'object' || !('delta' in transformData)) {
+          return { transformedSource: source, transformedName: fileName };
         }
-      }
 
-      return originalFileName;
+        // Apply transform
+        const result = applyTransform(source as Source, transforms, selectedTransform);
+        const transformedName = transformData.fileName || fileName;
+
+        return { transformedSource: result, transformedName };
+      } catch (error) {
+        console.error(`Transform failed for ${fileName}:`, error);
+        return { transformedSource: source, transformedName: fileName };
+      }
     };
 
-    // If the current selectedFileName doesn't match any available files,
-    // default to the main file's (possibly transformed) name
-    const transformedMainFileName = getTransformedFileName(selectedVariant.fileName);
-    if (
-      selectedFileName !== transformedMainFileName &&
-      !selectedVariant.extraSource?.[selectedFileName]
-    ) {
-      setSelectedFileName(transformedMainFileName);
+    // Process main file - get transforms from selectedVariant
+    const variantTransforms =
+      'transforms' in selectedVariant ? selectedVariant.transforms : undefined;
+    const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
+      selectedVariant.source,
+      selectedVariant.fileName,
+      variantTransforms,
+    );
+
+    filenameMap[selectedVariant.fileName] = mainName;
+    files.push({
+      name: mainName,
+      originalName: selectedVariant.fileName,
+      source: mainSource as Source,
+      component: toComponent(mainSource as Source),
+    });
+
+    // Process extra files
+    if (selectedVariant.extraFiles) {
+      Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
+        let source: any;
+        let transforms: any;
+
+        // Handle different extraFile structures
+        if (typeof fileData === 'string') {
+          source = fileData;
+          transforms = variantTransforms;
+        } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
+          source = fileData.source;
+          transforms = fileData.transforms || variantTransforms;
+        } else {
+          return; // Skip invalid entries
+        }
+
+        // Apply transforms if available
+        let transformedSource = source;
+        let transformedName = fileName;
+
+        if (transforms?.[selectedTransform]) {
+          try {
+            const transformData = transforms[selectedTransform];
+            if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
+              transformedSource = applyTransform(source as Source, transforms, selectedTransform);
+              transformedName = transformData.fileName || fileName;
+            }
+          } catch (error) {
+            console.error(`Transform failed for ${fileName}:`, error);
+          }
+        }
+
+        filenameMap[fileName] = transformedName;
+        files.push({
+          name: transformedName,
+          originalName: fileName,
+          source: transformedSource as Source,
+          component: toComponent(transformedSource as Source),
+        });
+      });
     }
-  }, [selectedTransform, selectedVariant, selectedVariantKey, contentProps.code, selectedFileName]);
+
+    return { files, filenameMap };
+  }, [selectedVariant, selectedTransform]);
+
+  // Keep selectedFileName as untransformed filename for internal tracking
+  const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState(
+    selectedVariant?.fileName || '',
+  );
+
+  // Reset selectedFileName when variant changes
+  React.useEffect(() => {
+    if (selectedVariant && selectedFileNameInternal !== selectedVariant.fileName) {
+      // Only reset if current selectedFileName doesn't exist in the new variant
+      const hasFile =
+        selectedVariant.fileName === selectedFileNameInternal ||
+        (selectedVariant.extraFiles && selectedVariant.extraFiles[selectedFileNameInternal]);
+
+      if (!hasFile) {
+        setSelectedFileNameInternal(selectedVariant.fileName);
+      }
+    }
+  }, [selectedVariant, selectedFileNameInternal]);
+
+  // Compute the displayed filename (transformed if applicable)
+  const selectedFileName = React.useMemo(() => {
+    if (!selectedVariant) {
+      return '';
+    }
+
+    // If we have transformed files, return the transformed name
+    if (transformedFiles) {
+      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
+      return file ? file.name : selectedFileNameInternal;
+    }
+
+    // Otherwise, return the original filename
+    return selectedFileNameInternal;
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
   const selectedFile = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
     }
-    return selectedFileName === selectedVariant.fileName
-      ? selectedVariant.source
-      : selectedVariant.extraSource?.[selectedFileName];
-  }, [selectedFileName, selectedVariant]);
 
-  // Apply transform to sources when a transform is selected
-  const getTransformedSource = React.useCallback(
-    (source: Source, fileName: string) => {
-      if (!selectedTransform) {
+    // If we have transformed files, use them
+    if (transformedFiles) {
+      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
+      return file ? file.source : null;
+    }
+
+    // Otherwise, use the original untransformed files
+    if (selectedFileNameInternal === selectedVariant.fileName) {
+      return selectedVariant.source;
+    }
+
+    // Look in extraFiles
+    if (selectedVariant.extraFiles && selectedVariant.extraFiles[selectedFileNameInternal]) {
+      const extraFile = selectedVariant.extraFiles[selectedFileNameInternal];
+      if (typeof extraFile === 'string') {
+        return extraFile;
+      }
+      if (extraFile && typeof extraFile === 'object' && 'source' in extraFile) {
+        return extraFile.source;
+      }
+    }
+
+    return null;
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
+
+  const selectedFileComponent = React.useMemo(() => {
+    if (!selectedVariant) {
+      return null;
+    }
+
+    // If we have transformed files, use them
+    if (transformedFiles) {
+      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
+      return file ? file.component : null;
+    }
+
+    // Otherwise, create component from original untransformed files
+    if (selectedFileNameInternal === selectedVariant.fileName) {
+      return toComponent(selectedVariant.source as Source);
+    }
+
+    // Look in extraFiles
+    if (selectedVariant.extraFiles && selectedVariant.extraFiles[selectedFileNameInternal]) {
+      const extraFile = selectedVariant.extraFiles[selectedFileNameInternal];
+      let source: any;
+
+      if (typeof extraFile === 'string') {
+        source = extraFile;
+      } else if (extraFile && typeof extraFile === 'object' && 'source' in extraFile) {
+        source = extraFile.source;
+      } else {
         return null;
       }
 
-      // Get the variant code to access transforms
-      if (contentProps.code && selectedVariantKey) {
-        const variantCode = contentProps.code[selectedVariantKey];
-        if (
-          variantCode &&
-          typeof variantCode === 'object' &&
-          'transforms' in variantCode &&
-          variantCode.transforms
-        ) {
-          try {
-            // For the main file, apply the transform directly
-            if (fileName === selectedVariant?.fileName) {
-              if (variantCode.transforms[selectedTransform]) {
-                // Additional validation: check if the transform has the required structure
-                const transformData = variantCode.transforms[selectedTransform];
-                if (
-                  transformData &&
-                  typeof transformData === 'object' &&
-                  'delta' in transformData
-                ) {
-                  try {
-                    // applyTransform now handles both string and Hast node sources properly
-                    const result = applyTransform(
-                      source,
-                      variantCode.transforms,
-                      selectedTransform,
-                    );
-                    return result;
-                  } catch (transformError) {
-                    console.error(`Transform failed for main file ${fileName}:`, transformError);
-                    return null;
-                  }
-                }
-              }
-            } else if (variantCode.extraFiles && variantCode.extraFiles[fileName]) {
-              // For extra files, handle the different data structures
-              const extraFileData = variantCode.extraFiles[fileName];
-              let extraFileSource: any;
-              let extraFileTransforms: any;
-
-              // extraFiles can have different structures
-              if (typeof extraFileData === 'string') {
-                extraFileSource = extraFileData;
-                extraFileTransforms = variantCode.transforms;
-              } else if (
-                extraFileData &&
-                typeof extraFileData === 'object' &&
-                'source' in extraFileData
-              ) {
-                // Pass the raw source directly to applyTransform - it will handle format detection
-                extraFileSource = extraFileData.source;
-                extraFileTransforms = extraFileData.transforms || variantCode.transforms;
-              }
-
-              // Only apply transform if we have both source and transforms with the selected transform
-              if (
-                extraFileSource &&
-                extraFileTransforms &&
-                extraFileTransforms[selectedTransform]
-              ) {
-                // Additional validation: check if the transform has the required structure
-                const transformData = extraFileTransforms[selectedTransform];
-                if (
-                  transformData &&
-                  typeof transformData === 'object' &&
-                  'delta' in transformData
-                ) {
-                  try {
-                    // applyTransform now handles both string and Hast node sources properly
-                    const result = applyTransform(
-                      extraFileSource,
-                      extraFileTransforms,
-                      selectedTransform,
-                    );
-                    return result;
-                  } catch (transformError) {
-                    console.error(`Transform failed for ${fileName}:`, transformError);
-                    return null;
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.warn('Failed to apply transform to', fileName, ':', error);
-            return null;
-          }
-        }
-      }
-
-      return null;
-    },
-    [selectedTransform, contentProps.code, selectedVariantKey, selectedVariant],
-  ); // if copying, convert the selected file's hast to text
-  const sourceFileToText = React.useCallback(() => {
-    if (!selectedFile) {
-      return undefined;
+      return toComponent(source as Source);
     }
 
-    // First try to get transformed source
-    const transformedSource = getTransformedSource(selectedFile, selectedFileName);
-    if (transformedSource) {
-      // Use the hast utility to convert any source type to string
-      return stringOrHastToString(transformedSource);
-    }
+    return null;
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
-    // Fall back to original source
-    if (typeof selectedFile === 'string') {
-      return selectedFile;
-    }
-
-    return toText(selectedFile, { whitespace: 'pre' });
-  }, [selectedFile, selectedFileName, getTransformedSource]);
-  const { copy, disabled: copyDisabled } = useCopier(sourceFileToText, copyOpts);
-
-  // transform hast source to React components
+  // Convert files for the return interface
   const files = React.useMemo(() => {
     if (!selectedVariant) {
       return [];
     }
 
-    const getTransformedFileName = (originalFileName: string) => {
-      // If no transform is selected, use original name
-      if (!selectedTransform) {
-        return originalFileName;
-      }
+    // If we have transformed files, use them
+    if (transformedFiles) {
+      return transformedFiles.files.map((f) => ({
+        name: f.name,
+        component: f.component,
+      }));
+    }
 
-      // Get the variant code to check for transforms
-      if (contentProps.code && selectedVariantKey) {
-        const variantCode = contentProps.code[selectedVariantKey];
-        if (
-          variantCode &&
-          typeof variantCode === 'object' &&
-          'transforms' in variantCode &&
-          variantCode.transforms
-        ) {
-          // Check main variant transforms
-          if (originalFileName === selectedVariant?.fileName) {
-            const transform = variantCode.transforms[selectedTransform];
-            if (transform?.fileName) {
-              return transform.fileName;
-            }
-          }
-
-          // Check extraFile transforms
-          if (variantCode.extraFiles && variantCode.extraFiles[originalFileName]) {
-            const extraFileData = variantCode.extraFiles[originalFileName];
-            if (
-              extraFileData &&
-              typeof extraFileData === 'object' &&
-              'transforms' in extraFileData &&
-              extraFileData.transforms
-            ) {
-              const extraTransform = extraFileData.transforms[selectedTransform];
-              if (extraTransform?.fileName) {
-                return extraTransform.fileName;
-              }
-            }
-          }
-        }
-      }
-
-      return originalFileName;
-    };
-
-    const processSource = (source: Source, fileName: string) => {
-      // First try to get transformed source
-      const transformedSource = getTransformedSource(source, fileName);
-      if (transformedSource) {
-        // Handle different types of transformed source
-        if (typeof transformedSource === 'string') {
-          // If it's a string, we need to render it as text (no syntax highlighting)
-          return transformedSource;
-        }
-        // If it's Hast nodes, render with syntax highlighting
-        return stringOrHastToJsx(transformedSource);
-      }
-
-      // Fall back to original source
-      return toComponent(source);
-    };
-
-    const extraSource = selectedVariant.extraSource;
-    return [
+    // Otherwise, create files from original untransformed data
+    const result = [
       {
-        name: getTransformedFileName(selectedVariant.fileName),
-        component: processSource(selectedVariant.source, selectedVariant.fileName),
+        name: selectedVariant.fileName,
+        component: toComponent(selectedVariant.source as Source),
       },
-      ...(extraSource
-        ? Object.keys(extraSource).map((name) => ({
-            name: getTransformedFileName(name),
-            component: processSource(extraSource[name], name),
-          }))
-        : []),
     ];
-  }, [
-    selectedVariant,
-    getTransformedSource,
-    selectedTransform,
-    contentProps.code,
-    selectedVariantKey,
-  ]);
 
-  const selectedFileComponent = React.useMemo(() => {
-    const matchedFile = files.find((file) => file.name === selectedFileName);
-    return matchedFile ? matchedFile.component : null;
-  }, [files, selectedFileName]);
+    if (selectedVariant.extraFiles) {
+      Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
+        let source: any;
+
+        if (typeof fileData === 'string') {
+          source = fileData;
+        } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
+          source = fileData.source;
+        } else {
+          return; // Skip invalid entries
+        }
+
+        result.push({
+          name: fileName,
+          component: toComponent(source as Source),
+        });
+      });
+    }
+
+    return result;
+  }, [selectedVariant, transformedFiles]);
+
+  const sourceFileToText = React.useCallback((): string | undefined => {
+    if (!selectedFile) {
+      return undefined;
+    }
+
+    if (typeof selectedFile === 'string') {
+      return selectedFile;
+    }
+
+    if (selectedFile && typeof selectedFile === 'object' && 'hastJson' in selectedFile) {
+      return (selectedFile as { hastJson: string }).hastJson;
+    }
+
+    return toText(selectedFile as Source, { whitespace: 'pre' });
+  }, [selectedFile]);
+
+  const { copy, disabled: copyDisabled } = useCopier(sourceFileToText, copyOpts);
 
   // Function to switch to a specific transform
   const selectTransform = React.useCallback(
     (transformName: string | null) => {
       if (!transformName || availableTransforms.includes(transformName)) {
-        setSelectedTransformState?.(transformName);
+        setSelectedTransform(transformName);
+      } else {
+        setSelectedTransform(null);
       }
     },
-    [availableTransforms, setSelectedTransformState],
+    [availableTransforms],
   );
 
+  // Get the effective components object - context overrides contentProps
+  // Components are kept separate from variant data to maintain clean separation of concerns
+  const effectiveComponents = React.useMemo(() => {
+    return context?.components || contentProps.components || {};
+  }, [context?.components, contentProps.components]);
+
   return {
-    component: selectedVariant.component,
+    component: effectiveComponents[selectedVariantKey] || null,
     ref,
     variants: variantKeys,
     selectedVariant: selectedVariantKey,
@@ -475,7 +413,7 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
     files,
     selectedFile: selectedFileComponent,
     selectedFileName,
-    selectFileName: setSelectedFileName,
+    selectFileName: setSelectedFileNameInternal,
     expanded,
     expand,
     setExpanded,

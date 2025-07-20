@@ -1,4 +1,4 @@
-import { patch } from 'jsondiffpatch';
+import { patch, clone } from 'jsondiffpatch';
 import type { Nodes as HastNodes } from 'hast';
 import type { VariantSource, Transforms } from './types';
 
@@ -44,7 +44,7 @@ export function applyTransform(
   }
 
   // Apply the node-based delta
-  const patchedNodes = patch(sourceNodes, transform.delta);
+  const patchedNodes = patch(clone(sourceNodes), transform.delta);
 
   if (!patchedNodes) {
     throw new Error(`Patch for transform "${transformKey}" returned null/undefined`);

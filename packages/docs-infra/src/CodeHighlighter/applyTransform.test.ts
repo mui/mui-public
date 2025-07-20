@@ -219,6 +219,372 @@ describe('applyTransform', () => {
     });
   });
 
+  describe('Input immutability tests', () => {
+    describe('HastNodes source immutability', () => {
+      it('should not mutate original HastNodes when applying transform', () => {
+        const originalSource: HastNodes = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'code',
+              properties: { className: ['language-js'] },
+              children: [
+                { type: 'text', value: 'const x = 1;' },
+                { type: 'text', value: '\nconst y = 2;' },
+              ],
+            },
+          ],
+        };
+
+        // Create a deep copy for comparison
+        const originalCopy = JSON.parse(JSON.stringify(originalSource));
+
+        const transforms: Transforms = {
+          'modify-content': {
+            delta: {
+              children: {
+                0: {
+                  children: {
+                    0: {
+                      value: ['const x = 42; // modified'],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        };
+
+        // Apply transform
+        const result = applyTransform(originalSource, transforms, 'modify-content');
+
+        // Verify original is unchanged
+        expect(originalSource).toEqual(originalCopy);
+        
+        // Verify result is different and correct
+        expect(result).not.toEqual(originalSource);
+        const resultRoot = result as HastNodes;
+        if ('children' in resultRoot && resultRoot.children) {
+          const resultElement = resultRoot.children[0] as any;
+          if (resultElement && resultElement.children && Array.isArray(resultElement.children)) {
+            expect(resultElement.children[0]).toEqual({ type: 'text', value: 'const x = 42; // modified' });
+          }
+        }
+      });
+
+      it('should not mutate nested properties in HastNodes', () => {
+        const originalSource: HastNodes = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'pre',
+              properties: {
+                className: ['language-javascript'],
+                'data-line-numbers': true,
+              },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'code',
+                  properties: { 'data-lang': 'js' },
+                  children: [{ type: 'text', value: 'function test() { return true; }' }],
+                },
+              ],
+            },
+          ],
+        };
+
+        const originalCopy = JSON.parse(JSON.stringify(originalSource));
+
+        const transforms: Transforms = {
+          'add-highlighting': {
+            delta: {
+              children: {
+                0: {
+                  properties: {
+                    className: [['language-javascript', 'hljs']],
+                    'data-highlighted': [true],
+                  },
+                  children: {
+                    0: {
+                      children: {
+                        0: {
+                          value: ['function test() { /* highlighted */ return true; }'],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        };
+
+        applyTransform(originalSource, transforms, 'add-highlighting');
+
+        // Verify nested properties are not mutated
+        expect(originalSource).toEqual(originalCopy);
+        const originalElement = originalSource.children[0] as any;
+        expect(originalElement.properties).toEqual({
+          className: ['language-javascript'],
+          'data-line-numbers': true,
+        });
+      });
+
+      it('should not mutate original arrays within HastNodes', () => {
+        const sharedClassNames = ['language-js', 'theme-dark'];
+        const originalSource: HastNodes = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'code',
+              properties: { className: sharedClassNames }, // Reference to shared array
+              children: [{ type: 'text', value: 'console.log("test");' }],
+            },
+          ],
+        };
+
+        const originalCopy = JSON.parse(JSON.stringify(originalSource));
+        const originalSharedArray = [...sharedClassNames];
+
+        const transforms: Transforms = {
+          'modify-classes': {
+            delta: {
+              children: {
+                0: {
+                  properties: {
+                    className: [['language-js', 'theme-dark', 'highlighted']],
+                  },
+                },
+              },
+            },
+          },
+        };
+
+        applyTransform(originalSource, transforms, 'modify-classes');
+
+        // Verify original shared array is unchanged
+        expect(sharedClassNames).toEqual(originalSharedArray);
+        expect(originalSource).toEqual(originalCopy);
+      });
+    });
+
+    describe('hastJson source immutability', () => {
+      it('should not mutate original hastJson object when applying transform', () => {
+        const hastData = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'div',
+              properties: { className: ['code-container'] },
+              children: [{ type: 'text', value: 'original text' }],
+            },
+          ],
+        };
+
+        const originalSource: VariantSource = { hastJson: JSON.stringify(hastData) };
+        const originalCopy = { hastJson: originalSource.hastJson };
+
+        const transforms: Transforms = {
+          'update-text': {
+            delta: {
+              children: {
+                0: {
+                  children: {
+                    0: {
+                      value: ['modified text'],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        };
+
+        const result = applyTransform(originalSource, transforms, 'update-text');
+
+        // Verify original hastJson is unchanged
+        expect(originalSource).toEqual(originalCopy);
+        expect(originalSource.hastJson).toBe(originalCopy.hastJson);
+
+        // Verify result is different
+        expect(result).not.toEqual(originalSource);
+        const resultData = JSON.parse((result as { hastJson: string }).hastJson);
+        expect(resultData.children[0].children[0].value).toBe('modified text');
+      });
+    });
+
+    describe('Multiple transform immutability', () => {
+      it('should not mutate original source when applying multiple transforms', () => {
+        const originalSource: HastNodes = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'pre',
+              properties: {},
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'code',
+                  properties: {},
+                  children: [{ type: 'text', value: 'const value = 10;' }],
+                },
+              ],
+            },
+          ],
+        };
+
+        const originalCopy = JSON.parse(JSON.stringify(originalSource));
+
+        const transforms: Transforms = {
+          'first-transform': {
+            delta: {
+              children: {
+                0: {
+                  children: {
+                    0: {
+                      children: {
+                        0: {
+                          value: ['const value = 20; // first'],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          'second-transform': {
+            delta: {
+              children: {
+                0: {
+                  properties: {
+                    className: [['highlighted']],
+                  },
+                  children: {
+                    0: {
+                      children: {
+                        0: {
+                          value: ['const value = 30; // second'],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        };
+
+        // Apply multiple transforms
+        applyTransforms(originalSource, transforms, ['first-transform', 'second-transform']);
+
+        // Verify original is completely unchanged after multiple transforms
+        expect(originalSource).toEqual(originalCopy);
+      });
+    });
+
+    describe('Complex nested structure immutability', () => {
+      it('should not mutate deeply nested structures with complex transformations', () => {
+        const originalSource: HastNodes = {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'div',
+              properties: { className: ['container'] },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: { 'data-lang': 'typescript' },
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [
+                        { type: 'text', value: 'interface User {\n' },
+                        { type: 'text', value: '  name: string;\n' },
+                        { type: 'text', value: '  age: number;\n' },
+                        { type: 'text', value: '}' },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  type: 'element',
+                  tagName: 'div',
+                  properties: { className: ['metadata'] },
+                  children: [{ type: 'text', value: 'TypeScript interface' }],
+                },
+              ],
+            },
+          ],
+        };
+
+        const originalCopy = JSON.parse(JSON.stringify(originalSource));
+
+        const transforms: Transforms = {
+          'complex-transform': {
+            delta: {
+              children: {
+                0: {
+                  properties: {
+                    className: [['container', 'highlighted']],
+                    'data-transformed': [true],
+                  },
+                  children: {
+                    0: {
+                      children: {
+                        0: {
+                          properties: {
+                            className: [['language-ts', 'syntax-highlighted']],
+                          },
+                          children: {
+                            1: {
+                              value: ['  name: string; // User name'],
+                            },
+                            2: {
+                              value: ['  age: number; // User age'],
+                            },
+                          },
+                        },
+                      },
+                    },
+                    1: {
+                      children: {
+                        0: {
+                          value: ['TypeScript interface - Enhanced'],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        };
+
+        applyTransform(originalSource, transforms, 'complex-transform');
+
+        // Verify the deeply nested original structure remains unchanged
+        expect(originalSource).toEqual(originalCopy);
+        
+        // Specifically check that nested arrays and objects are untouched
+        const originalContainer = originalSource.children[0] as any;
+        const originalCopyContainer = originalCopy.children[0] as any;
+        expect(originalContainer.properties).toEqual(originalCopyContainer.properties);
+        expect(originalContainer.children).toEqual(originalCopyContainer.children);
+      });
+    });
+  });
+
   describe('Integration tests with real-world transformers', () => {
     const mockParseSource = vi.fn();
 

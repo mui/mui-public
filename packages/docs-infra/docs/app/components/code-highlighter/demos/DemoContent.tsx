@@ -8,22 +8,18 @@ import Switch from '@/components/Switch/Switch';
 import '@wooorm/starry-night/style/light';
 
 export function DemoContent(props: ContentProps) {
-  const demoHook = useDemo(props);
+  const demo = useDemo(props);
 
-  if (!props.code?.Default) {
-    return <div>No code available</div>;
-  }
-
-  const hasJsTransform = demoHook.availableTransforms.includes('js');
-  const isJsSelected = demoHook.selectedTransform === 'js';
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
 
   const toggleJs = React.useCallback(() => {
-    demoHook.selectTransform(isJsSelected ? undefined : 'js');
-  }, [demoHook, isJsSelected]);
+    demo.selectTransform(isJsSelected ? null : 'js');
+  }, [demo, isJsSelected]);
 
   return (
     <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
-      <div style={{ padding: '24px' }}>{props.components?.Default}</div>
+      <div style={{ padding: '24px' }}>{demo.component}</div>
       <div style={{ borderTop: '1px solid #ccc' }}>
         <div
           style={{
@@ -34,7 +30,7 @@ export function DemoContent(props: ContentProps) {
             padding: '12px',
           }}
         >
-          <span>{demoHook.selectedFileName}</span>
+          <span>{demo.selectedFileName}</span>
           <div style={{ display: hasJsTransform ? 'flex' : 'none' }}>
             <Switch
               value={isJsSelected}
@@ -46,7 +42,7 @@ export function DemoContent(props: ContentProps) {
             />
           </div>
         </div>
-        <pre style={{ padding: '12px' }}>{demoHook.selectedFile}</pre>
+        <pre style={{ padding: '12px' }}>{demo.selectedFile}</pre>
       </div>
     </div>
   );
