@@ -261,14 +261,17 @@ describe('applyTransform', () => {
 
         // Verify original is unchanged
         expect(originalSource).toEqual(originalCopy);
-        
+
         // Verify result is different and correct
         expect(result).not.toEqual(originalSource);
         const resultRoot = result as HastNodes;
         if ('children' in resultRoot && resultRoot.children) {
           const resultElement = resultRoot.children[0] as any;
           if (resultElement && resultElement.children && Array.isArray(resultElement.children)) {
-            expect(resultElement.children[0]).toEqual({ type: 'text', value: 'const x = 42; // modified' });
+            expect(resultElement.children[0]).toEqual({
+              type: 'text',
+              value: 'const x = 42; // modified',
+            });
           }
         }
       });
@@ -575,7 +578,7 @@ describe('applyTransform', () => {
 
         // Verify the deeply nested original structure remains unchanged
         expect(originalSource).toEqual(originalCopy);
-        
+
         // Specifically check that nested arrays and objects are untouched
         const originalContainer = originalSource.children[0] as any;
         const originalCopyContainer = originalCopy.children[0] as any;

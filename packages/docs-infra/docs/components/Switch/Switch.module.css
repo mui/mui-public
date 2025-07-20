@@ -6,9 +6,9 @@
   padding: 0.25rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1;
-  border: 1px solid #cbd5e0;
+  border: 1px solid #d0cdd7;
   background-color: #fff;
-  color: #4a5568;
+  color: #65636d;
   cursor: pointer;
   outline: none;
   transition:
@@ -30,14 +30,17 @@
 }
 
 .active {
-  background-color: #3182ce;
-  border-color: #3182ce;
+  background-color: color(display-p3 0.57 0.373 0.791);
+  background-color: #9a5cd0;
+  border-color: color(display-p3 0.57 0.373 0.791);
+  border-color: #9a5cd0;
   color: #fff;
 }
 
 .segment:hover {
-  background-color: #edf2f7;
+  background-color: #f2eff3;
 }
 .segment:hover.active {
-  background-color: #2b6cb0;
+  background-color: color(display-p3 0.523 0.318 0.751);
+  background-color: #8e4ec6;
 }

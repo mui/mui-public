@@ -1,0 +1,25 @@
+.container {
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #d0cdd7;
+}
+
+.switchContainer {
+  display: flex;
+}
+
+.switchContainerHidden {
+  display: none;
+}
+
+.codeBlock {
+  padding: 12px;
+  margin: 0;
+}

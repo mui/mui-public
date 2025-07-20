@@ -4,6 +4,8 @@ import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import Switch from '@/components/Switch/Switch';
+import { Tabs } from '@/components/Tabs';
+import styles from './DemoContent.module.css';
 
 import '@wooorm/starry-night/style/light';
 
@@ -18,20 +20,21 @@ export function DemoContent(props: ContentProps) {
   }, [demo, isJsSelected]);
 
   return (
-    <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
-      <div style={{ padding: '24px' }}>{demo.component}</div>
-      <div style={{ borderTop: '1px solid #ccc' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid #ccc',
-            padding: '12px',
-          }}
-        >
-          <span>{demo.selectedFileName}</span>
-          <div style={{ display: hasJsTransform ? 'flex' : 'none' }}>
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+      <div className={styles.codeSection}>
+        <div className={styles.header}>
+          <div className={styles.tabContainer}>
+            <Tabs
+              tabs={demo.files.map((file: { name: string; component: React.ReactNode }) => ({
+                name: file.name,
+                id: file.name,
+              }))}
+              selectedTabId={demo.selectedFileName}
+              onTabSelect={demo.selectFileName}
+            />
+          </div>
+          <div className={hasJsTransform ? styles.switchContainer : styles.switchContainerHidden}>
             <Switch
               value={isJsSelected}
               onChange={toggleJs}
@@ -42,7 +45,7 @@ export function DemoContent(props: ContentProps) {
             />
           </div>
         </div>
-        <pre style={{ padding: '12px' }}>{demo.selectedFile}</pre>
+        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
       </div>
     </div>
   );

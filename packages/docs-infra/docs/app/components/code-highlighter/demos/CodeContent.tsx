@@ -4,6 +4,7 @@ import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import Switch from '@/components/Switch/Switch';
+import styles from './CodeContent.module.css';
 
 import '@wooorm/starry-night/style/light';
 
@@ -18,18 +19,10 @@ export function CodeContent(props: ContentProps) {
   }, [code, isJsSelected]);
 
   return (
-    <div style={{ border: '1px solid #ccc', borderRadius: '8px' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px',
-          borderBottom: '1px solid #ccc',
-        }}
-      >
+    <div className={styles.container}>
+      <div className={styles.header}>
         <span>{code.selectedFileName}</span>
-        <div style={{ display: hasJsTransform ? 'flex' : 'none' }}>
+        <div className={hasJsTransform ? styles.switchContainer : styles.switchContainerHidden}>
           <Switch
             value={isJsSelected}
             onChange={toggleJs}
@@ -40,7 +33,7 @@ export function CodeContent(props: ContentProps) {
           />
         </div>
       </div>
-      <pre style={{ padding: '12px' }}>{code.selectedFile}</pre>
+      <pre className={styles.codeBlock}>{code.selectedFile}</pre>
     </div>
   );
 }
