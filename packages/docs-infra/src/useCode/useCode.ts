@@ -30,7 +30,7 @@ export interface UseCodeResult {
   files: Array<{ name: string; component: React.ReactNode }>;
   selectedFile: React.ReactNode;
   selectedFileName: string;
-  selectFileName: React.Dispatch<React.SetStateAction<string>>;
+  selectFileName: (fileName: string) => void;
   expanded: boolean;
   expand: () => void;
   setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -187,10 +187,10 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
         // Handle different extraFile structures
         if (typeof fileData === 'string') {
           source = fileData;
-          transforms = variantTransforms;
+          transforms = undefined; // Don't inherit variant transforms for simple string files
         } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
           source = fileData.source;
-          transforms = fileData.transforms || variantTransforms;
+          transforms = fileData.transforms; // Only use explicit transforms for this file
         } else {
           return; // Skip invalid entries
         }
@@ -211,13 +211,30 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
           }
         }
 
-        filenameMap[fileName] = transformedName;
-        files.push({
-          name: transformedName,
-          originalName: fileName,
-          source: transformedSource as Source,
-          component: toComponent(transformedSource as Source),
-        });
+        // Only update filenameMap and add to files if this doesn't conflict with existing files
+        // If a file already exists with the target name, skip this transformation to preserve original files
+        const existingFile = files.find((f) => f.name === transformedName);
+        if (!existingFile) {
+          filenameMap[fileName] = transformedName;
+          files.push({
+            name: transformedName,
+            originalName: fileName,
+            source: transformedSource as Source,
+            component: toComponent(transformedSource as Source),
+          });
+        } else {
+          // If there's a conflict, keep the original file untransformed
+          console.warn(
+            `Transform conflict: ${fileName} would transform to ${transformedName} but that name is already taken. Keeping original file untransformed.`,
+          );
+          filenameMap[fileName] = fileName;
+          files.push({
+            name: fileName,
+            originalName: fileName,
+            source: source as Source,
+            component: toComponent(source as Source),
+          });
+        }
       });
     }
 
@@ -398,6 +415,36 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
     [availableTransforms],
   );
 
+  // Create a wrapper for selectFileName that handles transformed filenames
+  const selectFileName = React.useCallback(
+    (fileName: string) => {
+      if (!selectedVariant) {
+        return;
+      }
+
+      // If we have transformed files, we need to reverse-lookup the original filename
+      if (transformedFiles) {
+        // Check if the fileName is a transformed name - if so, find the original
+        const fileByTransformedName = transformedFiles.files.find((f) => f.name === fileName);
+        if (fileByTransformedName) {
+          setSelectedFileNameInternal(fileByTransformedName.originalName);
+          return;
+        }
+
+        // Check if the fileName is already an original name
+        const fileByOriginalName = transformedFiles.files.find((f) => f.originalName === fileName);
+        if (fileByOriginalName) {
+          setSelectedFileNameInternal(fileName);
+          return;
+        }
+      }
+
+      // If no transformed files or fileName not found, set directly (fallback for untransformed mode)
+      setSelectedFileNameInternal(fileName);
+    },
+    [selectedVariant, transformedFiles],
+  );
+
   // Get the effective components object - context overrides contentProps
   // Components are kept separate from variant data to maintain clean separation of concerns
   const effectiveComponents = React.useMemo(() => {
@@ -413,7 +460,7 @@ export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCode
     files,
     selectedFile: selectedFileComponent,
     selectedFileName,
-    selectFileName: setSelectedFileNameInternal,
+    selectFileName,
     expanded,
     expand,
     setExpanded,

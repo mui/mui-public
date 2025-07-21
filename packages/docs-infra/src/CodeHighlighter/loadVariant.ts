@@ -233,7 +233,11 @@ async function loadSingleFile(
   // Apply source transformers if no transforms exist and transforms are not disabled
   let finalTransforms = transforms;
   if (sourceTransformers && !finalTransforms && !disableTransforms && finalSource) {
-    finalTransforms = await transformSource(finalSource, fileName, sourceTransformers);
+    finalTransforms = await transformSource(
+      finalSource,
+      normalizePathKey(fileName),
+      sourceTransformers,
+    );
   }
 
   // Parse source if it's a string and parsing is not disabled
@@ -253,7 +257,7 @@ async function loadSingleFile(
         finalTransforms = await transformParsedSource(
           sourceString,
           finalSource,
-          fileName,
+          normalizePathKey(fileName),
           finalTransforms,
           parseSource,
         );
