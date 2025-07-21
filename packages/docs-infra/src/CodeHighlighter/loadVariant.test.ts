@@ -371,22 +371,22 @@ describe('loadVariant', () => {
 
       // Verify that all extraFiles keys remain relative to the entrypoint
       expect(result.code.extraFiles).toBeDefined();
-      expect(result.code.extraFiles!['./createDemo.ts']).toBeDefined();
-      expect(result.code.extraFiles!['./BasicCheckbox.tsx']).toBeDefined();
-      expect(result.code.extraFiles!['./DemoContent.tsx']).toBeDefined();
-      expect(result.code.extraFiles!['./DemoContent.module.css']).toBeDefined();
+      expect(result.code.extraFiles!['createDemo.ts']).toBeDefined();
+      expect(result.code.extraFiles!['BasicCheckbox.tsx']).toBeDefined();
+      expect(result.code.extraFiles!['DemoContent.tsx']).toBeDefined();
+      expect(result.code.extraFiles!['DemoContent.module.css']).toBeDefined();
 
       // Verify the content is correct
-      expect((result.code.extraFiles!['./createDemo.ts'] as any).source).toBe(
+      expect((result.code.extraFiles!['createDemo.ts'] as any).source).toBe(
         'const createDemo = true;',
       );
-      expect((result.code.extraFiles!['./BasicCheckbox.tsx'] as any).source).toBe(
+      expect((result.code.extraFiles!['BasicCheckbox.tsx'] as any).source).toBe(
         'const BasicCheckbox = true;',
       );
-      expect((result.code.extraFiles!['./DemoContent.tsx'] as any).source).toBe(
+      expect((result.code.extraFiles!['DemoContent.tsx'] as any).source).toBe(
         'const DemoContent = true;',
       );
-      expect((result.code.extraFiles!['./DemoContent.module.css'] as any).source).toBe(
+      expect((result.code.extraFiles!['DemoContent.module.css'] as any).source).toBe(
         '.demo { color: blue; }',
       );
 
@@ -403,6 +403,75 @@ describe('loadVariant', () => {
         'file:///a/b/BasicCheckbox.tsx',
         'file:///DemoContent.tsx',
         'file:///DemoContent.module.css',
+      ]);
+    });
+
+    it('should handle different relative path formats in extraFiles keys', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///src/main.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          'components/Button.tsx': 'file:///src/components/Button.tsx',
+        },
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///src/components/Button.tsx') {
+          return Promise.resolve({
+            source: 'const Button = () => <button>Click</button>;',
+            extraFiles: {
+              'helper.ts': 'file:///src/helper.ts', // bare format (no ./ prefix)
+              './../utils.ts': 'file:///utils.ts', // ./../ format
+            },
+          });
+        }
+        if (url === 'file:///src/helper.ts') {
+          return Promise.resolve({
+            source: 'const helper = true;',
+          });
+        }
+        if (url === 'file:///utils.ts') {
+          return Promise.resolve({
+            source: 'const utils = true;',
+          });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///src/main.ts',
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.extraFiles).toBeDefined();
+
+      const utilsKey = 'utils.ts';
+      const helperKey = 'components/helper.ts';
+      const buttonKey = 'components/Button.tsx';
+
+      expect(result.code.extraFiles![utilsKey]).toBeDefined();
+      expect((result.code.extraFiles![utilsKey] as any).source).toBe('const utils = true;');
+
+      expect(result.code.extraFiles![helperKey]).toBeDefined();
+      expect((result.code.extraFiles![helperKey] as any).source).toBe('const helper = true;');
+
+      expect(result.code.extraFiles![buttonKey]).toBeDefined();
+      expect((result.code.extraFiles![buttonKey] as any).source).toBe(
+        'const Button = () => <button>Click</button>;',
+      );
+
+      expect(result.dependencies).toEqual([
+        'file:///src/main.ts',
+        'file:///src/components/Button.tsx',
+        'file:///src/helper.ts',
+        'file:///utils.ts',
       ]);
     });
   });
@@ -919,7 +988,7 @@ describe('loadVariant', () => {
 
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['../helper.ts'] as any).source).toBe('const helper = true;');
-      expect((result.code.extraFiles!['./utils.ts'] as any).source).toBe('const utils = true;');
+      expect((result.code.extraFiles!['utils.ts'] as any).source).toBe('const utils = true;');
       expect(result.dependencies).toEqual([
         'file:///main.ts',
         'file:///helper.ts',

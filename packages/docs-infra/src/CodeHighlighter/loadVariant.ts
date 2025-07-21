@@ -20,11 +20,18 @@ function isProduction(): boolean {
 
 // Helper function to convert a nested key based on the directory of the source file key
 function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): string {
-  if (!nestedKey.startsWith('.')) {
-    return nestedKey; // Not a relative path, keep as-is
+  // If it's an absolute path (starts with / or contains ://), keep as-is
+  if (nestedKey.startsWith('/') || nestedKey.includes('://')) {
+    return nestedKey;
   }
 
-  // Manual path resolution: resolve nestedKey relative to the directory of sourceFileKey
+  // Treat bare filenames as relative to current directory (same as ./filename)
+  let processedNestedKey = nestedKey;
+  if (!nestedKey.startsWith('.')) {
+    processedNestedKey = `./${nestedKey}`;
+  }
+
+  // Manual path resolution: resolve processedNestedKey relative to the directory of sourceFileKey
   // Both paths are relative to the entry directory (which is always './') - ignore file:// URLs completely
 
   // Get the directory of the source file key (not URL)
@@ -41,7 +48,7 @@ function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): s
   };
 
   const sourceDirComponents = parsePathComponents(sourceDir);
-  const nestedComponents = parsePathComponents(nestedKey);
+  const nestedComponents = parsePathComponents(processedNestedKey);
 
   // Start from the source directory and apply the nested path
   const resultComponents: string[] = [...sourceDirComponents];
@@ -67,16 +74,21 @@ function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): s
 
   // Build the final result
   if (resultComponents.length === 0) {
-    return './';
+    return '';
   }
 
   const result = resultComponents.join('/');
+  return result;
+}
 
-  // Add proper relative path prefix
-  if (result.startsWith('..')) {
-    return result;
+/**
+ * Normalize a relative path key by removing unnecessary ./ prefix
+ */
+function normalizePathKey(key: string): string {
+  if (key.startsWith('./')) {
+    return key.substring(2);
   }
-  return `./${result}`;
+  return key;
 }
 
 /**
@@ -362,7 +374,8 @@ async function loadExtraFiles(
   }>[] = [];
 
   for (const { fileName, result, filesUsed } of extraFileResults) {
-    processedExtraFiles[fileName] = {
+    const normalizedFileName = normalizePathKey(fileName);
+    processedExtraFiles[normalizedFileName] = {
       source: result.source,
       transforms: result.transforms,
     };
@@ -394,7 +407,7 @@ async function loadExtraFiles(
         ).then((nestedResult) => ({
           files: nestedResult.extraFiles,
           allFilesUsed: nestedResult.allFilesUsed,
-          sourceFileKey: fileName, // Pass the key (relative path) instead of URL
+          sourceFileKey: normalizedFileName, // Pass the normalized key
         })),
       );
     }
@@ -414,7 +427,8 @@ async function loadExtraFiles(
       for (const [nestedKey, nestedValue] of Object.entries(nestedExtraFiles)) {
         // Convert the key based on the directory structure of the source key
         const convertedKey = convertKeyBasedOnDirectory(nestedKey, sourceFileKey);
-        processedExtraFiles[convertedKey] = nestedValue;
+        const normalizedConvertedKey = normalizePathKey(convertedKey);
+        processedExtraFiles[normalizedConvertedKey] = nestedValue;
       }
     }
   }
