@@ -18,6 +18,12 @@
   border-bottom: 1px solid #d0cdd7;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .tabContainer {
   display: flex;
   align-items: center;

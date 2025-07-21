@@ -1,0 +1,21 @@
+.copyButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 8px;
+  color: #65636d;
+  transition: background-color 0.2s ease;
+}
+
+.copyButton:hover:not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.copyButton:disabled {
+  cursor: default;
+  color: #4caf50;
+}

@@ -8,6 +8,7 @@ import { Tabs } from '@/components/Tabs';
 import styles from './DemoContent.module.css';
 
 import '@wooorm/starry-night/style/light';
+import { CopyButton } from '@/components/CopyButton';
 
 export function DemoContent(props: ContentProps) {
   const demo = useDemo(props);
@@ -34,15 +35,18 @@ export function DemoContent(props: ContentProps) {
               onTabSelect={demo.selectFileName}
             />
           </div>
-          <div className={hasJsTransform ? styles.switchContainer : styles.switchContainerHidden}>
-            <Switch
-              value={isJsSelected}
-              onChange={toggleJs}
-              options={[
-                { label: 'TS', value: false },
-                { label: 'JS', value: true },
-              ]}
-            />
+          <div className={styles.headerActions}>
+            <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
+            <div className={hasJsTransform ? styles.switchContainer : styles.switchContainerHidden}>
+              <Switch
+                value={isJsSelected}
+                onChange={toggleJs}
+                options={[
+                  { label: 'TS', value: false },
+                  { label: 'JS', value: true },
+                ]}
+              />
+            </div>
           </div>
         </div>
         <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
