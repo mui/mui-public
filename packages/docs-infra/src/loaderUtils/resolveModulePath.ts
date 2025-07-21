@@ -1,4 +1,30 @@
-import { join, extname } from 'node:path';
+import { getFileNameFromUrl } from './getFileNameFromUrl';
+
+/**
+ * Isomorphic path joining function that works in both Node.js and browser environments.
+ * Uses string concatenation to handle path joining consistently across platforms.
+ */
+function joinPath(basePath: string, ...segments: string[]): string {
+  // Start with the base path, ensuring it has a trailing slash for URL construction
+  let result = basePath.endsWith('/') ? basePath : `${basePath}/`;
+
+  // Handle each segment
+  for (let i = 0; i < segments.length; i += 1) {
+    const segment = segments[i];
+    if (segment) {
+      // Remove leading slash from segment to avoid double slashes
+      const cleanSegment = segment.startsWith('/') ? segment.slice(1) : segment;
+      // Append segment
+      result += cleanSegment;
+      // Add trailing slash for intermediate segments
+      if (i < segments.length - 1) {
+        result += '/';
+      }
+    }
+  }
+
+  return result;
+}
 
 /**
  * Default file extensions for JavaScript/TypeScript modules that can be resolved
@@ -71,7 +97,7 @@ export async function resolveModulePath(
     for (const entry of dirContents) {
       if (entry.isFile) {
         const fileName = entry.name;
-        const fileExt = extname(fileName);
+        const { extension: fileExt } = getFileNameFromUrl(fileName);
         const fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
 
         if (!filesByBaseName.has(fileBaseName)) {
@@ -86,8 +112,9 @@ export async function resolveModulePath(
     if (matchingFiles) {
       for (const ext of extensions) {
         for (const entry of matchingFiles) {
-          if (extname(entry.name) === ext) {
-            return join(parentDir, entry.name);
+          const { extension: entryExt } = getFileNameFromUrl(entry.name);
+          if (entryExt === ext) {
+            return joinPath(parentDir, entry.name);
           }
         }
       }
@@ -99,7 +126,7 @@ export async function resolveModulePath(
     );
 
     if (directoryMatches.length > 0) {
-      const moduleDir = join(parentDir, directoryMatches[0].name);
+      const moduleDir = joinPath(parentDir, directoryMatches[0].name);
 
       try {
         const moduleDirContents = await readDirectory(moduleDir);
@@ -110,7 +137,7 @@ export async function resolveModulePath(
         for (const moduleFile of moduleDirContents) {
           if (moduleFile.isFile) {
             const fileName = moduleFile.name;
-            const fileExt = extname(fileName);
+            const { extension: fileExt } = getFileNameFromUrl(fileName);
             const fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
 
             if (!indexFilesByBaseName.has(fileBaseName)) {
@@ -125,8 +152,9 @@ export async function resolveModulePath(
         if (indexFiles) {
           for (const ext of extensions) {
             for (const entry of indexFiles) {
-              if (extname(entry.name) === ext) {
-                return join(moduleDir, entry.name);
+              const { extension: entryExt } = getFileNameFromUrl(entry.name);
+              if (entryExt === ext) {
+                return joinPath(moduleDir, entry.name);
               }
             }
           }
@@ -191,7 +219,7 @@ export async function resolveModulePaths(
         for (const entry of dirContents) {
           if (entry.isFile) {
             const fileName = entry.name;
-            const fileExt = extname(fileName);
+            const { extension: fileExt } = getFileNameFromUrl(fileName);
             const fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
 
             if (!filesByBaseName.has(fileBaseName)) {
@@ -209,8 +237,9 @@ export async function resolveModulePaths(
           if (matchingFiles) {
             for (const ext of extensions) {
               for (const entry of matchingFiles) {
-                if (extname(entry.name) === ext) {
-                  resolved.push({ fullPath, resolvedPath: join(parentDir, entry.name) });
+                const { extension: entryExt } = getFileNameFromUrl(entry.name);
+                if (entryExt === ext) {
+                  resolved.push({ fullPath, resolvedPath: joinPath(parentDir, entry.name) });
                   foundMatch = true;
                   break;
                 }
@@ -237,7 +266,7 @@ export async function resolveModulePaths(
           const indexResults = await Promise.all(
             unresolved.map(async ({ fullPath, moduleName }) => {
               if (directories.has(moduleName)) {
-                const moduleDir = join(parentDir, moduleName);
+                const moduleDir = joinPath(parentDir, moduleName);
 
                 try {
                   const moduleDirContents = await readDirectory(moduleDir);
@@ -248,7 +277,7 @@ export async function resolveModulePaths(
                   for (const moduleFile of moduleDirContents) {
                     if (moduleFile.isFile) {
                       const fileName = moduleFile.name;
-                      const fileExt = extname(fileName);
+                      const { extension: fileExt } = getFileNameFromUrl(fileName);
                       const fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
 
                       if (!indexFilesByBaseName.has(fileBaseName)) {
@@ -263,8 +292,9 @@ export async function resolveModulePaths(
                   if (indexFiles) {
                     for (const ext of extensions) {
                       for (const entry of indexFiles) {
-                        if (extname(entry.name) === ext) {
-                          return { fullPath, resolvedPath: join(moduleDir, entry.name) };
+                        const { extension: entryExt } = getFileNameFromUrl(entry.name);
+                        if (entryExt === ext) {
+                          return { fullPath, resolvedPath: joinPath(moduleDir, entry.name) };
                         }
                       }
                     }
