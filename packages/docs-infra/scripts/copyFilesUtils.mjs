@@ -143,7 +143,7 @@ function createExportFor(exportName, conditions) {
 // TODO: remove useEsmExports paramater once X is on the ESM-exports package layout (default to true)
 export async function createPackageFile(useEsmExports = false) {
   const packageData = await fse.readFile(path.resolve(packagePath, './package.json'), 'utf8');
-  const { nyc, scripts, devDependencies, workspaces, ...packageDataOther } =
+  const { nyc, scripts, devDependencies, workspaces, publishConfig, ...packageDataOther } =
     JSON.parse(packageData);
 
   const packageExports = {
@@ -198,6 +198,11 @@ export async function createPackageFile(useEsmExports = false) {
             }
           : {}),
       };
+
+  if (publishConfig) {
+    const { directory, ...newPublishConfig } = publishConfig;
+    newPackageData.publishConfig = newPublishConfig;
+  }
 
   const typeDefinitionsFilePath = path.resolve(buildPath, './index.d.ts');
   if (await fse.pathExists(typeDefinitionsFilePath)) {

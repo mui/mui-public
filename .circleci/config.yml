@@ -9,7 +9,7 @@ parameters:
 default-job: &default-job
   working_directory: /tmp/mui
   docker:
-    - image: cimg/node:18.16
+    - image: cimg/node:24.3
 
 default-context: &default-context
   context:

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate configuration for MUI repositories.",
+  "extends": [":semanticCommitsDisabled"],
+  "automerge": false,
+  "commitMessageAction": "Bump",
+  "commitMessageExtra": "to {{newValue}}",
+  "commitMessageTopic": "{{depName}}",
+  "dependencyDashboard": true,
+  "rebaseWhen": "conflicted",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": "before 6:00am on the first day of the month"
+  },
+  "postUpdateOptions": ["pnpmDedupe"],
+  "prConcurrentLimit": 30,
+  "prHourlyLimit": 0,
+  "rangeStrategy": "bump",
+  "schedule": "on sunday before 6:00am",
+  "timezone": "UTC",
+  "packageRules": [
+    {
+      "matchDepTypes": ["peerDependencies"],
+      "rangeStrategy": "widen"
+    },
+    {
+      "groupName": "babel",
+      "matchPackageNames": ["^@babel/", "^@types/babel", "^babel-"]
+    },
+    {
+      "groupName": "Infra packages",
+      "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
+      "followTag": "canary",
+      "schedule": null
+    },
+    {
+      "groupName": "core-js",
+      "matchPackageNames": ["core-js"],
+      "allowedVersions": "< 2.0.0"
+    },
+    {
+      "groupName": "Emotion",
+      "matchPackageNames": ["@emotion/*"]
+    },
+    {
+      "groupName": "React",
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "react-is",
+        "@types/react",
+        "@types/react-dom",
+        "@types/react-is",
+        "use-sync-external-store",
+        "@types/use-sync-external-store"
+      ]
+    },
+    {
+      "groupName": "Playwright",
+      "matchPackageNames": ["@playwright/*", "playwright", "mcr.microsoft.com/playwright"]
+    },
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"]
+    },
+    {
+      "matchDepTypes": ["action"],
+      "pinDigests": true,
+      "automerge": true
+    },
+    {
+      "groupName": "@definitelytyped tools",
+      "matchPackageNames": ["@definitelytyped/*"]
+    },
+    {
+      "groupName": "Testing libraries",
+      "matchPackageNames": ["@testing-library/*"]
+    },
+    {
+      "groupName": "node",
+      "matchDatasources": ["docker", "node-version"],
+      "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
+      "enabled": false
+    },
+    {
+      "groupName": "eslint",
+      "matchPackageNames": [
+        "eslint",
+        "eslint-*",
+        "typescript-eslint",
+        "@typescript-eslint/*",
+        "@types/eslint-*"
+      ]
+    },
+    {
+      "groupName": "Vite & Vitest",
+      "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
+    }
+  ]
+}

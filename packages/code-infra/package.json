@@ -27,6 +27,7 @@
     "test:watch": "pnpm -w test:watch --project @mui/internal-code-infra"
   },
   "dependencies": {
+    "@argos-ci/core": "^3.2.0",
     "@next/eslint-plugin-next": "^15.3.3",
     "@octokit/rest": "^22.0.0",
     "@eslint/compat": "^1.3.1",

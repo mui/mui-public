@@ -1,34 +1,46 @@
 /**
- * @returns {import('prettier').Options}
+ * @typedef {Exclude<import('prettier').Config['overrides'], undefined>[number]} Override
  */
-export function createBaseConfig() {
+
+/**
+ * @type {Override[]}
+ */
+export const docsOverrides = [
+  {
+    files: [
+      'docs/**/*.md',
+      'docs/src/pages/**/*.{js,tsx}',
+      'docs/src/app/**/*.{js,tsx}',
+      'docs/data/**/*.{js,tsx}',
+    ],
+    options: {
+      // otherwise code blocks overflow on the docs website
+      // The container is 751px
+      printWidth: 85,
+    },
+  },
+];
+
+/**
+ * @type {Override}
+ */
+const jsonOverride = {
+  files: ['**/*.json'],
+  options: {
+    trailingComma: 'none',
+  },
+};
+
+/**
+ * @param {Object} [options={}]
+ * @param {Override[]} [options.overrides]
+ * @returns {import('prettier').Config}
+ */
+export function createBaseConfig(options = {}) {
   return {
     printWidth: 100,
     singleQuote: true,
     trailingComma: 'all',
-    overrides: [
-      {
-        files: ['docs/**/*.md', 'docs/src/pages/**/*.{js,tsx}', 'docs/data/**/*.{js,tsx}'],
-        options: {
-          // otherwise code blocks overflow on the docs website
-          // The container is 751px
-          printWidth: 85,
-        },
-      },
-      {
-        files: ['docs/pages/blog/**/*.md'],
-        options: {
-          // otherwise code blocks overflow on the blog website
-          // The container is 692px
-          printWidth: 82,
-        },
-      },
-      {
-        files: ['**/*.json'],
-        options: {
-          trailingComma: 'none',
-        },
-      },
-    ],
+    overrides: [jsonOverride, ...(options.overrides ?? [])],
   };
 }

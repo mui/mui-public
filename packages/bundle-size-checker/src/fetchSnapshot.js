@@ -1,3 +1,5 @@
+import { octokit } from './github.js';
+
 /**
  *
  * @param {string} repo - The name of the repository e.g. 'mui/material-ui'
@@ -44,15 +46,15 @@ export async function fetchSnapshot(repo, sha) {
  */
 async function getParentCommits(repo, commit, depth = 4) {
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${repo}/commits?sha=${commit}&per_page=${depth}`,
-    );
-    if (!response.ok) {
-      throw new Error(`GitHub API request failed: ${response.status}`);
-    }
+    const [owner, repoName] = repo.split('/');
 
-    /** @type {{ sha: string }[]} */
-    const commits = await response.json();
+    const { data: commits } = await octokit.repos.listCommits({
+      owner,
+      repo: repoName,
+      sha: commit,
+      per_page: depth,
+    });
+
     // Skip the first commit (which is the starting commit) and return the rest
     return commits.slice(1).map((commitDetails) => commitDetails.sha);
   } catch (/** @type {any} */ error) {

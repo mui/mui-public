@@ -11,12 +11,12 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "typescript": "tsc --build --verbose",
-    "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
-    "release:build": "pnpm --filter \"./packages/**\" run build",
-    "docsI:dev": "pnpm --filter \"./packages/docs-infra/docs\" run dev",
-    "docsI:build": "pnpm --filter \"./packages/docs-infra\" run build",
-    "docsI:test": "pnpm --filter \"./packages/docs-infra\" run test"
+    "release:build": "pnpm -r -F \"./packages/*\" run build",
+    "clean": "pnpm -r exec rm -rf build",
+    "docsI:dev": "pnpm -F \"./packages/docs-infra/docs\" run dev",
+    "docsI:build": "pnpm -F \"./packages/docs-infra\" run build",
+    "docsI:test": "pnpm -F \"./packages/docs-infra\" run test"
   },
   "pnpm": {
     "packageExtensions": {
@@ -35,6 +35,7 @@
   "dependencies": {
     "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
+    "@octokit/rest": "^22.0.0",
     "@eslint/compat": "^1.3.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
