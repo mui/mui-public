@@ -152,7 +152,10 @@ export async function loadPrecomputedCodeHighlighter(
     const modifiedSource = replacePrecomputeValue(source, variantData);
 
     // Add all dependencies to webpack's watch list
-    allDependencies.forEach((dep) => this.addDependency(dep));
+    allDependencies.forEach((dep) => {
+      // Strip 'file://' prefix if present before adding to webpack's dependency tracking
+      this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
+    });
 
     callback(null, modifiedSource);
   } catch (error) {
