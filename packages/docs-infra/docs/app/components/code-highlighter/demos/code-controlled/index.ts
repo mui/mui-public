@@ -1,13 +1,12 @@
-import { createDemo } from '@/functions/createDemo';
+import { createDemo } from '../createDemo';
 import Default from './ControlledCode';
 
-export const ControlledCodeDemo = createDemo(
+export const ControlledCodeEditor = createDemo(
   import.meta.url,
   { Default },
   {
-    name: 'Controlled Code Demo',
-    slug: 'controlled',
-    description: 'This shows a controlled code demo.',
+    name: 'Controlled Code Editor',
+    slug: 'controlled-code-editor',
     precompute: true,
   },
 );

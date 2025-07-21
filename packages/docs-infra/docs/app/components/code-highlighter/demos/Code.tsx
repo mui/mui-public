@@ -3,7 +3,7 @@ import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
 import { CodeContent } from './CodeContent';
 import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
 
-function Code({
+export function Code({
   children,
   fileName = 'index.js',
   forceClient,
@@ -23,5 +23,3 @@ function Code({
     />
   );
 }
-
-export default Code;

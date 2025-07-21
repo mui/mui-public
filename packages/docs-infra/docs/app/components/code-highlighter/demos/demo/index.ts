@@ -1,16 +1,12 @@
-import { createDemo } from '../createDemo';
-import { default as Default } from './default';
+import { createDemo } from '@/functions/createDemo';
+import { CheckboxDemo } from './demo-basic';
 
-const DemoDemo = createDemo(
+export const InteractiveDemo = createDemo(
   import.meta.url,
-  { Default },
+  { Default: CheckboxDemo },
   {
-    name: 'Demo',
-    slug: 'demo',
-    description: 'This is a demo component for CodeHighlighter.',
-    // pathPrefix: 'demos/basic', TODO: filename shown is prefixed with this
+    name: 'Interactive Demo',
+    slug: 'interactive-demo',
     precompute: true,
   },
 );
-
-export default DemoDemo;

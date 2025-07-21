@@ -1,4 +1,4 @@
-import Code from '../Code';
+import { Code } from '../Code';
 
 type Test = boolean | string | number;
 

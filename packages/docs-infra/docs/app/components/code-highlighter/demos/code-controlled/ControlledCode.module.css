@@ -1,0 +1,47 @@
+.controlContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controlsPanel {
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.controlsTitle {
+  margin: 0 0 12px 0;
+}
+
+.controlRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.controlRow label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controlRow input[type='text'] {
+  margin-left: 8px;
+  padding: 4px 8px;
+}
+
+.codeTextarea {
+  width: 100%;
+  height: 120px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.textareaLabel {
+  display: block;
+  margin-bottom: 4px;
+}

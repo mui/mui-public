@@ -1,12 +1,12 @@
-import { createDemo } from '@/functions/createDemo';
+import { createDemo } from '../createDemo';
 import Default from './BasicCode';
 
-export const CodeDemo = createDemo(
+export const SimpleCodeBlock = createDemo(
   import.meta.url,
   { Default },
   {
-    name: 'Basic Code Block',
-    slug: 'code',
+    name: 'Simple Code Block',
+    slug: 'simple-code-block',
     precompute: true,
   },
 );

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Checkbox } from '../../../_mocks/checkbox';
+import { Checkbox } from '@/components/Checkbox';
 
 export function BasicCheckbox() {
   return <Checkbox defaultChecked />;

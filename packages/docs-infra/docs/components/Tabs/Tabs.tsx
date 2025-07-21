@@ -14,7 +14,7 @@ export interface TabsProps {
 
 export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
   if (tabs.length <= 1) {
-    return tabs.length === 1 ? <span>{tabs[0].name}</span> : null;
+    return tabs.length === 1 ? <span className={styles.name}>{tabs[0].name}</span> : null;
   }
 
   return (
@@ -40,7 +40,7 @@ export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
           .join(' ');
 
         return (
-          <button key={tab.id} onClick={() => onTabSelect(tab.id)} className={tabClasses}>
+          <button key={index} onClick={() => onTabSelect(tab.id)} className={tabClasses}>
             {tab.name}
           </button>
         );
