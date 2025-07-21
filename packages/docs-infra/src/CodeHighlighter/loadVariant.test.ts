@@ -313,82 +313,53 @@ describe('loadVariant', () => {
         'file:///index.js',
       ]);
     });
-  });
 
-  describe('relative path resolution', () => {
-    it.each([
-      {
-        name: 'parent directory navigation',
-        baseUrl: 'file:///components/switch/demo/demo.ts',
-        relativePath: '../Switch.ts',
-        expectedUrl: 'file:///components/switch/Switch.ts',
-        expectedSource: 'const Switch = true;',
-      },
-      {
-        name: 'current directory files',
-        baseUrl: 'file:///components/switch/demo/demo.ts',
-        relativePath: './helper.ts',
-        expectedUrl: 'file:///components/switch/demo/helper.ts',
-        expectedSource: 'const helper = true;',
-      },
-      {
-        name: 'multiple level navigation',
-        baseUrl: 'file:///components/switch/demo/demo.ts',
-        relativePath: '../../../utils/shared.ts',
-        expectedUrl: 'file:///utils/shared.ts',
-        expectedSource: 'const shared = true;',
-      },
-    ])(
-      'should resolve $name ($relativePath)',
-      async ({ baseUrl, relativePath, expectedUrl, expectedSource }) => {
-        const variant: VariantCode = {
-          fileName: baseUrl.split('/').pop()!,
-          url: baseUrl,
-          source: 'const demo = true;',
-          extraFiles: {
-            [relativePath]: relativePath,
-          },
-        };
-
-        mockLoadSource.mockImplementation((url: string) => {
-          if (url === expectedUrl) {
-            return Promise.resolve({ source: expectedSource });
-          }
-          throw new Error(`Unexpected URL: ${url}`);
-        });
-
-        const result = await loadVariant(
-          baseUrl,
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockSourceTransformers,
-          { disableParsing: true },
-        );
-
-        expect(mockLoadSource).toHaveBeenCalledWith(expectedUrl);
-        expect((result.code.extraFiles![relativePath] as any).source).toBe(expectedSource);
-      },
-    );
-
-    it('should handle non-relative paths as-is', async () => {
+    it('should preserve relative paths from entrypoint across nested extraFiles loading', async () => {
+      // Test case based on user requirements:
+      // Entrypoint at file:///a/b/index.ts returns extraFiles with relative keys
+      // Those files may load other files, but all keys should remain relative to the entrypoint
       const variant: VariantCode = {
-        fileName: 'main.ts',
-        url: 'file:///main.ts',
+        fileName: 'index.ts',
+        url: 'file:///a/b/index.ts',
         source: 'const main = true;',
         extraFiles: {
-          'absolute.ts': 'file:///absolute/path/absolute.ts',
+          './createDemo.ts': 'file:///createDemo.ts',
+          './BasicCheckbox.tsx': 'file:///a/b/BasicCheckbox.tsx',
         },
       };
 
-      mockLoadSource.mockResolvedValue({
-        source: 'const absolute = true;',
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///createDemo.ts') {
+          return Promise.resolve({
+            source: 'const createDemo = true;',
+            extraFiles: {
+              './DemoContent.tsx': 'file:///DemoContent.tsx',
+            },
+          });
+        }
+        if (url === 'file:///a/b/BasicCheckbox.tsx') {
+          return Promise.resolve({
+            source: 'const BasicCheckbox = true;',
+          });
+        }
+        if (url === 'file:///DemoContent.tsx') {
+          return Promise.resolve({
+            source: 'const DemoContent = true;',
+            extraFiles: {
+              './DemoContent.module.css': 'file:///DemoContent.module.css',
+            },
+          });
+        }
+        if (url === 'file:///DemoContent.module.css') {
+          return Promise.resolve({
+            source: '.demo { color: blue; }',
+          });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
       });
 
       const result = await loadVariant(
-        'file:///main.ts',
+        'file:///a/b/index.ts',
         'default',
         variant,
         Promise.resolve(mockParseSource),
@@ -398,9 +369,41 @@ describe('loadVariant', () => {
         { disableParsing: true },
       );
 
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///absolute/path/absolute.ts');
-      expect((result.code.extraFiles!['absolute.ts'] as any).source).toBe('const absolute = true;');
-      expect(result.dependencies).toEqual(['file:///main.ts', 'file:///absolute/path/absolute.ts']);
+      // Verify that all extraFiles keys remain relative to the entrypoint
+      expect(result.code.extraFiles).toBeDefined();
+      expect(result.code.extraFiles!['./createDemo.ts']).toBeDefined();
+      expect(result.code.extraFiles!['./BasicCheckbox.tsx']).toBeDefined();
+      expect(result.code.extraFiles!['./DemoContent.tsx']).toBeDefined();
+      expect(result.code.extraFiles!['./DemoContent.module.css']).toBeDefined();
+
+      // Verify the content is correct
+      expect((result.code.extraFiles!['./createDemo.ts'] as any).source).toBe(
+        'const createDemo = true;',
+      );
+      expect((result.code.extraFiles!['./BasicCheckbox.tsx'] as any).source).toBe(
+        'const BasicCheckbox = true;',
+      );
+      expect((result.code.extraFiles!['./DemoContent.tsx'] as any).source).toBe(
+        'const DemoContent = true;',
+      );
+      expect((result.code.extraFiles!['./DemoContent.module.css'] as any).source).toBe(
+        '.demo { color: blue; }',
+      );
+
+      // Verify all URLs were loaded
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///createDemo.ts');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///a/b/BasicCheckbox.tsx');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///DemoContent.tsx');
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///DemoContent.module.css');
+
+      // Verify dependencies include all loaded URLs
+      expect(result.dependencies).toEqual([
+        'file:///a/b/index.ts',
+        'file:///createDemo.ts',
+        'file:///a/b/BasicCheckbox.tsx',
+        'file:///DemoContent.tsx',
+        'file:///DemoContent.module.css',
+      ]);
     });
   });
 
@@ -925,37 +928,6 @@ describe('loadVariant', () => {
     });
   });
 
-  describe('URL scheme handling', () => {
-    it('should handle different URL schemes for relative path resolution', async () => {
-      const variant: VariantCode = {
-        fileName: 'main.js',
-        url: 'https://example.com/src/main.js',
-        source: 'const main = true;',
-        extraFiles: {
-          '../utils.js': '../utils.js',
-        },
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const utils = true;',
-      });
-
-      const result = await loadVariant(
-        'https://example.com/src/main.js',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
-
-      expect(mockLoadSource).toHaveBeenCalledWith('https://example.com/utils.js');
-      expect((result.code.extraFiles!['../utils.js'] as any).source).toBe('const utils = true;');
-    });
-  });
-
   describe('extraDependencies integration', () => {
     it('should include extraDependencies from loadSource in dependencies', async () => {
       const variant: VariantCode = {
@@ -1205,56 +1177,6 @@ describe('loadVariant', () => {
 
 describe('loadVariant - helper functions', () => {
   // Tests for helper function behavior through integration
-  describe('resolveRelativePath behavior', () => {
-    let mockLoadSource: MockedFunction<LoadSource>;
-    let mockParseSource: MockedFunction<ParseSource>;
-    let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
-    let mockSourceTransformers: SourceTransformers;
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-
-      mockLoadSource = vi.fn();
-      mockParseSource = vi.fn();
-      mockLoadVariantMeta = vi.fn();
-      mockSourceTransformers = [
-        {
-          extensions: ['ts', 'tsx'],
-          transformer: vi.fn().mockResolvedValue(undefined),
-        },
-      ];
-    });
-
-    it('should resolve relative paths correctly using URL constructor', async () => {
-      const variant: VariantCode = {
-        fileName: 'demo.ts',
-        url: 'file:///components/switch/demo/demo.ts',
-        source: 'const demo = true;',
-        extraFiles: {
-          '../Switch.ts': '../Switch.ts',
-        },
-      };
-
-      mockLoadSource.mockResolvedValue({
-        source: 'const Switch = true;',
-      });
-
-      const result = await loadVariant(
-        'file:///components/switch/demo/demo.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
-
-      // Verify the resolved URL was correct
-      expect(mockLoadSource).toHaveBeenCalledWith('file:///components/switch/Switch.ts');
-      expect((result.code.extraFiles!['../Switch.ts'] as any).source).toBe('const Switch = true;');
-    });
-  });
 
   describe('allFilesListed validation', () => {
     it('should throw error in non-production when allFilesListed=true and loadSource returns unknown extra files', async () => {

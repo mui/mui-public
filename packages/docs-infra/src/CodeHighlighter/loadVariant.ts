@@ -18,86 +18,71 @@ function isProduction(): boolean {
   return typeof process !== 'undefined' && process.env.NODE_ENV === 'production';
 }
 
-// Helper function to resolve relative paths using URL API
-function resolveRelativePath(basePath: string, relativePath: string): string {
-  if (!relativePath.startsWith('.')) {
-    return relativePath;
+// Helper function to convert a nested key based on the directory of the source file key
+function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): string {
+  if (!nestedKey.startsWith('.')) {
+    return nestedKey; // Not a relative path, keep as-is
   }
 
-  try {
-    // Use URL constructor to properly resolve relative paths
-    const resolved = new URL(relativePath, basePath);
-    return resolved.href;
-  } catch (error) {
-    // Fallback to manual resolution if URL constructor fails
-    const baseSegments = basePath.split('/');
-    const relativeSegments = relativePath.split('/');
+  // Manual path resolution: resolve nestedKey relative to the directory of sourceFileKey
+  // Both paths are relative to the entry directory (which is always './') - ignore file:// URLs completely
 
-    // Remove the filename from base path
-    baseSegments.pop();
+  // Get the directory of the source file key (not URL)
+  const sourceDir = sourceFileKey.includes('/')
+    ? sourceFileKey.substring(0, sourceFileKey.lastIndexOf('/'))
+    : '.';
 
-    for (const segment of relativeSegments) {
-      if (segment === '..') {
-        baseSegments.pop();
-      } else if (segment !== '.') {
-        baseSegments.push(segment);
+  // Parse both paths into components
+  const parsePathComponents = (path: string): string[] => {
+    if (path === '.' || path === '') {
+      return [];
+    }
+    return path.split('/').filter((part) => part !== '');
+  };
+
+  const sourceDirComponents = parsePathComponents(sourceDir);
+  const nestedComponents = parsePathComponents(nestedKey);
+
+  // Start from the source directory and apply the nested path
+  const resultComponents: string[] = [...sourceDirComponents];
+
+  // Apply each component of the nested path
+  for (const component of nestedComponents) {
+    if (component === '..') {
+      if (resultComponents.length > 0 && resultComponents[resultComponents.length - 1] !== '..') {
+        // Normal case: pop a regular directory component
+        resultComponents.pop();
+      } else {
+        // Either resultComponents is empty OR the last component is already '..'
+        // In both cases, we need to go up one more level
+        resultComponents.push('..');
       }
+    } else if (component === '.') {
+      // Current directory, skip
+      continue;
+    } else {
+      resultComponents.push(component);
     }
-
-    return baseSegments.join('/');
   }
+
+  // Build the final result
+  if (resultComponents.length === 0) {
+    return './';
+  }
+
+  const result = resultComponents.join('/');
+
+  // Add proper relative path prefix
+  if (result.startsWith('..')) {
+    return result;
+  }
+  return `./${result}`;
 }
 
-// Helper function to convert a relative path from one base to another base
-function convertRelativePathBetweenBases(
-  relativePath: string,
-  fromBaseUrl: string,
-  toBaseUrl: string,
-): string {
-  if (!relativePath.startsWith('.')) {
-    return relativePath; // Not a relative path, keep as-is
-  }
-
-  try {
-    // Use URL constructor to resolve the relative path to absolute
-    const absoluteUrl = new URL(relativePath, fromBaseUrl);
-
-    // Now we need to make this absolute URL relative to toBaseUrl
-    // We'll try to construct a relative path that, when resolved against toBaseUrl, gives us absoluteUrl
-
-    // Get the directory of the target base
-    const toBaseDir = new URL('.', toBaseUrl);
-
-    // If both files are in the same directory, just return the filename
-    const absoluteDir = new URL('.', absoluteUrl);
-    if (absoluteDir.href === toBaseDir.href) {
-      return absoluteUrl.pathname.split('/').pop() || '.';
-    }
-
-    // For different directories, we need to calculate the relative path manually
-    // since there's no URL constructor method for absolute → relative conversion
-    const toBaseParts = toBaseDir.pathname.split('/').filter(Boolean);
-    const absoluteParts = absoluteUrl.pathname.split('/').filter(Boolean);
-
-    // Find common prefix
-    let commonLength = 0;
-    while (
-      commonLength < toBaseParts.length &&
-      commonLength < absoluteParts.length &&
-      toBaseParts[commonLength] === absoluteParts[commonLength]
-    ) {
-      commonLength += 1;
-    }
-
-    // Build relative path: '../' for remaining toBase parts, then absolute parts
-    const upLevels = toBaseParts.length - commonLength;
-    const relativeParts = Array(upLevels).fill('..').concat(absoluteParts.slice(commonLength));
-
-    return relativeParts.length > 0 ? relativeParts.join('/') : '.';
-  } catch (error) {
-    return relativePath; // Fallback to original path
-  }
-}
+/**
+ * Loads and processes extra files recursively with support for relative paths
+ * and circular dependency detection. Uses Promise.all for parallel loading.
+ */
 
 async function loadSingleFile(
   variantName: string,
@@ -313,8 +298,8 @@ async function loadExtraFiles(
       let transforms: Transforms | undefined;
 
       if (typeof fileData === 'string') {
-        // fileData is a URL/path
-        fileUrl = fileData.startsWith('.') ? resolveRelativePath(baseUrl, fileData) : fileData;
+        // fileData is a URL/path - use it directly, don't modify it
+        fileUrl = fileData;
 
         // Check for circular dependencies
         if (loadedFiles.has(fileUrl)) {
@@ -373,7 +358,7 @@ async function loadExtraFiles(
   const nestedExtraFilesPromises: Promise<{
     files: VariantExtraFiles;
     allFilesUsed: string[];
-    sourceFileUrl: string;
+    sourceFileKey: string; // Track the key (relative path) that led to these nested files
   }>[] = [];
 
   for (const { fileName, result, filesUsed } of extraFileResults) {
@@ -385,14 +370,12 @@ async function loadExtraFiles(
     // Add files used from this file load
     allFilesUsed.push(...filesUsed);
 
-    // Collect promises for nested extra files with their source URL
+    // Collect promises for nested extra files with their source key
     if (result.extraFiles) {
       let sourceFileUrl = baseUrl;
       const fileData = extraFiles[fileName];
       if (typeof fileData === 'string') {
-        sourceFileUrl = fileData.startsWith('.')
-          ? resolveRelativePath(baseUrl, fileData)
-          : fileData;
+        sourceFileUrl = fileData; // Use the URL directly, don't modify it
       }
 
       nestedExtraFilesPromises.push(
@@ -411,26 +394,26 @@ async function loadExtraFiles(
         ).then((nestedResult) => ({
           files: nestedResult.extraFiles,
           allFilesUsed: nestedResult.allFilesUsed,
-          sourceFileUrl,
+          sourceFileKey: fileName, // Pass the key (relative path) instead of URL
         })),
       );
     }
   }
 
-  // Wait for all nested extra files and merge them, converting paths relative to entry
+  // Wait for all nested extra files and merge them, converting paths based on key structure
   if (nestedExtraFilesPromises.length > 0) {
     const nestedExtraFilesResults = await Promise.all(nestedExtraFilesPromises);
     for (const {
       files: nestedExtraFiles,
       allFilesUsed: nestedFilesUsed,
-      sourceFileUrl,
+      sourceFileKey,
     } of nestedExtraFilesResults) {
       // Add nested files used
       allFilesUsed.push(...nestedFilesUsed);
 
       for (const [nestedKey, nestedValue] of Object.entries(nestedExtraFiles)) {
-        // Convert the key to be relative from entry file instead of from the source file
-        const convertedKey = convertRelativePathBetweenBases(nestedKey, sourceFileUrl, entryUrl);
+        // Convert the key based on the directory structure of the source key
+        const convertedKey = convertKeyBasedOnDirectory(nestedKey, sourceFileKey);
         processedExtraFiles[convertedKey] = nestedValue;
       }
     }
