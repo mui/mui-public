@@ -13,7 +13,10 @@
     "typescript": "tsc --build --verbose",
     "release:prepare": "pnpm install && pnpm release:build",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
-    "release:build": "pnpm --filter \"./packages/**\" run build"
+    "release:build": "pnpm --filter \"./packages/**\" run build",
+    "docsI:dev": "pnpm --filter \"./packages/docs-infra/docs\" run dev",
+    "docsI:build": "pnpm --filter \"./packages/docs-infra\" run build",
+    "docsI:test": "pnpm --filter \"./packages/docs-infra\" run test"
   },
   "pnpm": {
     "packageExtensions": {
@@ -41,9 +44,11 @@
     "@types/semver": "^7.7.0",
     "@typescript-eslint/eslint-plugin": "7.12.0",
     "@typescript-eslint/parser": "^8.35.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.29.0",
     "execa": "^7.2.0",
     "git-url-parse": "^16.1.0",
+    "jsdom": "^26.1.0",
     "lerna": "^8.2.2",
     "prettier": "^3.5.3",
     "pretty-quick": "^4.2.2",
@@ -56,8 +61,5 @@
   "engines": {
     "pnpm": "10.6.2",
     "node": ">=18.0.0"
-  },
-  "devDependencies": {
-    "jsdom": "^26.1.0"
   }
 }

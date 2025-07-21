@@ -1,8 +1,15 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.2",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./*": "./*/index.js",
+    "./*/types": "./*/types.js",
+    "./*/errors": "./*/errors.js"
+  },
   "keywords": [
     "react",
     "react-component",
@@ -30,6 +37,7 @@
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
+    "test:coverage": "pnpm -w test --project @mui/internal-docs-infra --coverage --coverage.include=packages/docs-infra --coverage.exclude=packages/docs-infra/docs --coverage.exclude=packages/docs-infra/build --coverage.exclude=packages/docs-infra/scripts",
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -90,38 +98,9 @@
       "optional": true
     }
   },
-  "exports": {
-    "./*": {
-      "import": "./build/esm/*/index.js",
-      "require": "./build/*/index.js",
-      "types": "./build/*/index.d.ts"
-    },
-    "./*/types": {
-      "import": "./build/esm/*/types.js",
-      "require": "./build/*/types.js",
-      "types": "./build/*/types.d.ts"
-    },
-    "./*/errors": {
-      "import": "./build/esm/*/errors.js",
-      "require": "./build/*/errors.js",
-      "types": "./build/*/errors.d.ts"
-    },
-    "./transformRelativeMarkdownPaths/esm": {
-      "import": "./build/esm/transformRelativeMarkdownPaths/index.js",
-      "require": "./build/esm/transformRelativeMarkdownPaths/index.js",
-      "types": "./build/esm/transformRelativeMarkdownPaths/index.d.ts"
-    },
-    "./loadPrecomputedCodeHighlighter/esm": {
-      "import": "./build/esm/loadPrecomputedCodeHighlighter/index.js",
-      "require": "./build/esm/loadPrecomputedCodeHighlighter/index.js",
-      "types": "./build/esm/loadPrecomputedCodeHighlighter/index.d.ts"
-    }
-  },
-  "files": [
-    "build/**/*"
-  ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "directory": "build"
   },
   "engines": {
     "node": ">=14.0.0"
