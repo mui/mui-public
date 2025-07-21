@@ -1455,7 +1455,7 @@ describe('loadVariant - helper functions', () => {
       expect(result.code.extraFiles!['helper.js']).toBeDefined();
     });
 
-    it('should always check extraDependencies from loadSource when allFilesListed=true', async () => {
+    it('should allow extraDependencies from loadSource when allFilesListed=true', async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
 
@@ -1476,22 +1476,23 @@ describe('loadVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        await expect(
-          loadVariant(
-            'file:///Button.tsx',
-            'default',
-            'file:///Button.tsx',
-            undefined,
-            mockLoadSource,
-            mockLoadVariantMeta,
-            undefined,
-            { disableParsing: true },
-          ),
-        ).rejects.toThrow(
-          'Unexpected files discovered via loadSource when allFilesListed=true (variant: default, file: Button.tsx). ' +
-            'New files: file:///path/to/dependency.js. ' +
-            'Please update the loadVariantMeta function to provide the complete list of files upfront.',
+        const result = await loadVariant(
+          'file:///Button.tsx',
+          'default',
+          'file:///Button.tsx',
+          undefined,
+          mockLoadSource,
+          mockLoadVariantMeta,
+          undefined,
+          { disableParsing: true },
         );
+
+        // extraDependencies should not cause errors since they're internal/webpack dependencies
+        expect(result.code.source).toBe('const Button = () => <button>Click</button>;');
+        expect(result.dependencies).toEqual([
+          'file:///Button.tsx',
+          'file:///path/to/dependency.js',
+        ]);
       } finally {
         process.env.NODE_ENV = originalEnv;
       }
