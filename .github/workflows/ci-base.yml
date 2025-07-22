@@ -7,11 +7,25 @@ on:
         description: 'Node.js version to use'
         required: true
         type: string
+      use-compact-url:
+        description: 'Use compact URLs for pkg.pr.new'
+        required: false
+        type: boolean
+        default: false
+      pr-comment:
+        description: 'Allows comments from pkg.pr.new bot when true'
+        type: boolean
+        required: false
+        default: false
+      post-build-command:
+        description: 'Command to run after build'
+        type: string
+        required: false
+        default: ''
 
 jobs:
-  ci-releases:
-    name: Package Releases
-    # Confirm if l10nbot check is still relevant.
+  pkg-releases:
+    name: pkg.pr.new releases
     if: ${{ github.repository_owner == 'mui' }}
     runs-on: ubuntu-latest
     steps:
@@ -30,5 +44,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install
       - run: pnpm release:build
+      - name: ${{ inputs.post-build-command == '' && 'Skipping ' || '' }}Post-build command
+        if: ${{ inputs.post-build-command != '' }}
+        run: ${{ inputs.post-build-command }}
       - name: Publish packages to pkg.pr.new
-        run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=off --peerDeps --template './examples/*'
+        run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=${{ inputs.pr-comment == true && 'update' || 'off' }} --peerDeps --template './examples/*'${{ inputs.use-compact-url && ' --compact' || '' }}
