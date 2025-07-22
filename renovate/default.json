@@ -96,6 +96,10 @@
     {
       "groupName": "Vite & Vitest",
       "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
+    },
+    {
+      "matchPackageNames": ["eslint-config-prettier"],
+      "allowedVersions": ">=10.1.8"
     }
   ]
 }
