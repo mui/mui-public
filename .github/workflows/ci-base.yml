@@ -13,15 +13,10 @@ on:
         type: boolean
         default: false
       pr-comment:
-        description: 'Allows comments from pkg.pr.new bot when true'
+        description: 'Allows comments from pkg.pr.new bot'
         type: boolean
         required: false
         default: false
-      post-build-command:
-        description: 'Command to run after build'
-        type: string
-        required: false
-        default: ''
 
 jobs:
   pkg-releases:
@@ -44,8 +39,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install
       - run: pnpm release:build
-      - name: ${{ inputs.post-build-command == '' && 'Skipping ' || '' }}Post-build command
-        if: ${{ inputs.post-build-command != '' }}
-        run: ${{ inputs.post-build-command }}
       - name: Publish packages to pkg.pr.new
-        run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=${{ inputs.pr-comment == true && 'update' || 'off' }} --peerDeps --template './examples/*'${{ inputs.use-compact-url && ' --compact' || '' }}
+        uses: ./.github/actions/ci-publish
+        with:
+          pr-comment: ${{ inputs.pr-comment }}
+          use-compact-url: ${{ inputs.use-compact-url }}
