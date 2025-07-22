@@ -7,11 +7,20 @@ on:
         description: 'Node.js version to use'
         required: true
         type: string
+      use-compact-url:
+        description: 'Use compact URLs for pkg.pr.new'
+        required: false
+        type: boolean
+        default: false
+      pr-comment:
+        description: 'Allows comments from pkg.pr.new bot'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
-  ci-releases:
-    name: Package Releases
-    # Confirm if l10nbot check is still relevant.
+  pkg-releases:
+    name: pkg.pr.new releases
     if: ${{ github.repository_owner == 'mui' }}
     runs-on: ubuntu-latest
     steps:
@@ -31,4 +40,7 @@ jobs:
       - run: pnpm install
       - run: pnpm release:build
       - name: Publish packages to pkg.pr.new
-        run: pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --comment=off --peerDeps --template './examples/*'
+        uses: ./.github/actions/ci-publish
+        with:
+          pr-comment: ${{ inputs.pr-comment }}
+          use-compact-url: ${{ inputs.use-compact-url }}
