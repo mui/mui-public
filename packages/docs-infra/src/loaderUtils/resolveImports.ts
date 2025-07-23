@@ -26,8 +26,10 @@ export async function resolveImports(
         // Handle named imports like { ComponentName, Component2 as Alias }
         const namedImports = namedImportsStr.split(',').map((s) => s.trim());
         namedImports.forEach((namedImport) => {
-          const cleanImport = namedImport.split(' as ')[0].trim();
-          result[modulePath].names.push(cleanImport);
+          // If there's an alias, use the alias name, otherwise use the original name
+          const aliasMatch = namedImport.match(/(.+?)\s+as\s+(.+)/);
+          const nameToUse = aliasMatch ? aliasMatch[2].trim() : namedImport.trim();
+          result[modulePath].names.push(nameToUse);
         });
       }
     }

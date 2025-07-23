@@ -147,15 +147,15 @@ describe('parseCreateFactoryCall', () => {
   it('should handle named imports with aliases correctly', async () => {
     const code = `
         import { Component1 as Comp1, Component2 as Comp2 } from './components';
-        
-        createDemo(import.meta.url, { Component1, Component2 }, { name: 'Test' });
+
+        createDemo(import.meta.url, { Comp1, Comp2 }, { name: 'Test' });
       `;
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
     expect(result!.variants).toEqual({
-      Component1: '/src/components',
-      Component2: '/src/components',
+      Comp1: '/src/components',
+      Comp2: '/src/components',
     });
   });
 
