@@ -50,13 +50,7 @@ All demos must use this structure in an `index.ts` file:
 import { createDemo } from '../createDemo';
 import { Checkbox } from './Checkbox';
 
-export const DemoCheckboxBasic = createDemo(
-  import.meta.url, 
-  { Default: Checkbox },
-  {
-    precompute: true, // Enables build-time optimization
-  },
-);
+export const DemoCheckboxBasic = createDemo(import.meta.url, Checkbox);
 ```
 
 For multiple variants:
@@ -67,13 +61,7 @@ import { createDemo } from '../createDemo';
 import { Checkbox as CssModules } from './css-modules/Checkbox';
 import { Checkbox as Tailwind } from './tailwind/Checkbox';
 
-export const DemoCheckboxBasic = createDemo(
-  import.meta.url, 
-  { CssModules, Tailwind },
-  {
-    precompute: true, // Enables build-time optimization
-  },
-);
+export const DemoCheckboxBasic = createDemo(import.meta.url, { CssModules, Tailwind });
 ```
 
 ### Demo File Structure
