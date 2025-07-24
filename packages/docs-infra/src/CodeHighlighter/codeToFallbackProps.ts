@@ -1,4 +1,4 @@
-import { Code, ContentLoadingProps, ContentLoadingVariant, VariantCode } from './types';
+import { BaseContentLoadingProps, Code, ContentLoadingVariant, VariantCode } from './types';
 import { stringOrHastToJsx } from '../hast/hast';
 
 function toExtraSource(variantCode: VariantCode, fileName?: string) {
@@ -19,7 +19,7 @@ export function codeToFallbackProps(
   fileName?: string,
   needsAllFiles = false,
   needsAllVariants = false,
-): ContentLoadingProps {
+): BaseContentLoadingProps {
   const variantCode = code?.[variant];
   if (!variantCode || typeof variantCode === 'string') {
     return {};

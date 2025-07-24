@@ -7,9 +7,9 @@ import Switch from '@/components/Switch/Switch';
 import { CopyButton } from '@/components/CopyButton';
 import styles from './CodeContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
 
-export function CodeContent(props: ContentProps) {
+export function CodeContent(props: ContentProps<{}>) {
   const code = useCode(props);
 
   const hasJsTransform = code.availableTransforms.includes('js');

@@ -8,6 +8,18 @@
   font-size: 13px;
 }
 
+.body code {
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  color: #ca244d;
+  background: #fff7f8;
+}
+
+.body pre > code {
+  color: initial;
+  background: initial;
+}
+
 .container {
   max-width: 1000px;
   margin: 0 auto;

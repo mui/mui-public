@@ -17,51 +17,13 @@ interface LoaderContext {
 /**
  * Webpack loader that processes demo files and precomputes variant data.
  *
- * This loader:
- * 1. Parses demo files to find a single createDemo call with precompute: true
- * 2. Resolves all variant entry point paths using resolveModulePathsWithFs
- * 3. Uses loadVariant to handle all loading, parsing, and transformation:
- *    - loadSource: Loads individual files and extracts dependencies
- *    - loadVariantMeta: Creates basic variant structure
- *    - parseSource: Applies syntax highlighting using Starry Night
- *    - sourceTransformers: Handles TypeScript to JavaScript conversion
- * 4. loadVariant handles recursive dependency loading automatically
- * 5. Adds all dependencies to webpack's watch list
- * 6. Replaces precompute: true with the actual precomputed data using replacePrecomputeValue
+ * Finds createDemo calls, loads and processes all variants with syntax highlighting
+ * and TypeScript transformation, then injects the precomputed data back into the source.
  *
- * Note: Only supports one createDemo call per file. Will throw an error if multiple calls are found.
+ * Supports single component syntax: createDemo(import.meta.url, Component)
+ * And object syntax: createDemo(import.meta.url, { Component1, Component2 })
  *
- * Features:
- * - Proper variant entry point resolution using resolveModulePathsWithFs
- * - Complete dependency tree loading handled by loadVariant
- * - Syntax highlighting using Starry Night (via parseSource)
- * - TypeScript to JavaScript transformation (via transformTsToJs)
- * - Webpack dependency tracking for hot reloading
- * - Precise precompute value replacement (via replacePrecomputeValue)
- *
- * Example input:
- * ```typescript
- * import { createDemo } from '@/functions/createDemo';
- * import CssModules from './CssModules';
- * import Tailwind from './Tailwind';
- *
- * export const CodeDemo = createDemo(
- *   import.meta.url,
- *   { CssModules, Tailwind },
- *   {
- *     name: 'Basic Code Block',
- *     slug: 'code',
- *     precompute: true,
- *   },
- * );
- * ```
- *
- * Example output (precompute: true replaced with processed data):
- * The precompute property is replaced with an object containing:
- * - fileName: The main file name
- * - source: HAST nodes with syntax highlighting applied
- * - extraFiles: Object containing additional dependency files
- * - transforms: Object with language variants (e.g., JavaScript version from TypeScript)
+ * Automatically skips processing if skipPrecompute: true is set.
  */
 export async function loadPrecomputedCodeHighlighter(
   this: LoaderContext,
@@ -80,8 +42,8 @@ export async function loadPrecomputedCodeHighlighter(
       return;
     }
 
-    // If precompute is not explicitly true, return source unchanged
-    if (!demoCall.options.precompute) {
+    // If skipPrecompute is true, return the source unchanged
+    if (demoCall.options.skipPrecompute) {
       callback(null, source);
       return;
     }
@@ -149,7 +111,7 @@ export async function loadPrecomputedCodeHighlighter(
     }
 
     // Replace 'precompute: true' with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, variantData);
+    const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {

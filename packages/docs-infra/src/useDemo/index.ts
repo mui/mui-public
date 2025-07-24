@@ -16,7 +16,7 @@ type UseDemoOpts = {
 };
 
 // TODO: take initialVariant and initialTransforms as parameters
-export function useDemo(contentProps: ContentProps, opts?: UseDemoOpts) {
+export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?: UseDemoOpts) {
   const codeResult = useCode(contentProps, opts);
 
   const slug = React.useMemo(
@@ -30,6 +30,5 @@ export function useDemo(contentProps: ContentProps, opts?: UseDemoOpts) {
     // Demo-specific additions
     name: contentProps.name,
     slug,
-    description: contentProps.description,
   };
 }

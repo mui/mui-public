@@ -46,7 +46,10 @@ function toComponent(source: Source) {
   return toJsxRuntime(source, { Fragment, jsx, jsxs });
 }
 
-export function useCode(contentProps: ContentProps, opts?: UseCodeOpts): UseCodeResult {
+export function useCode<T extends {} = {}>(
+  contentProps: ContentProps<T>,
+  opts?: UseCodeOpts,
+): UseCodeResult {
   const { copy: copyOpts, defaultOpen = false, initialVariant, initialTransform } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context

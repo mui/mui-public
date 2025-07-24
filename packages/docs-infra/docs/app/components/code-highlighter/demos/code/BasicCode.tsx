@@ -1,9 +1,5 @@
 import { Code } from '../Code';
 
-type Test = boolean | string | number;
-
-function BasicCode() {
+export function BasicCode() {
   return <Code>{`console.log('Hello, world!');`}</Code>;
 }
-
-export default BasicCode;

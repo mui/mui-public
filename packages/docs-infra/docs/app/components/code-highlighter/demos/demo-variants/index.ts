@@ -1,18 +1,6 @@
-import { createDemo } from '../createDemo';
-import ButtonDemo from './ButtonDemo';
-import CheckboxDemo from './CheckboxDemo';
-import InputDemo from './InputDemo';
+import { createDemo } from '@/functions/createDemo';
+import { DemoCheckboxRed } from './demo-default';
 
-export const MultipleVariants = createDemo(
-  import.meta.url,
-  {
-    Button: ButtonDemo,
-    Checkbox: CheckboxDemo,
-    Input: InputDemo,
-  },
-  {
-    name: 'Multiple Variants',
-    slug: 'multiple-variants',
-    precompute: true,
-  },
-);
+import './mock-tailwind.css';
+
+export const DemoCodeHighlighterDemoVariants = createDemo(import.meta.url, DemoCheckboxRed);

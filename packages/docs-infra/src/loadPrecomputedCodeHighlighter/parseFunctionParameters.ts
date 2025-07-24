@@ -113,7 +113,7 @@ export function parseFunctionParameters(str: string): ParsedParameters {
 /**
  * Extracts a balanced brace object from a string, handling leading whitespace and comments
  */
-function extractBalancedBraces(str: string): string | null {
+export function extractBalancedBraces(str: string): string | null {
   // Find the first opening brace, skipping whitespace and comments
   let startIndex = -1;
   let inSingleLineComment = false;

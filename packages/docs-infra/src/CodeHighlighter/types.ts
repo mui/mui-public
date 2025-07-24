@@ -34,20 +34,31 @@ export type ControlledVariantCode = CodeMeta & {
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 
-type Options = { name?: string; slug?: string; description?: string };
-export type ContentProps = { code?: Code; components?: Components } & Options;
+type BaseContentProps = {
+  name?: string;
+  slug?: string;
+  code?: Code;
+  components?: Components;
+};
+
+export type ContentProps<T extends {}> = BaseContentProps & T;
 export type ContentLoadingVariant = {
   fileNames?: string[];
   source?: React.ReactNode;
   extraSource?: { [fileName: string]: React.ReactNode };
 };
-export type ContentLoadingProps = ContentLoadingVariant & {
+export type BaseContentLoadingProps = ContentLoadingVariant & {
   extraVariants?: Record<string, ContentLoadingVariant>;
-} & Options;
+  name?: string;
+  slug?: string;
+};
+export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps & T;
 
 type ErrorHandler = React.ComponentType<{ error: Error }>;
 
-interface CodeHighlighterBaseProps extends Options {
+interface CodeHighlighterBaseProps {
+  name?: string;
+  slug?: string;
   code?: Code;
   components?: Components; // TODO: rename to preview
   variants?: string[];
@@ -106,10 +117,11 @@ export interface LoadFileOptions {
   loadedFiles?: Set<string>;
 }
 
-export interface CodeHighlighterProps extends CodeHighlighterBaseProps {
-  Content: React.ComponentType<ContentProps>;
+export interface CodeHighlighterProps<T extends {}> extends CodeHighlighterBaseProps {
+  Content: React.ComponentType<ContentProps<T>>;
+  contentProps?: T;
   ErrorHandler?: ErrorHandler;
-  ContentLoading?: React.ComponentType<ContentLoadingProps>;
+  ContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
   /**
    * @default 'stream'
    */

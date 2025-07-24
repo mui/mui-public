@@ -19,3 +19,5 @@ export function useCodeHighlighterFallbackContext() {
   }
   return context;
 }
+
+// TODO: rename to ContentMinimal

@@ -1,12 +1,7 @@
 import { createDemo } from '../createDemo';
-import Default from './BasicCode';
+import { BasicCode } from './BasicCode';
 
-export const SimpleCodeBlock = createDemo(
-  import.meta.url,
-  { Default },
-  {
-    name: 'Simple Code Block',
-    slug: 'simple-code-block',
-    precompute: true,
-  },
-);
+export const DemoCodeHighlighterCode = createDemo(import.meta.url, BasicCode, {
+  name: 'Simple Code Block',
+  slug: 'simple-code-block',
+});

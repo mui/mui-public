@@ -1,5 +1,5 @@
 import { resolveImports } from '../loaderUtils';
-import { parseFunctionParameters } from './parseFunctionParameters';
+import { parseFunctionParameters, extractBalancedBraces } from './parseFunctionParameters';
 
 /**
  * Helper function to convert the new resolveImports format to a Map
@@ -22,7 +22,8 @@ function buildImportMap(
 export interface FactoryOptions {
   name?: string;
   slug?: string;
-  precompute?: boolean;
+  skipPrecompute?: boolean;
+  precompute?: any; // Can be true, false, or an object
 }
 
 export interface ParsedCreateFactory {
@@ -33,6 +34,13 @@ export interface ParsedCreateFactory {
   fullMatch: string;
   variantsObjectStr: string;
   optionsObjectStr: string;
+  hasOptions: boolean;
+  hasPrecompute: boolean;
+  precomputeValue?: any;
+  // For replacement purposes
+  precomputeKeyStart?: number; // Start index of "precompute" in optionsObjectStr
+  precomputeValueStart?: number; // Start index of the value in optionsObjectStr
+  precomputeValueEnd?: number; // End index of the value in optionsObjectStr
 }
 
 /**
@@ -41,6 +49,8 @@ export interface ParsedCreateFactory {
 function parseVariantsObject(
   variantsObjectStr: string,
   importMap: Map<string, string>,
+  functionName: string,
+  filePath: string,
 ): Record<string, string> {
   const demoImports: Record<string, string> = {};
 
@@ -55,12 +65,48 @@ function parseVariantsObject(
 
     if (importMap.has(importName)) {
       demoImports[key] = importMap.get(importName)!;
+    } else {
+      // Throw error if any variant component is not imported
+      throw new Error(
+        `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+          `Component '${importName}' is not imported. Make sure to import it first.`,
+      );
     }
 
     objectMatch = objectContentRegex.exec(variantsObjectStr);
   }
 
   return demoImports;
+}
+
+/**
+ * Parses variants parameter which can be either an object literal or a single component identifier
+ */
+function parseVariantsParameter(
+  variantsParam: string,
+  importMap: Map<string, string>,
+  functionName: string,
+  filePath: string,
+): Record<string, string> {
+  const trimmed = variantsParam.trim();
+
+  // If it's an object literal, use existing logic
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return parseVariantsObject(trimmed, importMap, functionName, filePath);
+  }
+
+  // If it's a single identifier, map it to "Default"
+  if (importMap.has(trimmed)) {
+    return {
+      Default: importMap.get(trimmed)!,
+    };
+  }
+
+  // Throw error if the identifier is not found in imports
+  throw new Error(
+    `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+      `Component '${trimmed}' is not imported. Make sure to import it first.`,
+  );
 }
 
 /**
@@ -89,28 +135,36 @@ function validateUrlParameter(url: string, functionName: string, filePath: strin
 }
 
 /**
- * Validates that a variants parameter is an object mapping to imports
+ * Validates that a variants parameter is either an object mapping to imports or a single identifier
  */
 function validateVariantsParameter(
-  variantsObjectStr: string,
+  variantsParam: string,
   functionName: string,
   filePath: string,
 ): void {
-  if (!variantsObjectStr || variantsObjectStr.trim() === '') {
+  if (!variantsParam || variantsParam.trim() === '') {
     throw new Error(
       `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-        `Expected an object mapping variant names to imports.`,
+        `Expected an object mapping variant names to imports or a single component identifier.`,
     );
   }
 
-  // Basic validation that it looks like an object
-  const trimmed = variantsObjectStr.trim();
-  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-    throw new Error(
-      `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-        `Expected an object but got: ${trimmed}`,
-    );
+  const trimmed = variantsParam.trim();
+
+  // Check if it's an object literal
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return; // Valid object literal
   }
+
+  // Check if it's a valid identifier (single component)
+  if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(trimmed)) {
+    return; // Valid identifier
+  }
+
+  throw new Error(
+    `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+      `Expected an object mapping variant names to imports or a single component identifier, but got: ${trimmed}`,
+  );
 }
 
 /**
@@ -142,22 +196,27 @@ export async function parseCreateFactoryCall(
   }
 
   const match = createFactoryMatches[0];
-  const { functionName, fullMatch, urlParam, variantsObjectStr, optionsObjectStr } = match;
+  const { functionName, fullMatch, urlParam, variantsParam, optionsObjectStr, hasOptions } = match;
 
   // Validate URL parameter
   validateUrlParameter(urlParam, functionName, filePath);
 
   // Validate variants parameter
-  validateVariantsParameter(variantsObjectStr, functionName, filePath);
+  validateVariantsParameter(variantsParam, functionName, filePath);
 
   // Extract URL (typically import.meta.url)
   const url = urlParam.trim();
 
   // Resolve variants for this specific create* call
-  const variants = parseVariantsObject(variantsObjectStr, importMap);
+  const variants = parseVariantsParameter(variantsParam, importMap, functionName, filePath);
 
   // Parse options object
   const options: FactoryOptions = {};
+  let hasPrecompute = false;
+  let precomputeValue: any;
+  let precomputeKeyStart: number | undefined;
+  let precomputeValueStart: number | undefined;
+  let precomputeValueEnd: number | undefined;
 
   // Extract name
   const nameMatch = optionsObjectStr.match(/name\s*:\s*['"`]([^'"`]+)['"`]/);
@@ -171,10 +230,21 @@ export async function parseCreateFactoryCall(
     options.slug = slugMatch[1];
   }
 
-  // Extract precompute
-  const precomputeMatch = optionsObjectStr.match(/precompute\s*:\s*(true|false)/);
-  if (precomputeMatch) {
-    options.precompute = precomputeMatch[1] === 'true';
+  // Extract skipPrecompute
+  const skipPrecomputeMatch = optionsObjectStr.match(/skipPrecompute\s*:\s*(true|false)/);
+  if (skipPrecomputeMatch) {
+    options.skipPrecompute = skipPrecomputeMatch[1] === 'true';
+  }
+
+  // Extract precompute value using robust parsing
+  const precomputeInfo = extractPrecomputeFromOptions(optionsObjectStr);
+  if (precomputeInfo) {
+    hasPrecompute = true;
+    precomputeKeyStart = precomputeInfo.keyStart;
+    precomputeValueStart = precomputeInfo.valueStart;
+    precomputeValueEnd = precomputeInfo.valueEnd;
+    precomputeValue = precomputeInfo.value;
+    options.precompute = precomputeValue;
   }
 
   return {
@@ -183,8 +253,14 @@ export async function parseCreateFactoryCall(
     variants,
     options,
     fullMatch,
-    variantsObjectStr,
+    variantsObjectStr: variantsParam,
     optionsObjectStr,
+    hasOptions,
+    hasPrecompute,
+    precomputeValue: hasPrecompute ? precomputeValue : undefined,
+    precomputeKeyStart: hasPrecompute ? precomputeKeyStart : undefined,
+    precomputeValueStart: hasPrecompute ? precomputeValueStart : undefined,
+    precomputeValueEnd: hasPrecompute ? precomputeValueEnd : undefined,
   };
 }
 
@@ -198,15 +274,17 @@ function findCreateFactoryCalls(
   functionName: string;
   fullMatch: string;
   urlParam: string;
-  variantsObjectStr: string;
+  variantsParam: string;
   optionsObjectStr: string;
+  hasOptions: boolean;
 }> {
   const results: Array<{
     functionName: string;
     fullMatch: string;
     urlParam: string;
-    variantsObjectStr: string;
+    variantsParam: string;
     optionsObjectStr: string;
+    hasOptions: boolean;
   }> = [];
 
   // Find all create* function calls
@@ -256,36 +334,23 @@ function findCreateFactoryCalls(
     if (parts.length === 2) {
       const [urlParam] = parts;
 
-      // Extract the actual object string for variants
-      const variantsObjectStr = objects[1];
-
-      if (!variantsObjectStr) {
-        throw new Error(
-          `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-            `Expected an object but could not parse: ${parts[1].trim()}`,
-        );
-      }
+      // The variants parameter can be either an object literal or a single identifier
+      const variantsParam = objects[1] || parts[1].trim();
 
       results.push({
         functionName,
         fullMatch,
         urlParam: urlParam.trim(),
-        variantsObjectStr,
+        variantsParam,
         optionsObjectStr: '{}', // Default empty options
+        hasOptions: false, // No options parameter was provided
       });
     } else if (parts.length === 3) {
       const [urlParam] = parts;
 
-      // Extract the actual object strings
-      const variantsObjectStr = objects[1];
+      // The variants parameter can be either an object literal or a single identifier
+      const variantsParam = objects[1] || parts[1].trim();
       const optionsObjectStr = objects[2];
-
-      if (!variantsObjectStr) {
-        throw new Error(
-          `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-            `Expected an object but could not parse: ${parts[1].trim()}`,
-        );
-      }
 
       if (!optionsObjectStr) {
         throw new Error(
@@ -298,8 +363,9 @@ function findCreateFactoryCalls(
         functionName,
         fullMatch,
         urlParam: urlParam.trim(),
-        variantsObjectStr,
+        variantsParam,
         optionsObjectStr,
+        hasOptions: true, // Options parameter was provided
       });
     }
 
@@ -307,4 +373,101 @@ function findCreateFactoryCalls(
   }
 
   return results;
+}
+
+/**
+ * Extracts precompute property from options object using robust parsing
+ */
+function extractPrecomputeFromOptions(optionsObjectStr: string): {
+  keyStart: number;
+  valueStart: number;
+  valueEnd: number;
+  value: any;
+} | null {
+  // Find the precompute property using regex
+  const precomputeMatch = optionsObjectStr.match(/precompute\s*:\s*/);
+  if (!precomputeMatch) {
+    return null;
+  }
+
+  const keyStart = precomputeMatch.index!;
+  const valueStartIndex = keyStart + precomputeMatch[0].length;
+
+  // Extract the remaining part after "precompute:"
+  const remainingStr = optionsObjectStr.substring(valueStartIndex);
+
+  // Try to extract a balanced object first
+  const objectValue = extractBalancedBraces(remainingStr);
+
+  if (objectValue) {
+    // It's an object value
+    let actualValueStart = valueStartIndex;
+    while (
+      actualValueStart < optionsObjectStr.length &&
+      /\s/.test(optionsObjectStr[actualValueStart])
+    ) {
+      actualValueStart += 1;
+    }
+
+    const valueEnd = actualValueStart + objectValue.length;
+
+    return {
+      keyStart,
+      valueStart: actualValueStart,
+      valueEnd,
+      value: objectValue, // Keep object as string
+    };
+  }
+
+  // It's a simple value (true, false, etc.)
+  // Parse until comma, newline, or closing brace
+  let i = 0;
+  let inString = false;
+  let stringChar = '';
+
+  while (i < remainingStr.length) {
+    const char = remainingStr[i];
+
+    if (!inString && (char === '"' || char === "'" || char === '`')) {
+      inString = true;
+      stringChar = char;
+    } else if (inString && char === stringChar && remainingStr[i - 1] !== '\\') {
+      inString = false;
+      stringChar = '';
+    } else if (!inString && (char === ',' || char === '}' || char === '\n')) {
+      break;
+    }
+
+    i += 1;
+  }
+
+  const valueStr = remainingStr.substring(0, i).trim();
+
+  // Calculate precise boundaries
+  let actualValueStart = valueStartIndex;
+  while (
+    actualValueStart < optionsObjectStr.length &&
+    /\s/.test(optionsObjectStr[actualValueStart])
+  ) {
+    actualValueStart += 1;
+  }
+
+  const valueEnd = actualValueStart + valueStr.length;
+
+  // Parse the value
+  let parsedValue: any;
+  if (valueStr === 'true') {
+    parsedValue = true;
+  } else if (valueStr === 'false') {
+    parsedValue = false;
+  } else {
+    parsedValue = valueStr;
+  }
+
+  return {
+    keyStart,
+    valueStart: actualValueStart,
+    valueEnd,
+    value: parsedValue,
+  };
 }
