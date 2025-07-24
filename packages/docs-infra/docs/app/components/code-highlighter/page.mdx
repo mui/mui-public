@@ -57,11 +57,11 @@ For multiple variants:
 
 ```typescript
 // app/components/checkbox/demos/basic/index.ts
-import { createDemo } from '../createDemo';
+import { createDemoWithVariants } from '../createDemo';
 import { Checkbox as CssModules } from './css-modules/Checkbox';
 import { Checkbox as Tailwind } from './tailwind/Checkbox';
 
-export const DemoCheckboxBasic = createDemo(import.meta.url, { CssModules, Tailwind });
+export const DemoCheckboxBasic = createDemoWithVariants(import.meta.url, { CssModules, Tailwind });
 ```
 
 ### Demo File Structure

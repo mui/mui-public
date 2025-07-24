@@ -94,7 +94,7 @@ export const BasicDemo = createDemo(import.meta.url, Default);
 The loader handles multiple code variants automatically:
 
 ```typescript
-import { createDemo } from '../createDemo';
+import { createDemoWithVariants } from '../createDemo';
 import CssModules from './Component.tsx';
 import Tailwind from './Component.jsx';
 
@@ -106,7 +106,7 @@ export const MultiVariantDemo = createDemoWithVariants(import.meta.url, { CssMod
 You can pass options to the factory function, such as a `name` and `slug` override:
 
 ```typescript
-import { createDemo } from '../createDemo';
+import { createDemoWithVariants } from '../createDemo';
 import CssModules from './Component.tsx';
 import Tailwind from './Component.jsx';
 
