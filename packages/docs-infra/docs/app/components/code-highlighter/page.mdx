@@ -108,7 +108,7 @@ The precomputation is handled by a webpack loader that processes demo files at b
 
 **Important**: Precomputation only works:
 - ✓ In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
-- ✓ Using `createDemo()` with `precompute: true` 
+- ✓ Using `createDemo()`
 - ✓ In both main demos and nested demo examples
 - x Not in direct `CodeHighlighter` usage
 - x Not in files outside the configured loader pattern
@@ -286,7 +286,7 @@ Description of the advanced demo.
 When rendering a code block, the user should consider the following options based on their use case:
 
 ### Build-Time (Recommended)
-Use the factory pattern with `precompute: true` for optimal performance:
+Use the factory pattern optimal performance:
 
 **Advantages:**
 - ✓ Faster initial load times
@@ -295,7 +295,6 @@ Use the factory pattern with `precompute: true` for optimal performance:
 
 **Requirements:**
 - Must use `createDemo()` in `index.ts` files
-- Must set `precompute: true`
 - Must be in a demo directory structure
 
 ### Server Rendering
@@ -389,14 +388,13 @@ The `CodeHighlighter` component accepts the following props:
 - Check `fallbackUsesExtraFiles` settings
 
 **Performance issues:**
-- Use `precompute: true` in demo factory files for build-time optimization
+- Use demo factory pattern for build-time optimization
 - Consider `highlightAt: 'idle'` for non-critical code
 - Implement proper error boundaries
 - Remember: precomputation only works with `createDemo()` in `index.ts` files
 
 **Precomputation not working:**
 - Ensure you're using `createDemo()` in an `index.ts` file
-- Check that `precompute: true` is set in the factory options
 - Verify the file is in the correct path pattern: `./app/**/demos/*/index.ts`
 - Make sure the webpack loader is configured correctly
 
