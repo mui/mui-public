@@ -34,6 +34,7 @@
   },
   "sideEffects": false,
   "type": "commonjs",
+  "types": "./index.d.ts",
   "exports": {
     ".": "./index.js"
   },
