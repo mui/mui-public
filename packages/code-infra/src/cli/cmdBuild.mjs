@@ -1,0 +1,191 @@
+/* eslint-disable no-console */
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { $ } from 'execa';
+import deepMerge from 'lodash-es/merge.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+
+/**
+ * @typedef {Object} Args
+ * @property {('cjs' | 'esm')[]} bundle - The bundles to build.
+ * @property {boolean} hasLargeFiles - The large files to build.
+ * @property {boolean} skipModulePackageJson - Whether to skip generating a package.json file in the /esm folder.
+ * @property {string} cjsOutDir - The directory to copy the cjs files to.
+ * @property {boolean} verbose - Whether to enable verbose logging.
+ * @property {boolean} buildTypes - Whether to build types for the package.
+ * @property {boolean} skipTsc - Whether to build types for the package.
+ * @property {boolean} optimizeClsx - Whether to enable clsx call optimization transform.
+ * @property {string[]} ignore - Globs to be ignored by Babel.
+ */
+
+/**
+ * @typedef {Object} PkgJson
+ * @property {Object} [code-infra] - Code infra specific configuration.
+ * @property {import('./babel.mjs').BuildConfig} [code-infra.build] - Code infra specific configuration.
+ */
+
+const validBundles = [
+  // build for node using commonJS modules
+  'cjs',
+  // build with a hardcoded target using ES6 modules
+  'esm',
+];
+
+export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+  command: 'build',
+  describe: 'Builds the packages for publishing.',
+  builder(yargs) {
+    return yargs
+      .option('bundle', {
+        array: true,
+        demandOption: true,
+        type: 'string',
+        choices: validBundles,
+        description: 'Bundles to output',
+      })
+      .option('hasLargeFiles', {
+        type: 'boolean',
+        default: false,
+        describe: 'Set to `true` if you know you are transpiling large files.',
+      })
+      .option('skipModulePackageJson', {
+        type: 'boolean',
+        default: false,
+        describe:
+          "Set to `true` if you don't want to generate a package.json file in the bundle output.",
+      })
+      .option('cjsOutDir', {
+        default: 'cjs',
+        type: 'string',
+        description: 'The directory to output the cjs files to.',
+      })
+      .option('verbose', {
+        type: 'boolean',
+        default: false,
+        description: 'Enable verbose logging.',
+      })
+      .option('buildTypes', {
+        type: 'boolean',
+        default: true,
+        description: 'Whether to build types for the package.',
+      })
+      .option('skipTsc', {
+        type: 'boolean',
+        default: false,
+        description: 'Skip running TypeScript compiler (tsc) for building types.',
+      })
+      .option('ignore', {
+        type: 'string',
+        array: true,
+        description: 'Extra globs to be ignored by Babel.',
+        default: [],
+      })
+      .option('optimizeClsx', {
+        type: 'boolean',
+        default: false,
+        description: 'Enable clsx call optimization transform.',
+      });
+  },
+  async handler(args) {
+    const {
+      bundle: bundles,
+      hasLargeFiles,
+      optimizeClsx,
+      skipModulePackageJson,
+      cjsOutDir = 'cjs',
+      verbose = false,
+      // ignore: extraIgnores,
+      // buildTypes,
+      // skipTsc,
+    } = args;
+
+    const cwd = process.cwd();
+    const pkgJsonPath = path.join(cwd, 'package.json');
+    const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
+    const buildDirBase = packageJson.publishConfig?.directory || 'build';
+
+    console.log(`Selected output directory: ${buildDirBase}`);
+
+    let babelRuntimeVersion = packageJson.dependencies['@babel/runtime'];
+    if (babelRuntimeVersion === 'catalog:') {
+      // resolve the version from the given package
+      // outputs the pnpm-workspace.yaml config as json
+      const { stdout: configStdout } = await $`pnpm config list --json`;
+      const pnpmWorkspaceConfig = JSON.parse(configStdout);
+      babelRuntimeVersion = pnpmWorkspaceConfig.catalog['@babel/runtime'];
+    }
+
+    if (!babelRuntimeVersion) {
+      throw new Error(
+        'package.json needs to have a dependency on `@babel/runtime` when building with `@babel/plugin-transform-runtime`.',
+      );
+    }
+
+    if (!bundles.length) {
+      console.error('No bundles specified. Use --bundle to specify which bundles to build.');
+      return;
+    }
+
+    const babelMod = await import('./babel.mjs');
+    const workspaceDir = await findWorkspaceDir(cwd);
+
+    /**
+     * @type {import('./babel.mjs').BuildConfig | undefined}
+     */
+    let buildConfig;
+
+    if (workspaceDir) {
+      buildConfig = /** @type {PkgJson} */ (
+        JSON.parse(await fs.readFile(path.join(workspaceDir, 'package.json'), 'utf8'))
+      )?.['code-infra']?.build;
+      if (buildConfig?.errorCodesPath) {
+        buildConfig.errorCodesPath = path.join(workspaceDir, buildConfig.errorCodesPath);
+      }
+    }
+
+    const localBuildConfig = /** @type {PkgJson} */ (packageJson)?.['code-infra']?.build;
+    if (localBuildConfig?.errorCodesPath) {
+      localBuildConfig.errorCodesPath = path.join(cwd, localBuildConfig.errorCodesPath);
+    }
+    if (localBuildConfig) {
+      buildConfig = deepMerge(buildConfig, localBuildConfig);
+    }
+
+    buildConfig = deepMerge({ cjsOutDir }, buildConfig);
+
+    await Promise.all(
+      bundles.map(async (bundle) => {
+        const relativeOutDir = {
+          cjs: /** @type {string} */ (buildConfig.cjsOutDir),
+          esm: 'esm',
+        }[bundle];
+        const buildDir = path.join(cwd, buildDirBase);
+        const outputDir = path.join(buildDir, relativeOutDir);
+        const sourceDir = path.join(cwd, 'src');
+
+        await babelMod.babelBuild({
+          sourceDir,
+          outDir: outputDir,
+          babelRuntimeVersion,
+          hasLargeFiles,
+          bundle,
+          verbose,
+          optimizeClsx,
+          buildConfig,
+          pkgVersion: packageJson.version,
+        });
+
+        if (buildDir !== outputDir && !skipModulePackageJson) {
+          await fs.writeFile(
+            path.join(outputDir, 'package.json'),
+            JSON.stringify({
+              type: bundle === 'esm' ? 'module' : 'commonjs',
+            }),
+          );
+        }
+        // await buildTypes();
+        // await writePackageJson();
+      }),
+    );
+  },
+});
