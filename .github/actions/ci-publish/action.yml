@@ -1,0 +1,22 @@
+name: 'pkg.pr.new release'
+description: 'Publishes a new release to pkg.pr.new'
+
+inputs:
+  pr-comment:
+    description: 'Configure comments from pkg.pr.new bot'
+    type: boolean
+    required: false
+    default: false
+  use-compact-url:
+    description: 'Use compact URLs for pkg.pr.new'
+    type: boolean
+    required: false
+    default: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Publish to pkg.pr.new
+      shell: bash
+      run: |
+        pnpm dlx pkg-pr-new publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --peerDeps --template './examples/*' --comment=${{ inputs.pr-comment == 'true' && 'update' || 'off' }} ${{ inputs.use-compact-url == 'true' && '--compact' || '' }}
