@@ -7,7 +7,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid #d0cdd7;
 }
 
@@ -26,12 +26,12 @@
 .switchContainer {
   display: flex;
 }
-
-.switchContainerHidden {
-  display: none;
+.code {
+  padding: 6px;
 }
 
 .codeBlock {
-  padding: 12px;
   margin: 0;
+  padding: 6px;
+  overflow-x: auto;
 }

@@ -1,4 +1,4 @@
-import { createDemo } from '../createDemo';
+import { createDemo } from '@/functions/createDemo';
 import { BasicCode } from './BasicCode';
 
 export const DemoCodeHighlighterCode = createDemo(import.meta.url, BasicCode, {

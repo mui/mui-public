@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Tabs as TabsParts } from '@base-ui-components/react/tabs';
 import styles from './Tabs.module.css';
 
 export interface Tab {
@@ -14,37 +15,47 @@ export interface TabsProps {
 
 export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
   if (tabs.length <= 1) {
-    return tabs.length === 1 ? <span className={styles.name}>{tabs[0].name}</span> : null;
+    return tabs.length === 1 ? (
+      <div className={styles.name}>
+        <span>{tabs[0].name}</span>
+      </div>
+    ) : null;
   }
 
   return (
-    <div className={styles.tabGroup}>
-      {tabs.map((tab, index) => {
-        const isSelected = tab.id === selectedTabId;
-        const isFirst = index === 0;
-        const isLast = index === tabs.length - 1;
-        const nextTabSelected = index < tabs.length - 1 && tabs[index + 1].id === selectedTabId;
-        const prevTabSelected = index > 0 && tabs[index - 1].id === selectedTabId;
+    <TabsParts.Root
+      className={styles.tabsRoot}
+      defaultValue={tabs[0].id}
+      onValueChange={onTabSelect}
+    >
+      <TabsParts.List className={styles.tabsList}>
+        {tabs.map((tab, index) => {
+          const isSelected = tab.id === selectedTabId;
+          const isFirst = index === 0;
+          const isLast = index === tabs.length - 1;
+          const nextTabSelected = index < tabs.length - 1 && tabs[index + 1].id === selectedTabId;
+          const prevTabSelected = index > 0 && tabs[index - 1].id === selectedTabId;
 
-        const tabClasses = [
-          styles.tab,
-          isSelected && styles.tabSelected,
-          !isSelected && isFirst && styles.tabFirst,
-          !isSelected && isLast && styles.tabLast,
-          !isSelected && !isFirst && !isLast && styles.tabMiddle,
-          nextTabSelected && styles.tabNextSelected,
-          prevTabSelected && styles.tabPrevSelected,
-          isLast || isSelected ? styles.tabWithBorderRight : styles.tabNoBorderRight,
-        ]
-          .filter(Boolean)
-          .join(' ');
+          const tabClasses = [
+            styles.tab,
+            isSelected && styles.tabSelected,
+            !isSelected && isFirst && styles.tabFirst,
+            !isSelected && isLast && styles.tabLast,
+            !isSelected && !isFirst && !isLast && styles.tabMiddle,
+            nextTabSelected && styles.tabNextSelected,
+            prevTabSelected && styles.tabPrevSelected,
+            isLast || isSelected ? styles.tabWithBorderRight : styles.tabNoBorderRight,
+          ]
+            .filter(Boolean)
+            .join(' ');
 
-        return (
-          <button key={index} onClick={() => onTabSelect(tab.id)} className={tabClasses}>
-            {tab.name}
-          </button>
-        );
-      })}
-    </div>
+          return (
+            <TabsParts.Tab key={index} className={tabClasses} value={tab.id}>
+              {tab.name}
+            </TabsParts.Tab>
+          );
+        })}
+      </TabsParts.List>
+    </TabsParts.Root>
   );
 }

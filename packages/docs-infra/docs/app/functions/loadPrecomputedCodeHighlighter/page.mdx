@@ -6,14 +6,15 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
 
 ## Overview
 
-The loader processes demo files that use the `createDemo` factory pattern with `precompute: true`, automatically resolving and processing all code variants at build time rather than runtime.
+The loader processes demo files that use the `createDemo` factory pattern, automatically resolving and processing all code variants at build time rather than runtime.
 
-> **Note**: The loader works with any `create*` function, not just `createDemo`. You could have `app/components/my-component/snippets/example/index.ts` with `createSnippet()`, or any other factory function that follows the same pattern with `precompute: true`.
+> [!NOTE]
+> The loader works with any `create*` function, not just `createDemo`. You could have `app/components/my-component/snippets/example/index.ts` with `createSnippet()`, or any other factory function that follows the same pattern with `precompute: true`.
 
 ### Key Features
 
-- **Build-time syntax highlighting**: Uses Starry Night for syntax highlighting during compilation
-- **TypeScript transformation**: Automatically converts TypeScript examples to JavaScript variants  
+- **Build-time syntax highlighting**: Uses [Starry Night](https://github.com/wooorm/starry-night) for syntax highlighting during compilation
+- **TypeScript transformation**: Automatically converts TypeScript examples to JavaScript variants
 - **Dependency tracking**: Resolves and tracks all file dependencies for hot reloading
 - **Recursive loading**: Handles complex dependency trees automatically
 - **Factory pattern support**: Works with `createDemo()`, `createSnippet()`, or any `create*()` calls in index.ts files
@@ -166,7 +167,7 @@ Converts relative imports to absolute file paths for each variant.
 ### 3. Process Variants
 
 - Loads each variant file and its dependencies
-- Applies syntax highlighting using Starry Night
+- Applies syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night)
 - Converts TypeScript to JavaScript when needed
 - Tracks all files for hot reloading
 

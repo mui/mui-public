@@ -1,25 +1,36 @@
-.tabGroup {
+.tabsRoot {
+  display: flex;
+}
+
+.tabsList {
   display: flex;
   gap: 0px;
   overflow-x: auto;
   max-width: 100%;
-  padding-top: 16px;
+  padding-top: 14px;
 }
 
 .name {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}
+
+.name span {
   color: #65636d;
-  padding: 8px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 12px;
   font-family: var(--font-geist-mono);
 }
 
 .tab {
   padding: 10px 8px 8px 8px;
   border: 1px solid #d0cdd7;
-  background-color: #ffffff;
+  border-bottom: none;
+  background-color: transparent;
   color: #65636d;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-family: var(--font-geist-mono);
   transition: all 0.2s ease;
   position: relative;

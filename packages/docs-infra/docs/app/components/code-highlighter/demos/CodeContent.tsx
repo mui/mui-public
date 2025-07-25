@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import Switch from '@/components/Switch/Switch';
+import { LabeledSwitch } from '@/components/LabeledSwitch';
 import { CopyButton } from '@/components/CopyButton';
 import styles from './CodeContent.module.css';
 
@@ -14,10 +14,13 @@ export function CodeContent(props: ContentProps<{}>) {
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
-
-  const toggleJs = React.useCallback(() => {
-    code.selectTransform(isJsSelected ? null : 'js');
-  }, [code, isJsSelected]);
+  const labels = { false: 'TS', true: 'JS' };
+  const toggleJs = React.useCallback(
+    (checked: boolean) => {
+      code.selectTransform(checked ? 'js' : null);
+    },
+    [code],
+  );
 
   return (
     <div className={styles.container}>
@@ -25,19 +28,16 @@ export function CodeContent(props: ContentProps<{}>) {
         <span className={styles.name}>{code.selectedFileName}</span>
         <div className={styles.headerActions}>
           <CopyButton copy={code.copy} copyDisabled={code.copyDisabled} />
-          <div className={hasJsTransform ? styles.switchContainer : styles.switchContainerHidden}>
-            <Switch
-              value={isJsSelected}
-              onChange={toggleJs}
-              options={[
-                { label: 'TS', value: false },
-                { label: 'JS', value: true },
-              ]}
-            />
-          </div>
+          {hasJsTransform && (
+            <div className={styles.switchContainer}>
+              <LabeledSwitch checked={isJsSelected} onCheckedChange={toggleJs} labels={labels} />
+            </div>
+          )}
         </div>
       </div>
-      <pre className={styles.codeBlock}>{code.selectedFile}</pre>
+      <div className={styles.code}>
+        <pre className={styles.codeBlock}>{code.selectedFile}</pre>
+      </div>
     </div>
   );
 }
