@@ -22,7 +22,11 @@ const nextConfig = {
 
 const withMDX = createMDX({
   options: {
-    remarkPlugins: [['remark-gfm'], ['@mui/internal-docs-infra/transformRelativeMarkdownPaths']],
+    remarkPlugins: [
+      ['remark-gfm'],
+      ['@mui/internal-docs-infra/transformRelativeMarkdownPaths'],
+      ['@mui/internal-docs-infra/transformMarkdownBlockquoteCallouts'],
+    ],
     rehypePlugins: [],
   },
 });

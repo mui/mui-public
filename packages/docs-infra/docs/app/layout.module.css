@@ -1,27 +1,12 @@
 .body {
   font-family: var(--font-geist-sans);
   margin: 0;
-}
-
-.body pre {
-  font-family: var(--font-geist-mono);
-  font-size: 13px;
-}
-
-.body code {
-  font-family: var(--font-geist-mono);
-  font-size: 14px;
-  color: #ca244d;
-  background: #fff7f8;
-}
-
-.body pre > code {
-  color: initial;
-  background: initial;
+  background: color(display-p3 0.995 0.988 0.996);
+  background: #fefcfe;
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 850px;
   margin: 0 auto;
   padding: 0 20px 12px 20px;
 }
@@ -31,12 +16,77 @@
   justify-content: center;
   align-items: center;
   height: 60px;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+  background-color: color(display-p3 0.983 0.971 0.993);
+  background-color: #fbf7fe;
+  border-bottom: 1px solid color(display-p3 0.86 0.774 0.942);
+  border-bottom: 1px solid #e0c4f4;
 }
 
 .header a {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #333;
+  color: color(display-p3 0.234 0.132 0.363);
+  color: #402060;
+  text-decoration: none;
+}
+
+.body code {
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  background: color(display-p3 0.995 0.971 0.974);
+  background: #fff7f8;
+}
+
+.body code {
+  color: color(display-p3 0.728 0.211 0.311);
+  color: #ca244d;
+  text-decoration-color: color(display-p3 0.728 0.211 0.311);
+  text-decoration-color: #ca244d;
+}
+
+.body a:has(code) {
+  text-decoration-color: color(display-p3 0.728 0.211 0.311);
+  text-decoration-color: #ca244d;
+}
+
+.body a:visited code {
+  background: color(display-p3 0.966 0.983 0.964);
+  background: #f5fbf5;
+  color: color(display-p3 0.263 0.488 0.261);
+  color: #2a7e3b;
+}
+
+.body a:visited:has(code) {
+  text-decoration-color: color(display-p3 0.263 0.488 0.261);
+  text-decoration-color: #2a7e3b;
+}
+
+.body a {
+  color: color(display-p3 0.15 0.44 0.84);
+  color: #0d74ce;
+}
+
+.body a:visited {
+  color: color(display-p3 0.473 0.281 0.687);
+  color: #8145b5;
+}
+
+.body {
+  color: color(display-p3 0.128 0.122 0.147);
+  color: #211f26;
+}
+
+.body h1,
+.body h2,
+.body h3,
+.body h4,
+.body h5,
+.body h6 {
+  color: color(display-p3 0.473 0.281 0.687);
+  color: #8145b5;
+}
+
+.body pre > code {
+  color: initial;
+  background: initial;
 }
