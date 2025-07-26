@@ -41,11 +41,11 @@
 }
 
 .tab:hover:not(.tabSelected) {
-  background-color: #f2eff3;
+  background-color: #30004010;
 }
 
 .tab:active:not(.tabSelected) {
-  background-color: #e3dfe6;
+  background-color: #20003820;
 }
 
 .tabSelected {

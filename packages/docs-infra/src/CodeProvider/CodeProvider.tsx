@@ -33,12 +33,14 @@ export function CodeProvider({
         return starryNight.highlight(source, extensionMap[fileType] || 'plaintext');
       };
 
-      // Update the sync version when available
-      setParseSource(parseSourceFn);
-
       return parseSourceFn;
     });
   }, []);
+
+  React.useEffect(() => {
+    // Update the sync version when available
+    sourceParser.then((parseSourceFn) => setParseSource(() => parseSourceFn));
+  }, [sourceParser]);
 
   const context = React.useMemo(
     () => ({

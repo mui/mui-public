@@ -14,6 +14,7 @@ type AbstractCreateDemoOptions<T extends {}> = {
   DemoContent: React.ComponentType<ContentProps<T>>;
   DemoContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
   DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
+  controlled?: boolean;
 }; // TODO: allow passing any CodeHighlighter prop
 
 export function abstractCreateDemo<T extends {}>(
@@ -50,6 +51,7 @@ export function abstractCreateDemo<T extends {}>(
         contentProps={props}
         Content={options.DemoContent}
         ContentLoading={options.DemoContentLoading}
+        controlled={options.controlled}
       />
     );
   }

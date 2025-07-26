@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ControlledCode } from '../CodeHighlighter/types';
+import type { ControlledCode } from '../CodeHighlighter/types';
 
 export type Selection = { variant: string; fileName?: string; transformKey?: string };
 

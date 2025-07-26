@@ -3,7 +3,7 @@ import kebabCase from 'kebab-case';
 
 import { useCode } from '../useCode';
 import { UseCopierOpts } from '../useCopier';
-import { ContentProps } from '../CodeHighlighter/types';
+import type { ContentProps } from '../CodeHighlighter/types';
 
 type UseDemoOpts = {
   defaultOpen?: boolean;

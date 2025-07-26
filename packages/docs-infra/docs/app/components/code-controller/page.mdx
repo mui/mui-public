@@ -1,7 +1,28 @@
 # Code Controller
 
-Controls the code displayed in the [`CodeHighlighter`](../code-highlighter/page.mdx) component. It allows you to change the code dynamically, to update the code based on user input.
-{/* 
-import { CodeEditorDemo } from './demos/code-editor';
+The Code Controller provides a context-based system for managing dynamic source code editing in [`CodeHighlighter`](../code-highlighter/page.mdx) components. It's designed specifically for interactive code editing experiences where users can modify source code and see live updates.
 
-<CodeEditorDemo /> */}
+## Features
+
+- **Live source code editing** - Real-time code modification and updates
+- **Context-based API** - React Context for seamless integration
+- **Selection management** - Track variant, file, and transformation selections
+- **Precomputed performance** - Uses build-time optimization when possible
+- **Live preview updates** - Instant feedback as code changes
+
+## Examples
+
+import { DemoCodeControllerCodeEditor } from './demos/code-editor'
+
+<DemoCodeControllerCodeEditor.Title />
+
+<DemoCodeControllerCodeEditor />
+
+---
+
+import { DemoCodeControllerLiveDemo } from './demos/demo-live'
+
+<DemoCodeControllerLiveDemo.Title />
+
+<DemoCodeControllerLiveDemo />
+

@@ -6,7 +6,7 @@ import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 
 import { useCopier, UseCopierOpts } from '../useCopier';
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
-import { ContentProps } from '../CodeHighlighter/types';
+import type { ContentProps, ControlledCode } from '../CodeHighlighter/types';
 import { applyTransform } from '../CodeHighlighter/applyTransform';
 
 type Source = Nodes;
@@ -36,10 +36,10 @@ export interface UseCodeResult {
   setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
   resetFocus: () => void;
   copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>;
-  copyDisabled: boolean;
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
+  setSource?: (source: string) => void;
 }
 
 function toComponent(source: Source) {
@@ -404,7 +404,7 @@ export function useCode<T extends {} = {}>(
     return toText(selectedFile as Source, { whitespace: 'pre' });
   }, [selectedFile]);
 
-  const { copy, disabled: copyDisabled } = useCopier(sourceFileToText, copyOpts);
+  const { copy } = useCopier(sourceFileToText, copyOpts);
 
   // Function to switch to a specific transform
   const selectTransform = React.useCallback(
@@ -448,6 +448,33 @@ export function useCode<T extends {} = {}>(
     [selectedVariant, transformedFiles],
   );
 
+  const contextSetCode = context?.setCode;
+  const setSource = React.useCallback(
+    (source: string) => {
+      if (contextSetCode) {
+        contextSetCode((currentCode) => {
+          let newCode: ControlledCode = {};
+          if (!currentCode) {
+            newCode = { ...effectiveCode } as ControlledCode; // TODO: ensure all source are strings
+          }
+
+          newCode[selectedVariantKey] = {
+            ...(newCode[selectedVariantKey] || selectedVariant),
+            source,
+            extraFiles: {},
+          } as ControlledCode[string];
+
+          return newCode;
+        });
+      } else {
+        console.warn(
+          'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
+        );
+      }
+    },
+    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant],
+  );
+
   // Get the effective components object - context overrides contentProps
   // Components are kept separate from variant data to maintain clean separation of concerns
   const effectiveComponents = React.useMemo(() => {
@@ -469,9 +496,9 @@ export function useCode<T extends {} = {}>(
     setExpanded,
     resetFocus,
     copy,
-    copyDisabled,
     availableTransforms,
     selectedTransform,
     selectTransform,
+    setSource,
   };
 }
