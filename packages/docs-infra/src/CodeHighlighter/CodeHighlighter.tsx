@@ -12,7 +12,7 @@ import type {
 
 import { loadVariant } from './loadVariant';
 import { loadFallbackCode } from './loadFallbackCode';
-import { stringOrHastToJsx } from '../hast';
+import { stringOrHastToJsx } from '../hastUtils';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';

@@ -1,5 +1,5 @@
 import { BaseContentLoadingProps, Code, ContentLoadingVariant, VariantCode } from './types';
-import { stringOrHastToJsx } from '../hast/hast';
+import { stringOrHastToJsx } from '../hastUtils';
 
 function toExtraSource(variantCode: VariantCode, fileName?: string) {
   return Object.entries(variantCode.extraFiles || {}).reduce(

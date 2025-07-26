@@ -1,7 +1,7 @@
 import { createDemo } from '@/functions/createDemo';
-import { LiveDemo } from './LiveDemo';
+import { DemoLive } from './DemoLive';
 
-export const DemoCodeControllerLiveDemo = createDemo(import.meta.url, LiveDemo, {
+export const DemoCodeControllerDemoLive = createDemo(import.meta.url, DemoLive, {
   name: 'Live Demo',
   slug: 'live-demo',
 });

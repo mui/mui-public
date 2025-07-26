@@ -11,7 +11,7 @@ import { DemoLiveContent as DemoContent } from './DemoLiveContent';
  * @param component The component to be rendered in the demo.
  * @param meta Additional meta for the demo.
  */
-export const createDemo = createDemoFactory({
+export const createLiveDemo = createDemoFactory({
   DemoContent,
   controlled: true,
 });
@@ -23,7 +23,7 @@ export const createDemo = createDemoFactory({
  * @param variants The variants of the component to be rendered in the demo.
  * @param meta Additional meta for the demo.
  */
-export const createDemoWithVariants = createDemoWithVariantsFactory({
+export const createLiveDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   controlled: true,
 });
