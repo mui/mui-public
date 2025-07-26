@@ -83,7 +83,7 @@ function getFileName(codeElement: Element): string {
   }
 
   // Default fallback
-  return 'index.js';
+  return 'index.txt';
 }
 
 /**
