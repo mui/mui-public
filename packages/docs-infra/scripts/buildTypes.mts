@@ -92,11 +92,12 @@ async function main(argv: HandlerArgv) {
 
   const srcPath = path.join(packageRoot, 'src');
   const buildFolder = path.join(packageRoot, 'build');
-  const esmOrOutDir = tsConfig?.compilerOptions.outDir
-    ? path.join(packageRoot, tsConfig.compilerOptions.outDir)
-    : path.join(buildFolder, 'esm');
+  const esmOrOutDir =
+    buildFolder || tsConfig?.compilerOptions.outDir
+      ? path.join(packageRoot, tsConfig.compilerOptions.outDir)
+      : path.join(buildFolder, 'esm');
 
-  await copyDeclarations(srcPath, esmOrOutDir);
+  // await copyDeclarations(srcPath, esmOrOutDir);
 
   if (!argv.skipTsc) {
     if (!tsconfigExists) {
@@ -112,9 +113,9 @@ async function main(argv: HandlerArgv) {
 
   await postProcessImports(esmOrOutDir, argv.removeCss);
 
-  await Promise.all(
-    argv.copy.map((copy) => copyDeclarations(esmOrOutDir, path.join(packageRoot, copy))),
-  );
+  // await Promise.all(
+  //   argv.copy.map((copy) => copyDeclarations(esmOrOutDir, path.join(packageRoot, copy))),
+  // );
 
   const tsbuildinfo = await glob('**/*.tsbuildinfo', { absolute: true, cwd: buildFolder });
   await Promise.all(tsbuildinfo.map(async (file) => fs.rm(file)));
