@@ -27,7 +27,7 @@ const withMDX = createMDX({
       ['@mui/internal-docs-infra/transformRelativeMarkdownPaths'],
       ['@mui/internal-docs-infra/transformMarkdownBlockquoteCallouts'],
     ],
-    rehypePlugins: [],
+    rehypePlugins: [['@mui/internal-docs-infra/transformHtmlCode']],
   },
 });
 
