@@ -87,6 +87,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       if (await fileOrDirExists(resolvedSourcePath)) {
         await fs.cp(resolvedSourcePath, resolvedTargetPath, {
           recursive: true,
+          errorOnExist: false,
         });
 
         if (!silent) {

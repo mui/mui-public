@@ -2,6 +2,7 @@
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import deepMerge from 'lodash-es/merge.js';
+import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -17,6 +18,7 @@ const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
  * @property {boolean} buildTypes - Whether to build types for the package.
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} optimizeClsx - Whether to enable clsx call optimization transform.
+ * @property {boolean} skipCatchAllExports - Whether to skip adding catch-all exports for the package.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
 
@@ -36,7 +38,13 @@ const validBundles = [
 /**
  * @param {import('./babel.mjs').BundleType} bundle
  */
-function getOutExtension(bundle) {
+function getOutExtension(bundle, isType = false) {
+  if (isType) {
+    if (!isMjsBuild) {
+      return '.d.ts';
+    }
+    return bundle === 'esm' ? '.d.mts' : '.d.ts';
+  }
   if (!isMjsBuild) {
     return '.js';
   }
@@ -57,6 +65,14 @@ async function addLicense({ name, version, license, bundle, outputDir }) {
   // For now, it's a placeholder.
   const outExtension = getOutExtension(bundle);
   const file = path.join(outputDir, `index${outExtension}`);
+  if (
+    !(await fs.stat(file).then(
+      (stats) => stats.isFile(),
+      () => false,
+    ))
+  ) {
+    return;
+  }
   const content = await fs.readFile(file, { encoding: 'utf8' });
   await fs.writeFile(
     file,
@@ -73,9 +89,109 @@ ${content}`,
   console.log(`License added to ${file}`);
 }
 
+/**
+ * @param {Object} param0
+ * @param {any} param0.packageJson - The package.json content.
+ * @param {{type: import('./babel.mjs').BundleType; dir: string}[]} param0.bundles
+ * @param {string} param0.outputDir
+ * @param {boolean} param0.skipCatchAllExports - Whether to skip adding catch-all exports for the package.
+ */
+async function writePackageJson({ packageJson, bundles, outputDir, skipCatchAllExports = false }) {
+  delete packageJson.scripts;
+  delete packageJson.publishConfig?.directory;
+  delete packageJson.devDependencies;
+
+  packageJson.type = packageJson.type || 'commonjs';
+
+  /**
+   * @type {Record<string, string | Record<string, string | Record<string, string | undefined>> | null>}
+   */
+  const originalExports = packageJson.exports || {};
+  delete packageJson.exports;
+  /**
+   * @type {Record<string, string | Record<string, string | Record<string, string | undefined>> | null>}
+   */
+  const newExports = {
+    './package.json': './package.json',
+  };
+
+  await Promise.all(
+    bundles.map(async ({ type, dir }) => {
+      const outExtension = getOutExtension(type);
+      const fileExists = await fs
+        .stat(path.join(outputDir, dir, `index${getOutExtension(type)}`))
+        .then(
+          (stats) => stats.isFile(),
+          () => false,
+        );
+      const typeOutExtension = getOutExtension(type, true);
+      const typeFileExists = await fs
+        .stat(path.join(outputDir, dir, `index${typeOutExtension}`))
+        .then(
+          (stats) => stats.isFile(),
+          () => false,
+        );
+      const exportDir = `./${dir === '.' ? '' : `${dir}/`}index${outExtension}`;
+      const typeExportDir = `./${dir === '.' ? '' : `${dir}/`}index${typeOutExtension}`;
+
+      if (fileExists) {
+        packageJson[type === 'cjs' ? 'main' : 'module'] = exportDir;
+        const exportObj = {
+          types: typeFileExists ? typeExportDir : undefined,
+          default: exportDir,
+        };
+        newExports['.'] = newExports['.'] || {};
+        set(newExports, ['.', type === 'cjs' ? 'require' : 'import'], exportObj);
+      }
+      if (typeFileExists && type === 'cjs') {
+        packageJson.types = typeExportDir;
+      }
+
+      Object.keys(originalExports).forEach((key) => {
+        if (!originalExports[key]) {
+          newExports[key] = null;
+        } else {
+          let importPath = originalExports[key];
+          if (typeof importPath === 'string') {
+            importPath = importPath.replaceAll('./src', `./${dir === '.' ? '' : `${dir}`}`);
+            const ext = path.extname(importPath);
+            const exportObj = {
+              types: importPath.replace(ext, typeOutExtension),
+              default: importPath.replace(ext, outExtension),
+            };
+            set(newExports, [key, type === 'cjs' ? 'require' : 'import'], exportObj);
+          }
+          console.log({ importPath });
+        }
+      });
+      // catch-all
+      if (!skipCatchAllExports) {
+        const exportsObj = {
+          types: `./${dir === '.' ? '' : `${dir}/`}*/index${typeOutExtension}`,
+          default: `./${dir === '.' ? '' : `${dir}/`}*/index${outExtension}`,
+        };
+        set(newExports, ['./*', type === 'cjs' ? 'require' : 'import'], exportsObj);
+      }
+    }),
+  );
+  bundles.forEach(({ dir }) => {
+    if (dir !== '.') {
+      newExports[`./${dir}`] = null;
+    }
+  });
+
+  packageJson.exports = newExports;
+
+  await fs.writeFile(
+    path.join(outputDir, 'package.json'),
+    JSON.stringify(packageJson, null, 2),
+    'utf-8',
+  );
+}
+
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build',
-  describe: 'Builds the packages for publishing.',
+  describe: 'Builds the package for publishing.',
   builder(yargs) {
     return yargs
       .option('bundle', {
@@ -126,6 +242,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Enable clsx call optimization transform.',
+      })
+      .option('skipCatchAllExports', {
+        type: 'boolean',
+        default: false,
+        description:
+          'Skip adding catch-all exports for the package. Useful for newer packages with explicit exports.',
       });
   },
   async handler(args) {
@@ -139,12 +261,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       ignore: extraIgnores,
       buildTypes,
       skipTsc,
+      skipCatchAllExports = false,
     } = args;
 
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
     const buildDirBase = packageJson.publishConfig?.directory || 'build';
+    const buildDir = path.join(cwd, buildDirBase);
 
     console.log(`Selected output directory: ${buildDirBase}`);
 
@@ -199,10 +323,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       bundles.map(async (bundle) => {
         const outExtension = getOutExtension(bundle);
         const relativeOutDir = {
-          cjs: /** @type {string} */ (buildConfig.cjsOutDir),
+          cjs: buildConfig.cjsOutDir ?? 'cjs',
           esm: 'esm',
         }[bundle];
-        const buildDir = path.join(cwd, buildDirBase);
         const outputDir = path.join(buildDir, relativeOutDir);
         const sourceDir = path.join(cwd, 'src');
         await fs.mkdir(outputDir, { recursive: true });
@@ -257,6 +380,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         });
       }),
     );
-    // await writePackageJson();
+    const normalizedCjsOutDir =
+      buildConfig.cjsOutDir === '.' || buildConfig.cjsOutDir === './' ? '.' : buildConfig.cjsOutDir;
+    await writePackageJson({
+      packageJson,
+      bundles: bundles.map((type) => ({
+        type,
+        dir: type === 'esm' ? 'esm' : normalizedCjsOutDir || 'cjs',
+      })),
+      outputDir: buildDir,
+      skipCatchAllExports,
+    });
   },
 });
