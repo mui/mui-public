@@ -333,22 +333,32 @@ The `CodeHighlighter` component accepts the following props:
 
 #### Required Props
 
-- `url` (string): Unique identifier for the code source
 - `Content` (React.ComponentType): Component to render the code content
 
-#### Optional Props
+#### Core Props
 
+- `name` (string): Display name for the demo
+- `slug` (string): URL-friendly identifier
 - `code` (Code): Precomputed code variants
 - `components` (Components): React components for live preview
 - `variants` (string[]): Available code variant names
 - `variant` (string): Currently selected variant
 - `fileName` (string): Display name for the file
-- `name` (string): Display name for the demo
-- `slug` (string): URL-friendly identifier
-- `description` (string): Description text
-- `precompute` (boolean | Code): Enable precomputation
-- `highlightAt` ('init' | 'stream' | 'hydration' | 'idle'): When to highlight code
+- `url` (string): Unique identifier for the code source
+- `contentProps` (T): Additional props passed to the Content component
+
+#### Variant Control Props
+
+- `initialVariant` (string): Initial variant to display on first render
+- `defaultVariant` (string): Default variant to fall back to
+- `precompute` (Code): Precomputed code for build-time optimization
 - `controlled` (boolean): Enable controlled mode
+- `children` (string): Direct code content (for CodeHighlighterBaseProps)
+
+#### Rendering Props
+
+- `highlightAt` ('init' | 'stream' | 'hydration' | 'idle'): When to highlight code
+  - **Default**: 'stream'
 - `forceClient` (boolean): Force client-side rendering only
 
 #### Loading Props
@@ -356,7 +366,7 @@ The `CodeHighlighter` component accepts the following props:
 - `loadCodeMeta` (LoadCodeMeta): Function to load code metadata
 - `loadVariantMeta` (LoadVariantMeta): Function to load variant metadata  
 - `loadSource` (LoadSource): Function to load source code
-- `sourceParser` (Promise\<ParseSource\>): Parser for syntax highlighting
+- `sourceParser` (Promise of ParseSource): Parser for syntax highlighting
 - `sourceTransformers` (SourceTransformer[]): Code transformers
 
 #### Fallback Props
@@ -406,50 +416,134 @@ The `CodeHighlighter` component accepts the following props:
 
 ## Type Definitions
 
-### Core Types
+### Basic Types
 
 ```typescript
-// Code structure for variants
-type Code = { 
-  [variantName: string]: VariantCode | string | undefined 
+// Component mapping for live previews
+type Components = { 
+  [key: string]: React.ReactNode 
 };
 
+// Content rendering props (generic)
+type ContentProps<T extends {}> = {
+  name?: string;
+  slug?: string;
+  code?: Code;
+  components?: Components;
+} & T;
+```
+
+### Source Types
+
+```typescript
+// Source can be string, HAST nodes, or serialized HAST
+type VariantSource = string | HastNodes | { hastJson: string };
+
+// Transform definitions with deltas
+type Transforms = Record<string, { 
+  delta: Delta; 
+  fileName?: string 
+}>;
+```
+
+### File Structure Types
+
+```typescript
+// Extra files for a variant
+type VariantExtraFiles = {
+  [fileName: string]:
+    | string
+    | { 
+        source?: VariantSource; 
+        transforms?: Transforms; 
+        skipTransforms?: boolean 
+      };
+};
+
+// Single variant configuration
 type VariantCode = {
-  url: string;
-  fileName: string;
+  fileName?: string;
+  url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
   filesOrder?: string[];
   transforms?: Transforms;
+  allFilesListed?: boolean;
+  skipTransforms?: boolean;
 };
 
-// Component mapping for live previews
-type Components = { 
-  [variantName: string]: React.ReactNode 
+// Code structure for all variants
+type Code = { 
+  [key: string]: undefined | string | VariantCode 
+};
+```
+
+### Controlled Code Types
+
+```typescript
+// Controlled extra files (for editable demos)
+type ControlledVariantExtraFiles = {
+  [fileName: string]: { source: string | null };
 };
 
-// Content rendering props
-type ContentProps = {
-  code?: Code;
-  components?: Components;
-  name?: string;
-  slug?: string;
-  description?: string;
+// Controlled variant code (for editable demos)
+type ControlledVariantCode = {
+  fileName?: string;
+  url?: string;
+  source?: string | null;
+  extraFiles?: ControlledVariantExtraFiles;
+  filesOrder?: string[];
 };
+
+// Controlled code structure (for editable demos)
+type ControlledCode = { 
+  [key: string]: undefined | null | ControlledVariantCode 
+};
+```
+
+### Loading Options
+
+```typescript
+// Options for controlling file loading behavior
+interface LoadFileOptions {
+  /** Disable applying source transformers */
+  disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
+  disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
+  maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
+  loadedFiles?: Set<string>;
+}
+```
+
+### Processing Functions
+
+```typescript
+// Parse source code to HAST nodes
+type ParseSource = (source: string, fileName: string) => HastNodes;
+
+// Transform source code (e.g., TS to JS)
+type TransformSource = (
+  source: string,
+  fileName: string,
+) => Promise<Record<string, { 
+  source: string; 
+  fileName?: string 
+}> | undefined>;
+
+// Source transformer configuration
+type SourceTransformer = {
+  extensions: string[];
+  transformer: TransformSource;
+};
+
+type SourceTransformers = Array<SourceTransformer>;
 ```
 
 ### Loading Functions
 
 ```typescript
-// Load code metadata from URL
-type LoadCodeMeta = (url: string) => Promise<Code>;
-
-// Load variant-specific metadata
-type LoadVariantMeta = (
-  variantName: string, 
-  url: string
-) => Promise<VariantCode>;
-
 // Load source code and extra files
 type LoadSource = (url: string) => Promise<{
   source: string;
@@ -457,12 +551,12 @@ type LoadSource = (url: string) => Promise<{
   extraDependencies?: string[];
 }>;
 
-// Transform source code (e.g., TS to JS)
-type TransformSource = (
-  source: string,
-  fileName: string
-) => Promise<Record<string, { 
-  source: string; 
-  fileName?: string 
-}> | undefined>;
+// Load variant-specific metadata
+type LoadVariantMeta = (
+  variantName: string, 
+  url: string
+) => Promise<VariantCode>;
+
+// Load code metadata from URL
+type LoadCodeMeta = (url: string) => Promise<Code>;
 ```
