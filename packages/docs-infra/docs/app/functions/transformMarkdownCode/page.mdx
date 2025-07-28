@@ -85,7 +85,7 @@ Individual code blocks with options are processed immediately and don't require 
 
 ### Basic Variants (variant=name)
 
-Show the same task across different package managers:
+Show the same task across different package managers. This style is ideal when the variant names are self-evident from the code content and don't need explicit labeling:
 
 **Markdown Input:**
 ````markdown
@@ -113,32 +113,56 @@ yarn add package
 
 ### Labeled Variants (variant-group=name)
 
-Add descriptive labels for each variant:
+Add descriptive labels for each variant when the differences aren't obvious from the code alone. This is particularly useful for implementation approaches, configuration strategies, or conceptual differences:
 
 **Markdown Input:**
 ````markdown
-npm
-```bash variant-group=install
-npm install package
+Production Environment
+```javascript variant-group=deployment
+const config = {
+  apiUrl: process.env.PROD_API_URL,
+  cache: { ttl: 3600 },
+  logging: { level: 'error' }
+};
 ```
 
-pnpm
-```bash variant-group=install
-pnpm install package
+Development Environment
+```javascript variant-group=deployment
+const config = {
+  apiUrl: 'http://localhost:3000',
+  cache: { ttl: 0 },
+  logging: { level: 'debug' }
+};
 ```
 
-yarn
-```bash variant-group=install  
-yarn add package
+Testing Environment
+```javascript variant-group=deployment
+const config = {
+  apiUrl: 'http://test-api.example.com',
+  cache: { ttl: 300 },
+  logging: { level: 'warn' }
+};
 ```
 ````
 
 **HTML Output:**
 ````html
 <pre>
-  <code class="language-bash" data-variant="npm">npm install package</code>
-  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
-  <code class="language-bash" data-variant="yarn">yarn add package</code>
+  <code class="language-javascript" data-variant="Production Environment">const config = {
+  apiUrl: process.env.PROD_API_URL,
+  cache: { ttl: 3600 },
+  logging: { level: 'error' }
+};</code>
+  <code class="language-javascript" data-variant="Development Environment">const config = {
+  apiUrl: 'http://localhost:3000',
+  cache: { ttl: 0 },
+  logging: { level: 'debug' }
+};</code>
+  <code class="language-javascript" data-variant="Testing Environment">const config = {
+  apiUrl: 'http://test-api.example.com',
+  cache: { ttl: 300 },
+  logging: { level: 'warn' }
+};</code>
 </pre>
 ````
 
