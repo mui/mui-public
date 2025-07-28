@@ -90,7 +90,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         });
 
         if (!silent) {
-          console.log(`Copied ${resolvedSourcePath} to ${resolvedTargetPath}`);
+          console.log(`Copied ${sourcePath} to ${targetPath ?? path.basename(file)}`);
         }
       } else if (!silent) {
         console.warn(`Source does not exist: ${resolvedSourcePath}`);

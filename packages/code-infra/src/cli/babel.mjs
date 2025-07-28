@@ -15,6 +15,8 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+const missingError = process.env.MUI_EXTRACT_ERROR_CODES === 'true' ? 'write' : 'annotate';
+
 /**
  * @typedef {'esm' | 'cjs'} BundleType
  */
@@ -51,13 +53,6 @@ export function getVersionEnvVariables(pkgVersion) {
  */
 
 /**
- * @param {BundleType} bundle
- */
-export function getOutExtension(bundle) {
-  return bundle === 'esm' ? '.mjs' : '.js';
-}
-
-/**
  * @typedef {Object} ErrorCodeMetadata
  * @property {string} outputPath - The path where the error code file should be written.
  * @property {'annotate' | 'throw' | 'write'} [missingError] - How to handle missing error codes.
@@ -70,8 +65,8 @@ export function getOutExtension(bundle) {
  * @param {boolean} [options.debug] - Enable debug mode.
  * @param {string} [options.errorCodesPath] - Path to the error codes JSON file.
  * @param {boolean} [options.optimizeClsx] - Enable optimization for clsx calls.
- * @param {'annotate' | 'throw' | 'write'} [options.missingError] - How to handle missing error codes.
  * @param {BundleType} options.bundle - Output ES modules instead of CommonJS.
+ * @param {string} options.outExtension - Specify the output file extension.
  * @param {string} options.runtimeVersion - Specify the @babel/runtime package version.
  * @returns {import("@babel/core").TransformOptions}
  */
@@ -79,9 +74,9 @@ function getBabelConfig({
   debug = false,
   bundle,
   errorCodesPath,
-  // missingError,
   runtimeVersion,
   optimizeClsx,
+  outExtension,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -124,7 +119,7 @@ function getBabelConfig({
     plugins.push([
       pluginMinifyErrors,
       {
-        missingError: 'annotate',
+        missingError,
         errorCodesPath,
         runtimeModule: '@mui/utils/formatMuiErrorMessage',
       },
@@ -136,7 +131,7 @@ function getBabelConfig({
   }
 
   if (bundle === 'esm') {
-    plugins.push([pluginResolveImports, { outExtension: getOutExtension(bundle) }]);
+    plugins.push([pluginResolveImports, { outExtension }]);
   }
 
   return {
@@ -170,9 +165,11 @@ function getBabelConfig({
  * @param {boolean} [options.verbose=false] - Whether to enable verbose logging.
  * @param {boolean} [options.optimizeClsx=false] - Whether to enable clsx call optimization transform.
  * @param {BuildConfig} [options.buildConfig] - The build configuration.
+ * @param {string[]} [options.ignores] - The globs to be ignored by Babel.
  * @param {string} options.pkgVersion - The package version.
  * @param {string} options.sourceDir - The source directory to build from.
  * @param {string} options.outDir - The output directory for the build.
+ * @param {string} options.outExtension - The output file extension for the build.
  * @param {boolean} options.hasLargeFiles - Whether the build includes large files.
  * @param {BundleType} options.bundle - The bundles to build.
  * @param {string} options.babelRuntimeVersion - The version of @babel/runtime to use.
@@ -186,15 +183,23 @@ export async function babelBuild({
   bundle,
   buildConfig,
   pkgVersion,
+  outExtension,
   optimizeClsx = false,
   verbose = false,
+  ignores = [],
 }) {
-  await fs.mkdir(outDir, { recursive: true });
-  // Implementation goes here
   const files = await globby(['**/*.{cjs,js,mjs,cts,ts,mts,cjsx,ctsx,tsx,mtsx}'], {
     cwd: sourceDir,
     gitignore: true,
-    ignore: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*', '**/*.test/*.*', '**/test-cases/*.*'],
+    ignore: [
+      '**/*.d.ts',
+      '**/*.d.mts',
+      '**/*.test.*',
+      '**/*.spec.*',
+      '**/*.test/*.*',
+      '**/test-cases/*.*',
+      ...ignores,
+    ],
   });
   console.log(
     `Transpiling ${files.length} files to ${path.relative(path.dirname(sourceDir), outDir)}`,
@@ -205,14 +210,11 @@ export async function babelBuild({
     bundle,
     optimizeClsx,
     errorCodesPath: buildConfig?.errorCodesPath,
+    outExtension,
   });
-  const outFileExtension = getOutExtension(bundle);
   const env = {
     NODE_ENV: 'production',
     BABEL_ENV: bundle === 'esm' ? 'stable' : 'node',
-    MUI_BUILD_VERBOSE: verbose,
-    MUI_BABEL_RUNTIME_VERSION: babelRuntimeVersion,
-    MUI_OUT_FILE_EXTENSION: outFileExtension,
     ...getVersionEnvVariables(pkgVersion),
   };
   Object.entries(env).forEach(([key, value]) => {
@@ -245,11 +247,7 @@ export async function babelBuild({
         dirCreatedSet.add(outfileDir);
       }
       const ext = path.extname(basename);
-      const outFilePath = path.join(
-        outDir,
-        outfileDir,
-        basename.replace(ext, `.${getOutExtension(bundle)}`),
-      );
+      const outFilePath = path.join(outDir, outfileDir, basename.replace(ext, outExtension));
       await fs.writeFile(outFilePath, result.code, { encoding: 'utf8' });
     }),
   );

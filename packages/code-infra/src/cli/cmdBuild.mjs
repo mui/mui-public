@@ -5,6 +5,8 @@ import deepMerge from 'lodash-es/merge.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
+
 /**
  * @typedef {Object} Args
  * @property {('cjs' | 'esm')[]} bundle - The bundles to build.
@@ -30,6 +32,46 @@ const validBundles = [
   // build with a hardcoded target using ES6 modules
   'esm',
 ];
+
+/**
+ * @param {import('./babel.mjs').BundleType} bundle
+ */
+function getOutExtension(bundle) {
+  if (!isMjsBuild) {
+    return '.js';
+  }
+  return bundle === 'esm' ? '.mjs' : '.js';
+}
+
+/**
+ * @param {Object} options
+ * @param {string} options.name - The name of the package.
+ * @param {string} options.version - The version of the package.
+ * @param {string} options.license - The license of the package.
+ * @param {import('./babel.mjs').BundleType} options.bundle
+ * @param {string} options.outputDir
+ */
+async function addLicense({ name, version, license, bundle, outputDir }) {
+  // @TODO - Implement license addition logic
+  // This function should add the license file to the output directory.
+  // For now, it's a placeholder.
+  const outExtension = getOutExtension(bundle);
+  const file = path.join(outputDir, `index${outExtension}`);
+  const content = await fs.readFile(file, { encoding: 'utf8' });
+  await fs.writeFile(
+    file,
+    `/**
+ * ${name} v${version}
+ *
+ * @license ${license}
+ * This source code is licensed under the ${license} license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+${content}`,
+    { encoding: 'utf8' },
+  );
+  console.log(`License added to ${file}`);
+}
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build',
@@ -94,9 +136,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipModulePackageJson,
       cjsOutDir = 'cjs',
       verbose = false,
-      // ignore: extraIgnores,
-      // buildTypes,
-      // skipTsc,
+      ignore: extraIgnores,
+      buildTypes,
+      skipTsc,
     } = args;
 
     const cwd = process.cwd();
@@ -155,6 +197,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     await Promise.all(
       bundles.map(async (bundle) => {
+        const outExtension = getOutExtension(bundle);
         const relativeOutDir = {
           cjs: /** @type {string} */ (buildConfig.cjsOutDir),
           esm: 'esm',
@@ -162,30 +205,58 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const buildDir = path.join(cwd, buildDirBase);
         const outputDir = path.join(buildDir, relativeOutDir);
         const sourceDir = path.join(cwd, 'src');
+        await fs.mkdir(outputDir, { recursive: true });
 
-        await babelMod.babelBuild({
-          sourceDir,
-          outDir: outputDir,
-          babelRuntimeVersion,
-          hasLargeFiles,
-          bundle,
-          verbose,
-          optimizeClsx,
-          buildConfig,
-          pkgVersion: packageJson.version,
-        });
+        const promises = [
+          babelMod.babelBuild({
+            sourceDir,
+            outDir: outputDir,
+            babelRuntimeVersion,
+            hasLargeFiles,
+            bundle,
+            verbose,
+            optimizeClsx,
+            buildConfig,
+            pkgVersion: packageJson.version,
+            ignores: extraIgnores,
+            outExtension,
+          }),
+        ];
 
-        if (buildDir !== outputDir && !skipModulePackageJson) {
-          await fs.writeFile(
-            path.join(outputDir, 'package.json'),
-            JSON.stringify({
-              type: bundle === 'esm' ? 'module' : 'commonjs',
-            }),
+        if (buildDir !== outputDir && !skipModulePackageJson && !isMjsBuild) {
+          // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
+          promises.push(
+            fs.writeFile(
+              path.join(outputDir, 'package.json'),
+              JSON.stringify({
+                type: bundle === 'esm' ? 'module' : 'commonjs',
+              }),
+            ),
           );
         }
-        // await buildTypes();
-        // await writePackageJson();
+
+        if (buildTypes) {
+          const tsMod = await import('./typescript.mjs');
+          await tsMod.generateTypes({
+            srcDir: sourceDir,
+            outDir: outputDir,
+            cwd,
+            skipTsc,
+            bundle,
+            isMjsBuild,
+          });
+        }
+
+        await Promise.all(promises);
+        await addLicense({
+          bundle,
+          license: packageJson.license,
+          name: packageJson.name,
+          version: packageJson.version,
+          outputDir,
+        });
       }),
     );
+    // await writePackageJson();
   },
 });

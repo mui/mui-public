@@ -4,6 +4,9 @@ import { $ } from 'execa';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import pluginTypescriptSyntax from '@babel/plugin-syntax-typescript';
+import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
+import pluginRemoveImports from 'babel-plugin-transform-remove-imports';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -15,7 +18,10 @@ const $$ = $({ stdio: 'inherit' });
  */
 export async function emitDeclarations(tsconfig, outDir, bundle) {
   console.log(`Building types for ${path.resolve(tsconfig)} in ${outDir}`);
-  await $$`tsc -p ${tsconfig} --outDir ${outDir} --declaration --emitDeclarationOnly --tsBuildInfoFile node_modules/.cache/tsconfig-${bundle}.tsbuildinfo`;
+  const tsbuildinfo = process.env.CI
+    ? `node_modules/.cache/tsconfig-${bundle}.tsbuildinfo`
+    : `tsbuildinfo-${bundle}.tsbuildinfo`;
+  await $$`tsc -p ${tsconfig} --outDir ${outDir} --declaration --emitDeclarationOnly --tsBuildInfoFile ${tsbuildinfo}`;
 }
 
 /**
@@ -51,21 +57,22 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
  * @param {boolean} [param0.removeCss=false] - Whether to remove CSS imports from the declarations.
  */
 async function postProcessDeclarations({ directory, removeCss = false }) {
-  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: directory });
+  const dtsFiles = await globby('**/*.d.ts', {
+    absolute: true,
+    cwd: directory,
+  });
   if (dtsFiles.length === 0) {
-    throw new Error(`Unable to find declaration files in '${directory}'`);
+    console.log(`No d.ts files found in ${directory}. Skipping post-processing.`);
+    return;
   }
 
   /**
    * @type {import('@babel/core').PluginItem[]}
    */
-  const babelPlugins = [
-    ['@babel/plugin-syntax-typescript', { dts: true }],
-    ['@mui/internal-babel-plugin-resolve-imports'],
-  ];
+  const babelPlugins = [[pluginTypescriptSyntax, { dts: true }], [pluginResolveImports]];
 
   if (removeCss) {
-    babelPlugins.push(['babel-plugin-transform-remove-imports', { test: /\.css$/ }]);
+    babelPlugins.push([pluginRemoveImports, { test: /\.css$/ }]);
   }
 
   await Promise.all(
@@ -106,16 +113,15 @@ async function renameDeclarations({ directory }) {
 /**
  * Generates types for the package.
  * @param {Object} param0
+ * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.outDir - The base output directory.
- * @param {string} param0.relativeOutDir - The relative output directory for the bundle
- * @param {string} param0.bundle - The bundle type to process.
+ * @param {import('./babel.mjs').BundleType} param0.bundle - The bundle type to process.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
+ * @param {boolean} param0.isMjsBuild - Whether the build is for ESM (ECMAScript Modules).
  */
-export async function generateTypes({ outDir, relativeOutDir, cwd, skipTsc, bundle }) {
-  const srcPath = path.join(cwd, 'src');
-  const destPath = path.join(cwd, outDir, relativeOutDir);
-  await copyDeclarations(srcPath, destPath);
+export async function generateTypes({ srcDir, outDir, cwd, skipTsc, bundle, isMjsBuild }) {
+  await copyDeclarations(srcDir, outDir);
 
   const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
   const tsconfigExists = await fs.access(tsconfigPath).then(
@@ -126,15 +132,15 @@ export async function generateTypes({ outDir, relativeOutDir, cwd, skipTsc, bund
     if (!tsconfigExists) {
       throw new Error(`tsconfig.build.json not found at ${tsconfigPath}.`);
     }
-    await emitDeclarations(tsconfigPath, path.join(outDir, relativeOutDir), bundle);
+    await emitDeclarations(tsconfigPath, outDir, bundle);
   }
   await postProcessDeclarations({
-    directory: destPath,
+    directory: outDir,
   });
 
-  if (bundle === 'esm') {
+  if (bundle === 'esm' && isMjsBuild) {
     await renameDeclarations({
-      directory: destPath,
+      directory: outDir,
     });
   }
 }
