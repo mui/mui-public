@@ -1,12 +1,12 @@
 /* eslint-disable no-console */
 import * as babel from '@babel/core';
+import pluginTypescriptSyntax from '@babel/plugin-syntax-typescript';
+import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
+import pluginRemoveImports from 'babel-plugin-transform-remove-imports';
 import { $ } from 'execa';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import pluginTypescriptSyntax from '@babel/plugin-syntax-typescript';
-import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
-import pluginRemoveImports from 'babel-plugin-transform-remove-imports';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -14,14 +14,10 @@ const $$ = $({ stdio: 'inherit' });
  * Emits TypeScript declaration files.
  * @param {string} tsconfig - The path to the tsconfig.json file.
  * @param {string} outDir - The output directory for the declaration files.
- * @param {string} bundle - The bundle type to process.
  */
-export async function emitDeclarations(tsconfig, outDir, bundle) {
-  console.log(`Building types for ${path.resolve(tsconfig)} in ${outDir}`);
-  const tsbuildinfo = process.env.CI
-    ? `node_modules/.cache/tsconfig-${bundle}.tsbuildinfo`
-    : `tsbuildinfo-${bundle}.tsbuildinfo`;
-  await $$`tsc -p ${tsconfig} --outDir ${outDir} --declaration --emitDeclarationOnly --tsBuildInfoFile ${tsbuildinfo}`;
+export async function emitDeclarations(tsconfig, outDir) {
+  console.log(`Building types for ${tsconfig} in ${outDir}`);
+  await $$`tsc -p ${tsconfig} --outDir ${outDir} --declaration --emitDeclarationOnly`;
 }
 
 /**
@@ -36,6 +32,7 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
 
   await fs.cp(fullSourceDirectory, fullDestinationDirectory, {
     recursive: true,
+    errorOnExist: false,
     filter: async (src) => {
       if (src.startsWith('.')) {
         // ignore dotfiles
@@ -54,9 +51,8 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
  * Post-processes TypeScript declaration files.
  * @param {Object} param0
  * @param {string} param0.directory - The directory containing the declaration files.
- * @param {boolean} [param0.removeCss=false] - Whether to remove CSS imports from the declarations.
  */
-async function postProcessDeclarations({ directory, removeCss = false }) {
+async function postProcessDeclarations({ directory }) {
   const dtsFiles = await globby('**/*.d.ts', {
     absolute: true,
     cwd: directory,
@@ -69,11 +65,11 @@ async function postProcessDeclarations({ directory, removeCss = false }) {
   /**
    * @type {import('@babel/core').PluginItem[]}
    */
-  const babelPlugins = [[pluginTypescriptSyntax, { dts: true }], [pluginResolveImports]];
-
-  if (removeCss) {
-    babelPlugins.push([pluginRemoveImports, { test: /\.css$/ }]);
-  }
+  const babelPlugins = [
+    [pluginTypescriptSyntax, { dts: true }],
+    [pluginResolveImports],
+    [pluginRemoveImports, { test: /\.css$/ }],
+  ];
 
   await Promise.all(
     dtsFiles.map(async (dtsFile) => {
@@ -130,17 +126,28 @@ export async function generateTypes({ srcDir, outDir, cwd, skipTsc, bundle, isMj
   );
   if (!skipTsc) {
     if (!tsconfigExists) {
-      throw new Error(`tsconfig.build.json not found at ${tsconfigPath}.`);
+      throw new Error(
+        'Unable to find a tsconfig to build this project. ' +
+          `The package root needs to contain a 'tsconfig.build.json'. ` +
+          `The package root is '${cwd}'`,
+      );
     }
-    await emitDeclarations(tsconfigPath, outDir, bundle);
+    await emitDeclarations(tsconfigPath, outDir);
   }
-  await postProcessDeclarations({
-    directory: outDir,
-  });
 
   if (bundle === 'esm' && isMjsBuild) {
     await renameDeclarations({
       directory: outDir,
     });
   }
+
+  await postProcessDeclarations({
+    directory: outDir,
+  });
+
+  // const tsbuildinfo = await globby('**/*.tsbuildinfo', {
+  //   absolute: true,
+  //   cwd: path.dirname(outDir),
+  // });
+  // await Promise.all(tsbuildinfo.map(async (file) => fs.rm(file)));
 }
