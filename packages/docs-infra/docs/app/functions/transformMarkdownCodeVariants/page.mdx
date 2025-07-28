@@ -9,6 +9,7 @@ Use this plugin when you want to show the same code example in multiple language
 ## Key Features
 
 - **Multiple variant formats**: Support for `variant=name` and `variant-group=name` syntax
+- **Individual code blocks**: Transform single code blocks with options (e.g., `transform`, `highlight=2-3`)
 - **Automatic grouping**: Adjacent code blocks with variants are combined into single examples
 - **Language detection**: Preserves syntax highlighting with `class="language-*"` attributes
 - **Label support**: Extract labels from text between code blocks
@@ -156,7 +157,53 @@ pnpm install package
 </pre>
 ```
 
+### Individual Code Blocks with Options
+
+Transform single code blocks by adding options directly to the code block:
+
+**Markdown Input:**
+```markdown
+```ts transform
+const greeting: string = "Hello, world!";
+console.log(greeting);
+```
+```
+
+**HTML Output:**
+```html
+<pre><code class="language-ts" data-transform="true">const greeting: string = "Hello, world!";
+console.log(greeting);</code></pre>
+```
+
+**Multiple Options:**
+```markdown
+```javascript transform highlight=2-3
+function test() {
+  console.log('line 2');
+  console.log('line 3');
+}
+```
+```
+
+**HTML Output:**
+```html
+<pre><code class="language-javascript" data-transform="true" data-highlight="2-3">function test() {
+console.log('line 2');
+console.log('line 3');
+}</code></pre>
+```
+
+Individual code blocks with options are processed immediately and don't require grouping with other blocks.
+
 ## Plugin Behavior
+
+### Individual Code Block Processing
+
+Code blocks with options (but no `variant` or `variant-group`) are processed immediately:
+- **Single transformation**: Creates a `<pre><code>` element with data attributes
+- **No grouping required**: Works with standalone code blocks  
+- **Option handling**: Converts options to HTML data attributes (e.g., `transform` → `data-transform="true"`)
+- **Language preservation**: Maintains syntax highlighting classes
 
 ### Grouping Rules
 

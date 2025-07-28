@@ -32,11 +32,22 @@ import type { Code, Parent } from 'mdast';
  * yarn add @mui/internal-docs-infra
  * ```
  *
+ * OR individual code blocks with options:
+ *
+ * ```ts transform
+ * console.log('test' as const)
+ * ```
+ *
  * Into HTML that the existing rehype plugin can process:
  * <pre>
  *   <code data-variant="npm">npm install @mui/internal-docs-infra</code>
  *   <code data-variant="pnpm">pnpm install @mui/internal-docs-infra</code>
  *   <code data-variant="yarn">yarn add @mui/internal-docs-infra</code>
+ * </pre>
+ *
+ * Or for individual blocks:
+ * <pre>
+ *   <code data-transform="true">console.log('test' as const)</code>
  * </pre>
  */
 
@@ -48,12 +59,16 @@ function parseMeta(meta: string) {
     props: {},
   };
 
-  // Parse key=value pairs, handling quoted values
-  const regex = /([\w-]+)=("(?:[^"\\]|\\.)*"|[^\s]+)/g;
-  let match = regex.exec(meta);
+  // Parse key=value pairs first, handling quoted values
+  const keyValueRegex = /([\w-]+)=("(?:[^"\\]|\\.)*"|[^\s]+)/g;
+  let match = keyValueRegex.exec(meta);
+  const processedPositions: Array<[number, number]> = [];
 
   while (match !== null) {
-    const [, key, rawValue] = match;
+    const [fullMatch, key, rawValue] = match;
+    const startPos = match.index;
+    const endPos = match.index + fullMatch.length;
+    processedPositions.push([startPos, endPos]);
 
     // Remove quotes if present
     const value =
@@ -67,7 +82,31 @@ function parseMeta(meta: string) {
       result.props[key] = value;
     }
 
-    match = regex.exec(meta);
+    match = keyValueRegex.exec(meta);
+  }
+
+  // Extract remaining parts as standalone flags
+  let remainingMeta = meta;
+  // Remove processed key=value pairs from the string (in reverse order to maintain positions)
+  processedPositions
+    .sort((a, b) => b[0] - a[0])
+    .forEach(([start, end]) => {
+      remainingMeta = remainingMeta.slice(0, start) + remainingMeta.slice(end);
+    });
+
+  // Process remaining standalone flags
+  const remainingParts = remainingMeta.trim().split(/\s+/).filter(Boolean);
+  for (const part of remainingParts) {
+    if (part === 'variant') {
+      // This shouldn't happen, but just in case
+      result.variant = 'true';
+    } else if (part === 'variant-group') {
+      // This shouldn't happen, but just in case
+      result.variantGroup = 'true';
+    } else {
+      // Handle standalone flags (e.g., "transform" becomes "transform": "true")
+      result.props[part] = 'true';
+    }
   }
 
   return result;
@@ -91,25 +130,93 @@ export const transformMarkdownCodeVariants: Plugin = () => {
 
       const parentNode = parent as Parent;
 
-      // Look for code blocks with variant metadata
+      // Look for code blocks with variant metadata or options
       if (node.type === 'code') {
         const codeNode = node as Code;
 
         // Check if variant metadata is in meta field or lang field (when no language is specified)
         let metaString = codeNode.meta;
-        let actualLang = codeNode.lang;
+        let langFromMeta = codeNode.lang || null;
 
         // If meta is empty but lang contains '=', it means variant info is in lang
-        if (!metaString && actualLang && actualLang.includes('=')) {
-          metaString = actualLang;
-          actualLang = null;
+        if (!metaString && codeNode.lang && codeNode.lang.includes('=')) {
+          metaString = codeNode.lang;
+          langFromMeta = null;
         }
 
-        if (!metaString) {
+        // Check if we have variants/variant-groups or individual options
+        let metaData: { variant?: string; variantGroup?: string; props: Record<string, string> } = {
+          props: {},
+        };
+
+        if (metaString) {
+          metaData = parseMeta(metaString);
+        }
+
+        // Use props from meta as the options for individual blocks
+        const allProps = metaData.props;
+
+        // Handle individual code blocks with options (but no variants)
+        if (!metaData.variant && !metaData.variantGroup && Object.keys(allProps).length > 0) {
+          // Create a simple pre/code element for individual blocks with options
+          const hProperties: Record<string, any> = {};
+
+          // Add language class if available
+          if (langFromMeta) {
+            hProperties.className = `language-${langFromMeta}`;
+          }
+
+          // Add all props as data attributes (in camelCase)
+          Object.entries(allProps).forEach(([key, value]) => {
+            // Convert kebab-case to camelCase for data attributes
+            const camelKey = key.includes('-')
+              ? `data${key
+                  .split('-')
+                  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join('')}`
+              : `data${key.charAt(0).toUpperCase() + key.slice(1)}`;
+            hProperties[camelKey] = value;
+          });
+
+          const preElement = {
+            type: 'element',
+            tagName: 'pre',
+            data: {
+              hName: 'pre',
+              hProperties: {},
+            },
+            children: [
+              {
+                type: 'element',
+                tagName: 'code',
+                data: {
+                  hName: 'code',
+                  hProperties,
+                },
+                children: [
+                  {
+                    type: 'text',
+                    value: codeNode.value,
+                  },
+                ],
+              },
+            ],
+          };
+
+          // Replace this individual code block
+          replacements.push({
+            index,
+            replacement: preElement,
+          });
+
+          processedIndices.add(index);
           return;
         }
 
-        const metaData = parseMeta(metaString);
+        // Handle variant/variant-group logic (existing code)
+        if (!metaString) {
+          return;
+        }
 
         if (metaData.variant || metaData.variantGroup) {
           // Collect consecutive code blocks that belong together
@@ -128,9 +235,82 @@ export const transformMarkdownCodeVariants: Plugin = () => {
           // For variant, look for adjacent code blocks only
 
           if (metaData.variantGroup) {
+            // Add the current code block as the first one for variant-group
+            let currentLabelFromPrevious: string | undefined;
+            if (index > 0) {
+              const prevNode = parentNode.children[index - 1] as any;
+              if (
+                prevNode.type === 'paragraph' &&
+                prevNode.children.length === 1 &&
+                prevNode.children[0].type === 'text'
+              ) {
+                currentLabelFromPrevious = prevNode.children[0].value.trim();
+              }
+            }
+
+            codeBlocks.push({
+              node: codeNode,
+              index,
+              variant: currentLabelFromPrevious || metaData.variantGroup || 'default',
+              props: allProps,
+              actualLang: langFromMeta,
+              labelFromPrevious: currentLabelFromPrevious,
+            });
+            processedIndices.add(index);
+
+            // Start looking from the next element
+            currentIndex = index + 1;
+
             // Collect all blocks with the same variant-group
             while (currentIndex < parentNode.children.length) {
               const currentNode = parentNode.children[currentIndex] as any;
+
+              // Check if this is a potential label paragraph
+              if (
+                currentNode.type === 'paragraph' &&
+                currentNode.children.length === 1 &&
+                currentNode.children[0].type === 'text'
+              ) {
+                // Look for a code block after this paragraph
+                if (currentIndex + 1 < parentNode.children.length) {
+                  const nextNode = parentNode.children[currentIndex + 1] as any;
+                  if (nextNode.type === 'code') {
+                    // Check if this code block has the same variant-group
+                    let nextMetaString = nextNode.meta;
+                    let nextActualLang = nextNode.lang;
+
+                    if (!nextMetaString && nextActualLang && nextActualLang.includes('=')) {
+                      nextMetaString = nextActualLang;
+                      nextActualLang = null;
+                    }
+
+                    if (nextMetaString) {
+                      const nextMetaData = parseMeta(nextMetaString);
+
+                      if (nextMetaData.variantGroup === metaData.variantGroup) {
+                        const labelFromPrevious = currentNode.children[0].value.trim();
+
+                        codeBlocks.push({
+                          node: nextNode,
+                          index: currentIndex + 1,
+                          variant: labelFromPrevious || nextMetaData.variantGroup || 'default',
+                          props: nextMetaData.props,
+                          actualLang: nextActualLang,
+                          labelFromPrevious,
+                        });
+
+                        processedIndices.add(currentIndex + 1);
+
+                        // Skip the code block and move to next potential label
+                        currentIndex += 2;
+                        continue;
+                      }
+                    }
+                  }
+                }
+                // If we didn't find a matching code block, break
+                break;
+              }
 
               if (currentNode.type === 'code') {
                 // Parse language and meta for current node
@@ -195,6 +375,19 @@ export const transformMarkdownCodeVariants: Plugin = () => {
               }
             }
           } else if (metaData.variant) {
+            // Add the current code block as the first one for variant
+            codeBlocks.push({
+              node: codeNode,
+              index,
+              variant: metaData.variant,
+              props: allProps,
+              actualLang: langFromMeta,
+            });
+            processedIndices.add(index);
+
+            // Start looking from the next element
+            currentIndex = index + 1;
+
             // Collect adjacent code blocks with variants
             while (currentIndex < parentNode.children.length) {
               const currentNode = parentNode.children[currentIndex] as any;

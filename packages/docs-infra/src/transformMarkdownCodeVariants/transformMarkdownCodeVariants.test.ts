@@ -326,5 +326,50 @@ pnpm install @mui/internal-docs-infra
         '<pre><code data-variant="npm" class="language-bash" data-filename="package.json" data-title="NPM Install">npm install @mui/internal-docs-infra</code><code data-variant="pnpm" class="language-bash" data-filename="package.json" data-title="PNPM Install">pnpm install @mui/internal-docs-infra</code></pre>',
       );
     });
+
+    it('should transform individual code blocks with options in language field', () => {
+      const markdown = `
+\`\`\`ts transform
+console.log('test' as const)
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toEqual(
+        '<pre><code class="language-ts" data-transform="true">console.log(\'test\' as const)</code></pre>',
+      );
+    });
+
+    it('should transform individual code blocks with multiple options', () => {
+      const markdown = `
+\`\`\`javascript transform highlight=2-3
+function test() {
+  console.log('line 2');
+  console.log('line 3');
+}
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toEqual(
+        '<pre><code class="language-javascript" data-highlight="2-3" data-transform="true">function test() {\nconsole.log(\'line 2\');\nconsole.log(\'line 3\');\n}</code></pre>',
+      );
+    });
+
+    it('should transform individual code blocks with kebab-case options to camelCase', () => {
+      const markdown = `
+\`\`\`typescript some-option=value another-flag
+const test = 'hello';
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toEqual(
+        '<pre><code class="language-typescript" data-some-option="value" data-another-flag="true">const test = \'hello\';</code></pre>',
+      );
+    });
   });
 });

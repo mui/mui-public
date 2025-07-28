@@ -116,6 +116,7 @@ function createVariantsFromCodeElements(codeElements: Element[]): Code {
 
     const variant: any = {
       source: sourceCode,
+      skipTransforms: !codeElement.properties?.dataTransform,
     };
 
     // Only add fileName if we have one
@@ -155,6 +156,7 @@ function createVariantsFromCodeElements(codeElements: Element[]): Code {
 
       const variant: any = {
         source: sourceCode,
+        skipTransforms: !codeElement.properties?.dataTransform,
       };
 
       // Only add fileName if we have one
@@ -208,23 +210,18 @@ export const transformHtmlCode: Plugin = () => {
               const variantPromises = Object.entries(variants).map(
                 async ([variantName, variantData]) => {
                   if (variantData && typeof variantData === 'object') {
-                    try {
-                      const result = await loadVariant(
-                        undefined, // url - not needed for inline code
-                        variantName,
-                        variantData,
-                        sourceParser,
-                        undefined, // loadSource - not needed since we have the data
-                        undefined, // loadVariantMeta - not needed since we have the data
-                        sourceTransformers,
-                      );
+                    const result = await loadVariant(
+                      undefined, // url - not needed for inline code
+                      variantName,
+                      variantData,
+                      sourceParser,
+                      undefined, // loadSource - not needed since we have the data
+                      undefined, // loadVariantMeta - not needed since we have the data
+                      sourceTransformers,
+                      { disableTransforms: variantData.skipTransforms || false },
+                    );
 
-                      return { variantName, processedVariant: result.code };
-                    } catch (error) {
-                      console.warn(`Failed to process variant ${variantName}:`, error);
-                      // Keep original variant on error
-                      return { variantName, processedVariant: variantData };
-                    }
+                    return { variantName, processedVariant: result.code };
                   }
                   return null;
                 },

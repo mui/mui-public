@@ -11,7 +11,9 @@ export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
 
 export type VariantSource = string | HastNodes | { hastJson: string };
 export type VariantExtraFiles = {
-  [fileName: string]: string | { source?: VariantSource; transforms?: Transforms };
+  [fileName: string]:
+    | string
+    | { source?: VariantSource; transforms?: Transforms; skipTransforms?: boolean };
 };
 export type VariantCode = CodeMeta & {
   url?: string;
@@ -20,6 +22,7 @@ export type VariantCode = CodeMeta & {
   filesOrder?: string[];
   transforms?: Transforms;
   allFilesListed?: boolean;
+  skipTransforms?: boolean;
 };
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
 

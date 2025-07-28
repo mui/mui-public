@@ -12,7 +12,8 @@ This plugin is typically used in the **second stage** of a markdown-to-HTML proc
 - **Automatic language detection**: Determines file types from `class="language-*"` attributes  
 - **Custom variant names**: Supports `data-variant` attribute for explicit naming
 - **Custom filenames**: Supports `data-filename` attribute for specific file extensions
-- **Built-in transformations**: Includes TypeScript-to-JavaScript conversion
+- **Opt-in transformations**: Code blocks are only transformed when marked with `data-transform="true"`
+- **Built-in transformations**: Includes TypeScript-to-JavaScript conversion for marked blocks
 - **Syntax highlighting**: Pre-processes code for faster client rendering
 - **Error handling**: Gracefully handles processing errors
 
@@ -83,6 +84,19 @@ export default App;
 </code></pre>
 ```
 
+### Code Block Transformations
+
+By default, code blocks are processed for syntax highlighting only. To enable transformations (like TypeScript-to-JavaScript conversion), explicitly mark the code block:
+
+```html
+<pre><code class="language-ts" data-transform="true">
+const greeting: string = "Hello, world!";
+console.log(greeting);
+</code></pre>
+```
+
+This will generate both the original TypeScript and the transformed JavaScript versions.
+
 ## Output
 
 After processing, the plugin:
@@ -111,7 +125,7 @@ After processing, the plugin:
 | Class | Extension | Notes |
 |-------|-----------|-------|
 | `language-js`, `language-javascript` | `.js` | |
-| `language-ts`, `language-typescript` | `.ts` | Includes TS→JS transform |
+| `language-ts`, `language-typescript` | `.ts` | Includes TS→JS transform when `data-transform="true"` |
 | `language-tsx` | `.tsx` | React TypeScript |
 | `language-jsx` | `.jsx` | React JavaScript |
 | `language-json` | `.json` | |
