@@ -19,6 +19,7 @@ const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} optimizeClsx - Whether to enable clsx call optimization transform.
  * @property {boolean} skipCatchAllExports - Whether to skip adding catch-all exports for the package.
+ * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
 
@@ -94,9 +95,16 @@ ${content}`,
  * @param {any} param0.packageJson - The package.json content.
  * @param {{type: import('./babel.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
+ * @param {string} param0.cwd
  * @param {boolean} param0.skipCatchAllExports - Whether to skip adding catch-all exports for the package.
  */
-async function writePackageJson({ packageJson, bundles, outputDir, skipCatchAllExports = false }) {
+async function writePackageJson({
+  packageJson,
+  bundles,
+  outputDir,
+  cwd,
+  skipCatchAllExports = false,
+}) {
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
@@ -147,24 +155,39 @@ async function writePackageJson({ packageJson, bundles, outputDir, skipCatchAllE
         packageJson.types = typeExportDir;
       }
 
-      Object.keys(originalExports).forEach((key) => {
-        if (!originalExports[key]) {
-          newExports[key] = null;
-        } else {
-          let importPath = originalExports[key];
-          if (typeof importPath === 'string') {
-            importPath = importPath.replaceAll('./src', `./${dir === '.' ? '' : `${dir}`}`);
-            const ext = path.extname(importPath);
-            const exportObj = {
-              types: importPath.replace(ext, typeOutExtension),
-              default: importPath.replace(ext, outExtension),
-            };
-            set(newExports, [key, type === 'cjs' ? 'require' : 'import'], exportObj);
+      await Promise.all(
+        Object.keys(originalExports).map(async (key) => {
+          if (!originalExports[key]) {
+            newExports[key] = null;
+          } else {
+            let importPath = originalExports[key];
+            if (typeof importPath === 'string') {
+              const exportFileExists = !importPath.includes('*')
+                ? await fs.stat(path.join(cwd, importPath)).then(
+                    (stats) => stats.isFile(),
+                    () => false,
+                  )
+                : true;
+              if (!exportFileExists) {
+                throw new Error(
+                  `The import path "${importPath}" for export "${key}" does not exist in the package. Either remove the export or add the file to the package.`,
+                );
+              }
+              importPath = importPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
+              const ext = path.extname(importPath);
+
+              if (ext === '.css') {
+                set(newExports, [key], importPath);
+              } else {
+                set(newExports, [key, type === 'cjs' ? 'require' : 'import'], {
+                  types: importPath.replace(ext, typeOutExtension),
+                  default: importPath.replace(ext, outExtension),
+                });
+              }
+            }
           }
-          console.log({ importPath });
-        }
-      });
-      // catch-all
+        }),
+      );
       if (!skipCatchAllExports) {
         const exportsObj = {
           types: `./${dir === '.' ? '' : `${dir}/`}*/index${typeOutExtension}`,
@@ -248,6 +271,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description:
           'Skip adding catch-all exports for the package. Useful for newer packages with explicit exports.',
+      })
+      .option('skipBabelRuntimeCheck', {
+        type: 'boolean',
+        default: false,
+        description: 'Skip checking for Babel runtime dependencies in the package.',
       });
   },
   async handler(args) {
@@ -262,6 +290,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       buildTypes,
       skipTsc,
       skipCatchAllExports = false,
+      skipBabelRuntimeCheck = false,
     } = args;
 
     const cwd = process.cwd();
@@ -281,7 +310,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       babelRuntimeVersion = pnpmWorkspaceConfig.catalog['@babel/runtime'];
     }
 
-    if (!babelRuntimeVersion) {
+    if (!babelRuntimeVersion && !skipBabelRuntimeCheck) {
       throw new Error(
         'package.json needs to have a dependency on `@babel/runtime` when building with `@babel/plugin-transform-runtime`.',
       );
@@ -330,21 +359,21 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const sourceDir = path.join(cwd, 'src');
         await fs.mkdir(outputDir, { recursive: true });
 
-        const promises = [
-          babelMod.babelBuild({
-            sourceDir,
-            outDir: outputDir,
-            babelRuntimeVersion,
-            hasLargeFiles,
-            bundle,
-            verbose,
-            optimizeClsx,
-            buildConfig,
-            pkgVersion: packageJson.version,
-            ignores: extraIgnores,
-            outExtension,
-          }),
-        ];
+        await babelMod.babelBuild({
+          sourceDir,
+          outDir: outputDir,
+          babelRuntimeVersion,
+          hasLargeFiles,
+          bundle,
+          verbose,
+          optimizeClsx,
+          buildConfig,
+          pkgVersion: packageJson.version,
+          ignores: extraIgnores,
+          outExtension,
+        });
+
+        const promises = [];
 
         if (buildDir !== outputDir && !skipModulePackageJson && !isMjsBuild) {
           // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
@@ -360,14 +389,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
         if (buildTypes) {
           const tsMod = await import('./typescript.mjs');
-          await tsMod.generateTypes({
-            srcDir: sourceDir,
-            outDir: outputDir,
-            cwd,
-            skipTsc,
-            bundle,
-            isMjsBuild,
-          });
+          promises.push(
+            tsMod.generateTypes({
+              srcDir: sourceDir,
+              outDir: outputDir,
+              cwd,
+              skipTsc,
+              bundle,
+              isMjsBuild,
+            }),
+          );
         }
 
         await Promise.all(promises);
@@ -383,6 +414,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const normalizedCjsOutDir =
       buildConfig.cjsOutDir === '.' || buildConfig.cjsOutDir === './' ? '.' : buildConfig.cjsOutDir;
     await writePackageJson({
+      cwd,
       packageJson,
       bundles: bundles.map((type) => ({
         type,
