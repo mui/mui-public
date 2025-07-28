@@ -32,7 +32,6 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
 
   await fs.cp(fullSourceDirectory, fullDestinationDirectory, {
     recursive: true,
-    errorOnExist: false,
     filter: async (src) => {
       if (src.startsWith('.')) {
         // ignore dotfiles

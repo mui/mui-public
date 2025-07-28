@@ -226,7 +226,6 @@ export async function babelBuild({
     }
     process.env[key] = value.toString();
   });
-  const dirCreatedSet = new Set();
 
   await Promise.all(
     files.map(async (file) => {
@@ -242,9 +241,8 @@ export async function babelBuild({
       }
       const outfileDir = path.dirname(file);
       const basename = path.basename(file);
-      if (outfileDir !== '.' && !dirCreatedSet.has(outfileDir)) {
+      if (outfileDir !== '.') {
         await fs.mkdir(path.join(outDir, outfileDir), { recursive: true });
-        dirCreatedSet.add(outfileDir);
       }
       const ext = path.extname(basename);
       const outFilePath = path.join(outDir, outfileDir, basename.replace(ext, outExtension));
