@@ -4,30 +4,46 @@
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 12px;
   border-bottom: 1px solid #d0cdd7;
+  height: 48px;
+  position: relative;
 }
 
-.name {
-  color: #65636d;
-  font-size: 13px;
-  font-family: var(--font-geist-mono);
+.headerContainer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-right: 8px;
+  height: 48px;
+}
+
+.tabContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -1px;
+  padding-bottom: 2px;
+  overflow-x: auto;
 }
 
 .switchContainer {
   display: flex;
 }
+
+.switchContainerHidden {
+  display: none;
+}
+
 .code {
-  padding: 6px;
+  padding: 10px 6px;
 }
 
 .codeBlock {
