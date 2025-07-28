@@ -936,4 +936,168 @@ describe('loadFallbackCode', () => {
       });
     });
   });
+
+  describe('Undefined filename handling', () => {
+    it('should gracefully handle undefined initialFilename', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Should default to the main file
+      expect(result.initialFilename).toBe('App.tsx');
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+    });
+
+    it('should return variant source when getFileSource called without filename', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // This triggers the getFileSource(variant, undefined) code path
+      );
+
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+      expect(result.initialFilename).toBe('App.tsx');
+    });
+
+    it('should handle variant with bare source (no filename or URL)', async () => {
+      const variantCode: VariantCode = {
+        // No fileName property
+        // No url property
+        source: 'const BareComponent = () => <div>Just source code</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Should still return the source, but filename should be undefined
+      expect(result.initialSource).toBe('const BareComponent = () => <div>Just source code</div>;');
+      expect(result.initialFilename).toBeUndefined();
+      expect(result.allFileNames).toEqual([]); // No files since no filename
+    });
+
+    it('should handle variant with bare source and shouldHighlight=true', async () => {
+      const variantCode: VariantCode = {
+        // No fileName property
+        // No url property
+        source: 'const BareComponent = () => <div>Highlight me</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        true, // shouldHighlight=true
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Since there's no filename, parsing creates a basic HAST node to mark it passed through pipeline
+      expect(result.initialSource).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: 'const BareComponent = () => <div>Highlight me</div>;',
+          },
+        ],
+      });
+      expect(result.initialFilename).toBeUndefined();
+      expect(mockParseSource).not.toHaveBeenCalled(); // No actual parsing without filename
+    });
+
+    it('should create HAST node structure for undefined filename in early return path', async () => {
+      const loaded: Code = {
+        default: {
+          fileName: undefined, // No fileName
+          source: 'const EarlyReturn = () => <div>Test</div>;',
+          allFilesListed: true, // Enables early return
+        },
+      };
+
+      const result = await loadFallbackCode(
+        '/demo/example',
+        'default',
+        loaded,
+        true, // shouldHighlight=true
+        false, // fallbackUsesExtraFiles=false
+        false, // fallbackUsesAllVariants=false
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Should create HAST structure in early return path too
+      expect(result.initialSource).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: 'const EarlyReturn = () => <div>Test</div>;',
+          },
+        ],
+      });
+      expect(result.initialFilename).toBeUndefined();
+      expect(mockParseSource).not.toHaveBeenCalled(); // No actual parsing without filename
+    });
+  });
 });

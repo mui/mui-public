@@ -9,7 +9,7 @@ function toExtraSource(variantCode: VariantCode, fileName?: string) {
       }
       return acc;
     },
-    { [variantCode.fileName]: variantCode.source && stringOrHastToJsx(variantCode.source) },
+    {} as Record<string, any>,
   );
 }
 
@@ -25,7 +25,9 @@ export function codeToFallbackProps(
     return {};
   }
 
-  const fileNames = [variantCode.fileName, ...Object.keys(variantCode.extraFiles || {})];
+  const fileNames = [variantCode.fileName, ...Object.keys(variantCode.extraFiles || {})].filter(
+    (name): name is string => Boolean(name),
+  );
   let source;
 
   if (fileName) {
@@ -47,7 +49,9 @@ export function codeToFallbackProps(
             const extraVariantExtraSource = toExtraSource(vCode, vCode.fileName);
 
             acc[name] = {
-              fileNames: [vCode.fileName, ...Object.keys(vCode.extraFiles || {})], // TODO: use filesOrder if provided
+              fileNames: [vCode.fileName, ...Object.keys(vCode.extraFiles || {})].filter(
+                (fn): fn is string => Boolean(fn),
+              ), // TODO: use filesOrder if provided
               source: vCode.source && stringOrHastToJsx(vCode.source),
               extraSource: extraVariantExtraSource,
             };

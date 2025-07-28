@@ -14,7 +14,7 @@ export function maybeInitialData(
     | false
     | {
         code: Code;
-        initialFilename: string;
+        initialFilename: string | undefined;
         initialSource: VariantSource;
         initialExtraFiles?: VariantExtraFiles;
       };

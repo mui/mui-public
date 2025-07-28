@@ -1,5 +1,5 @@
 import { Code } from '../Code';
 
 export function BasicCode() {
-  return <Code>{`console.log('Hello, world!');`}</Code>;
+  return <Code fileName="hello.js">{`console.log('Hello, world!');`}</Code>;
 }

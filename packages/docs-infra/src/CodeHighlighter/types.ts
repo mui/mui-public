@@ -4,7 +4,7 @@ import type { Delta } from 'jsondiffpatch';
 export type Components = { [key: string]: React.ReactNode };
 
 type CodeMeta = {
-  fileName: string;
+  fileName?: string;
 };
 
 export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
@@ -14,7 +14,7 @@ export type VariantExtraFiles = {
   [fileName: string]: string | { source?: VariantSource; transforms?: Transforms };
 };
 export type VariantCode = CodeMeta & {
-  url: string;
+  url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
   filesOrder?: string[];
@@ -27,7 +27,7 @@ export type ControlledVariantExtraFiles = {
   [fileName: string]: { source: string | null };
 };
 export type ControlledVariantCode = CodeMeta & {
-  url: string;
+  url?: string;
   source?: string | null;
   extraFiles?: ControlledVariantExtraFiles;
   filesOrder?: string[];
@@ -66,14 +66,15 @@ interface CodeHighlighterBaseProps {
   fileName?: string;
   initialVariant?: string;
   defaultVariant?: string;
-  precompute?: boolean | Code;
+  precompute?: Code;
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
-  url: string;
+  url?: string;
   controlled?: boolean;
+  children?: string;
 }
 
-export interface CodeHighlighterClientProps extends CodeHighlighterBaseProps {
+export interface CodeHighlighterClientProps extends Omit<CodeHighlighterBaseProps, 'children'> {
   children: React.ReactNode;
   errorHandler?: React.ReactNode;
   fallback?: React.ReactNode;

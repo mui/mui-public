@@ -34,7 +34,7 @@ function useInitialData({
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
   fileName?: string;
-  url: string;
+  url?: string;
   highlightAt?: 'init' | 'hydration' | 'idle';
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
@@ -68,6 +68,11 @@ function useInitialData({
   // Load initial data if not provided
   React.useEffect(() => {
     if (initialData || isControlled) {
+      return;
+    }
+
+    if (!url) {
+      // TODO: handle error - URL is required for loading fallback data
       return;
     }
 
@@ -131,7 +136,7 @@ function useAllVariants({
   readyForContent: boolean;
   variants: string[];
   isControlled: boolean;
-  url: string;
+  url?: string;
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
 }) {
@@ -139,6 +144,11 @@ function useAllVariants({
 
   React.useEffect(() => {
     if (readyForContent || isControlled) {
+      return;
+    }
+
+    if (!url) {
+      // URL is required for loading variants
       return;
     }
 
@@ -301,12 +311,12 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const variantName = controlledSelection?.variant || props.variant || selection.variant;
   const activeCode = controlledCode || props.code || code;
-  const initialFilename =
-    typeof activeCode?.[variantName] === 'object' &&
-    (activeCode?.[variantName]?.filesOrder
-      ? activeCode[variantName].filesOrder[0]
-      : activeCode?.[variantName]?.fileName);
-  const fileName = controlledSelection?.fileName || props.fileName || initialFilename || 'index.js';
+  let initialFilename: string | undefined;
+  if (typeof activeCode?.[variantName] === 'object') {
+    const variant = activeCode[variantName];
+    initialFilename = variant?.filesOrder ? variant.filesOrder[0] : variant?.fileName;
+  }
+  const fileName = controlledSelection?.fileName || props.fileName || initialFilename;
 
   const variants = props.variants || Object.keys(props.components || activeCode || {});
   const { url, highlightAt, fallbackUsesExtraFiles, fallbackUsesAllVariants } = props;

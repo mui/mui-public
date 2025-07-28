@@ -127,7 +127,7 @@ describe('transformHtmlCode', () => {
 
     const preElement = findPreElement(ast);
     const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
-    expect(precomputeData.Default.fileName).toBe('index.txt'); // fallback
+    expect(precomputeData.Default.fileName).toBeUndefined(); // no filename when no language class
   });
 
   it('should handle nested text content extraction', async () => {
@@ -158,7 +158,7 @@ describe('transformHtmlCode', () => {
       { lang: 'sh', expected: 'index.sh' },
       { lang: 'yaml', expected: 'index.yaml' },
       { lang: 'yml', expected: 'index.yaml' },
-      { lang: 'unknown', expected: 'index.txt' }, // fallback
+      { lang: 'unknown', expected: undefined }, // no filename for unrecognized language
     ];
 
     // Process all test cases in parallel to avoid await in loop

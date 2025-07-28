@@ -16,8 +16,16 @@ async function getFileSource(
   variant: VariantCode,
   requestedFilename: string | undefined,
   loadSource: LoadSource | undefined,
-): Promise<{ source: VariantSource; filename: string }> {
+): Promise<{ source: VariantSource; filename: string | undefined }> {
   const filename = requestedFilename || variant.fileName;
+
+  if (!filename) {
+    // If no filename is available, return the main variant source
+    if (variant.source !== undefined) {
+      return { source: variant.source, filename: undefined };
+    }
+    throw new Error('No filename available and no source in variant');
+  }
 
   // If requesting the main file and we have its source
   if (filename === variant.fileName && variant.source !== undefined) {
@@ -48,7 +56,7 @@ async function getFileSource(
 
 export type FallbackVariants = {
   code: Code;
-  initialFilename: string;
+  initialFilename: string | undefined;
   initialSource: VariantSource;
   initialExtraFiles?: VariantExtraFiles;
   allFileNames: string[];
@@ -98,14 +106,16 @@ export async function loadFallbackCode(
   ) {
     // Collect all file names from the loaded code
     const allFileNames = new Set<string>();
-    allFileNames.add(initial.fileName);
+    if (initial.fileName) {
+      allFileNames.add(initial.fileName);
+    }
     if (initial.extraFiles) {
       Object.keys(initial.extraFiles).forEach((fileName) => allFileNames.add(fileName));
     }
 
     // Get the source for the requested filename (or main file if not specified)
     let fileSource: VariantSource;
-    let actualFilename: string;
+    let actualFilename: string | undefined;
 
     try {
       const result = await getFileSource(initial, initialFilename, loadSource);
@@ -118,7 +128,7 @@ export async function loadFallbackCode(
     }
 
     // If we need highlighting and have a string source, parse it
-    if (shouldHighlight && typeof fileSource === 'string' && sourceParser) {
+    if (shouldHighlight && typeof fileSource === 'string' && sourceParser && actualFilename) {
       try {
         const parseSource = await sourceParser;
         fileSource = parseSource(fileSource, actualFilename);
@@ -127,10 +137,26 @@ export async function loadFallbackCode(
           `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
         );
       }
+    } else if (shouldHighlight && typeof fileSource === 'string' && !actualFilename) {
+      // Create basic HAST node when we can't parse due to missing filename
+      // This marks that the source has passed through the parsing pipeline
+      fileSource = {
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: fileSource,
+          },
+        ],
+      };
     }
 
     // Update the loaded code with any changes we made
-    if (actualFilename === initial.fileName) {
+    if (actualFilename && actualFilename === initial.fileName) {
+      initial = { ...initial, source: fileSource };
+      loaded = { ...loaded, [initialVariant]: initial };
+    } else if (!actualFilename && !initial.fileName) {
+      // If both are undefined, we're dealing with the main source
       initial = { ...initial, source: fileSource };
       loaded = { ...loaded, [initialVariant]: initial };
     }
@@ -168,14 +194,16 @@ export async function loadFallbackCode(
       if (quickVariant.allFilesListed && !fallbackUsesExtraFiles && !fallbackUsesAllVariants) {
         // Collect all file names from the quick load
         const allFileNames = new Set<string>();
-        allFileNames.add(quickVariant.fileName);
+        if (quickVariant.fileName) {
+          allFileNames.add(quickVariant.fileName);
+        }
         if (quickVariant.extraFiles) {
           Object.keys(quickVariant.extraFiles).forEach((fileName) => allFileNames.add(fileName));
         }
 
         // Get the source for the requested filename (or main file if not specified)
         let fileSource: VariantSource;
-        let actualFilename: string;
+        let actualFilename: string | undefined;
 
         try {
           const result = await getFileSource(quickVariant, initialFilename, loadSource);
@@ -188,7 +216,7 @@ export async function loadFallbackCode(
         }
 
         // If we need highlighting and have a string source, parse it
-        if (shouldHighlight && typeof fileSource === 'string' && sourceParser) {
+        if (shouldHighlight && typeof fileSource === 'string' && sourceParser && actualFilename) {
           try {
             const parseSource = await sourceParser;
             fileSource = parseSource(fileSource, actualFilename);
@@ -197,10 +225,26 @@ export async function loadFallbackCode(
               `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
             );
           }
+        } else if (shouldHighlight && typeof fileSource === 'string' && !actualFilename) {
+          // Create basic HAST node when we can't parse due to missing filename
+          // This marks that the source has passed through the parsing pipeline
+          fileSource = {
+            type: 'root',
+            children: [
+              {
+                type: 'text',
+                value: fileSource,
+              },
+            ],
+          };
         }
 
         // Update the loaded code with any changes we made
-        if (actualFilename === quickVariant.fileName) {
+        if (actualFilename && actualFilename === quickVariant.fileName) {
+          initial = { ...quickVariant, source: fileSource };
+          loaded = { ...loaded, [initialVariant]: initial };
+        } else if (!actualFilename && !quickVariant.fileName) {
+          // If both are undefined, we're dealing with the main source
           initial = { ...quickVariant, source: fileSource };
           loaded = { ...loaded, [initialVariant]: initial };
         }
@@ -248,7 +292,9 @@ export async function loadFallbackCode(
 
   // Step 3: Collect all file names
   const allFileNames = new Set<string>();
-  allFileNames.add(initial.fileName);
+  if (initial.fileName) {
+    allFileNames.add(initial.fileName);
+  }
 
   // Add extra files from the initial variant
   if (initial.extraFiles) {
@@ -306,7 +352,7 @@ export async function loadFallbackCode(
           );
 
           // Collect file names from this variant
-          const fileNames = [loadedVariant.fileName];
+          const fileNames = loadedVariant.fileName ? [loadedVariant.fileName] : [];
           if (loadedVariant.extraFiles) {
             fileNames.push(...Object.keys(loadedVariant.extraFiles));
           }
@@ -339,14 +385,22 @@ export async function loadFallbackCode(
 
   // Get the source for the requested filename (or main file if not specified) for the final return
   let finalFileSource: VariantSource;
-  let finalFilename: string;
+  let finalFilename: string | undefined;
 
   try {
     const result = await getFileSource(finalInitial, initialFilename, loadSource);
     finalFileSource = result.source;
     finalFilename = result.filename;
   } catch (error) {
-    // If we can't get the specific file, fall back to the main file
+    // If we can't get the specific file, fall back to main file
+    if (!finalInitial.fileName && !finalInitial.source) {
+      throw new Error(
+        `Cannot determine filename for initial variant "${initialVariant}". ` +
+          `No fileName available in variant definition, no initialFilename provided, and no source available.`,
+      );
+    }
+
+    // Fall back to the main file with proper validation
     finalFileSource = finalInitial.source || '';
     finalFilename = finalInitial.fileName;
   }

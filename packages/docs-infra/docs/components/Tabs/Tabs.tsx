@@ -9,7 +9,7 @@ export interface Tab {
 
 export interface TabsProps {
   tabs: Tab[];
-  selectedTabId: string;
+  selectedTabId?: string;
   onTabSelect: (tabId: string) => void;
 }
 
@@ -30,7 +30,7 @@ export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
     >
       <TabsParts.List className={styles.tabsList}>
         {tabs.map((tab, index) => {
-          const isSelected = tab.id === selectedTabId;
+          const isSelected = selectedTabId ? tab.id === selectedTabId : index === 0;
           const isFirst = index === 0;
           const isLast = index === tabs.length - 1;
           const nextTabSelected = index < tabs.length - 1 && tabs[index + 1].id === selectedTabId;

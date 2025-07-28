@@ -16,6 +16,7 @@ import { stringOrHastToJsx } from '../hastUtils';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
+import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
 
 // Common props shared across helper functions
 type BaseHelperProps<T extends {}> = Pick<
@@ -42,6 +43,7 @@ type BaseHelperProps<T extends {}> = Pick<
   | 'initialVariant'
   | 'defaultVariant'
   | 'forceClient'
+  | 'children'
 >;
 
 interface CodeSourceLoaderProps<T extends {}> extends BaseHelperProps<T> {
@@ -73,7 +75,7 @@ function createClientProps<T extends {}>(
   const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
 
   const contentProps = {
-    code: typeof props.precompute === 'object' ? props.code || props.precompute : props.code,
+    code: props.code || props.precompute,
     components: props.components,
     name: props.name,
     slug: props.slug,
@@ -104,13 +106,19 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
   // Start with the loaded code from precompute, or load it if needed
-  let loadedCode = props.code;
+  let loadedCode = props.code || props.precompute;
   if (!loadedCode) {
     if (!props.loadCodeMeta) {
       return (
         <ErrorHandler
           error={new Error('No code provided and "loadCodeMeta" function is not defined')}
         />
+      );
+    }
+
+    if (!props.url) {
+      return (
+        <ErrorHandler error={new Error('URL is required when loading code with "loadCodeMeta"')} />
       );
     }
 
@@ -131,19 +139,23 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
 
   const variantNames = Object.keys(props.components || loadedCode || {});
   const variantCodes = await Promise.all(
-    variantNames.map((variantName) =>
-      loadVariant(
-        props.url,
+    variantNames.map((variantName) => {
+      const variantCode = loadedCode[variantName];
+      const variantUrl =
+        typeof variantCode === 'object' && variantCode?.url ? variantCode.url : props.url;
+
+      return loadVariant(
+        variantUrl,
         variantName,
-        loadedCode[variantName],
+        variantCode,
         props.sourceParser,
         props.loadSource,
         props.loadVariantMeta,
         props.sourceTransformers,
       )
         .then((variant) => ({ name: variantName, variant }))
-        .catch((error) => ({ error })),
-    ),
+        .catch((error) => ({ error }));
+    }),
   );
 
   const processedCode: Code = {};
@@ -182,7 +194,7 @@ function renderCodeHighlighter<T extends {}>(
 ) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  const code = props.precompute !== true ? props.code || props.precompute : props.code;
+  const code = props.code || props.precompute;
   const variants = props.variants || Object.keys(props.components || code || {});
   const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
 
@@ -216,13 +228,16 @@ function renderWithInitialSource<T extends {}>(
   props: BaseHelperProps<T> & {
     code: Code;
     initialVariant: string;
-    initialFilename: string;
+    initialFilename: string | undefined;
     initialSource: VariantSource;
     initialExtraFiles?: VariantExtraFiles;
     ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
   },
 ) {
-  const fileNames = [props.initialFilename, ...Object.keys(props.initialExtraFiles || {})];
+  const fileNames = [
+    ...(props.initialFilename ? [props.initialFilename] : []),
+    ...Object.keys(props.initialExtraFiles || {}),
+  ];
   const source = stringOrHastToJsx(props.initialSource, props.highlightAt === 'init');
 
   const contentProps = {
@@ -259,6 +274,10 @@ function renderWithInitialSource<T extends {}>(
 async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoaderProps<T>) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
+  if (!props.url) {
+    return <ErrorHandler error={new Error('URL is required for loading initial source')} />;
+  }
+
   const loaded = await loadFallbackCode(
     props.url,
     props.initialVariant,
@@ -292,15 +311,56 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
 export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
 
-  if (props.precompute === true) {
-    return <ErrorHandler error={new Error('Precompute enabled, but not provided')} />;
+  // Validate mutually exclusive props
+  if (props.children && (props.code || props.precompute)) {
+    return (
+      <ErrorHandler
+        error={new Error('Cannot provide both "children" and "code" or "precompute" props')}
+      />
+    );
   }
 
-  const code = props.precompute || props.code;
+  // Handle children as string -> Default variant
+  let code = props.code;
+  if (props.children && typeof props.children === 'string') {
+    const fileName =
+      props.fileName || (props.url ? getFileNameFromUrl(props.url).fileName : undefined);
+    code = {
+      Default: {
+        fileName,
+        source: props.children,
+        url: props.url,
+      },
+    };
+  }
+
   const variants =
-    props.variants || Object.keys(props.components || props.precompute || props.code || {});
+    props.variants || Object.keys(props.components || code || props.precompute || {});
   if (variants.length === 0) {
     return <ErrorHandler error={new Error('No code or components provided')} />;
+  }
+
+  // Validate fileName is provided when extraFiles are present
+  if (code) {
+    for (const [variantName, variantCode] of Object.entries(code)) {
+      if (
+        typeof variantCode === 'object' &&
+        variantCode?.extraFiles &&
+        Object.keys(variantCode.extraFiles).length > 0 &&
+        !variantCode.fileName &&
+        !variantCode.url
+      ) {
+        return (
+          <ErrorHandler
+            error={
+              new Error(
+                `fileName or url is required for variant "${variantName}" when extraFiles are provided`,
+              )
+            }
+          />
+        );
+      }
+    }
   }
 
   const ContentLoading = props.ContentLoading;
@@ -316,6 +376,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
 
     return renderCodeHighlighter({
       ...props,
+      code,
     });
   }
 
@@ -331,7 +392,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   const { initialData, reason } = maybeInitialData(
     variants,
     initialKey,
-    code,
+    code || props.precompute,
     undefined, // TODO: use initial.filesOrder if provided?
     highlightAt === 'init',
     props.fallbackUsesExtraFiles,

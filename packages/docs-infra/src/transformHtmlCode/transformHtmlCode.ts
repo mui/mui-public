@@ -66,8 +66,9 @@ function extractLanguageFromClassName(className: string | string[] | undefined):
 
 /**
  * Gets the filename from data-filename attribute or derives it from language
+ * Returns undefined if no explicit filename and no recognizable language
  */
-function getFileName(codeElement: Element): string {
+function getFileName(codeElement: Element): string | undefined {
   // Check for explicit data-filename attribute
   const dataFilename = codeElement.properties?.dataFilename as string | undefined;
   if (dataFilename && typeof dataFilename === 'string') {
@@ -82,8 +83,8 @@ function getFileName(codeElement: Element): string {
     return `index.${LANGUAGE_TO_EXTENSION[language]}`;
   }
 
-  // Default fallback
-  return 'index.txt';
+  // Return undefined instead of a fallback - let the system handle gracefully
+  return undefined;
 }
 
 /**
@@ -113,11 +114,16 @@ function createVariantsFromCodeElements(codeElements: Element[]): Code {
     const sourceCode = extractTextContent(codeElement);
     const fileName = getFileName(codeElement);
 
-    variants.Default = {
-      fileName,
-      url: `file:///${fileName}`,
+    const variant: any = {
       source: sourceCode,
     };
+
+    // Only add fileName if we have one
+    if (fileName) {
+      variant.fileName = fileName;
+    }
+
+    variants.Default = variant;
   } else {
     // Multiple code elements - create appropriate variant names
     const languages = codeElements.map((element) => {
@@ -147,12 +153,16 @@ function createVariantsFromCodeElements(codeElements: Element[]): Code {
         variantName = `Variant ${index + 1}`;
       }
 
-      const variantFileName = fileName; // Each code element already has the correct filename from getFileName()
-      variants[variantName] = {
-        fileName: variantFileName,
-        url: `file:///${variantFileName}`,
+      const variant: any = {
         source: sourceCode,
       };
+
+      // Only add fileName if we have one
+      if (fileName) {
+        variant.fileName = fileName;
+      }
+
+      variants[variantName] = variant;
     });
   }
 
@@ -197,10 +207,10 @@ export const transformHtmlCode: Plugin = () => {
 
               const variantPromises = Object.entries(variants).map(
                 async ([variantName, variantData]) => {
-                  if (variantData && typeof variantData === 'object' && 'url' in variantData) {
+                  if (variantData && typeof variantData === 'object') {
                     try {
                       const result = await loadVariant(
-                        variantData.url as string,
+                        undefined, // url - not needed for inline code
                         variantName,
                         variantData,
                         sourceParser,

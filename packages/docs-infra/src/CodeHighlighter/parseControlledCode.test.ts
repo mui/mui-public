@@ -255,4 +255,55 @@ describe('parseControlledCode', () => {
     expect(mockParseSource).toHaveBeenCalledWith('console.log("test");', 'test.js');
     expect(mockParseSource).toHaveBeenCalledTimes(1);
   });
+
+  describe('Undefined filename handling', () => {
+    it('should gracefully handle controlled code variant without filename', () => {
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: undefined, // undefined fileName
+          url: '/demo',
+          source: 'console.log("test");',
+        },
+      };
+
+      const result = parseControlledCode(controlledCode, mockParseSource);
+
+      expect(result.Default).toBeDefined();
+      const defaultResult = result.Default as any;
+      expect(defaultResult.fileName).toBeUndefined();
+
+      // parseSource should not be called without a filename
+      expect(mockParseSource).not.toHaveBeenCalled();
+    });
+
+    it('should parse variants that have filename and skip those without', () => {
+      const controlledCode: ControlledCode = {
+        WithFilename: {
+          fileName: 'App.js',
+          url: '/demo/app-js',
+          source: 'console.log("with filename");',
+        },
+        WithoutFilename: {
+          fileName: undefined, // undefined fileName
+          url: '/demo/app-no-filename',
+          source: 'console.log("without filename");',
+        },
+      };
+
+      const result = parseControlledCode(controlledCode, mockParseSource);
+
+      expect(result.WithFilename).toBeDefined();
+      expect(result.WithoutFilename).toBeDefined();
+
+      const withFilenameResult = result.WithFilename as any;
+      const withoutFilenameResult = result.WithoutFilename as any;
+
+      expect(withFilenameResult.fileName).toBe('App.js');
+      expect(withoutFilenameResult.fileName).toBeUndefined();
+
+      // Should only parse the variant with a filename
+      expect(mockParseSource).toHaveBeenCalledTimes(1);
+      expect(mockParseSource).toHaveBeenCalledWith('console.log("with filename");', 'App.js');
+    });
+  });
 });

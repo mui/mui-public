@@ -201,34 +201,34 @@ We recommend exporting a `Title` component attached within your `createDemo()` f
 This allows us to use an automatically generated title and slug from the URL of the demo index.
 This ensures that the link for the title is consistent with links to files within the demo itself.
 
-e.g. `./app/components/checkbox/demos/basic/index.ts` would generate a title of `My Example` and a slug of `basic`.
-  The URL for this demo would be `/components/checkbox#basic` and a file within it could be `/components/checkbox#basic:file.ts`.
+e.g. `./app/components/checkbox/demos/advanced-keyboard/index.ts` would generate a title of `Advanced Keyboard` and a slug of `advanced-keyboard`.
+The URL for this demo would be `/components/checkbox#advanced-keyboard` and a file within it could be `/components/checkbox#advanced-keyboard:file.ts`.
 
-Also, when MDX is rendered in GitHub, `<DemoComponentBasic.Title />` will be visible on the page because it contains the dot.
+Also, when MDX is rendered in GitHub, `<DemoCheckboxAdvancedKeyboard.Title />` will be visible on the page because it contains the dot.
 The import is also visible, so readers on GitHub will see this in the place of a demo:
 
 ```mdx
-import { DemoComponentBasic } from './demos/basic'
+import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard'
 
-<DemoComponentBasic.Title />
+<DemoCheckboxAdvancedKeyboard.Title />
 
 Description of the demo.
 ```
 
-If this convention isn't followed, URLs might deviate e.g. `/components/checkbox#basic` might not link to the correct demo.
+If this convention isn't followed, URLs might deviate e.g. `/components/checkbox#advanced-keyboard` might not link to the correct demo.
 
 ```mdx
 // This is not recommended
-import { DemoComponentBasic } from './demos/basic'
+import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard'
 
-### My Basic Demo
+### An Advanced Keyboard Demo
 
 Description of the demo.
 
-<DemoComponentBasic />
+<DemoCheckboxAdvancedKeyboard />
 ```
 
-This would result in the URL becoming `/components/checkbox#my-basic`, and the file URL being `/components/checkbox#basic:file.ts`, which is not expected.
+This would result in the URL becoming `/components/checkbox#an-advanced-keyboard-demo`, and the file URL being `/components/checkbox#advanced-keyboard:file.ts`, which is not expected.
 
 ### Descriptions
 

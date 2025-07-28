@@ -61,7 +61,7 @@ export function stringOrHastToJsx(
     hast = source;
   }
 
-  if (highlighted) {
+  if (highlighted && typeof hast === 'object') {
     return hastToJsx(hast);
   }
 

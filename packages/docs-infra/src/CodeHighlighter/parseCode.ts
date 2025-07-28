@@ -13,8 +13,8 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
       // Already parsed/highlighted
       parsed[variant] = variantCode;
     } else if (variantCode && typeof variantCode === 'object') {
-      // Parse if source is available and not already parsed
-      if (variantCode.source && typeof variantCode.source === 'string') {
+      // Parse if source is available and not already parsed, and we have a filename to determine the file type
+      if (variantCode.source && typeof variantCode.source === 'string' && variantCode.fileName) {
         try {
           const hastNodes = parseSource(variantCode.source, variantCode.fileName);
 
@@ -50,6 +50,25 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
           // Keep original if parsing fails
           parsed[variant] = variantCode;
         }
+      } else if (
+        variantCode.source &&
+        typeof variantCode.source === 'string' &&
+        !variantCode.fileName
+      ) {
+        // Return a basic HAST root node with the source text for unsupported file types
+        // This indicates that the source has at least passed through the parsing pipeline
+        parsed[variant] = {
+          ...variantCode,
+          source: {
+            type: 'root',
+            children: [
+              {
+                type: 'text',
+                value: variantCode.source,
+              },
+            ],
+          },
+        };
       } else if (
         variantCode.source &&
         typeof variantCode.source === 'object' &&

@@ -46,12 +46,12 @@ yarn add @mui/internal-docs-infra
 
       expect(npmCode.type).toBe('element');
       expect(npmCode.tagName).toBe('code');
-      expect(npmCode.data.hProperties['data-variant']).toBe('npm');
+      expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(npmCode.data.hProperties.className).toBe('language-bash');
       expect(npmCode.children[0].value).toBe('npm install @mui/internal-docs-infra');
 
-      expect(pnpmCode.data.hProperties['data-variant']).toBe('pnpm');
-      expect(yarnCode.data.hProperties['data-variant']).toBe('yarn');
+      expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
+      expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
     });
 
     it('should transform code blocks with variant-group and labels into grouped HTML elements', () => {
@@ -83,9 +83,9 @@ yarn add @mui/internal-docs-infra
 
       // Check that variants are taken from labels
       const [npmCode, pnpmCode, yarnCode] = preElement.children;
-      expect(npmCode.data.hProperties['data-variant']).toBe('npm');
-      expect(pnpmCode.data.hProperties['data-variant']).toBe('pnpm');
-      expect(yarnCode.data.hProperties['data-variant']).toBe('yarn');
+      expect(npmCode.data.hProperties.dataVariant).toBe('npm');
+      expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
+      expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
     });
 
     it('should include additional properties as data attributes', () => {
@@ -107,9 +107,9 @@ pnpm install @mui/internal-docs-infra
       expect(preElement).toBeDefined();
       const [npmCode, pnpmCode] = preElement.children;
 
-      expect(npmCode.data.hProperties['data-variant']).toBe('npm');
-      expect(npmCode.data.hProperties['data-filename']).toBe('package.json');
-      expect(pnpmCode.data.hProperties['data-filename']).toBe('package.json');
+      expect(npmCode.data.hProperties.dataVariant).toBe('npm');
+      expect(npmCode.data.hProperties.dataFilename).toBe('package.json');
+      expect(pnpmCode.data.hProperties.dataFilename).toBe('package.json');
     });
 
     it('should not group code blocks without variant metadata', () => {
@@ -198,8 +198,8 @@ const greeting = require('./greeting');
       const [es6Code, cjsCode] = preElement.children;
 
       expect(es6Code.data.hProperties.className).toBe('language-javascript');
-      expect(es6Code.data.hProperties['data-variant']).toBe('es6');
-      expect(cjsCode.data.hProperties['data-variant']).toBe('commonjs');
+      expect(es6Code.data.hProperties.dataVariant).toBe('es6');
+      expect(cjsCode.data.hProperties.dataVariant).toBe('commonjs');
     });
 
     it('should handle code blocks without language', () => {
@@ -222,8 +222,8 @@ More plain text content
       expect(preElement).toBeDefined();
       const [option1Code, option2Code] = preElement.children;
 
-      expect(option1Code.data.hProperties['data-variant']).toBe('option1');
-      expect(option2Code.data.hProperties['data-variant']).toBe('option2');
+      expect(option1Code.data.hProperties.dataVariant).toBe('option1');
+      expect(option2Code.data.hProperties.dataVariant).toBe('option2');
 
       // Should not have className since no language specified
       expect(option1Code.data.hProperties.className).toBeUndefined();
@@ -254,9 +254,9 @@ yarn add @mui/internal-docs-infra
       expect(preElement.children).toHaveLength(3);
 
       const [npmCode, pnpmCode, yarnCode] = preElement.children;
-      expect(npmCode.data.hProperties['data-variant']).toBe('npm');
-      expect(pnpmCode.data.hProperties['data-variant']).toBe('pnpm');
-      expect(yarnCode.data.hProperties['data-variant']).toBe('yarn');
+      expect(npmCode.data.hProperties.dataVariant).toBe('npm');
+      expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
+      expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
     });
   });
 

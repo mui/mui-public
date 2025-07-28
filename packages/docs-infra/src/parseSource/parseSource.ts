@@ -15,7 +15,16 @@ export const parseSource: ParseSource = (source, fileName) => {
 
   const fileType = fileName.slice(fileName.lastIndexOf('.'));
   if (!extensionMap[fileType]) {
-    throw new Error(`Unsupported file type: ${fileType}`);
+    // Return a basic HAST root node with the source text for unsupported file types
+    return {
+      type: 'root',
+      children: [
+        {
+          type: 'text',
+          value: source,
+        },
+      ],
+    };
   }
 
   return starryNight.highlight(source, extensionMap[fileType]);

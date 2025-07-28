@@ -329,4 +329,104 @@ describe('parseCode', () => {
     expect(defaultResult.filesOrder).toEqual(['index.js', 'utils.js']);
     expect(defaultResult.allFilesListed).toBe(true);
   });
+
+  describe('Undefined filename handling', () => {
+    it('should create basic HAST node for variant without filename', () => {
+      const code: Code = {
+        Default: {
+          fileName: undefined, // undefined fileName
+          url: '/demo/app',
+          source: 'const App = () => <div>Hello</div>;',
+        },
+      };
+
+      const result = parseCode(code, mockParseSource);
+
+      // Should create a basic HAST root node with the source text
+      expect(result.Default).toEqual({
+        fileName: undefined,
+        url: '/demo/app',
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'text',
+              value: 'const App = () => <div>Hello</div>;',
+            },
+          ],
+        },
+      });
+
+      // parseSource should not be called since there's no filename
+      expect(mockParseSource).not.toHaveBeenCalled();
+    });
+
+    it('should parse variants that have filename and create basic HAST for those without', () => {
+      const code: Code = {
+        WithFilename: {
+          fileName: 'App.js',
+          url: '/demo/app-js',
+          source: 'const App = () => <div>Hello JS</div>;',
+        },
+        WithoutFilename: {
+          fileName: undefined, // undefined fileName
+          url: '/demo/app-no-filename',
+          source: 'const App = () => <div>Hello No Filename</div>;',
+        },
+      };
+
+      const result = parseCode(code, mockParseSource);
+
+      expect(result.WithFilename).toBeDefined();
+      expect(result.WithoutFilename).toEqual({
+        fileName: undefined,
+        url: '/demo/app-no-filename',
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'text',
+              value: 'const App = () => <div>Hello No Filename</div>;',
+            },
+          ],
+        },
+      });
+
+      // Should only parse the variant with a filename
+      expect(mockParseSource).toHaveBeenCalledTimes(1);
+      expect(mockParseSource).toHaveBeenCalledWith(
+        'const App = () => <div>Hello JS</div>;',
+        'App.js',
+      );
+    });
+
+    it('should handle missing fileName property (completely absent)', () => {
+      const code: Code = {
+        Default: {
+          // No fileName property at all
+          url: '/demo/app',
+          source: 'const App = () => <div>No filename property</div>;',
+        },
+      };
+
+      const result = parseCode(code, mockParseSource);
+
+      // Should create a basic HAST root node when fileName is missing
+      expect(result.Default).toEqual({
+        url: '/demo/app',
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'text',
+              value: 'const App = () => <div>No filename property</div>;',
+            },
+          ],
+        },
+      });
+
+      // parseSource should not be called since there's no filename
+      expect(mockParseSource).not.toHaveBeenCalled();
+    });
+  });
 });

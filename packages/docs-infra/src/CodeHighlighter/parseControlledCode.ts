@@ -1,4 +1,4 @@
-import type { Code, ControlledCode, ParseSource } from './types';
+import type { Code, ControlledCode, ParseSource, VariantSource } from './types';
 
 /**
  * Pure function to parse controlled code and convert it to regular Code format.
@@ -22,13 +22,26 @@ export function parseControlledCode(
       // Convert null to empty string, then parse
       const sourceToProcess = variantCode.source === null ? '' : variantCode.source;
 
-      if (typeof sourceToProcess === 'string') {
+      if (typeof sourceToProcess === 'string' && variantCode.fileName) {
         try {
           mainSource = parseSource(sourceToProcess, variantCode.fileName);
         } catch (error) {
           // Keep original string if parsing fails
           mainSource = sourceToProcess;
         }
+      } else if (typeof sourceToProcess === 'string' && !variantCode.fileName) {
+        // Return a basic HAST root node with the source text for unsupported file types
+        // This indicates that the source has at least passed through the parsing pipeline
+        const source: VariantSource = {
+          type: 'root',
+          children: [
+            {
+              type: 'text',
+              value: sourceToProcess,
+            },
+          ],
+        };
+        mainSource = source;
       } else {
         // Handle undefined or other non-string values
         mainSource = sourceToProcess;

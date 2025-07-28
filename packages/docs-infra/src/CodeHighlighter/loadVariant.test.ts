@@ -133,6 +133,193 @@ describe('loadVariant', () => {
     });
   });
 
+  describe('optional URL functionality', () => {
+    it('should work without URL when only parsing/transforming', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockParsedSource = { type: 'root', children: [] };
+      mockParseSource.mockReturnValue(mockParsedSource as any);
+
+      const result = await loadVariant(
+        undefined, // No URL provided
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+      );
+
+      expect(result.code.fileName).toBe('test.ts');
+      expect(result.code.source).toBe(mockParsedSource);
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
+    });
+
+    it('should handle extra files with inline source and absolute URLs when no URL provided', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        source: 'const x = 1;',
+        extraFiles: {
+          'helper.ts': {
+            source: 'export const helper = () => {};',
+          },
+          'external.ts': 'file:///external.ts', // This should be loaded since it's an absolute URL
+        },
+      };
+
+      const mockParsedSource = { type: 'root', children: [] };
+      mockParseSource.mockReturnValue(mockParsedSource as any);
+
+      // Mock loadSource for the absolute URL
+      mockLoadSource.mockResolvedValue({
+        source: 'export const external = true;',
+      });
+
+      const result = await loadVariant(
+        undefined, // No URL provided
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true }, // Disable parsing to keep sources as strings
+      );
+
+      expect(result.code.fileName).toBe('test.ts');
+      expect(result.code.source).toBe('const x = 1;'); // Should be string since parsing disabled
+      expect(result.code.extraFiles).toEqual({
+        'helper.ts': {
+          source: 'export const helper = () => {};',
+        },
+        'external.ts': {
+          source: 'export const external = true;',
+        },
+      });
+      expect(result.dependencies).toEqual(['file:///external.ts']); // Should include the loaded external file
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///external.ts'); // Should have loaded the external file
+    });
+
+    it('should warn about relative path extra files when no URL provided', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        source: 'const x = 1;',
+        extraFiles: {
+          'helper.ts': {
+            source: 'export const helper = () => {};',
+          },
+          '../relative.ts': '../relative.ts', // This should be skipped with warning (relative path)
+        },
+      };
+
+      const mockParsedSource = { type: 'root', children: [] };
+      mockParseSource.mockReturnValue(mockParsedSource as any);
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = await loadVariant(
+        undefined, // No URL provided
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+      );
+
+      expect(result.code.fileName).toBe('test.ts');
+      expect(result.code.source).toBe(mockParsedSource);
+      expect(result.code.extraFiles).toEqual({
+        'helper.ts': {
+          source: 'export const helper = () => {};',
+        },
+      });
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Skipping extra file "../relative.ts" - no URL provided and file requires loading from external source',
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should return code as-is when no fileName and no URL provided', async () => {
+      const variant: VariantCode = {
+        source: 'const x = 1;',
+        // No fileName provided
+      };
+
+      const result = await loadVariant(
+        undefined, // No URL provided
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+      );
+
+      expect(result.code.source).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: 'const x = 1;',
+          },
+        ],
+      }); // Should have basic HAST node
+      expect(result.code.fileName).toBeUndefined(); // No fileName available
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
+      expect(mockParseSource).not.toHaveBeenCalled(); // No parsing without fileName
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
+    });
+
+    it('should support transforms without URL', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockTransforms = {
+        'test-transform': {
+          source: 'const x = 1; // transformed',
+          fileName: 'test.ts',
+        },
+      };
+
+      const transformerSpy = vi.fn().mockResolvedValue(mockTransforms);
+      const sourceTransformersWithSpy = [
+        {
+          extensions: ['ts', 'tsx'],
+          transformer: transformerSpy,
+        },
+      ];
+
+      const result = await loadVariant(
+        undefined, // No URL provided
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        sourceTransformersWithSpy,
+        { disableParsing: true }, // Keep as string to see transforms
+      );
+
+      expect(result.code.fileName).toBe('test.ts');
+      expect(result.code.source).toBe('const x = 1;');
+      expect(result.code.transforms).toBeDefined();
+      expect(result.code.transforms!['test-transform']).toBeDefined();
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
+    });
+  });
+
   describe('extra files handling', () => {
     it('should load extra files from variant definition', async () => {
       const variant: VariantCode = {
@@ -1240,6 +1427,72 @@ describe('loadVariant', () => {
       expect(result.code).toEqual(customVariant);
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
       expect(mockLoadSource).not.toHaveBeenCalled(); // Should use provided source
+    });
+  });
+
+  describe('Optional URL handling', () => {
+    it('should handle undefined URL gracefully when fileName is also undefined', async () => {
+      const variant: VariantCode = {
+        fileName: undefined, // No fileName
+        source: 'const x = 1;',
+        // No URL provided
+      };
+
+      const result = await loadVariant(
+        undefined, // undefined URL
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Should return the code with basic HAST node since no processing can be done
+      expect(result.code).toEqual({
+        fileName: undefined,
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'text',
+              value: 'const x = 1;',
+            },
+          ],
+        },
+      });
+
+      // No transformations or parsing should occur
+      expect(mockLoadSource).not.toHaveBeenCalled();
+      expect(mockParseSource).not.toHaveBeenCalled();
+      expect(mockSourceTransformers[0].transformer).not.toHaveBeenCalled();
+    });
+
+    it('should process normally when URL is undefined but fileName is provided', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        source: 'const x = 1;',
+        // No URL provided
+      };
+
+      const result = await loadVariant(
+        undefined, // undefined URL
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Should still transform even without URL since fileName is available
+      expect(result.code.fileName).toBe('test.ts');
+      expect(result.code.source).toBe('const x = 1;');
+
+      // Transformations should still occur since fileName is available
+      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith('const x = 1;', 'test.ts');
     });
   });
 });

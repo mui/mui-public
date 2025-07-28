@@ -123,6 +123,59 @@ describe('maybeInitialData', () => {
         expect(result.initialData.initialFilename).toBe('App.js');
       }
     });
+
+    it('should handle variant with undefined fileName and url', () => {
+      const code: Code = {
+        javascript: {
+          fileName: undefined, // No fileName
+          url: undefined, // No URL
+          source: 'const App = () => <div>Hello No Metadata</div>;',
+          allFilesListed: true,
+        },
+      };
+
+      const result = maybeInitialData(
+        ['javascript'],
+        'javascript',
+        code,
+        undefined, // No specific fileName requested
+        false, // needsHighlight
+        false, // needsAllFiles
+        false, // needsAllVariants
+      );
+
+      expect(result.initialData).not.toBe(false);
+      if (result.initialData !== false) {
+        expect(result.initialData.initialSource).toBe(
+          'const App = () => <div>Hello No Metadata</div>;',
+        );
+        expect(result.initialData.initialFilename).toBeUndefined(); // Should be undefined when variant has no fileName
+      }
+    });
+
+    it('should return false when requesting specific fileName but variant has undefined fileName and url', () => {
+      const code: Code = {
+        javascript: {
+          fileName: undefined, // No fileName
+          url: undefined, // No URL
+          source: 'const App = () => <div>Hello No Metadata</div>;',
+          allFilesListed: true,
+        },
+      };
+
+      const result = maybeInitialData(
+        ['javascript'],
+        'javascript',
+        code,
+        'App.js', // Requesting a specific fileName that doesn't exist
+        false, // needsHighlight
+        false, // needsAllFiles
+        false, // needsAllVariants
+      );
+
+      expect(result.initialData).toBe(false);
+      expect(result.reason).toBe('File not found in code');
+    });
   });
 
   describe('needsAllVariants handling', () => {
@@ -175,6 +228,33 @@ describe('maybeInitialData', () => {
         false, // needsHighlight
         false, // needsAllFiles
         true, // needsAllVariants
+      );
+
+      expect(result.initialData).not.toBe(false);
+      if (result.initialData !== false) {
+        expect(result.initialData.initialSource).toBe('const App = () => <div>Hello</div>;');
+        expect(result.initialData.initialFilename).toBe('App.js');
+      }
+    });
+
+    it('should handle undefined fileName by using main file', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'App.js',
+          url: 'http://example.com/App.js',
+          source: 'const App = () => <div>Hello</div>;',
+          allFilesListed: true,
+        },
+      };
+
+      const result = maybeInitialData(
+        ['javascript'],
+        'javascript',
+        code,
+        undefined, // undefined fileName should use main file
+        false, // needsHighlight
+        false, // needsAllFiles
+        false, // needsAllVariants
       );
 
       expect(result.initialData).not.toBe(false);

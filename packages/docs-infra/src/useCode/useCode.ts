@@ -1,15 +1,12 @@
 import * as React from 'react';
-import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
-import { Nodes } from 'hast';
-import { toText } from 'hast-util-to-text';
-import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
+import { stringOrHastToJsx, stringOrHastToString } from '../hastUtils';
 
 import { useCopier, UseCopierOpts } from '../useCopier';
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
-import type { ContentProps, ControlledCode } from '../CodeHighlighter/types';
+import type { ContentProps, ControlledCode, VariantSource } from '../CodeHighlighter/types';
 import { applyTransform } from '../CodeHighlighter/applyTransform';
 
-type Source = Nodes;
+type Source = VariantSource;
 
 type UseCodeOpts = {
   defaultOpen?: boolean;
@@ -29,7 +26,7 @@ export interface UseCodeResult {
   selectVariant: React.Dispatch<React.SetStateAction<string>>;
   files: Array<{ name: string; component: React.ReactNode }>;
   selectedFile: React.ReactNode;
-  selectedFileName: string;
+  selectedFileName: string | undefined;
   selectFileName: (fileName: string) => void;
   expanded: boolean;
   expand: () => void;
@@ -40,10 +37,6 @@ export interface UseCodeResult {
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
   setSource?: (source: string) => void;
-}
-
-function toComponent(source: Source) {
-  return toJsxRuntime(source, { Fragment, jsx, jsxs });
 }
 
 export function useCode<T extends {} = {}>(
@@ -167,23 +160,31 @@ export function useCode<T extends {} = {}>(
     // Process main file - get transforms from selectedVariant
     const variantTransforms =
       'transforms' in selectedVariant ? selectedVariant.transforms : undefined;
+
+    // Only process main file if we have a fileName
+    if (!selectedVariant.fileName) {
+      // If no fileName, we can't create meaningful file entries, return empty
+      return { files: [], filenameMap: {} };
+    }
+
     const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
       selectedVariant.source,
       selectedVariant.fileName,
       variantTransforms,
     );
 
-    filenameMap[selectedVariant.fileName] = mainName;
+    const fileName = selectedVariant.fileName;
+    filenameMap[fileName] = mainName;
     files.push({
       name: mainName,
-      originalName: selectedVariant.fileName,
+      originalName: fileName,
       source: mainSource as Source,
-      component: toComponent(mainSource as Source),
+      component: stringOrHastToJsx(mainSource as Source, true),
     });
 
     // Process extra files
     if (selectedVariant.extraFiles) {
-      Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
+      Object.entries(selectedVariant.extraFiles).forEach(([extraFileName, fileData]) => {
         let source: any;
         let transforms: any;
 
@@ -200,17 +201,17 @@ export function useCode<T extends {} = {}>(
 
         // Apply transforms if available
         let transformedSource = source;
-        let transformedName = fileName;
+        let transformedName = extraFileName;
 
         if (transforms?.[selectedTransform]) {
           try {
             const transformData = transforms[selectedTransform];
             if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
               transformedSource = applyTransform(source as Source, transforms, selectedTransform);
-              transformedName = transformData.fileName || fileName;
+              transformedName = transformData.fileName || extraFileName;
             }
           } catch (error) {
-            console.error(`Transform failed for ${fileName}:`, error);
+            console.error(`Transform failed for ${extraFileName}:`, error);
           }
         }
 
@@ -218,24 +219,24 @@ export function useCode<T extends {} = {}>(
         // If a file already exists with the target name, skip this transformation to preserve original files
         const existingFile = files.find((f) => f.name === transformedName);
         if (!existingFile) {
-          filenameMap[fileName] = transformedName;
+          filenameMap[extraFileName] = transformedName;
           files.push({
             name: transformedName,
-            originalName: fileName,
+            originalName: extraFileName,
             source: transformedSource as Source,
-            component: toComponent(transformedSource as Source),
+            component: stringOrHastToJsx(transformedSource as Source, true),
           });
         } else {
           // If there's a conflict, keep the original file untransformed
           console.warn(
-            `Transform conflict: ${fileName} would transform to ${transformedName} but that name is already taken. Keeping original file untransformed.`,
+            `Transform conflict: ${extraFileName} would transform to ${transformedName} but that name is already taken. Keeping original file untransformed.`,
           );
-          filenameMap[fileName] = fileName;
+          filenameMap[extraFileName] = extraFileName;
           files.push({
-            name: fileName,
-            originalName: fileName,
+            name: extraFileName,
+            originalName: extraFileName,
             source: source as Source,
-            component: toComponent(source as Source),
+            component: stringOrHastToJsx(source as Source, true),
           });
         }
       });
@@ -245,9 +246,9 @@ export function useCode<T extends {} = {}>(
   }, [selectedVariant, selectedTransform]);
 
   // Keep selectedFileName as untransformed filename for internal tracking
-  const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState(
-    selectedVariant?.fileName || '',
-  );
+  const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
+    string | undefined
+  >(selectedVariant?.fileName);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
@@ -255,7 +256,9 @@ export function useCode<T extends {} = {}>(
       // Only reset if current selectedFileName doesn't exist in the new variant
       const hasFile =
         selectedVariant.fileName === selectedFileNameInternal ||
-        (selectedVariant.extraFiles && selectedVariant.extraFiles[selectedFileNameInternal]);
+        (selectedFileNameInternal &&
+          selectedVariant.extraFiles &&
+          selectedVariant.extraFiles[selectedFileNameInternal]);
 
       if (!hasFile) {
         setSelectedFileNameInternal(selectedVariant.fileName);
@@ -266,17 +269,23 @@ export function useCode<T extends {} = {}>(
   // Compute the displayed filename (transformed if applicable)
   const selectedFileName = React.useMemo(() => {
     if (!selectedVariant) {
-      return '';
+      return undefined;
+    }
+
+    // If selectedFileNameInternal is undefined, we're selecting the main file
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (!effectiveFileName) {
+      return undefined;
     }
 
     // If we have transformed files, return the transformed name
     if (transformedFiles) {
-      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
-      return file ? file.name : selectedFileNameInternal;
+      const file = transformedFiles.files.find((f) => f.originalName === effectiveFileName);
+      return file ? file.name : effectiveFileName;
     }
 
     // Otherwise, return the original filename
-    return selectedFileNameInternal;
+    return effectiveFileName;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
   const selectedFile = React.useMemo(() => {
@@ -286,17 +295,22 @@ export function useCode<T extends {} = {}>(
 
     // If we have transformed files, use them
     if (transformedFiles) {
-      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
+      const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+      const file = transformedFiles.files.find((f) => f.originalName === effectiveFileName);
       return file ? file.source : null;
     }
 
     // Otherwise, use the original untransformed files
-    if (selectedFileNameInternal === selectedVariant.fileName) {
+    if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
       return selectedVariant.source;
     }
 
     // Look in extraFiles
-    if (selectedVariant.extraFiles && selectedVariant.extraFiles[selectedFileNameInternal]) {
+    if (
+      selectedFileNameInternal &&
+      selectedVariant.extraFiles &&
+      selectedVariant.extraFiles[selectedFileNameInternal]
+    ) {
       const extraFile = selectedVariant.extraFiles[selectedFileNameInternal];
       if (typeof extraFile === 'string') {
         return extraFile;
@@ -321,12 +335,16 @@ export function useCode<T extends {} = {}>(
     }
 
     // Otherwise, create component from original untransformed files
-    if (selectedFileNameInternal === selectedVariant.fileName) {
-      return toComponent(selectedVariant.source as Source);
+    if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
+      return stringOrHastToJsx(selectedVariant.source as Source, true);
     }
 
     // Look in extraFiles
-    if (selectedVariant.extraFiles && selectedVariant.extraFiles[selectedFileNameInternal]) {
+    if (
+      selectedFileNameInternal &&
+      selectedVariant.extraFiles &&
+      selectedVariant.extraFiles[selectedFileNameInternal]
+    ) {
       const extraFile = selectedVariant.extraFiles[selectedFileNameInternal];
       let source: any;
 
@@ -338,7 +356,7 @@ export function useCode<T extends {} = {}>(
         return null;
       }
 
-      return toComponent(source as Source);
+      return stringOrHastToJsx(source as Source, true);
     }
 
     return null;
@@ -359,12 +377,15 @@ export function useCode<T extends {} = {}>(
     }
 
     // Otherwise, create files from original untransformed data
-    const result = [
-      {
+    const result: Array<{ name: string; component: React.ReactNode }> = [];
+
+    // Only add main file if it has a fileName
+    if (selectedVariant.fileName) {
+      result.push({
         name: selectedVariant.fileName,
-        component: toComponent(selectedVariant.source as Source),
-      },
-    ];
+        component: stringOrHastToJsx(selectedVariant.source as Source, true),
+      });
+    }
 
     if (selectedVariant.extraFiles) {
       Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
@@ -380,7 +401,7 @@ export function useCode<T extends {} = {}>(
 
         result.push({
           name: fileName,
-          component: toComponent(source as Source),
+          component: stringOrHastToJsx(source as Source, true),
         });
       });
     }
@@ -401,7 +422,7 @@ export function useCode<T extends {} = {}>(
       return (selectedFile as { hastJson: string }).hastJson;
     }
 
-    return toText(selectedFile as Source, { whitespace: 'pre' });
+    return stringOrHastToString(selectedFile);
   }, [selectedFile]);
 
   const { copy } = useCopier(sourceFileToText, copyOpts);

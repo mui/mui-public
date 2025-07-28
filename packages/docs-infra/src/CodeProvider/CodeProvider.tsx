@@ -29,8 +29,21 @@ export function CodeProvider({
 
     return createStarryNight(grammars).then((starryNight) => {
       const parseSourceFn: ParseSource = (source: string, fileName: string) => {
-        const fileType = fileName.slice(fileName.lastIndexOf('.')) || 'plaintext';
-        return starryNight.highlight(source, extensionMap[fileType] || 'plaintext');
+        const fileType = fileName.slice(fileName.lastIndexOf('.'));
+        if (!extensionMap[fileType]) {
+          // Return a basic HAST root node with the source text for unsupported file types
+          return {
+            type: 'root',
+            children: [
+              {
+                type: 'text',
+                value: source,
+              },
+            ],
+          };
+        }
+
+        return starryNight.highlight(source, extensionMap[fileType]);
       };
 
       return parseSourceFn;

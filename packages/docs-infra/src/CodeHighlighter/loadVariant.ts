@@ -447,7 +447,7 @@ async function loadExtraFiles(
  * Uses Promise.all for efficient parallel loading of extra files.
  */
 export async function loadVariant(
-  url: string,
+  url: string | undefined,
   variantName: string,
   variant: VariantCode | string | undefined,
   sourceParser?: Promise<ParseSource>,
@@ -469,9 +469,16 @@ export async function loadVariant(
   if (typeof variant === 'string') {
     if (!loadVariantMeta) {
       // Create a basic loadVariantMeta function as fallback
+      const { fileName } = getFileNameFromUrl(variant);
+      if (!fileName) {
+        throw new Error(
+          `Cannot determine fileName from URL "${variant}" for variant "${variantName}". ` +
+            `Please provide a loadVariantMeta function or ensure the URL has a valid file extension.`,
+        );
+      }
       variant = {
         url: variant,
-        fileName: getFileNameFromUrl(variant).fileName,
+        fileName,
       };
     } else {
       try {
@@ -485,8 +492,10 @@ export async function loadVariant(
   }
 
   const loadedFiles = new Set<string>();
-  loadedFiles.add(url);
-  const allFilesUsed = [url]; // Start with the main file URL
+  if (url) {
+    loadedFiles.add(url);
+  }
+  const allFilesUsed: string[] = url ? [url] : []; // Start with the main file URL if available
 
   // Build set of known extra files from variant definition
   const knownExtraFiles = new Set<string>();
@@ -497,9 +506,43 @@ export async function loadVariant(
   }
 
   // Load main file
+  const fileName = variant.fileName || (url ? getFileNameFromUrl(url).fileName : undefined);
+
+  // If we don't have a fileName and no URL, we can't parse or transform but can still return the code
+  if (!fileName && !url) {
+    // Return the variant as-is without parsing or transforms
+    const finalVariant: VariantCode = {
+      ...variant,
+      source:
+        typeof variant.source === 'string'
+          ? {
+              type: 'root',
+              children: [
+                {
+                  type: 'text',
+                  value: variant.source || '',
+                },
+              ],
+            }
+          : variant.source,
+    };
+
+    return {
+      code: finalVariant,
+      dependencies: [], // No dependencies without URL
+    };
+  }
+
+  if (!fileName) {
+    throw new Error(
+      `No fileName available for variant "${variantName}". ` +
+        `Please provide a fileName in the variant definition or ensure the URL has a valid file extension.`,
+    );
+  }
+
   const mainFileResult = await loadSingleFile(
     variantName,
-    variant.fileName,
+    fileName,
     variant.source,
     url,
     loadSource,
@@ -538,23 +581,81 @@ export async function loadVariant(
     ...(mainFileResult.extraFiles || {}),
   };
 
-  // Load all extra files if any exist
+  // Load all extra files if any exist and we have a URL
   if (Object.keys(extraFilesToLoad).length > 0) {
-    const extraFilesResult = await loadExtraFiles(
-      variantName,
-      extraFilesToLoad,
-      url,
-      url, // Entry URL is the same as the main file URL
-      loadSource,
-      sourceParser,
-      sourceTransformers,
-      loadSourceCache,
-      { ...options, loadedFiles },
-      variant.allFilesListed || false,
-      knownExtraFiles,
-    );
-    allExtraFiles = extraFilesResult.extraFiles;
-    allFilesUsed.push(...extraFilesResult.allFilesUsed);
+    if (!url) {
+      // If there's no URL, we can only load extra files that have inline source or absolute URLs
+      const loadableFiles: VariantExtraFiles = {};
+      for (const [key, value] of Object.entries(extraFilesToLoad)) {
+        if (typeof value !== 'string' && value.source !== undefined) {
+          // Inline source - can always load
+          loadableFiles[key] = value;
+        } else if (typeof value === 'string' && (value.includes('://') || value.startsWith('/'))) {
+          // Absolute URL - can load without base URL
+          loadableFiles[key] = value;
+        } else {
+          console.warn(
+            `Skipping extra file "${key}" - no URL provided and file requires loading from external source`,
+          );
+        }
+      }
+
+      if (Object.keys(loadableFiles).length > 0) {
+        // Process loadable files: inline sources without URL-based loading, absolute URLs with loading
+        for (const [key, value] of Object.entries(loadableFiles)) {
+          if (typeof value !== 'string') {
+            // Inline source
+            allExtraFiles[normalizePathKey(key)] = {
+              source: value.source!,
+              transforms: value.transforms,
+            };
+          }
+        }
+
+        // For absolute URLs, we need to load them
+        const urlFilesToLoad: VariantExtraFiles = {};
+        for (const [key, value] of Object.entries(loadableFiles)) {
+          if (typeof value === 'string') {
+            urlFilesToLoad[key] = value;
+          }
+        }
+
+        if (Object.keys(urlFilesToLoad).length > 0) {
+          // Load absolute URL files even without base URL
+          const extraFilesResult = await loadExtraFiles(
+            variantName,
+            urlFilesToLoad,
+            '', // No base URL needed for absolute URLs
+            '', // No entry URL
+            loadSource,
+            sourceParser,
+            sourceTransformers,
+            loadSourceCache,
+            { ...options, loadedFiles },
+            variant.allFilesListed || false,
+            knownExtraFiles,
+          );
+          allExtraFiles = { ...allExtraFiles, ...extraFilesResult.extraFiles };
+          allFilesUsed.push(...extraFilesResult.allFilesUsed);
+        }
+      }
+    } else {
+      const extraFilesResult = await loadExtraFiles(
+        variantName,
+        extraFilesToLoad,
+        url,
+        url, // Entry URL is the same as the main file URL
+        loadSource,
+        sourceParser,
+        sourceTransformers,
+        loadSourceCache,
+        { ...options, loadedFiles },
+        variant.allFilesListed || false,
+        knownExtraFiles,
+      );
+      allExtraFiles = extraFilesResult.extraFiles;
+      allFilesUsed.push(...extraFilesResult.allFilesUsed);
+    }
   }
 
   const finalVariant: VariantCode = {
