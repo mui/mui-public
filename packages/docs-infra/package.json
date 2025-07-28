@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",
-    "directory": "packages/mui-docs"
+    "directory": "packages/docs-infra"
   },
   "license": "MIT",
   "bugs": {
@@ -21,11 +21,8 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "pnpm build:node && pnpm build:stable && pnpm build:types && pnpm build:copy-files",
-    "build:node": "node ./scripts/build.mjs node",
-    "build:stable": "node ./scripts/build.mjs stable",
-    "build:types": "tsx ./scripts/buildTypes.mts",
-    "build:copy-files": "node ./scripts/copyFiles.mjs",
+    "build": "code-infra build --bundle cjs --bundle esm && pnpm build:copy-files",
+    "build:copy-files": "code-infra copy-files .npmignore",
     "prebuild": "rimraf build",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "exit 0",
@@ -79,5 +76,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "exports": {
+    "./*": "./src/*/index.ts"
   }
 }
