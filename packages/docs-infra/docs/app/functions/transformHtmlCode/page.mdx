@@ -19,7 +19,7 @@ This plugin is typically used in the **second stage** of a markdown-to-HTML proc
 
 ## Installation & Usage
 
-```typescript
+````typescript
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import { transformHtmlCode } from '@mui/internal-docs-infra/transformHtmlCode';
@@ -28,11 +28,11 @@ const processor = unified()
   .use(rehypeParse)
   .use(transformHtmlCode) // No configuration needed
   .use(rehypeStringify);
-```
+````
 
 ### With Next.js and MDX
 
-```javascript
+````javascript
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
@@ -44,56 +44,56 @@ const withMDX = require('@next/mdx')({
 module.exports = withMDX({
   // your Next.js config
 });
-```
+````
 
 ## Input Examples
 
 ### Single Code Block
 
-```html
+````html
 <pre><code class="language-typescript">
 const greeting: string = "Hello, world!";
 console.log(greeting);
 </code></pre>
-```
+````
 
 ### Multiple Code Variants (Different Languages)
 
-```html
+````html
 <pre>
   <code class="language-js">console.log("Hello, world!");</code>
   <code class="language-ts">console.log("Hello, world!" as string);</code>
 </pre>
-```
+````
 
 ### Custom Variant Names
 
-```html
+````html
 <pre>
   <code class="language-js" data-variant="Client">console.log("Running on client");</code>
   <code class="language-js" data-variant="Server">console.log("Running on server");</code>
 </pre>
-```
+````
 
 ### Custom Filenames
 
-```html
+````html
 <pre><code class="language-js" data-filename="app.jsx">
 const App = () => <div>Hello React!</div>;
 export default App;
 </code></pre>
-```
+````
 
 ### Code Block Transformations
 
 By default, code blocks are processed for syntax highlighting only. To enable transformations (like TypeScript-to-JavaScript conversion), explicitly mark the code block:
 
-```html
+````html
 <pre><code class="language-ts" data-transform="true">
 const greeting: string = "Hello, world!";
 console.log(greeting);
 </code></pre>
-```
+````
 
 This will generate both the original TypeScript and the transformed JavaScript versions.
 
@@ -105,11 +105,11 @@ After processing, the plugin:
 2. **Stores processed data** in `dataPrecompute` attribute as JSON
 3. **Preserves original structure** for the CodeHighlighter component
 
-```html
+````html
 <pre data-precompute='{"Default":{"fileName":"index.ts","source":"...","transforms":{...}}}'>
   Error: expected pre tag to be handled by CodeHighlighter
 </pre>
-```
+````
 
 ## Variant Naming
 
@@ -145,7 +145,7 @@ These plugins work together in a processing pipeline:
 ### Complete Example
 
 **Markdown Input:**
-```markdown
+````markdown
 npm
 ```bash variant-group=install
 npm install package
@@ -155,21 +155,21 @@ pnpm
 ```bash variant-group=install
 pnpm install package
 ```
-```
+````
 
 **After transformMarkdownCodeVariants:**
-```html
+````html
 <pre>
   <code class="language-bash" data-variant="npm">npm install package</code>
   <code class="language-bash" data-variant="pnpm">pnpm install package</code>
 </pre>
-```
+````
 
 **After transformHtmlCode:**
-```html
+````html
 <pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
   Error: expected pre tag to be handled by CodeHighlighter
 </pre>
-```
+````
 - Processes code blocks in parallel across the document
 - Optimized text extraction with single-pass traversal

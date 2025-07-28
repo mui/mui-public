@@ -17,7 +17,7 @@ Use this plugin to enhance markdown code blocks with custom data attributes for 
 
 ## Installation & Usage
 
-```typescript
+````typescript
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { transformMarkdownCode } from '@mui/internal-docs-infra/transformMarkdownCode';
@@ -25,11 +25,11 @@ import { transformMarkdownCode } from '@mui/internal-docs-infra/transformMarkdow
 const processor = unified()
   .use(remarkParse)
   .use(transformMarkdownCode);
-```
+````
 
 ### With Next.js and MDX
 
-```javascript
+````javascript
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
@@ -41,7 +41,7 @@ const withMDX = require('@next/mdx')({
 module.exports = withMDX({
   // your Next.js config
 });
-```
+````
 
 ## Syntax Examples
 
@@ -50,36 +50,36 @@ module.exports = withMDX({
 The simplest usage - transform single code blocks by adding options directly:
 
 **Basic Example:**
-```markdown
+````markdown
 ```ts fileName=greeting.ts
 const greeting: string = "Hello, world!";
 console.log(greeting);
 ```
-```
+````
 
 **HTML Output:**
-```html
+````html
 <pre><code class="language-ts" data-file-name="greeting.ts">const greeting: string = "Hello, world!";
 console.log(greeting);</code></pre>
-```
+````
 
 **Multiple Options:**
-```markdown
+````markdown
 ```javascript fileName=test.js transform
 function test() {
   console.log('line 2');
   console.log('line 3');
 }
 ```
-```
+````
 
 **HTML Output:**
-```html
+````html
 <pre><code class="language-javascript" data-file-name="test.js" data-transform="true">function test() {
 console.log('line 2');
 console.log('line 3');
 }</code></pre>
-```
+````
 
 Individual code blocks with options are processed immediately and don't require grouping with other blocks.
 
@@ -88,7 +88,7 @@ Individual code blocks with options are processed immediately and don't require 
 Show the same task across different package managers:
 
 **Markdown Input:**
-```markdown
+````markdown
 ```bash variant=npm
 npm install package
 ```
@@ -100,23 +100,23 @@ pnpm install package
 ```bash variant=yarn
 yarn add package
 ```
-```
+````
 
 **HTML Output:**
-```html
+````html
 <pre>
   <code class="language-bash" data-variant="npm">npm install package</code>
   <code class="language-bash" data-variant="pnpm">pnpm install package</code>  
   <code class="language-bash" data-variant="yarn">yarn add package</code>
 </pre>
-```
+````
 
 ### Labeled Variants (variant-group=name)
 
 Add descriptive labels for each variant:
 
 **Markdown Input:**
-```markdown
+````markdown
 npm
 ```bash variant-group=install
 npm install package
@@ -131,23 +131,23 @@ yarn
 ```bash variant-group=install  
 yarn add package
 ```
-```
+````
 
 **HTML Output:**
-```html
+````html
 <pre>
   <code class="language-bash" data-variant="npm">npm install package</code>
   <code class="language-bash" data-variant="pnpm">pnpm install package</code>
   <code class="language-bash" data-variant="yarn">yarn add package</code>
 </pre>
-```
+````
 
 ### Different Languages
 
 Show examples across multiple programming languages:
 
 **Markdown Input:**
-```markdown
+````markdown
 ```javascript variant=client
 fetch('/api/data').then(res => res.json())
 ```
@@ -160,24 +160,24 @@ response = requests.get('/api/data')
 ```go variant=cli
 resp, err := http.Get("/api/data")
 ```
-```
+````
 
 **HTML Output:**
-```html
+````html
 <pre>
   <code class="language-javascript" data-variant="client">fetch('/api/data').then(res => res.json())</code>
   <code class="language-python" data-variant="server">import requests
 response = requests.get('/api/data')</code>
   <code class="language-go" data-variant="cli">resp, err := http.Get("/api/data")</code>
 </pre>
-```
+````
 
 ### Custom Properties
 
 Add extra metadata using additional properties:
 
 **Markdown Input:**
-```markdown
+````markdown
 ```bash variant=npm filename=install.sh
 npm install package
 ```
@@ -185,15 +185,15 @@ npm install package
 ```bash variant=pnpm filename=install.sh  
 pnpm install package
 ```
-```
+````
 
 **HTML Output:**
-```html
+````html
 <pre>
   <code class="language-bash" data-variant="npm" data-filename="install.sh">npm install package</code>
   <code class="language-bash" data-variant="pnpm" data-filename="install.sh">pnpm install package</code>
 </pre>
-```
+````
 
 ## Plugin Behavior
 
@@ -216,7 +216,7 @@ Code blocks with options (but no `variant` or `variant-group`) are processed imm
 
 For `variant-group` format, paragraphs between code blocks become variant names:
 
-```markdown
+````markdown
 Client-side
 ```js variant-group=implementation  
 fetch('/api/data')
@@ -226,7 +226,7 @@ Server-side
 ```js variant-group=implementation
 const data = await db.query()
 ```
-```
+````
 
 Creates variants named "Client-side" and "Server-side".
 
@@ -250,7 +250,7 @@ This plugin works seamlessly with [`transformHtmlCode`](/functions/transformHtml
 ### Complete Pipeline Example
 
 **Step 1 - Markdown:**
-```markdown
+````markdown
 npm
 ```bash variant-group=install
 npm install package
@@ -260,22 +260,22 @@ pnpm
 ```bash variant-group=install  
 pnpm install package
 ```
-```
+````
 
 **Step 2 - After transformMarkdownCode:**
-```html
+````html
 <pre>
   <code class="language-bash" data-variant="npm">npm install package</code>
   <code class="language-bash" data-variant="pnpm">pnpm install package</code>
 </pre>
-```
+````
 
 **Step 3 - After transformHtmlCode:**
-```html
+````html
 <pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
   Error: expected pre tag to be handled by CodeHighlighter
 </pre>
-```
+````
 
 ## Common Use Cases
 
@@ -349,14 +349,14 @@ This plugin works out-of-the-box with no configuration required. It automaticall
 
 Generated HTML follows this pattern:
 
-```html
+````html
 <pre>
   <code class="language-{lang}" data-variant="{name}" data-{prop}="{value}">
     {escaped code content}
   </code>
   <!-- additional code elements -->
 </pre>
-```
+````
 
 ### Data Attributes
 
