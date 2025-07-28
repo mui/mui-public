@@ -7,6 +7,7 @@ import {
   type DirectoryEntry,
   type DirectoryReader,
   type ResolveModulePathOptions,
+  type TypeAwareResolveResult,
 } from './resolveModulePath';
 
 /**
@@ -28,13 +29,24 @@ const nodeDirectoryReader: DirectoryReader = async (path: string): Promise<Direc
  *
  * @param modulePath - The module path to resolve (without file extension)
  * @param options - Configuration options
- * @returns Promise<string> - The resolved file path, or throws if not found
+ * @param includeTypeDefs - If true, returns both import and typeImport paths with different extension priorities
+ * @returns Promise<string | TypeAwareResolveResult> - The resolved file path(s), or throws if not found
  */
 export async function resolveModulePathWithFs(
   modulePath: string,
+  options?: ResolveModulePathOptions,
+): Promise<string>;
+export async function resolveModulePathWithFs(
+  modulePath: string,
+  options: ResolveModulePathOptions,
+  includeTypeDefs: true,
+): Promise<TypeAwareResolveResult>;
+export async function resolveModulePathWithFs(
+  modulePath: string,
   options: ResolveModulePathOptions = {},
-): Promise<string> {
-  return resolveModulePath(modulePath, nodeDirectoryReader, options);
+  includeTypeDefs?: boolean,
+): Promise<string | TypeAwareResolveResult> {
+  return resolveModulePath(modulePath, nodeDirectoryReader, options, includeTypeDefs);
 }
 
 /**
@@ -58,12 +70,12 @@ export async function resolveModulePathsWithFs(
  * This is a convenience wrapper around the generic resolveImportResult function
  * that uses Node.js filesystem APIs.
  *
- * @param importResult - The result from resolveImports containing all imports
+ * @param importResult - The result from parseImports containing all imports
  * @param options - Configuration options for module resolution
  * @returns Promise<Map<string, string>> - Map from import path to resolved file path
  */
 export async function resolveImportResultWithFs(
-  importResult: Record<string, { path: string; names: string[] }>,
+  importResult: Record<string, { path: string; names: string[]; includeTypeDefs?: true }>,
   options: ResolveModulePathOptions = {},
 ): Promise<Map<string, string>> {
   return resolveImportResult(importResult, nodeDirectoryReader, options);

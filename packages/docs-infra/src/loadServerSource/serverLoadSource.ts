@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import type { LoadSource } from '../CodeHighlighter/types';
-import { resolveImports } from '../loaderUtils/resolveImports';
+import { parseImports } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
-import { processImportsWithStoreAt, type StoreAtMode } from '../loaderUtils/processImports';
+import { processImports, type StoreAtMode } from '../loaderUtils/processImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
 interface LoadSourceOptions {
@@ -51,7 +51,7 @@ export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSou
     }
 
     // Get all relative imports from this file
-    const importResult = await resolveImports(source, filePath);
+    const importResult = await parseImports(source, filePath);
 
     if (Object.keys(importResult).length === 0) {
       return { source };
@@ -61,7 +61,7 @@ export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSou
     const resolvedPathsMap = await resolveImportResultWithFs(importResult);
 
     // Process imports using the consolidated helper function
-    const { processedSource, extraFiles } = processImportsWithStoreAt(
+    const { processedSource, extraFiles } = processImports(
       source,
       importResult,
       resolvedPathsMap,

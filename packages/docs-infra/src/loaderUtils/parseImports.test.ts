@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolveImports } from './resolveImports';
+import { parseImports } from './parseImports';
 
-describe('resolveImports', () => {
+describe('parseImports', () => {
   it('should resolve relative import paths and group by import path', async () => {
     const code = `
       import Component1 from './Component1';
@@ -9,7 +9,7 @@ describe('resolveImports', () => {
       import * as Utils from '../utils';
     `;
     const filePath = '/src/demo.ts';
-    const result = await resolveImports(code, filePath);
+    const result = await parseImports(code, filePath);
 
     expect(result).toEqual({
       './Component1': { path: '/src/Component1', names: ['Component1'] },
@@ -25,7 +25,7 @@ describe('resolveImports', () => {
       import Component from './Component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await resolveImports(code, filePath);
+    const result = await parseImports(code, filePath);
 
     expect(result).toEqual({
       './Component': { path: '/src/Component', names: ['Component'] },
@@ -35,7 +35,7 @@ describe('resolveImports', () => {
   it('should handle empty code', async () => {
     const code = '';
     const filePath = '/src/demo.ts';
-    const result = await resolveImports(code, filePath);
+    const result = await parseImports(code, filePath);
 
     expect(result).toEqual({});
   });
@@ -48,7 +48,7 @@ describe('resolveImports', () => {
       }
     `;
     const filePath = '/src/demo.ts';
-    const result = await resolveImports(code, filePath);
+    const result = await parseImports(code, filePath);
 
     expect(result).toEqual({});
   });
@@ -61,7 +61,7 @@ describe('resolveImports', () => {
       import { NamedImport3 as AliasedImport } from './aliased';
     `;
     const filePath = '/src/demo.ts';
-    const result = await resolveImports(code, filePath);
+    const result = await parseImports(code, filePath);
 
     expect(result).toEqual({
       './default': { path: '/src/default', names: ['DefaultImport'] },
@@ -77,7 +77,7 @@ describe('resolveImports', () => {
       import Utils from '../../utils/helpers';
     `;
     const filePath = '/src/features/demo/components/demo.ts';
-    const result = await resolveImports(code, filePath);
+    const result = await parseImports(code, filePath);
 
     expect(result).toEqual({
       '../../../shared/components/Component': {
@@ -85,6 +85,45 @@ describe('resolveImports', () => {
         names: ['Component'],
       },
       '../../utils/helpers': { path: '/src/features/utils/helpers', names: ['Utils'] },
+    });
+  });
+
+  it('should handle type-only imports', async () => {
+    const code = `
+      import type { TypeDef } from './types';
+      import type DefaultType from './defaultTypes';
+      import { Component } from './component';
+    `;
+    const filePath = '/src/demo.ts';
+    const result = await parseImports(code, filePath);
+
+    // Type imports should have includeTypeDefs: true
+    expect(result).toEqual({
+      './types': { path: '/src/types', names: ['TypeDef'], includeTypeDefs: true },
+      './defaultTypes': {
+        path: '/src/defaultTypes',
+        names: ['DefaultType'],
+        includeTypeDefs: true,
+      },
+      './component': { path: '/src/component', names: ['Component'] },
+    });
+  });
+
+  it('should handle mixed type and value imports from same module', async () => {
+    const code = `
+      import type { Props } from './Component';
+      import { Component } from './Component';
+    `;
+    const filePath = '/src/demo.ts';
+    const result = await parseImports(code, filePath);
+
+    // Should create separate entries for type and value imports
+    expect(result).toEqual({
+      './Component': {
+        path: '/src/Component',
+        names: ['Props', 'Component'],
+        // No includeTypeDefs since mixed imports are treated as value imports
+      },
     });
   });
 });

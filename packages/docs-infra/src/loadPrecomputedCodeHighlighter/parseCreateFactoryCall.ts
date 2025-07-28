@@ -1,8 +1,8 @@
-import { resolveImports } from '../loaderUtils';
+import { parseImports } from '../loaderUtils';
 import { parseFunctionParameters, extractBalancedBraces } from './parseFunctionParameters';
 
 /**
- * Helper function to convert the new resolveImports format to a Map
+ * Helper function to convert the new parseImports format to a Map
  * that maps import names to their resolved paths
  */
 function buildImportMap(
@@ -177,7 +177,7 @@ export async function parseCreateFactoryCall(
   filePath: string,
 ): Promise<ParsedCreateFactory | null> {
   // Get import mappings once for the entire file
-  const importResult = await resolveImports(code, filePath);
+  const importResult = await parseImports(code, filePath);
   const importMap = buildImportMap(importResult);
 
   // Find all create* calls in the code

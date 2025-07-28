@@ -127,7 +127,7 @@ describe('transformHtmlCode', () => {
 
     const preElement = findPreElement(ast);
     const precomputeData = JSON.parse(preElement.properties['data-precompute']);
-    expect(precomputeData.Default.fileName).toBe('index.js'); // fallback
+    expect(precomputeData.Default.fileName).toBe('index.txt'); // fallback
   });
 
   it('should handle nested text content extraction', async () => {
@@ -158,7 +158,7 @@ describe('transformHtmlCode', () => {
       { lang: 'sh', expected: 'index.sh' },
       { lang: 'yaml', expected: 'index.yaml' },
       { lang: 'yml', expected: 'index.yaml' },
-      { lang: 'unknown', expected: 'index.js' }, // fallback
+      { lang: 'unknown', expected: 'index.txt' }, // fallback
     ];
 
     // Process all test cases in parallel to avoid await in loop

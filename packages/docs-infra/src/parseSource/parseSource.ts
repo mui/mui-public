@@ -13,8 +13,12 @@ export const parseSource: ParseSource = (source, fileName) => {
     );
   }
 
-  const fileType = fileName.slice(fileName.lastIndexOf('.')) || 'plaintext';
-  return starryNight.highlight(source, extensionMap[fileType] || 'plaintext');
+  const fileType = fileName.slice(fileName.lastIndexOf('.'));
+  if (!extensionMap[fileType]) {
+    throw new Error(`Unsupported file type: ${fileType}`);
+  }
+
+  return starryNight.highlight(source, extensionMap[fileType]);
 };
 
 export const parseSourceFactory = async (): Promise<ParseSource> => {
