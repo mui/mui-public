@@ -1,23 +1,20 @@
 # transformMarkdownCodeVariants
 
-A remark plugin that transforms code blocks with variants into HTML pre/code structures that can be processed by the existing rehype plugin.
+A remark plugin that transforms markdown code blocks with variants into HTML structures for multi-language code examples. This plugin is the **first stage** in a processing pipeline, typically followed by [`transformHtmlCode`](/functions/transformHtmlCode) for final rendering.
 
-## Features
+## Overview
 
-- **Flexible variant syntax**: Supports both `variant=name` and `variant-group=name` formats
-- **Language class support**: Automatically adds `class="language-{lang}"` attributes for syntax highlighting
-- **Additional properties**: Passes extra metadata as `data-*` attributes to HTML elements
-- **HTML escaping**: Properly escapes code content for security
-- **Flexible spacing**: Works with or without blank lines between code blocks
-- **Universal language support**: Works with any programming language, not just bash/terminal
-- **Group detection**: Automatically groups adjacent code blocks with variant metadata
-- **Label support**: For variant-group format, supports paragraph labels between code blocks
+Use this plugin when you want to show the same code example in multiple languages, package managers, or configurations. It converts special markdown syntax into HTML that can display interactive code variants.
 
-## Usage
+## Key Features
 
-### Basic Usage with MDX
+- **Multiple variant formats**: Support for `variant=name` and `variant-group=name` syntax
+- **Automatic grouping**: Adjacent code blocks with variants are combined into single examples
+- **Language detection**: Preserves syntax highlighting with `class="language-*"` attributes
+- **Label support**: Extract labels from text between code blocks
+- **Clean HTML output**: Generates semantic HTML structure for further processing
 
-This plugin is designed specifically for MDX and generates proper JSX elements:
+## Installation & Usage
 
 ```typescript
 import { unified } from 'unified';
@@ -29,24 +26,14 @@ const processor = unified()
   .use(transformMarkdownCodeVariants);
 ```
 
-### Usage with MDX Compiler
-
-```typescript
-import { compile } from '@mdx-js/mdx';
-import { transformMarkdownCodeVariants } from '@mui/internal-docs-infra/transformMarkdownCodeVariants';
-
-const result = await compile(mdxSource, {
-  remarkPlugins: [transformMarkdownCodeVariants],
-});
-```
-
-### Usage with Next.js MDX
+### With Next.js and MDX
 
 ```javascript
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
     remarkPlugins: [transformMarkdownCodeVariants],
+    rehypePlugins: [transformHtmlCode], // For final processing
   },
 });
 
@@ -55,160 +42,273 @@ module.exports = withMDX({
 });
 ```
 
-## Examples
+## Syntax Examples
 
-### Adjacent code blocks with variant attribute
+### Basic Variants (variant=name)
 
-Transform consecutive code blocks with variant metadata into grouped HTML structures.
+Show the same task across different package managers:
 
-**Input:**
-
+**Markdown Input:**
 ```markdown
 ```bash variant=npm
-npm install @mui/internal-docs-infra
+npm install package
 ```
 
-```bash variant=pnpm
-pnpm install @mui/internal-docs-infra
+```bash variant=pnpm  
+pnpm install package
 ```
 
 ```bash variant=yarn
-yarn add @mui/internal-docs-infra
+yarn add package
 ```
 ```
 
-**Output:**
+**HTML Output:**
 ```html
 <pre>
-  <code class="language-bash" data-variant="npm">npm install @mui/internal-docs-infra</code>
-  <code class="language-bash" data-variant="pnpm">pnpm install @mui/internal-docs-infra</code>
-  <code class="language-bash" data-variant="yarn">yarn add @mui/internal-docs-infra</code>
+  <code class="language-bash" data-variant="npm">npm install package</code>
+  <code class="language-bash" data-variant="pnpm">pnpm install package</code>  
+  <code class="language-bash" data-variant="yarn">yarn add package</code>
 </pre>
 ```
 
-### Code blocks with variant-group and labels
+### Labeled Variants (variant-group=name)
 
-For variant-group format, the plugin extracts labels from paragraphs between code blocks.
+Add descriptive labels for each variant:
 
-**Input:**
-
+**Markdown Input:**
 ```markdown
 npm
-
 ```bash variant-group=install
-npm install @mui/internal-docs-infra
+npm install package
 ```
 
 pnpm
-
 ```bash variant-group=install
-pnpm install @mui/internal-docs-infra
+pnpm install package
 ```
 
 yarn
+```bash variant-group=install  
+yarn add package
+```
+```
 
+**HTML Output:**
+```html
+<pre>
+  <code class="language-bash" data-variant="npm">npm install package</code>
+  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
+  <code class="language-bash" data-variant="yarn">yarn add package</code>
+</pre>
+```
+
+### Different Languages
+
+Show examples across multiple programming languages:
+
+**Markdown Input:**
+```markdown
+```javascript variant=client
+fetch('/api/data').then(res => res.json())
+```
+
+```python variant=server
+import requests
+response = requests.get('/api/data')
+```
+
+```go variant=cli
+resp, err := http.Get("/api/data")
+```
+```
+
+**HTML Output:**
+```html
+<pre>
+  <code class="language-javascript" data-variant="client">fetch('/api/data').then(res => res.json())</code>
+  <code class="language-python" data-variant="server">import requests
+response = requests.get('/api/data')</code>
+  <code class="language-go" data-variant="cli">resp, err := http.Get("/api/data")</code>
+</pre>
+```
+
+### Custom Properties
+
+Add extra metadata using additional properties:
+
+**Markdown Input:**
+```markdown
+```bash variant=npm filename=install.sh
+npm install package
+```
+
+```bash variant=pnpm filename=install.sh  
+pnpm install package
+```
+```
+
+**HTML Output:**
+```html
+<pre>
+  <code class="language-bash" data-variant="npm" data-filename="install.sh">npm install package</code>
+  <code class="language-bash" data-variant="pnpm" data-filename="install.sh">pnpm install package</code>
+</pre>
+```
+
+## Plugin Behavior
+
+### Grouping Rules
+
+- **Adjacent blocks**: Code blocks must be consecutive (blank lines allowed)
+- **Minimum size**: Groups require at least 2 code blocks  
+- **Same format**: All blocks must use either `variant=` or `variant-group=`
+- **Single blocks**: Code blocks with variants that don't form groups remain unchanged
+
+### Label Extraction (variant-group only)
+
+For `variant-group` format, paragraphs between code blocks become variant names:
+
+```markdown
+Client-side
+```js variant-group=implementation  
+fetch('/api/data')
+```
+
+Server-side  
+```js variant-group=implementation
+const data = await db.query()
+```
+```
+
+Creates variants named "Client-side" and "Server-side".
+
+### Language Support
+
+All markdown code block languages are supported:
+
+- `js`, `javascript`, `ts`, `typescript` 
+- `python`, `go`, `rust`, `java`, `c`, `cpp`
+- `bash`, `shell`, `zsh`, `fish`
+- `html`, `css`, `json`, `yaml`, `xml`
+- And any other language identifier
+
+## Integration with transformHtmlCode
+
+This plugin works seamlessly with [`transformHtmlCode`](/functions/transformHtmlCode):
+
+1. **transformMarkdownCodeVariants** converts markdown to HTML
+2. **transformHtmlCode** processes HTML for rendering components
+
+### Complete Pipeline Example
+
+**Step 1 - Markdown:**
+```markdown
+npm
 ```bash variant-group=install
-yarn add @mui/internal-docs-infra
+npm install package
+```
+
+pnpm
+```bash variant-group=install  
+pnpm install package
 ```
 ```
 
-**Output:**
+**Step 2 - After transformMarkdownCodeVariants:**
 ```html
 <pre>
-  <code class="language-bash" data-variant="npm">npm install @mui/internal-docs-infra</code>
-  <code class="language-bash" data-variant="pnpm">pnpm install @mui/internal-docs-infra</code>
-  <code class="language-bash" data-variant="yarn">yarn add @mui/internal-docs-infra</code>
+  <code class="language-bash" data-variant="npm">npm install package</code>
+  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
 </pre>
 ```
 
-### Additional properties as data attributes
-
-Any additional properties in the code block metadata are passed through as data attributes.
-
-**Input:**
-
-```markdown
-```bash variant=npm filename=package.json
-npm install @mui/internal-docs-infra
-```
-
-```bash variant=pnpm filename=package.json
-pnpm install @mui/internal-docs-infra
-```
-```
-
-**Output:**
+**Step 3 - After transformHtmlCode:**
 ```html
-<pre>
-  <code class="language-bash" data-variant="npm" data-filename="package.json">npm install @mui/internal-docs-infra</code>
-  <code class="language-bash" data-variant="pnpm" data-filename="package.json">pnpm install @mui/internal-docs-infra</code>
+<pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
+  Error: expected pre tag to be handled by CodeHighlighter
 </pre>
 ```
 
-### Code blocks without explicit language
+## Common Use Cases
 
-The plugin also handles code blocks where the variant metadata appears without an explicit language.
+### Package Manager Examples
+Show installation instructions for different package managers.
 
-**Input:**
+### Framework Comparisons  
+Display the same functionality in React, Vue, Angular, etc.
 
-```markdown
-``` variant=option1
-Some plain text content
-```
+### Configuration Files
+Show different formats (JSON, YAML, TOML) for the same configuration.
 
-``` variant=option2
-More plain text content
-```
-```
+### API Examples
+Demonstrate requests in different programming languages or tools (curl, fetch, axios).
 
-**Output:**
+## Configuration
+
+This plugin works out-of-the-box with no configuration required. It automatically:
+
+- Detects variant syntax in code block metadata
+- Groups adjacent code blocks with variants  
+- Extracts labels from paragraphs (variant-group format)
+- Preserves all code block languages and properties
+- Generates clean, semantic HTML output
+
+## Troubleshooting
+
+### Code Blocks Not Grouping
+
+**Problem**: Adjacent code blocks with variants aren't combining into a single `<pre>` element.
+
+**Solutions**:
+- Ensure all blocks use the same format (`variant=` or `variant-group=`)
+- Check that blocks are truly adjacent (only blank lines allowed between)
+- Verify you have at least 2 code blocks with variant metadata
+
+### Labels Not Working
+
+**Problem**: Using `variant-group` but variant names aren't extracted from paragraphs.
+
+**Solutions**:
+- Ensure paragraphs are directly between code blocks
+- Use simple text paragraphs (no complex markdown)
+- Check that all code blocks use `variant-group=samename`
+
+### Missing Language Classes
+
+**Problem**: Generated HTML doesn't have `class="language-*"` attributes.
+
+**Solutions**:
+- Ensure code blocks specify a language: ` ```javascript ` not just ` ``` `
+- Check that the language comes before the variant metadata
+- Verify your markdown processor supports language specification
+
+## Technical Details
+
+### HTML Structure
+
+Generated HTML follows this pattern:
+
 ```html
 <pre>
-  <code data-variant="option1">Some plain text content</code>
-  <code data-variant="option2">More plain text content</code>
+  <code class="language-{lang}" data-variant="{name}" data-{prop}="{value}">
+    {escaped code content}
+  </code>
+  <!-- additional code elements -->
 </pre>
 ```
-
-## Behavior
-
-### Adjacent Grouping
-
-Code blocks are grouped if they are consecutive in the document. Blank lines between code blocks are allowed and don't prevent grouping.
-
-```markdown
-```js variant=es6
-const greeting = 'Hello';
-```
-
-```js variant=commonjs
-const greeting = require('./greeting');
-```
-```
-
-### Variant-Group Exception
-
-For `variant-group`, a single paragraph with text between code blocks is allowed and used as the variant name. The paragraph text becomes the variant label.
-
-### Minimum Group Size
-
-At least 2 code blocks are required to form a group. Single code blocks with variant metadata are left unchanged.
 
 ### Data Attributes
 
-All properties after the language (except `variant` and `variant-group`) are added as `data-*` attributes to the generated HTML.
+- `data-variant`: The variant name (from `variant=` or extracted label)
+- `data-*`: Any additional properties from code block metadata
+- `class="language-*"`: Preserved for syntax highlighting compatibility
 
-### HTML Escaping
+### Performance
 
-Code content is properly escaped for HTML output to prevent XSS attacks and ensure proper rendering.
-
-## Integration
-
-This plugin is designed to work with the existing [`transformHtmlCode`](/functions/transformHtmlCode) rehype plugin. The HTML output from this plugin will be processed by that plugin to provide:
-
-- Syntax highlighting
-- Code transformation (TypeScript to JavaScript)
-- Interactive code features
-- Variant switching functionality
+- Single-pass processing of the markdown AST
+- Efficient adjacent node grouping algorithm  
+- Minimal memory overhead for typical document sizes
 
 ## Implementation Details
 

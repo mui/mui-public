@@ -59,7 +59,7 @@ describe('transformHtmlCode', () => {
 
     const preElement = findPreElement(ast);
     expect(preElement).toBeTruthy();
-    expect(preElement.properties?.['data-precompute']).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
 
     // Pre element should have error message
     expect(preElement.children).toHaveLength(1);
@@ -68,7 +68,7 @@ describe('transformHtmlCode', () => {
       'Error: expected pre tag to be handled by CodeHighlighter',
     );
 
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default).toBeTruthy();
     expect(precomputeData.Default.fileName).toBe('index.js');
   });
@@ -79,9 +79,9 @@ describe('transformHtmlCode', () => {
 
     const preElement = findPreElement(ast);
     expect(preElement).toBeTruthy();
-    expect(preElement.properties?.['data-precompute']).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
 
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.fileName).toBe('index.ts');
   });
 
@@ -91,7 +91,7 @@ describe('transformHtmlCode', () => {
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.fileName).toBe('custom.jsx');
   });
 
@@ -103,7 +103,7 @@ describe('transformHtmlCode', () => {
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
 
     expect(precomputeData.Js).toBeTruthy();
     expect(precomputeData.Ts).toBeTruthy();
@@ -117,7 +117,7 @@ describe('transformHtmlCode', () => {
 
     const preElement = findPreElement(ast);
     // Should still process but with empty content
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default?.source?.trim()).toBe('');
   });
 
@@ -126,7 +126,7 @@ describe('transformHtmlCode', () => {
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.fileName).toBe('index.txt'); // fallback
   });
 
@@ -135,7 +135,7 @@ describe('transformHtmlCode', () => {
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.source).toBe('const x = 42;');
   });
 
@@ -167,7 +167,7 @@ describe('transformHtmlCode', () => {
         const html = `<pre><code class="language-${lang}">code here</code></pre>`;
         const ast = await getAstFromHtml(html);
         const preElement = findPreElement(ast);
-        const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+        const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
         return { expected, actual: precomputeData.Default.fileName };
       }),
     );
@@ -186,7 +186,7 @@ describe('transformHtmlCode', () => {
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
 
     expect(precomputeData['Variant 1']).toBeTruthy();
     expect(precomputeData['Variant 2']).toBeTruthy();
@@ -204,7 +204,7 @@ describe('transformHtmlCode', () => {
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
-    const precomputeData = JSON.parse(preElement.properties['data-precompute']);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
 
     expect(precomputeData.Main).toBeTruthy();
     expect(precomputeData['TypeScript Version']).toBeTruthy();
@@ -261,18 +261,18 @@ console.log(message);
 
     // Test first pre element (JavaScript)
     const jsPreElement = preElements[0];
-    expect(jsPreElement.properties?.['data-precompute']).toBeTruthy();
+    expect(jsPreElement.properties?.dataPrecompute).toBeTruthy();
 
-    const jsPrecomputeData = JSON.parse(jsPreElement.properties['data-precompute']);
+    const jsPrecomputeData = JSON.parse(jsPreElement.properties.dataPrecompute);
     expect(jsPrecomputeData.Default).toBeTruthy();
     expect(jsPrecomputeData.Default.fileName).toBe('index.js');
     expect(jsPrecomputeData.Default.source.trim()).toBe('console.log("hello from markdown");');
 
     // Test second pre element (TypeScript)
     const tsPreElement = preElements[1];
-    expect(tsPreElement.properties?.['data-precompute']).toBeTruthy();
+    expect(tsPreElement.properties?.dataPrecompute).toBeTruthy();
 
-    const tsPrecomputeData = JSON.parse(tsPreElement.properties['data-precompute']);
+    const tsPrecomputeData = JSON.parse(tsPreElement.properties.dataPrecompute);
     expect(tsPrecomputeData.Default).toBeTruthy();
     expect(tsPrecomputeData.Default.fileName).toBe('index.ts');
     expect(tsPrecomputeData.Default.source.trim()).toBe(
@@ -305,13 +305,13 @@ console.log(message);
     const markdownPreElement = findPreElement(markdownAst);
 
     // Both should have the data in properties (since our plugin now sets it correctly)
-    expect(htmlPreElement.properties?.['data-precompute']).toBeTruthy();
-    expect(markdownPreElement.properties?.['data-precompute']).toBeTruthy();
+    expect(htmlPreElement.properties?.dataPrecompute).toBeTruthy();
+    expect(markdownPreElement.properties?.dataPrecompute).toBeTruthy();
 
     // If we had used data.hProperties, the HTML-only test would pass but markdown test would fail
     // This test ensures both pipelines work the same way
-    const htmlData = JSON.parse(htmlPreElement.properties['data-precompute']);
-    const markdownData = JSON.parse(markdownPreElement.properties['data-precompute']);
+    const htmlData = JSON.parse(htmlPreElement.properties.dataPrecompute);
+    const markdownData = JSON.parse(markdownPreElement.properties.dataPrecompute);
 
     expect(htmlData.Default.fileName).toBe('index.js');
     expect(markdownData.Default.fileName).toBe('index.js');

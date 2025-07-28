@@ -245,7 +245,7 @@ export const transformHtmlCode: Plugin = () => {
               if (!node.properties) {
                 (node as any).properties = {};
               }
-              (node as any).properties['data-precompute'] = JSON.stringify(processedCode);
+              (node as any).properties.dataPrecompute = JSON.stringify(processedCode);
             } catch (error) {
               console.warn('Failed to transform code block:', error);
             }

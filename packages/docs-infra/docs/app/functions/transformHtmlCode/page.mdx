@@ -1,39 +1,53 @@
 # transformHtmlCode
 
-A rehype plugin that transforms `pre` elements containing multiple `code` children to use the `loadVariant` function for code processing. This plugin extracts source code from HTML code blocks, processes them through the loadVariant pipeline, and stores the combined processed results as precomputed data on the `pre` element in the AST.
+A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into precomputed data for the CodeHighlighter component. This plugin extracts source code from HTML, processes it through syntax highlighting and transformations, then stores the results for efficient client-side rendering.
 
-## Features
+## Overview
 
-- **Multiple code variants**: Supports multiple `<code>` elements within a single `<pre>` element
-- **Automatic variant naming**: Creates appropriate variant names based on languages or positions
-- **Custom variant names**: Supports `data-variant` attribute for explicit variant names
-- **Automatic language detection**: Determines file extensions from `class="language-*"` attributes
-- **Custom filenames**: Supports `data-filename` attribute for explicit filename specification  
-- **Comprehensive language support**: Maps grammar-supported languages to appropriate file extensions (JS, TS, TSX, JSON, MD, MDX, HTML, CSS, Shell, YAML)
-- **Text extraction**: Properly extracts text content from nested HTML elements
-- **Error handling**: Gracefully handles processing errors while preserving original code
-- **Parallel processing**: Uses Promise.all for efficient processing of multiple variants
-- **Built-in transformers**: Uses TypeScript-to-JavaScript transformation and syntax highlighting
+This plugin is typically used in the **second stage** of a markdown-to-HTML processing pipeline, after [`transformMarkdownCodeVariants`](/functions/transformMarkdownCodeVariants) has converted markdown code blocks into HTML structures.
 
-## Usage
+## Key Features
 
-### Basic Usage
+- **Multiple code variants**: Process multiple languages or versions within a single code block
+- **Automatic language detection**: Determines file types from `class="language-*"` attributes  
+- **Custom variant names**: Supports `data-variant` attribute for explicit naming
+- **Custom filenames**: Supports `data-filename` attribute for specific file extensions
+- **Built-in transformations**: Includes TypeScript-to-JavaScript conversion
+- **Syntax highlighting**: Pre-processes code for faster client rendering
+- **Error handling**: Gracefully handles processing errors
+
+## Installation & Usage
 
 ```typescript
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
-import rehypeStringify from 'rehype-stringify';
 import { transformHtmlCode } from '@mui/internal-docs-infra/transformHtmlCode';
 
 const processor = unified()
   .use(rehypeParse)
-  .use(transformHtmlCode) // No options needed - uses built-in parsers and transformers
+  .use(transformHtmlCode) // No configuration needed
   .use(rehypeStringify);
 ```
 
-## HTML Input/Output
+### With Next.js and MDX
 
-### Input: Single Code Block
+```javascript
+// next.config.js
+const withMDX = require('@next/mdx')({
+  options: {
+    remarkPlugins: [transformMarkdownCodeVariants],
+    rehypePlugins: [transformHtmlCode],
+  },
+});
+
+module.exports = withMDX({
+  // your Next.js config
+});
+```
+
+## Input Examples
+
+### Single Code Block
 
 ```html
 <pre><code class="language-typescript">
@@ -42,7 +56,7 @@ console.log(greeting);
 </code></pre>
 ```
 
-### Input: Multiple Code Blocks (Different Languages)
+### Multiple Code Variants (Different Languages)
 
 ```html
 <pre>
@@ -51,168 +65,16 @@ console.log(greeting);
 </pre>
 ```
 
-### Input: Multiple Code Blocks (Same Language)
+### Custom Variant Names
 
 ```html
 <pre>
-  <code class="language-js">console.log("First variant");</code>
-  <code class="language-js">console.log("Second variant");</code>
+  <code class="language-js" data-variant="Client">console.log("Running on client");</code>
+  <code class="language-js" data-variant="Server">console.log("Running on server");</code>
 </pre>
 ```
-
-### Input: Custom Variant Names
-
-```html
-<pre>
-  <code class="language-js" data-variant="Main">console.log("Main version");</code>
-  <code class="language-ts" data-variant="TypeScript Version">console.log("TS version" as string);</code>
-</pre>
-```
-
-### Output: Processed AST
-
-The plugin stores the processed code data in `preElement.properties['data-precompute']` as a JSON string for HTML serialization. This ensures proper HTML attribute handling in the final output.
-
-```javascript
-// AST structure after processing (single code element)
-{
-  type: 'element',
-  tagName: 'pre',
-  children: [
-    {
-      type: 'text',
-      value: 'Error: expected pre tag to be handled by CodeHighlighter'
-    }
-  ],
-  properties: {
-    'data-precompute': '{"Default":{"fileName":"index.ts","url":"file:///index.ts","source":"const greeting: string = \\"Hello, world!\\";...","transforms":{"js":{"source":"const greeting = \\"Hello, world!\\";...","fileName":"index.js"}}}}'
-  }
-}
-
-// AST structure after processing (multiple code elements)
-{
-  type: 'element',
-  tagName: 'pre',
-  children: [
-    {
-      type: 'text',
-      value: 'Error: expected pre tag to be handled by CodeHighlighter'
-    }
-  ],
-  properties: {
-    'data-precompute': '{"Js":{"fileName":"index.js","url":"file:///index.js","source":"console.log(\\"hello\\");","transforms":{...}},"Ts":{"fileName":"index.ts","url":"file:///index.ts","source":"console.log(\\"hello\\" as string);","transforms":{...}}}'
-  }
-}
-```
-
-## Variant Naming Rules
-
-The plugin creates variant names based on the following rules:
-
-### Single Code Element
-
-- Always creates a variant named `"Default"`
-
-### Multiple Code Elements
-
-1. **Different languages**: Uses capitalized language names (`"Js"`, `"Ts"`, `"Html"`, etc.)
-2. **Same language**: Uses numbered variants (`"Variant 1"`, `"Variant 2"`, etc.)
-3. **Custom names**: Respects `data-variant` attribute when provided
-
-### Examples
-
-```html
-<!-- Single element: creates "Default" variant -->
-<pre><code class="language-js">console.log("hello");</code></pre>
-
-<!-- Different languages: creates "Js" and "Ts" variants -->
-<pre>
-  <code class="language-js">console.log("hello");</code>
-  <code class="language-ts">console.log("hello" as string);</code>
-</pre>
-
-<!-- Same language: creates "Variant 1" and "Variant 2" variants -->
-<pre>
-  <code class="language-js">console.log("first");</code>
-  <code class="language-js">console.log("second");</code>
-</pre>
-
-<!-- Custom names: creates "Main" and "Alternative" variants -->
-<pre>
-  <code class="language-js" data-variant="Main">console.log("main");</code>
-  <code class="language-js" data-variant="Alternative">console.log("alt");</code>
-</pre>
-```
-
-## Supported Languages
-
-The plugin supports the following languages with corresponding grammars:
-
-| Language Class | File Extension | Grammar Used |
-|---|---|---|
-| `language-js`, `language-javascript` | `.js` | `source.js` |
-| `language-ts`, `language-typescript` | `.ts` | `source.ts` |
-| `language-tsx` | `.tsx` | `source.tsx` |
-| `language-jsx` | `.jsx` | `source.tsx` |
-| `language-json` | `.json` | `source.json` |
-| `language-md`, `language-markdown` | `.md` | `text.md` |
-| `language-mdx` | `.mdx` | `source.mdx` |
-| `language-html` | `.html` | `text.html.basic` |
-| `language-css` | `.css` | `source.css` |
-| `language-sh`, `language-shell`, `language-bash` | `.sh` | `source.shell` |
-| `language-yaml`, `language-yml` | `.yaml` | `source.yaml` |
-
-Unsupported languages will fall back to `.js` extension and `source.js` grammar.
-
-## Built-in Configuration
-
-The plugin comes with built-in configuration:
-
-- **Source Parser**: Uses `parseSourceFactory()` from `../parseSource`
-- **Transformers**: Includes TypeScript-to-JavaScript transformer (`TsToJsTransformer`)
-- **File URLs**: Generates `file:///filename.ext` URLs instead of data URLs
-- **No external dependencies**: All required functions are imported internally
-
-## URL Generation
-
-File URLs are generated based on the filename:
-
-- `file:///index.js` for JavaScript files
-- `file:///index.ts` for TypeScript files
-- `file:///custom.jsx` when `data-filename="custom.jsx"` is specified
-
-## Data Storage
-
-The processed code is stored in the AST on the `pre` element as a JSON string in the HTML `data-precompute` attribute:
-
-```javascript
-preElement.properties['data-precompute'] = JSON.stringify({
-  Default: { fileName: "...", url: "file:///...", source: "...", transforms: {...} },
-  // ... other variants
-});
-```
-
-The data is stored as a JSON string to ensure proper HTML attribute serialization. When accessing the data, you need to parse it:
-
-```javascript
-const precomputeData = JSON.parse(preElement.properties['data-precompute']);
-```
-
-## HTML Output
-
-After processing, the `<pre>` element's content is replaced with an error message to indicate it should be handled by the CodeHighlighter component:
-
-```html
-<pre data-precompute="...">Error: expected pre tag to be handled by CodeHighlighter</pre>
-```
-
-This ensures that if the CodeHighlighter component is not used, there's a clear indication that the pre-processed code data exists but needs proper handling.
-
-## Advanced Features
 
 ### Custom Filenames
-
-Use the `data-filename` attribute to specify a custom filename:
 
 ```html
 <pre><code class="language-js" data-filename="app.jsx">
@@ -221,126 +83,79 @@ export default App;
 </code></pre>
 ```
 
-### Multiple Variants
+## Output
 
-Provide multiple code variants using multiple `<code>` elements:
+After processing, the plugin:
+
+1. **Replaces content** with a placeholder message
+2. **Stores processed data** in `dataPrecompute` attribute as JSON
+3. **Preserves original structure** for the CodeHighlighter component
 
 ```html
-<pre>
-  <code class="language-js">console.log("hello");</code>
-  <code class="language-ts">console.log("hello" as string);</code>
+<pre data-precompute='{"Default":{"fileName":"index.ts","source":"...","transforms":{...}}}'>
+  Error: expected pre tag to be handled by CodeHighlighter
 </pre>
 ```
 
-This will generate separate processed variants:
+## Variant Naming
 
-- `Js` variant with `index.js` filename
-- `Ts` variant with `index.ts` filename
+| Scenario | Variant Names |
+|----------|---------------|
+| Single code block | `"Default"` |
+| Different languages | `"Js"`, `"Ts"`, `"Html"`, etc. |
+| Same language | `"Variant 1"`, `"Variant 2"`, etc. |
+| Custom `data-variant` | Uses the specified name |
 
-### Nested HTML Content
+## Supported Languages
 
-The plugin properly extracts text from nested HTML elements:
+| Class | Extension | Notes |
+|-------|-----------|-------|
+| `language-js`, `language-javascript` | `.js` | |
+| `language-ts`, `language-typescript` | `.ts` | Includes TS→JS transform |
+| `language-tsx` | `.tsx` | React TypeScript |
+| `language-jsx` | `.jsx` | React JavaScript |
+| `language-json` | `.json` | |
+| `language-html` | `.html` | |
+| `language-css` | `.css` | |
+| `language-bash`, `language-shell` | `.sh` | |
+| `language-yaml`, `language-yml` | `.yaml` | |
+| Others | `.txt` | Fallback |
 
+## Integration with transformMarkdownCodeVariants
+
+These plugins work together in a processing pipeline:
+
+1. **transformMarkdownCodeVariants** (remark): Converts markdown code blocks with variants into HTML
+2. **transformHtmlCode** (rehype): Processes the HTML and precomputes data for rendering
+
+### Complete Example
+
+**Markdown Input:**
+```markdown
+npm
+```bash variant-group=install
+npm install package
+```
+
+pnpm  
+```bash variant-group=install
+pnpm install package
+```
+```
+
+**After transformMarkdownCodeVariants:**
 ```html
-<pre><code class="language-js">
-const <span>value</span> = <em>42</em>;
-</code></pre>
+<pre>
+  <code class="language-bash" data-variant="npm">npm install package</code>
+  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
+</pre>
 ```
 
-Extracts as: `const value = 42;`
-
-## Error Handling
-
-The plugin includes comprehensive error handling:
-
-- **loadVariant processing errors**: Preserves original variant data
-- **Empty code blocks**: Still processes but with empty content
-- **Missing language class**: Uses `index.js` as fallback filename
-
-## Integration with loadVariant
-
-The plugin uses the `loadVariant` function from `../CodeHighlighter/loadVariant` with:
-
-1. **Pre-loaded source data**: Since we extract the source from HTML, no `loadSource` function is needed
-2. **Pre-defined variants**: Since we parse variants from HTML attributes, no `loadVariantMeta` function is needed  
-3. **Built-in transformers**: Uses `TsToJsTransformer` for TypeScript-to-JavaScript conversion
-4. **Built-in parser**: Uses `parseSourceFactory()` for syntax highlighting
-5. **File URLs**: Generates `file:///filename.ext` URLs instead of data URLs
-
-This approach is more efficient since we already have all the data from the HTML and don't need to fetch it externally.
-
-## Plugin Type and Data Handling
-
-This is a **rehype plugin** that operates on the HTML AST (HAST), not a remark plugin that operates on the Markdown AST (MDAST). This distinction is important for data handling:
-
-### Rehype Plugin Behavior
-- Operates on HTML AST after markdown has been converted to HTML
-- Must use `node.properties` to set HTML attributes directly
-- Data is immediately available as HTML attributes
-
-### vs. Remark Plugin Behavior  
-- Operates on Markdown AST before conversion to HTML
-- Uses `node.data.hProperties` which gets converted to `node.properties` during markdown → HTML conversion
-- Data becomes HTML attributes after the conversion step
-
-### Why This Matters
-```javascript
-// ❌ Wrong for rehype plugins - this won't work
-node.data.hProperties['data-precompute'] = data;
-
-// ✅ Correct for rehype plugins - sets HTML attributes directly  
-node.properties['data-precompute'] = JSON.stringify(data);
+**After transformHtmlCode:**
+```html
+<pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
+  Error: expected pre tag to be handled by CodeHighlighter
+</pre>
 ```
-
-The plugin correctly uses `node.properties` since it's a rehype plugin working with the HTML AST.
-
-## Data Flow
-
-1. **HTML Parsing**: Finds `pre > code` elements in the HTML AST
-2. **Content Extraction**: Extracts text content from code elements
-3. **Metadata Detection**: Determines filename and variants from attributes
-4. **Variant Creation**: Creates `VariantCode` objects with source and metadata
-5. **Processing**: Passes variants through `loadVariant` for transformation
-6. **Content Replacement**: Replaces pre element children with error message
-7. **Data Storage**: Stores processed results as JSON string in `data-precompute` attribute
-8. **Cleanup**: Original code content is replaced with error message for CodeHighlighter
-
-## Performance Considerations
-
-- Uses `Promise.all` for parallel processing of multiple variants
-- Caches `loadSource` calls to avoid duplicate requests
 - Processes code blocks in parallel across the document
 - Optimized text extraction with single-pass traversal
-
-## Testing
-
-The plugin includes comprehensive tests covering:
-
-- **Basic processing**: JavaScript/TypeScript code transformation
-- **Language detection**: Mapping language classes to file extensions
-- **Custom attributes**: `data-filename` and `data-variant` handling
-- **Multiple variants**: Different languages and same-language scenarios
-- **Error scenarios**: Empty blocks, missing languages, processing failures
-- **Text extraction**: Nested HTML content handling
-- **Pipeline compatibility**: Both direct HTML and realistic MDX pipeline testing
-- **Data format validation**: JSON serialization and HTML attribute storage
-
-### Realistic Pipeline Testing
-
-The test suite includes tests that match the actual Next.js MDX processing flow:
-
-```javascript
-// Realistic test pipeline (matches Next.js)
-unified()
-  .use(remarkParse)      // Parse markdown
-  .use(remarkRehype)     // Convert to HTML AST  
-  .use(transformHtmlCode) // Apply rehype plugin
-```
-
-This ensures the plugin works correctly in the real MDX environment, not just isolated HTML parsing.
-
-Run tests with:
-
-```bash
-pnpm test transformHtmlCode.test.ts
-```

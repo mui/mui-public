@@ -4,16 +4,13 @@ This is the documentation for the MUI Internal Docs Infra package. It provides c
 
 You can install this package using:
 
-
 ```bash variant=pnpm
 pnpm install @mui/internal-docs-infra
 ```
 
-
 ```bash variant=yarn
 yarn add @mui/internal-docs-infra
 ```
-
 
 ```bash variant=npm
 npm install @mui/internal-docs-infra
@@ -43,7 +40,9 @@ See the full list of hooks in the [Hooks section](./hooks/page.mdx).
 These are utility functions that provide functionality outside of React components.
 
 Some fundamental functions are:
-- [`resolveDemoImports`](./functions/resolveDemoImports/page.mdx): A function that resolves the imports for a demo source file.
+- [`loadPrecomputedCodeHighlighter`](./functions/loadPrecomputedCodeHighlighter/page.mdx) - Webpack loader for build-time demo optimization
+- [`transformHtmlCode`](./functions/transformHtmlCode/page.mdx) - Plugin for transforming HTML code blocks into precomputed data structures
+- [`transformMarkdownCodeVariants`](./functions/transformMarkdownCodeVariants/page.mdx) - Remark plugin for transforming markdown code blocks with variants into HTML structures
 
 See the full list of functions in the [Functions section](./functions/page.mdx).
 

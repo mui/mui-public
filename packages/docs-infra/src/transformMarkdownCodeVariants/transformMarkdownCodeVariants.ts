@@ -248,7 +248,7 @@ export const transformMarkdownCodeVariants: Plugin = () => {
               children: codeBlocks.map((block) => {
                 // Build hProperties for HTML attributes
                 const hProperties: Record<string, any> = {
-                  'data-variant': block.variant,
+                  dataVariant: block.variant,
                 };
 
                 // Add language class if available
@@ -256,9 +256,16 @@ export const transformMarkdownCodeVariants: Plugin = () => {
                   hProperties.className = `language-${block.actualLang}`;
                 }
 
-                // Add additional props as data attributes
+                // Add additional props as data attributes (in camelCase)
                 Object.entries(block.props).forEach(([key, value]) => {
-                  hProperties[`data-${key}`] = value;
+                  // Convert kebab-case to camelCase for data attributes
+                  const camelKey = key.includes('-')
+                    ? `data${key
+                        .split('-')
+                        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                        .join('')}`
+                    : `data${key.charAt(0).toUpperCase() + key.slice(1)}`;
+                  hProperties[camelKey] = value;
                 });
 
                 return {
@@ -267,6 +274,9 @@ export const transformMarkdownCodeVariants: Plugin = () => {
                   data: {
                     hName: 'code',
                     hProperties,
+                    meta: `variant=${block.variant}${Object.entries(block.props)
+                      .map(([key, value]) => ` ${key}=${value}`)
+                      .join('')}`,
                   },
                   children: [
                     {
