@@ -112,7 +112,7 @@ function parseMeta(meta: string) {
   return result;
 }
 
-export const transformMarkdownCodeVariants: Plugin = () => {
+export const transformMarkdownCode: Plugin = () => {
   return (tree) => {
     const processedIndices = new Set<number>();
     const nodesToRemove: Set<any> = new Set();
