@@ -382,6 +382,9 @@ importers:
       '@babel/core':
         specifier: ^7.28.0
         version: 7.28.0
+      '@babel/plugin-syntax-typescript':
+        specifier: ^7.27.1
+        version: 7.27.1(@babel/core@7.28.0)
       '@babel/plugin-transform-runtime':
         specifier: ^7.28.0
         version: 7.28.0(@babel/core@7.28.0)
@@ -421,6 +424,9 @@ importers:
       babel-plugin-transform-inline-environment-variables:
         specifier: ^0.4.4
         version: 0.4.4
+      babel-plugin-transform-remove-imports:
+        specifier: ^1.8.0
+        version: 1.8.0(@babel/core@7.28.0)
       chalk:
         specifier: ^5.4.1
         version: 5.4.1
@@ -6097,6 +6103,11 @@ packages:
 
   babel-plugin-transform-react-remove-prop-types@0.4.24:
     resolution: {integrity: sha512-eqj0hVcJUR57/Ug2zE1Yswsw4LhuqqHhD+8v120T1cl3kjg76QwtyBrdIk4WVwK+lAhBJVYCd/v+4nc4y+8JsA==}
+
+  babel-plugin-transform-remove-imports@1.8.0:
+    resolution: {integrity: sha512-QdE5ZnIjON1pSgTPU8KzLnl/LEzdq9PLmZNuHgGKTx0LOI9PBrHBj0fz9uCg2CdssiTw7v/zVRYs8GJxbvhKnQ==}
+    peerDependencies:
+      '@babel/core': ^7.0.0-0
 
   backoff@2.5.0:
     resolution: {integrity: sha512-wC5ihrnUXmR2douXmXLCe5O3zg3GKIyvRi/hi58a/XyRxVI+3/yM0PYueQOZXPXQ9pxBislYkw+sF9b7C/RuMA==}
@@ -19525,6 +19536,10 @@ snapshots:
   babel-plugin-transform-inline-environment-variables@0.4.4: {}
 
   babel-plugin-transform-react-remove-prop-types@0.4.24: {}
+
+  babel-plugin-transform-remove-imports@1.8.0(@babel/core@7.28.0):
+    dependencies:
+      '@babel/core': 7.28.0
 
   backoff@2.5.0:
     dependencies:
