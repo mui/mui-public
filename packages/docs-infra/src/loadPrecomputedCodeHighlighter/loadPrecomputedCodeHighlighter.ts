@@ -110,7 +110,7 @@ export async function loadPrecomputedCodeHighlighter(
       }
     }
 
-    // Replace 'precompute: true' with the actual precomputed data
+    // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
 
     // Add all dependencies to webpack's watch list

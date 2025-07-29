@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useVariantSelection } from './useVariantSelection';
@@ -55,9 +58,8 @@ describe('useCode sub-hooks', () => {
       const { result } = renderHook(() => useUIState({}));
 
       expect(result.current.expanded).toBe(false);
-      expect(result.current.ref.current).toBeNull();
       expect(typeof result.current.expand).toBe('function');
-      expect(typeof result.current.resetFocus).toBe('function');
+      expect(typeof result.current.setExpanded).toBe('function');
     });
 
     it('should respect defaultOpen option', () => {

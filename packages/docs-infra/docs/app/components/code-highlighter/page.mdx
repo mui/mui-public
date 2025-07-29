@@ -130,15 +130,13 @@ Your components can even appear differently, but we recommend keeping them as si
 
 ---
 
-import { FallbackContent } from './demos/demo-fallback'
+import { CodeTransformations } from './demos/code-transformed'
 
-<FallbackContent.Title />
+<CodeTransformations.Title />
 
-Good user experience means showing meaningful feedback during loading.
-The fallback is also not provided any data other than the rendered content html and a list of fileNames.
-`CodeHighlighter` supports custom loading components and skeleton loaders:
+One of CodeHighlighter's most powerful features is automatic code transformation. Write your examples in TypeScript, and users can instantly see the JavaScript equivalent:
 
-{/* <FallbackContent /> */}
+{/* <CodeTransformations /> */}
 
 ---
 
@@ -152,13 +150,15 @@ For pages with many code examples, you can defer syntax highlighting until the b
 
 ---
 
-import { CodeTransformations } from './demos/code-transformed'
+import { FallbackContent } from './demos/demo-fallback'
 
-<CodeTransformations.Title />
+<FallbackContent.Title />
 
-One of CodeHighlighter's most powerful features is automatic code transformation. Write your examples in TypeScript, and users can instantly see the JavaScript equivalent:
+Good user experience means showing meaningful feedback during loading.
+The fallback is also not provided any data other than the rendered content html and a list of fileNames.
+`CodeHighlighter` supports custom loading components and skeleton loaders:
 
-{/* <CodeTransformations /> */}
+{/* <FallbackContent /> */}
 
 ---
 

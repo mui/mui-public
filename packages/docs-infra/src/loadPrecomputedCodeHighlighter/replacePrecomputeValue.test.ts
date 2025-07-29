@@ -35,7 +35,7 @@ function checkSyntaxIssues(code: string): string[] {
 }
 
 describe('replacePrecomputeValue', () => {
-  it('should replace simple precompute: true with data object', async () => {
+  it('should replace factory function call with data object', async () => {
     const source = `
 import Component from './Component';
 

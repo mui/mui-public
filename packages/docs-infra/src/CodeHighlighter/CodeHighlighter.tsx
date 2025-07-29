@@ -79,6 +79,7 @@ function createClientProps<T extends {}>(
     components: props.components,
     name: props.name,
     slug: props.slug,
+    url: props.url,
     ...(props.contentProps || {}),
   } as ContentProps<T>;
 
@@ -243,6 +244,7 @@ function renderWithInitialSource<T extends {}>(
   const contentProps = {
     name: props.name,
     slug: props.slug,
+    url: props.url,
     fileNames,
     source,
     ...(props.contentProps || {}),

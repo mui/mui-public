@@ -87,6 +87,18 @@
   color: #8145b5;
 }
 
+.body h1 > a,
+.body h2 > a,
+.body h3 > a,
+.body h4 > a,
+.body h5 > a,
+.body h6 > a {
+  color: color(display-p3 0.473 0.281 0.687);
+  color: #8145b5;
+  text-decoration-color: color(display-p3 0.473 0.281 0.687);
+  text-decoration-color: #8145b5;
+}
+
 .body pre > code {
   color: initial;
   background: initial;

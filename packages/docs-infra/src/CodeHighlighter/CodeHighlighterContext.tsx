@@ -10,6 +10,7 @@ export interface CodeHighlighterContextType {
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
   components?: Record<string, React.ReactNode>;
   availableTransforms?: string[];
+  url?: string;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(

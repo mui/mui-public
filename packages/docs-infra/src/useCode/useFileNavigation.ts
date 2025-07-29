@@ -4,6 +4,62 @@ import type { VariantSource } from '../CodeHighlighter/types';
 
 type Source = VariantSource;
 
+/**
+ * Converts a string to kebab-case
+ * @param str - The string to convert
+ * @returns kebab-case string
+ */
+function toKebabCase(str: string): string {
+  return (
+    str
+      // Insert a dash before any uppercase letter that follows a lowercase letter or digit
+      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+      .toLowerCase()
+      .replace(/[^a-z0-9.]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  );
+}
+
+/**
+ * Generates a file slug based on main slug, file name, and variant name
+ * @param mainSlug - The main component/demo slug
+ * @param fileName - The file name
+ * @param variantName - The variant name
+ * @param isInitialVariant - Whether this is the initial/default variant
+ * @returns Generated file slug
+ */
+function generateFileSlug(
+  mainSlug: string,
+  fileName: string,
+  variantName: string,
+  isInitialVariant: boolean,
+): string {
+  // Extract base name from filename (strip extension)
+  const lastDotIndex = fileName.lastIndexOf('.');
+  const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
+  const extension = lastDotIndex !== -1 ? fileName.substring(lastDotIndex) : '';
+
+  // Convert to kebab-case
+  const kebabMainSlug = toKebabCase(mainSlug);
+  const kebabBaseName = toKebabCase(baseName);
+  const kebabVariantName = toKebabCase(variantName);
+
+  // Reconstruct filename with kebab-case base name but preserved extension
+  const kebabFileName = `${kebabBaseName}${extension}`;
+
+  // Handle empty main slug case
+  if (!kebabMainSlug) {
+    return kebabFileName;
+  }
+
+  // Format: mainSlug:fileName.ext (for initial variant) or mainSlug:variantName:fileName.ext
+  if (isInitialVariant) {
+    return `${kebabMainSlug}:${kebabFileName}`;
+  }
+
+  return `${kebabMainSlug}:${kebabVariantName}:${kebabFileName}`;
+}
+
 interface TransformedFile {
   name: string;
   originalName: string;
@@ -19,13 +75,17 @@ interface TransformedFiles {
 interface UseFileNavigationProps {
   selectedVariant: any;
   transformedFiles: TransformedFiles | undefined;
+  mainSlug?: string;
+  selectedVariantKey?: string;
+  variantKeys?: string[];
+  initialVariant?: string;
 }
 
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
   selectedFile: any;
   selectedFileComponent: React.ReactNode;
-  files: Array<{ name: string; component: React.ReactNode }>;
+  files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
 }
 
@@ -35,11 +95,101 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
+  mainSlug = '',
+  selectedVariantKey = '',
+  variantKeys = [],
+  initialVariant,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
     string | undefined
   >(selectedVariant?.fileName);
+
+  // Track if we've processed the initial URL hash to avoid re-running
+  const hasProcessedInitialHash = React.useRef(false);
+
+  // Track if the user has explicitly selected a file (clicked or URL hash was present)
+  const hasUserSelection = React.useRef(false);
+
+  // Helper function to check URL hash and switch to matching file
+  const checkUrlHashAndSelectFile = React.useCallback(() => {
+    if (!selectedVariant || typeof window === 'undefined' || hasProcessedInitialHash.current) {
+      return;
+    }
+
+    const hash = window.location.hash.slice(1); // Remove the '#'
+    if (!hash) {
+      hasProcessedInitialHash.current = true;
+      return;
+    }
+
+    // Check if hash matches any file slug
+    let matchingFileName: string | undefined;
+
+    // Determine if this is the initial variant
+    const isInitialVariant = initialVariant
+      ? selectedVariantKey === initialVariant
+      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+
+    // Check main file
+    if (selectedVariant.fileName) {
+      const mainFileSlug = generateFileSlug(
+        mainSlug,
+        selectedVariant.fileName,
+        selectedVariantKey,
+        isInitialVariant,
+      );
+      if (hash === mainFileSlug) {
+        matchingFileName = selectedVariant.fileName;
+      }
+    }
+
+    // Check extra files
+    if (!matchingFileName && selectedVariant.extraFiles) {
+      for (const fileName of Object.keys(selectedVariant.extraFiles)) {
+        const fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
+        if (hash === fileSlug) {
+          matchingFileName = fileName;
+          break;
+        }
+      }
+    }
+
+    // Check transformed files if available
+    if (!matchingFileName && transformedFiles) {
+      for (const file of transformedFiles.files) {
+        const fileSlug = generateFileSlug(
+          mainSlug,
+          file.originalName,
+          selectedVariantKey,
+          isInitialVariant,
+        );
+        if (hash === fileSlug) {
+          matchingFileName = file.originalName;
+          break;
+        }
+      }
+    }
+
+    if (matchingFileName) {
+      setSelectedFileNameInternal(matchingFileName);
+      hasUserSelection.current = true; // Mark that user has made a selection via URL
+    }
+
+    hasProcessedInitialHash.current = true;
+  }, [
+    selectedVariant,
+    transformedFiles,
+    mainSlug,
+    selectedVariantKey,
+    variantKeys,
+    initialVariant,
+  ]);
+
+  // On hydration/variant change, check URL hash and switch to matching file
+  React.useEffect(() => {
+    checkUrlHashAndSelectFile();
+  }, [checkUrlHashAndSelectFile]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
@@ -56,6 +206,59 @@ export function useFileNavigation({
       }
     }
   }, [selectedVariant, selectedFileNameInternal]);
+
+  // Update URL when variant changes (to reflect new slug for current file)
+  React.useEffect(() => {
+    if (
+      !selectedVariant ||
+      typeof window === 'undefined' ||
+      !selectedFileNameInternal ||
+      !hasUserSelection.current
+    ) {
+      return;
+    }
+
+    // Determine if this is the initial variant
+    const isInitialVariant = initialVariant
+      ? selectedVariantKey === initialVariant
+      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+
+    // Generate the new slug for the currently selected file
+    let fileSlug = '';
+
+    if (transformedFiles) {
+      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
+      if (file) {
+        fileSlug = generateFileSlug(
+          mainSlug,
+          file.originalName,
+          selectedVariantKey,
+          isInitialVariant,
+        );
+      }
+    } else {
+      fileSlug = generateFileSlug(
+        mainSlug,
+        selectedFileNameInternal,
+        selectedVariantKey,
+        isInitialVariant,
+      );
+    }
+
+    // Update the URL hash without adding to history (replaceState)
+    if (fileSlug) {
+      const newUrl = `${window.location.pathname}${window.location.search}#${fileSlug}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [
+    selectedVariant,
+    selectedFileNameInternal,
+    transformedFiles,
+    mainSlug,
+    selectedVariantKey,
+    variantKeys,
+    initialVariant,
+  ]);
 
   // Compute the displayed filename (transformed if applicable)
   const selectedFileName = React.useMemo(() => {
@@ -159,21 +362,33 @@ export function useFileNavigation({
       return [];
     }
 
+    // Determine if this is the initial variant
+    const isInitialVariant = initialVariant
+      ? selectedVariantKey === initialVariant
+      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+
     // If we have transformed files, use them
     if (transformedFiles) {
       return transformedFiles.files.map((f) => ({
         name: f.name,
+        slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey, isInitialVariant),
         component: f.component,
       }));
     }
 
     // Otherwise, create files from original untransformed data
-    const result: Array<{ name: string; component: React.ReactNode }> = [];
+    const result: Array<{ name: string; slug?: string; component: React.ReactNode }> = [];
 
     // Only add main file if it has a fileName
     if (selectedVariant.fileName) {
       result.push({
         name: selectedVariant.fileName,
+        slug: generateFileSlug(
+          mainSlug,
+          selectedVariant.fileName,
+          selectedVariantKey,
+          isInitialVariant,
+        ),
         component: stringOrHastToJsx(selectedVariant.source as Source, true),
       });
     }
@@ -192,42 +407,74 @@ export function useFileNavigation({
 
         result.push({
           name: fileName,
+          slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
           component: stringOrHastToJsx(source as Source, true),
         });
       });
     }
 
     return result;
-  }, [selectedVariant, transformedFiles]);
+  }, [
+    selectedVariant,
+    transformedFiles,
+    mainSlug,
+    selectedVariantKey,
+    variantKeys,
+    initialVariant,
+  ]);
 
-  // Create a wrapper for selectFileName that handles transformed filenames
+  // Create a wrapper for selectFileName that handles transformed filenames and URL updates
   const selectFileName = React.useCallback(
     (fileName: string) => {
       if (!selectedVariant) {
         return;
       }
 
+      let targetFileName = fileName;
+      let fileSlug = '';
+
+      // Determine if this is the initial variant
+      const isInitialVariant = initialVariant
+        ? selectedVariantKey === initialVariant
+        : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+
       // If we have transformed files, we need to reverse-lookup the original filename
       if (transformedFiles) {
         // Check if the fileName is a transformed name - if so, find the original
         const fileByTransformedName = transformedFiles.files.find((f) => f.name === fileName);
         if (fileByTransformedName) {
-          setSelectedFileNameInternal(fileByTransformedName.originalName);
-          return;
+          targetFileName = fileByTransformedName.originalName;
+          fileSlug = generateFileSlug(
+            mainSlug,
+            fileByTransformedName.originalName,
+            selectedVariantKey,
+            isInitialVariant,
+          );
+        } else {
+          // Check if the fileName is already an original name
+          const fileByOriginalName = transformedFiles.files.find(
+            (f) => f.originalName === fileName,
+          );
+          if (fileByOriginalName) {
+            targetFileName = fileName;
+            fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
+          }
         }
-
-        // Check if the fileName is already an original name
-        const fileByOriginalName = transformedFiles.files.find((f) => f.originalName === fileName);
-        if (fileByOriginalName) {
-          setSelectedFileNameInternal(fileName);
-          return;
-        }
+      } else {
+        // No transformed files, generate slug directly
+        fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
       }
 
-      // If no transformed files or fileName not found, set directly (fallback for untransformed mode)
-      setSelectedFileNameInternal(fileName);
+      // Update the URL hash without adding to history (replaceState)
+      if (typeof window !== 'undefined' && fileSlug) {
+        const newUrl = `${window.location.pathname}${window.location.search}#${fileSlug}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+
+      hasUserSelection.current = true; // Mark that user has made an explicit selection
+      setSelectedFileNameInternal(targetFileName);
     },
-    [selectedVariant, transformedFiles],
+    [selectedVariant, transformedFiles, mainSlug, selectedVariantKey, variantKeys, initialVariant],
   );
 
   return {

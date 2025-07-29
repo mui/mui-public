@@ -16,6 +16,11 @@
   height: 48px;
 }
 
+.name:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .name span {
   color: #65636d;
   padding: 8px 12px;

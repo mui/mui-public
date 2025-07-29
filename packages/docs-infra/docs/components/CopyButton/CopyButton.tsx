@@ -3,7 +3,7 @@ import styles from './CopyButton.module.css';
 
 type CopyButtonProps = {
   copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>;
-  copyDisabled: boolean;
+  copyDisabled?: boolean;
 };
 
 export function CopyButton({ copy, copyDisabled }: CopyButtonProps) {

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CodeHighlighter } from '../CodeHighlighter';
 import type { Code, Components, ContentLoadingProps, ContentProps } from '../CodeHighlighter';
+import { extractNameAndSlugFromUrl } from '../loaderUtils';
 
 type CreateDemoMeta = {
   name?: string;
@@ -37,6 +38,11 @@ export function abstractCreateDemo<T extends {}>(
 
   const precompute = meta.precompute;
 
+  // Generate name and slug from URL if not provided in meta
+  const generatedMeta = extractNameAndSlugFromUrl(url);
+  const name = meta.name ?? generatedMeta.name;
+  const slug = meta.slug ?? generatedMeta.slug;
+
   function Component(props: T) {
     const renderedComponents = Object.entries(variants).reduce((acc, [key, Variant]) => {
       acc[key] = <Variant />;
@@ -46,6 +52,8 @@ export function abstractCreateDemo<T extends {}>(
     return (
       <CodeHighlighter
         url={url}
+        name={name}
+        slug={slug}
         precompute={precompute}
         components={renderedComponents}
         contentProps={props}
@@ -58,15 +66,15 @@ export function abstractCreateDemo<T extends {}>(
 
   function Title() {
     if (options.DemoTitle) {
-      return <options.DemoTitle slug={meta?.slug}>{meta?.name}</options.DemoTitle>;
+      return <options.DemoTitle slug={slug}>{name}</options.DemoTitle>;
     }
 
-    return <h3 id={meta?.slug}>{meta?.name}</h3>;
+    return <h3 id={slug}>{name}</h3>;
   }
   Component.Title = Title as React.ComponentType;
 
   if (process.env.NODE_ENV !== 'production') {
-    const displayName = meta?.displayName || `${meta?.name?.replace(/ /g, '')}Demo`;
+    const displayName = meta?.displayName || `${name.replace(/ /g, '')}Demo`;
     Component.displayName = displayName;
     Component.Title.displayName = `${displayName}Title`;
   }

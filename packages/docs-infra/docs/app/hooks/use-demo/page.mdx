@@ -6,14 +6,16 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
 
 Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality like name and slug management while inheriting all code management capabilities. This makes it the go-to choice for creating rich interactive demos within the `CodeHighlighter` ecosystem.
 
+**Inheritance**: Since `useDemo` extends `useCode`, it automatically includes all URL management and file navigation features, including URL hash routing for deep-linking to specific files.
+
 ## Key Features
 
-- **Complete code management** via `useCode` integration
+- **Complete code management** via `useCode` integration with URL hash routing
 - **Component rendering** alongside code display
-- **Demo identification** with automatic slug generation
+- **Demo identification** with automatic name and slug generation from URLs
 - **Variant switching** for different implementation approaches
 - **Transform support** for language conversions (TypeScript to JavaScript)
-- **File navigation** for multi-file demos
+- **File navigation** with deep-linking support for multi-file demos
 
 ## Basic Usage
 
@@ -274,19 +276,66 @@ The hook returns all `useCode` properties plus demo-specific additions:
 - **`component: React.ReactNode`** - The React component for the current variant (for live preview)
 - **`ref: React.RefObject<HTMLDivElement | null>`** - Ref for the demo container element
 - **`resetFocus: () => void`** - Function to reset focus to the demo container
-- **`name: string | undefined`** - Display name for the demo
-- **`slug: string | undefined`** - URL-friendly identifier (auto-generated from name)
+- **`name: string | undefined`** - Display name for the demo (auto-generated from URL if not provided)
+- **`slug: string | undefined`** - URL-friendly identifier (auto-generated from URL if not provided)
 
 #### Inherited from useCode
 All properties from `useCode` are available with exact types:
 - **`variants: string[]`**, **`selectedVariant: string`**, **`selectVariant: React.Dispatch<React.SetStateAction<string>>`**
-- **`files: Array<{ name: string; component: React.ReactNode }>`**, **`selectedFile: React.ReactNode`**, **`selectedFileName: string | undefined`**, **`selectFileName: (fileName: string) => void`**
+- **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Files with URL hash slugs for deep-linking
+- **`selectedFile: React.ReactNode`**, **`selectedFileName: string | undefined`**, **`selectFileName: (fileName: string) => void`** - File selection with automatic URL hash updates
 - **`expanded: boolean`**, **`expand: () => void`**, **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`**
 - **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`**
 - **`availableTransforms: string[]`**, **`selectedTransform: string | null | undefined`**, **`selectTransform: (transformName: string | null) => void`**
 - **`setSource?: (source: string) => void`** (when editing is available)
+- **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
 
 See [useCode documentation](../use-code/page.mdx) for detailed information about inherited functionality.
+
+## URL Management and Deep-Linking
+
+Since `useDemo` extends `useCode`, it automatically inherits all URL hash management capabilities. This enables powerful deep-linking features for demos with multiple files:
+
+### Automatic URL Hash Generation
+
+```tsx
+// Demo with URL-based name/slug generation
+const ButtonDemo = createDemo({
+  url: 'file:///components/demos/interactive-button/index.ts',
+  code: buttonCode,
+  components: { Default: ButtonComponent },
+  Content: DemoContent,
+});
+
+// Automatically generates:
+// - name: "Interactive Button"  
+// - slug: "interactive-button"
+// - File URLs: #interactive-button:button.tsx, #interactive-button:styles.css
+```
+
+### Deep-Linking to Specific Files
+
+Users can bookmark and share links to specific files within your demos:
+
+```
+# Links to main file in default variant
+https://yoursite.com/demos/button#interactive-button:button.tsx
+
+# Links to specific file in TypeScript variant  
+https://yoursite.com/demos/button#interactive-button:typescript:button.tsx
+
+# Links to styling file
+https://yoursite.com/demos/button#interactive-button:styles.css
+```
+
+### URL Management Behavior
+
+- **Initial Load**: If URL hash matches a file, that file is auto-selected
+- **File Selection**: Clicking file tabs updates URL without browser history pollution
+- **Variant Changes**: URL automatically updates to reflect current variant
+- **Component Integration**: Works seamlessly with demo component rendering
+
+For complete URL hash patterns and troubleshooting, see the [useCode URL Hash Patterns](../use-code/page.mdx#url-hash-patterns) section.
 
 ## Integration Patterns
 
@@ -413,6 +462,44 @@ export function DemoContent(props) {
 }
 ```
 
+### 4. Leverage URL-Based Demo Properties
+
+```tsx
+// Recommended: Let useDemo generate name/slug from URL
+const ButtonDemo = createDemo({
+  url: 'file:///components/demos/advanced-button/index.ts',
+  code: buttonCode,
+  components: { Default: ButtonComponent },
+  Content: DemoContent,
+});
+
+function DemoContent(props) {
+  const demo = useDemo(props);
+  
+  return (
+    <div>
+      <h2>{demo.name}</h2> {/* "Advanced Button" */}
+      <div data-demo-slug={demo.slug}> {/* "advanced-button" */}
+        {demo.component}
+      </div>
+      
+      {/* File navigation with automatic URL hash management */}
+      {demo.files.map(file => (
+        <button 
+          key={file.name}
+          onClick={() => demo.selectFileName(file.name)}
+          data-file-slug={file.slug} // For analytics/debugging
+        >
+          {file.name}
+        </button>
+      ))}
+      
+      <pre>{demo.selectedFile}</pre>
+    </div>
+  );
+}
+```
+
 ## Common Patterns
 
 ### Simple Demo Display
@@ -440,7 +527,7 @@ export function DemoContent(props) {
 
 ### Demo with File Navigation
 
-When you have multiple files to show:
+When you have multiple files to show (includes automatic URL hash management):
 
 ```tsx
 export function MultiFileDemoContent(props) {
@@ -455,11 +542,13 @@ export function MultiFileDemoContent(props) {
       <div className={styles.codeSection}>
         {demo.files.length > 1 && (
           <div className={styles.fileNav}>
+            {/* File selection automatically updates URL hash for deep-linking */}
             {demo.files.map(file => (
               <button 
                 key={file.name}
-                onClick={() => demo.selectFileName(file.name)}
+                onClick={() => demo.selectFileName(file.name)} // Updates URL hash
                 className={demo.selectedFileName === file.name ? styles.active : ''}
+                title={`View ${file.name} (URL: #${file.slug})`}
               >
                 {file.name}
               </button>
@@ -539,9 +628,15 @@ export function DemoWithLanguageToggle(props) {
 - See [useCode troubleshooting](../use-code/page.mdx#troubleshooting) for code-related issues
 - Verify `contentProps` contains the expected code structure
 
-### Slug Not Generated
-- Provide either a `name` or `slug` in `contentProps`
-- The slug is auto-generated using kebab-case from the name
+### Name/Slug Not Generated
+- Ensure a valid `url` property is provided in demo creation or available in context
+- Provide explicit `name` or `slug` properties as fallbacks if URL parsing fails
+- Check that the URL follows a recognizable pattern for automatic generation
+
+### URL Hash Issues
+- **Deep-linking not working**: See [useCode URL troubleshooting](../use-code/page.mdx#url-hash-not-working) for detailed debugging steps
+- **File navigation not updating URL**: Ensure component is running in browser environment (not SSR)
+- **Hash conflicts**: Check that demo slugs are unique across your application
 
 ## Related
 

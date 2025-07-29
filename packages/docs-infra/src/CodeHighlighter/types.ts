@@ -42,6 +42,7 @@ type BaseContentProps = {
   slug?: string;
   code?: Code;
   components?: Components;
+  url?: string;
 };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
@@ -54,6 +55,7 @@ export type BaseContentLoadingProps = ContentLoadingVariant & {
   extraVariants?: Record<string, ContentLoadingVariant>;
   name?: string;
   slug?: string;
+  url?: string;
 };
 export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps & T;
 

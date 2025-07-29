@@ -53,17 +53,17 @@ describe('parseFunctionParameters', () => {
 
   it('should handle complex nested structures and extract objects', () => {
     const input =
-      'import.meta.url, { Component1, Component2: AliasName }, { name: "Test, Demo", precompute: true }';
+      'import.meta.url, { Component1, Component2: AliasName }, { name: "Test, Demo", slug: "test" }';
     const result = parseFunctionParameters(input);
     expect(result.parts).toEqual([
       'import.meta.url',
       '{ Component1, Component2: AliasName }',
-      '{ name: "Test, Demo", precompute: true }',
+      '{ name: "Test, Demo", slug: "test" }',
     ]);
     expect(result.objects).toEqual([
       null,
       '{ Component1, Component2: AliasName }',
-      '{ name: "Test, Demo", precompute: true }',
+      '{ name: "Test, Demo", slug: "test" }',
     ]);
   });
 
