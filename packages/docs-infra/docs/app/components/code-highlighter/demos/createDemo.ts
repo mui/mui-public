@@ -4,6 +4,7 @@ import {
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 
 import { DemoContent } from './DemoContent';
+import { DemoTitle } from './DemoTitle';
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -13,6 +14,7 @@ import { DemoContent } from './DemoContent';
  */
 export const createDemo = createDemoFactory({
   DemoContent,
+  DemoTitle,
 });
 
 /**

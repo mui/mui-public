@@ -40,35 +40,44 @@ export function CodeContent(props: ContentProps<{}>) {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerContainer}>
-          <div className={styles.tabContainer}>
-            <Tabs
-              tabs={tabs}
-              selectedTabId={code.selectedFileName}
-              onTabSelect={code.selectFileName}
-            />
-          </div>
-          <div className={styles.headerActions}>
-            <CopyButton copy={code.copy} copyDisabled={code.copyDisabled} />
-            {code.variants.length > 1 && (
-              <Select
-                items={variants}
-                value={code.selectedVariant}
-                onValueChange={code.selectVariant}
+    <div>
+      {code.files.map(({ slug }) => (
+        <span key={slug} id={slug} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div className={styles.headerContainer}>
+            <div className={styles.tabContainer}>
+              <Tabs
+                tabs={tabs}
+                selectedTabId={code.selectedFileName}
+                onTabSelect={code.selectFileName}
               />
-            )}
-            {hasJsTransform && (
-              <div className={styles.switchContainer}>
-                <LabeledSwitch checked={isJsSelected} onCheckedChange={toggleJs} labels={labels} />
-              </div>
-            )}
+            </div>
+            <div className={styles.headerActions}>
+              <CopyButton copy={code.copy} copyDisabled={code.copyDisabled} />
+              {code.variants.length > 1 && (
+                <Select
+                  items={variants}
+                  value={code.selectedVariant}
+                  onValueChange={code.selectVariant}
+                />
+              )}
+              {hasJsTransform && (
+                <div className={styles.switchContainer}>
+                  <LabeledSwitch
+                    checked={isJsSelected}
+                    onCheckedChange={toggleJs}
+                    labels={labels}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-      <div className={styles.code}>
-        <pre className={styles.codeBlock}>{code.selectedFile}</pre>
+        <div className={styles.code}>
+          <pre className={styles.codeBlock}>{code.selectedFile}</pre>
+        </div>
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ export function DemoContent(props: ContentProps<{}>) {
   );
 
   const tabs = React.useMemo(
-    () => demo.files.map(({ name }) => ({ id: name, name })),
+    () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [demo.files],
   );
   const variants = React.useMemo(
@@ -40,41 +40,46 @@ export function DemoContent(props: ContentProps<{}>) {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.demoSection}>{demo.component}</div>
-      <div className={styles.codeSection}>
-        <div className={styles.header}>
-          <div className={styles.headerContainer}>
-            <div className={styles.tabContainer}>
-              <Tabs
-                tabs={tabs}
-                selectedTabId={demo.selectedFileName}
-                onTabSelect={demo.selectFileName}
-              />
-            </div>
-            <div className={styles.headerActions}>
-              <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
-              {demo.variants.length > 1 && (
-                <Select
-                  items={variants}
-                  value={demo.selectedVariant}
-                  onValueChange={demo.selectVariant}
+    <div>
+      {demo.files.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.codeSection}>
+          <div className={styles.header}>
+            <div className={styles.headerContainer}>
+              <div className={styles.tabContainer}>
+                <Tabs
+                  tabs={tabs}
+                  selectedTabId={demo.selectedFileName}
+                  onTabSelect={demo.selectFileName}
                 />
-              )}
-              {hasJsTransform && (
-                <div className={styles.switchContainer}>
-                  <LabeledSwitch
-                    checked={isJsSelected}
-                    onCheckedChange={toggleJs}
-                    labels={labels}
+              </div>
+              <div className={styles.headerActions}>
+                <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
+                {demo.variants.length > 1 && (
+                  <Select
+                    items={variants}
+                    value={demo.selectedVariant}
+                    onValueChange={demo.selectVariant}
                   />
-                </div>
-              )}
+                )}
+                {hasJsTransform && (
+                  <div className={styles.switchContainer}>
+                    <LabeledSwitch
+                      checked={isJsSelected}
+                      onCheckedChange={toggleJs}
+                      labels={labels}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <div className={styles.code}>
-          <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+          <div className={styles.code}>
+            <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+          </div>
         </div>
       </div>
     </div>

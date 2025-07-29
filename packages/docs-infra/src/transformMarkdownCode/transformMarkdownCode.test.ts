@@ -371,5 +371,39 @@ const test = 'hello';
         '<pre><code class="language-typescript" data-some-option="value" data-another-flag="true">const test = \'hello\';</code></pre>',
       );
     });
+
+    it('should not duplicate variants when processing multiple groups', () => {
+      const markdown = `
+\`\`\`bash variant=npm
+npm install @mui/internal-docs-infra
+\`\`\`
+\`\`\`bash variant=pnpm
+pnpm install @mui/internal-docs-infra
+\`\`\`
+
+Some text in between
+
+\`\`\`javascript variant=es6
+const test = 'hello';
+\`\`\`
+\`\`\`javascript variant=commonjs
+const test = require('hello');
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      // Should have exactly two pre elements, not four
+      const preCount = (result.match(/<pre>/g) || []).length;
+      expect(preCount).toBe(2);
+
+      // Should not have any duplicate code elements
+      expect(result).toMatch(
+        /<pre><code data-variant="npm".*?>npm install @mui\/internal-docs-infra<\/code><code data-variant="pnpm".*?>pnpm install @mui\/internal-docs-infra<\/code><\/pre>/,
+      );
+      expect(result).toMatch(
+        /<pre><code data-variant="es6".*?>const test = 'hello';<\/code><code data-variant="commonjs".*?>const test = require\('hello'\);<\/code><\/pre>/,
+      );
+    });
   });
 });

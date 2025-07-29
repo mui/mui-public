@@ -115,8 +115,6 @@ function parseMeta(meta: string) {
 export const transformMarkdownCode: Plugin = () => {
   return (tree) => {
     const processedIndices = new Set<number>();
-    const nodesToRemove: Set<any> = new Set();
-    const replacements: Array<{ index: number; replacement: any }> = [];
 
     visit(tree, (node, index, parent) => {
       if (!parent || !Array.isArray((parent as Parent).children) || typeof index !== 'number') {
@@ -203,12 +201,8 @@ export const transformMarkdownCode: Plugin = () => {
             ],
           };
 
-          // Replace this individual code block
-          replacements.push({
-            index,
-            replacement: preElement,
-          });
-
+          // Replace this individual code block immediately
+          (parentNode.children as any)[index] = preElement;
           processedIndices.add(index);
           return;
         }
@@ -481,54 +475,71 @@ export const transformMarkdownCode: Plugin = () => {
               }),
             };
 
-            // Mark all code blocks and their labels for removal
-            codeBlocks.forEach((block) => {
-              nodesToRemove.add(block.node);
+            // Replace the first block with the group and mark others for removal
+            (parentNode.children as any)[codeBlocks[0].index] = preElement;
 
-              // Also mark label paragraphs for removal if they exist
-              if (block.labelFromPrevious && block.index > 0) {
-                const prevNode = parentNode.children[block.index - 1];
-                if (prevNode.type === 'paragraph') {
-                  nodesToRemove.add(prevNode);
+            // Remove all other code blocks and their labels (in reverse order to maintain indices)
+            const indicesToRemove = codeBlocks
+              .slice(1)
+              .map((block) => {
+                const indices = [block.index];
+                // Also include label paragraph if it exists
+                if (block.labelFromPrevious && block.index > 0) {
+                  const prevNode = parentNode.children[block.index - 1];
+                  if (prevNode.type === 'paragraph') {
+                    indices.push(block.index - 1);
+                  }
                 }
-              }
-            });
+                return indices;
+              })
+              .flat()
+              .sort((a, b) => b - a); // Sort in descending order
 
-            // Add replacement at the position of the first block
-            replacements.push({
-              index: codeBlocks[0].index,
-              replacement: preElement,
-            });
+            // Remove the marked indices
+            for (const removeIdx of indicesToRemove) {
+              if (removeIdx < parentNode.children.length) {
+                parentNode.children.splice(removeIdx, 1);
+                // Update processed indices to account for removed elements
+                const updatedProcessedIndices = new Set<number>();
+                processedIndices.forEach((processedIdx) => {
+                  if (processedIdx > removeIdx) {
+                    updatedProcessedIndices.add(processedIdx - 1);
+                  } else if (processedIdx < removeIdx) {
+                    updatedProcessedIndices.add(processedIdx);
+                  }
+                  // Don't add the removed index
+                });
+                processedIndices.clear();
+                updatedProcessedIndices.forEach((processedIdx) => {
+                  processedIndices.add(processedIdx);
+                });
+              }
+            }
+
+            // Also remove the label of the first block if it exists
+            if (codeBlocks[0].labelFromPrevious && codeBlocks[0].index > 0) {
+              const labelIndex = codeBlocks[0].index - 1;
+              const prevNode = parentNode.children[labelIndex];
+              if (prevNode && prevNode.type === 'paragraph') {
+                parentNode.children.splice(labelIndex, 1);
+                // Update processed indices
+                const updatedProcessedIndices = new Set<number>();
+                processedIndices.forEach((processedIdx) => {
+                  if (processedIdx > labelIndex) {
+                    updatedProcessedIndices.add(processedIdx - 1);
+                  } else if (processedIdx < labelIndex) {
+                    updatedProcessedIndices.add(processedIdx);
+                  }
+                });
+                processedIndices.clear();
+                updatedProcessedIndices.forEach((processedIdx) => {
+                  processedIndices.add(processedIdx);
+                });
+              }
+            }
           }
         }
       }
-    });
-
-    // Apply replacements and removals in a second pass
-    // First, replace the nodes
-    visit(tree, (node, index, parent) => {
-      if (!parent || !Array.isArray((parent as Parent).children) || typeof index !== 'number') {
-        return;
-      }
-
-      const parentNode = parent as Parent;
-
-      for (const replacement of replacements) {
-        if (index === replacement.index) {
-          parentNode.children[index] = replacement.replacement;
-          break;
-        }
-      }
-    });
-
-    // Then, remove the marked nodes
-    visit(tree, (node, index, parent) => {
-      if (!parent || !Array.isArray((parent as Parent).children)) {
-        return;
-      }
-
-      const parentNode = parent as Parent;
-      parentNode.children = parentNode.children.filter((child: any) => !nodesToRemove.has(child));
     });
   };
 };
