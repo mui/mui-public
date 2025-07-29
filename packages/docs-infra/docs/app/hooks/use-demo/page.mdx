@@ -28,16 +28,12 @@ export function DemoContent(props) {
   return (
     <div className={styles.container} ref={demo.ref}>
       {/* Component Preview Section */}
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
-      
+      <div className={styles.demoSection}>{demo.component}</div>
+
       {/* Code Section */}
       <div className={styles.codeSection}>
         <div className={styles.code}>
-          <pre className={styles.codeBlock}>
-            {demo.selectedFile}
-          </pre>
+          <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
         </div>
       </div>
     </div>
@@ -70,20 +66,19 @@ export function DemoContent(props) {
   );
 
   const variants = React.useMemo(
-    () => demo.variants.map((variant) => ({ 
-      value: variant, 
-      label: variantNames[variant] || variant 
-    })),
+    () =>
+      demo.variants.map((variant) => ({
+        value: variant,
+        label: variantNames[variant] || variant,
+      })),
     [demo.variants],
   );
 
   return (
     <div className={styles.container}>
       {/* Demo Preview */}
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
-      
+      <div className={styles.demoSection}>{demo.component}</div>
+
       {/* Code Section */}
       <div className={styles.codeSection}>
         <div className={styles.header}>
@@ -100,11 +95,11 @@ export function DemoContent(props) {
                 <span className={styles.fileName}>{demo.selectedFileName}</span>
               )}
             </div>
-            
+
             {/* Actions */}
             <div className={styles.headerActions}>
               <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
-              
+
               {/* Variant Selector */}
               {demo.variants.length > 1 && (
                 <Select
@@ -113,7 +108,7 @@ export function DemoContent(props) {
                   onValueChange={demo.selectVariant}
                 />
               )}
-              
+
               {/* Transform Toggle */}
               {hasJsTransform && (
                 <div className={styles.switchContainer}>
@@ -127,12 +122,10 @@ export function DemoContent(props) {
             </div>
           </div>
         </div>
-        
+
         {/* Code Display */}
         <div className={styles.code}>
-          <pre className={styles.codeBlock}>
-            {demo.selectedFile}
-          </pre>
+          <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
         </div>
       </div>
     </div>
@@ -163,10 +156,11 @@ export function DemoLiveContent(props) {
   );
 
   const variants = React.useMemo(
-    () => demo.variants.map((variant) => ({ 
-      value: variant, 
-      label: variantNames[variant] || variant 
-    })),
+    () =>
+      demo.variants.map((variant) => ({
+        value: variant,
+        label: variantNames[variant] || variant,
+      })),
     [demo.variants],
   );
 
@@ -175,18 +169,16 @@ export function DemoLiveContent(props) {
   const onChange = React.useCallback((text: string) => {
     demo.setSource?.(text);
   }, []);
-  useEditable(editorRef, onChange, { 
-    indentation: 2, 
-    disabled: !demo.setSource 
+  useEditable(editorRef, onChange, {
+    indentation: 2,
+    disabled: !demo.setSource,
   });
 
   return (
     <div className={styles.container}>
       {/* Live Demo Preview */}
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
-      
+      <div className={styles.demoSection}>{demo.component}</div>
+
       {/* Editable Code Section */}
       <div className={styles.codeSection}>
         <div className={styles.header}>
@@ -222,7 +214,7 @@ export function DemoLiveContent(props) {
             </div>
           </div>
         </div>
-        
+
         {/* Editable Code Block */}
         <div className={styles.code}>
           <pre className={styles.codeBlock} ref={editorRef}>
@@ -246,7 +238,7 @@ The content properties passed from your parent component - these should always b
 ```tsx
 export function DemoContent(props: ContentProps<{}>) {
   const demo = useDemo(props); // Pass props directly to useDemo
-  
+
   // Never access props.name, props.code, etc. directly
   // Use demo.name, demo.selectedFile, etc. instead
 }
@@ -258,13 +250,13 @@ Optional configuration object:
 
 ```tsx
 interface UseDemoOpts {
-  defaultOpen?: boolean;          // Whether to start expanded
-  copy?: UseCopierOpts;          // Copy functionality options
-  githubUrlPrefix?: string;      // GitHub URL prefix for links
+  defaultOpen?: boolean; // Whether to start expanded
+  copy?: UseCopierOpts; // Copy functionality options
+  githubUrlPrefix?: string; // GitHub URL prefix for links
   codeSandboxUrlPrefix?: string; // CodeSandbox URL prefix
-  stackBlitzPrefix?: string;     // StackBlitz URL prefix
-  initialVariant?: string;       // Initially selected variant
-  initialTransform?: string;     // Initially selected transform
+  stackBlitzPrefix?: string; // StackBlitz URL prefix
+  initialVariant?: string; // Initially selected variant
+  initialTransform?: string; // Initially selected transform
 }
 ```
 
@@ -273,6 +265,7 @@ interface UseDemoOpts {
 The hook returns all `useCode` properties plus demo-specific additions:
 
 #### Demo Properties
+
 - **`component: React.ReactNode`** - The React component for the current variant (for live preview)
 - **`ref: React.RefObject<HTMLDivElement | null>`** - Ref for the demo container element
 - **`resetFocus: () => void`** - Function to reset focus to the demo container
@@ -280,7 +273,9 @@ The hook returns all `useCode` properties plus demo-specific additions:
 - **`slug: string | undefined`** - URL-friendly identifier (auto-generated from URL if not provided)
 
 #### Inherited from useCode
+
 All properties from `useCode` are available with exact types:
+
 - **`variants: string[]`**, **`selectedVariant: string`**, **`selectVariant: React.Dispatch<React.SetStateAction<string>>`**
 - **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Files with URL hash slugs for deep-linking
 - **`selectedFile: React.ReactNode`**, **`selectedFileName: string | undefined`**, **`selectFileName: (fileName: string) => void`** - File selection with automatic URL hash updates
@@ -308,7 +303,7 @@ const ButtonDemo = createDemo({
 });
 
 // Automatically generates:
-// - name: "Interactive Button"  
+// - name: "Interactive Button"
 // - slug: "interactive-button"
 // - File URLs: #interactive-button:button.tsx, #interactive-button:styles.css
 ```
@@ -321,7 +316,7 @@ Users can bookmark and share links to specific files within your demos:
 # Links to main file in default variant
 https://yoursite.com/demos/button#interactive-button:button.tsx
 
-# Links to specific file in TypeScript variant  
+# Links to specific file in TypeScript variant
 https://yoursite.com/demos/button#interactive-button:typescript:button.tsx
 
 # Links to styling file
@@ -347,17 +342,13 @@ The most common pattern is to use `useDemo` in a content component that receives
 // In your demo's Content component
 export function DemoContent(props: ContentProps<{}>) {
   const demo = useDemo(props); // Always pass props directly
-  
+
   return (
     <div className={styles.container}>
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
-      
+      <div className={styles.demoSection}>{demo.component}</div>
+
       <div className={styles.codeSection}>
-        <pre className={styles.codeBlock}>
-          {demo.selectedFile}
-        </pre>
+        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
       </div>
     </div>
   );
@@ -380,28 +371,25 @@ const ButtonDemo = createDemo({
 // [x] Incorrect - Never use DemoContent as a direct child
 <CodeHighlighter>
   <DemoContent /> {/* This won't work */}
-</CodeHighlighter>
+</CodeHighlighter>;
 ```
 
 ## Best Practices
 
 ### 1. Always Pass Props Directly
+
 ```tsx
 export function DemoContent(props: ContentProps<{}>) {
   const demo = useDemo(props); // [✓] Pass props directly
-  
+
   // [x] Never access props.name, props.code, etc.
   // [✓] Use demo.name, demo.selectedFile, etc.
-  
+
   return (
     <div className={styles.container}>
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
+      <div className={styles.demoSection}>{demo.component}</div>
       <div className={styles.codeSection}>
-        <pre className={styles.codeBlock}>
-          {demo.selectedFile}
-        </pre>
+        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
       </div>
     </div>
   );
@@ -409,6 +397,7 @@ export function DemoContent(props: ContentProps<{}>) {
 ```
 
 ### 2. Conditional UI Elements
+
 ```tsx
 export function DemoContent(props) {
   const demo = useDemo(props);
@@ -416,27 +405,26 @@ export function DemoContent(props) {
   return (
     <div className={styles.container}>
       {demo.component}
-      
+
       {/* Only show file tabs if multiple files */}
       {demo.files.length > 1 ? (
-        <Tabs 
-          tabs={demo.files.map(f => ({ id: f.name, name: f.name }))}
+        <Tabs
+          tabs={demo.files.map((f) => ({ id: f.name, name: f.name }))}
           selectedTabId={demo.selectedFileName}
           onTabSelect={demo.selectFileName}
         />
       ) : (
         <span>{demo.selectedFileName}</span>
       )}
-      
-      <pre className={styles.codeBlock}>
-        {demo.selectedFile}
-      </pre>
+
+      <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
     </div>
   );
 }
 ```
 
 ### 3. Simple Transform Toggle
+
 ```tsx
 export function DemoContent(props) {
   const demo = useDemo(props);
@@ -447,16 +435,14 @@ export function DemoContent(props) {
   return (
     <div className={styles.container}>
       {demo.component}
-      
+
       {hasTransforms && (
         <button onClick={() => demo.selectTransform(isJsSelected ? null : 'js')}>
           {isJsSelected ? 'Show TS' : 'Show JS'}
         </button>
       )}
-      
-      <pre className={styles.codeBlock}>
-        {demo.selectedFile}
-      </pre>
+
+      <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
     </div>
   );
 }
@@ -475,17 +461,18 @@ const ButtonDemo = createDemo({
 
 function DemoContent(props) {
   const demo = useDemo(props);
-  
+
   return (
     <div>
       <h2>{demo.name}</h2> {/* "Advanced Button" */}
-      <div data-demo-slug={demo.slug}> {/* "advanced-button" */}
+      <div data-demo-slug={demo.slug}>
+        {' '}
+        {/* "advanced-button" */}
         {demo.component}
       </div>
-      
       {/* File navigation with automatic URL hash management */}
-      {demo.files.map(file => (
-        <button 
+      {demo.files.map((file) => (
+        <button
           key={file.name}
           onClick={() => demo.selectFileName(file.name)}
           data-file-slug={file.slug} // For analytics/debugging
@@ -493,7 +480,6 @@ function DemoContent(props) {
           {file.name}
         </button>
       ))}
-      
       <pre>{demo.selectedFile}</pre>
     </div>
   );
@@ -512,13 +498,9 @@ export function DemoContent(props) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
+      <div className={styles.demoSection}>{demo.component}</div>
       <div className={styles.codeSection}>
-        <pre className={styles.codeBlock}>
-          {demo.selectedFile}
-        </pre>
+        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
       </div>
     </div>
   );
@@ -535,16 +517,14 @@ export function MultiFileDemoContent(props) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
-      
+      <div className={styles.demoSection}>{demo.component}</div>
+
       <div className={styles.codeSection}>
         {demo.files.length > 1 && (
           <div className={styles.fileNav}>
             {/* File selection automatically updates URL hash for deep-linking */}
-            {demo.files.map(file => (
-              <button 
+            {demo.files.map((file) => (
+              <button
                 key={file.name}
                 onClick={() => demo.selectFileName(file.name)} // Updates URL hash
                 className={demo.selectedFileName === file.name ? styles.active : ''}
@@ -555,10 +535,8 @@ export function MultiFileDemoContent(props) {
             ))}
           </div>
         )}
-        
-        <pre className={styles.codeBlock}>
-          {demo.selectedFile}
-        </pre>
+
+        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
       </div>
     </div>
   );
@@ -572,30 +550,24 @@ For demos that support TypeScript/JavaScript switching:
 ```tsx
 export function DemoWithLanguageToggle(props) {
   const demo = useDemo(props);
-  
+
   const canToggleJs = demo.availableTransforms.includes('js');
   const showingJs = demo.selectedTransform === 'js';
 
   return (
     <div className={styles.container}>
-      <div className={styles.demoSection}>
-        {demo.component}
-      </div>
-      
+      <div className={styles.demoSection}>{demo.component}</div>
+
       <div className={styles.codeSection}>
         {canToggleJs && (
           <div className={styles.languageToggle}>
-            <button 
-              onClick={() => demo.selectTransform(showingJs ? null : 'js')}
-            >
+            <button onClick={() => demo.selectTransform(showingJs ? null : 'js')}>
               {showingJs ? 'TypeScript' : 'JavaScript'}
             </button>
           </div>
         )}
-        
-        <pre className={styles.codeBlock}>
-          {demo.selectedFile}
-        </pre>
+
+        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
       </div>
     </div>
   );
@@ -620,20 +592,24 @@ export function DemoWithLanguageToggle(props) {
 ## Troubleshooting
 
 ### Component Not Rendering
+
 - Verify the component is passed in the `components` prop
 - Check that the variant name matches between `code` and `components`
 - Ensure the component doesn't have render-blocking errors
 
 ### Code Not Showing
+
 - See [useCode troubleshooting](../use-code/page.mdx#troubleshooting) for code-related issues
 - Verify `contentProps` contains the expected code structure
 
 ### Name/Slug Not Generated
+
 - Ensure a valid `url` property is provided in demo creation or available in context
 - Provide explicit `name` or `slug` properties as fallbacks if URL parsing fails
 - Check that the URL follows a recognizable pattern for automatic generation
 
 ### URL Hash Issues
+
 - **Deep-linking not working**: See [useCode URL troubleshooting](../use-code/page.mdx#url-hash-not-working) for detailed debugging steps
 - **File navigation not updating URL**: Ensure component is running in browser environment (not SSR)
 - **Hash conflicts**: Check that demo slugs are unique across your application

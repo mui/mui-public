@@ -12,7 +12,6 @@ const VariantsExample = createDemo(
     name: 'Button Variants',
     slug: 'button-variants',
     description: 'Two color variants of a button.',
-    precompute: true,
   },
 );
 

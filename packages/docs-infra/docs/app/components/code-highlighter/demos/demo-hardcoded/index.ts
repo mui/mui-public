@@ -7,6 +7,5 @@ export const PrecomputedContent = createDemo(
   {
     name: 'Precomputed Content',
     slug: 'precomputed-content',
-    precompute: true,
   },
 );

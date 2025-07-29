@@ -7,6 +7,5 @@ export const ServerSideLoading = createDemo(
   {
     name: 'Server-Side Loading',
     slug: 'server-side-loading',
-    precompute: true,
   },
 );

@@ -41,10 +41,7 @@ const nextConfig = {
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/demos\/[^/]+\/index\.ts$/,
-      use: [
-        defaultLoaders.babel,
-        '@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'
-      ]
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
     });
 
     return config;
@@ -114,7 +111,7 @@ import Tailwind from './Component.jsx';
 export const MultiVariantDemo = createDemoWithVariants(
   import.meta.url,
   { CssModules, Tailwind },
-  { name: 'Multi-variant Example', slug: 'multi' }
+  { name: 'Multi-variant Example', slug: 'multi' },
 );
 ```
 
@@ -183,7 +180,7 @@ export const Demo = createDemo(import.meta.url, Component);
 export const Demo = createDemo(
   import.meta.url,
   Component,
-  { 
+  {
     precompute: {
       Default: {
         fileName: "Component.tsx",
@@ -204,12 +201,14 @@ The loader replaces the factory function call with a data structure containing:
 ```typescript
 interface PrecomputedData {
   [variantName: string]: {
-    fileName: string;           // Main file name
-    source: HastNode[];         // Syntax highlighted AST
-    extraFiles: {              // Additional dependencies
+    fileName: string; // Main file name
+    source: HastNode[]; // Syntax highlighted AST
+    extraFiles: {
+      // Additional dependencies
       [path: string]: HastNode[];
     };
-    transforms: {              // Language variants
+    transforms: {
+      // Language variants
       [language: string]: HastNode[];
     };
   };
@@ -233,7 +232,7 @@ export const Demo2 = createDemo(/* ... */); // Error!
 // demo-1/index.ts
 export const Demo1 = createDemo(/* ... */);
 
-// demo-2/index.ts  
+// demo-2/index.ts
 export const Demo2 = createDemo(/* ... */);
 ```
 
@@ -247,17 +246,17 @@ Your `create*` function must follow this pattern:
 
 ```typescript
 createDemo(
-  import.meta.url,           // Required: file URL
-  component,                 // Required: component object
-  { options }                // Optional: options object
+  import.meta.url, // Required: file URL
+  component, // Required: component object
+  { options }, // Optional: options object
 );
 ```
 
 ```typescript
 createDemoWithVariants(
-  import.meta.url,           // Required: file URL
-  { variants },              // Required: variant object
-  { options }                // Optional: options object
+  import.meta.url, // Required: file URL
+  { variants }, // Required: variant object
+  { options }, // Optional: options object
 );
 ```
 
@@ -293,7 +292,7 @@ createDemoWithVariants(
 - Use descriptive variant names (`TypeScript`, `JavaScript`, `CSS`)
 - Organize related demos in subdirectories
 
-### Dependency Management  
+### Dependency Management
 
 - Prefer relative imports for demo files
 - Keep dependency trees shallow when possible

@@ -7,6 +7,7 @@ The `useCode` hook provides programmatic access to code display, editing, and tr
 The `useCode` hook orchestrates multiple specialized sub-hooks to provide a complete code management solution. It automatically integrates with `CodeHighlighterContext` when available, making it perfect for custom code interfaces that need to interact with the broader code highlighting system.
 
 Key features include:
+
 - **URL-aware file navigation** with automatic hash management
 - **Automatic name and slug generation** from URLs when not provided
 - **Multi-file code management** with seamless file switching
@@ -34,44 +35,43 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 function CodeContent(props: ContentProps<{}>) {
   const code = useCode(props, {
     defaultOpen: true,
-    initialVariant: 'TypeScript'
+    initialVariant: 'TypeScript',
   });
 
-  return <div>
-    <h3>{code.userProps.name}</h3>
+  return (
     <div>
-      Current: {code.selectedVariant}
-      <select
-        value={code.selectedVariant}
-        onChange={(e) => code.selectVariant(e.target.value)}
-      >
-        {code.variants.map(variant => (
-          <option key={variant} value={variant}>{variant}</option>
-        ))}
-      </select>
-    </div>
-
-    {/* File navigation with URL hash support */}
-    {code.files.length > 1 && (
+      <h3>{code.userProps.name}</h3>
       <div>
-        {code.files.map(file => (
-          <button
-            key={file.name}
-            onClick={() => code.selectFileName(file.name)}
-            className={code.selectedFileName === file.name ? 'active' : ''}
-          >
-            {file.name}
-          </button>
-        ))}
+        Current: {code.selectedVariant}
+        <select value={code.selectedVariant} onChange={(e) => code.selectVariant(e.target.value)}>
+          {code.variants.map((variant) => (
+            <option key={variant} value={variant}>
+              {variant}
+            </option>
+          ))}
+        </select>
       </div>
-    )}
 
-    <pre>{code.selectedFile}</pre>
+      {/* File navigation with URL hash support */}
+      {code.files.length > 1 && (
+        <div>
+          {code.files.map((file) => (
+            <button
+              key={file.name}
+              onClick={() => code.selectFileName(file.name)}
+              className={code.selectedFileName === file.name ? 'active' : ''}
+            >
+              {file.name}
+            </button>
+          ))}
+        </div>
+      )}
 
-    <button onClick={code.copy}>
-      Copy Code
-    </button>
-  </div>;
+      <pre>{code.selectedFile}</pre>
+
+      <button onClick={code.copy}>Copy Code</button>
+    </div>
+  );
 }
 ```
 
@@ -89,13 +89,13 @@ Optional configuration object for customizing hook behavior.
 
 ```tsx
 interface UseCodeOpts {
-  defaultOpen?: boolean;          // Whether to start expanded
-  copy?: any;                     // Copy functionality options
-  githubUrlPrefix?: string;       // GitHub URL prefix for links
-  codeSandboxUrlPrefix?: string;  // CodeSandbox URL prefix
-  stackBlitzPrefix?: string;      // StackBlitz URL prefix
-  initialVariant?: string;        // Initially selected variant
-  initialTransform?: string;      // Initially selected transform
+  defaultOpen?: boolean; // Whether to start expanded
+  copy?: any; // Copy functionality options
+  githubUrlPrefix?: string; // GitHub URL prefix for links
+  codeSandboxUrlPrefix?: string; // CodeSandbox URL prefix
+  stackBlitzPrefix?: string; // StackBlitz URL prefix
+  initialVariant?: string; // Initially selected variant
+  initialTransform?: string; // Initially selected transform
 }
 ```
 
@@ -104,33 +104,40 @@ interface UseCodeOpts {
 The hook returns a `code` object with the following properties:
 
 #### Variant Management
+
 - **`variants: string[]`** - Array of available variant keys
 - **`selectedVariant: string`** - Currently selected variant key
 - **`selectVariant: React.Dispatch<React.SetStateAction<string>>`** - Function to change variant
 
 #### File Navigation
+
 - **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Available files in current variant with optional URL slugs
 - **`selectedFile: React.ReactNode`** - Currently selected file component
 - **`selectedFileName: string | undefined`** - Name of currently selected file
 - **`selectFileName: (fileName: string) => void`** - Function to select a file (automatically updates URL hash)
 
 #### UI State
+
 - **`expanded: boolean`** - Whether the code view is expanded
 - **`expand: () => void`** - Function to expand the code view
 - **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`** - Function to set expansion state
 
 #### Copy Functionality
+
 - **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`** - Function to copy code to clipboard
 
 #### Transform Management
+
 - **`availableTransforms: string[]`** - Array of available transform keys
 - **`selectedTransform: string | null | undefined`** - Currently selected transform
 - **`selectTransform: (transformName: string | null) => void`** - Function to select a transform
 
 #### Source Editing
+
 - **`setSource?: (source: string) => void`** - Function to update source code (when available)
 
 #### User Properties
+
 - **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
 
 ## Advanced Usage
@@ -142,7 +149,7 @@ The `useCode` hook automatically manages URL hashes to reflect the currently sel
 ```tsx
 function CodeViewer(props) {
   const code = useCode(props, {
-    initialVariant: 'TypeScript'
+    initialVariant: 'TypeScript',
   });
 
   // File selection automatically updates URL hash without polluting browser history
@@ -150,7 +157,7 @@ function CodeViewer(props) {
 
   return (
     <div>
-      {code.files.map(file => (
+      {code.files.map((file) => (
         <button
           key={file.name}
           onClick={() => code.selectFileName(file.name)}
@@ -159,10 +166,12 @@ function CodeViewer(props) {
           {file.name}
         </button>
       ))}
-      
+
       {/* File slug can be used for sharing or bookmarking */}
-      <span>Current file URL: #{code.files.find(f => f.name === code.selectedFileName)?.slug}</span>
-      
+      <span>
+        Current file URL: #{code.files.find((f) => f.name === code.selectedFileName)?.slug}
+      </span>
+
       <pre>{code.selectedFile}</pre>
     </div>
   );
@@ -188,20 +197,20 @@ When `name` or `slug` properties are not provided, the hook automatically genera
   url="file:///app/components/demos/advanced-table/index.ts"
   Content={MyCodeContent}
 >
-  {/* 
+  {/*
     Automatically generates:
-    - name: "Advanced Table" 
+    - name: "Advanced Table"
     - slug: "advanced-table"
   */}
 </CodeHighlighter>
 
 function MyCodeContent(props) {
   const code = useCode(props);
-  
+
   // Access generated user properties
   console.log(code.userProps.name); // "Advanced Table"
   console.log(code.userProps.slug); // "advanced-table"
-  
+
   return <div>{/* render code */}</div>;
 }
 ```
@@ -211,19 +220,21 @@ function MyCodeContent(props) {
 ```tsx
 function TransformSelector(props) {
   const code = useCode(props, {
-    initialTransform: 'typescript'
+    initialTransform: 'typescript',
   });
 
   return (
     <div>
       {code.availableTransforms.length > 0 && (
-        <select 
+        <select
           value={code.selectedTransform || ''}
           onChange={(e) => code.selectTransform(e.target.value || null)}
         >
           <option value="">No Transform</option>
-          {code.availableTransforms.map(transform => (
-            <option key={transform} value={transform}>{transform}</option>
+          {code.availableTransforms.map((transform) => (
+            <option key={transform} value={transform}>
+              {transform}
+            </option>
           ))}
         </select>
       )}
@@ -255,7 +266,7 @@ export function Code({ children, fileName }: { children: string; fileName?: stri
 function CodeContent(props: ContentProps<{}>) {
   // Automatically receives code from CodeHighlighter context
   const code = useCode(props);
-  
+
   return (
     <div>
       <pre>{code.selectedFile}</pre>
@@ -266,10 +277,10 @@ function CodeContent(props: ContentProps<{}>) {
 
 // Usage - simple and direct
 <Code fileName="example.ts">
-{`function hello() {
+  {`function hello() {
   console.log('Hello, world!');
 }`}
-</Code>
+</Code>;
 ```
 
 ## File Navigation
@@ -288,7 +299,7 @@ function CodeWithTabs(props) {
       <div className={styles.header}>
         {code.files.length > 1 ? (
           <div className={styles.tabContainer}>
-            {code.files.map(file => (
+            {code.files.map((file) => (
               <button
                 key={file.name}
                 onClick={() => code.selectFileName(file.name)}
@@ -304,11 +315,9 @@ function CodeWithTabs(props) {
           <span className={styles.fileName}>{code.selectedFileName}</span>
         )}
       </div>
-      
+
       <div className={styles.codeContent}>
-        <pre className={styles.codeBlock}>
-          {code.selectedFile}
-        </pre>
+        <pre className={styles.codeBlock}>{code.selectedFile}</pre>
       </div>
     </div>
   );
@@ -322,6 +331,7 @@ This pattern ensures a clean user experience by avoiding unnecessary tab UI when
 The hook generates URL hashes for file navigation following these patterns:
 
 ### Initial/Default Variant
+
 ```
 #mainSlug:fileName
 # Examples:
@@ -331,6 +341,7 @@ The hook generates URL hashes for file navigation following these patterns:
 ```
 
 ### Non-Initial Variants
+
 ```
 #mainSlug:variantName:fileName
 # Examples:
@@ -340,12 +351,14 @@ The hook generates URL hashes for file navigation following these patterns:
 ```
 
 ### File Naming Conventions
+
 - File names are converted to kebab-case while preserving extensions
 - Complex names like `ButtonWithTooltip.tsx` become `button-with-tooltip.tsx`
 - Special characters are replaced with dashes
 - Multiple consecutive dashes are collapsed to single dashes
 
 ### URL Management Behavior
+
 - **Initial Load**: If URL contains a hash matching a file slug, that file is automatically selected
 - **File Selection**: Selecting a file updates the URL hash without adding to browser history (uses `replaceState`)
 - **Variant Changes**: When variants change, URL is updated to reflect the new variant for the current file
@@ -356,26 +369,33 @@ The hook generates URL hashes for file navigation following these patterns:
 The `useCode` hook is composed of several specialized sub-hooks that can be used independently:
 
 ### useVariantSelection
+
 Manages variant selection logic and provides variant-related data.
 
-### useTransformManagement  
+### useTransformManagement
+
 Handles code transforms, including delta validation and transform application.
 
 ### useFileNavigation
+
 Manages file selection and navigation within code variants. Features URL hash management for deep-linking and automatic slug generation for each file.
 
 ### useUIState
+
 Controls UI-related state like expansion management.
 
 ### useCopyFunctionality
+
 Handles clipboard operations and copy state management.
 
 ### useSourceEditing
+
 Manages source code editing capabilities when available.
 
 ## Best Practices
 
 ### 1. Leverage Automatic URL Generation
+
 ```tsx
 // Recommended: Let the hook generate name/slug from URL
 <CodeHighlighter
@@ -396,18 +416,19 @@ Manages source code editing capabilities when available.
 ```
 
 ### 2. Handle Deep-Linking and URL States
+
 ```tsx
 function CodeViewer(props) {
   const code = useCode(props, {
-    initialVariant: 'TypeScript' // Fallback if no URL hash
+    initialVariant: 'TypeScript', // Fallback if no URL hash
   });
 
   // URL hash automatically handled - no manual intervention needed
   // Users can bookmark specific files and return to them
-  
+
   return (
     <div>
-      {code.files.map(file => (
+      {code.files.map((file) => (
         <button
           key={file.name}
           onClick={() => code.selectFileName(file.name)}
@@ -423,14 +444,15 @@ function CodeViewer(props) {
 ```
 
 ### 3. Focus on Code Management
+
 ```tsx
 // Recommended: Use for code-specific functionality
 function CodeSelector(props) {
   const code = useCode(props);
-  
+
   return (
     <div>
-      <VariantSelector 
+      <VariantSelector
         variants={code.variants}
         selected={code.selectedVariant}
         onSelect={code.selectVariant}
@@ -442,6 +464,7 @@ function CodeSelector(props) {
 ```
 
 ### 4. Handle Loading States
+
 ```tsx
 function SafeCodeInterface(props) {
   const code = useCode(props);
@@ -450,16 +473,21 @@ function SafeCodeInterface(props) {
     return <div>Loading code...</div>;
   }
 
-  return <div><pre>{code.selectedFile}</pre></div>;
+  return (
+    <div>
+      <pre>{code.selectedFile}</pre>
+    </div>
+  );
 }
 ```
 
 ### 5. Leverage Options for Initial State
+
 ```tsx
 const code = useCode(props, {
-  defaultOpen: true,           // Start expanded
+  defaultOpen: true, // Start expanded
   initialVariant: 'TypeScript', // Pre-select variant
-  initialTransform: 'js'       // Pre-apply transform
+  initialTransform: 'js', // Pre-apply transform
 });
 ```
 
@@ -473,6 +501,7 @@ const code = useCode(props, {
 ## Error Handling
 
 The hook includes built-in error handling for:
+
 - Invalid code structures
 - Missing transforms
 - File navigation errors
@@ -488,23 +517,28 @@ Errors are logged to the console and the hook gracefully degrades functionality 
 ## Troubleshooting
 
 ### Transforms Not Available
+
 Transforms are only shown when they have meaningful changes. Empty transforms are automatically filtered out.
 
 ### Context Not Working
+
 Ensure your component is used within a `CodeHighlighter` component that provides the necessary context.
 
 ### URL Hash Not Working
+
 - Ensure your component is running in a browser environment (not SSR)
 - Check that file names in your code match the expected slug patterns
 - Verify that the URL hash matches the generated file slugs exactly
 - Use browser dev tools to inspect `code.files[].slug` values for debugging
 
 ### Name/Slug Not Generated
+
 - Ensure a valid `url` property is provided to `CodeHighlighter` or available in context
 - Check that the URL follows a recognizable pattern (file paths or simple strings)
 - If URL parsing fails, provide explicit `name` and `slug` properties as fallbacks
 
 ### File Navigation Issues
+
 - Ensure file names are unique within each variant
 - Check that `extraFiles` and main files don't have conflicting names
 - Verify transforms don't create duplicate file names

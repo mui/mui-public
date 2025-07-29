@@ -19,7 +19,7 @@ It supports both static code blocks and interactive demos with component preview
 
 Let's start with the fundamentals. `CodeHighlighter` can display simple code blocks with syntax highlighting, perfect for documentation where you just need to show code examples:
 
-import { DemoCodeHighlighterCode } from './demos/code'
+import { DemoCodeHighlighterCode } from './demos/code';
 
 <DemoCodeHighlighterCode.Title />
 
@@ -29,7 +29,7 @@ We can use it to highlight code snippets in various languages, like JavaScript, 
 
 But `CodeHighlighter` really shines when you want to combine working React components with their source code. This creates an interactive experience where users can see both the rendered output and the implementation.
 
-import { DemoCodeHighlighterDemo } from './demos/demo'
+import { DemoCodeHighlighterDemo } from './demos/demo';
 
 <DemoCodeHighlighterDemo.Title />
 
@@ -108,6 +108,7 @@ The precomputation is handled by a webpack loader that processes demo files at b
 > **Client-Side Implementation**: For client-side loading, highlighting, and transforms, see the [Code Provider Documentation](../code-provider/page.mdx) which provides detailed examples of runtime processing.
 
 **Important**: Precomputation only works:
+
 - [✓] In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
 - [✓] Using `createDemo()`
 - [✓] In both main demos and nested demo examples
@@ -118,7 +119,7 @@ The precomputation is handled by a webpack loader that processes demo files at b
 
 Once you've mastered the basics, `CodeHighlighter` offers several powerful features for more sophisticated use cases.
 
-import { DemoCodeHighlighterDemoVariants } from './demos/demo-variants'
+import { DemoCodeHighlighterDemoVariants } from './demos/demo-variants';
 
 <DemoCodeHighlighterDemoVariants.Title />
 
@@ -130,7 +131,7 @@ Your components can even appear differently, but we recommend keeping them as si
 
 ---
 
-import { CodeTransformations } from './demos/code-transformed'
+import { CodeTransformations } from './demos/code-transformed';
 
 <CodeTransformations.Title />
 
@@ -140,7 +141,7 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 ---
 
-import { LazyHighlighting } from './demos/code-highlight-idle'
+import { LazyHighlighting } from './demos/code-highlight-idle';
 
 <LazyHighlighting.Title />
 
@@ -150,7 +151,7 @@ For pages with many code examples, you can defer syntax highlighting until the b
 
 ---
 
-import { FallbackContent } from './demos/demo-fallback'
+import { FallbackContent } from './demos/demo-fallback';
 
 <FallbackContent.Title />
 
@@ -162,7 +163,7 @@ The fallback is also not provided any data other than the rendered content html 
 
 ---
 
-import { ServerSideLoading } from './demos/demo-server-loaded'
+import { ServerSideLoading } from './demos/demo-server-loaded';
 
 <ServerSideLoading.Title />
 
@@ -208,7 +209,7 @@ Also, when MDX is rendered in GitHub, `<DemoCheckboxAdvancedKeyboard.Title />` w
 The import is also visible, so readers on GitHub will see this in the place of a demo:
 
 ```mdx
-import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard'
+import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard';
 
 <DemoCheckboxAdvancedKeyboard.Title />
 
@@ -242,7 +243,7 @@ Ideally, the reader can picture the demo in their mind without needing to see it
 Use horizontal rules (`---`) to separate different sections of the demo. This allows the description of the previous demo to be visually distinct from the next demo.
 
 ```mdx
-import { DemoCheckboxBasic } from './demos/basic'
+import { DemoCheckboxBasic } from './demos/basic';
 
 <DemoCheckboxBasic.Title />
 
@@ -252,7 +253,7 @@ Description of the basic demo.
 
 ---
 
-import { DemoCheckboxAdvanced } from './demos/second-demo'
+import { DemoCheckboxAdvanced } from './demos/second-demo';
 
 <DemoCheckboxAdvanced.Title />
 
@@ -264,7 +265,7 @@ Description of the second demo.
 Within GitHub, it will display like this without rendering the demo:
 
 ```mdx
-import { DemoCheckboxBasic } from './demos/basic'
+import { DemoCheckboxBasic } from './demos/basic';
 
 <DemoCheckboxBasic.Title />
 
@@ -272,7 +273,7 @@ Description of the basic demo.
 
 ---
 
-import { DemoCheckboxAdvanced } from './demos/advanced'
+import { DemoCheckboxAdvanced } from './demos/advanced';
 
 <DemoCheckboxAdvanced.Title />
 
@@ -287,40 +288,49 @@ Description of the advanced demo.
 When rendering a code block, the user should consider the following options based on their use case:
 
 ### Build-Time (Recommended)
+
 Use the factory pattern optimal performance:
 
 **Advantages:**
+
 - [✓] Faster initial load times
 - [✓] Isomorphic rendering support
 - [✓] Automatic caching based on dependencies for each demo
 
 **Requirements:**
+
 - Must use `createDemo()` in `index.ts` files
 - Must be in a demo directory structure
 
 ### Server Rendering
+
 Use direct `CodeHighlighter` for dynamic content:
 
 **Advantages:**
+
 - [✓] Works with dynamic content
 - [✓] Flexible component structure
 - [✓] Can still benefit from the page level cache
 
 **Trade-offs:**
+
 - [x] Slower initial rendering
 - [x] No per-demo build-time cache
 - [x] Can only be used within a Server Component
 
 ### Client Rendering
+
 Use `CodeHighlighter` on the client with [CodeProvider](../code-provider/page.mdx):
 
 **Advantages:**
+
 - [✓] Works with dynamic content fetched on the client
 - [✓] Doesn't require an API or server-side rendering
 - [✓] Can be used anywhere in the app
 - [✓] Flexible component structure
 
 **Trade-offs:**
+
 - [x] Slower initial rendering
 - [x] Requires loading and highlighting functions to be bundled
 - x No automatic caching
@@ -364,7 +374,7 @@ The `CodeHighlighter` component accepts the following props:
 #### Loading Props
 
 - `loadCodeMeta` (LoadCodeMeta): Function to load code metadata
-- `loadVariantMeta` (LoadVariantMeta): Function to load variant metadata  
+- `loadVariantMeta` (LoadVariantMeta): Function to load variant metadata
 - `loadSource` (LoadSource): Function to load source code
 - `sourceParser` (Promise of ParseSource): Parser for syntax highlighting
 - `sourceTransformers` (SourceTransformer[]): Code transformers
@@ -388,28 +398,33 @@ The `CodeHighlighter` component accepts the following props:
 
 ### Common Issues
 
-**Code not highlighting:** 
+**Code not highlighting:**
+
 - Ensure `sourceParser` is provided
 - Check that the code variant exists
 - Verify `highlightAt` timing is appropriate
 
 **Loading states not showing:**
+
 - Provide `ContentLoading` component
 - Use `highlightAt: 'stream'` for loading states
 - Check `fallbackUsesExtraFiles` settings
 
 **Performance issues:**
+
 - Use demo factory pattern for build-time optimization
 - Consider `highlightAt: 'idle'` for non-critical code
 - Implement proper error boundaries
 - Remember: precomputation only works with `createDemo()` in `index.ts` files
 
 **Precomputation not working:**
+
 - Ensure you're using `createDemo()` in an `index.ts` file
 - Verify the file is in the correct path pattern: `./app/**/demos/*/index.ts`
 - Make sure the webpack loader is configured correctly
 
 **Variants not switching:**
+
 - Verify variant names match between `components` and `variants`
 - Check that source transformers are configured correctly
 - Ensure controlled mode is set up properly if needed
@@ -420,8 +435,8 @@ The `CodeHighlighter` component accepts the following props:
 
 ```typescript
 // Component mapping for live previews
-type Components = { 
-  [key: string]: React.ReactNode 
+type Components = {
+  [key: string]: React.ReactNode;
 };
 
 // Content rendering props (generic)
@@ -440,10 +455,13 @@ type ContentProps<T extends {}> = {
 type VariantSource = string | HastNodes | { hastJson: string };
 
 // Transform definitions with deltas
-type Transforms = Record<string, { 
-  delta: Delta; 
-  fileName?: string 
-}>;
+type Transforms = Record<
+  string,
+  {
+    delta: Delta;
+    fileName?: string;
+  }
+>;
 ```
 
 ### File Structure Types
@@ -453,10 +471,10 @@ type Transforms = Record<string, {
 type VariantExtraFiles = {
   [fileName: string]:
     | string
-    | { 
-        source?: VariantSource; 
-        transforms?: Transforms; 
-        skipTransforms?: boolean 
+    | {
+        source?: VariantSource;
+        transforms?: Transforms;
+        skipTransforms?: boolean;
       };
 };
 
@@ -473,8 +491,8 @@ type VariantCode = {
 };
 
 // Code structure for all variants
-type Code = { 
-  [key: string]: undefined | string | VariantCode 
+type Code = {
+  [key: string]: undefined | string | VariantCode;
 };
 ```
 
@@ -496,8 +514,8 @@ type ControlledVariantCode = {
 };
 
 // Controlled code structure (for editable demos)
-type ControlledCode = { 
-  [key: string]: undefined | null | ControlledVariantCode 
+type ControlledCode = {
+  [key: string]: undefined | null | ControlledVariantCode;
 };
 ```
 
@@ -527,10 +545,16 @@ type ParseSource = (source: string, fileName: string) => HastNodes;
 type TransformSource = (
   source: string,
   fileName: string,
-) => Promise<Record<string, { 
-  source: string; 
-  fileName?: string 
-}> | undefined>;
+) => Promise<
+  | Record<
+      string,
+      {
+        source: string;
+        fileName?: string;
+      }
+    >
+  | undefined
+>;
 
 // Source transformer configuration
 type SourceTransformer = {
@@ -552,10 +576,7 @@ type LoadSource = (url: string) => Promise<{
 }>;
 
 // Load variant-specific metadata
-type LoadVariantMeta = (
-  variantName: string, 
-  url: string
-) => Promise<VariantCode>;
+type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
 
 // Load code metadata from URL
 type LoadCodeMeta = (url: string) => Promise<Code>;

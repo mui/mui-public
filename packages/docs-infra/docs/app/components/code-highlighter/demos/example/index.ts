@@ -11,6 +11,5 @@ export const CreateDemoExamples = createDemo(
   {
     name: 'createDemo Examples',
     slug: 'create-demo-examples',
-    precompute: true,
   },
 );

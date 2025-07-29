@@ -8,7 +8,6 @@ const BasicExample = createDemo(
     name: 'Basic Button',
     slug: 'basic-button',
     description: 'A simple interactive button component.',
-    precompute: true,
   },
 );
 

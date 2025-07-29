@@ -7,6 +7,5 @@ export const CodeTransformations = createDemo(
   {
     name: 'Code Transformations',
     slug: 'code-transformations',
-    precompute: true,
   },
 );

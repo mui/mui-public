@@ -12,7 +12,7 @@ The Code Controller provides a context-based system for managing dynamic source 
 
 ## Examples
 
-import { DemoCodeControllerCodeEditor } from './demos/code-editor'
+import { DemoCodeControllerCodeEditor } from './demos/code-editor';
 
 <DemoCodeControllerCodeEditor.Title />
 
@@ -20,8 +20,704 @@ import { DemoCodeControllerCodeEditor } from './demos/code-editor'
 
 ---
 
-import { DemoCodeControllerDemoLive } from './demos/demo-live'
+import { DemoCodeControllerDemoLive } from './demos/demo-live';
 
 <DemoCodeControllerDemoLive.Title />
 
 <DemoCodeControllerDemoLive />
+
+## Basic Usage
+
+The Code Controller uses React Context to share code state between components. The key is that when demo content calls `setCode()`, it populates the controller's state and updates all connected components.
+
+**Client Component (`code-editor-client.tsx`):**
+
+```tsx
+'use client';
+
+import { CodeController } from '@mui/internal-docs-infra/CodeControllerContext';
+
+export function CodeEditorWrapper({
+  children,
+  initialCode,
+}: {
+  children: React.ReactNode;
+  initialCode: any;
+}) {
+  return <CodeController>{children}</CodeController>;
+}
+```
+
+**Server Component (`page.tsx`):**
+
+```tsx
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import { CodeEditorWrapper } from './code-editor-client';
+
+export default function App() {
+  const initialCode = {
+    Default: {
+      url: 'file://example.js',
+      fileName: 'example.js',
+      source: 'console.log("Hello, world!");',
+    },
+  };
+
+  return (
+    <CodeEditorWrapper initialCode={initialCode}>
+      <CodeHighlighter
+        url="file://example.js"
+        precompute={initialCode} // Required for build-time optimization
+        controlled
+        Content={EditableCodeContent} // When this calls setCode(), it populates the controller
+      />
+    </CodeEditorWrapper>
+  );
+}
+```
+
+## Context API
+
+### CodeController Provider
+
+The `CodeController` component provides the context for managing shared code state:
+
+```tsx
+interface CodeControllerProps {
+  children: React.ReactNode;
+  initialCode?: Code; // Initial code content
+}
+```
+
+### useControlledCode Hook
+
+The `useControlledCode` hook provides access to the shared state:
+
+```tsx
+const {
+  controlledCode, // Current code state (ControlledCode)
+  controlledSelection, // Current selection state
+  controlledSetCode, // Function to update code
+  controlledSetSelection, // Function to update selection
+  controlledComponents, // Component mapping for previews
+} = useControlledCode();
+```
+
+## Selection Management
+
+The Code Controller tracks user selections across variants, files, and transformations:
+
+```tsx
+interface Selection {
+  variant: string; // Currently selected code variant
+  fileName?: string; // Currently selected file
+  transformKey?: string; // Currently selected transformation
+}
+```
+
+Example selection management:
+
+```tsx
+function VariantSelector() {
+  const { controlledSelection, controlledSetSelection } = useControlledCode();
+
+  return (
+    <select
+      value={controlledSelection?.variant || 'Default'}
+      onChange={(e) =>
+        controlledSetSelection?.({
+          ...controlledSelection,
+          variant: e.target.value,
+        })
+      }
+    >
+      <option value="Default">Default</option>
+      <option value="TypeScript">TypeScript</option>
+      <option value="JavaScript">JavaScript</option>
+    </select>
+  );
+}
+```
+
+## Best Example: createDemo Pattern
+
+The most powerful use of Code Controller is with the `createDemo` pattern, where the demo content automatically populates the controller state:
+
+**Demo Code (`demos/interactive-editor/editor.js`):**
+
+```js
+function createEditor() {
+  return <textarea placeholder="Edit me!" />;
+}
+```
+
+**Demo Index (`demos/interactive-editor/index.ts`):**
+
+```tsx
+import { createDemo } from '@mui/internal-docs-infra/CodeHighlighter';
+
+export const InteractiveEditorDemo = createDemo({
+  Component: ({ code, setCode }) => {
+    // When user edits, setCode() updates the controller automatically
+    return (
+      <textarea
+        value={code.Default?.source || ''}
+        onChange={(e) =>
+          setCode({
+            ...code,
+            Default: {
+              ...code.Default,
+              source: e.target.value,
+            },
+          })
+        }
+      />
+    );
+  },
+});
+```
+
+**Client Component (`interactive-demo-client.tsx`):**
+
+```tsx
+'use client';
+
+import { CodeController } from '@mui/internal-docs-infra/CodeControllerContext';
+
+export function InteractiveDemoWrapper({ children }: { children: React.ReactNode }) {
+  return <CodeController>{children}</CodeController>;
+}
+```
+
+**Server Component (`page.tsx`):**
+
+```tsx
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import { InteractiveDemoWrapper } from './interactive-demo-client';
+import { InteractiveEditorDemo } from './demos/interactive-editor';
+
+export default function InteractiveDemo() {
+  return (
+    <InteractiveDemoWrapper>
+      <CodeHighlighter
+        url="file://demos/interactive-editor/editor.js" // Points to actual file for build-time reading
+        controlled
+        Content={InteractiveEditorDemo} // This calls setCode() and populates controller
+      />
+    </InteractiveDemoWrapper>
+  );
+}
+```
+
+## Data Flow
+
+Understanding how state flows through the system:
+
+1. **Empty Controller**: `CodeController` starts with empty state (no `initialCode` needed)
+2. **Build-time**: Webpack loader reads `editor.js` file for precomputation
+3. **Demo Renders**: `createDemo` component renders and receives code from file
+4. **Auto-populate**: Demo component calls `setCode()` with file content, populating controller
+5. **User Edits**: User interacts with demo, calls `setCode()` with changes
+6. **Context Update**: Controller state updates and all connected components re-render
+
+```tsx
+// Demo component receives code and setCode from CodeHighlighter
+const MyDemo = createDemo({
+  Component: ({ code, setCode }) => {
+    // code contains content read from actual file at build time
+    // When user edits, setCode updates the controller
+    return (
+      <textarea
+        value={code.Default?.source || ''}
+        onChange={(e) =>
+          setCode({
+            ...code,
+            Default: { ...code.Default, source: e.target.value },
+          })
+        }
+      />
+    );
+  },
+});
+```
+
+This pattern ensures the controller gets populated with real file content automatically when demos load, and the webpack loader can read the actual source files at build time for precomputation.
+
+## Client-Side Processing
+
+For client-side code loading and highlighting, Code Controller can work with [`CodeProvider`](../code-provider/page.mdx). The `CodeHighlighter` must still be a child of the client `CodeController`:
+
+```tsx
+'use client';
+
+import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
+import { CodeController, useControlledCode } from '@mui/internal-docs-infra/CodeControllerContext';
+
+function ClientSideEditor() {
+  const { controlledCode } = useControlledCode();
+
+  return <textarea value={controlledCode?.Default?.source || ''} onChange={/* ... */} />;
+}
+
+function ClientSideDemo() {
+  const initialCode = {
+    Default: {
+      url: 'file://client.tsx',
+      fileName: 'client.tsx',
+      source: 'const message = "Client-side code";',
+    },
+  };
+
+  return (
+    <CodeProvider>
+      <CodeController initialCode={initialCode}>
+        <ClientSideEditor />
+        <CodeHighlighter
+          url="file://client.tsx"
+          controlled
+          Content={MyContent}
+          forceClient // Client-side processing
+        />
+      </CodeController>
+    </CodeProvider>
+  );
+}
+```
+
+## Multi-file Support
+
+Manage multiple files within a single variant. The `CodeHighlighter` components must be children of the `CodeController`:
+
+```tsx
+'use client';
+
+function MultiFileEditor() {
+  const { controlledCode, controlledSetCode } = useControlledCode();
+
+  const updateMainFile = (source: string) => {
+    const currentVariant = controlledCode?.Default;
+    controlledSetCode?.({
+      ...controlledCode,
+      Default: {
+        ...currentVariant,
+        url: 'file://main.tsx',
+        fileName: 'main.tsx',
+        source,
+        extraFiles: {
+          ...currentVariant?.extraFiles,
+          'styles.css': {
+            source: currentVariant?.extraFiles?.['styles.css']?.source || '',
+          },
+        },
+      },
+    });
+  };
+
+  const updateStyleFile = (source: string) => {
+    const currentVariant = controlledCode?.Default;
+    controlledSetCode?.({
+      ...controlledCode,
+      Default: {
+        ...currentVariant,
+        extraFiles: {
+          ...currentVariant?.extraFiles,
+          'styles.css': { source },
+        },
+      },
+    });
+  };
+
+  return (
+    <div>
+      <div>
+        <h4>Main File (main.tsx)</h4>
+        <textarea
+          value={controlledCode?.Default?.source || ''}
+          onChange={(e) => updateMainFile(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <h4>Styles (styles.css)</h4>
+        <textarea
+          value={controlledCode?.Default?.extraFiles?.['styles.css']?.source || ''}
+          onChange={(e) => updateStyleFile(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MultiFileDemo() {
+  const initialCode = {
+    Default: {
+      url: 'file://main.tsx',
+      fileName: 'main.tsx',
+      source: 'import "./styles.css";\n\nfunction App() {\n  return <h1>Hello!</h1>;\n}',
+      extraFiles: {
+        'styles.css': { source: 'h1 { color: blue; }' },
+      },
+    },
+  };
+
+  return (
+    <CodeController initialCode={initialCode}>
+      <MultiFileEditor />
+      <CodeHighlighter url="file://main.tsx" controlled Content={MyContent} precompute={true} />
+    </CodeController>
+  );
+}
+```
+
+## Runtime Processing
+
+Unlike precomputed demos, Code Controller works with runtime processing for maximum flexibility. The `CodeHighlighter` must be a child of the `CodeController`:
+
+```tsx
+'use client';
+
+import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
+import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+
+function RuntimeEditor() {
+  const { controlledCode } = useControlledCode();
+
+  return <textarea value={controlledCode?.Default?.source || ''} onChange={/* ... */} />;
+}
+
+function RuntimeDemo() {
+  const initialCode = {
+    Default: {
+      url: 'file://runtime.tsx',
+      fileName: 'runtime.tsx',
+      source: 'const runtime = "Dynamic processing";',
+    },
+  };
+
+  return (
+    <CodeController initialCode={initialCode}>
+      <RuntimeEditor />
+      <CodeHighlighter
+        url="file://runtime.tsx"
+        controlled
+        Content={MyContent}
+        sourceParser={parseSourceFactory()}
+        sourceTransformers={[TsToJsTransformer]}
+        highlightAt="idle" // Defer highlighting for better performance
+      />
+    </CodeController>
+  );
+}
+```
+
+## Type Definitions
+
+### Core Types
+
+```typescript
+// Controlled code structure for runtime editing
+type ControlledCode = {
+  [variantName: string]: undefined | null | ControlledVariantCode;
+};
+
+type ControlledVariantCode = {
+  url: string;
+  fileName: string;
+  source?: string | null;
+  extraFiles?: ControlledVariantExtraFiles;
+  filesOrder?: string[];
+};
+
+type ControlledVariantExtraFiles = {
+  [fileName: string]: { source: string | null };
+};
+```
+
+### Selection Types
+
+```typescript
+type Selection = {
+  variant: string;
+  fileName?: string;
+  transformKey?: string;
+};
+```
+
+### Context Types
+
+```typescript
+interface CodeControllerContext {
+  code?: ControlledCode;
+  selection?: Selection;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
+  components?: Record<string, React.ReactNode> | undefined;
+}
+```
+
+## Common Use Cases
+
+### Interactive Code Playground
+
+Perfect for documentation with editable source code examples. The `CodeHighlighter` must be a child of the client `CodeController`:
+
+```tsx
+'use client';
+
+function CodePlayground() {
+  const initialCode = {
+    Default: {
+      url: 'file://example.js',
+      fileName: 'example.js',
+      source: `function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet('World'));`,
+    },
+  };
+
+  return (
+    <CodeController initialCode={initialCode}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <SourceEditor />
+        <CodeHighlighter url="file://example.js" controlled Content={MyContent} precompute={true} />
+      </div>
+    </CodeController>
+  );
+}
+```
+
+### Source Code Tutorial
+
+Guide users through step-by-step code modifications. The `CodeHighlighter` must be a child of the `CodeController`:
+
+```tsx
+'use client';
+
+function SourceTutorial() {
+  const { controlledSetCode } = useControlledCode();
+
+  const steps = [
+    { title: 'Step 1: Variables', code: 'const message = "Hello";' },
+    {
+      title: 'Step 2: Functions',
+      code: 'const message = "Hello";\n\nfunction greet() {\n  console.log(message);\n}',
+    },
+    {
+      title: 'Step 3: Call Function',
+      code: 'const message = "Hello";\n\nfunction greet() {\n  console.log(message);\n}\n\ngreet();',
+    },
+  ];
+
+  const updateToStep = (stepIndex: number) => {
+    controlledSetCode?.({
+      Default: {
+        url: 'file://tutorial.js',
+        fileName: 'tutorial.js',
+        source: steps[stepIndex].code,
+      },
+    });
+  };
+
+  return (
+    <div>
+      {steps.map((step, index) => (
+        <button key={index} onClick={() => updateToStep(index)}>
+          {step.title}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TutorialDemo() {
+  const initialCode = {
+    Default: {
+      url: 'file://tutorial.js',
+      fileName: 'tutorial.js',
+      source: 'const message = "Hello";',
+    },
+  };
+
+  return (
+    <CodeController initialCode={initialCode}>
+      <SourceTutorial />
+      <CodeHighlighter url="file://tutorial.js" controlled Content={MyContent} precompute={true} />
+    </CodeController>
+  );
+}
+```
+
+### Multi-Variant Editor
+
+Switch between different implementation approaches. The `CodeHighlighter` must be a child of the `CodeController`:
+
+```tsx
+'use client';
+
+function MultiVariantEditor() {
+  const { controlledCode, controlledSetCode, controlledSelection, controlledSetSelection } =
+    useControlledCode();
+
+  const variants = ['CSS-Modules', 'Styled-Components', 'Tailwind'];
+
+  const updateVariant = (variant: string, source: string) => {
+    controlledSetCode?.({
+      ...controlledCode,
+      [variant]: {
+        url: `file://${variant.toLowerCase()}.tsx`,
+        fileName: `${variant.toLowerCase()}.tsx`,
+        source,
+      },
+    });
+  };
+
+  return (
+    <div>
+      <select
+        value={controlledSelection?.variant || variants[0]}
+        onChange={(e) => controlledSetSelection?.({ variant: e.target.value })}
+      >
+        {variants.map((variant) => (
+          <option key={variant} value={variant}>
+            {variant}
+          </option>
+        ))}
+      </select>
+
+      <textarea
+        value={controlledCode?.[controlledSelection?.variant || variants[0]]?.source || ''}
+        onChange={(e) => updateVariant(controlledSelection?.variant || variants[0], e.target.value)}
+      />
+    </div>
+  );
+}
+
+function VariantDemo() {
+  const initialCode = {
+    'CSS-Modules': {
+      url: 'file://css-modules.tsx',
+      fileName: 'css-modules.tsx',
+      source: 'import styles from "./styles.module.css";',
+    },
+  };
+
+  return (
+    <CodeController initialCode={initialCode}>
+      <MultiVariantEditor />
+      <CodeHighlighter
+        url="file://css-modules.tsx"
+        controlled
+        Content={MyContent}
+        precompute={true}
+      />
+    </CodeController>
+  );
+}
+```
+
+## Best Practices
+
+1. **File Separation** - Keep client components (`'use client'`) in separate files from server components (`CodeHighlighter`)
+2. **Simple State Flow** - Let the `Content` component handle editing via `setCode`, which flows to `CodeController` context
+3. **Focus on source code editing** - Use Code Controller specifically for interactive code editing scenarios
+4. **Enable precomputation** - Set `precompute={true}` for better performance with build-time optimization
+5. **Use controlled mode** - Set `controlled={true}` on CodeHighlighter components
+6. **Trust the Context** - The system handles state coordination automatically through context
+
+## Integration with CodeHighlighter
+
+Code Controller provides the context layer that enables live editing with `createDemo` components:
+
+**Client Wrapper (`controlled-demo-client.tsx`):**
+
+```tsx
+'use client';
+
+import { CodeController } from '@mui/internal-docs-infra/CodeControllerContext';
+
+export function IntegratedWrapper({ children }: { children: React.ReactNode }) {
+  return <CodeController>{children}</CodeController>;
+}
+```
+
+**Server Component (`page.tsx`):**
+
+```tsx
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import { IntegratedWrapper } from './controlled-demo-client';
+import { EditableDemo } from './demos/editable-demo';
+
+export default function IntegratedDemo() {
+  return (
+    <IntegratedWrapper>
+      <CodeHighlighter
+        url="file://demos/editable-demo/demo.js" // Points to actual file for precomputation
+        controlled={true} // Enables editing via setCode
+        Content={EditableDemo} // Demo populates controller via setCode
+      />
+    </IntegratedWrapper>
+  );
+}
+```
+
+Key features for source code editing:
+
+- [✓] **Live source editing** - Users can modify code content in real time
+- [✓] **Precomputed performance** - Build-time optimization for fast rendering
+- [✓] **Shared state** - Multiple components can share the same code state
+- [✓] **Interactive feedback** - Immediate visual updates as code changes
+- [✓] **Build-time optimization** - Combines editing flexibility with performance
+
+## Troubleshooting
+
+### Common Issues
+
+**Context not available:**
+
+- Ensure components are wrapped in `<CodeController>`
+- Check that `useControlledCode` is called within the provider tree
+
+**Code not updating:**
+
+- Verify `controlled={true}` is set on CodeHighlighter
+- Check that `controlledSetCode` is being called with proper structure
+- Ensure the source code structure matches expected format
+
+**Performance issues:**
+
+- Always use `precompute={true}` for better performance
+- Consider debouncing rapid code updates for large files
+- Use appropriate `highlightAt` timing for your use case
+
+## Purpose and Scope
+
+The Code Controller is designed specifically for **source code editing scenarios**. Use it when you need:
+
+- **Interactive code playgrounds** where users edit source code
+- **Tutorial experiences** with step-by-step code modifications
+- **Documentation examples** that users can modify and experiment with
+- **Code editors** embedded in your application
+
+The component combines the performance benefits of precomputed demos with the flexibility of runtime editing, making it ideal for educational and interactive coding experiences.
+
+## Related Components
+
+### Code Provider
+
+For client-side code loading and highlighting without editing capabilities, use [`CodeProvider`](../code-provider/page.mdx):
+
+- **Purpose**: Provides client-side functions for fetching source code and highlighting it
+- **Use case**: When you need to render code blocks based on client-side state or dynamic fetching
+- **No editing**: Focused on display and highlighting, not interactive editing
+
+### Comparison
+
+| Feature              | Code Controller             | Code Provider                            |
+| -------------------- | --------------------------- | ---------------------------------------- |
+| **Purpose**          | Interactive code editing    | Client-side code fetching & highlighting |
+| **State management** | [✓] Shared editing state    | [x] No state management                  |
+| **User editing**     | [✓] Real-time code editing  | [x] Display only                         |
+| **Dynamic fetching** | [x] Static content focused  | [✓] Client-side fetching                 |
+| **Use case**         | Code playgrounds, tutorials | Dynamic code display                     |

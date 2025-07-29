@@ -7,6 +7,5 @@ export const FallbackContent = createDemo(
   {
     name: 'Fallback Content',
     slug: 'fallback-content',
-    precompute: true,
   },
 );

@@ -8,7 +8,6 @@ const DemoPagesRouterDemo = createDemo(
     name: 'Next.js Pages Router',
     slug: 'demo-pages-router',
     description: 'Integration example for Next.js Pages Router applications.',
-    precompute: true,
   },
 );
 

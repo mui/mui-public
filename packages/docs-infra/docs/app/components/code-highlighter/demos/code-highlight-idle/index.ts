@@ -7,6 +7,5 @@ export const LazyHighlighting = createDemo(
   {
     name: 'Lazy Highlighting',
     slug: 'lazy-highlighting',
-    precompute: true,
   },
 );
