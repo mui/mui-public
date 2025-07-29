@@ -9,6 +9,15 @@ type CodeMeta = {
 
 export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
 
+// External import definition matching parseImports.ts
+export interface ExternalImportItem {
+  name: string;
+  type: 'named' | 'default' | 'namespace';
+  isType?: boolean;
+}
+
+export type Externals = Record<string, ExternalImportItem[]>;
+
 export type VariantSource = string | HastNodes | { hastJson: string };
 export type VariantExtraFiles = {
   [fileName: string]:
@@ -19,6 +28,7 @@ export type VariantCode = CodeMeta & {
   url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
+  externals?: string[];
   filesOrder?: string[];
   transforms?: Transforms;
   allFilesListed?: boolean;
@@ -96,6 +106,7 @@ export type LoadSource = (url: string) => Promise<{
   source: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
+  externals?: Externals;
 }>;
 export type TransformSource = (
   source: string,

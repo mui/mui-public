@@ -9,6 +9,7 @@ type CreateDemoMeta = {
   displayName?: string;
   skipPrecompute?: boolean;
   precompute?: Code;
+  CodeExternalsProvider?: React.ComponentType<{ children: React.ReactNode }>;
 };
 
 type AbstractCreateDemoOptions<T extends {}> = {
@@ -49,7 +50,7 @@ export function abstractCreateDemo<T extends {}>(
       return acc;
     }, {} as Components);
 
-    return (
+    const highlighter = (
       <CodeHighlighter
         url={url}
         name={name}
@@ -62,6 +63,13 @@ export function abstractCreateDemo<T extends {}>(
         controlled={options.controlled}
       />
     );
+
+    const CodeExternalsProvider = meta?.CodeExternalsProvider;
+    if (CodeExternalsProvider) {
+      return <CodeExternalsProvider>{highlighter}</CodeExternalsProvider>;
+    }
+
+    return highlighter;
   }
 
   function Title() {

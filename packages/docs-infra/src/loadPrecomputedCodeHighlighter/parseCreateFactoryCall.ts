@@ -1,18 +1,25 @@
 import { parseImports } from '../loaderUtils';
 import { parseFunctionParameters, extractBalancedBraces } from './parseFunctionParameters';
+import type { Externals } from '../CodeHighlighter/types';
 
 /**
  * Helper function to convert the new parseImports format to a Map
  * that maps import names to their resolved paths
  */
-function buildImportMap(
-  importResult: Record<string, { path: string; names: string[] }>,
-): Map<string, string> {
+function buildImportMap(importResult: {
+  relative: Record<
+    string,
+    { path: string; names: { name: string; alias?: string; type: string }[] }
+  >;
+  externals: any;
+}): Map<string, string> {
   const importMap = new Map<string, string>();
 
-  Object.values(importResult).forEach(({ path, names }) => {
-    names.forEach((name) => {
-      importMap.set(name, path);
+  Object.values(importResult.relative).forEach(({ path, names }) => {
+    names.forEach(({ name, alias }) => {
+      // Use alias if available, otherwise use the original name
+      const nameToUse = alias || name;
+      importMap.set(nameToUse, path);
     });
   });
 
@@ -37,6 +44,8 @@ export interface ParsedCreateFactory {
   hasOptions: boolean;
   hasPrecompute: boolean;
   precomputeValue?: any;
+  externals: Externals;
+  live: boolean; // True if the function name contains "live"
   // For replacement purposes
   precomputeKeyStart?: number; // Start index of "precompute" in optionsObjectStr
   precomputeValueStart?: number; // Start index of the value in optionsObjectStr
@@ -177,8 +186,8 @@ export async function parseCreateFactoryCall(
   filePath: string,
 ): Promise<ParsedCreateFactory | null> {
   // Get import mappings once for the entire file
-  const importResult = await parseImports(code, filePath);
-  const importMap = buildImportMap(importResult);
+  const { relative: importResult, externals } = await parseImports(code, filePath);
+  const importMap = buildImportMap({ relative: importResult, externals });
 
   // Find all create* calls in the code
   const createFactoryMatches = findCreateFactoryCalls(code, filePath);
@@ -247,6 +256,21 @@ export async function parseCreateFactoryCall(
     options.precompute = precomputeValue;
   }
 
+  // Transform externals from parseImports format to simplified format
+  // Only include side-effect imports (where names array is empty)
+  const transformedExternals: Externals = {};
+  for (const [modulePath, externalImport] of Object.entries(externals)) {
+    // Only include side-effect imports (empty names array)
+    if (externalImport.names.length === 0) {
+      transformedExternals[modulePath] = []; // Empty array for side-effect imports
+    }
+  }
+
+  // Detect if this is a live demo based on function name containing "Live" as a distinct component
+  // This catches: createLive, createLiveDemo, createDemoLive, etc.
+  // But avoids false positives like: createDelivery, delivery, etc.
+  const live = /Live/.test(functionName);
+
   return {
     functionName,
     url,
@@ -258,6 +282,8 @@ export async function parseCreateFactoryCall(
     hasOptions,
     hasPrecompute,
     precomputeValue: hasPrecompute ? precomputeValue : undefined,
+    externals: transformedExternals,
+    live,
     precomputeKeyStart: hasPrecompute ? precomputeKeyStart : undefined,
     precomputeValueStart: hasPrecompute ? precomputeValueStart : undefined,
     precomputeValueEnd: hasPrecompute ? precomputeValueEnd : undefined,

@@ -52,6 +52,8 @@ describe('loadVariant', () => {
       expect(result.code.fileName).toBe('test.ts');
       expect(result.dependencies).toEqual(['file:///test.ts']);
       expect(mockLoadSource).not.toHaveBeenCalled();
+      // Verify that externals is undefined when there are no externals
+      expect(result.code.externals).toBeUndefined();
     });
 
     it('should load source when not provided', async () => {
@@ -1213,6 +1215,465 @@ describe('loadVariant', () => {
         'file:///bundled-dep1.ts',
         'file:///bundled-dep2.ts',
       ]);
+    });
+  });
+
+  describe('externals integration', () => {
+    it('should include externals from loadSource in externals array', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const main = true;',
+        externals: {
+          react: [{ name: 'React', type: 'default' }],
+          '@mui/material': [{ name: 'Button', type: 'named' }],
+          lodash: [{ name: 'map', type: 'named' }],
+        },
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.source).toBe('const main = true;');
+      expect(result.externals).toEqual({
+        react: [{ name: 'React', type: 'default' }],
+        '@mui/material': [{ name: 'Button', type: 'named' }],
+        lodash: [{ name: 'map', type: 'named' }],
+      });
+      // Verify that externals array is set on the code object
+      expect(result.code.externals).toEqual(['react', '@mui/material', 'lodash']);
+    });
+
+    it('should combine externals from main file and extra files', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        extraFiles: {
+          'helper.ts': 'file:///helper.ts',
+        },
+      };
+
+      // Mock main file loading
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///main.ts') {
+          return Promise.resolve({
+            source: 'const main = true;',
+            externals: {
+              react: [{ name: 'React', type: 'default' }],
+              '@mui/material': [{ name: 'Button', type: 'named' }],
+            },
+          });
+        }
+        if (url === 'file:///helper.ts') {
+          return Promise.resolve({
+            source: 'const helper = true;',
+            externals: {
+              lodash: [{ name: 'map', type: 'named' }],
+              axios: [{ name: 'axios', type: 'default' }],
+            },
+          });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.source).toBe('const main = true;');
+      expect(result.externals).toEqual({
+        react: [{ name: 'React', type: 'default' }],
+        '@mui/material': [{ name: 'Button', type: 'named' }],
+        lodash: [{ name: 'map', type: 'named' }],
+        axios: [{ name: 'axios', type: 'default' }],
+      });
+      // Verify that externals array is set on the code object
+      expect(result.code.externals).toEqual(['react', '@mui/material', 'lodash', 'axios']);
+    });
+
+    it('should merge different imports from same external modules', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        extraFiles: {
+          'helper.ts': 'file:///helper.ts',
+        },
+      };
+
+      // Mock main file loading
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///main.ts') {
+          return Promise.resolve({
+            source: 'const main = true;',
+            externals: {
+              react: [{ name: 'React', type: 'default' }],
+              '@mui/material': [{ name: 'Button', type: 'named' }],
+              lodash: [{ name: 'map', type: 'named' }],
+            },
+          });
+        }
+        if (url === 'file:///helper.ts') {
+          return Promise.resolve({
+            source: 'const helper = true;',
+            externals: {
+              react: [
+                { name: 'useState', type: 'named' },
+                { name: 'useEffect', type: 'named' },
+              ], // Different imports from react
+              '@mui/material': [
+                { name: 'TextField', type: 'named' },
+                { name: 'Box', type: 'named' },
+              ], // Different imports from @mui/material
+              axios: [{ name: 'axios', type: 'default' }], // New module
+            },
+          });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.source).toBe('const main = true;');
+      // Should merge externals properly, combining all imports from each module:
+      // - react: default import from main + named imports from helper
+      // - @mui/material: Button from main + TextField, Box from helper
+      // - lodash: only from main
+      // - axios: only from helper
+      expect(result.externals).toEqual({
+        react: [
+          { name: 'React', type: 'default' },
+          { name: 'useState', type: 'named' },
+          { name: 'useEffect', type: 'named' },
+        ],
+        '@mui/material': [
+          { name: 'Button', type: 'named' },
+          { name: 'TextField', type: 'named' },
+          { name: 'Box', type: 'named' },
+        ],
+        lodash: [{ name: 'map', type: 'named' }],
+        axios: [{ name: 'axios', type: 'default' }],
+      });
+      // Verify that externals array is set on the code object
+      expect(result.code.externals).toEqual(['react', '@mui/material', 'lodash', 'axios']);
+    });
+
+    it('should handle URL-only loadVariant call and return externals correctly', async () => {
+      // Test case: loadVariant called with just a URL string
+      const variantUrl = 'file:///demos/CheckboxBasic.tsx';
+
+      // Mock loadVariantMeta to return a basic variant
+      mockLoadVariantMeta.mockResolvedValue({
+        url: variantUrl,
+        fileName: 'CheckboxBasic.tsx',
+      });
+
+      // Mock loadSource to return externals for the URL-only case
+      mockLoadSource.mockResolvedValue({
+        source: `
+import * as React from 'react';
+import { Checkbox } from '@/components/Checkbox';
+
+export default function CheckboxBasic() {
+  return (
+    <div>
+      <Checkbox defaultChecked />
+      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>
+    </div>
+  );
+}
+        `,
+        externals: {
+          react: [{ name: 'React', type: 'namespace' }],
+          '@/components/Checkbox': [{ name: 'Checkbox', type: 'named' }],
+        },
+      });
+
+      const result = await loadVariant(
+        variantUrl,
+        'default',
+        variantUrl, // URL passed as variant (string)
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Should call loadVariantMeta to convert URL to VariantCode
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
+
+      // Should return externals from loadSource
+      expect(result.externals).toEqual({
+        react: [{ name: 'React', type: 'namespace' }],
+        '@/components/Checkbox': [{ name: 'Checkbox', type: 'named' }],
+      });
+
+      // Should set externals array on code object
+      expect(result.code.externals).toEqual(['react', '@/components/Checkbox']);
+
+      // Should include the URL in dependencies
+      expect(result.dependencies).toEqual([variantUrl]);
+    });
+
+    it('should handle URL-only case with externals when loadVariantMeta is undefined', async () => {
+      // Test case: loadVariant called with URL string and no loadVariantMeta
+      const variantUrl = 'file:///src/components/Button.tsx';
+
+      // Mock loadSource to return externals
+      mockLoadSource.mockResolvedValue({
+        source: `
+import React from 'react';
+import { Button as MuiButton } from '@mui/material';
+import type { ButtonProps } from '@mui/material';
+
+export default function Button(props: ButtonProps) {
+  return <MuiButton {...props}>Click me</MuiButton>;
+}
+        `,
+        externals: {
+          react: [{ name: 'React', type: 'default' }],
+          '@mui/material': [
+            { name: 'Button', type: 'named' },
+            { name: 'ButtonProps', type: 'named', isType: true },
+          ],
+        },
+      });
+
+      const result = await loadVariant(
+        variantUrl,
+        'default',
+        variantUrl, // URL passed as variant (string)
+        undefined, // No parseSource
+        mockLoadSource,
+        undefined, // No loadVariantMeta - should use fallback
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      // Should NOT call loadVariantMeta since it's undefined
+      expect(mockLoadVariantMeta).not.toHaveBeenCalled();
+
+      // Should call loadSource
+      expect(mockLoadSource).toHaveBeenCalledWith(variantUrl);
+
+      // Should return externals from loadSource including isType flags
+      expect(result.externals).toEqual({
+        react: [{ name: 'React', type: 'default' }],
+        '@mui/material': [
+          { name: 'Button', type: 'named' },
+          { name: 'ButtonProps', type: 'named', isType: true },
+        ],
+      });
+
+      // Should set externals array on code object
+      expect(result.code.externals).toEqual(['react', '@mui/material']);
+
+      // Should create basic variant with fileName from URL
+      expect(result.code.fileName).toBe('Button.tsx');
+      expect(result.code.url).toBe(variantUrl);
+
+      // Should include the URL in dependencies
+      expect(result.dependencies).toEqual([variantUrl]);
+    });
+
+    it('should properly merge externals by combining imports from same modules', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        extraFiles: {
+          'helper.ts': 'file:///helper.ts',
+          'utils.ts': 'file:///utils.ts',
+        },
+      };
+
+      // Mock main file loading
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///main.ts') {
+          return Promise.resolve({
+            source: 'const main = true;',
+            externals: {
+              react: [{ name: 'React', type: 'default' }],
+              lodash: [{ name: 'map', type: 'named' }],
+            },
+          });
+        }
+        if (url === 'file:///helper.ts') {
+          return Promise.resolve({
+            source: 'const helper = true;',
+            externals: {
+              react: [{ name: 'useState', type: 'named' }],
+              lodash: [{ name: 'filter', type: 'named' }],
+            },
+          });
+        }
+        if (url === 'file:///utils.ts') {
+          return Promise.resolve({
+            source: 'const utils = true;',
+            externals: {
+              react: [{ name: 'useEffect', type: 'named' }],
+              lodash: [{ name: 'reduce', type: 'named' }],
+              axios: [{ name: 'axios', type: 'default' }],
+            },
+          });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.source).toBe('const main = true;');
+      // Should properly merge externals by combining all imports from each module:
+      // - react: React (default from main) + useState (from helper) + useEffect (from utils)
+      // - lodash: map (from main) + filter (from helper) + reduce (from utils)
+      // - axios: only from utils
+      expect(result.externals).toEqual({
+        react: [
+          { name: 'React', type: 'default' },
+          { name: 'useState', type: 'named' },
+          { name: 'useEffect', type: 'named' },
+        ],
+        lodash: [
+          { name: 'map', type: 'named' },
+          { name: 'filter', type: 'named' },
+          { name: 'reduce', type: 'named' },
+        ],
+        axios: [{ name: 'axios', type: 'default' }],
+      });
+      // Verify that externals array is set on the code object
+      expect(result.code.externals).toEqual(['react', 'lodash', 'axios']);
+    });
+
+    it('should preserve isType flags from loadSource externals', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        extraFiles: {
+          'types.ts': 'file:///types.ts',
+          'components.tsx': 'file:///components.tsx',
+        },
+      };
+
+      // Mock main file loading with mixed type and runtime imports
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///main.ts') {
+          return Promise.resolve({
+            source: 'const main = true;',
+            externals: {
+              react: [
+                { name: 'React', type: 'default' }, // runtime import
+                { name: 'FC', type: 'named', isType: true }, // type import
+                { name: 'ReactNode', type: 'named', isType: true }, // type import
+              ],
+              '@mui/material': [
+                { name: 'Button', type: 'named' }, // runtime import
+                { name: 'ButtonProps', type: 'named', isType: true }, // type import
+              ],
+            },
+          });
+        }
+        if (url === 'file:///types.ts') {
+          return Promise.resolve({
+            source: 'export type TypeDefs = {};',
+            externals: {
+              react: [
+                { name: 'ComponentType', type: 'named', isType: true }, // additional type import
+                { name: 'useState', type: 'named' }, // runtime import from types file
+              ],
+              typescript: [
+                { name: 'TSConfig', type: 'named', isType: true }, // type-only module
+              ],
+            },
+          });
+        }
+        if (url === 'file:///components.tsx') {
+          return Promise.resolve({
+            source: 'export const MyComponent = () => {};',
+            externals: {
+              react: [
+                { name: 'useEffect', type: 'named' }, // runtime import
+              ],
+              '@mui/material': [
+                { name: 'TextField', type: 'named' }, // runtime import
+                { name: 'TextFieldProps', type: 'named', isType: true }, // type import
+              ],
+            },
+          });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadVariant(
+        'file:///main.ts',
+        'default',
+        variant,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockSourceTransformers,
+        { disableParsing: true },
+      );
+
+      expect(result.code.source).toBe('const main = true;');
+
+      // Should properly merge externals and preserve isType flags
+      expect(result.externals).toEqual({
+        react: [
+          { name: 'React', type: 'default' }, // no isType flag (runtime)
+          { name: 'FC', type: 'named', isType: true },
+          { name: 'ReactNode', type: 'named', isType: true },
+          { name: 'ComponentType', type: 'named', isType: true },
+          { name: 'useState', type: 'named' }, // no isType flag (runtime)
+          { name: 'useEffect', type: 'named' }, // no isType flag (runtime)
+        ],
+        '@mui/material': [
+          { name: 'Button', type: 'named' }, // no isType flag (runtime)
+          { name: 'ButtonProps', type: 'named', isType: true },
+          { name: 'TextField', type: 'named' }, // no isType flag (runtime)
+          { name: 'TextFieldProps', type: 'named', isType: true },
+        ],
+        typescript: [
+          { name: 'TSConfig', type: 'named', isType: true }, // type-only module
+        ],
+      });
+
+      // Verify that externals array is set on the code object
+      expect(result.code.externals).toEqual(['react', '@mui/material', 'typescript']);
     });
   });
 

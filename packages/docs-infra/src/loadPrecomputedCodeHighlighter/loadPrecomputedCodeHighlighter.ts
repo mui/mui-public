@@ -1,17 +1,40 @@
 import { loadVariant } from '../CodeHighlighter/loadVariant';
 import { parseSourceFactory } from '../parseSource';
 import { TsToJsTransformer } from '../transformTsToJs';
-import type { SourceTransformers } from '../CodeHighlighter/types';
+import type { SourceTransformers, Externals } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createServerLoadSource } from '../loadServerSource';
+import { createExternalsProvider } from './generateExternalsProvider';
+import { mergeExternals } from '../loaderUtils/mergeExternals';
+import { emitExternalsProvider } from './emitExternalsProvider';
+
+/**
+ * Filters out type-only imports from externals since they don't exist at runtime
+ */
+function filterRuntimeExternals(externals: Externals): Externals {
+  const runtimeExternals: Externals = {};
+
+  for (const [modulePath, imports] of Object.entries(externals)) {
+    // Filter out imports where isType is true
+    const runtimeImports = imports.filter((importItem) => !importItem.isType);
+
+    // Only include the module if it has runtime imports
+    if (runtimeImports.length > 0) {
+      runtimeExternals[modulePath] = runtimeImports;
+    }
+  }
+
+  return runtimeExternals;
+}
 
 interface LoaderContext {
   resourcePath: string;
   addDependency(dependency: string): void;
   async(): (err?: Error | null, content?: string) => void;
   cacheable(): void;
+  emitFile?(name: string, content: string): void;
 }
 
 /**
@@ -73,7 +96,11 @@ export async function loadPrecomputedCodeHighlighter(
         try {
           // Use loadVariant to handle all loading, parsing, and transformation
           // This will recursively load all dependencies using loadSource
-          const { code: processedVariant, dependencies } = await loadVariant(
+          const {
+            code: processedVariant,
+            dependencies,
+            externals,
+          } = await loadVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             fileUrl, // Let loadVariantMeta handle creating the initial variant
@@ -90,6 +117,7 @@ export async function loadPrecomputedCodeHighlighter(
             variantName,
             variantData: processedVariant, // processedVariant is a complete VariantCode
             dependencies, // All files that were loaded
+            externals, // Combined externals from all loaded files
           };
         } catch (error) {
           console.warn(`Failed to load variant ${variantName} from ${fileUrl}:`, error);
@@ -100,18 +128,44 @@ export async function loadPrecomputedCodeHighlighter(
 
     const variantResults = await Promise.all(variantPromises);
 
-    // Process results and collect dependencies
+    // Process results and collect dependencies and externals
+    const allExternalsArray: Externals[] = [];
     for (const result of variantResults) {
       if (result) {
         variantData[result.variantName] = result.variantData;
         result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
+        // Collect externals for proper merging
+        allExternalsArray.push(result.externals);
+      }
+    }
+
+    // Properly merge externals from all variants
+    const allExternals = mergeExternals(allExternalsArray);
+
+    // Filter out type-only imports for the externals provider since they don't exist at runtime
+    const runtimeExternals = filterRuntimeExternals(allExternals);
+
+    // Create externals provider file if there are runtime external dependencies
+    // Only process externals for live demos
+    let externalsProviderPath: string | undefined;
+    if (demoCall.live) {
+      const externalsProviderInfo = createExternalsProvider(runtimeExternals, this.resourcePath);
+
+      if (externalsProviderInfo) {
+        // Use the new emitExternalsProvider which handles both webpack and turbopack
+        externalsProviderPath = await emitExternalsProvider(this, externalsProviderInfo);
       }
     }
 
     // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
+    const modifiedSource = replacePrecomputeValue(
+      source,
+      variantData,
+      demoCall,
+      externalsProviderPath,
+    );
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {

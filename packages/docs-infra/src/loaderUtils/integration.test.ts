@@ -51,7 +51,18 @@ async function mockLoader(
   mode: 'flat' | 'canonical' | 'import' = 'flat',
 ) {
   // Step 1: Parse imports from source code
-  const importResult = await parseImports(sourceCode, filePath);
+  const parseResult = await parseImports(sourceCode, filePath);
+
+  // Convert the new format to the old format expected by the integration test functions
+  const importResult: Record<string, { path: string; names: string[]; includeTypeDefs?: true }> =
+    {};
+  for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
+    importResult[path] = {
+      path: relativeImport.path,
+      names: relativeImport.names.map((name) => name.name), // Extract just the name string
+      includeTypeDefs: relativeImport.includeTypeDefs,
+    };
+  }
 
   // Step 2: Resolve import paths to actual files
   const resolvedPathsMap = await resolveImportResult(importResult, mockDirectoryReader);

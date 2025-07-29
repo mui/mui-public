@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { LoadSource } from '../CodeHighlighter/types';
+import type { LoadSource, Externals } from '../CodeHighlighter/types';
 import { parseImports } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { processImports, type StoreAtMode } from '../loaderUtils/processImports';
@@ -51,19 +51,45 @@ export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSou
     }
 
     // Get all relative imports from this file
-    const importResult = await parseImports(source, filePath);
+    const { relative: importResult, externals } = await parseImports(source, filePath);
+
+    // Transform externals from parseImports format to simplified format
+    const transformedExternals: Externals = {};
+    for (const [modulePath, externalImport] of Object.entries(externals)) {
+      transformedExternals[modulePath] = externalImport.names.map((importName) => ({
+        name: importName.name,
+        type: importName.type,
+        isType: importName.isType,
+      }));
+    }
 
     if (Object.keys(importResult).length === 0) {
-      return { source };
+      return {
+        source,
+        externals: Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined,
+      };
+    }
+
+    // Convert to format expected by resolveImportResultWithFs and processImports
+    const relativeImportsCompatible: Record<
+      string,
+      { path: string; names: string[]; includeTypeDefs?: true }
+    > = {};
+    for (const [importPath, { path, names, includeTypeDefs }] of Object.entries(importResult)) {
+      relativeImportsCompatible[importPath] = {
+        path,
+        names: names.map(({ name, alias }) => alias || name), // Use alias if available
+        ...(includeTypeDefs && { includeTypeDefs }),
+      };
     }
 
     // Resolve import paths, handling JS/TS modules and static assets appropriately
-    const resolvedPathsMap = await resolveImportResultWithFs(importResult);
+    const resolvedPathsMap = await resolveImportResultWithFs(relativeImportsCompatible);
 
     // Process imports using the consolidated helper function
     const { processedSource, extraFiles } = processImports(
       source,
-      importResult,
+      relativeImportsCompatible,
       resolvedPathsMap,
       storeAt,
     );
@@ -77,6 +103,7 @@ export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSou
       source: processedSource,
       extraFiles: Object.keys(extraFiles).length > 0 ? extraFiles : undefined,
       extraDependencies: extraDependencies.length > 0 ? extraDependencies : undefined,
+      externals: Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined,
     };
   };
 }

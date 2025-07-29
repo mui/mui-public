@@ -1,6 +1,7 @@
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
 import { getFileNameFromUrl } from '../loaderUtils';
+import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type {
   VariantCode,
   VariantSource,
@@ -11,6 +12,7 @@ import type {
   LoadVariantMeta,
   SourceTransformers,
   LoadFileOptions,
+  Externals,
 } from './types';
 
 // Helper function to check if we're in production
@@ -106,7 +108,12 @@ async function loadSingleFile(
   sourceTransformers: SourceTransformers | undefined,
   loadSourceCache: Map<
     string,
-    Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
+    Promise<{
+      source: VariantSource;
+      extraFiles?: VariantExtraFiles;
+      extraDependencies?: string[];
+      externals?: Externals;
+    }>
   >,
   transforms?: Transforms,
   options: LoadFileOptions = {},
@@ -117,12 +124,14 @@ async function loadSingleFile(
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
+  externals?: Externals;
 }> {
   const { disableTransforms = false, disableParsing = false } = options;
 
   let finalSource = source;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
+  let externalsFromSource: Externals | undefined;
 
   // Load source if not provided
   if (!finalSource) {
@@ -146,6 +155,7 @@ async function loadSingleFile(
       finalSource = loadResult.source;
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
+      externalsFromSource = loadResult.externals;
 
       // Validate that extraFiles from loadSource contain only absolute URLs as values
       if (extraFilesFromSource) {
@@ -274,6 +284,7 @@ async function loadSingleFile(
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
+    externals: externalsFromSource,
   };
 }
 
@@ -291,12 +302,17 @@ async function loadExtraFiles(
   sourceTransformers: SourceTransformers | undefined,
   loadSourceCache: Map<
     string,
-    Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
+    Promise<{
+      source: VariantSource;
+      extraFiles?: VariantExtraFiles;
+      extraDependencies?: string[];
+      externals?: Externals;
+    }>
   >,
   options: LoadFileOptions = {},
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
-): Promise<{ extraFiles: VariantExtraFiles; allFilesUsed: string[] }> {
+): Promise<{ extraFiles: VariantExtraFiles; allFilesUsed: string[]; allExternals: Externals }> {
   const { maxDepth = 10, loadedFiles = new Set() } = options;
 
   if (maxDepth <= 0) {
@@ -305,6 +321,7 @@ async function loadExtraFiles(
 
   const processedExtraFiles: VariantExtraFiles = {};
   const allFilesUsed: string[] = [];
+  const allExternals: Externals = {};
 
   // Start loading all extra files in parallel
   const extraFilePromises = Object.entries(extraFiles).map(async ([fileName, fileData]) => {
@@ -355,10 +372,17 @@ async function loadExtraFiles(
         filesUsedFromFile.push(...fileResult.extraDependencies);
       }
 
+      // Collect externals from this file load
+      const externalsFromFile: Externals = {};
+      if (fileResult.externals) {
+        Object.assign(externalsFromFile, fileResult.externals);
+      }
+
       return {
         fileName,
         result: fileResult,
         filesUsed: filesUsedFromFile,
+        externals: externalsFromFile,
       };
     } catch (error) {
       throw new Error(
@@ -374,10 +398,11 @@ async function loadExtraFiles(
   const nestedExtraFilesPromises: Promise<{
     files: VariantExtraFiles;
     allFilesUsed: string[];
+    allExternals: Externals;
     sourceFileKey: string; // Track the key (relative path) that led to these nested files
   }>[] = [];
 
-  for (const { fileName, result, filesUsed } of extraFileResults) {
+  for (const { fileName, result, filesUsed, externals } of extraFileResults) {
     const normalizedFileName = normalizePathKey(fileName);
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
@@ -386,6 +411,10 @@ async function loadExtraFiles(
 
     // Add files used from this file load
     allFilesUsed.push(...filesUsed);
+
+    // Add externals from this file load using proper merging
+    const mergedExternals = mergeExternals([allExternals, externals]);
+    Object.assign(allExternals, mergedExternals);
 
     // Collect promises for nested extra files with their source key
     if (result.extraFiles) {
@@ -411,6 +440,7 @@ async function loadExtraFiles(
         ).then((nestedResult) => ({
           files: nestedResult.extraFiles,
           allFilesUsed: nestedResult.allFilesUsed,
+          allExternals: nestedResult.allExternals,
           sourceFileKey: normalizedFileName, // Pass the normalized key
         })),
       );
@@ -423,10 +453,15 @@ async function loadExtraFiles(
     for (const {
       files: nestedExtraFiles,
       allFilesUsed: nestedFilesUsed,
+      allExternals: nestedExternals,
       sourceFileKey,
     } of nestedExtraFilesResults) {
       // Add nested files used
       allFilesUsed.push(...nestedFilesUsed);
+
+      // Add nested externals using proper merging
+      const mergedNestedExternals = mergeExternals([allExternals, nestedExternals]);
+      Object.assign(allExternals, mergedNestedExternals);
 
       for (const [nestedKey, nestedValue] of Object.entries(nestedExtraFiles)) {
         // Convert the key based on the directory structure of the source key
@@ -437,7 +472,7 @@ async function loadExtraFiles(
     }
   }
 
-  return { extraFiles: processedExtraFiles, allFilesUsed };
+  return { extraFiles: processedExtraFiles, allFilesUsed, allExternals };
 }
 
 /**
@@ -455,7 +490,7 @@ export async function loadVariant(
   loadVariantMeta?: LoadVariantMeta,
   sourceTransformers?: SourceTransformers,
   options: LoadFileOptions = {},
-): Promise<{ code: VariantCode; dependencies: string[] }> {
+): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }> {
   if (!variant) {
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
@@ -463,7 +498,12 @@ export async function loadVariant(
   // Create a cache for loadSource calls scoped to this loadVariant call
   const loadSourceCache = new Map<
     string,
-    Promise<{ source: VariantSource; extraFiles?: VariantExtraFiles; extraDependencies?: string[] }>
+    Promise<{
+      source: VariantSource;
+      extraFiles?: VariantExtraFiles;
+      extraDependencies?: string[];
+      externals?: Externals;
+    }>
   >();
 
   if (typeof variant === 'string') {
@@ -496,6 +536,7 @@ export async function loadVariant(
     loadedFiles.add(url);
   }
   const allFilesUsed: string[] = url ? [url] : []; // Start with the main file URL if available
+  let allExternals: Externals = {}; // Collect externals from all sources
 
   // Build set of known extra files from variant definition
   const knownExtraFiles = new Set<string>();
@@ -530,6 +571,7 @@ export async function loadVariant(
     return {
       code: finalVariant,
       dependencies: [], // No dependencies without URL
+      externals: {}, // No externals without URL
     };
   }
 
@@ -558,6 +600,11 @@ export async function loadVariant(
   // Add files used from main file loading
   if (mainFileResult.extraDependencies) {
     allFilesUsed.push(...mainFileResult.extraDependencies);
+  }
+
+  // Add externals from main file loading
+  if (mainFileResult.externals) {
+    allExternals = mergeExternals([allExternals, mainFileResult.externals]);
   }
 
   let allExtraFiles: VariantExtraFiles = {};
@@ -637,6 +684,7 @@ export async function loadVariant(
           );
           allExtraFiles = { ...allExtraFiles, ...extraFilesResult.extraFiles };
           allFilesUsed.push(...extraFilesResult.allFilesUsed);
+          allExternals = mergeExternals([allExternals, extraFilesResult.allExternals]);
         }
       }
     } else {
@@ -655,6 +703,7 @@ export async function loadVariant(
       );
       allExtraFiles = extraFilesResult.extraFiles;
       allFilesUsed.push(...extraFilesResult.allFilesUsed);
+      allExternals = mergeExternals([allExternals, extraFilesResult.allExternals]);
     }
   }
 
@@ -663,10 +712,12 @@ export async function loadVariant(
     source: mainFileResult.source,
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
+    externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,
   };
 
   return {
     code: finalVariant,
     dependencies: Array.from(new Set(allFilesUsed)), // Remove duplicates
+    externals: allExternals,
   };
 }

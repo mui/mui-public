@@ -540,4 +540,293 @@ describe('parseCreateFactoryCall', () => {
     expect(resultWithOptions!.hasOptions).toBe(true);
     expect(resultWithOptions!.optionsObjectStr).toBe("{ name: 'Test' }");
   });
+
+  // Externals tests
+  describe('externals functionality', () => {
+    it('should extract externals from imports', async () => {
+      const code = `
+        import React from 'react';
+        import { useState } from 'react';
+        import * as ReactDOM from 'react-dom';
+        import 'side-effect-only';
+        import Component from './Component';
+        
+        createDemo(import.meta.url, { Component }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only side-effect imports should be included
+      expect(result!.externals).toEqual({
+        'side-effect-only': [],
+      });
+    });
+
+    it('should handle externals with aliases', async () => {
+      const code = `
+        import React from 'react';
+        import { Component as ReactComponent, createElement as h } from 'react';
+        import 'side-effect-import';
+        import LocalComponent from './Component';
+        
+        createDemo(import.meta.url, { LocalComponent }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only side-effect imports should be included
+      expect(result!.externals).toEqual({
+        'side-effect-import': [],
+      });
+    });
+
+    it('should handle type-only imports in externals', async () => {
+      const code = `
+        import type { FC } from 'react';
+        import React, { type ComponentProps } from 'react';
+        import 'type-side-effect';
+        import Component from './Component';
+        
+        createDemo(import.meta.url, { Component }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only side-effect imports should be included
+      expect(result!.externals).toEqual({
+        'type-side-effect': [],
+      });
+    });
+
+    it('should handle side-effect imports in externals', async () => {
+      const code = `
+        import 'react-hot-loader';
+        import './styles.css';
+        import React from 'react';
+        import Component from './Component';
+        
+        createDemo(import.meta.url, { Component }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only external side-effect imports should be included (not relative ones like './styles.css')
+      expect(result!.externals).toEqual({
+        'react-hot-loader': [],
+      });
+    });
+
+    it('should handle mixed external import types', async () => {
+      const code = `
+        import React, { useState, useEffect } from 'react';
+        import * as ReactDOM from 'react-dom';
+        import { createRoot } from 'react-dom/client';
+        import 'global-styles';
+        import 'another-side-effect';
+        import Component from './Component';
+        
+        createDemo(import.meta.url, { Component }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only side-effect imports should be included
+      expect(result!.externals).toEqual({
+        'global-styles': [],
+        'another-side-effect': [],
+      });
+    });
+
+    it('should return empty externals when no external imports exist', async () => {
+      const code = `
+        import Component from './Component';
+        import { Helper } from '../utils/helper';
+        
+        createDemo(import.meta.url, { Component }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.externals).toEqual({});
+    });
+
+    it('should handle scoped packages in externals', async () => {
+      const code = `
+        import { Button } from '@mui/material';
+        import styled from '@emotion/styled';
+        import '@scoped/side-effect-package';
+        import Component from './Component';
+        
+        createDemo(import.meta.url, { Component }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only side-effect imports should be included
+      expect(result!.externals).toEqual({
+        '@scoped/side-effect-package': [],
+      });
+    });
+
+    it('should handle externals with complex namespace and named imports', async () => {
+      const code = `
+        import * as React from 'react';
+        import { Component as ReactComponent } from 'react';
+        import * as MaterialUI from '@mui/material';
+        import { Button, TextField as Input } from '@mui/material';
+        import 'complex-side-effect';
+        import LocalComponent from './Component';
+        
+        createDemo(import.meta.url, { LocalComponent }, { name: 'Test' });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      // Only side-effect imports should be included
+      expect(result!.externals).toEqual({
+        'complex-side-effect': [],
+      });
+    });
+  });
+
+  describe('live property detection', () => {
+    it('should detect live demos with createLiveDemo function name', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createLiveDemo(
+          import.meta.url,
+          Component
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createLiveDemo');
+      expect(result!.live).toBe(true);
+    });
+
+    it('should detect live demos with createDemoLive function name', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createDemoLive(
+          import.meta.url,
+          Component
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemoLive');
+      expect(result!.live).toBe(true);
+    });
+
+    it('should detect live demos with different Live positions', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createAdvancedLiveEditor(
+          import.meta.url,
+          Component
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createAdvancedLiveEditor');
+      expect(result!.live).toBe(true);
+    });
+
+    it('should detect live demos with live anywhere in function name', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createInteractiveLiveComponent(
+          import.meta.url,
+          Component
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createInteractiveLiveComponent');
+      expect(result!.live).toBe(true);
+    });
+
+    it('should not detect live for regular createDemo function name', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createDemo(
+          import.meta.url,
+          Component
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemo');
+      expect(result!.live).toBe(false);
+    });
+
+    it('should not detect live for createDelivery function name', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createDelivery(
+          import.meta.url,
+          Component
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDelivery');
+      expect(result!.live).toBe(false);
+    });
+
+    it('should work with live detection and complex options', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createLiveDemo(
+          import.meta.url,
+          { Default: Component },
+          { 
+            name: 'Live Demo',
+            slug: 'live-demo',
+            skipPrecompute: true,
+            precompute: {
+              enabled: true
+            }
+          }
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createLiveDemo');
+      expect(result!.live).toBe(true);
+      expect(result!.options.name).toBe('Live Demo');
+      expect(result!.options.slug).toBe('live-demo');
+      expect(result!.options.skipPrecompute).toBe(true);
+      expect(result!.hasPrecompute).toBe(true);
+    });
+  });
 });
