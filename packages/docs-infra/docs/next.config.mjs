@@ -26,7 +26,7 @@ const withMDX = createMDX({
       ['remark-gfm'],
       ['@mui/internal-docs-infra/transformRelativeMarkdownPaths'],
       ['@mui/internal-docs-infra/transformMarkdownBlockquoteCallouts'],
-      ['@mui/internal-docs-infra/transformMarkdownCodeVariants'],
+      ['@mui/internal-docs-infra/transformMarkdownCode'],
     ],
     rehypePlugins: [['@mui/internal-docs-infra/transformHtmlCode']],
   },

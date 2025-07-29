@@ -38,6 +38,7 @@ export function getVariantsToTransform(parsedCode: Code): Array<[string, any]> {
 
 /**
  * Pure function to get available transforms from a specific variant.
+ * Only includes transforms that have actual deltas (file changes), not just filename changes.
  */
 export function getAvailableTransforms(
   parsedCode: Code | undefined,
@@ -45,11 +46,56 @@ export function getAvailableTransforms(
 ): string[] {
   const currentVariant = parsedCode?.[variantName];
 
-  if (currentVariant && typeof currentVariant === 'object' && currentVariant.transforms) {
-    return Object.keys(currentVariant.transforms);
+  if (!currentVariant || typeof currentVariant !== 'object') {
+    return [];
   }
 
-  return [];
+  const transforms = new Set<string>();
+
+  // Check main variant transforms
+  if (currentVariant.transforms) {
+    Object.keys(currentVariant.transforms).forEach((transformKey) => {
+      const transformData = currentVariant.transforms![transformKey];
+      // Only include transforms that have actual deltas (file changes)
+      // Check if delta exists and is not empty
+      if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
+        const delta = transformData.delta;
+        // Check if delta has meaningful content (not just an empty object)
+        const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
+        if (hasContent) {
+          transforms.add(transformKey);
+        }
+      }
+    });
+  }
+
+  // Check extraFiles for transforms with deltas
+  if (currentVariant.extraFiles) {
+    Object.values(currentVariant.extraFiles).forEach((fileData) => {
+      if (
+        fileData &&
+        typeof fileData === 'object' &&
+        'transforms' in fileData &&
+        fileData.transforms
+      ) {
+        Object.keys(fileData.transforms).forEach((transformKey) => {
+          const transformData = fileData.transforms![transformKey];
+          // Only include transforms that have actual deltas (file changes)
+          // Check if delta exists and is not empty
+          if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
+            const delta = transformData.delta;
+            // Check if delta has meaningful content (not just an empty object)
+            const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
+            if (hasContent) {
+              transforms.add(transformKey);
+            }
+          }
+        });
+      }
+    });
+  }
+
+  return Array.from(transforms);
 }
 
 /**

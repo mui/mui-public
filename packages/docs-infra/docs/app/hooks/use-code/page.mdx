@@ -1,0 +1,315 @@
+# useCode Hook
+
+The `useCode` hook provides programmatic access to code display, editing, and transformation functionality within `CodeHighlighter` components. It's designed for scenarios where you need fine-grained control over code behavior or want to build custom code interfaces that focus purely on code management, without component rendering.
+
+## Overview
+
+The `useCode` hook orchestrates multiple specialized sub-hooks to provide a complete code management solution. It automatically integrates with `CodeHighlighterContext` when available, making it perfect for custom code interfaces that need to interact with the broader code highlighting system.
+
+## Architecture
+
+The hook is built using a modular architecture with six specialized sub-hooks:
+
+- **useVariantSelection**: Manages code variant selection and related data
+- **useTransformManagement**: Handles code transforms and their application
+- **useFileNavigation**: Manages file selection within code variants
+- **useUIState**: Controls UI state like expansion
+- **useCopyFunctionality**: Handles clipboard operations
+- **useSourceEditing**: Manages source code editing capabilities
+
+## Basic Usage
+
+```tsx
+import { useCode } from '@mui/internal-docs-infra';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+function CodeContent(props: ContentProps<{}>) {
+  const code = useCode(props, {
+    defaultOpen: true,
+    initialVariant: 'TypeScript'
+  });
+
+  return <div>
+    <div>
+      Current: {code.selectedVariant}
+      <select
+        value={code.selectedVariant}
+        onChange={(e) => code.selectVariant(e.target.value)}
+      >
+        {code.variants.map(variant => (
+          <option key={variant} value={variant}>{variant}</option>
+        ))}
+      </select>
+    </div>
+
+    <pre>{code.selectedFile}</pre>
+
+    <button onClick={code.copy}>
+      Copy Code
+    </button>
+  </div>;
+}
+```
+
+## API Reference
+
+### Parameters
+
+#### `contentProps: ContentProps<T>`
+
+The content properties from your `CodeHighlighter` component - typically passed directly from props.
+
+#### `opts?: UseCodeOpts`
+
+Optional configuration object for customizing hook behavior.
+
+```tsx
+interface UseCodeOpts {
+  defaultOpen?: boolean;          // Whether to start expanded
+  copy?: any;                     // Copy functionality options
+  githubUrlPrefix?: string;       // GitHub URL prefix for links
+  codeSandboxUrlPrefix?: string;  // CodeSandbox URL prefix
+  stackBlitzPrefix?: string;      // StackBlitz URL prefix
+  initialVariant?: string;        // Initially selected variant
+  initialTransform?: string;      // Initially selected transform
+}
+```
+
+### Return Value
+
+The hook returns a `code` object with the following properties:
+
+#### Variant Management
+- **`variants: string[]`** - Array of available variant keys
+- **`selectedVariant: string`** - Currently selected variant key
+- **`selectVariant: React.Dispatch<React.SetStateAction<string>>`** - Function to change variant
+
+#### File Navigation
+- **`files: Array<{ name: string; component: React.ReactNode }>`** - Available files in current variant
+- **`selectedFile: React.ReactNode`** - Currently selected file component
+- **`selectedFileName: string | undefined`** - Name of currently selected file
+- **`selectFileName: (fileName: string) => void`** - Function to select a file
+
+#### UI State
+- **`expanded: boolean`** - Whether the code view is expanded
+- **`expand: () => void`** - Function to expand the code view
+- **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`** - Function to set expansion state
+
+#### Copy Functionality
+- **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`** - Function to copy code to clipboard
+
+#### Transform Management
+- **`availableTransforms: string[]`** - Array of available transform keys
+- **`selectedTransform: string | null | undefined`** - Currently selected transform
+- **`selectTransform: (transformName: string | null) => void`** - Function to select a transform
+
+#### Source Editing
+- **`setSource?: (source: string) => void`** - Function to update source code (when available)
+
+## Advanced Usage
+
+### Accessing Transform Functionality
+
+```tsx
+function TransformSelector(props) {
+  const code = useCode(props, {
+    initialTransform: 'typescript'
+  });
+
+  return (
+    <div>
+      {code.availableTransforms.length > 0 && (
+        <select 
+          value={code.selectedTransform || ''}
+          onChange={(e) => code.selectTransform(e.target.value || null)}
+        >
+          <option value="">No Transform</option>
+          {code.availableTransforms.map(transform => (
+            <option key={transform} value={transform}>{transform}</option>
+          ))}
+        </select>
+      )}
+      <pre>{code.selectedFile}</pre>
+    </div>
+  );
+}
+```
+
+### Context Integration
+
+The hook automatically integrates with `CodeHighlighterContext` when used as a Content component:
+
+```tsx
+// Simple wrapper component using CodeHighlighter directly
+export function Code({ children, fileName }: { children: string; fileName?: string }) {
+  return (
+    <CodeHighlighter
+      fileName={fileName}
+      Content={CodeContent} // Your custom content component using useCode
+      sourceParser={parseSourceFactory()}
+    >
+      {children}
+    </CodeHighlighter>
+  );
+}
+
+// Your custom content component using useCode
+function CodeContent(props: ContentProps<{}>) {
+  // Automatically receives code from CodeHighlighter context
+  const code = useCode(props);
+  
+  return (
+    <div>
+      <pre>{code.selectedFile}</pre>
+      <button onClick={code.copy}>Copy</button>
+    </div>
+  );
+}
+
+// Usage - simple and direct
+<Code fileName="example.ts">
+{`function hello() {
+  console.log('Hello, world!');
+}`}
+</Code>
+```
+
+## File Navigation
+
+When your code has multiple files, you should provide navigation between them. The recommended approach is to use conditional display - only show tabs when multiple files exist, otherwise show just the filename:
+
+> [!NOTE]
+> If you're creating demos that combine component previews with multi-file code examples, consider using [`useDemo`](../use-demo/page.mdx) instead, which handles both component rendering and file navigation.
+
+```tsx
+function CodeWithTabs(props) {
+  const code = useCode(props);
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        {code.files.length > 1 ? (
+          <div className={styles.tabContainer}>
+            {code.files.map(file => (
+              <button
+                key={file.name}
+                onClick={() => code.selectFileName(file.name)}
+                className={`${styles.tab} ${
+                  code.selectedFileName === file.name ? styles.active : ''
+                }`}
+              >
+                {file.name}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className={styles.fileName}>{code.selectedFileName}</span>
+        )}
+      </div>
+      
+      <div className={styles.codeContent}>
+        <pre className={styles.codeBlock}>
+          {code.selectedFile}
+        </pre>
+      </div>
+    </div>
+  );
+}
+```
+
+This pattern ensures a clean user experience by avoiding unnecessary tab UI when only one file exists.
+
+## Sub-hooks Architecture
+
+The `useCode` hook is composed of several specialized sub-hooks that can be used independently:
+
+### useVariantSelection
+Manages variant selection logic and provides variant-related data.
+
+### useTransformManagement  
+Handles code transforms, including delta validation and transform application.
+
+### useFileNavigation
+Manages file selection and navigation within code variants.
+
+### useUIState
+Controls UI-related state like expansion management.
+
+### useCopyFunctionality
+Handles clipboard operations and copy state management.
+
+### useSourceEditing
+Manages source code editing capabilities when available.
+
+## Best Practices
+
+### 1. Focus on Code Management
+```tsx
+// Recommended: Use for code-specific functionality
+function CodeSelector(props) {
+  const code = useCode(props);
+  
+  return (
+    <div>
+      <VariantSelector 
+        variants={code.variants}
+        selected={code.selectedVariant}
+        onSelect={code.selectVariant}
+      />
+      <pre>{code.selectedFile}</pre>
+    </div>
+  );
+}
+```
+
+### 2. Handle Loading States
+```tsx
+function SafeCodeInterface(props) {
+  const code = useCode(props);
+
+  if (!code.selectedFile) {
+    return <div>Loading code...</div>;
+  }
+
+  return <div><pre>{code.selectedFile}</pre></div>;
+}
+```
+
+### 3. Leverage Options for Initial State
+```tsx
+const code = useCode(props, {
+  defaultOpen: true,           // Start expanded
+  initialVariant: 'TypeScript', // Pre-select variant
+  initialTransform: 'js'       // Pre-apply transform
+});
+```
+
+## Performance Considerations
+
+- The hook uses extensive memoization to prevent unnecessary re-renders
+- Transform computations are cached and only recalculated when necessary
+- File navigation state is optimized for quick switching between files
+- Copy functionality includes debouncing to prevent excessive clipboard operations
+
+## Error Handling
+
+The hook includes built-in error handling for:
+- Invalid code structures
+- Missing transforms
+- File navigation errors
+- Copy operation failures
+
+Errors are logged to the console and the hook gracefully degrades functionality when errors occur.
+
+## Related
+
+- **[useDemo](../use-demo/page.mdx)**: For managing component rendering alongside code display - use this when you need both code and component functionality
+- **[CodeHighlighter](../../components/code-highlighter/page.mdx)**: The main component this hook is designed to work with
+
+## Troubleshooting
+
+### Transforms Not Available
+Transforms are only shown when they have meaningful changes. Empty transforms are automatically filtered out.
+
+### Context Not Working
+Ensure your component is used within a `CodeHighlighter` component that provides the necessary context.

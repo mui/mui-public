@@ -178,6 +178,43 @@ describe('getAvailableTransforms', () => {
 
     expect(transforms).toEqual([]);
   });
+
+  it('should exclude transforms with empty deltas', () => {
+    const parsedCode: Code = {
+      Default: createVariantCode({
+        source: 'code',
+        transforms: {
+          transformWithDelta: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
+          transformWithEmptyDelta: { delta: {}, fileName: 'test.js' },
+        },
+      }),
+    };
+
+    const transforms = getAvailableTransforms(parsedCode, 'Default');
+
+    expect(transforms).toEqual(['transformWithDelta']);
+  });
+
+  it('should include transforms from extraFiles with valid deltas', () => {
+    const parsedCode: Code = {
+      Default: createVariantCode({
+        source: 'code',
+        extraFiles: {
+          'utils.js': {
+            source: 'utils code',
+            transforms: {
+              validTransform: { delta: { 0: ['old', 'new'] }, fileName: 'utils.js' },
+              emptyTransform: { delta: {}, fileName: 'utils.js' },
+            },
+          },
+        },
+      }),
+    };
+
+    const transforms = getAvailableTransforms(parsedCode, 'Default');
+
+    expect(transforms).toEqual(['validTransform']);
+  });
 });
 
 describe('transformVariant', () => {

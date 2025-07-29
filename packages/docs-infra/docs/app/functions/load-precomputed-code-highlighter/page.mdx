@@ -9,7 +9,7 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
 The loader processes demo files that use the `createDemo` factory pattern, automatically resolving and processing all code variants at build time rather than runtime.
 
 > [!NOTE]
-> The loader works with any `create*` function, not just `createDemo`. You could have `app/components/my-component/snippets/example/index.ts` with `createSnippet()`, or any other factory function that follows the same pattern with `precompute: true`.
+> The loader works with any `create*` function, not just `createDemo`. You could have `app/components/my-component/snippets/example/index.ts` with `createSnippet()`, or any other factory function that follows the same pattern.
 
 ### Key Features
 
@@ -199,7 +199,7 @@ export const Demo = createDemo(
 
 ## Output Structure
 
-The loader replaces `precompute: true` with a data structure containing:
+The loader replaces the factory function call with a data structure containing:
 
 ```typescript
 interface PrecomputedData {
@@ -225,11 +225,11 @@ interface PrecomputedData {
 Only one `create*` function call is allowed per file:
 
 ```typescript
-// x Multiple calls will cause a build error
+// [x] Multiple calls will cause a build error
 export const Demo1 = createDemo(/* ... */);
 export const Demo2 = createDemo(/* ... */); // Error!
 
-// ✓ Use separate files instead
+// [✓] Use separate files instead
 // demo-1/index.ts
 export const Demo1 = createDemo(/* ... */);
 

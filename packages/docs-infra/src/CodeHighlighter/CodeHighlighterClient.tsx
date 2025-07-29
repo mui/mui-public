@@ -412,7 +412,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection: controlledSelection || selection,
       setSelection: controlledSetSelection || setSelection,
       components: controlledComponents || props.components,
-      availableTransforms,
+      availableTransforms: isControlled ? [] : availableTransforms,
     }),
     [
       overlaidCode,
@@ -423,6 +423,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       controlledSetSelection,
       controlledComponents,
       props.components,
+      isControlled,
       availableTransforms,
     ],
   );
