@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
+import { globby } from 'globby';
 import deepMerge from 'lodash-es/merge.js';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
@@ -108,6 +109,7 @@ async function writePackageJson({
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
+  delete packageJson.imports;
 
   packageJson.type = packageJson.type || 'commonjs';
 
@@ -425,5 +427,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: buildDir,
       addCatchAllExports,
     });
+
+    // cleanup
+    const tsbuildinfo = await globby('**/*.tsbuildinfo', {
+      absolute: true,
+      cwd: buildDir,
+    });
+    await Promise.all(
+      tsbuildinfo.map(async (file) => {
+        await fs.rm(file);
+      }),
+    );
   },
 });
