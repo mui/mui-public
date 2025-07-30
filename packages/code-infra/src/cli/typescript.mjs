@@ -119,8 +119,8 @@ export async function generateTypes({ srcDir, outDir, cwd, skipTsc, bundle, isMj
   await copyDeclarations(srcDir, outDir);
 
   const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
-  const tsconfigExists = await fs.access(tsconfigPath).then(
-    () => true,
+  const tsconfigExists = await fs.stat(tsconfigPath).then(
+    (file) => file.isFile(),
     () => false,
   );
   if (!skipTsc) {

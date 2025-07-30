@@ -157,40 +157,41 @@ async function writePackageJson({
       if (typeFileExists && type === 'cjs') {
         packageJson.types = typeExportDir;
       }
-
-      await Promise.all(
-        Object.keys(originalExports).map(async (key) => {
-          if (!originalExports[key]) {
-            newExports[key] = null;
-          } else {
-            let importPath = originalExports[key];
-            if (typeof importPath === 'string') {
-              const exportFileExists = !importPath.includes('*')
-                ? await fs.stat(path.join(cwd, importPath)).then(
-                    (stats) => stats.isFile(),
-                    () => false,
-                  )
-                : true;
-              if (!exportFileExists) {
-                throw new Error(
-                  `The import path "${importPath}" for export "${key}" does not exist in the package. Either remove the export or add the file to the package.`,
+      const exportKeys = Object.keys(originalExports);
+      // need to main the order of exports
+      for (const key of exportKeys) {
+        if (!originalExports[key]) {
+          newExports[key] = null;
+        } else {
+          let importPath = originalExports[key];
+          if (typeof importPath === 'string') {
+            const exportFileExists = importPath.includes('*')
+              ? true
+              : // eslint-disable-next-line no-await-in-loop
+                await fs.stat(path.join(cwd, importPath)).then(
+                  (stats) => stats.isFile() || stats.isDirectory(),
+                  () => false,
                 );
-              }
-              importPath = importPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
-              const ext = path.extname(importPath);
+            if (!exportFileExists) {
+              throw new Error(
+                `The import path "${importPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
+              );
+            }
+            importPath = importPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
+            const ext = path.extname(importPath);
 
-              if (ext === '.css') {
-                set(newExports, [key], importPath);
-              } else {
-                set(newExports, [key, type === 'cjs' ? 'require' : 'import'], {
-                  types: importPath.replace(ext, typeOutExtension),
-                  default: importPath.replace(ext, outExtension),
-                });
-              }
+            if (ext === '.css') {
+              set(newExports, [key], importPath);
+            } else {
+              set(newExports, [key, type === 'cjs' ? 'require' : 'import'], {
+                types: importPath.replace(ext, typeOutExtension),
+                default: importPath.replace(ext, outExtension),
+              });
             }
           }
-        }),
-      );
+        }
+      }
+
       if (addCatchAllExports) {
         const exportsObj = {
           types: `./${dir === '.' ? '' : `${dir}/`}*/index${typeOutExtension}`,
