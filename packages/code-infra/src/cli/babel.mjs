@@ -86,7 +86,7 @@ function getBabelConfig({
     debug,
     modules: bundle === 'esm' ? false : 'commonjs',
     // @TODO
-    browserslistEnv: process.env.NODE_ENV,
+    browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
   /**
    * @type {import('@babel/core').TransformOptions["plugins"]}
