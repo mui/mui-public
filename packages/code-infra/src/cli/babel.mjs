@@ -204,14 +204,19 @@ export async function babelBuild({
   console.log(
     `Transpiling ${files.length} files to ${path.relative(path.dirname(sourceDir), outDir)}`,
   );
-  const babelConfig = getBabelConfig({
-    debug: verbose,
-    runtimeVersion: babelRuntimeVersion,
-    bundle,
-    optimizeClsx,
-    errorCodesPath: buildConfig?.errorCodesPath,
-    outExtension,
-  });
+  const babelConfig = {
+    ...getBabelConfig({
+      debug: verbose,
+      runtimeVersion: babelRuntimeVersion,
+      bundle,
+      optimizeClsx,
+      errorCodesPath: buildConfig?.errorCodesPath,
+      outExtension,
+    }),
+    configFile: false,
+    babelrc: false,
+    compact: hasLargeFiles,
+  };
   const env = {
     NODE_ENV: 'production',
     BABEL_ENV: bundle === 'esm' ? 'stable' : 'node',
@@ -229,12 +234,7 @@ export async function babelBuild({
 
   await Promise.all(
     files.map(async (file) => {
-      const result = await transformFileAsync(path.join(sourceDir, file), {
-        ...babelConfig,
-        configFile: false,
-        babelrc: false,
-        compact: hasLargeFiles,
-      });
+      const result = await transformFileAsync(path.join(sourceDir, file), babelConfig);
       if (!result || !result.code) {
         console.error(`Failed to transform file: ${file}`);
         return;
