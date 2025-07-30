@@ -50,6 +50,11 @@ module.exports = function plugin({ types: t }, { outExtension }) {
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;
 
+    const extension = nodePath.extname(importedPath);
+    if (extensionsSet.has(extension)) {
+      return; // already resolved or user added
+    }
+
     if (!importedPath.startsWith('.')) {
       // Only handle relative imports
       return;
