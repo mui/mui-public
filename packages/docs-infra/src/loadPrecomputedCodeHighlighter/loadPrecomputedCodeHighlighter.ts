@@ -1,11 +1,11 @@
 import { loadVariant } from '../CodeHighlighter/loadVariant';
-import { parseSourceFactory } from '../parseSource';
-import { TsToJsTransformer } from '../transformTsToJs';
+import { createParseSource } from '../parseSource';
+import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceTransformers, Externals } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
-import { createServerLoadSource } from '../loadServerSource';
+import { createLoadServerSource } from '../loadServerSource';
 import { createExternalsProvider } from './generateExternalsProvider';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { emitExternalsProvider } from './emitExternalsProvider';
@@ -79,16 +79,16 @@ export async function loadPrecomputedCodeHighlighter(
     const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants);
 
     // Create loader functions
-    const loadSource = createServerLoadSource({
+    const loadSource = createLoadServerSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
-    const sourceTransformers: SourceTransformers = [TsToJsTransformer];
+    const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
 
     // Create sourceParser promise for syntax highlighting
-    const sourceParser = parseSourceFactory();
+    const sourceParser = createParseSource();
 
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(

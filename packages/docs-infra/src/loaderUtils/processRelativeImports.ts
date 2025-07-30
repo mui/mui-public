@@ -19,7 +19,7 @@ export interface ProcessImportsResult {
  * @param storeAt - How to process the imports
  * @returns Object with processed source and extraFiles mapping
  */
-export function processImports(
+export function processRelativeImports(
   source: string,
   importResult: Record<string, { path: string; names: string[] }>,
   resolvedPathsMap: Map<string, string>,

@@ -8,12 +8,12 @@ export interface CreateLoadCodeMetaOptions {
 }
 
 /**
- * Default serverLoadCodeMeta function that resolves variant paths from demo files.
+ * Default loadServerCodeMeta function that resolves variant paths from demo files.
  * This function is used to load code metadata for demos, specifically resolving paths for variants defined in the demo files.
  * It reads the demo file, parses it to find `createDemo` calls with variants, and resolves the paths for those variants.
  * It returns a Code object mapping variant names to their resolved file URLs.
  */
-export const serverLoadCodeMeta = createServerLoadCodeMeta();
+export const loadServerCodeMeta = createLoadServerCodeMeta();
 
 /**
  * Creates a loadCodeMeta function that resolves variant paths from demo files.
@@ -29,7 +29,7 @@ export const serverLoadCodeMeta = createServerLoadCodeMeta();
  * @param options - Configuration options (currently unused)
  * @returns LoadCodeMeta function that takes a URL and returns Promise<Code>
  */
-export function createServerLoadCodeMeta(_options: CreateLoadCodeMetaOptions = {}): LoadCodeMeta {
+export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {}): LoadCodeMeta {
   return async function loadCodeMeta(url: string): Promise<Code> {
     // Remove file:// prefix if present to get file path
     const filePath = url.replace('file://', '');

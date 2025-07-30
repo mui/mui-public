@@ -1,6 +1,6 @@
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
-import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
 
 import { CodeContent } from './CodeContent';
 
@@ -9,8 +9,8 @@ export function Code({ children, fileName }: { children: string; fileName?: stri
     <CodeHighlighter
       fileName={fileName}
       Content={CodeContent}
-      sourceParser={parseSourceFactory()}
-      sourceTransformers={[TsToJsTransformer]}
+      sourceParser={createParseSource()}
+      sourceTransformers={[TypescriptToJavascriptTransformer]}
     >
       {children}
     </CodeHighlighter>

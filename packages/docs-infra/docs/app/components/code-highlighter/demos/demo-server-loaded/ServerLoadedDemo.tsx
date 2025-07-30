@@ -2,9 +2,13 @@
 
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import type { LoadCodeMeta, LoadSource, Code } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
-import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+import type {
+  LoadCodeMeta,
+  LoadSource,
+  Code,
+} from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
 import { DemoContent } from '../DemoContent';
 
 // Mock server-side loading functions
@@ -12,6 +16,7 @@ const mockLoadCodeMeta: LoadCodeMeta = async (url: string): Promise<Code> => {
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 800));
 
+  // test
   // Mock response based on URL
   if (url.includes('weather-widget')) {
     return {
@@ -301,10 +306,9 @@ export default function ServerLoadedDemo() {
         Content={DemoContent}
         loadCodeMeta={mockLoadCodeMeta}
         loadSource={mockLoadSource}
-        sourceParser={parseSourceFactory()}
-        sourceTransformers={[TsToJsTransformer]}
+        sourceParser={createParseSource()}
+        sourceTransformers={[TypescriptToJavascriptTransformer]}
         name="Weather Widget"
-        description="A responsive weather component with loading states and detailed information display"
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { processImports } from './processImports';
+import { processRelativeImports } from './processRelativeImports';
 
-describe('processImports', () => {
+describe('processRelativeImports', () => {
   const mockImportResult = {
     '../Component': { path: '/src/Component', names: ['Component'] },
     './utils': { path: '/src/utils', names: ['helper'] },
@@ -15,7 +15,12 @@ describe('processImports', () => {
   it('should handle canonical mode without rewriting source', () => {
     const source = `import Component from '../Component';\nimport { helper } from './utils';`;
 
-    const result = processImports(source, mockImportResult, mockResolvedPathsMap, 'canonical');
+    const result = processRelativeImports(
+      source,
+      mockImportResult,
+      mockResolvedPathsMap,
+      'canonical',
+    );
 
     expect(result.processedSource).toBe(source); // No source rewriting
     expect(result.extraFiles).toEqual({
@@ -27,7 +32,7 @@ describe('processImports', () => {
   it('should handle import mode without rewriting source', () => {
     const source = `import Component from '../Component';\nimport { helper } from './utils';`;
 
-    const result = processImports(source, mockImportResult, mockResolvedPathsMap, 'import');
+    const result = processRelativeImports(source, mockImportResult, mockResolvedPathsMap, 'import');
 
     expect(result.processedSource).toBe(source); // No source rewriting
     expect(result.extraFiles).toEqual({
@@ -39,7 +44,7 @@ describe('processImports', () => {
   it('should handle flat mode with basic imports', () => {
     const source = `import Component from '../Component';\nimport { helper } from './utils';`;
 
-    const result = processImports(source, mockImportResult, mockResolvedPathsMap, 'flat');
+    const result = processRelativeImports(source, mockImportResult, mockResolvedPathsMap, 'flat');
 
     // Source may not be rewritten if rewrite function can't map index files properly
     // The main functionality is in the extraFiles mapping
@@ -52,7 +57,7 @@ describe('processImports', () => {
   it('should handle empty imports', () => {
     const source = 'const x = 1;';
 
-    const result = processImports(source, {}, new Map(), 'import');
+    const result = processRelativeImports(source, {}, new Map(), 'import');
 
     expect(result.processedSource).toBe(source);
     expect(result.extraFiles).toEqual({});
@@ -67,7 +72,7 @@ describe('processImports', () => {
       ['/src/utils', '/src/utils.ts'], // Direct file, not index
     ]);
 
-    const result = processImports(source, importResult, resolvedPathsMap, 'canonical');
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'canonical');
 
     expect(result.extraFiles).toEqual({
       '../utils.ts': 'file:///src/utils.ts',
@@ -83,7 +88,7 @@ describe('processImports', () => {
       ['/src/Component', '/src/Component/index.tsx'], // Index file
     ]);
 
-    const result = processImports(source, importResult, resolvedPathsMap, 'import');
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'import');
 
     expect(result.extraFiles).toEqual({
       '../Component.tsx': 'file:///src/Component/index.tsx',
@@ -101,7 +106,7 @@ describe('processImports', () => {
       ['/src/utils', '/src/utils.js'],
     ]);
 
-    const result = processImports(source, importResult, resolvedPathsMap, 'flat');
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
 
     expect(result.extraFiles).toEqual({
       './Component.tsx': 'file:///src/Component.tsx',
@@ -120,7 +125,7 @@ describe('processImports', () => {
       ['/src/b/Component', '/src/b/Component/index.js'], // Index file
     ]);
 
-    const result = processImports(source, importResult, resolvedPathsMap, 'flat');
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
 
     expect(result.extraFiles).toEqual({
       './a/Component.js': 'file:///src/a/Component.js',
@@ -153,7 +158,7 @@ describe('processImports', () => {
       ['/components/special/c/Component', '/components/special/c/Component.js'],
     ]);
 
-    const result = processImports(source, importResult, resolvedPathsMap, 'flat');
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
 
     expect(result.extraFiles).toEqual({
       './a/Component.js': 'file:///components/special/a/path/in/common/Component.js',
@@ -194,7 +199,7 @@ describe('processImports', () => {
       ],
     ]);
 
-    const result = processImports(source, importResult, resolvedPathsMap, 'flat');
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
 
     // Should successfully distinguish all three files using minimal path context
     // The parent-child smart resolution should recognize that the third file is at a "parent" level

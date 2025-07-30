@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseImports } from './parseImports';
 import { resolveImportResult, type DirectoryEntry } from './resolveModulePath';
-import { processImports } from './processImports';
+import { processRelativeImports } from './processRelativeImports';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
 
 // Mock filesystem structure for testing
@@ -68,7 +68,7 @@ async function mockLoader(
   const resolvedPathsMap = await resolveImportResult(importResult, mockDirectoryReader);
 
   // Step 3: Process imports and generate final result
-  const processedResult = processImports(sourceCode, importResult, resolvedPathsMap, mode);
+  const processedResult = processRelativeImports(sourceCode, importResult, resolvedPathsMap, mode);
 
   return {
     // Input

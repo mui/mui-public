@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import type { LoadSource, Externals } from '../CodeHighlighter/types';
 import { parseImports } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
-import { processImports, type StoreAtMode } from '../loaderUtils/processImports';
+import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
 interface LoadSourceOptions {
@@ -13,12 +13,12 @@ interface LoadSourceOptions {
 }
 
 /**
- * Default serverLoadSource function that reads a file and extracts its dependencies.
+ * Default loadServerSource function that reads a file and extracts its dependencies.
  * This function is used to load source files for demos, resolving their imports and dependencies.
  * It reads the source file, resolves its imports, and returns the processed source along with any
  * additional files and dependencies that were found.
  */
-export const serverLoadSource = createServerLoadSource();
+export const loadServerSource = createLoadServerSource();
 
 /**
  * Creates a loadSource function that reads a file and extracts its dependencies.
@@ -28,7 +28,7 @@ export const serverLoadSource = createServerLoadSource();
  *   - 'import': Import path with file extension (e.g., '../Component.js')
  *   - 'flat': Flattened to current directory with rewritten imports (e.g., './Component.js')
  */
-export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSource {
+export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSource {
   const { includeDependencies = true, storeAt = 'flat' } = options;
 
   return async function loadSource(url: string) {
@@ -87,7 +87,7 @@ export function createServerLoadSource(options: LoadSourceOptions = {}): LoadSou
     const resolvedPathsMap = await resolveImportResultWithFs(relativeImportsCompatible);
 
     // Process imports using the consolidated helper function
-    const { processedSource, extraFiles } = processImports(
+    const { processedSource, extraFiles } = processRelativeImports(
       source,
       relativeImportsCompatible,
       resolvedPathsMap,

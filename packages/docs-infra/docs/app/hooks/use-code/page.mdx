@@ -255,7 +255,7 @@ export function Code({ children, fileName }: { children: string; fileName?: stri
     <CodeHighlighter
       fileName={fileName}
       Content={CodeContent} // Your custom content component using useCode
-      sourceParser={parseSourceFactory()}
+      sourceParser={createParseSource()}
     >
       {children}
     </CodeHighlighter>

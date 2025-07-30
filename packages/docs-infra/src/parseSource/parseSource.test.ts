@@ -1,13 +1,13 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import type { Root } from 'hast';
 import type { ParseSource } from '../CodeHighlighter/types';
-import { parseSourceFactory } from './parseSource';
+import { createParseSource } from './parseSource';
 
 describe('parseSource', () => {
   let parseSource: ParseSource;
 
   beforeAll(async () => {
-    parseSource = await parseSourceFactory();
+    parseSource = await createParseSource();
   });
 
   it('should handle unsupported file extension gracefully', async () => {

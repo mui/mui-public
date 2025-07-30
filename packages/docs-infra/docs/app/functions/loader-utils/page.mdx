@@ -8,7 +8,7 @@ The loader utilities consist of several interconnected modules:
 
 - **`parseImports`** - Parses import statements from source code
 - **`resolveModulePath`** - Resolves module paths to actual file paths
-- **`processImports`** - Transforms and processes resolved imports
+- **`processRelativeImports`** - Transforms and processes resolved imports
 - **`getFileNameFromUrl`** - Extracts file names and extensions from URLs/paths
 - **`rewriteImports`** - Rewrites import statements in source code
 
@@ -20,7 +20,7 @@ graph TD
     B --> C[Import Result]
     C --> D[resolveModulePath]
     D --> E[Resolved Paths Map]
-    C --> F[processImports]
+    C --> F[processRelativeImports]
     E --> F
     F --> G[Processed Result]
 
@@ -112,14 +112,14 @@ console.log(typeAware);
 - **Value imports**: `.ts`, `.tsx`, `.js`, `.jsx`, `.d.ts`
 - **Type imports**: `.d.ts`, `.ts`, `.tsx`, `.js`, `.jsx`
 
-### processImports
+### processRelativeImports
 
 Transforms resolved imports based on different storage strategies.
 
 ```typescript
-import { processImports } from '@mui/internal-docs-infra/loaderUtils';
+import { processRelativeImports } from '@mui/internal-docs-infra/loaderUtils';
 
-const result = processImports(
+const result = processRelativeImports(
   source,
   importResult,
   resolvedPathsMap,
@@ -236,7 +236,7 @@ Here's how to use all the utilities together for a complete import processing pi
 import {
   parseImports,
   resolveImportResultWithFs,
-  processImports,
+  processRelativeImports,
 } from '@mui/internal-docs-infra/loaderUtils';
 
 async function processCodeImports(source: string, filePath: string) {
@@ -247,7 +247,7 @@ async function processCodeImports(source: string, filePath: string) {
   const resolvedPathsMap = await resolveImportResultWithFs(importResult);
 
   // 3. Process and transform the imports
-  const result = processImports(source, importResult, resolvedPathsMap, 'flat');
+  const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
 
   return result;
 }

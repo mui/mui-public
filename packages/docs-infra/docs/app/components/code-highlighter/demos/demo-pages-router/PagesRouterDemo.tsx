@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
-import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
 import { CodeContent } from '../CodeContent';
 
 export default function PagesRouterDemo() {
@@ -184,8 +184,8 @@ export default function UsersPage() {
             },
           }}
           Content={CodeContent}
-          sourceParser={parseSourceFactory()}
-          sourceTransformers={[TsToJsTransformer]}
+          sourceParser={createParseSource()}
+          sourceTransformers={[TypescriptToJavascriptTransformer]}
           name="Users API Route"
           description="RESTful API endpoint for user management"
         />
@@ -203,8 +203,8 @@ export default function UsersPage() {
             },
           }}
           Content={CodeContent}
-          sourceParser={parseSourceFactory()}
-          sourceTransformers={[TsToJsTransformer]}
+          sourceParser={createParseSource()}
+          sourceTransformers={[TypescriptToJavascriptTransformer]}
           name="Users Page Component"
           description="Complete page component with data fetching and form handling"
         />

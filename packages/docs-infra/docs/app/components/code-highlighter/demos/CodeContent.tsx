@@ -55,7 +55,7 @@ export function CodeContent(props: ContentProps<{}>) {
               />
             </div>
             <div className={styles.headerActions}>
-              <CopyButton copy={code.copy} copyDisabled={code.copyDisabled} />
+              <CopyButton copy={code.copy} />
               {code.variants.length > 1 && (
                 <Select
                   items={variants}

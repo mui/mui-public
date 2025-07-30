@@ -57,7 +57,7 @@ export function DemoContent(props: ContentProps<{}>) {
                 />
               </div>
               <div className={styles.headerActions}>
-                <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
+                <CopyButton copy={demo.copy} />
                 {demo.variants.length > 1 && (
                   <Select
                     items={variants}

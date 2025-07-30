@@ -4,7 +4,7 @@ import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import type { Blockquote } from 'mdast';
-import transformMarkdownBlockquoteCallouts from './transformMarkdownBlockquoteCallouts';
+import { transformMarkdownBlockquoteCallouts } from './transformMarkdownBlockquoteCallouts';
 
 describe('transformMarkdownBlockquoteCallouts', () => {
   const createProcessor = () => {

@@ -1,5 +1,5 @@
 // This is the export format expected by a remark plugin.
 
-import plugin from './transformMarkdownBlockquoteCallouts';
+import { transformMarkdownBlockquoteCallouts } from './transformMarkdownBlockquoteCallouts';
 
-export default plugin;
+export default transformMarkdownBlockquoteCallouts;

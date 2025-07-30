@@ -16,7 +16,7 @@ import type { Blockquote, Text } from 'mdast';
  *
  * Supported callout types: NOTE, TIP, IMPORTANT, WARNING, CAUTION
  */
-const transformMarkdownBlockquoteCallouts: Plugin = () => {
+export const transformMarkdownBlockquoteCallouts: Plugin = () => {
   return (tree) => {
     visit(tree, 'blockquote', (node: Blockquote) => {
       // Find the first paragraph in the blockquote
@@ -62,5 +62,3 @@ const transformMarkdownBlockquoteCallouts: Plugin = () => {
     });
   };
 };
-
-export default transformMarkdownBlockquoteCallouts;

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
-import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
 import { CodeContent } from '../CodeContent';
 
 const sampleCode = `// This code will be highlighted when the user is idle
@@ -80,10 +80,9 @@ export default function IdleHighlightCode() {
         }}
         Content={CodeContent}
         highlightAt="idle"
-        sourceParser={parseSourceFactory()}
-        sourceTransformers={[TsToJsTransformer]}
+        sourceParser={createParseSource()}
+        sourceTransformers={[TypescriptToJavascriptTransformer]}
         name="Data Fetcher Component"
-        description="A React hook for fetching data with loading and error states"
       />
     </div>
   );

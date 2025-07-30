@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
 
 import { CodeController } from './CodeController';
 import { CodeEditorContent } from './CodeEditorContent';
@@ -27,7 +27,7 @@ export function CodeEditor() {
           Content={CodeEditorContent}
           code={initialCode}
           controlled
-          sourceParser={parseSourceFactory()}
+          sourceParser={createParseSource()}
         />
       </CodeController>
     </CodeProvider>

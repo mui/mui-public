@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
-import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
 import { DemoContent } from '../DemoContent';
 
 // Sample TypeScript component with interfaces and generics
@@ -154,8 +154,8 @@ export default GenericForm;`;
         }}
         components={{ Default: <GenericForm /> }}
         Content={DemoContent}
-        sourceParser={parseSourceFactory()}
-        sourceTransformers={[TsToJsTransformer]}
+        sourceParser={createParseSource()}
+        sourceTransformers={[TypescriptToJavascriptTransformer]}
         name="Generic Form Component"
         description="A reusable TypeScript form component with generics and type safety"
       />

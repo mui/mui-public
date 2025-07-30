@@ -9,7 +9,7 @@ let starryNight: StarryNight | null = null;
 export const parseSource: ParseSource = (source, fileName) => {
   if (!starryNight) {
     throw new Error(
-      'Starry Night not initialized. Use parseSourceFactory to create an initialized parseSource function.',
+      'Starry Night not initialized. Use createParseSource to create an initialized parseSource function.',
     );
   }
 
@@ -30,7 +30,7 @@ export const parseSource: ParseSource = (source, fileName) => {
   return starryNight.highlight(source, extensionMap[fileType]);
 };
 
-export const parseSourceFactory = async (): Promise<ParseSource> => {
+export const createParseSource = async (): Promise<ParseSource> => {
   if (!starryNight) {
     starryNight = await createStarryNight(grammars);
   }

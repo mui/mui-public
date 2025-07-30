@@ -1,6 +1,6 @@
-# Code Controller
+# Code Controller Context
 
-The Code Controller provides a context-based system for managing dynamic source code editing in [`CodeHighlighter`](../code-highlighter/page.mdx) components. It's designed specifically for interactive code editing experiences where users can modify source code and see live updates.
+The `CodeControllerContext` provides a context-based system for managing dynamic source code editing in [`CodeHighlighter`](../code-highlighter/page.mdx) components. It's designed specifically for interactive code editing experiences where users can modify source code and see live updates.
 
 ## Features
 
@@ -376,8 +376,8 @@ Unlike precomputed demos, Code Controller works with runtime processing for maxi
 ```tsx
 'use client';
 
-import { parseSourceFactory } from '@mui/internal-docs-infra/parseSource';
-import { TsToJsTransformer } from '@mui/internal-docs-infra/transformTsToJs';
+import { createParseSource } from '@mui/internal-docs-infra/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
 
 function RuntimeEditor() {
   const { controlledCode } = useControlledCode();
@@ -401,8 +401,8 @@ function RuntimeDemo() {
         url="file://runtime.tsx"
         controlled
         Content={MyContent}
-        sourceParser={parseSourceFactory()}
-        sourceTransformers={[TsToJsTransformer]}
+        sourceParser={createParseSource()}
+        sourceTransformers={[TypescriptToJavascriptTransformer]}
         highlightAt="idle" // Defer highlighting for better performance
       />
     </CodeController>

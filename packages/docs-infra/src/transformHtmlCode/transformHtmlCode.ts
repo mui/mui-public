@@ -2,8 +2,8 @@ import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Element, Text } from 'hast';
 import { loadVariant } from '../CodeHighlighter/loadVariant';
-import { parseSourceFactory } from '../parseSource';
-import { TsToJsTransformer } from '../transformTsToJs';
+import { createParseSource } from '../parseSource';
+import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { Code } from '../CodeHighlighter/types';
 
 /**
@@ -187,8 +187,8 @@ export const transformHtmlCode: Plugin = () => {
     const transformPromises: Promise<void>[] = [];
 
     // Get the source parser and transformers
-    const sourceParser = parseSourceFactory();
-    const sourceTransformers = [TsToJsTransformer];
+    const sourceParser = createParseSource();
+    const sourceTransformers = [TypescriptToJavascriptTransformer];
 
     visit(tree, 'element', (node: Element) => {
       // Look for pre elements

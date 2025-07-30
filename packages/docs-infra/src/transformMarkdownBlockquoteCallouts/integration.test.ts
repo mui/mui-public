@@ -3,13 +3,13 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
-import remarkBlockquoteCallouts from './transformMarkdownBlockquoteCallouts';
+import { transformMarkdownBlockquoteCallouts } from './transformMarkdownBlockquoteCallouts';
 
 describe('remarkBlockquoteCallouts integration', () => {
   it('should work in a complete pipeline like Next.js MDX', async () => {
     const processor = unified()
       .use(remarkParse)
-      .use(remarkBlockquoteCallouts)
+      .use(transformMarkdownBlockquoteCallouts)
       .use(remarkRehype)
       .use(rehypeStringify);
 
