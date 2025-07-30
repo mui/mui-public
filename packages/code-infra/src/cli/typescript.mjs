@@ -143,10 +143,4 @@ export async function generateTypes({ srcDir, outDir, cwd, skipTsc, bundle, isMj
   await postProcessDeclarations({
     directory: outDir,
   });
-
-  // const tsbuildinfo = await globby('**/*.tsbuildinfo', {
-  //   absolute: true,
-  //   cwd: path.dirname(outDir),
-  // });
-  // await Promise.all(tsbuildinfo.map(async (file) => fs.rm(file)));
 }
