@@ -62,9 +62,6 @@ function getOutExtension(bundle, isType = false) {
  * @param {string} options.outputDir
  */
 async function addLicense({ name, version, license, bundle, outputDir }) {
-  // @TODO - Implement license addition logic
-  // This function should add the license file to the output directory.
-  // For now, it's a placeholder.
   const outExtension = getOutExtension(bundle);
   const file = path.join(outputDir, `index${outExtension}`);
   if (
@@ -93,6 +90,63 @@ ${content}`,
 
 /**
  * @param {Object} param0
+ * @param {string | Record<string, string>} param0.importPath
+ * @param {string} param0.key
+ * @param {string} param0.cwd
+ * @param {string} param0.dir
+ * @param {string} param0.type
+ * @param {Object} param0.newExports
+ * @param {string} param0.typeOutExtension
+ * @param {string} param0.outExtension
+ * @returns {Promise<{path: string[], importPath: string | Record<string, string>}>}
+ */
+async function createExportsFor({
+  importPath,
+  key,
+  cwd,
+  dir,
+  type,
+  newExports,
+  typeOutExtension,
+  outExtension,
+}) {
+  let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
+  const rest = typeof importPath === 'string' ? {} : { ...importPath };
+  delete rest['mui-src'];
+
+  const exportFileExists = srcPath.includes('*')
+    ? true
+    : await fs.stat(path.join(cwd, srcPath)).then(
+        (stats) => stats.isFile() || stats.isDirectory(),
+        () => false,
+      );
+  if (!exportFileExists) {
+    throw new Error(
+      `The import path "${srcPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
+    );
+  }
+  srcPath = srcPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
+  const ext = path.extname(srcPath);
+
+  if (ext === '.css') {
+    set(newExports, [key], srcPath);
+    return {
+      path: [key],
+      importPath: srcPath,
+    };
+  }
+  return {
+    path: [key, type === 'cjs' ? 'require' : 'import'],
+    importPath: {
+      ...rest,
+      types: srcPath.replace(ext, typeOutExtension),
+      default: srcPath.replace(ext, outExtension),
+    },
+  };
+}
+
+/**
+ * @param {Object} param0
  * @param {any} param0.packageJson - The package.json content.
  * @param {{type: import('./babel.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
@@ -114,12 +168,12 @@ async function writePackageJson({
   packageJson.type = packageJson.type || 'commonjs';
 
   /**
-   * @type {Record<string, string | Record<string, string | Record<string, string | undefined>> | null>}
+   * @type {Record<string, string | Record<string, string> | null>}
    */
   const originalExports = packageJson.exports || {};
   delete packageJson.exports;
   /**
-   * @type {Record<string, string | Record<string, string | Record<string, string | undefined>> | null>}
+   * @type {Record<string, string | Record<string, string> | null>}
    */
   const newExports = {
     './package.json': './package.json',
@@ -128,23 +182,24 @@ async function writePackageJson({
   await Promise.all(
     bundles.map(async ({ type, dir }) => {
       const outExtension = getOutExtension(type);
-      const fileExists = await fs
+      const typeOutExtension = getOutExtension(type, true);
+      const indexFileExists = await fs
         .stat(path.join(outputDir, dir, `index${getOutExtension(type)}`))
         .then(
           (stats) => stats.isFile(),
           () => false,
         );
-      const typeOutExtension = getOutExtension(type, true);
       const typeFileExists = await fs
         .stat(path.join(outputDir, dir, `index${typeOutExtension}`))
         .then(
           (stats) => stats.isFile(),
           () => false,
         );
-      const exportDir = `./${dir === '.' ? '' : `${dir}/`}index${outExtension}`;
-      const typeExportDir = `./${dir === '.' ? '' : `${dir}/`}index${typeOutExtension}`;
+      const dirPrefix = dir === '.' ? '' : `${dir}/`;
+      const exportDir = `./${dirPrefix}index${outExtension}`;
+      const typeExportDir = `./${dirPrefix}index${typeOutExtension}`;
 
-      if (fileExists) {
+      if (indexFileExists) {
         // skip `packageJson.module` to support parcel and some older bundlers
         if (type === 'cjs') {
           packageJson.main = exportDir;
@@ -158,38 +213,25 @@ async function writePackageJson({
         packageJson.types = typeExportDir;
       }
       const exportKeys = Object.keys(originalExports);
-      // need to main the order of exports
+      // need to maintain the order of exports
       for (const key of exportKeys) {
-        if (!originalExports[key]) {
-          newExports[key] = null;
-        } else {
-          let importPath = originalExports[key];
-          if (typeof importPath === 'string') {
-            const exportFileExists = importPath.includes('*')
-              ? true
-              : // eslint-disable-next-line no-await-in-loop
-                await fs.stat(path.join(cwd, importPath)).then(
-                  (stats) => stats.isFile() || stats.isDirectory(),
-                  () => false,
-                );
-            if (!exportFileExists) {
-              throw new Error(
-                `The import path "${importPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
-              );
-            }
-            importPath = importPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
-            const ext = path.extname(importPath);
-
-            if (ext === '.css') {
-              set(newExports, [key], importPath);
-            } else {
-              set(newExports, [key, type === 'cjs' ? 'require' : 'import'], {
-                types: importPath.replace(ext, typeOutExtension),
-                default: importPath.replace(ext, outExtension),
-              });
-            }
-          }
+        const importPath = originalExports[key];
+        if (!importPath) {
+          set(newExports, [key], null);
+          return;
         }
+        // eslint-disable-next-line no-await-in-loop
+        const res = await createExportsFor({
+          importPath,
+          key,
+          cwd,
+          dir,
+          type,
+          newExports,
+          typeOutExtension,
+          outExtension,
+        });
+        set(newExports, res.path, res.importPath);
       }
 
       if (addCatchAllExports) {
