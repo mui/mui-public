@@ -143,31 +143,55 @@ export function createTransformedFiles(
   const files: TransformedFile[] = [];
   const filenameMap: { [originalName: string]: string } = {};
 
-  // Process main file - get transforms from selectedVariant
+  // First, check if any file has a meaningful transform delta for the selected transform
   const variantTransforms =
     'transforms' in selectedVariant ? selectedVariant.transforms : undefined;
 
-  // Only process main file if we have a fileName
-  if (!selectedVariant.fileName) {
-    // If no fileName, we can't create meaningful file entries, return empty
+  let hasAnyMeaningfulTransform = false;
+
+  // Check main file for meaningful transform
+  if (selectedVariant.fileName && variantTransforms?.[selectedTransform]?.delta) {
+    const delta = variantTransforms[selectedTransform].delta;
+    if (delta && Object.keys(delta).length > 0) {
+      hasAnyMeaningfulTransform = true;
+    }
+  }
+
+  // Check extraFiles for meaningful transforms
+  if (!hasAnyMeaningfulTransform && selectedVariant.extraFiles) {
+    Object.values(selectedVariant.extraFiles).forEach((fileData) => {
+      if (fileData && typeof fileData === 'object' && 'transforms' in fileData) {
+        const transformData = fileData.transforms?.[selectedTransform];
+        if (transformData?.delta && Object.keys(transformData.delta).length > 0) {
+          hasAnyMeaningfulTransform = true;
+        }
+      }
+    });
+  }
+
+  // If no file has a meaningful transform, return empty result
+  if (!hasAnyMeaningfulTransform) {
     return { files: [], filenameMap: {} };
   }
 
-  const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
-    selectedVariant.source,
-    selectedVariant.fileName,
-    variantTransforms,
-    selectedTransform,
-  );
+  // Process main file if we have a fileName
+  if (selectedVariant.fileName) {
+    const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
+      selectedVariant.source,
+      selectedVariant.fileName,
+      variantTransforms,
+      selectedTransform,
+    );
 
-  const fileName = selectedVariant.fileName;
-  filenameMap[fileName] = mainName;
-  files.push({
-    name: mainName,
-    originalName: fileName,
-    source: mainSource as Source,
-    component: stringOrHastToJsx(mainSource as Source, shouldHighlight),
-  });
+    const fileName = selectedVariant.fileName;
+    filenameMap[fileName] = mainName;
+    files.push({
+      name: mainName,
+      originalName: fileName,
+      source: mainSource as Source,
+      component: stringOrHastToJsx(mainSource as Source, shouldHighlight),
+    });
+  }
 
   // Process extra files
   if (selectedVariant.extraFiles) {
@@ -186,7 +210,7 @@ export function createTransformedFiles(
         return; // Skip invalid entries
       }
 
-      // Apply transforms if available
+      // Apply transforms if available, otherwise use original source
       let transformedSource = source;
       let transformedName = extraFileName;
 
@@ -194,11 +218,17 @@ export function createTransformedFiles(
         try {
           const transformData = transforms[selectedTransform];
           if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-            transformedSource = applyTransform(source as Source, transforms, selectedTransform);
-            transformedName = transformData.fileName || extraFileName;
+            // Only apply transform if there's a meaningful delta
+            const hasTransformDelta =
+              transformData.delta && Object.keys(transformData.delta).length > 0;
+            if (hasTransformDelta) {
+              transformedSource = applyTransform(source as Source, transforms, selectedTransform);
+              transformedName = transformData.fileName || extraFileName;
+            }
           }
         } catch (error) {
           console.error(`Transform failed for ${extraFileName}:`, error);
+          // Continue with original source if transform fails
         }
       }
 
@@ -214,17 +244,10 @@ export function createTransformedFiles(
           component: stringOrHastToJsx(transformedSource as Source, shouldHighlight),
         });
       } else {
-        // If there's a conflict, keep the original file untransformed
+        // If there's a conflict, skip this file with a warning
         console.warn(
-          `Transform conflict: ${extraFileName} would transform to ${transformedName} but that name is already taken. Keeping original file untransformed.`,
+          `Transform conflict: ${extraFileName} would transform to ${transformedName} but that name is already taken. Skipping this file.`,
         );
-        filenameMap[extraFileName] = extraFileName;
-        files.push({
-          name: extraFileName,
-          originalName: extraFileName,
-          source: source as Source,
-          component: stringOrHastToJsx(source as Source, shouldHighlight),
-        });
       }
     });
   }

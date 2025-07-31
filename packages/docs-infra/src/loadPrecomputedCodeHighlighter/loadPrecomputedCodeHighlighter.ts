@@ -1,7 +1,7 @@
 import { loadVariant } from '../CodeHighlighter/loadVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceTransformers, Externals } from '../CodeHighlighter/types';
+import type { SourceTransformers, Externals, VariantCode } from '../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
@@ -9,6 +9,7 @@ import { createLoadServerSource } from '../loadServerSource';
 import { createExternalsProvider } from './generateExternalsProvider';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { emitExternalsProvider } from './emitExternalsProvider';
+import { getFileNameFromUrl } from '../loaderUtils';
 
 /**
  * Filters out type-only imports from externals since they don't exist at runtime
@@ -94,7 +95,18 @@ export async function loadPrecomputedCodeHighlighter(
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
         const namedExport = demoCall.namedExports[variantName];
-        const variant = namedExport ? { url: fileUrl, namedExport } : fileUrl;
+        let variant: VariantCode | string = fileUrl;
+        if (namedExport) {
+          const { fileName } = getFileNameFromUrl(variant);
+          if (!fileName) {
+            throw new Error(
+              `Cannot determine fileName from URL "${variant}" for variant "${variantName}". ` +
+                `Please ensure the URL has a valid file extension.`,
+            );
+          }
+
+          variant = { url: fileUrl, fileName, namedExport };
+        }
 
         try {
           // Use loadVariant to handle all loading, parsing, and transformation

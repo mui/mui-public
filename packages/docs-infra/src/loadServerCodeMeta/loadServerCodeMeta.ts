@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import type { LoadCodeMeta, Code } from '../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+import { getFileNameFromUrl } from '../loaderUtils';
 
 export interface CreateLoadCodeMetaOptions {
   // No options needed for simple path resolution
@@ -53,7 +54,19 @@ export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {
     // Build Code object from the resolved variant map
     Array.from(resolvedVariantMap.entries()).forEach(([variantName, fileUrl]) => {
       const namedExport = demoCall.namedExports[variantName];
-      code[variantName] = namedExport ? { url: fileUrl, namedExport } : fileUrl; // TODO: will this cause loadVariantMeta not to run? Maybe we should always run it
+      code[variantName] = fileUrl;
+      if (namedExport) {
+        const { fileName } = getFileNameFromUrl(fileUrl);
+        if (!fileName) {
+          throw new Error(
+            `Cannot determine fileName from URL "${fileUrl}" for variant "${variantName}". ` +
+              `Please ensure the URL has a valid file extension.`,
+          );
+        }
+
+        code[variantName] = { url: fileUrl, fileName, namedExport };
+      }
+      // TODO: will this cause loadVariantMeta not to run? Maybe we should always run it
     });
 
     return code;

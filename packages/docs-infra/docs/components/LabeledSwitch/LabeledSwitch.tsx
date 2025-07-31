@@ -26,17 +26,21 @@ export function LabeledSwitch({
       if (value.length === 0) {
         return;
       } else if (value.length === 1) {
-        onCheckedChange(value[0] === 'true');
+        const newChecked = value[0] === 'true';
+        onCheckedChange(newChecked);
       } else {
-        onCheckedChange(!checked);
+        const newChecked = !checked;
+        onCheckedChange(newChecked);
       }
     },
-    [checked, labels, onCheckedChange],
+    [checked, onCheckedChange],
   );
 
   return (
     <ToggleGroup
-      defaultValue={[defaultChecked ? 'true' : 'false']}
+      value={
+        checked !== undefined ? [checked ? 'true' : 'false'] : [defaultChecked ? 'true' : 'false']
+      }
       onValueChange={handleChange}
       className={styles.root}
     >

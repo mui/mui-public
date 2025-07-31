@@ -28,7 +28,7 @@ export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
   return (
     <TabsParts.Root
       className={styles.tabsRoot}
-      defaultValue={tabs[0].id}
+      value={selectedTabId || tabs[0]?.id}
       onValueChange={onTabSelect}
     >
       <TabsParts.List className={styles.tabsList}>
