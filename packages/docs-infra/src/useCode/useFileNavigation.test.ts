@@ -699,7 +699,7 @@ describe('useFileNavigation', () => {
       act(() => {
         result.current.selectFileName('helper.js');
       });
-      
+
       expect(result.current.selectedFileName).toBe('helper.js');
       expect(typeof result.current.selectedFileComponent).toBe('string');
       expect(result.current.selectedFileComponent).toBe('const helper = false;');
@@ -734,7 +734,7 @@ describe('useFileNavigation', () => {
       act(() => {
         result.current.selectFileName('helper.js');
       });
-      
+
       expect(result.current.selectedFileName).toBe('helper.js');
       expect(result.current.selectedFileComponent).toBeDefined();
       // Component should be created with shouldHighlight=false setting

@@ -160,7 +160,7 @@ describe('useCodeUtils', () => {
       } as any;
 
       const result = createTransformedFiles(variant, 'js-to-ts', true);
-      
+
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(1);
       expect(result!.files[0].name).toBe('test.ts');
@@ -181,7 +181,7 @@ describe('useCodeUtils', () => {
       } as any;
 
       const result = createTransformedFiles(variant, 'js-to-ts', false);
-      
+
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(1);
       expect(result!.files[0].name).toBe('test.ts');
