@@ -19,7 +19,6 @@ const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
  * @property {boolean} buildTypes - Whether to build types for the package.
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} optimizeClsx - Whether to enable clsx call optimization transform.
- * @property {boolean} addCatchAllExports - Whether to add adding catch-all exports for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
@@ -98,7 +97,8 @@ ${content}`,
  * @param {Object} param0.newExports
  * @param {string} param0.typeOutExtension
  * @param {string} param0.outExtension
- * @returns {Promise<{path: string[], importPath: string | Record<string, string>}>}
+ * @param {boolean} param0.addTypes
+ * @returns {Promise<{path: string[], importPath: string | Record<string, string | undefined>}>}
  */
 async function createExportsFor({
   importPath,
@@ -109,6 +109,7 @@ async function createExportsFor({
   newExports,
   typeOutExtension,
   outExtension,
+  addTypes,
 }) {
   let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
   const rest = typeof importPath === 'string' ? {} : { ...importPath };
@@ -139,7 +140,7 @@ async function createExportsFor({
     path: [key, type === 'cjs' ? 'require' : 'import'],
     importPath: {
       ...rest,
-      types: srcPath.replace(ext, typeOutExtension),
+      types: addTypes ? srcPath.replace(ext, typeOutExtension) : undefined,
       default: srcPath.replace(ext, outExtension),
     },
   };
@@ -151,15 +152,9 @@ async function createExportsFor({
  * @param {{type: import('./babel.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
- * @param {boolean} param0.addCatchAllExports - Whether to skip adding catch-all exports for the package.
+ * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
  */
-async function writePackageJson({
-  packageJson,
-  bundles,
-  outputDir,
-  cwd,
-  addCatchAllExports = false,
-}) {
+async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes = false }) {
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
@@ -189,12 +184,12 @@ async function writePackageJson({
           (stats) => stats.isFile(),
           () => false,
         );
-      const typeFileExists = await fs
-        .stat(path.join(outputDir, dir, `index${typeOutExtension}`))
-        .then(
+      const typeFileExists =
+        addTypes &&
+        (await fs.stat(path.join(outputDir, dir, `index${typeOutExtension}`)).then(
           (stats) => stats.isFile(),
           () => false,
-        );
+        ));
       const dirPrefix = dir === '.' ? '' : `${dir}/`;
       const exportDir = `./${dirPrefix}index${outExtension}`;
       const typeExportDir = `./${dirPrefix}index${typeOutExtension}`;
@@ -230,16 +225,9 @@ async function writePackageJson({
           newExports,
           typeOutExtension,
           outExtension,
+          addTypes,
         });
         set(newExports, res.path, res.importPath);
-      }
-
-      if (addCatchAllExports) {
-        const exportsObj = {
-          types: `./${dir === '.' ? '' : `${dir}/`}*/index${typeOutExtension}`,
-          default: `./${dir === '.' ? '' : `${dir}/`}*/index${outExtension}`,
-        };
-        set(newExports, ['./*', type === 'cjs' ? 'require' : 'import'], exportsObj);
       }
     }),
   );
@@ -312,12 +300,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Enable clsx call optimization transform.',
       })
-      .option('addCatchAllExports', {
-        type: 'boolean',
-        default: false,
-        description:
-          'Explicitly add catch-all exports for the package. Useful to support core and x packages.',
-      })
       .option('skipBabelRuntimeCheck', {
         type: 'boolean',
         default: false,
@@ -335,7 +317,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       ignore: extraIgnores,
       buildTypes,
       skipTsc,
-      addCatchAllExports = false,
       skipBabelRuntimeCheck = false,
     } = args;
 
@@ -468,7 +449,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         dir: type === 'esm' ? 'esm' : normalizedCjsOutDir || 'cjs',
       })),
       outputDir: buildDir,
-      addCatchAllExports,
+      addTypes: buildTypes,
     });
 
     // cleanup
