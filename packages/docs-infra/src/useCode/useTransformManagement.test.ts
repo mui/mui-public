@@ -451,9 +451,6 @@ describe('useTransformManagement', () => {
         throw new Error('localStorage not available');
       });
 
-      // Mock console.warn to avoid cluttering test output
-      const mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       Object.defineProperty(window, 'localStorage', {
         value: {
           getItem: mockGetItem,
@@ -478,22 +475,13 @@ describe('useTransformManagement', () => {
       // Should fall back to null without crashing
       expect(result.current.selectedTransform).toBe(null);
 
-      // Should log warnings for errors
-      expect(mockWarn).toHaveBeenCalledWith(
-        'Failed to read transform preference from localStorage:',
-        expect.any(Error),
-      );
-
       // Changing selection should also handle error gracefully
       act(() => {
         result.current.selectTransform('TypeScript');
       });
-      expect(mockWarn).toHaveBeenCalledWith(
-        'Failed to save transform preference to localStorage:',
-        expect.any(Error),
-      );
 
-      mockWarn.mockRestore();
+      // State should still update even if localStorage fails
+      expect(result.current.selectedTransform).toBe('TypeScript');
     });
   });
 
@@ -518,7 +506,7 @@ describe('useTransformManagement', () => {
       expect(result.current.selectedTransform).toBe('TypeScript');
     });
 
-    it('should set to null for invalid transform', () => {
+    it('should fallback to initial value for invalid transform', () => {
       (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
       (createTransformedFiles as any).mockReturnValue({ transformed: true });
 
@@ -527,7 +515,7 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          initialTransform: 'TypeScript',
+          initialTransform: 'TypeScript', // This becomes the fallback value
           shouldHighlight: true,
         }),
       );
@@ -536,7 +524,8 @@ describe('useTransformManagement', () => {
         result.current.selectTransform('InvalidTransform');
       });
 
-      expect(result.current.selectedTransform).toBe(null);
+      // Should fallback to initial value when invalid transform is selected
+      expect(result.current.selectedTransform).toBe('TypeScript');
     });
 
     it('should allow setting transform to null', () => {

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { Code } from '../CodeHighlighter/types';
 import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
+import { useLocalStorage } from '../useLocalStorage';
 
 interface UseTransformManagementProps {
   context?: any;
@@ -20,7 +21,7 @@ export interface UseTransformManagementResult {
 
 /**
  * Hook for managing code transforms and their application
- * Includes local storage persistence for transform preferences
+ * Uses the useLocalStorage hook for local storage persistence of transform preferences
  */
 export function useTransformManagement({
   context,
@@ -50,90 +51,26 @@ export function useTransformManagement({
     return `_docs_infra_transform_prefs_${sortedTransforms.join(':')}`;
   }, [availableTransforms]);
 
-  const [selectedTransform, setSelectedTransform] = React.useState<string | null>(
-    initialTransform || null,
-  );
-
-  // Track if we've synced from localStorage to avoid re-running
-  const hasSyncedFromStorage = React.useRef(false);
-  // Track if the user has made an explicit selection change
-  const hasUserSelection = React.useRef(false);
-
-  // Sync from localStorage on hydration (runs only once)
-  // Only sync if no initialTransform was explicitly provided
-  React.useEffect(() => {
-    if (
-      hasSyncedFromStorage.current ||
-      !storageKey ||
-      typeof window === 'undefined' ||
-      initialTransform
-    ) {
-      hasSyncedFromStorage.current = true; // Mark as synced even if we skip due to initialTransform
-      return;
-    }
-
-    try {
-      const storedTransform = localStorage.getItem(storageKey);
-      if (storedTransform !== null) {
-        // Check if it's a valid transform or "null" (meaning no transform)
-        if (storedTransform === 'null') {
-          setSelectedTransform(null);
-        } else if (availableTransforms.includes(storedTransform)) {
-          setSelectedTransform(storedTransform);
-        }
-      }
-    } catch (error) {
-      // Ignore localStorage errors (e.g., in private browsing mode)
-      console.warn('Failed to read transform preference from localStorage:', error);
-    }
-
-    hasSyncedFromStorage.current = true;
-  }, [storageKey, availableTransforms, initialTransform]);
-
-  // Save to localStorage only when user makes explicit selection changes
-  React.useEffect(() => {
-    if (
-      !hasUserSelection.current ||
-      !hasSyncedFromStorage.current ||
-      !storageKey ||
-      typeof window === 'undefined'
-    ) {
-      return;
-    }
-
-    try {
-      // Store the selected transform, or "null" if no transform is selected
-      const valueToStore = selectedTransform || 'null';
-      localStorage.setItem(storageKey, valueToStore);
-    } catch (error) {
-      // Ignore localStorage errors (e.g., in private browsing mode)
-      console.warn('Failed to save transform preference to localStorage:', error);
-    }
-  }, [selectedTransform, storageKey]);
+  // Use localStorage hook for transform persistence - this is our single source of truth
+  const { value: selectedTransform, setValueAsUserSelection: setSelectedTransformAsUser } =
+    useLocalStorage({
+      initialValue: initialTransform || null,
+      storageKey,
+      skipInitialSync: !!initialTransform, // Skip initial sync if an explicit initial transform was provided
+      serialize: (value: string | null) => value || 'null', // Store null as 'null' string
+      deserialize: (value: string) => (value === 'null' ? null : value), // Convert 'null' string back to null
+      isValidValue: (value: string | null) => value === null || availableTransforms.includes(value),
+    });
 
   // Memoize all transformed files based on selectedTransform
   const transformedFiles = React.useMemo(() => {
     return createTransformedFiles(selectedVariant, selectedTransform, shouldHighlight);
   }, [selectedVariant, selectedTransform, shouldHighlight]);
 
-  // Function to switch to a specific transform
-  // Wrapper function to mark user selections
-  const selectTransform = React.useCallback(
-    (transformName: string | null) => {
-      hasUserSelection.current = true;
-      if (!transformName || availableTransforms.includes(transformName)) {
-        setSelectedTransform(transformName);
-      } else {
-        setSelectedTransform(null);
-      }
-    },
-    [availableTransforms],
-  );
-
   return {
     availableTransforms,
     selectedTransform,
     transformedFiles,
-    selectTransform,
+    selectTransform: setSelectedTransformAsUser,
   };
 }

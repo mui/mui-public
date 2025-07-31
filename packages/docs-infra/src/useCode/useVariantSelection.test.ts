@@ -52,7 +52,7 @@ describe('useVariantSelection', () => {
       };
 
       // Set up localStorage to return 'Alternative'
-      mockGetItem.mockReturnValue('Alternative');
+      mockGetItem.mockReturnValue('"Alternative"'); // JSON serialized value
 
       const { result } = renderHook(
         () => useVariantSelection({ effectiveCode }), // No initialVariant
@@ -94,7 +94,7 @@ describe('useVariantSelection', () => {
       // Should save to localStorage after user selection
       expect(localStorage.setItem).toHaveBeenCalledWith(
         '_docs_infra_variant_prefs_variant1:variant2',
-        'variant2',
+        '"variant2"', // JSON serialized value
       );
     });
 
@@ -108,7 +108,7 @@ describe('useVariantSelection', () => {
       vi.clearAllMocks();
 
       // Mock localStorage to return a stored variant
-      (localStorage.getItem as any).mockReturnValue('variant2');
+      (localStorage.getItem as any).mockReturnValue('"variant2"'); // JSON serialized
 
       const { result } = renderHook(() => useVariantSelection({ effectiveCode: mockCode }));
 
@@ -185,7 +185,7 @@ describe('useVariantSelection', () => {
       // Should save to localStorage
       expect(localStorage.setItem).toHaveBeenCalledWith(
         '_docs_infra_variant_prefs_Alternative:Default',
-        'Alternative',
+        '"Alternative"', // JSON serialized value
       );
     });
 
@@ -258,9 +258,6 @@ describe('useVariantSelection', () => {
         throw new Error('localStorage not available');
       });
 
-      // Mock console.warn to avoid cluttering test output
-      const mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       Object.defineProperty(window, 'localStorage', {
         value: {
           getItem: mockGetItem,
@@ -279,22 +276,16 @@ describe('useVariantSelection', () => {
       // Should fall back to first variant without crashing
       expect(result.current.selectedVariantKey).toBe('Default');
 
-      // Should log warnings for errors
-      expect(mockWarn).toHaveBeenCalledWith(
-        'Failed to read variant preference from localStorage:',
-        expect.any(Error),
-      );
+      // New implementation handles errors silently without warnings
+      // This is the expected behavior for better user experience
 
       // Changing selection should also handle error gracefully
       act(() => {
         result.current.selectVariant('Alternative');
       });
-      expect(mockWarn).toHaveBeenCalledWith(
-        'Failed to save variant preference to localStorage:',
-        expect.any(Error),
-      );
 
-      mockWarn.mockRestore();
+      // State should still update even if localStorage fails
+      expect(result.current.selectedVariantKey).toBe('Alternative');
     });
   });
 });
