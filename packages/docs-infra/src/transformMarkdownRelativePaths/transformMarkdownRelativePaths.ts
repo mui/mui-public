@@ -14,7 +14,7 @@ import path from 'path';
  * - ../code-highlighter/page.tsx -> /code-highlighter (when processed from /components/button/page.mdx)
  * This allows URLs to resolve when reading in VSCode and Github
  */
-export const transformRelativeMarkdownPaths: Plugin = () => {
+export const transformMarkdownRelativePaths: Plugin = () => {
   return (tree, file) => {
     visit(tree, 'link', (node: Link) => {
       if (node.url) {
