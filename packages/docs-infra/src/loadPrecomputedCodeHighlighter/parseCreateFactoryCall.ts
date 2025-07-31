@@ -26,6 +26,36 @@ function buildImportMap(importResult: {
   return importMap;
 }
 
+/**
+ * Helper function to build a mapping from import aliases to their original named exports
+ */
+function buildNamedExportsMap(importResult: {
+  relative: Record<
+    string,
+    { path: string; names: { name: string; alias?: string; type: string }[] }
+  >;
+  externals: any;
+}): Map<string, string | undefined> {
+  const namedExportsMap = new Map<string, string | undefined>();
+
+  Object.values(importResult.relative).forEach(({ names }) => {
+    names.forEach(({ name, alias, type }) => {
+      // Use alias if available, otherwise use the original name as key
+      const nameToUse = alias || name;
+
+      // Only map to the original export name for named imports
+      // Default imports should map to undefined since they don't have a specific named export
+      if (type === 'named') {
+        namedExportsMap.set(nameToUse, name);
+      } else {
+        namedExportsMap.set(nameToUse, undefined); // undefined for default/namespace imports
+      }
+    });
+  });
+
+  return namedExportsMap;
+}
+
 export interface FactoryOptions {
   name?: string;
   slug?: string;
@@ -37,6 +67,7 @@ export interface ParsedCreateFactory {
   functionName: string;
   url: string;
   variants: Record<string, string>;
+  namedExports: Record<string, string | undefined>;
   options: FactoryOptions;
   fullMatch: string;
   variantsObjectStr: string;
@@ -58,10 +89,12 @@ export interface ParsedCreateFactory {
 function parseVariantsObject(
   variantsObjectStr: string,
   importMap: Map<string, string>,
+  namedExportsMap: Map<string, string | undefined>,
   functionName: string,
   filePath: string,
-): Record<string, string> {
+): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
   const demoImports: Record<string, string> = {};
+  const namedExports: Record<string, string | undefined> = {};
 
   // Parse the demo object to extract key-value pairs
   // Handle both { Default: BasicCode } and { Default } syntax
@@ -74,6 +107,7 @@ function parseVariantsObject(
 
     if (importMap.has(importName)) {
       demoImports[key] = importMap.get(importName)!;
+      namedExports[key] = namedExportsMap.get(importName);
     } else {
       // Throw error if any variant component is not imported
       throw new Error(
@@ -85,7 +119,7 @@ function parseVariantsObject(
     objectMatch = objectContentRegex.exec(variantsObjectStr);
   }
 
-  return demoImports;
+  return { variants: demoImports, namedExports };
 }
 
 /**
@@ -94,20 +128,26 @@ function parseVariantsObject(
 function parseVariantsParameter(
   variantsParam: string,
   importMap: Map<string, string>,
+  namedExportsMap: Map<string, string | undefined>,
   functionName: string,
   filePath: string,
-): Record<string, string> {
+): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
   const trimmed = variantsParam.trim();
 
   // If it's an object literal, use existing logic
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return parseVariantsObject(trimmed, importMap, functionName, filePath);
+    return parseVariantsObject(trimmed, importMap, namedExportsMap, functionName, filePath);
   }
 
   // If it's a single identifier, map it to "Default"
   if (importMap.has(trimmed)) {
     return {
-      Default: importMap.get(trimmed)!,
+      variants: {
+        Default: importMap.get(trimmed)!,
+      },
+      namedExports: {
+        Default: namedExportsMap.get(trimmed),
+      },
     };
   }
 
@@ -188,6 +228,7 @@ export async function parseCreateFactoryCall(
   // Get import mappings once for the entire file
   const { relative: importResult, externals } = await parseImports(code, filePath);
   const importMap = buildImportMap({ relative: importResult, externals });
+  const namedExportsMap = buildNamedExportsMap({ relative: importResult, externals });
 
   // Find all create* calls in the code
   const createFactoryMatches = findCreateFactoryCalls(code, filePath);
@@ -217,7 +258,13 @@ export async function parseCreateFactoryCall(
   const url = urlParam.trim();
 
   // Resolve variants for this specific create* call
-  const variants = parseVariantsParameter(variantsParam, importMap, functionName, filePath);
+  const { variants, namedExports } = parseVariantsParameter(
+    variantsParam,
+    importMap,
+    namedExportsMap,
+    functionName,
+    filePath,
+  );
 
   // Parse options object
   const options: FactoryOptions = {};
@@ -275,6 +322,7 @@ export async function parseCreateFactoryCall(
     functionName,
     url,
     variants,
+    namedExports,
     options,
     fullMatch,
     variantsObjectStr: variantsParam,

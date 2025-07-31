@@ -50,6 +50,7 @@
     "js-sha256": "^0.11.1",
     "jsondiffpatch": "^0.7.3",
     "kebab-case": "^2.0.2",
+    "lz-string": "^1.5.0",
     "prettier": "^3.5.3",
     "rehype-parse": "^9.0.1",
     "rehype-remark": "^10.0.1",

@@ -829,4 +829,85 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.hasPrecompute).toBe(true);
     });
   });
+
+  describe('namedExports functionality', () => {
+    it('should extract named exports from aliased imports', async () => {
+      const code = `
+        import { Checkbox as Demo } from './checkbox';
+        import { Button } from './button';
+        
+        createDemo(import.meta.url, { Variant: Demo, ButtonVariant: Button });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.namedExports).toEqual({
+        Variant: 'Checkbox',
+        ButtonVariant: 'Button',
+      });
+      expect(result!.variants).toEqual({
+        Variant: '/src/checkbox',
+        ButtonVariant: '/src/button',
+      });
+    });
+
+    it('should handle default import with named exports as undefined', async () => {
+      const code = `
+        import DefaultComponent from './default';
+        import { NamedComponent } from './named';
+        
+        createDemo(import.meta.url, { Default: DefaultComponent, Named: NamedComponent });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.namedExports).toEqual({
+        Default: undefined, // Default import has no named export
+        Named: 'NamedComponent',
+      });
+    });
+
+    it('should handle single component shorthand syntax', async () => {
+      const code = `
+        import { Component as Demo } from './component';
+        
+        createDemo(import.meta.url, Demo);
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.namedExports).toEqual({
+        Default: 'Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/component',
+      });
+    });
+
+    it('should handle mixed import types', async () => {
+      const code = `
+        import DefaultComp from './default';
+        import { NamedComp as Aliased } from './named';
+        import { DirectNamed } from './direct';
+        
+        createDemo(import.meta.url, { 
+          Default: DefaultComp, 
+          Aliased: Aliased,
+          Direct: DirectNamed 
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.namedExports).toEqual({
+        Default: undefined, // Default import
+        Aliased: 'NamedComp', // Named import with alias
+        Direct: 'DirectNamed', // Direct named import
+      });
+    });
+  });
 });

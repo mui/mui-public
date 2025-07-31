@@ -4,3 +4,4 @@ export * from './rewriteImports';
 export * from './processRelativeImports';
 export * from './getFileNameFromUrl';
 export * from './extractNameAndSlugFromUrl';
+export * from './externalsToPackages';

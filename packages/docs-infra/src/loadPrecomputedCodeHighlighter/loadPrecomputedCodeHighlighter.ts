@@ -93,6 +93,9 @@ export async function loadPrecomputedCodeHighlighter(
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
+        const namedExport = demoCall.namedExports[variantName];
+        const variant = namedExport ? { url: fileUrl, namedExport } : fileUrl;
+
         try {
           // Use loadVariant to handle all loading, parsing, and transformation
           // This will recursively load all dependencies using loadSource
@@ -103,7 +106,7 @@ export async function loadPrecomputedCodeHighlighter(
           } = await loadVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
-            fileUrl, // Let loadVariantMeta handle creating the initial variant
+            variant,
             sourceParser, // For syntax highlighting
             loadSource, // For loading source files and dependencies
             undefined,

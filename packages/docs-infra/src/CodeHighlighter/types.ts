@@ -22,13 +22,19 @@ export type VariantSource = string | HastNodes | { hastJson: string };
 export type VariantExtraFiles = {
   [fileName: string]:
     | string
-    | { source?: VariantSource; transforms?: Transforms; skipTransforms?: boolean };
+    | {
+        source?: VariantSource;
+        transforms?: Transforms;
+        skipTransforms?: boolean;
+        metadata?: boolean;
+      };
 };
 export type VariantCode = CodeMeta & {
   url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
   externals?: string[];
+  namedExport?: string;
   filesOrder?: string[];
   transforms?: Transforms;
   allFilesListed?: boolean;

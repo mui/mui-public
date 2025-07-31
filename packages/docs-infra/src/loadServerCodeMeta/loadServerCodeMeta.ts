@@ -52,7 +52,8 @@ export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {
 
     // Build Code object from the resolved variant map
     Array.from(resolvedVariantMap.entries()).forEach(([variantName, fileUrl]) => {
-      code[variantName] = fileUrl;
+      const namedExport = demoCall.namedExports[variantName];
+      code[variantName] = namedExport ? { url: fileUrl, namedExport } : fileUrl; // TODO: will this cause loadVariantMeta not to run? Maybe we should always run it
     });
 
     return code;
