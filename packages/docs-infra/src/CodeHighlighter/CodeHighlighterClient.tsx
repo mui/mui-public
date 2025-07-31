@@ -14,6 +14,8 @@ import { codeToFallbackProps } from './codeToFallbackProps';
 import { parseCode } from './parseCode';
 import { applyTransforms, getAvailableTransforms } from './transformCode';
 import { parseControlledCode } from './parseControlledCode';
+import { useOnHydrate } from '../useOnHydrate';
+import { useOnIdle } from '../useOnIdle';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -213,19 +215,50 @@ function useAllVariants({
   return { readyForContent };
 }
 
-function useCodeParsing({ code, readyForContent }: { code?: Code; readyForContent: boolean }) {
+function useCodeParsing({
+  code,
+  readyForContent,
+  highlightAt,
+}: {
+  code?: Code;
+  readyForContent: boolean;
+  highlightAt?: 'init' | 'hydration' | 'idle';
+}) {
   const { parseSource } = useCodeContext();
 
-  // Parse the internal code state when ready
+  // Use timing hooks to determine when to highlight
+  const isHydrated = useOnHydrate();
+  const isIdle = useOnIdle();
+
+  // Determine if we should highlight based on the highlightAt setting
+  const shouldHighlight = React.useMemo(() => {
+    if (!readyForContent) {
+      return false;
+    }
+
+    switch (highlightAt) {
+      case 'hydration':
+        return isHydrated;
+      case 'idle':
+        return isIdle;
+      case 'init':
+      default:
+        return true;
+    }
+  }, [readyForContent, highlightAt, isHydrated, isIdle]);
+
+  // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
-    if (!code || !readyForContent || !parseSource) {
+    if (!code || !shouldHighlight || !parseSource) {
       return undefined;
     }
 
     return parseCode(code, parseSource);
-  }, [code, readyForContent, parseSource]);
+  }, [code, shouldHighlight, parseSource]);
 
-  return { parsedCode };
+  const deferHighlight = !shouldHighlight;
+
+  return { parsedCode, deferHighlight };
 }
 
 function useCodeTransforms({
@@ -367,9 +400,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     setCode,
   });
 
-  const { parsedCode } = useCodeParsing({
+  const { parsedCode, deferHighlight } = useCodeParsing({
     code: props.code || code,
     readyForContent: readyForContent || Boolean(props.code),
+    highlightAt,
   });
 
   const { transformedCode, availableTransforms } = useCodeTransforms({
@@ -414,6 +448,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       components: controlledComponents || props.components,
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
+      deferHighlight,
     }),
     [
       overlaidCode,
@@ -427,6 +462,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       isControlled,
       availableTransforms,
       props.url,
+      deferHighlight,
     ],
   );
 

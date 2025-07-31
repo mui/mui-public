@@ -123,7 +123,7 @@ describe('useCodeUtils', () => {
 
   describe('createTransformedFiles', () => {
     it('should return undefined when no variant provided', () => {
-      const result = createTransformedFiles(null, 'some-transform');
+      const result = createTransformedFiles(null, 'some-transform', true);
       expect(result).toBeUndefined();
     });
 
@@ -133,7 +133,7 @@ describe('useCodeUtils', () => {
         fileName: 'test.js',
       };
 
-      const result = createTransformedFiles(variant, null);
+      const result = createTransformedFiles(variant, null, true);
       expect(result).toBeUndefined();
     });
 
@@ -143,8 +143,50 @@ describe('useCodeUtils', () => {
         // No fileName
       };
 
-      const result = createTransformedFiles(variant, 'some-transform');
+      const result = createTransformedFiles(variant, 'some-transform', true);
       expect(result).toEqual({ files: [], filenameMap: {} });
+    });
+
+    it('should handle shouldHighlight=true for component creation', () => {
+      const variant: VariantCode = {
+        source: 'const x = 1;',
+        fileName: 'test.js',
+        transforms: {
+          'js-to-ts': {
+            delta: { 0: ['const x: number = 1;'] },
+            fileName: 'test.ts',
+          },
+        },
+      } as any;
+
+      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      
+      expect(result).toBeDefined();
+      expect(result!.files).toHaveLength(1);
+      expect(result!.files[0].name).toBe('test.ts');
+      expect(result!.files[0].component).toBeDefined();
+      // Component should be created with syntax highlighting enabled
+    });
+
+    it('should handle shouldHighlight=false for component creation', () => {
+      const variant: VariantCode = {
+        source: 'const x = 1;',
+        fileName: 'test.js',
+        transforms: {
+          'js-to-ts': {
+            delta: { 0: ['const x: number = 1;'] },
+            fileName: 'test.ts',
+          },
+        },
+      } as any;
+
+      const result = createTransformedFiles(variant, 'js-to-ts', false);
+      
+      expect(result).toBeDefined();
+      expect(result!.files).toHaveLength(1);
+      expect(result!.files[0].name).toBe('test.ts');
+      expect(result!.files[0].component).toBeDefined();
+      // Component should be created without syntax highlighting
     });
   });
 

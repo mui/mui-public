@@ -57,6 +57,7 @@ export function useCode<T extends {} = {}>(
   const effectiveCode = React.useMemo(() => {
     return context?.code || contentProps.code || {};
   }, [context?.code, contentProps.code]);
+  const shouldHighlight = !context?.deferHighlight;
 
   // Memoize userProps with auto-generated name and slug if missing
   const userProps = React.useMemo((): UserProps<T> => {
@@ -108,6 +109,7 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectedVariant: variantSelection.selectedVariant,
     initialTransform,
+    shouldHighlight,
   });
 
   // Sub-hook: File Navigation
@@ -118,6 +120,7 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: variantSelection.selectedVariantKey,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
+    shouldHighlight,
   });
 
   // Sub-hook: Copy Functionality

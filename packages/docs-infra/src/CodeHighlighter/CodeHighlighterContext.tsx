@@ -11,6 +11,7 @@ export interface CodeHighlighterContextType {
   components?: Record<string, React.ReactNode>;
   availableTransforms?: string[];
   url?: string;
+  deferHighlight?: boolean;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(

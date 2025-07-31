@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
 
 describe('useFileNavigation', () => {
@@ -25,6 +25,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Tailwind'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -64,6 +65,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Tailwind',
           variantKeys: ['Default', 'Tailwind'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -99,6 +101,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Testing',
           variantKeys: ['Default', 'Testing'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -135,6 +138,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -161,6 +165,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Special',
           variantKeys: ['Default', 'Tailwind', 'Special'],
           initialVariant: 'Special', // Special is the initial variant, not Default
+          shouldHighlight: true,
         }),
       );
 
@@ -191,6 +196,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -247,6 +253,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -286,6 +293,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -328,12 +336,14 @@ describe('useFileNavigation', () => {
             selectedVariantKey,
             variantKeys,
             initialVariant,
+            shouldHighlight: true,
           }),
         {
           initialProps: {
             selectedVariantKey: 'Default',
             variantKeys: ['Default', 'Tailwind'],
             initialVariant: 'Default',
+            shouldHighlight: true,
           },
         },
       );
@@ -349,6 +359,7 @@ describe('useFileNavigation', () => {
         selectedVariantKey: 'Tailwind',
         variantKeys: ['Default', 'Tailwind'],
         initialVariant: 'Default',
+        shouldHighlight: true,
       });
 
       // Check that URL was updated with the new variant slug
@@ -391,6 +402,7 @@ describe('useFileNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
+          shouldHighlight: true,
         }),
       );
 
@@ -431,12 +443,14 @@ describe('useFileNavigation', () => {
             selectedVariantKey,
             variantKeys,
             initialVariant,
+            shouldHighlight: true,
           }),
         {
           initialProps: {
             selectedVariantKey: 'Default',
             variantKeys: ['Default', 'Tailwind'],
             initialVariant: 'Default',
+            shouldHighlight: true,
           },
         },
       );
@@ -449,6 +463,7 @@ describe('useFileNavigation', () => {
         selectedVariantKey: 'Tailwind',
         variantKeys: ['Default', 'Tailwind'],
         initialVariant: 'Default',
+        shouldHighlight: true,
       });
 
       // Check that URL was updated with the new variant slug
@@ -457,6 +472,308 @@ describe('useFileNavigation', () => {
         '',
         '/docs/components?tab=demo#basic:tailwind:checkbox-basic.tsx',
       );
+    });
+  });
+
+  describe('shouldHighlight behavior', () => {
+    it('should create components with highlighting when shouldHighlight=true', () => {
+      const selectedVariant = {
+        fileName: 'test.js',
+        source: 'const x = 1;',
+        extraFiles: {
+          'utils.js': 'export const util = () => {};',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.files).toHaveLength(2);
+      expect(result.current.files[0].name).toBe('test.js');
+      expect(result.current.files[1].name).toBe('utils.js');
+      // Components should be created with syntax highlighting enabled
+      expect(result.current.files[0].component).toBeDefined();
+      expect(result.current.files[1].component).toBeDefined();
+      expect(result.current.selectedFileComponent).toBeDefined();
+    });
+
+    it('should create components without highlighting when shouldHighlight=false', () => {
+      const selectedVariant = {
+        fileName: 'test.js',
+        source: 'const x = 1;',
+        extraFiles: {
+          'utils.js': 'export const util = () => {};',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: false,
+        }),
+      );
+
+      expect(result.current.files).toHaveLength(2);
+      expect(result.current.files[0].name).toBe('test.js');
+      expect(result.current.files[1].name).toBe('utils.js');
+      // Components should be created without syntax highlighting
+      expect(result.current.files[0].component).toBeDefined();
+      expect(result.current.files[1].component).toBeDefined();
+      expect(result.current.selectedFileComponent).toBeDefined();
+    });
+
+    it('should return highlighted JSX when shouldHighlight=true with HAST nodes', () => {
+      // Create a variant with HAST nodes (syntax highlighted source)
+      const selectedVariant = {
+        fileName: 'test.js',
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['token', 'keyword'] },
+              children: [{ type: 'text', value: 'const' }],
+            },
+            { type: 'text', value: ' x = 1;' },
+          ],
+        },
+        extraFiles: {
+          'utils.js': {
+            source: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'span',
+                  properties: { className: ['token', 'keyword'] },
+                  children: [{ type: 'text', value: 'export' }],
+                },
+                { type: 'text', value: ' const util = () => {};' },
+              ],
+            },
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.files).toHaveLength(2);
+      // With shouldHighlight=true, HAST nodes should be converted to JSX (React elements)
+      expect(typeof result.current.files[0].component).toBe('object'); // JSX React element
+      expect(typeof result.current.files[1].component).toBe('object'); // JSX React element
+      expect(typeof result.current.selectedFileComponent).toBe('object'); // JSX React element
+    });
+
+    it('should return plain text when shouldHighlight=false with HAST nodes', () => {
+      // Create a variant with HAST nodes (syntax highlighted source)
+      const selectedVariant = {
+        fileName: 'test.js',
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['token', 'keyword'] },
+              children: [{ type: 'text', value: 'const' }],
+            },
+            { type: 'text', value: ' x = 1;' },
+          ],
+        },
+        extraFiles: {
+          'utils.js': {
+            source: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'span',
+                  properties: { className: ['token', 'keyword'] },
+                  children: [{ type: 'text', value: 'export' }],
+                },
+                { type: 'text', value: ' const util = () => {};' },
+              ],
+            },
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: false,
+        }),
+      );
+
+      expect(result.current.files).toHaveLength(2);
+      // With shouldHighlight=false, HAST nodes should be converted to plain text strings
+      expect(typeof result.current.files[0].component).toBe('string');
+      expect(result.current.files[0].component).toBe('const x = 1;');
+      expect(typeof result.current.files[1].component).toBe('string');
+      expect(result.current.files[1].component).toBe('export const util = () => {};');
+      expect(typeof result.current.selectedFileComponent).toBe('string');
+      expect(result.current.selectedFileComponent).toBe('const x = 1;');
+    });
+
+    it('should handle shouldHighlight behavior when switching between files', () => {
+      const selectedVariant = {
+        fileName: 'main.js',
+        source: {
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['token', 'keyword'] },
+              children: [{ type: 'text', value: 'const' }],
+            },
+            { type: 'text', value: ' main = true;' },
+          ],
+        },
+        extraFiles: {
+          'helper.js': {
+            source: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'span',
+                  properties: { className: ['token', 'keyword'] },
+                  children: [{ type: 'text', value: 'const' }],
+                },
+                { type: 'text', value: ' helper = false;' },
+              ],
+            },
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: false, // Test with highlighting disabled
+        }),
+      );
+
+      // Initially on main file - should be plain text
+      expect(result.current.selectedFileName).toBe('main.js');
+      expect(typeof result.current.selectedFileComponent).toBe('string');
+      expect(result.current.selectedFileComponent).toBe('const main = true;');
+
+      // Switch to helper file - should also be plain text
+      act(() => {
+        result.current.selectFileName('helper.js');
+      });
+      
+      expect(result.current.selectedFileName).toBe('helper.js');
+      expect(typeof result.current.selectedFileComponent).toBe('string');
+      expect(result.current.selectedFileComponent).toBe('const helper = false;');
+    });
+
+    it('should apply shouldHighlight to selectedFileComponent when switching files', () => {
+      const selectedVariant = {
+        fileName: 'main.js',
+        source: 'const main = true;',
+        extraFiles: {
+          'helper.js': 'const helper = false;',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: false,
+        }),
+      );
+
+      // Initially on main file
+      expect(result.current.selectedFileName).toBe('main.js');
+      expect(result.current.selectedFileComponent).toBeDefined();
+
+      // Switch to helper file using act to handle state update
+      act(() => {
+        result.current.selectFileName('helper.js');
+      });
+      
+      expect(result.current.selectedFileName).toBe('helper.js');
+      expect(result.current.selectedFileComponent).toBeDefined();
+      // Component should be created with shouldHighlight=false setting
+    });
+
+    it('should respect shouldHighlight with transformed files', () => {
+      const selectedVariant = {
+        fileName: 'test.js',
+        source: 'const x = 1;',
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'test.ts',
+            originalName: 'test.js',
+            source: 'const x: number = 1;',
+            component: 'mock transformed component', // Pre-created component
+          },
+        ],
+        filenameMap: { 'test.js': 'test.ts' },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true, // This should not affect pre-created components in transformedFiles
+        }),
+      );
+
+      expect(result.current.files).toHaveLength(1);
+      expect(result.current.files[0].name).toBe('test.ts');
+      expect(result.current.files[0].component).toBe('mock transformed component');
+      expect(result.current.selectedFileComponent).toBe('mock transformed component');
     });
   });
 });

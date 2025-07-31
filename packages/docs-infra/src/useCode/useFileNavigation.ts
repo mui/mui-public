@@ -78,6 +78,7 @@ interface UseFileNavigationProps {
   mainSlug?: string;
   selectedVariantKey?: string;
   variantKeys?: string[];
+  shouldHighlight: boolean;
   initialVariant?: string;
 }
 
@@ -99,6 +100,7 @@ export function useFileNavigation({
   selectedVariantKey = '',
   variantKeys = [],
   initialVariant,
+  shouldHighlight,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -330,7 +332,7 @@ export function useFileNavigation({
 
     // Otherwise, create component from original untransformed files
     if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
-      return stringOrHastToJsx(selectedVariant.source as Source, true);
+      return stringOrHastToJsx(selectedVariant.source as Source, shouldHighlight);
     }
 
     // Look in extraFiles
@@ -350,11 +352,11 @@ export function useFileNavigation({
         return null;
       }
 
-      return stringOrHastToJsx(source as Source, true);
+      return stringOrHastToJsx(source as Source, shouldHighlight);
     }
 
     return null;
-  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles, shouldHighlight]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -389,7 +391,7 @@ export function useFileNavigation({
           selectedVariantKey,
           isInitialVariant,
         ),
-        component: stringOrHastToJsx(selectedVariant.source as Source, true),
+        component: stringOrHastToJsx(selectedVariant.source as Source, shouldHighlight),
       });
     }
 
@@ -408,7 +410,7 @@ export function useFileNavigation({
         result.push({
           name: fileName,
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
-          component: stringOrHastToJsx(source as Source, true),
+          component: stringOrHastToJsx(source as Source, shouldHighlight),
         });
       });
     }
@@ -421,6 +423,7 @@ export function useFileNavigation({
     selectedVariantKey,
     variantKeys,
     initialVariant,
+    shouldHighlight,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

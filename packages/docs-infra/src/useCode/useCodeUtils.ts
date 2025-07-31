@@ -133,6 +133,7 @@ export function applyTransformToSource(
 export function createTransformedFiles(
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
+  shouldHighlight: boolean,
 ): TransformedFilesResult | undefined {
   // Only create transformed files when there's actually a transform selected
   if (!selectedVariant || !selectedTransform) {
@@ -165,7 +166,7 @@ export function createTransformedFiles(
     name: mainName,
     originalName: fileName,
     source: mainSource as Source,
-    component: stringOrHastToJsx(mainSource as Source, true),
+    component: stringOrHastToJsx(mainSource as Source, shouldHighlight),
   });
 
   // Process extra files
@@ -210,7 +211,7 @@ export function createTransformedFiles(
           name: transformedName,
           originalName: extraFileName,
           source: transformedSource as Source,
-          component: stringOrHastToJsx(transformedSource as Source, true),
+          component: stringOrHastToJsx(transformedSource as Source, shouldHighlight),
         });
       } else {
         // If there's a conflict, keep the original file untransformed
@@ -222,7 +223,7 @@ export function createTransformedFiles(
           name: extraFileName,
           originalName: extraFileName,
           source: source as Source,
-          component: stringOrHastToJsx(source as Source, true),
+          component: stringOrHastToJsx(source as Source, shouldHighlight),
         });
       }
     });
