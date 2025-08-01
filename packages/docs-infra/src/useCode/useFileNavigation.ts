@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import type { VariantSource } from '../CodeHighlighter/types';
+import { useUrlHashState } from '../useUrlHashState';
 
 type Source = VariantSource;
 
@@ -107,21 +108,12 @@ export function useFileNavigation({
     string | undefined
   >(selectedVariant?.fileName);
 
-  // Track if we've processed the initial URL hash to avoid re-running
-  const hasProcessedInitialHash = React.useRef(false);
-
-  // Track if the user has explicitly selected a file (clicked or URL hash was present)
-  const hasUserSelection = React.useRef(false);
+  // Use the new URL hash hook
+  const { hash, setHash, hasUserInteraction, markUserInteraction } = useUrlHashState();
 
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
-    if (!selectedVariant || typeof window === 'undefined' || hasProcessedInitialHash.current) {
-      return;
-    }
-
-    const hash = window.location.hash.slice(1); // Remove the '#'
-    if (!hash) {
-      hasProcessedInitialHash.current = true;
+    if (!selectedVariant || !hash) {
       return;
     }
 
@@ -175,17 +167,17 @@ export function useFileNavigation({
 
     if (matchingFileName) {
       setSelectedFileNameInternal(matchingFileName);
-      hasUserSelection.current = true; // Mark that user has made a selection via URL
+      markUserInteraction(); // Mark that user has made a selection via URL
     }
-
-    hasProcessedInitialHash.current = true;
   }, [
     selectedVariant,
+    hash,
     transformedFiles,
     mainSlug,
     selectedVariantKey,
     variantKeys,
     initialVariant,
+    markUserInteraction,
   ]);
 
   // On hydration/variant change, check URL hash and switch to matching file
@@ -215,7 +207,7 @@ export function useFileNavigation({
       !selectedVariant ||
       typeof window === 'undefined' ||
       !selectedFileNameInternal ||
-      !hasUserSelection.current
+      !hasUserInteraction
     ) {
       return;
     }
@@ -249,8 +241,7 @@ export function useFileNavigation({
 
     // Update the URL hash without adding to history (replaceState)
     if (fileSlug) {
-      const newUrl = `${window.location.pathname}${window.location.search}#${fileSlug}`;
-      window.history.replaceState(null, '', newUrl);
+      setHash(fileSlug); // Use the new URL hash hook
     }
   }, [
     selectedVariant,
@@ -260,6 +251,8 @@ export function useFileNavigation({
     selectedVariantKey,
     variantKeys,
     initialVariant,
+    hasUserInteraction,
+    setHash,
   ]);
 
   // Compute the displayed filename (transformed if applicable)
@@ -470,14 +463,22 @@ export function useFileNavigation({
 
       // Update the URL hash without adding to history (replaceState)
       if (typeof window !== 'undefined' && fileSlug) {
-        const newUrl = `${window.location.pathname}${window.location.search}#${fileSlug}`;
-        window.history.replaceState(null, '', newUrl);
+        setHash(fileSlug); // Use the new URL hash hook
       }
 
-      hasUserSelection.current = true; // Mark that user has made an explicit selection
+      markUserInteraction(); // Mark that user has made an explicit selection
       setSelectedFileNameInternal(targetFileName);
     },
-    [selectedVariant, transformedFiles, mainSlug, selectedVariantKey, variantKeys, initialVariant],
+    [
+      selectedVariant,
+      transformedFiles,
+      mainSlug,
+      selectedVariantKey,
+      variantKeys,
+      initialVariant,
+      setHash,
+      markUserInteraction,
+    ],
   );
 
   return {

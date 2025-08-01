@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Code } from '../CodeHighlighter/types';
 import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
-import { useLocalStorage } from '../useLocalStorage';
+import useLocalStorageState from '../useLocalStorageState';
 
 interface UseTransformManagementProps {
   context?: any;
@@ -52,15 +52,41 @@ export function useTransformManagement({
   }, [availableTransforms]);
 
   // Use localStorage hook for transform persistence - this is our single source of truth
-  const { value: selectedTransform, setValueAsUserSelection: setSelectedTransformAsUser } =
-    useLocalStorage({
-      initialValue: initialTransform || null,
-      storageKey,
-      skipInitialSync: !!initialTransform, // Skip initial sync if an explicit initial transform was provided
-      serialize: (value: string | null) => value || 'null', // Store null as 'null' string
-      deserialize: (value: string) => (value === 'null' ? null : value), // Convert 'null' string back to null
-      isValidValue: (value: string | null) => value === null || availableTransforms.includes(value),
-    });
+  const [storedValue, setStoredValue] = useLocalStorageState(storageKey, () => {
+    // Don't use initialTransform as the fallback - localStorage should always take precedence
+    // We'll handle the initial transform separately below
+    return null;
+  });
+
+  // Handle validation manually - empty string means "no transform selected"
+  const selectedTransform = React.useMemo(() => {
+    // If we have a stored value (including empty string), use it
+    if (storedValue !== null) {
+      if (storedValue === '') {
+        return null;
+      }
+      // Validate the stored value
+      if (!availableTransforms.includes(storedValue)) {
+        return null;
+      }
+      return storedValue;
+    }
+
+    // If no stored value and we have an initial transform, use it (but don't store it yet)
+    if (initialTransform && availableTransforms.includes(initialTransform)) {
+      return initialTransform;
+    }
+
+    return null;
+  }, [storedValue, availableTransforms, initialTransform]);
+
+  const setSelectedTransformAsUser = React.useCallback(
+    (value: string | null) => {
+      const valueToStore = value === null ? '' : value;
+      setStoredValue(valueToStore);
+    },
+    [setStoredValue],
+  );
 
   // Memoize all transformed files based on selectedTransform
   const transformedFiles = React.useMemo(() => {
