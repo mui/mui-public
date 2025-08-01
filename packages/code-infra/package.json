@@ -3,9 +3,10 @@
   "version": "0.0.1",
   "description": "Infra scripts and configs to be used across MUI repos.",
   "type": "module",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mui/mui-public.git",
+    "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/code-infra"
   },
   "sideEffects": false,
