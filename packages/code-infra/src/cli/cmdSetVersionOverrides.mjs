@@ -24,6 +24,7 @@ async function handler(versions) {
   const overrides = {};
 
   if (versions.react && versions.react !== 'stable') {
+    console.log(`Resolving overrides for React version: ${versions.react}`);
     overrides.react = await resolveVersionSpec('react', versions.react);
     overrides['react-dom'] = await resolveVersionSpec('react-dom', versions.react);
     overrides['react-is'] = await resolveVersionSpec('react-is', versions.react);
@@ -39,15 +40,17 @@ async function handler(versions) {
   }
 
   if (versions.typescript && versions.typescript !== 'stable') {
+    console.log(`Resolving overrides for TypeScript version: ${versions.typescript}`);
     overrides.typescript = await resolveVersionSpec('typescript', versions.typescript);
   }
 
   const packageJsonPath = path.resolve(process.cwd(), 'package.json');
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, { encoding: 'utf8' }));
+  packageJson.resolutions ??= {};
   Object.assign(packageJson.resolutions, overrides);
   await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}${os.EOL}`);
 
-  console.log(`Using versions: ${JSON.stringify(overrides, null, 2)}`);
+  console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
 
   if (Object.keys(overrides).length <= 0) {
     return;
