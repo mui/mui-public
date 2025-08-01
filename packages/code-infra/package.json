@@ -23,7 +23,8 @@
   },
   "scripts": {
     "typescript": "tsc -p tsconfig.json",
-    "test": "pnpm -w test --project @mui/internal-code-infra"
+    "test": "pnpm -w test --project @mui/internal-code-infra",
+    "test:watch": "pnpm -w test:watch --project @mui/internal-code-infra"
   },
   "dependencies": {
     "@argos-ci/core": "^3.2.0",

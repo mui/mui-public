@@ -8,11 +8,15 @@
     "prettier": "pretty-quick --ignore-path .lintignore",
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "node ./update-netlify-ignore.js @app/code-infra-dashboard",
-    "test": "vitest",
+    "test": "vitest --run",
+    "test:watch": "vitest",
     "typescript": "tsc --build --verbose",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
     "release:build": "pnpm -r -F \"./packages/*\" run build",
-    "clean": "pnpm -r exec rm -rf build"
+    "clean": "pnpm -r exec rm -rf build",
+    "docsI:dev": "pnpm -F \"./packages/docs-infra/docs\" run dev",
+    "docsI:build": "pnpm -F \"./packages/docs-infra\" run build",
+    "docsI:test": "pnpm -F \"./packages/docs-infra\" run test"
   },
   "pnpm": {
     "packageExtensions": {
@@ -40,7 +44,9 @@
     "@types/semver": "^7.7.0",
     "@typescript-eslint/eslint-plugin": "7.12.0",
     "@typescript-eslint/parser": "^8.35.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.29.0",
+    "jsdom": "^26.1.0",
     "lerna": "^8.2.2",
     "prettier": "^3.5.3",
     "pretty-quick": "^4.2.2",

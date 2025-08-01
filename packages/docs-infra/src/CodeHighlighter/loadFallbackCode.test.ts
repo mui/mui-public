@@ -1,0 +1,1103 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
+import { loadFallbackCode } from './loadFallbackCode';
+import { maybeInitialData } from './maybeInitialData';
+import type {
+  Code,
+  LoadCodeMeta,
+  LoadVariantMeta,
+  LoadSource,
+  ParseSource,
+  VariantCode,
+} from './types';
+
+/**
+ * Tests for loadFallbackCode function.
+ *
+ * This test suite focuses on the core fallback logic and optimization strategies:
+ * - Early return optimizations when allFilesListed=true
+ * - Fallback to loadVariant when extra processing is needed
+ * - Initial filename handling and file selection
+ * - Integration with loadVariantMeta for variant resolution
+ *
+ * Note: URL/filename parsing is thoroughly tested in getFileNameFromUrl.test.ts
+ */
+describe('loadFallbackCode', () => {
+  let mockLoadCodeMeta: MockedFunction<LoadCodeMeta>;
+  let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
+  let mockLoadSource: MockedFunction<LoadSource>;
+  let mockParseSource: MockedFunction<ParseSource>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLoadCodeMeta = vi.fn();
+    mockLoadVariantMeta = vi.fn();
+    mockLoadSource = vi.fn();
+    mockParseSource = vi.fn();
+  });
+
+  describe('Early return optimization with allFilesListed', () => {
+    it('should return early when variant has allFilesListed=true and no extra processing needed', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'utils.ts': { source: 'export const helper = () => {};' },
+        },
+        allFilesListed: true,
+      };
+
+      const loaded: Code = {
+        default: variantCode,
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false, // shouldHighlight
+        false, // fallbackUsesExtraFiles
+        false, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify the optimization worked - we got the right results
+      expect(result.allFileNames).toEqual(['App.tsx', 'utils.ts']);
+      expect(result.initialFilename).toBe('App.tsx');
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+      expect(result.code.default).toEqual(variantCode);
+    });
+
+    it('should parse source when shouldHighlight=true in early return path', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+      const parsedSource = { type: 'root', children: [] } as any;
+      mockParseSource.mockReturnValue(parsedSource);
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        true, // shouldHighlight
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      expect(mockParseSource).toHaveBeenCalledWith(
+        'const App = () => <div>Hello</div>;',
+        'App.tsx',
+      );
+      expect(result.initialSource).toBe(parsedSource);
+    });
+
+    it('should load specific file when initialFilename is provided', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL, needs to be loaded
+        },
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+      mockLoadSource.mockResolvedValue({
+        source: 'export const helper = () => {};',
+        extraFiles: {},
+      });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        'utils.ts', // initialFilename
+      );
+
+      expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/utils.ts');
+      expect(result.initialFilename).toBe('utils.ts');
+      expect(result.initialSource).toBe('export const helper = () => {};');
+    });
+  });
+
+  describe('Early return with loadVariantMeta optimization', () => {
+    it('should use loadVariantMeta and return early when allFilesListed=true', async () => {
+      const loaded: Code = { default: 'http://example.com/default' };
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      mockLoadVariantMeta.mockResolvedValue(variantCode);
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', 'http://example.com/default');
+      expect(result.allFileNames).toEqual(['App.tsx']);
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+    });
+  });
+
+  describe('Fallback to full loadVariant processing', () => {
+    it('should process through loadVariant when allFilesListed=false', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: false, // Forces full processing
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify we got the expected results (loadVariant processes the variant)
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+      expect(result.allFileNames).toEqual(['App.tsx']);
+    });
+
+    it('should process through loadVariant when fallbackUsesExtraFiles=true', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true, // Even with this true, should not early return
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        true, // fallbackUsesExtraFiles
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+      expect(result.allFileNames).toEqual(['App.tsx']);
+    });
+  });
+
+  describe('fallbackUsesAllVariants', () => {
+    it('should load all variants and collect file names', async () => {
+      const variant1: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = {
+        javascript: variant1,
+        typescript: 'http://example.com/typescript',
+      };
+
+      const variant2: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello TypeScript</div>;',
+        extraFiles: {
+          'types.ts': { source: 'export type Props = {};' },
+        },
+        allFilesListed: true,
+      };
+
+      mockLoadVariantMeta.mockResolvedValue(variant2);
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'javascript',
+        loaded,
+        false,
+        false,
+        true, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // fileName
+        ['javascript', 'typescript'], // variants - needed for fallbackUsesAllVariants
+      );
+
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith(
+        'typescript',
+        'http://example.com/typescript',
+      );
+      expect(result.allFileNames).toEqual(['App.tsx', 'types.ts']);
+    });
+
+    it('should infer variants from loaded code when variants parameter is not provided', async () => {
+      const variant1: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = {
+        javascript: variant1,
+        typescript: 'http://example.com/typescript',
+        python: 'http://example.com/python',
+      };
+
+      const variant2: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello TypeScript</div>;',
+        extraFiles: {
+          'types.ts': { source: 'export type Props = {};' },
+        },
+        allFilesListed: true,
+      };
+
+      const variant3: VariantCode = {
+        fileName: 'App.py',
+        url: 'http://example.com/App.py',
+        source: 'def app(): return "Hello Python"',
+        allFilesListed: true,
+      };
+
+      mockLoadVariantMeta.mockImplementation(async (variantName) => {
+        if (variantName === 'typescript') {
+          return variant2;
+        }
+        if (variantName === 'python') {
+          return variant3;
+        }
+        throw new Error(`Unexpected variant: ${variantName}`);
+      });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'javascript',
+        loaded,
+        false,
+        false,
+        true, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // fileName
+        undefined, // variants - not provided, should infer from loaded
+      );
+
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith(
+        'typescript',
+        'http://example.com/typescript',
+      );
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('python', 'http://example.com/python');
+      expect(result.allFileNames).toEqual(['App.tsx', 'types.ts', 'App.py']);
+    });
+  });
+
+  describe('Error handling', () => {
+    it('should throw error when initial variant not found after loadCodeMeta', async () => {
+      mockLoadCodeMeta.mockResolvedValue({ otherVariant: 'something' });
+
+      await expect(
+        loadFallbackCode(
+          'http://example.com',
+          'nonexistent',
+          undefined,
+          false,
+          false,
+          false,
+          Promise.resolve(mockParseSource),
+          mockLoadSource,
+          mockLoadVariantMeta,
+          mockLoadCodeMeta,
+        ),
+      ).rejects.toThrow('Initial variant "nonexistent" not found in loaded code.');
+    });
+
+    it('should throw error when loadCodeMeta is required but not provided', async () => {
+      await expect(
+        loadFallbackCode(
+          'http://example.com',
+          'default',
+          undefined, // no loaded code
+          false,
+          false,
+          false,
+          Promise.resolve(mockParseSource),
+          mockLoadSource,
+          mockLoadVariantMeta,
+          undefined, // no loadCodeMeta function
+        ),
+      ).rejects.toThrow('"loadCodeMeta" function is required when initial variant is not provided');
+    });
+
+    it('should throw error when requested file cannot be found', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      await expect(
+        loadFallbackCode(
+          'http://example.com',
+          'default',
+          loaded,
+          false,
+          false,
+          false,
+          Promise.resolve(mockParseSource),
+          mockLoadSource,
+          mockLoadVariantMeta,
+          mockLoadCodeMeta,
+          'nonexistent.ts', // initialFilename that doesn't exist
+        ),
+      ).rejects.toThrow('Failed to get source for file nonexistent.ts in variant default');
+    });
+  });
+
+  describe('loadCodeMeta optimization', () => {
+    it('should call loadCodeMeta when no initial variant is provided', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      mockLoadCodeMeta.mockResolvedValue({ default: variantCode });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        undefined, // no loaded code
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      expect(mockLoadCodeMeta).toHaveBeenCalledWith('http://example.com');
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+    });
+  });
+
+  describe('Integration with loadVariant', () => {
+    it('should handle complex variant with extra files that need loading', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'import { helper } from "./utils";',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts',
+        },
+        allFilesListed: false, // Will trigger loadVariant processing
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'export const helper = () => "loaded";',
+        extraFiles: {},
+      });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify loadVariant processed the variant and loaded dependencies
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('utils.ts');
+      expect(result.initialSource).toBe('import { helper } from "./utils";');
+    });
+  });
+
+  describe('loadVariantMeta fallback behavior', () => {
+    it('should create basic variant from URL string when loadVariantMeta is undefined', async () => {
+      const variantUrl = 'file:///src/components/Button.tsx';
+      mockLoadCodeMeta.mockResolvedValue({
+        default: variantUrl,
+      });
+      mockLoadSource.mockResolvedValue({
+        source: 'const Button = () => <button>Click me</button>;',
+      });
+
+      const result = await loadFallbackCode(
+        'https://example.com',
+        'default',
+        {}, // loaded
+        false, // shouldHighlight
+        false, // fallbackUsesExtraFiles
+        false, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource), // parseSource
+        mockLoadSource, // loadSource
+        undefined, // loadVariantMeta - this is the key test case
+        mockLoadCodeMeta, // loadCodeMeta
+        'Button.tsx', // initialFilename
+      );
+
+      expect(result.code.default).toBeDefined();
+      expect((result.code.default as VariantCode).url).toBe(variantUrl);
+      expect((result.code.default as VariantCode).fileName).toBe('Button.tsx');
+    });
+
+    it('should handle various URL formats in fallback', async () => {
+      const testCases = [
+        {
+          url: 'file:///src/components/Header.tsx',
+          expectedFileName: 'Header.tsx',
+        },
+        {
+          url: 'https://example.com/utils/constants.js',
+          expectedFileName: 'constants.js',
+        },
+        {
+          url: 'file:///index.ts',
+          expectedFileName: 'index.ts',
+        },
+      ];
+
+      for (const { url, expectedFileName } of testCases) {
+        mockLoadCodeMeta.mockResolvedValue({
+          default: url,
+        });
+        mockLoadSource.mockResolvedValue({
+          source: 'const code = true;',
+        });
+
+        // eslint-disable-next-line no-await-in-loop
+        const result = await loadFallbackCode(
+          'https://example.com',
+          'default',
+          {}, // loaded
+          false, // shouldHighlight
+          false, // fallbackUsesExtraFiles
+          false, // fallbackUsesAllVariants
+          Promise.resolve(mockParseSource), // parseSource
+          mockLoadSource, // loadSource
+          undefined, // loadVariantMeta
+          mockLoadCodeMeta, // loadCodeMeta
+          expectedFileName, // initialFilename
+        );
+
+        expect(result.code.default).toBeDefined();
+        expect((result.code.default as VariantCode).url).toBe(url);
+        expect((result.code.default as VariantCode).fileName).toBe(expectedFileName);
+      }
+    });
+
+    it('should still use loadVariantMeta when provided in loadFallbackCode', async () => {
+      const variantUrl = 'file:///src/Button.tsx';
+      const customVariant: VariantCode = {
+        url: variantUrl,
+        fileName: 'CustomButton.tsx',
+        // Note: No source provided, so it should use loadSource
+      };
+
+      mockLoadCodeMeta.mockResolvedValue({
+        default: variantUrl,
+      });
+      mockLoadVariantMeta.mockResolvedValue(customVariant);
+      mockLoadSource.mockResolvedValue({
+        source: 'const CustomButton = () => <button>Custom</button>;',
+      });
+
+      const result = await loadFallbackCode(
+        'https://example.com',
+        'default',
+        {}, // loaded
+        false, // shouldHighlight
+        false, // fallbackUsesExtraFiles
+        false, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource), // parseSource
+        mockLoadSource, // loadSource
+        mockLoadVariantMeta, // Provided loadVariantMeta
+        mockLoadCodeMeta, // loadCodeMeta
+        'Button.tsx', // initialFilename
+      );
+
+      expect(result.code.default).toBeDefined();
+      expect((result.code.default as VariantCode).fileName).toBe('CustomButton.tsx');
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
+    });
+  });
+
+  describe('Integration with maybeInitialData', () => {
+    it('should produce output that passes maybeInitialData validation for needsAllFiles scenario', async () => {
+      // Start with data that fails maybeInitialData because extra files are URLs
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'import { helper } from "./utils";',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeInitialData
+        },
+        allFilesListed: false, // Would fail early return optimizations
+      };
+
+      // Mock loadSource to provide actual content
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const helper = () => "loaded utility";',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback source', extraFiles: {} };
+      });
+
+      // First, verify that maybeInitialData returns false for the initial data
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - this will fail because extraFiles has URLs
+        false, // needsAllVariants
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('Not all extra files are available');
+
+      // Now run loadFallbackCode to process the data
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles - ensure extra files are loaded
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - should now pass since files are loaded
+        false, // needsAllVariants
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'Component.tsx',
+        initialSource: 'import { helper } from "./utils";',
+        initialExtraFiles: expect.any(Object),
+      });
+
+      // Double-check that the extra files are properly loaded with source content
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toEqual({
+        source: 'export const helper = () => "loaded utility";',
+      });
+    });
+
+    it('should produce output that passes maybeInitialData validation for needsHighlight scenario', async () => {
+      // Start with data that has string source but needs highlighting
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;', // String source
+        allFilesListed: true,
+      };
+
+      const parsedSource = { type: 'root', children: [] } as any;
+      mockParseSource.mockReturnValue(parsedSource);
+
+      // Verify that maybeInitialData returns false for highlighting needs
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        true, // needsHighlight - this will fail because source is a string
+        false,
+        false,
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('File needs highlighting');
+
+      // Run loadFallbackCode with highlighting enabled
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        true, // shouldHighlight - this will parse the source
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        true, // needsHighlight - should now pass since source is parsed
+        false,
+        false,
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'App.tsx',
+        initialSource: parsedSource,
+        initialExtraFiles: undefined,
+      });
+    });
+
+    it('should produce output that passes maybeInitialData validation for missing source scenario', async () => {
+      // Start with variant that has no source
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        // No source property
+        allFilesListed: false,
+      };
+
+      mockLoadSource.mockResolvedValue({
+        source: 'const App = () => <div>Loaded via fallback</div>;',
+        extraFiles: {},
+      });
+
+      // Verify that maybeInitialData returns false due to missing source
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        false,
+        false,
+        false,
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('File source not found');
+
+      // Run loadFallbackCode to load the source
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        false,
+        false,
+        false,
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'App.tsx',
+        initialSource: 'const App = () => <div>Loaded via fallback</div>;',
+        initialExtraFiles: undefined, // No extra files in this case
+      });
+    });
+
+    it('should produce output that passes maybeInitialData validation for missing requested file scenario', async () => {
+      // Start with variant that has extra files as URLs
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL, needs loading
+        },
+        allFilesListed: false, // This ensures loadVariant processes the files
+      };
+
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const helper = () => "loaded utility";',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback source', extraFiles: {} };
+      });
+
+      // Verify that maybeInitialData returns false when requesting utils.ts file
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        'utils.ts', // Request specific file that's not loaded
+        false,
+        false,
+        false,
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('File is not loaded yet');
+
+      // Run loadFallbackCode to load the requested file
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        'utils.ts', // Request the same file
+      );
+
+      // Check what the processed variant looks like
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toEqual({
+        source: 'export const helper = () => "loaded utility";',
+      });
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        'utils.ts', // Request the same file
+        false,
+        false,
+        false,
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      if (processedValidation.initialData !== false) {
+        expect(processedValidation.initialData).toEqual({
+          code: result.code,
+          initialFilename: 'utils.ts',
+          initialSource: 'export const helper = () => "loaded utility";',
+          initialExtraFiles: expect.any(Object),
+        });
+      }
+    });
+
+    it('should produce output that successfully passes maybeInitialData validation', async () => {
+      // Scenario: Start with data that would fail maybeInitialData,
+      // then verify loadFallbackCode produces data that passes
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'import { helper } from "./utils";',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeInitialData
+        },
+        allFilesListed: false, // Would fail early return optimizations
+      };
+
+      // Mock loadSource to provide actual content
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const helper = () => "loaded utility";',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback source', extraFiles: {} };
+      });
+
+      // First, verify that maybeInitialData would return false for the initial data
+      const initialValidation = maybeInitialData(
+        ['default'],
+        'default',
+        { default: variantCode },
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - this will fail because extraFiles has URLs
+        false, // needsAllVariants
+      );
+      expect(initialValidation.initialData).toBe(false);
+      expect(initialValidation.reason).toBe('Not all extra files are available');
+
+      // Now run loadFallbackCode to process the data
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles - ensure extra files are loaded
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+      );
+
+      // Verify that the processed result now passes maybeInitialData validation
+      const processedValidation = maybeInitialData(
+        ['default'],
+        'default',
+        result.code,
+        undefined,
+        false, // needsHighlight
+        true, // needsAllFiles - should now pass since files are loaded
+        false, // needsAllVariants
+      );
+
+      expect(processedValidation.initialData).not.toBe(false);
+      expect(processedValidation.initialData).toEqual({
+        code: result.code,
+        initialFilename: 'Component.tsx',
+        initialSource: 'import { helper } from "./utils";',
+        initialExtraFiles: expect.any(Object),
+      });
+
+      // Double-check that the extra files are properly loaded with source content
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toEqual({
+        source: 'export const helper = () => "loaded utility";',
+      });
+    });
+  });
+
+  describe('Undefined filename handling', () => {
+    it('should gracefully handle undefined initialFilename', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Should default to the main file
+      expect(result.initialFilename).toBe('App.tsx');
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+    });
+
+    it('should return variant source when getFileSource called without filename', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // This triggers the getFileSource(variant, undefined) code path
+      );
+
+      expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
+      expect(result.initialFilename).toBe('App.tsx');
+    });
+
+    it('should handle variant with bare source (no filename or URL)', async () => {
+      const variantCode: VariantCode = {
+        // No fileName property
+        // No url property
+        source: 'const BareComponent = () => <div>Just source code</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Should still return the source, but filename should be undefined
+      expect(result.initialSource).toBe('const BareComponent = () => <div>Just source code</div>;');
+      expect(result.initialFilename).toBeUndefined();
+      expect(result.allFileNames).toEqual([]); // No files since no filename
+    });
+
+    it('should handle variant with bare source and shouldHighlight=true', async () => {
+      const variantCode: VariantCode = {
+        // No fileName property
+        // No url property
+        source: 'const BareComponent = () => <div>Highlight me</div>;',
+        allFilesListed: true,
+      };
+
+      const loaded: Code = { default: variantCode };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded,
+        true, // shouldHighlight=true
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Since there's no filename, parsing creates a basic HAST node to mark it passed through pipeline
+      expect(result.initialSource).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: 'const BareComponent = () => <div>Highlight me</div>;',
+          },
+        ],
+      });
+      expect(result.initialFilename).toBeUndefined();
+      expect(mockParseSource).not.toHaveBeenCalled(); // No actual parsing without filename
+    });
+
+    it('should create HAST node structure for undefined filename in early return path', async () => {
+      const loaded: Code = {
+        default: {
+          fileName: undefined, // No fileName
+          source: 'const EarlyReturn = () => <div>Test</div>;',
+          allFilesListed: true, // Enables early return
+        },
+      };
+
+      const result = await loadFallbackCode(
+        '/demo/example',
+        'default',
+        loaded,
+        true, // shouldHighlight=true
+        false, // fallbackUsesExtraFiles=false
+        false, // fallbackUsesAllVariants=false
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined, // undefined initialFilename
+      );
+
+      // Should create HAST structure in early return path too
+      expect(result.initialSource).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: 'const EarlyReturn = () => <div>Test</div>;',
+          },
+        ],
+      });
+      expect(result.initialFilename).toBeUndefined();
+      expect(mockParseSource).not.toHaveBeenCalled(); // No actual parsing without filename
+    });
+  });
+});

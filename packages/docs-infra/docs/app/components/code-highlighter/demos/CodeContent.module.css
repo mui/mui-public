@@ -1,0 +1,53 @@
+.container {
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+}
+
+.header {
+  border-bottom: 1px solid #d0cdd7;
+  height: 48px;
+  position: relative;
+}
+
+.headerContainer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+  height: 48px;
+}
+
+.tabContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -1px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.switchContainer {
+  display: flex;
+}
+
+.switchContainerHidden {
+  display: none;
+}
+
+.code {
+  padding: 10px 6px;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 6px;
+  overflow-x: auto;
+}
