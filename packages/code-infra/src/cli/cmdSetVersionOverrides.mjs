@@ -44,17 +44,18 @@ async function handler(versions) {
     overrides.typescript = await resolveVersionSpec('typescript', versions.typescript);
   }
 
+  if (Object.keys(overrides).length <= 0) {
+    console.log('No version overrides specified, skipping.');
+    return;
+  }
+
+  console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
+
   const packageJsonPath = path.resolve(process.cwd(), 'package.json');
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, { encoding: 'utf8' }));
   packageJson.resolutions ??= {};
   Object.assign(packageJson.resolutions, overrides);
   await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}${os.EOL}`);
-
-  console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
-
-  if (Object.keys(overrides).length <= 0) {
-    return;
-  }
 
   await $({ stdio: 'inherit' })`pnpm dedupe`;
 }
