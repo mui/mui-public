@@ -107,5 +107,16 @@ pluginTester({
       fixture: path.join(fixturePath, 'declaration-files', 'input.d.ts'),
       output: readOutputFixtureSync('declaration-files', 'output.d.ts'),
     },
+    {
+      title: 'Ignore imports with extensions',
+      pluginOptions: {
+        outExtension: '.js',
+      },
+      babelOptions: {
+        plugins: [['@babel/plugin-syntax-typescript', { dts: true }]],
+      },
+      fixture: path.join(fixturePath, 'ignore-imports-with-extensions', 'input.d.ts'),
+      output: readOutputFixtureSync('ignore-imports-with-extensions', 'output.d.ts'),
+    },
   ],
 });

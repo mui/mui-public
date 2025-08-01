@@ -168,6 +168,28 @@ export async function getCurrentGitSha() {
 }
 
 /**
+ * Resolve a package@version specifier to an exact version
+ * @param {string} packageSpec - Package specifier in format "package@version"
+ * @returns {Promise<string>} Exact version string
+ */
+export async function resolveVersion(packageSpec) {
+  const result = await $`pnpm info ${packageSpec} version`;
+  return result.stdout.trim();
+}
+
+/**
+ * Find the version of a dependency for a specific package@version
+ * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {string} dependency - Dependency name to look up
+ * @returns {Promise<string>} Exact version string of the dependency
+ */
+export async function findDependencyVersionFromSpec(packageSpec, dependency) {
+  const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
+  const spec = result.stdout.trim();
+  return resolveVersion(`${dependency}@${spec}`);
+}
+
+/**
  * Get the maximum semver version between two versions
  * @param {string} a
  * @param {string} b
