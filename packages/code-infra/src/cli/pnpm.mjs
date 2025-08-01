@@ -168,27 +168,25 @@ export async function getCurrentGitSha() {
 }
 
 /**
- * Resolve a version specifier to an exact version
- * @param {string} pkg - Package name
- * @param {string} specifier - Version specifier (dist-tag, range, exact version)
+ * Resolve a package@version specifier to an exact version
+ * @param {string} packageSpec - Package specifier in format "package@version"
  * @returns {Promise<string>} Exact version string
  */
-export async function resolveVersionSpec(pkg, specifier) {
-  const result = await $`pnpm info ${pkg}@${specifier} version`;
+export async function resolveVersion(packageSpec) {
+  const result = await $`pnpm info ${packageSpec} version`;
   return result.stdout.trim();
 }
 
 /**
- * Find the version of a dependency for a specific package version
- * @param {string} pkg - Package name
- * @param {string} specifier - Version specifier for the package
+ * Find the version of a dependency for a specific package@version
+ * @param {string} packageSpec - Package specifier in format "package@version"
  * @param {string} dependency - Dependency name to look up
  * @returns {Promise<string>} Exact version string of the dependency
  */
-export async function findDependencyVersion(pkg, specifier, dependency) {
-  const result = await $`pnpm info ${pkg}@${specifier} dependencies.${dependency}`;
+export async function findDependencyVersionFromSpec(packageSpec, dependency) {
+  const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
   const spec = result.stdout.trim();
-  return resolveVersionSpec(dependency, spec);
+  return resolveVersion(`${dependency}@${spec}`);
 }
 
 /**
