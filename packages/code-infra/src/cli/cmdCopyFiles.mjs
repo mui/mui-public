@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import fs from 'node:fs/promises';
 import path from 'path';
 
@@ -60,41 +61,54 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const { silent = false, excludeDefaults = false, buildDir = 'build' } = args;
     const cwd = process.cwd();
     const extraFiles = /** @type {string[]} */ (args._.slice(1));
-    const defaultFiles = ['README.md'];
-    const localOrRootFiles = [
-      ['LICENSE', '../../LICENSE'],
-      ['CHANGELOG.md', '../../CHANGELOG.md'],
-    ];
-    for (const files of localOrRootFiles) {
-      for (const file of files) {
-        const filePath = path.resolve(cwd, file);
-        // eslint-disable-next-line no-await-in-loop
-        if (await fileOrDirExists(filePath)) {
-          defaultFiles.push(file);
-          break;
-        }
-      }
+    /**
+     * @type {string[]}
+     */
+    const defaultFiles = [];
+    const workspaceDir = await findWorkspaceDir(cwd);
+    if (!workspaceDir) {
+      throw new Error('Workspace directory not found');
     }
+    const localOrRootFiles = [
+      [path.join(cwd, 'README'), path.join(workspaceDir, 'README')],
+      [path.join(cwd, 'LICENSE'), path.join(workspaceDir, 'LICENSE')],
+      [path.join(cwd, 'CHANGELOG.md'), path.join(workspaceDir, 'CHANGELOG.md')],
+    ];
+    await Promise.all(
+      localOrRootFiles.map(async (files) => {
+        for (const file of files) {
+          // eslint-disable-next-line no-await-in-loop
+          if (await fileOrDirExists(file)) {
+            defaultFiles.push(file);
+            break;
+          }
+        }
+      }),
+    );
 
     const filesToCopy = excludeDefaults ? extraFiles : [...defaultFiles, ...extraFiles];
     if (!filesToCopy.length) {
       return;
     }
-    filesToCopy.forEach(async (file) => {
-      const [sourcePath, targetPath] = file.split(':');
-      const resolvedSourcePath = path.resolve(cwd, sourcePath);
-      const resolvedTargetPath = path.resolve(buildDir, targetPath ?? path.basename(file));
-      if (await fileOrDirExists(resolvedSourcePath)) {
-        await fs.cp(resolvedSourcePath, resolvedTargetPath, {
-          recursive: true,
-        });
+    await Promise.all(
+      filesToCopy.map(async (file) => {
+        const [sourcePath, targetPath] = path.isAbsolute(file)
+          ? [file, undefined]
+          : file.split(':');
+        const resolvedSourcePath = path.resolve(cwd, sourcePath);
+        const resolvedTargetPath = path.resolve(buildDir, targetPath ?? path.basename(file));
+        if (await fileOrDirExists(resolvedSourcePath)) {
+          await fs.cp(resolvedSourcePath, resolvedTargetPath, {
+            recursive: true,
+          });
 
-        if (!silent) {
-          console.log(`Copied ${sourcePath} to ${targetPath ?? path.basename(file)}`);
+          if (!silent) {
+            console.log(`Copied ${sourcePath} to ${targetPath ?? path.basename(file)}`);
+          }
+        } else if (!silent) {
+          console.warn(`Source does not exist: ${resolvedSourcePath}`);
         }
-      } else if (!silent) {
-        console.warn(`Source does not exist: ${resolvedSourcePath}`);
-      }
-    });
+      }),
+    );
   },
 });
