@@ -50,6 +50,12 @@ module.exports = function plugin({ types: t }, { outExtension }) {
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;
 
+    const importExt = nodePath.extname(importedPath);
+    // ignore if the import already has an extension
+    if (extensionsSet.has(importExt)) {
+      return;
+    }
+
     if (!importedPath.startsWith('.')) {
       // Only handle relative imports
       return;
