@@ -427,6 +427,9 @@ importers:
       babel-plugin-transform-inline-environment-variables:
         specifier: ^0.4.4
         version: 0.4.4
+      babel-plugin-transform-react-remove-prop-types:
+        specifier: ^0.4.24
+        version: 0.4.24
       babel-plugin-transform-remove-imports:
         specifier: ^1.8.0
         version: 1.8.0(@babel/core@7.28.0)

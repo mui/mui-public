@@ -18,7 +18,6 @@ const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
  * @property {boolean} verbose - Whether to enable verbose logging.
  * @property {boolean} buildTypes - Whether to build types for the package.
  * @property {boolean} skipTsc - Whether to build types for the package.
- * @property {boolean} optimizeClsx - Whether to enable clsx call optimization transform.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
@@ -295,11 +294,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         description: 'Extra globs to be ignored by Babel.',
         default: [],
       })
-      .option('optimizeClsx', {
-        type: 'boolean',
-        default: false,
-        description: 'Enable clsx call optimization transform.',
-      })
       .option('skipBabelRuntimeCheck', {
         type: 'boolean',
         default: false,
@@ -310,7 +304,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const {
       bundle: bundles,
       hasLargeFiles,
-      optimizeClsx,
       skipModulePackageJson,
       cjsOutDir = 'cjs',
       verbose = false,
@@ -323,7 +316,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    const buildDirBase = packageJson.publishConfig?.directory || 'build';
+    const buildDirBase = packageJson.publishConfig?.directory;
+    if (!buildDirBase) {
+      throw new Error(
+        'No build directory specified in package.json. Specify it in the "publishConfig.directory" field.',
+      );
+    }
     const buildDir = path.join(cwd, buildDirBase);
 
     console.log(`Selected output directory: ${buildDirBase}`);
@@ -405,7 +403,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           hasLargeFiles,
           bundle,
           verbose,
-          optimizeClsx,
+          optimizeClsx:
+            packageJson.dependencies.clsx !== undefined ||
+            packageJson.dependencies.classnames !== undefined,
+          removePropTypes: packageJson.dependencies['prop-types'] !== undefined,
           buildConfig,
           pkgVersion: packageJson.version,
           ignores: extraIgnores,

@@ -12,6 +12,7 @@ import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginSearchAndReplace from 'babel-plugin-search-and-replace';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
+import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -80,6 +81,7 @@ export function getVersionEnvVariables(pkgVersion) {
  * @param {string} [options.errorCodesPath] - Path to the error codes JSON file.
  * @param {string} [options.searchAndReplaceModule] - Specify the module for search and replace transformations.
  * @param {boolean} [options.optimizeClsx] - Enable optimization for clsx calls.
+ * @param {boolean} [options.removePropTypes] - Enable removal of React prop types.
  * @param {BundleType} options.bundle - Output ES modules instead of CommonJS.
  * @param {string} options.outExtension - Specify the output file extension.
  * @param {string} options.runtimeVersion - Specify the @babel/runtime package version.
@@ -90,7 +92,8 @@ async function getBabelConfig({
   bundle,
   errorCodesPath,
   runtimeVersion,
-  optimizeClsx,
+  optimizeClsx = false,
+  removePropTypes = false,
   outExtension,
   searchAndReplaceModule,
 }) {
@@ -130,6 +133,15 @@ async function getBabelConfig({
       },
     ],
   ];
+
+  if (removePropTypes) {
+    plugins.push([
+      pluginRemovePropTypes,
+      {
+        mode: 'unsafe-wrap',
+      },
+    ]);
+  }
 
   if (errorCodesPath) {
     plugins.push([
@@ -185,6 +197,7 @@ async function getBabelConfig({
  * @param {Object} options
  * @param {boolean} [options.verbose=false] - Whether to enable verbose logging.
  * @param {boolean} [options.optimizeClsx=false] - Whether to enable clsx call optimization transform.
+ * @param {boolean} [options.removePropTypes=true] - Whether to enable removal of React prop types.
  * @param {BuildConfig} [options.buildConfig] - The build configuration.
  * @param {string[]} [options.ignores] - The globs to be ignored by Babel.
  * @param {string} options.pkgVersion - The package version.
@@ -206,6 +219,7 @@ export async function babelBuild({
   pkgVersion,
   outExtension,
   optimizeClsx = false,
+  removePropTypes = false,
   verbose = false,
   ignores = [],
 }) {
@@ -231,6 +245,7 @@ export async function babelBuild({
       runtimeVersion: babelRuntimeVersion,
       bundle,
       optimizeClsx,
+      removePropTypes,
       errorCodesPath: buildConfig?.errorCodesPath,
       searchAndReplaceModule: buildConfig?.searchAndReplaceModule,
       outExtension,
