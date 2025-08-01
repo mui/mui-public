@@ -51,8 +51,8 @@ describe('useVariantSelection', () => {
         Alternative: { source: 'let x = 1;', fileName: 'test.js' },
       };
 
-      // Set up localStorage to return 'Alternative'
-      mockGetItem.mockReturnValue('"Alternative"'); // JSON serialized value
+      // Set up localStorage to return 'Alternative' (no JSON serialization)
+      mockGetItem.mockReturnValue('Alternative');
 
       const { result } = renderHook(
         () => useVariantSelection({ effectiveCode }), // No initialVariant
@@ -91,10 +91,10 @@ describe('useVariantSelection', () => {
         result.current.selectVariant('variant2');
       });
 
-      // Should save to localStorage after user selection
+      // Should save to localStorage after user selection (no JSON serialization)
       expect(localStorage.setItem).toHaveBeenCalledWith(
         '_docs_infra_variant_prefs_variant1:variant2',
-        '"variant2"', // JSON serialized value
+        'variant2', // Direct string value
       );
     });
 
@@ -107,8 +107,8 @@ describe('useVariantSelection', () => {
       // Clear any previous localStorage mocks
       vi.clearAllMocks();
 
-      // Mock localStorage to return a stored variant
-      (localStorage.getItem as any).mockReturnValue('"variant2"'); // JSON serialized
+      // Mock localStorage to return a stored variant (no JSON serialization)
+      (localStorage.getItem as any).mockReturnValue('variant2');
 
       const { result } = renderHook(() => useVariantSelection({ effectiveCode: mockCode }));
 
@@ -182,15 +182,16 @@ describe('useVariantSelection', () => {
         result.current.selectVariant('Alternative');
       });
 
-      // Should save to localStorage
+      // Should save to localStorage (no JSON serialization)
       expect(localStorage.setItem).toHaveBeenCalledWith(
         '_docs_infra_variant_prefs_Alternative:Default',
-        '"Alternative"', // JSON serialized value
+        'Alternative', // Direct string value
       );
     });
 
-    it('should not sync from localStorage when initialVariant is provided', () => {
-      // Mock localStorage
+    it('should prioritize localStorage over initialVariant when both are provided', () => {
+      // localStorage should always take precedence over initialVariant to respect user preferences
+      // The useLocalStorageState implementation reads from localStorage and that value should be used
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
       Object.defineProperty(window, 'localStorage', {
@@ -213,9 +214,8 @@ describe('useVariantSelection', () => {
         useVariantSelection({ effectiveCode, initialVariant: 'Default' }),
       );
 
-      // Should NOT read from localStorage when initialVariant is provided
-      expect(mockGetItem).not.toHaveBeenCalled();
-      expect(result.current.selectedVariantKey).toBe('Default');
+      // localStorage should take precedence over initialVariant to respect user preferences
+      expect(result.current.selectedVariantKey).toBe('Alternative');
     });
 
     it('should not use localStorage for single variant', () => {
@@ -279,13 +279,15 @@ describe('useVariantSelection', () => {
       // New implementation handles errors silently without warnings
       // This is the expected behavior for better user experience
 
-      // Changing selection should also handle error gracefully
+      // Changing selection should handle error gracefully but state won't change
+      // since the new implementation is driven by localStorage via useSyncExternalStore
       act(() => {
         result.current.selectVariant('Alternative');
       });
 
-      // State should still update even if localStorage fails
-      expect(result.current.selectedVariantKey).toBe('Alternative');
+      // State remains the same when localStorage fails since useSyncExternalStore
+      // doesn't update when the external store (localStorage) fails to change
+      expect(result.current.selectedVariantKey).toBe('Default');
     });
   });
 });

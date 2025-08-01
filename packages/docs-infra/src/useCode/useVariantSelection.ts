@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { Code } from '../CodeHighlighter/types';
-import { useLocalStorage } from '../useLocalStorage';
+import useLocalStorageState from '../useLocalStorageState';
 
 interface UseVariantSelectionProps {
   effectiveCode: Code;
@@ -40,16 +40,42 @@ export function useVariantSelection({
   }, [variantKeys]);
 
   // Use localStorage hook for variant persistence - this is our single source of truth
-  const {
-    value: selectedVariantKey,
-    setValue: setSelectedVariantKey,
-    setValueAsUserSelection: setSelectedVariantKeyAsUser,
-  } = useLocalStorage({
-    initialValue: initialVariant || variantKeys[0] || '',
-    storageKey,
-    skipInitialSync: !!initialVariant, // Skip initial sync if an explicit initial variant was provided
-    isValidValue: (value: string) => variantKeys.includes(value),
+  const [storedValue, setStoredValue] = useLocalStorageState(storageKey, () => {
+    // Don't use initialVariant as the fallback - localStorage should take precedence
+    // We'll handle the initial variant separately in the selectedVariantKey logic
+    return null;
   });
+
+  // Handle validation manually - localStorage should take precedence over initialVariant
+  const selectedVariantKey = React.useMemo(() => {
+    // First priority: use stored value if it exists and is valid
+    if (storedValue && variantKeys.includes(storedValue)) {
+      return storedValue;
+    }
+
+    // Second priority: use initial variant if provided and valid (only when no localStorage value)
+    if (initialVariant && variantKeys.includes(initialVariant)) {
+      return initialVariant;
+    }
+
+    // Final fallback: use first available variant
+    return variantKeys[0] || '';
+  }, [storedValue, variantKeys, initialVariant]);
+
+  const setSelectedVariantKey = React.useCallback(
+    (value: string) => {
+      setStoredValue(value);
+    },
+    [setStoredValue],
+  );
+
+  const setSelectedVariantKeyAsUser = React.useCallback(
+    (value: React.SetStateAction<string>) => {
+      const resolvedValue = typeof value === 'function' ? value(selectedVariantKey) : value;
+      setStoredValue(resolvedValue);
+    },
+    [setStoredValue, selectedVariantKey],
+  );
 
   const selectedVariant = React.useMemo(() => {
     const variant = effectiveCode[selectedVariantKey];
