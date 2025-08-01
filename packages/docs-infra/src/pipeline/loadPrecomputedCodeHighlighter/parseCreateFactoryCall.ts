@@ -1,6 +1,6 @@
 import { parseImports } from '../loaderUtils';
 import { parseFunctionParameters, extractBalancedBraces } from './parseFunctionParameters';
-import type { Externals } from '../CodeHighlighter/types';
+import type { Externals } from '../../CodeHighlighter/types';
 
 /**
  * Helper function to convert the new parseImports format to a Map

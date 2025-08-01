@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { stringOrHastToString } from '../hastUtils';
+import { stringOrHastToString } from '../pipeline/hastUtils';
 import { useCopier, UseCopierOpts } from '../useCopier';
 
 interface UseCopyFunctionalityProps {

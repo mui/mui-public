@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { stringOrHastToJsx } from '../hastUtils';
+import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import type { VariantSource } from '../CodeHighlighter/types';
 
 type Source = VariantSource;

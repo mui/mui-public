@@ -1,10 +1,10 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Element, Text } from 'hast';
-import { loadVariant } from '../CodeHighlighter/loadVariant';
+import { loadVariant } from '../../CodeHighlighter/loadVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { Code } from '../CodeHighlighter/types';
+import type { Code } from '../../CodeHighlighter/types';
 
 /**
  * Maps common language class names to file extensions

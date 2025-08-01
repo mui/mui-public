@@ -12,11 +12,11 @@ import type {
 
 import { loadVariant } from './loadVariant';
 import { loadFallbackCode } from './loadFallbackCode';
-import { stringOrHastToJsx } from '../hastUtils';
+import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
-import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
+import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 
 // Common props shared across helper functions
 type BaseHelperProps<T extends {}> = Pick<

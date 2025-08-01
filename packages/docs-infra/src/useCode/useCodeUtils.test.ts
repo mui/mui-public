@@ -4,7 +4,7 @@ import {
   createTransformedFiles,
   applyTransformToSource,
 } from './useCodeUtils';
-import { extractNameAndSlugFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import type { Code, VariantCode, ContentProps } from '../CodeHighlighter/types';
 
 describe('useCodeUtils', () => {
