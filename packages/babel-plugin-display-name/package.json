@@ -8,7 +8,6 @@
     "directory": "packages/babel-plugin-display-name"
   },
   "main": "src/index.js",
-  "types": "./index.d.ts",
   "author": "mui",
   "files": [
     "src/index.js"
