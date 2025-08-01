@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { LoadSource, Externals } from '../CodeHighlighter/types';
+import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImports } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';

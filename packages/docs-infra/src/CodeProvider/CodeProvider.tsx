@@ -4,7 +4,7 @@ import * as React from 'react';
 import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
 import { LoadCodeMeta, LoadSource, LoadVariantMeta, ParseSource } from '../CodeHighlighter';
-import { extensionMap, grammars } from '../parseSource/grammars';
+import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 
 export function CodeProvider({
   children,

@@ -1,5 +1,5 @@
 import { createStarryNight } from '@wooorm/starry-night';
-import { ParseSource } from '../CodeHighlighter';
+import { ParseSource } from '../../CodeHighlighter';
 import { grammars, extensionMap } from './grammars';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;

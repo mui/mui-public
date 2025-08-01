@@ -1,4 +1,4 @@
-import { stringOrHastToJsx } from '../hastUtils';
+import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import { applyTransform } from '../CodeHighlighter/applyTransform';
 import type { VariantSource, VariantCode, Code } from '../CodeHighlighter/types';
 

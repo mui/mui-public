@@ -4,8 +4,8 @@
  */
 
 import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
-import { stringOrHastToString } from '../hastUtils';
-import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
+import { stringOrHastToString } from '../pipeline/hastUtils';
+import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { createPathContext, type PathContext } from './examineVariant';
 
 export interface FlatFile {

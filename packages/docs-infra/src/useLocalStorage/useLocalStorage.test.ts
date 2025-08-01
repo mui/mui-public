@@ -35,7 +35,7 @@ describe('useLocalStorage - comprehensive tests', () => {
 
   it('should return initial value when localStorage is empty', () => {
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' })
+      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' }),
     );
 
     expect(result.current.value).toBe('default');
@@ -46,7 +46,7 @@ describe('useLocalStorage - comprehensive tests', () => {
     localStorageMock.setItem('test-key', JSON.stringify('stored-value'));
 
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' })
+      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' }),
     );
 
     expect(result.current.value).toBe('stored-value');
@@ -55,7 +55,7 @@ describe('useLocalStorage - comprehensive tests', () => {
 
   it('should update value with setValueAsUserSelection and save to localStorage', () => {
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' })
+      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' }),
     );
 
     act(() => {
@@ -68,7 +68,7 @@ describe('useLocalStorage - comprehensive tests', () => {
 
   it('should update value with setValue but not save to localStorage', () => {
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' })
+      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' }),
     );
 
     act(() => {
@@ -81,7 +81,7 @@ describe('useLocalStorage - comprehensive tests', () => {
 
   it('should handle null storageKey', () => {
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'default', storageKey: null })
+      useLocalStorage({ initialValue: 'default', storageKey: null }),
     );
 
     expect(result.current.value).toBe('default');
@@ -98,7 +98,7 @@ describe('useLocalStorage - comprehensive tests', () => {
   it('should work with boolean values', () => {
     localStorageMock.clear();
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: false, storageKey: 'bool-test-key' })
+      useLocalStorage({ initialValue: false, storageKey: 'bool-test-key' }),
     );
 
     act(() => {
@@ -111,15 +111,15 @@ describe('useLocalStorage - comprehensive tests', () => {
 
   it('should handle validation correctly', () => {
     const isValidNumber = (value: number) => typeof value === 'number' && value >= 0;
-    
+
     localStorageMock.setItem('test-key', JSON.stringify(-5));
 
     const { result } = renderHook(() =>
-      useLocalStorage({ 
-        initialValue: 10, 
+      useLocalStorage({
+        initialValue: 10,
         storageKey: 'test-key',
-        isValidValue: isValidNumber
-      })
+        isValidValue: isValidNumber,
+      }),
     );
 
     // Should use initial value when stored value is invalid
@@ -141,12 +141,12 @@ describe('useLocalStorage - comprehensive tests', () => {
     };
 
     const { result } = renderHook(() =>
-      useLocalStorage({ 
+      useLocalStorage({
         initialValue: { name: 'test', count: 0 },
         storageKey: 'custom-test-key',
         serialize: customSerialize,
-        deserialize: customDeserialize
-      })
+        deserialize: customDeserialize,
+      }),
     );
 
     act(() => {
@@ -161,7 +161,7 @@ describe('useLocalStorage - comprehensive tests', () => {
     localStorageMock.setItem('test-key', 'invalid-json{');
 
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' })
+      useLocalStorage({ initialValue: 'default', storageKey: 'test-key' }),
     );
 
     expect(result.current.value).toBe('default');
@@ -169,15 +169,15 @@ describe('useLocalStorage - comprehensive tests', () => {
 
   it('should handle invalid deserialized values', () => {
     const isValidValue = (value: string) => value.length > 3;
-    
+
     localStorageMock.setItem('test-key', JSON.stringify('hi'));
 
     const { result } = renderHook(() =>
-      useLocalStorage({ 
-        initialValue: 'default-value', 
+      useLocalStorage({
+        initialValue: 'default-value',
         storageKey: 'test-key',
-        isValidValue
-      })
+        isValidValue,
+      }),
     );
 
     // Should use initial value when stored value fails validation
@@ -187,7 +187,7 @@ describe('useLocalStorage - comprehensive tests', () => {
   it('should prevent infinite loops when syncing from localStorage', () => {
     localStorageMock.clear();
     const { result } = renderHook(() =>
-      useLocalStorage({ initialValue: 'initial', storageKey: 'loop-test-key' })
+      useLocalStorage({ initialValue: 'initial', storageKey: 'loop-test-key' }),
     );
 
     // Set a value as user selection
@@ -200,7 +200,7 @@ describe('useLocalStorage - comprehensive tests', () => {
 
     // Simulate another tab setting the same value - should not cause infinite loops
     const currentValue = result.current.value;
-    
+
     act(() => {
       // Manually trigger the same value being set again
       localStorageMock.setItem('loop-test-key', '"user-value"');

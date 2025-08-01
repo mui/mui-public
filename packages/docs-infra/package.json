@@ -8,7 +8,11 @@
     ".": "./index.js",
     "./*": "./*/index.js",
     "./*/types": "./*/types.js",
-    "./*/errors": "./*/errors.js"
+    "./*/errors": "./*/errors.js",
+    "./pipeline": "./pipeline/index.js",
+    "./pipeline/*": "./pipeline/*/index.js",
+    "./pipeline/*/types": "./pipeline/*/types.js",
+    "./pipeline/*/errors": "./pipeline/*/errors.js"
   },
   "keywords": [
     "react",

@@ -1,4 +1,4 @@
-import type { Externals } from '../CodeHighlighter/types';
+import type { Externals } from '../../CodeHighlighter/types';
 
 /**
  * Merges multiple externals objects into a single object, combining imports from the same module.

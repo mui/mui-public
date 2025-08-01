@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import type { VariantCode } from '../CodeHighlighter/types';
 import { exportVariantAsCra } from './exportVariantAsCra';
-import { stringOrHastToString } from '../hastUtils';
+import { stringOrHastToString } from '../pipeline/hastUtils';
 
 // Test VariantCode that represents a simple React component
 const mockVariantCode: VariantCode = {

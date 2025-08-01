@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import type { ContentProps } from '../CodeHighlighter/types';
-import { extractNameAndSlugFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
 import { useFileNavigation } from './useFileNavigation';

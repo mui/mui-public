@@ -1,4 +1,4 @@
-import type { Externals } from '../CodeHighlighter/types';
+import type { Externals } from '../../CodeHighlighter/types';
 
 /**
  * Generates a unique import name based on module path and original name

@@ -1,7 +1,7 @@
-import { loadVariant } from '../CodeHighlighter/loadVariant';
+import { loadVariant } from '../../CodeHighlighter/loadVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceTransformers, Externals, VariantCode } from '../CodeHighlighter/types';
+import type { SourceTransformers, Externals, VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';

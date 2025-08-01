@@ -1,7 +1,7 @@
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
-import { getFileNameFromUrl } from '../loaderUtils';
-import { mergeExternals } from '../loaderUtils/mergeExternals';
+import { getFileNameFromUrl } from '../pipeline/loaderUtils';
+import { mergeExternals } from '../pipeline/loaderUtils/mergeExternals';
 import type {
   VariantCode,
   VariantSource,

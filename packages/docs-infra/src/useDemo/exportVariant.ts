@@ -4,8 +4,8 @@
  */
 
 import type { VariantCode } from '../CodeHighlighter/types';
-import { externalsToPackages } from '../loaderUtils';
-import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
+import { externalsToPackages } from '../pipeline/loaderUtils';
+import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { createPathContext } from './examineVariant';
 
 /**

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { CodeHighlighter } from '../CodeHighlighter';
 import type { Code, Components, ContentLoadingProps, ContentProps } from '../CodeHighlighter';
-import { extractNameAndSlugFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 
 type CreateDemoMeta = {
   name?: string;
