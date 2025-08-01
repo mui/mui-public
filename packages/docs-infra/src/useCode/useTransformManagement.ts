@@ -71,12 +71,12 @@ export function useTransformManagement({
       }
       return storedValue;
     }
-    
+
     // If no stored value and we have an initial transform, use it (but don't store it yet)
     if (initialTransform && availableTransforms.includes(initialTransform)) {
       return initialTransform;
     }
-    
+
     return null;
   }, [storedValue, availableTransforms, initialTransform]);
 
