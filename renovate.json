@@ -8,7 +8,12 @@
       "matchDatasources": ["docker", "node-version"],
       "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
       "enabled": true,
-      "allowedVersions": "22"
+      "allowedVersions": "24"
+    },
+    {
+      "description": "Ignore engines field in package.json",
+      "matchDatasources": ["engines"],
+      "enabled": false
     }
   ]
 }
