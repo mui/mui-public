@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import type { Root } from 'hast';
-import type { ParseSource } from '../CodeHighlighter/types';
+import type { ParseSource } from '../../CodeHighlighter/types';
 import { createParseSource } from './parseSource';
 
 describe('parseSource', () => {
