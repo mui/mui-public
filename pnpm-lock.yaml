@@ -418,6 +418,9 @@ importers:
       babel-plugin-optimize-clsx:
         specifier: ^2.6.2
         version: 2.6.2
+      babel-plugin-search-and-replace:
+        specifier: ^1.1.1
+        version: 1.1.1
       babel-plugin-transform-inline-environment-variables:
         specifier: ^0.4.4
         version: 0.4.4
@@ -6084,6 +6087,9 @@ packages:
 
   babel-plugin-react-remove-properties@0.3.0:
     resolution: {integrity: sha512-vbxegtXGyVcUkCvayLzftU95vuvpYFV85pRpeMpohMHeEY46Qe0VNWfkVVcCbaZ12CXHzDFOj0esumATcW83ng==}
+
+  babel-plugin-search-and-replace@1.1.1:
+    resolution: {integrity: sha512-fjP2VTF3mxxOUnc96mdK22llH92A6gu7A5AFapJmgnqsQi3bqLduIRP0FpA2r5vRZOYPpnX4rE5izQlpsMBjSA==}
 
   babel-plugin-tester@12.0.0:
     resolution: {integrity: sha512-V3ZFYmXPV9fm3ArpLHbvh0R5IfwnyFwlvdZ2FFQ49af4seC10U0JDWssjhXInuDDli6hyQsoOybGFSTCovrGyA==}
@@ -19508,6 +19514,8 @@ snapshots:
       - supports-color
 
   babel-plugin-react-remove-properties@0.3.0: {}
+
+  babel-plugin-search-and-replace@1.1.1: {}
 
   babel-plugin-tester@12.0.0(@babel/core@7.28.0):
     dependencies:

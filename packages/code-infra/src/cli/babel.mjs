@@ -10,6 +10,7 @@ import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
 import pluginMinifyErrors from '@mui/internal-babel-plugin-minify-errors';
 import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
+import pluginSearchAndReplace from 'babel-plugin-search-and-replace';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
@@ -62,6 +63,7 @@ export function getVersionEnvVariables(pkgVersion) {
  * @typedef {Object} BuildConfig
  * @property {string} [errorCodesPath] - The path to the error codes JSON file.
  * @property {string} [cjsOutDir] - The output directory for CommonJS files.
+ * @property {string} [searchAndReplaceModule] - The module to use for search and replace transformations.
  */
 
 /**
@@ -76,19 +78,21 @@ export function getVersionEnvVariables(pkgVersion) {
  * @param {Object} options
  * @param {boolean} [options.debug] - Enable debug mode.
  * @param {string} [options.errorCodesPath] - Path to the error codes JSON file.
+ * @param {string} [options.searchAndReplaceModule] - Specify the module for search and replace transformations.
  * @param {boolean} [options.optimizeClsx] - Enable optimization for clsx calls.
  * @param {BundleType} options.bundle - Output ES modules instead of CommonJS.
  * @param {string} options.outExtension - Specify the output file extension.
  * @param {string} options.runtimeVersion - Specify the @babel/runtime package version.
- * @returns {import("@babel/core").TransformOptions}
+ * @returns {Promise<import("@babel/core").TransformOptions>}
  */
-function getBabelConfig({
+async function getBabelConfig({
   debug = false,
   bundle,
   errorCodesPath,
   runtimeVersion,
   optimizeClsx,
   outExtension,
+  searchAndReplaceModule,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -140,6 +144,11 @@ function getBabelConfig({
 
   if (optimizeClsx) {
     plugins.push([pluginOptimizeClsx]);
+  }
+
+  if (searchAndReplaceModule) {
+    const pluginOptions = await import(searchAndReplaceModule);
+    plugins.push([pluginSearchAndReplace, pluginOptions.default]);
   }
 
   if (bundle === 'esm') {
@@ -217,14 +226,15 @@ export async function babelBuild({
     `Transpiling ${files.length} files to ${path.relative(path.dirname(sourceDir), outDir)}`,
   );
   const babelConfig = {
-    ...getBabelConfig({
+    ...(await getBabelConfig({
       debug: verbose,
       runtimeVersion: babelRuntimeVersion,
       bundle,
       optimizeClsx,
       errorCodesPath: buildConfig?.errorCodesPath,
+      searchAndReplaceModule: buildConfig?.searchAndReplaceModule,
       outExtension,
-    }),
+    })),
     configFile: false,
     babelrc: false,
     compact: hasLargeFiles,

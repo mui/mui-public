@@ -363,11 +363,23 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       if (buildConfig?.errorCodesPath) {
         buildConfig.errorCodesPath = path.join(workspaceDir, buildConfig.errorCodesPath);
       }
+      if (buildConfig?.searchAndReplaceModule) {
+        buildConfig.searchAndReplaceModule = path.join(
+          workspaceDir,
+          buildConfig.searchAndReplaceModule,
+        );
+      }
     }
 
     const localBuildConfig = /** @type {PkgJson} */ (packageJson)?.['code-infra']?.build;
     if (localBuildConfig?.errorCodesPath) {
       localBuildConfig.errorCodesPath = path.join(cwd, localBuildConfig.errorCodesPath);
+    }
+    if (localBuildConfig?.searchAndReplaceModule) {
+      localBuildConfig.searchAndReplaceModule = path.join(
+        cwd,
+        localBuildConfig.searchAndReplaceModule,
+      );
     }
     if (localBuildConfig) {
       buildConfig = deepMerge(buildConfig, localBuildConfig);
