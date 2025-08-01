@@ -1,13 +1,5 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
-/**
- * @typedef {Object} Args
- * @property {string} [react] - React version specifier
- * @property {string} [typescript] - TypeScript version specifier
- */
-
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -16,19 +8,21 @@ import { $ } from 'execa';
 import { resolveVersionSpec, findDependencyVersion } from './pnpm.mjs';
 
 /**
+ * @typedef {Object} Args
+ * @property {string} [react] - React version specifier
+ * @property {string} [typescript] - TypeScript version specifier
+ */
+
+/**
  * Main function to set version overrides
  * @param {Args} versions - Version configuration
  * @returns {Promise<void>}
  */
 async function handler(versions) {
-  console.log('cwd:', process.cwd());
-  console.log('pnpm version:', (await $`pnpm --version`).stdout);
-  console.log('pnpm location:', (await $`which pnpm`).stdout);
-  console.log('env:', (await $`env`).stdout);
-  console.log('PATH:', process.env.PATH);
   const overrides = {};
 
   if (versions.react && versions.react !== 'stable') {
+    // eslint-disable-next-line no-console
     console.log(`Resolving overrides for React version: ${versions.react}`);
     overrides.react = await resolveVersionSpec('react', versions.react);
     overrides['react-dom'] = await resolveVersionSpec('react-dom', versions.react);
@@ -45,15 +39,18 @@ async function handler(versions) {
   }
 
   if (versions.typescript && versions.typescript !== 'stable') {
+    // eslint-disable-next-line no-console
     console.log(`Resolving overrides for TypeScript version: ${versions.typescript}`);
     overrides.typescript = await resolveVersionSpec('typescript', versions.typescript);
   }
 
   if (Object.keys(overrides).length <= 0) {
+    // eslint-disable-next-line no-console
     console.log('No version overrides specified, skipping.');
     return;
   }
 
+  // eslint-disable-next-line no-console
   console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
 
   const packageJsonPath = path.resolve(process.cwd(), 'package.json');
