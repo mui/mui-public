@@ -1,6 +1,6 @@
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { createParseSource } from '@mui/internal-docs-infra/parseSource';
-import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
 
 import { CodeContent } from './CodeContent';
 

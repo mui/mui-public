@@ -7,8 +7,8 @@ import type {
   LoadSource,
   Code,
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
-import { createParseSource } from '@mui/internal-docs-infra/parseSource';
-import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
 import { DemoContent } from '../DemoContent';
 
 // Mock server-side loading functions

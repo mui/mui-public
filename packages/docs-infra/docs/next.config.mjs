@@ -8,13 +8,13 @@ const nextConfig = {
     rules: {
       './app/**/demos/*/index.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
       // Note: The demo-* pattern below is specific to our internal docs structure
       // where we create "demos of demos". This is not a typical use case.
       './app/**/demos/*/demo-*/index.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
     },
   },
@@ -24,11 +24,11 @@ const withMDX = createMDX({
   options: {
     remarkPlugins: [
       ['remark-gfm'],
-      ['@mui/internal-docs-infra/transformMarkdownRelativePaths'],
-      ['@mui/internal-docs-infra/transformMarkdownBlockquoteCallouts'],
-      ['@mui/internal-docs-infra/transformMarkdownCode'],
+      ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
+      ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
+      ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
     ],
-    rehypePlugins: [['@mui/internal-docs-infra/transformHtmlCode']],
+    rehypePlugins: [['@mui/internal-docs-infra/pipeline/transformHtmlCode']],
   },
 });
 

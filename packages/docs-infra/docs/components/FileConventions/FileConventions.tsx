@@ -1,4 +1,4 @@
-import { getFileConventions } from '@mui/internal-docs-infra/getFileConventions';
+import { getFileConventions } from '@mui/internal-docs-infra/pipeline/getFileConventions';
 import Link from 'next/link';
 
 export async function FileConventions() {
