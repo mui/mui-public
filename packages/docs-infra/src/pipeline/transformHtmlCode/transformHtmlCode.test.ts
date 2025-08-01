@@ -4,10 +4,10 @@ import rehypeParse from 'rehype-parse';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import { transformHtmlCode } from './transformHtmlCode';
-import type { VariantCode } from '../CodeHighlighter/types';
+import type { VariantCode } from '../../CodeHighlighter/types';
 
 // Mock the loadVariant function
-vi.mock('../CodeHighlighter/loadVariant', () => ({
+vi.mock('../../CodeHighlighter/loadVariant', () => ({
   loadVariant: vi.fn(async (url: string, variantName: string, variant: VariantCode) => {
     // Simple mock that just returns the input with some transforms applied
     return {
