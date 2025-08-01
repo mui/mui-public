@@ -11,7 +11,7 @@ const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
 
 /**
  * @typedef {Object} Args
- * @property {('cjs' | 'esm')[]} bundle - The bundles to build.
+ * @property {import('./babel.mjs').BundleType[]} bundle - The bundles to build.
  * @property {boolean} hasLargeFiles - The large files to build.
  * @property {boolean} skipModulePackageJson - Whether to skip generating a package.json file in the /esm folder.
  * @property {string} cjsOutDir - The directory to copy the cjs files to.
@@ -269,7 +269,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           "Set to `true` if you don't want to generate a package.json file in the bundle output.",
       })
       .option('cjsOutDir', {
-        default: 'cjs',
+        default: '.',
         type: 'string',
         description: 'The directory to output the cjs files to.',
       })
@@ -305,7 +305,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       bundle: bundles,
       hasLargeFiles,
       skipModulePackageJson,
-      cjsOutDir = 'cjs',
+      cjsOutDir = '.',
       verbose = false,
       ignore: extraIgnores,
       buildTypes,
@@ -389,7 +389,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       bundles.map(async (bundle) => {
         const outExtension = getOutExtension(bundle);
         const relativeOutDir = {
-          cjs: buildConfig.cjsOutDir ?? 'cjs',
+          cjs: buildConfig.cjsOutDir ?? '.',
           esm: 'esm',
         }[bundle];
         const outputDir = path.join(buildDir, relativeOutDir);
@@ -459,7 +459,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       packageJson,
       bundles: bundles.map((type) => ({
         type,
-        dir: type === 'esm' ? 'esm' : normalizedCjsOutDir || 'cjs',
+        dir: type === 'esm' ? 'esm' : normalizedCjsOutDir || '.',
       })),
       outputDir: buildDir,
       addTypes: buildTypes,
