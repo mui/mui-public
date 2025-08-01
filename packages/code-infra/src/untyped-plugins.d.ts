@@ -123,6 +123,13 @@ declare module 'babel-plugin-search-and-replace' {
   export default plugin;
 }
 
+declare module 'babel-plugin-transform-react-remove-prop-types' {
+  import type { PluginItem } from '@babel/core';
+
+  declare const plugin: PluginItem;
+  export default plugin;
+}
+
 declare module 'babel-plugin-transform-inline-environment-variables' {
   import type { PluginItem } from '@babel/core';
 
