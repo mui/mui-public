@@ -21,6 +21,7 @@ import { resolveVersionSpec, findDependencyVersion } from './pnpm.mjs';
  * @returns {Promise<void>}
  */
 async function handler(versions) {
+  console.log('cwd:', process.cwd());
   const overrides = {};
 
   if (versions.react && versions.react !== 'stable') {
