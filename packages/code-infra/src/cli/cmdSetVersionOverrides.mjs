@@ -23,6 +23,7 @@ import { resolveVersionSpec, findDependencyVersion } from './pnpm.mjs';
 async function handler(versions) {
   console.log('cwd:', process.cwd());
   console.log('pnpm version:', (await $`pnpm --version`).stdout);
+  console.log('pnpm location:', (await $`which pnpm`).stdout);
   const overrides = {};
 
   if (versions.react && versions.react !== 'stable') {
