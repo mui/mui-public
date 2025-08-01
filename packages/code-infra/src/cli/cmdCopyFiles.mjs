@@ -24,7 +24,7 @@ async function fileOrDirExists(filePath) {
     if (/** @type {{ code: string }} */ (err).code === 'ENOENT') {
       return false;
     }
-    return false;
+    throw err;
   }
 }
 

@@ -17,6 +17,10 @@ const DEFAULT_ALLOWED_CALLEES = {
 const calleeModuleMapping = new Map(); // Mapping of callee name to module name
 const seenDisplayNames = new Set();
 
+/**
+ * Applies allowed callees mapping to the internal calleeModuleMapping.
+ * @param {Record<string, string[]>} mapping - The mapping of module names to method names.
+ */
 function applyAllowedCallees(mapping) {
   Object.entries(mapping).forEach(([moduleName, methodNames]) => {
     methodNames.forEach((methodName) => {
@@ -335,6 +339,7 @@ function generateDisplayName(t, componentIdentifiers) {
  *
  * @param {babel.types} t content of @babel/types package
  * @param {babel.Node} node identifier or member expression node
+ * @returns {string}
  */
 function generateNodeDisplayName(t, node) {
   if (t.isIdentifier(node)) {
@@ -448,10 +453,15 @@ function createMemberExpression(t, componentIdentifiers) {
  * `name` will be changed to ensure that it is unique within the scope. e.g. `helper` -> `_helper`
  *
  * @param {babel.types} t content of @babel/types package
+ * @param {babel.NodePath<babel.types.ArrowFunctionExpression | babel.types.CallExpression | babel.types.FunctionExpression | babel.types.ObjectMethod>} path path to the function node
  * @param {string} name name of function to follow after
  */
 function setInternalFunctionName(t, path, name) {
-  if (!name || path.node.id != null || path.node.key != null) {
+  if (
+    !name ||
+    ('id' in path.node && path.node.id != null) ||
+    ('key' in path.node && path.node.key != null)
+  ) {
     return;
   }
 
@@ -459,5 +469,6 @@ function setInternalFunctionName(t, path, name) {
   if (path.isArrowFunctionExpression()) {
     path.arrowFunctionToExpression();
   }
+  // @ts-expect-error
   path.node.id = id;
 }
