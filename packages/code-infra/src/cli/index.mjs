@@ -6,6 +6,7 @@ import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
 import cmdJsonLint from './cmdJsonLint.mjs';
 import cmdArgosPush from './cmdArgosPush.mjs';
+import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 
 yargs()
   .command(cmdPublish)
@@ -13,6 +14,7 @@ yargs()
   .command(cmdListWorkspaces)
   .command(cmdJsonLint)
   .command(cmdArgosPush)
+  .command(cmdSetVersionOverrides)
   .demandCommand(1, 'You need at least one command before moving on')
   .help()
   .parse(hideBin(process.argv));
