@@ -18,6 +18,18 @@ import * as path from 'node:path';
 const missingError = process.env.MUI_EXTRACT_ERROR_CODES === 'true' ? 'write' : 'annotate';
 
 /**
+ * @type {Record<string, string>}
+ */
+const OUT_EXTENSION_MAP = {
+  '.cjs': '.cjs',
+  '.mjs': '.mjs',
+  '.cts': '.cjs',
+  '.ctsx': '.cjs',
+  '.mts': '.mjs',
+  '.mtsx': '.mjs',
+};
+
+/**
  * @typedef {'esm' | 'cjs'} BundleType
  */
 
@@ -245,7 +257,11 @@ export async function babelBuild({
         await fs.mkdir(path.join(outDir, outfileDir), { recursive: true });
       }
       const ext = path.extname(basename);
-      const outFilePath = path.join(outDir, outfileDir, basename.replace(ext, outExtension));
+      const outFilePath = path.join(
+        outDir,
+        outfileDir,
+        basename.replace(ext, OUT_EXTENSION_MAP[ext] || outExtension),
+      );
       await fs.writeFile(outFilePath, result.code, { encoding: 'utf8' });
     }),
   );
