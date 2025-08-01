@@ -24,6 +24,7 @@ async function handler(versions) {
   console.log('cwd:', process.cwd());
   console.log('pnpm version:', (await $`pnpm --version`).stdout);
   console.log('pnpm location:', (await $`which pnpm`).stdout);
+  console.log('env:', (await $`env`).stdout);
   console.log('PATH:', process.env.PATH);
   const overrides = {};
 
@@ -61,7 +62,7 @@ async function handler(versions) {
   Object.assign(packageJson.resolutions, overrides);
   await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}${os.EOL}`);
 
-  await $({ stdio: 'inherit', env: process.env })`pnpm dedupe`;
+  await $({ stdio: 'inherit', shell: true })`pnpm dedupe`;
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
