@@ -55,10 +55,10 @@ jobs:
       - checkout
       - install_js
       - run:
-          name: Eslint
+          name: ESlint
           command: pnpm eslint:ci
       - run:
-          name: Typescript
+          name: TypeScript
           command: pnpm typescript
       - run:
           name: JSON
