@@ -353,7 +353,7 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
+      "| Bundle | Parsed size | Gzip size |
       |----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
       | @mui/material/TextField/index.js | 🔺+200B<sup>(+0.91%)</sup> | 🔺+100B<sup>(+1.54%)</sup> |
@@ -388,7 +388,7 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
+      "| Bundle | Parsed size | Gzip size |
       |----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+500B<sup>(+3.33%)</sup> | 🔺+150B<sup>(+3.33%)</sup> |
       | @mui/material/TextField/index.js | 🔺+300B<sup>(+1.36%)</sup> | 🔺+150B<sup>(+2.31%)</sup> |
@@ -423,7 +423,7 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
+      "| Bundle | Parsed size | Gzip size |
       |----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
 
@@ -457,7 +457,7 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
+      "| Bundle | Parsed size | Gzip size |
       |----------|----------:|----------:|
       | @mui/material/Button/index.js |  0B<sup>(0.00%)</sup> |  0B<sup>(0.00%)</sup> |
       | @mui/material/TextField/index.js |  0B<sup>(0.00%)</sup> |  0B<sup>(0.00%)</sup> |
@@ -490,7 +490,7 @@ describe('renderMarkdownReport', () => {
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
+      "| Bundle | Parsed size | Gzip size |
       |----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
 
