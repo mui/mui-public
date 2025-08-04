@@ -42,7 +42,10 @@ async function processPackageOverride(packageSpec) {
     overrides.react = await resolveVersion(packageSpec);
     overrides['react-dom'] = await resolveVersion(`react-dom@${version}`);
     overrides['react-is'] = await resolveVersion(`react-is@${version}`);
-    overrides.scheduler = await findDependencyVersionFromSpec(`react-dom@${version}`, 'scheduler');
+    overrides.scheduler = await findDependencyVersionFromSpec(
+      `react-dom@${overrides['react-dom']}`,
+      'scheduler',
+    );
 
     const reactMajor = semver.major(overrides.react);
     if (reactMajor === 17) {
