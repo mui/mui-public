@@ -173,8 +173,9 @@ export async function getCurrentGitSha() {
  * @returns {Promise<string>} Exact version string
  */
 export async function resolveVersion(packageSpec) {
-  const result = await $`pnpm info ${packageSpec} version`;
-  return result.stdout.trim();
+  const result = await $`pnpm info ${packageSpec} version --json`;
+  const versions = JSON.parse(result.stdout);
+  return typeof versions === 'string' ? versions : versions[versions.length - 1];
 }
 
 /**
