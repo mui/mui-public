@@ -1,17 +1,15 @@
 import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import { applyTransform } from '../CodeHighlighter/applyTransform';
-import type { VariantSource, VariantCode, Code } from '../CodeHighlighter/types';
-
-type Source = VariantSource;
+import type { VariantSource, VariantCode, Code, Transforms } from '../CodeHighlighter/types';
 
 interface TransformedFile {
   name: string;
   originalName: string;
-  source: Source;
+  source: VariantSource;
   component: React.ReactNode;
 }
 
-interface TransformedFilesResult {
+export interface TransformedFiles {
   files: TransformedFile[];
   filenameMap: { [originalName: string]: string };
 }
@@ -89,11 +87,11 @@ export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: 
  * @returns Object with transformed source and name
  */
 export function applyTransformToSource(
-  source: any,
+  source: VariantSource,
   fileName: string,
-  transforms: any,
+  transforms: Transforms | undefined,
   selectedTransform: string,
-): { transformedSource: Source; transformedName: string } {
+): { transformedSource: VariantSource; transformedName: string } {
   if (!transforms?.[selectedTransform]) {
     return { transformedSource: source, transformedName: fileName };
   }
@@ -113,7 +111,7 @@ export function applyTransformToSource(
     }
 
     // Apply transform
-    const result = applyTransform(source as Source, transforms, selectedTransform);
+    const result = applyTransform(source, transforms, selectedTransform);
     const transformedName = transformData.fileName || fileName;
 
     return { transformedSource: result, transformedName };
@@ -134,7 +132,7 @@ export function createTransformedFiles(
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
   shouldHighlight: boolean,
-): TransformedFilesResult | undefined {
+): TransformedFiles | undefined {
   // Only create transformed files when there's actually a transform selected
   if (!selectedVariant || !selectedTransform) {
     return undefined;
@@ -174,8 +172,8 @@ export function createTransformedFiles(
     return { files: [], filenameMap: {} };
   }
 
-  // Process main file if we have a fileName
-  if (selectedVariant.fileName) {
+  // Process main file if we have a fileName and source
+  if (selectedVariant.fileName && selectedVariant.source) {
     const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
       selectedVariant.source,
       selectedVariant.fileName,
@@ -188,16 +186,16 @@ export function createTransformedFiles(
     files.push({
       name: mainName,
       originalName: fileName,
-      source: mainSource as Source,
-      component: stringOrHastToJsx(mainSource as Source, shouldHighlight),
+      source: mainSource,
+      component: stringOrHastToJsx(mainSource, shouldHighlight),
     });
   }
 
   // Process extra files
   if (selectedVariant.extraFiles) {
     Object.entries(selectedVariant.extraFiles).forEach(([extraFileName, fileData]) => {
-      let source: any;
-      let transforms: any;
+      let source: VariantSource | undefined;
+      let transforms: Transforms | undefined;
 
       // Handle different extraFile structures
       if (typeof fileData === 'string') {
@@ -208,6 +206,11 @@ export function createTransformedFiles(
         transforms = fileData.transforms; // Only use explicit transforms for this file
       } else {
         return; // Skip invalid entries
+      }
+
+      // Skip if source is undefined
+      if (!source) {
+        return;
       }
 
       // Apply transforms if available, otherwise use original source
@@ -222,7 +225,7 @@ export function createTransformedFiles(
             const hasTransformDelta =
               transformData.delta && Object.keys(transformData.delta).length > 0;
             if (hasTransformDelta) {
-              transformedSource = applyTransform(source as Source, transforms, selectedTransform);
+              transformedSource = applyTransform(source, transforms, selectedTransform);
               transformedName = transformData.fileName || extraFileName;
             }
           }
@@ -240,8 +243,8 @@ export function createTransformedFiles(
         files.push({
           name: transformedName,
           originalName: extraFileName,
-          source: transformedSource as Source,
-          component: stringOrHastToJsx(transformedSource as Source, shouldHighlight),
+          source: transformedSource,
+          component: stringOrHastToJsx(transformedSource, shouldHighlight),
         });
       } else {
         // If there's a conflict, skip this file with a warning

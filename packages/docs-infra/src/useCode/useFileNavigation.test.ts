@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
+import { VariantCode } from '../CodeHighlighter';
 
 // Mock the useUrlHashState hook to prevent browser API issues
 let mockHashValue = '';
@@ -578,7 +579,7 @@ describe('useFileNavigation', () => {
 
     it('should return highlighted JSX when shouldHighlight=true with HAST nodes', () => {
       // Create a variant with HAST nodes (syntax highlighted source)
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'test.js',
         source: {
           type: 'root',
@@ -631,7 +632,7 @@ describe('useFileNavigation', () => {
 
     it('should return plain text when shouldHighlight=false with HAST nodes', () => {
       // Create a variant with HAST nodes (syntax highlighted source)
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'test.js',
         source: {
           type: 'root',
@@ -686,7 +687,7 @@ describe('useFileNavigation', () => {
     });
 
     it('should handle shouldHighlight behavior when switching between files', () => {
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'main.js',
         source: {
           type: 'root',
@@ -910,21 +911,21 @@ describe('useFileNavigation', () => {
     });
 
     it('should count lines correctly for hast content', () => {
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'test.js',
         source: {
           type: 'root',
           children: [
-            { type: 'element', tagName: 'span', children: [] },
-            { type: 'element', tagName: 'div', children: [] },
-            { type: 'element', tagName: 'p', children: [] },
+            { type: 'element', tagName: 'span', properties: {}, children: [] },
+            { type: 'element', tagName: 'div', properties: {}, children: [] },
+            { type: 'element', tagName: 'p', properties: {}, children: [] },
           ],
         },
         extraFiles: {
           'hast-single.js': {
             source: {
               type: 'root',
-              children: [{ type: 'element', tagName: 'span', children: [] }],
+              children: [{ type: 'element', tagName: 'span', properties: {}, children: [] }],
             },
           },
           'hast-empty.js': {
@@ -948,8 +949,8 @@ describe('useFileNavigation', () => {
         }),
       );
 
-      // Main file (3 children = 3 lines)
-      expect(result.current.selectedFileLines).toBe(3);
+      // Main file (3 children but no line breaks = 1 line)
+      expect(result.current.selectedFileLines).toBe(1);
 
       // Switch to single child file (1 line)
       act(() => {
@@ -998,8 +999,99 @@ describe('useFileNavigation', () => {
       expect(result.current.selectedFileLines).toBe(3);
     });
 
+    it('should use totalLines from hast data when available', () => {
+      // Test case where the HAST object has totalLines in its data (like from addLineGutters)
+      const selectedVariant: VariantCode = {
+        fileName: 'test.js',
+        source: {
+          type: 'root',
+          data: {
+            totalLines: 42, // This should take precedence over countLines
+          },
+          children: [
+            { type: 'element', tagName: 'span', properties: {}, children: [] },
+            { type: 'element', tagName: 'div', properties: {}, children: [] },
+            { type: 'element', tagName: 'p', properties: {}, children: [] },
+          ],
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // Should use totalLines from data (42) instead of countLines result
+      expect(result.current.selectedFileLines).toBe(42);
+    });
+
+    it('should handle totalLines as string and convert to number', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'test.js',
+        source: {
+          type: 'root',
+          data: {
+            totalLines: '15', // String value should be converted to number
+          } as any,
+          children: [{ type: 'element', tagName: 'span', properties: {}, children: [] }],
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileLines).toBe(15);
+    });
+
+    it('should fallback to countLines when totalLines is invalid', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'test.js',
+        source: {
+          type: 'root',
+          data: {
+            totalLines: null, // Invalid totalLines should fallback to countLines
+          } as any,
+          children: [
+            { type: 'element', tagName: 'span', properties: {}, children: [] },
+            { type: 'element', tagName: 'div', properties: {}, children: [] },
+          ],
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // Should fallback to countLines (1 line for 2 children without line breaks) when totalLines is null
+      expect(result.current.selectedFileLines).toBe(1);
+    });
+
     it('should handle transformed files with hast content', () => {
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'test.js',
         source: 'const x = 1;',
       };
@@ -1010,15 +1102,15 @@ describe('useFileNavigation', () => {
             name: 'test.ts',
             originalName: 'test.js',
             source: {
-              type: 'root',
+              type: 'root' as const,
               children: [
-                { type: 'element', tagName: 'span', children: [] },
-                { type: 'element', tagName: 'div', children: [] },
-                { type: 'element', tagName: 'p', children: [] },
-                { type: 'element', tagName: 'section', children: [] },
-                { type: 'element', tagName: 'article', children: [] },
+                { type: 'element' as const, tagName: 'span', properties: {}, children: [] },
+                { type: 'element' as const, tagName: 'div', properties: {}, children: [] },
+                { type: 'element' as const, tagName: 'p', properties: {}, children: [] },
+                { type: 'element' as const, tagName: 'section', properties: {}, children: [] },
+                { type: 'element' as const, tagName: 'article', properties: {}, children: [] },
               ],
-            } as any, // Type assertion to avoid complex hast typing in tests
+            },
             component: 'mock component',
           },
         ],
@@ -1037,12 +1129,12 @@ describe('useFileNavigation', () => {
         }),
       );
 
-      // Should count children from transformed hast (5 lines)
-      expect(result.current.selectedFileLines).toBe(5);
+      // Should count using countLines from transformed hast (1 line for 5 children without line breaks)
+      expect(result.current.selectedFileLines).toBe(1);
     });
 
     it('should return 0 lines when no file is selected', () => {
-      const selectedVariant = null;
+      const selectedVariant: VariantCode | null = null;
 
       const { result } = renderHook(() =>
         useFileNavigation({
@@ -1060,9 +1152,9 @@ describe('useFileNavigation', () => {
     });
 
     it('should return 0 lines for invalid content types', () => {
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'test.js',
-        source: null, // Invalid content
+        source: undefined, // Invalid content
       };
 
       const { result } = renderHook(() =>
@@ -1081,7 +1173,7 @@ describe('useFileNavigation', () => {
     });
 
     it('should handle extraFiles with object format line counting', () => {
-      const selectedVariant = {
+      const selectedVariant: VariantCode = {
         fileName: 'main.js',
         source: 'const main = true;',
         extraFiles: {
@@ -1092,8 +1184,8 @@ describe('useFileNavigation', () => {
             source: {
               type: 'root',
               children: [
-                { type: 'element', tagName: 'span', children: [] },
-                { type: 'element', tagName: 'div', children: [] },
+                { type: 'element', tagName: 'span', properties: {}, children: [] },
+                { type: 'element', tagName: 'div', properties: {}, children: [] },
               ],
             },
           },
@@ -1121,11 +1213,11 @@ describe('useFileNavigation', () => {
       });
       expect(result.current.selectedFileLines).toBe(3);
 
-      // Switch to utils file with hast source (2 lines)
+      // Switch to utils file with hast source (1 line for 2 children without line breaks)
       act(() => {
         result.current.selectFileName('utils.js');
       });
-      expect(result.current.selectedFileLines).toBe(2);
+      expect(result.current.selectedFileLines).toBe(1);
     });
 
     it('should handle files with trailing newlines correctly', () => {
@@ -1163,6 +1255,57 @@ describe('useFileNavigation', () => {
       act(() => {
         result.current.selectFileName('no-trailing.js');
       });
+      expect(result.current.selectedFileLines).toBe(3);
+    });
+
+    it('should provide accurate line counting with countLines for complex HAST structures', () => {
+      // Test case demonstrating countLines accuracy with realistic syntax-highlighted content
+      const selectedVariant: VariantCode = {
+        fileName: 'test.js',
+        source: {
+          type: 'root',
+          data: {},
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: {},
+              children: [{ type: 'text', value: 'function' }],
+            },
+            { type: 'text', value: ' ' },
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: {},
+              children: [{ type: 'text', value: 'test' }],
+            },
+            { type: 'text', value: '() {\n  return ' },
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: {},
+              children: [{ type: 'text', value: '"hello"' }],
+            },
+            { type: 'text', value: ';\n}' },
+          ],
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // countLines correctly identifies 3 lines based on the 2 newlines (\n)
+      // The function intelligently parses text content across multiple elements
+      // (naive children.length would incorrectly return 6)
       expect(result.current.selectedFileLines).toBe(3);
     });
   });

@@ -1,4 +1,4 @@
-import type { Nodes as HastNodes } from 'hast';
+import type { Root, RootData } from 'hast';
 import type { Delta } from 'jsondiffpatch';
 
 export type Components = { [key: string]: React.ReactNode };
@@ -18,7 +18,11 @@ export interface ExternalImportItem {
 
 export type Externals = Record<string, ExternalImportItem[]>;
 
-export type VariantSource = string | HastNodes | { hastJson: string };
+export interface HastRoot extends Root {
+  data?: RootData & { totalLines?: number };
+}
+
+export type VariantSource = string | HastRoot | { hastJson: string };
 export type VariantExtraFiles = {
   [fileName: string]:
     | string
@@ -119,7 +123,7 @@ export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-export type ParseSource = (source: string, fileName: string) => HastNodes;
+export type ParseSource = (source: string, fileName: string) => HastRoot;
 
 export type SourceTransformer = {
   extensions: string[];

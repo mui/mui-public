@@ -17,6 +17,7 @@ export const parseSource: ParseSource = (source, fileName) => {
   const fileType = fileName.slice(fileName.lastIndexOf('.'));
   if (!extensionMap[fileType]) {
     // Return a basic HAST root node with the source text for unsupported file types
+    // TODO: should we split and add line gutters?
     return {
       type: 'root',
       children: [

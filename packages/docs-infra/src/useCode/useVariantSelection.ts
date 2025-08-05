@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Code } from '../CodeHighlighter/types';
+import type { Code, VariantCode } from '../CodeHighlighter/types';
 import useLocalStorageState from '../useLocalStorageState';
 
 interface UseVariantSelectionProps {
@@ -10,7 +10,7 @@ interface UseVariantSelectionProps {
 export interface UseVariantSelectionResult {
   variantKeys: string[];
   selectedVariantKey: string;
-  selectedVariant: any;
+  selectedVariant: VariantCode | null;
   selectVariant: React.Dispatch<React.SetStateAction<string>>;
 }
 

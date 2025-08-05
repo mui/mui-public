@@ -27,9 +27,7 @@ describe('createCodeSandbox', () => {
 
     expect(output.url).toBe('https://codesandbox.io/api/v1/sandboxes/define');
     expect(output.formData.parameters).toBeDefined();
-    expect(output.formData.embed).toBe('1');
-    expect(output.formData.query).toContain('module=/src/Demo.jsx');
-    expect(output.formData.query).toContain('fontsize=12');
+    expect(output.formData.query).toBe('file=src/Demo.jsx');
   });
 
   it('should handle TypeScript files correctly', () => {
@@ -49,7 +47,7 @@ describe('createCodeSandbox', () => {
 
     expect(output.url).toBe('https://codesandbox.io/api/v1/sandboxes/define');
     expect(output.formData.parameters).toBeDefined();
-    expect(output.formData.query).toContain('module=/src/Demo.tsx');
+    expect(output.formData.query).toBe('file=src/Demo.tsx');
   });
 
   it('should use custom entrypoint', () => {
@@ -65,7 +63,7 @@ describe('createCodeSandbox', () => {
       rootFile: 'src/MyComponent.jsx',
     });
 
-    expect(output.formData.query).toContain('module=/src/MyComponent.jsx');
+    expect(output.formData.query).toBe('file=src/MyComponent.jsx');
   });
 
   it('should use different entrypoint when specified', () => {
@@ -79,7 +77,7 @@ describe('createCodeSandbox', () => {
       rootFile: 'src/App.jsx',
     });
 
-    expect(output.formData.query).toContain('module=/src/App.jsx');
+    expect(output.formData.query).toBe('file=src/App.jsx');
   });
 
   it('should handle different file paths as entrypoint', () => {
@@ -94,7 +92,7 @@ describe('createCodeSandbox', () => {
       rootFile: 'components/Button.jsx',
     });
 
-    expect(output.formData.query).toContain('module=/components/Button.jsx');
+    expect(output.formData.query).toBe('file=components/Button.jsx');
   });
 
   it('should handle files with different extensions', () => {
@@ -109,7 +107,7 @@ describe('createCodeSandbox', () => {
       rootFile: 'src/Demo.tsx',
     });
 
-    expect(output.formData.query).toContain('module=/src/Demo.tsx');
+    expect(output.formData.query).toBe('file=src/Demo.tsx');
   });
 
   it('should convert flattened files to CodeSandbox format', () => {

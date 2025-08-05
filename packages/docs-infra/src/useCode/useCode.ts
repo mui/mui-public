@@ -9,13 +9,12 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
+import { UseCopierOpts } from '../useCopier';
 
 type UseCodeOpts = {
   defaultOpen?: boolean;
-  copy?: any; // UseCopierOpts
+  copy?: UseCopierOpts;
   githubUrlPrefix?: string;
-  codeSandboxUrlPrefix?: string;
-  stackBlitzPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
 };

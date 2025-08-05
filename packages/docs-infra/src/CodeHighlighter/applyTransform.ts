@@ -1,5 +1,5 @@
 import { patch, clone } from 'jsondiffpatch';
-import type { Nodes as HastNodes } from 'hast';
+import type { Root as HastRoot } from 'hast';
 import type { VariantSource, Transforms } from './types';
 
 /**
@@ -34,17 +34,17 @@ export function applyTransform(
   }
 
   // For Hast node sources, deltas are typically node-based (from transformParsedSource)
-  let sourceNodes: HastNodes;
+  let sourceRoot: HastRoot;
   const isHastJson = 'hastJson' in source;
 
   if (isHastJson) {
-    sourceNodes = JSON.parse(source.hastJson) as HastNodes;
+    sourceRoot = JSON.parse(source.hastJson) as HastRoot;
   } else {
-    sourceNodes = source as HastNodes;
+    sourceRoot = source as HastRoot;
   }
 
   // Apply the node-based delta
-  const patchedNodes = patch(clone(sourceNodes), transform.delta);
+  const patchedNodes = patch(clone(sourceRoot), transform.delta);
 
   if (!patchedNodes) {
     throw new Error(`Patch for transform "${transformKey}" returned null/undefined`);
@@ -55,7 +55,7 @@ export function applyTransform(
     return { hastJson: JSON.stringify(patchedNodes) };
   }
 
-  return patchedNodes as HastNodes;
+  return patchedNodes as HastRoot;
 }
 
 /**

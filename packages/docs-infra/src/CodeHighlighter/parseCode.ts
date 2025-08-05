@@ -1,4 +1,4 @@
-import type { Nodes as HastNodes } from 'hast';
+import type { Root as HastRoot } from 'hast';
 import type { Code, ParseSource } from './types';
 
 /**
@@ -16,7 +16,7 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
       // Parse if source is available and not already parsed, and we have a filename to determine the file type
       if (variantCode.source && typeof variantCode.source === 'string' && variantCode.fileName) {
         try {
-          const hastNodes = parseSource(variantCode.source, variantCode.fileName);
+          const hastRoot = parseSource(variantCode.source, variantCode.fileName);
 
           // Also parse extraFiles if they contain sources that need parsing
           const parsedExtraFiles = variantCode.extraFiles
@@ -29,8 +29,8 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
                     if (typeof fileContent.source === 'string') {
                       // Parse string source in extraFile
                       try {
-                        const parsedHastNodes = parseSource(fileContent.source, fileName);
-                        return [fileName, { ...fileContent, source: parsedHastNodes }];
+                        const parsedHastRoot = parseSource(fileContent.source, fileName);
+                        return [fileName, { ...fileContent, source: parsedHastRoot }];
                       } catch (error) {
                         return [fileName, fileContent]; // Keep original if parsing fails
                       }
@@ -43,7 +43,7 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
 
           parsed[variant] = {
             ...variantCode,
-            source: hastNodes,
+            source: hastRoot,
             extraFiles: parsedExtraFiles,
           };
         } catch (error) {
@@ -76,7 +76,7 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
       ) {
         try {
           // Parse hastJson to HAST nodes
-          const hastNodes: HastNodes = JSON.parse(variantCode.source.hastJson);
+          const hastRoot: HastRoot = JSON.parse(variantCode.source.hastJson);
 
           // Also parse extraFiles if they contain sources that need parsing
           const parsedExtraFiles = variantCode.extraFiles
@@ -89,8 +89,8 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
                     if (typeof fileContent.source === 'string') {
                       // Parse string source in extraFile
                       try {
-                        const parsedHastNodes = parseSource(fileContent.source, fileName);
-                        return [fileName, { ...fileContent, source: parsedHastNodes }];
+                        const parsedHastRoot = parseSource(fileContent.source, fileName);
+                        return [fileName, { ...fileContent, source: parsedHastRoot }];
                       } catch (error) {
                         return [fileName, fileContent]; // Keep original if parsing fails
                       }
@@ -103,7 +103,7 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
 
           parsed[variant] = {
             ...variantCode,
-            source: hastNodes,
+            source: hastRoot,
             extraFiles: parsedExtraFiles,
           };
         } catch (error) {
@@ -123,8 +123,8 @@ export function parseCode(code: Code, parseSource: ParseSource): Code {
                   if (typeof fileContent.source === 'string') {
                     // Parse string source in extraFile
                     try {
-                      const parsedHastNodes = parseSource(fileContent.source, fileName);
-                      return [fileName, { ...fileContent, source: parsedHastNodes }];
+                      const parsedHastRoot = parseSource(fileContent.source, fileName);
+                      return [fileName, { ...fileContent, source: parsedHastRoot }];
                     } catch (error) {
                       return [fileName, fileContent]; // Keep original if parsing fails
                     }

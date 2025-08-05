@@ -1,11 +1,12 @@
 import * as React from 'react';
-import type { ControlledCode } from '../CodeHighlighter/types';
+import type { Code, ControlledCode, VariantCode } from '../CodeHighlighter/types';
+import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 interface UseSourceEditingProps {
-  context?: any;
+  context?: CodeHighlighterContextType;
   selectedVariantKey: string;
-  effectiveCode: any;
-  selectedVariant: any;
+  effectiveCode: Code;
+  selectedVariant: VariantCode | null;
 }
 
 export interface UseSourceEditingResult {
@@ -26,7 +27,7 @@ export function useSourceEditing({
   const setSource = React.useCallback(
     (source: string) => {
       if (contextSetCode) {
-        contextSetCode((currentCode: any) => {
+        contextSetCode((currentCode: ControlledCode | undefined) => {
           let newCode: ControlledCode = {};
           if (!currentCode) {
             newCode = { ...effectiveCode } as ControlledCode; // TODO: ensure all source are strings
