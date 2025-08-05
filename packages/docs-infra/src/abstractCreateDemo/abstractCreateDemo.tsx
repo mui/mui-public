@@ -2,6 +2,7 @@ import * as React from 'react';
 import { CodeHighlighter } from '../CodeHighlighter';
 import type { Code, Components, ContentLoadingProps, ContentProps } from '../CodeHighlighter/types';
 import { createDemoDataWithVariants } from '../createDemoData';
+import { DemoGlobalData } from '../createDemoData/types';
 
 type CreateDemoMeta = {
   name?: string;
@@ -17,6 +18,7 @@ type AbstractCreateDemoOptions<T extends {}> = {
   DemoContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
   DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
   controlled?: boolean;
+  demoGlobalData?: DemoGlobalData[];
 }; // TODO: allow passing any CodeHighlighter prop
 
 export function abstractCreateDemo<T extends {}>(
@@ -27,6 +29,12 @@ export function abstractCreateDemo<T extends {}>(
 ): React.ComponentType<T> & { Title: React.ComponentType } {
   const demoData = createDemoDataWithVariants(url, variants, meta);
 
+  const globalCode: Array<Code | string> = [];
+  if (options.demoGlobalData) {
+    options.demoGlobalData.forEach((data) => {
+      globalCode.push(data.precompute || data.url);
+    });
+  }
   function DemoComponent(props: T) {
     const renderedComponents = Object.entries(demoData.components).reduce(
       (acc, [key, Component]) => {
@@ -42,6 +50,7 @@ export function abstractCreateDemo<T extends {}>(
         name={demoData.name}
         slug={demoData.slug}
         precompute={demoData.precompute}
+        globalsCode={globalCode}
         components={renderedComponents}
         contentProps={props}
         Content={options.DemoContent}
