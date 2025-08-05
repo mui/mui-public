@@ -1447,9 +1447,18 @@ describe('loadFallbackCode', () => {
       };
 
       const globalsCode: Code = {
-        default: {
-          fileName: 'global-setup.ts',
-          source: "console.log('global setup');",
+        javascript: {
+          fileName: 'js-setup.ts',
+          source: "console.log('JS setup');",
+          extraFiles: {
+            'shared-styles.css': {
+              source: '.shared { font-family: Arial; }',
+            },
+          },
+        },
+        typescript: {
+          fileName: 'ts-setup.ts',
+          source: "console.log('TS setup');",
           extraFiles: {
             'shared-styles.css': {
               source: '.shared { font-family: Arial; }',
@@ -2075,9 +2084,16 @@ describe('loadFallbackCode', () => {
       };
 
       const sharedGlobalsCode: Code = {
-        default: {
-          fileName: 'shared.css',
-          source: '.shared { font-family: Arial; }',
+        javascript: {
+          fileName: 'js-shared.css',
+          source: '.js-shared { font-family: Arial; }',
+          extraFiles: {
+            'reset.css': { source: '* { margin: 0; }' },
+          },
+        },
+        typescript: {
+          fileName: 'ts-shared.css',
+          source: '.ts-shared { font-family: Arial; }',
           extraFiles: {
             'reset.css': { source: '* { margin: 0; }' },
           },
@@ -2108,11 +2124,21 @@ describe('loadFallbackCode', () => {
       // Verify loadVariant was called for both variants with the same resolved globalsCode
       expect(mockLoadVariant).toHaveBeenCalledTimes(2);
 
-      // Both calls should receive the same resolved globalsCode
-      const expectedGlobalsCode = expect.arrayContaining([
+      // Each variant should receive its own specific globalsCode
+      const expectedJavascriptGlobalsCode = expect.arrayContaining([
         expect.objectContaining({
-          fileName: 'shared.css',
-          source: '.shared { font-family: Arial; }',
+          fileName: 'js-shared.css',
+          source: '.js-shared { font-family: Arial; }',
+          extraFiles: expect.objectContaining({
+            'reset.css': { source: '* { margin: 0; }' },
+          }),
+        }),
+      ]);
+
+      const expectedTypescriptGlobalsCode = expect.arrayContaining([
+        expect.objectContaining({
+          fileName: 'ts-shared.css',
+          source: '.ts-shared { font-family: Arial; }',
           extraFiles: expect.objectContaining({
             'reset.css': { source: '* { margin: 0; }' },
           }),
@@ -2128,7 +2154,7 @@ describe('loadFallbackCode', () => {
         mockLoadVariantMeta,
         undefined,
         expect.objectContaining({
-          globalsCode: expectedGlobalsCode,
+          globalsCode: expectedJavascriptGlobalsCode,
         }),
       );
 
@@ -2143,7 +2169,7 @@ describe('loadFallbackCode', () => {
         expect.objectContaining({
           disableTransforms: true,
           disableParsing: true,
-          globalsCode: expectedGlobalsCode,
+          globalsCode: expectedTypescriptGlobalsCode,
         }),
       );
 
