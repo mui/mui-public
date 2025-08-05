@@ -87,6 +87,7 @@ export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
   selectedFile: any;
   selectedFileComponent: React.ReactNode;
+  selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
 }
@@ -291,7 +292,7 @@ export function useFileNavigation({
 
     // Otherwise, use the original untransformed files
     if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
-      return selectedVariant.source;
+      return selectedVariant.source ?? null;
     }
 
     // Look in extraFiles
@@ -305,7 +306,7 @@ export function useFileNavigation({
         return extraFile;
       }
       if (extraFile && typeof extraFile === 'object' && 'source' in extraFile) {
-        return extraFile.source;
+        return extraFile.source ?? null;
       }
     }
 
@@ -325,6 +326,9 @@ export function useFileNavigation({
 
     // Otherwise, create component from original untransformed files
     if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
+      if (selectedVariant.source == null) {
+        return null;
+      }
       return stringOrHastToJsx(selectedVariant.source as Source, shouldHighlight);
     }
 
@@ -345,11 +349,33 @@ export function useFileNavigation({
         return null;
       }
 
+      if (source == null) {
+        return null;
+      }
+
       return stringOrHastToJsx(source as Source, shouldHighlight);
     }
 
     return null;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles, shouldHighlight]);
+
+  const selectedFileLines = React.useMemo(() => {
+    if (selectedFile == null) {
+      return 0;
+    }
+
+    // If it's a string, split by newlines and count
+    if (typeof selectedFile === 'string') {
+      return selectedFile.split('\n').length;
+    }
+
+    // If it's a hast object, count the children length
+    if (selectedFile && typeof selectedFile === 'object' && 'children' in selectedFile) {
+      return Array.isArray(selectedFile.children) ? selectedFile.children.length : 0;
+    }
+
+    return 0;
+  }, [selectedFile]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -375,7 +401,7 @@ export function useFileNavigation({
     const result: Array<{ name: string; slug?: string; component: React.ReactNode }> = [];
 
     // Only add main file if it has a fileName
-    if (selectedVariant.fileName) {
+    if (selectedVariant.fileName && selectedVariant.source) {
       result.push({
         name: selectedVariant.fileName,
         slug: generateFileSlug(
@@ -398,6 +424,10 @@ export function useFileNavigation({
           source = fileData.source;
         } else {
           return; // Skip invalid entries
+        }
+
+        if (!source) {
+          return; // Skip null/undefined sources
         }
 
         result.push({
@@ -485,6 +515,7 @@ export function useFileNavigation({
     selectedFileName,
     selectedFile,
     selectedFileComponent,
+    selectedFileLines,
     files,
     selectFileName,
   };

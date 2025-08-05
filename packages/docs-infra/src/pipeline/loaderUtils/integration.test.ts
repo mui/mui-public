@@ -354,7 +354,7 @@ import ComponentA from '../components/ComponentA';
           url: '/src/components/ComponentA.tsx',
           expected: { fileName: 'ComponentA.tsx', extension: '.tsx' },
         },
-        { url: '/src/types.d.ts', expected: { fileName: 'types.d.ts', extension: '.ts' } },
+        { url: '/src/types.d.ts', expected: { fileName: 'types.d.ts', extension: '.d.ts' } },
         { url: '/src/styles.css', expected: { fileName: 'styles.css', extension: '.css' } },
         {
           url: '/src/components/Button/index.js',

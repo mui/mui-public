@@ -212,4 +212,46 @@ describe('processRelativeImports', () => {
         'file:///src/very/deeply/nested/path/structure/that/goes/on/forever/Component.js',
     });
   });
+
+  it('should handle direct index file imports vs nested index file imports in flat mode', () => {
+    const source = `import MainIndex from './index.js';\nimport TestModule from './test/index.js';`;
+    const importResult = {
+      './index.js': { path: '/src/index.js', names: ['MainIndex'] },
+      './test/index.js': { path: '/src/test/index.js', names: ['TestModule'] },
+    };
+    const resolvedPathsMap = new Map([
+      ['/src/index.js', '/src/index.js'],
+      ['/src/test/index.js', '/src/test/index.js'],
+    ]);
+
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
+
+    // Direct index import should stay as "./index.js"
+    // Nested index import should become "./test.js"
+    expect(result.extraFiles).toEqual({
+      './index.js': 'file:///src/index.js',
+      './test.js': 'file:///src/test/index.js',
+    });
+  });
+
+  it('should handle module.css index files correctly in flat mode', () => {
+    const source = `import indexStyles from './index.module.css';\nimport nestedStyles from './styles/index.module.css';`;
+    const importResult = {
+      './index.module.css': { path: '/src/index.module.css', names: [] },
+      './styles/index.module.css': { path: '/src/styles/index.module.css', names: [] },
+    };
+    const resolvedPathsMap = new Map([
+      ['/src/index.module.css', '/src/index.module.css'],
+      ['/src/styles/index.module.css', '/src/styles/index.module.css'],
+    ]);
+
+    const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
+
+    // Direct index.module.css should stay as "./index.module.css"
+    // Nested index.module.css should become "./styles.module.css"
+    expect(result.extraFiles).toEqual({
+      './index.module.css': 'file:///src/index.module.css',
+      './styles.module.css': 'file:///src/styles/index.module.css',
+    });
+  });
 });

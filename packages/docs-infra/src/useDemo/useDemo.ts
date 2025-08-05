@@ -78,7 +78,7 @@ export function openWithForm({
 
 // TODO: take initialVariant and initialTransforms as parameters
 export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?: UseDemoOpts) {
-  const codeResult = useCode(contentProps, opts);
+  const code = useCode(contentProps, opts);
 
   // Get context to access components if available (using React.useContext to avoid import conflicts)
   const context = React.useContext(CodeHighlighterContext);
@@ -96,8 +96,8 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
   // Get the component for the current variant
   const component = React.useMemo(() => {
-    return effectiveComponents[codeResult.selectedVariant] || null;
-  }, [effectiveComponents, codeResult.selectedVariant]);
+    return effectiveComponents[code.selectedVariant] || null;
+  }, [effectiveComponents, code.selectedVariant]);
 
   // Demo-specific ref and focus management
   const ref = React.useRef<HTMLDivElement | null>(null);
@@ -113,7 +113,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
   // Create StackBlitz demo callback
   const openStackBlitz = React.useCallback(() => {
     // Get the current variant code
-    const variantCode = effectiveCode[codeResult.selectedVariant];
+    const variantCode = effectiveCode[code.selectedVariant];
 
     if (!variantCode || typeof variantCode === 'string') {
       console.warn('No valid variant code available for StackBlitz demo');
@@ -125,7 +125,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
     // Determine if we should use TypeScript based on whether 'js' transform is NOT applied
     // If 'js' transform is applied, it means we're showing the JS version of TS code
-    const useTypescript = codeResult.selectedTransform !== 'js';
+    const useTypescript = code.selectedTransform !== 'js';
 
     // Export variant with additional configuration files
     const { exported, rootFile } = exportVariant(variantCode, {
@@ -145,12 +145,12 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     });
 
     openWithForm(stackBlitzDemo);
-  }, [effectiveCode, codeResult.selectedVariant, codeResult.selectedTransform, contentProps.name]);
+  }, [effectiveCode, code.selectedVariant, code.selectedTransform, contentProps.name]);
 
   // Create CodeSandbox demo callback
   const openCodeSandbox = React.useCallback(() => {
     // Get the current variant code
-    const variantCode = effectiveCode[codeResult.selectedVariant];
+    const variantCode = effectiveCode[code.selectedVariant];
 
     if (!variantCode || typeof variantCode === 'string') {
       console.warn('No valid variant code available for CodeSandbox demo');
@@ -162,7 +162,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
     // Determine if we should use TypeScript based on whether 'js' transform is NOT applied
     // If 'js' transform is applied, it means we're showing the JS version of TS code
-    const useTypescript = codeResult.selectedTransform !== 'js';
+    const useTypescript = code.selectedTransform !== 'js';
 
     // Export variant as CRA template with additional configuration files
     const { exported: craExport, rootFile } = exportVariantAsCra(variantCode, {
@@ -180,10 +180,10 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     });
 
     openWithForm(codeSandboxDemo);
-  }, [effectiveCode, codeResult.selectedVariant, codeResult.selectedTransform, contentProps.name]);
+  }, [effectiveCode, code.selectedVariant, code.selectedTransform, contentProps.name]);
 
   return {
-    ...codeResult,
+    ...code,
     // Demo-specific additions
     component,
     ref,

@@ -133,10 +133,15 @@ function processFlatMode(
   resolvedPathsMap: Map<string, string>,
 ): ProcessImportsResult {
   const extraFiles: Record<string, string> = {};
-  const fileMapping: Array<{ resolvedPath: string; extension: string; segments: string[] }> = [];
+  const fileMapping: Array<{
+    resolvedPath: string;
+    extension: string;
+    segments: string[];
+    originalImportPath: string;
+  }> = [];
 
   // First pass: collect all files and their path segments
-  Object.entries(importResult).forEach(([_relativePath, importInfo]) => {
+  Object.entries(importResult).forEach(([relativePath, importInfo]) => {
     const resolvedPath = resolvedPathsMap.get(importInfo.path);
     if (resolvedPath) {
       const fileExtension = getFileNameFromUrl(resolvedPath).extension;
@@ -146,6 +151,7 @@ function processFlatMode(
         resolvedPath,
         extension: fileExtension,
         segments: pathSegments,
+        originalImportPath: relativePath,
       });
     }
   });
@@ -161,9 +167,21 @@ function processFlatMode(
     let candidateName: string;
 
     if (isIndexFile) {
-      // For index files, use the parent directory name + extension
-      const parentDir = file.segments[file.segments.length - 2];
-      candidateName = `${parentDir}${file.extension}`;
+      // Check if the original import was a direct index file (e.g., "./index.ext")
+      const originalImportParts = file.originalImportPath.split('/');
+      const isDirectIndexImport =
+        originalImportParts.length === 2 &&
+        originalImportParts[0] === '.' &&
+        originalImportParts[1].startsWith('index.');
+
+      if (isDirectIndexImport) {
+        // For direct index imports like "./index.ext", keep the original name
+        candidateName = `index${file.extension}`;
+      } else {
+        // For nested index files like "./test/index.ext", use parent directory + extension
+        const parentDir = file.segments[file.segments.length - 2];
+        candidateName = `${parentDir}${file.extension}`;
+      }
     } else {
       candidateName = fileName;
     }
@@ -241,8 +259,19 @@ function processFlatMode(
 
                 let finalName: string;
                 if (isIndexFile) {
-                  const parentDir = file.segments[file.segments.length - 2];
-                  finalName = `${distinguishingSegment}/${parentDir}${file.extension}`;
+                  // Check if this was a direct index import
+                  const originalImportParts = file.originalImportPath.split('/');
+                  const isDirectIndexImport =
+                    originalImportParts.length === 2 &&
+                    originalImportParts[0] === '.' &&
+                    originalImportParts[1].startsWith('index.');
+
+                  if (isDirectIndexImport) {
+                    finalName = `${distinguishingSegment}/index${file.extension}`;
+                  } else {
+                    const parentDir = file.segments[file.segments.length - 2];
+                    finalName = `${distinguishingSegment}/${parentDir}${file.extension}`;
+                  }
                 } else {
                   finalName = `${distinguishingSegment}/${fileName}`;
                 }
@@ -285,8 +314,19 @@ function processFlatMode(
 
         let finalName: string;
         if (isIndexFile) {
-          const parentDir = file.segments[file.segments.length - 2];
-          finalName = `${distinguishingSegment}/${parentDir}${file.extension}`;
+          // Check if this was a direct index import
+          const originalImportParts = file.originalImportPath.split('/');
+          const isDirectIndexImport =
+            originalImportParts.length === 2 &&
+            originalImportParts[0] === '.' &&
+            originalImportParts[1].startsWith('index.');
+
+          if (isDirectIndexImport) {
+            finalName = `${distinguishingSegment}/index${file.extension}`;
+          } else {
+            const parentDir = file.segments[file.segments.length - 2];
+            finalName = `${distinguishingSegment}/${parentDir}${file.extension}`;
+          }
         } else {
           finalName = `${distinguishingSegment}/${fileName}`;
         }
