@@ -758,7 +758,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   });
 
   // Determine the final overlaid code (controlled takes precedence)
-  const overlaidCode = parsedControlledCode || transformedCode;
+  const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback = overlaidCode || (controlledCode ? undefined : props.code || code);
@@ -783,7 +783,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
-      code: overlaidCode || transformedCode, // Use processed/transformed code
+      code: overlaidCode, // Use processed/transformed code
       setCode: controlledSetCode,
       selection: controlledSelection || selection,
       setSelection: controlledSetSelection || setSelection,
@@ -794,7 +794,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
-      transformedCode,
       controlledSetCode,
       selection,
       controlledSelection,
