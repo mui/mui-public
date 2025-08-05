@@ -1,6 +1,7 @@
 import { createStarryNight } from '@wooorm/starry-night';
 import { ParseSource } from '../../CodeHighlighter';
 import { grammars, extensionMap } from './grammars';
+import { starryNightGutter } from './addLineGutters';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
@@ -27,7 +28,10 @@ export const parseSource: ParseSource = (source, fileName) => {
     };
   }
 
-  return starryNight.highlight(source, extensionMap[fileType]);
+  const highlighted = starryNight.highlight(source, extensionMap[fileType]);
+  starryNightGutter(highlighted); // mutates the tree to add line gutters
+
+  return highlighted;
 };
 
 export const createParseSource = async (): Promise<ParseSource> => {

@@ -5,6 +5,7 @@ import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
 import { LoadCodeMeta, LoadSource, LoadVariantMeta, ParseSource } from '../CodeHighlighter';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
+import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 
 export function CodeProvider({
   children,
@@ -43,7 +44,10 @@ export function CodeProvider({
           };
         }
 
-        return starryNight.highlight(source, extensionMap[fileType]);
+        const highlighted = starryNight.highlight(source, extensionMap[fileType]);
+        starryNightGutter(highlighted); // mutates the tree to add line gutters
+
+        return highlighted;
       };
 
       return parseSourceFn;
