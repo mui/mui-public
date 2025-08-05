@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { CodeHighlighter } from '../CodeHighlighter';
-import type { Code, Components, ContentLoadingProps, ContentProps } from '../CodeHighlighter';
-import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
+import type { Code, Components, ContentLoadingProps, ContentProps } from '../CodeHighlighter/types';
+import { createDemoDataWithVariants } from '../createDemoData';
 
 type CreateDemoMeta = {
   name?: string;
@@ -22,40 +22,26 @@ type AbstractCreateDemoOptions<T extends {}> = {
 export function abstractCreateDemo<T extends {}>(
   options: AbstractCreateDemoOptions<T>,
   url: string,
-  variants: { Default: React.ComponentType } | { [key: string]: React.ComponentType },
+  variants: { [key: string]: React.ComponentType },
   meta: CreateDemoMeta | undefined,
 ): React.ComponentType<T> & { Title: React.ComponentType } {
-  if (!url.startsWith('file:')) {
-    throw new Error(
-      'createDemo() requires the `url` parameter to be a file URL. Use `import.meta.url` to get the current file URL.',
+  const demoData = createDemoDataWithVariants(url, variants, meta);
+
+  function DemoComponent(props: T) {
+    const renderedComponents = Object.entries(demoData.components).reduce(
+      (acc, [key, Component]) => {
+        acc[key] = React.createElement(Component);
+        return acc;
+      },
+      {} as Components,
     );
-  }
-
-  if (!meta || (!meta.precompute && !meta.skipPrecompute)) {
-    throw new Error(
-      'createDemo() was unable to precompute the code. Ensure the createDemo() function is called within a path used for demo indexes. Run `pnpm run check:conventions:demo`',
-    );
-  }
-
-  const precompute = meta.precompute;
-
-  // Generate name and slug from URL if not provided in meta
-  const generatedMeta = extractNameAndSlugFromUrl(url);
-  const name = meta.name ?? generatedMeta.name;
-  const slug = meta.slug ?? generatedMeta.slug;
-
-  function Component(props: T) {
-    const renderedComponents = Object.entries(variants).reduce((acc, [key, Variant]) => {
-      acc[key] = <Variant />;
-      return acc;
-    }, {} as Components);
 
     const highlighter = (
       <CodeHighlighter
-        url={url}
-        name={name}
-        slug={slug}
-        precompute={precompute}
+        url={demoData.url}
+        name={demoData.name}
+        slug={demoData.slug}
+        precompute={demoData.precompute}
         components={renderedComponents}
         contentProps={props}
         Content={options.DemoContent}
@@ -74,20 +60,19 @@ export function abstractCreateDemo<T extends {}>(
 
   function Title() {
     if (options.DemoTitle) {
-      return <options.DemoTitle slug={slug}>{name}</options.DemoTitle>;
+      return <options.DemoTitle slug={demoData.slug}>{demoData.name}</options.DemoTitle>;
     }
 
-    return <h3 id={slug}>{name}</h3>;
+    return <h3 id={demoData.slug}>{demoData.name}</h3>;
   }
-  Component.Title = Title as React.ComponentType;
+  DemoComponent.Title = Title as React.ComponentType;
 
   if (process.env.NODE_ENV !== 'production') {
-    const displayName = meta?.displayName || `${name.replace(/ /g, '')}Demo`;
-    Component.displayName = displayName;
-    Component.Title.displayName = `${displayName}Title`;
+    DemoComponent.displayName = demoData.displayName;
+    DemoComponent.Title.displayName = `${demoData.displayName}Title`;
   }
 
-  return Component;
+  return DemoComponent;
 }
 
 export function createDemoFactory<T extends {}>(options: AbstractCreateDemoOptions<T>) {

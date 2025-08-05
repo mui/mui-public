@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { Code, CodeHighlighterClientProps, ControlledCode } from './types';
+import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeInitialData } from './maybeInitialData';
 import { loadFallbackCode } from './loadFallbackCode';
@@ -30,6 +30,8 @@ function useInitialData({
   fallbackUsesExtraFiles,
   fallbackUsesAllVariants,
   isControlled,
+  globalsCode,
+  setProcessedGlobalsCode,
 }: {
   variants: string[];
   variantName: string;
@@ -41,6 +43,8 @@ function useInitialData({
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   isControlled: boolean;
+  globalsCode?: Array<Code | string>;
+  setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
   const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
@@ -99,12 +103,17 @@ function useInitialData({
         loadCodeMeta,
         fileName,
         variants,
+        globalsCode, // Let loadFallbackCode handle processing
       ).catch((error) => ({ error }));
 
       if ('error' in loaded) {
         // TODO: handle error
       } else {
         setCode(loaded.code);
+        // Store processed globalsCode from loadFallbackCode result
+        if (loaded.processedGlobalsCode) {
+          setProcessedGlobalsCode(loaded.processedGlobalsCode);
+        }
       }
     })();
   }, [
@@ -124,6 +133,8 @@ function useInitialData({
     fallbackUsesAllVariants,
     fileName,
     variants,
+    globalsCode,
+    setProcessedGlobalsCode,
   ]);
 }
 
@@ -134,6 +145,9 @@ function useAllVariants({
   url,
   code,
   setCode,
+  processedGlobalsCode,
+  globalsCode,
+  setProcessedGlobalsCode,
 }: {
   readyForContent: boolean;
   variants: string[];
@@ -141,6 +155,9 @@ function useAllVariants({
   url?: string;
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  processedGlobalsCode?: Array<Code>;
+  globalsCode?: Array<Code | string>;
+  setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
   const { loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
@@ -166,10 +183,44 @@ function useAllVariants({
         loadedCode = await loadCodeMeta(url);
       }
 
+      // Use the already-processed globalsCode from state, or process it if not available
+      let globalsCodeObjects: Array<Code> = [];
+      if (processedGlobalsCode) {
+        // Use the already-processed globalsCode from state
+        globalsCodeObjects = processedGlobalsCode;
+      } else if (globalsCode && globalsCode.length > 0) {
+        // Process globalsCode: load any string URLs into Code objects
+        globalsCodeObjects = await Promise.all(
+          globalsCode.map(async (item) => {
+            if (typeof item === 'string') {
+              // Load Code object from URL string
+              if (!loadCodeMeta) {
+                throw new Error(
+                  '"loadCodeMeta" function is required for string URLs in globalsCode',
+                );
+              }
+              return loadCodeMeta(item);
+            }
+            // Already a Code object
+            return item;
+          }),
+        );
+        // Store processed globalsCode in state for future use
+        setProcessedGlobalsCode(globalsCodeObjects);
+      }
+
       // Load variant data without parsing or transforming
       const result = await Promise.all(
-        variants.map((name) =>
-          loadVariant(
+        variants.map((name) => {
+          // Resolve globalsCode for this specific variant
+          const globalsForVariant = globalsCodeObjects
+            .map((codeObj: Code) => {
+              // Only include if this variant exists in the globalsCode
+              return codeObj[name];
+            })
+            .filter((item: any): item is VariantCode | string => Boolean(item));
+
+          return loadVariant(
             url,
             name,
             loadedCode[name],
@@ -177,11 +228,15 @@ function useAllVariants({
             loadSource,
             loadVariantMeta,
             undefined, // sourceTransformers - skip transforming
-            { disableParsing: true, disableTransforms: true },
+            {
+              disableParsing: true,
+              disableTransforms: true,
+              globalsCode: globalsForVariant,
+            },
           )
             .then((variant) => ({ name, variant }))
-            .catch((error) => ({ error })),
-        ),
+            .catch((error) => ({ error }));
+        }),
       );
 
       const resultCode: Code = {};
@@ -210,6 +265,9 @@ function useAllVariants({
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    processedGlobalsCode,
+    globalsCode,
+    setProcessedGlobalsCode,
   ]);
 
   return { readyForContent };
@@ -336,6 +394,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     typeof props.precompute === 'object' ? props.precompute : undefined,
   );
 
+  // State to store processed globalsCode to avoid duplicate loading
+  const [processedGlobalsCode, setProcessedGlobalsCode] = React.useState<Array<Code> | undefined>(
+    undefined,
+  );
+
   // TODO: if using props.variant, then the variant is controlled and we can't use our own state
   // does props.variant make any sense instead of controlledSelection?.variant?
   const [selection, setSelection] = React.useState<Selection>({
@@ -365,6 +428,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     isControlled,
+    globalsCode: props.globalsCode,
+    setProcessedGlobalsCode,
   });
 
   const readyForContent = React.useMemo(() => {
@@ -398,6 +463,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     url,
     code,
     setCode,
+    processedGlobalsCode,
+    globalsCode: props.globalsCode,
+    setProcessedGlobalsCode,
   });
 
   const { parsedCode, deferHighlight } = useCodeParsing({

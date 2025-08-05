@@ -81,6 +81,7 @@ interface CodeHighlighterBaseProps {
   name?: string;
   slug?: string;
   code?: Code;
+  globalsCode?: Array<Code | string>;
   components?: Components; // TODO: rename to preview
   variants?: string[];
   variant?: string;
@@ -138,6 +139,8 @@ export interface LoadFileOptions {
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /** Side effects code to inject into extraFiles */
+  globalsCode?: Array<VariantCode | string>;
 }
 
 export interface CodeHighlighterProps<T extends {}> extends CodeHighlighterBaseProps {

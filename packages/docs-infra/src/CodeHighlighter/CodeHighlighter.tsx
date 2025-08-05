@@ -6,6 +6,7 @@ import type {
   CodeHighlighterProps,
   ContentLoadingProps,
   ContentProps,
+  VariantCode,
   VariantExtraFiles,
   VariantSource,
 } from './types';
@@ -44,11 +45,13 @@ type BaseHelperProps<T extends {}> = Pick<
   | 'defaultVariant'
   | 'forceClient'
   | 'children'
+  | 'globalsCode'
 >;
 
 interface CodeSourceLoaderProps<T extends {}> extends BaseHelperProps<T> {
   fallback?: React.ReactNode;
   skipFallback?: boolean;
+  processedGlobalsCode?: Array<Code>;
 }
 
 interface CodeInitialSourceLoaderProps<T extends {}> extends BaseHelperProps<T> {
@@ -70,6 +73,7 @@ function createClientProps<T extends {}>(
     code?: Code;
     fallback?: React.ReactNode;
     skipFallback?: boolean;
+    processedGlobalsCode?: Array<Code>;
   },
 ): CodeHighlighterClientProps {
   const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
@@ -99,6 +103,8 @@ function createClientProps<T extends {}>(
     controlled: props.controlled,
     name: props.name,
     slug: props.slug,
+    // Use processedGlobalsCode if available, otherwise fall back to raw globalsCode
+    globalsCode: props.processedGlobalsCode || props.globalsCode,
     children: <props.Content {...contentProps} />,
   };
 }
@@ -138,12 +144,63 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
 
   // TODO: if props.variant is provided, we should only load that variant
 
+  // Process globalsCode: use already processed version if available, otherwise convert string URLs to Code objects
+  let processedGlobalsCode: Array<Code> | undefined = props.processedGlobalsCode;
+  if (!processedGlobalsCode && props.globalsCode && props.globalsCode.length > 0) {
+    const hasStringUrls = props.globalsCode.some((item) => typeof item === 'string');
+    if (hasStringUrls && !props.loadCodeMeta) {
+      return (
+        <ErrorHandler
+          error={
+            new Error('loadCodeMeta function is required when globalsCode contains string URLs')
+          }
+        />
+      );
+    }
+
+    // Load all string URLs in parallel, keep Code objects as-is
+    const globalsPromises = props.globalsCode.map(async (globalItem) => {
+      if (typeof globalItem === 'string') {
+        // String URL - load Code object via loadCodeMeta
+        try {
+          return await props.loadCodeMeta!(globalItem);
+        } catch (error) {
+          throw new Error(
+            `Failed to load globalsCode from URL: ${globalItem}. Error: ${JSON.stringify(error)}`,
+          );
+        }
+      } else {
+        // Code object - return as-is
+        return globalItem;
+      }
+    });
+
+    try {
+      processedGlobalsCode = await Promise.all(globalsPromises);
+    } catch (error) {
+      return <ErrorHandler error={error as Error} />;
+    }
+  }
+
   const variantNames = Object.keys(props.components || loadedCode || {});
   const variantCodes = await Promise.all(
     variantNames.map((variantName) => {
       const variantCode = loadedCode[variantName];
       const variantUrl =
         typeof variantCode === 'object' && variantCode?.url ? variantCode.url : props.url;
+
+      // Convert processedGlobalsCode to VariantCode | string for this specific variant
+      let resolvedGlobalsCode: Array<VariantCode | string> | undefined;
+      if (processedGlobalsCode && processedGlobalsCode.length > 0) {
+        resolvedGlobalsCode = [];
+        for (const codeObj of processedGlobalsCode) {
+          // Only include if this variant exists in the globalsCode
+          const targetVariant = codeObj[variantName];
+          if (targetVariant) {
+            resolvedGlobalsCode.push(targetVariant);
+          }
+        }
+      }
 
       return loadVariant(
         variantUrl,
@@ -153,6 +210,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         props.loadSource,
         props.loadVariantMeta,
         props.sourceTransformers,
+        { globalsCode: resolvedGlobalsCode },
       )
         .then((variant) => ({ name: variantName, variant }))
         .catch((error) => ({ error }));
@@ -180,6 +238,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   const clientProps = createClientProps({
     ...props,
     code: processedCode,
+    processedGlobalsCode,
   });
 
   return <CodeHighlighterClient {...clientProps} />;
@@ -191,6 +250,7 @@ function renderCodeHighlighter<T extends {}>(
   props: BaseHelperProps<T> & {
     fallback?: React.ReactNode;
     skipFallback?: boolean;
+    processedGlobalsCode?: Array<Code>;
   },
 ) {
   const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
@@ -233,6 +293,7 @@ function renderWithInitialSource<T extends {}>(
     initialSource: VariantSource;
     initialExtraFiles?: VariantExtraFiles;
     ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
+    processedGlobalsCode?: Array<Code>;
   },
 ) {
   const fileNames = [
@@ -257,6 +318,7 @@ function renderWithInitialSource<T extends {}>(
     return renderCodeHighlighter({
       ...props,
       fallback,
+      processedGlobalsCode: props.processedGlobalsCode,
     });
   }
 
@@ -267,6 +329,7 @@ function renderWithInitialSource<T extends {}>(
           ...props,
           fallback,
           skipFallback: true,
+          processedGlobalsCode: props.processedGlobalsCode,
         })}
       </CodeHighlighterSuspense>
     </React.Suspense>
@@ -293,12 +356,13 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     props.loadCodeMeta,
     props.fileName,
     props.variants,
+    props.globalsCode,
   ).catch((error) => ({ error }));
   if ('error' in loaded) {
     return <ErrorHandler error={loaded.error} />;
   }
 
-  const { code, initialFilename, initialSource, initialExtraFiles } = loaded;
+  const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } = loaded;
 
   return renderWithInitialSource({
     ...props,
@@ -307,6 +371,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     initialSource,
     initialExtraFiles,
     ContentLoading: props.ContentLoading,
+    processedGlobalsCode,
   });
 }
 

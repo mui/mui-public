@@ -11,6 +11,12 @@ import type {
   ParseSource,
   VariantCode,
 } from './types';
+import { loadVariant } from './loadVariant';
+
+// Mock loadVariant since loadFallbackCode now uses it for globalsCode processing
+vi.mock('./loadVariant', () => ({
+  loadVariant: vi.fn(),
+}));
 
 /**
  * Tests for loadFallbackCode function.
@@ -28,6 +34,7 @@ describe('loadFallbackCode', () => {
   let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
+  let mockLoadVariant: MockedFunction<typeof loadVariant>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -35,6 +42,202 @@ describe('loadFallbackCode', () => {
     mockLoadVariantMeta = vi.fn();
     mockLoadSource = vi.fn();
     mockParseSource = vi.fn();
+    mockLoadVariant = vi.mocked(loadVariant);
+
+    // Setup default mock behavior for loadVariant to return the input variant
+    // with globalsCode processing simulated
+    mockLoadVariant.mockImplementation(
+      async (
+        url,
+        variant,
+        variantCode,
+        sourceParser,
+        loadSource,
+        loadVariantMeta,
+        sourceTransformers,
+        options,
+      ) => {
+        // If variantCode is a string, we need to resolve it first using loadVariantMeta
+        let processedVariant: VariantCode;
+
+        if (typeof variantCode === 'string') {
+          if (loadVariantMeta) {
+            // Call the actual loadVariantMeta function that was passed in
+            processedVariant = await loadVariantMeta(variant, variantCode);
+          } else {
+            // Fallback to basic variant
+            processedVariant = {
+              url: variantCode,
+              fileName: 'App.tsx',
+              source: 'fallback source',
+            };
+          }
+        } else {
+          // variantCode is already a VariantCode object
+          processedVariant = variantCode as VariantCode;
+        }
+
+        // If the processed variant is missing its source and has a URL, load it
+        if (
+          !processedVariant.source &&
+          processedVariant.url &&
+          loadSource &&
+          mockLoadSource.getMockImplementation()
+        ) {
+          const loadedContent = await loadSource(processedVariant.url);
+          processedVariant = {
+            ...processedVariant,
+            source: loadedContent.source,
+          };
+        }
+
+        // Process the main variant's extraFiles (call loadSource for URL strings)
+        if (processedVariant.extraFiles) {
+          const processedExtraFiles = { ...processedVariant.extraFiles };
+          await Promise.all(
+            Object.entries(processedVariant.extraFiles).map(async ([fileName, fileContent]) => {
+              if (
+                typeof fileContent === 'string' &&
+                loadSource &&
+                mockLoadSource.getMockImplementation()
+              ) {
+                // String URL - call loadSource to resolve it
+                const loadedContent = await loadSource(fileContent);
+                processedExtraFiles[fileName] = {
+                  source: loadedContent.source,
+                };
+              }
+              // Otherwise keep the file as-is (object with source)
+            }),
+          );
+
+          processedVariant = {
+            ...processedVariant,
+            extraFiles: processedExtraFiles,
+          };
+        }
+
+        if (options?.globalsCode && Array.isArray(options.globalsCode)) {
+          // Simulate merging globalsCode extraFiles into the variant
+          const mergedExtraFiles = { ...processedVariant.extraFiles };
+          const existingFiles = new Set(Object.keys(mergedExtraFiles));
+
+          // Helper function to generate conflict-free filenames (mimics loadVariant logic)
+          const generateConflictFreeFilename = (originalFilename: string): string => {
+            if (!existingFiles.has(originalFilename)) {
+              return originalFilename;
+            }
+
+            const globalFilename = `global_${originalFilename}`;
+            if (!existingFiles.has(globalFilename)) {
+              return globalFilename;
+            }
+
+            // Split filename into name and extension for proper numbering
+            const lastDotIndex = originalFilename.lastIndexOf('.');
+            let nameWithoutExt: string;
+            let extension: string;
+
+            if (lastDotIndex === -1 || lastDotIndex === 0) {
+              nameWithoutExt = originalFilename;
+              extension = '';
+            } else {
+              nameWithoutExt = originalFilename.substring(0, lastDotIndex);
+              extension = originalFilename.substring(lastDotIndex);
+            }
+
+            let counter = 1;
+            let candidateName: string;
+            do {
+              candidateName = `global_${nameWithoutExt}_${counter}${extension}`;
+              counter += 1;
+            } while (existingFiles.has(candidateName));
+
+            return candidateName;
+          };
+
+          await Promise.all(
+            options.globalsCode.map(async (globalVariant) => {
+              if (typeof globalVariant === 'string') {
+                // String URL - call loadVariantMeta to resolve it
+                if (loadVariantMeta && mockLoadVariantMeta.getMockImplementation()) {
+                  const resolvedVariant = await loadVariantMeta('default', globalVariant);
+                  if (resolvedVariant && resolvedVariant.extraFiles) {
+                    await Promise.all(
+                      Object.entries(resolvedVariant.extraFiles).map(
+                        async ([fileName, fileContent]) => {
+                          const conflictFreeFilename = generateConflictFreeFilename(fileName);
+
+                          if (typeof fileContent === 'string') {
+                            // String URL in resolved variant - call loadSource to resolve it
+                            if (loadSource && mockLoadSource.getMockImplementation()) {
+                              const loadedContent = await loadSource(fileContent);
+                              mergedExtraFiles[conflictFreeFilename] = {
+                                source: loadedContent.source,
+                                metadata: true,
+                              };
+                            } else {
+                              // Fallback if no loadSource
+                              mergedExtraFiles[conflictFreeFilename] = fileContent;
+                            }
+                          } else {
+                            // Object with source - mark globalsCode files with metadata: true
+                            mergedExtraFiles[conflictFreeFilename] = {
+                              ...fileContent,
+                              metadata: true,
+                            };
+                          }
+                          existingFiles.add(conflictFreeFilename);
+                        },
+                      ),
+                    );
+                  }
+                }
+              } else if (typeof globalVariant === 'object' && globalVariant.extraFiles) {
+                // VariantCode object - merge extraFiles with conflict resolution
+                await Promise.all(
+                  Object.entries(globalVariant.extraFiles).map(async ([fileName, fileContent]) => {
+                    const conflictFreeFilename = generateConflictFreeFilename(fileName);
+
+                    if (typeof fileContent === 'string') {
+                      // String URL - call loadSource to resolve it
+                      if (loadSource && mockLoadSource.getMockImplementation()) {
+                        const loadedContent = await loadSource(fileContent);
+                        mergedExtraFiles[conflictFreeFilename] = {
+                          source: loadedContent.source,
+                          metadata: true,
+                        };
+                      } else {
+                        // Fallback if no loadSource
+                        mergedExtraFiles[conflictFreeFilename] = fileContent;
+                      }
+                    } else {
+                      // Object with source - mark globalsCode files with metadata: true
+                      mergedExtraFiles[conflictFreeFilename] = {
+                        ...fileContent,
+                        metadata: true,
+                      };
+                    }
+                    existingFiles.add(conflictFreeFilename);
+                  }),
+                );
+              }
+            }),
+          );
+
+          processedVariant = {
+            ...processedVariant,
+            extraFiles: mergedExtraFiles,
+          };
+        }
+
+        return {
+          code: processedVariant,
+          dependencies: [],
+          externals: {},
+        };
+      },
+    );
   });
 
   describe('Early return optimization with allFilesListed', () => {
@@ -1098,6 +1301,856 @@ describe('loadFallbackCode', () => {
       });
       expect(result.initialFilename).toBeUndefined();
       expect(mockParseSource).not.toHaveBeenCalled(); // No actual parsing without filename
+    });
+  });
+
+  describe('globalsCode integration', () => {
+    it('should process globalsCode when fallbackUsesExtraFiles=true', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'main-styles.css': {
+            source: '.app { color: blue; }',
+          },
+        },
+        allFilesListed: false, // Force fallback to loadVariant
+      };
+
+      const globalsCode: Code = {
+        default: {
+          fileName: 'theme.ts',
+          source: "console.log('theme loaded');",
+          extraFiles: {
+            'theme.css': {
+              source: '.theme { color: red; }',
+            },
+            'globals.css': {
+              source: '.global { margin: 0; }',
+            },
+          },
+        },
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsCode], // Pass globalsCode
+      );
+
+      // Verify the main variant's files are present
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('main-styles.css');
+
+      // Verify globalsCode extraFiles are included (but not the root file)
+      expect(result.allFileNames).toContain('theme.css'); // Original filename used
+      expect(result.allFileNames).toContain('globals.css'); // Original filename used
+      expect(result.allFileNames).not.toContain('theme.ts'); // Root file excluded
+
+      // Check that the processed variant has the globals files
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['theme.css']).toBeDefined();
+      expect(processedVariant.extraFiles?.['globals.css']).toBeDefined();
+      expect((processedVariant.extraFiles?.['theme.css'] as any).source).toBe(
+        '.theme { color: red; }',
+      );
+      expect((processedVariant.extraFiles?.['globals.css'] as any).source).toBe(
+        '.global { margin: 0; }',
+      );
+    });
+
+    it('should handle globalsCode filename conflicts in fallback scenarios', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'theme.css': {
+            source: '.main-theme { color: blue; }',
+          },
+          'global_theme.css': {
+            source: '.alt-theme { color: green; }',
+          },
+        },
+        allFilesListed: false, // Force fallback to loadVariant
+      };
+
+      const globalsCode: Code = {
+        default: {
+          fileName: 'setup.ts',
+          source: "console.log('setup');",
+          extraFiles: {
+            'theme.css': {
+              source: '.side-effect-theme { color: red; }',
+            },
+          },
+        },
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsCode],
+      );
+
+      // Verify conflict resolution naming
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('theme.css'); // Original from main variant
+      expect(result.allFileNames).toContain('global_theme.css'); // Original from main variant
+      expect(result.allFileNames).toContain('global_theme_1.css'); // Conflicting file with numbered suffix
+
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['theme.css']).toBeDefined();
+      expect((processedVariant.extraFiles?.['theme.css'] as any).source).toBe(
+        '.main-theme { color: blue; }',
+      );
+      expect(processedVariant.extraFiles?.['global_theme_1.css']).toBeDefined();
+      expect((processedVariant.extraFiles?.['global_theme_1.css'] as any).source).toBe(
+        '.side-effect-theme { color: red; }',
+      );
+    });
+
+    it('should pass globalsCode through when fallbackUsesAllVariants=true', async () => {
+      const jsVariant: VariantCode = {
+        fileName: 'App.js',
+        url: 'http://example.com/App.js',
+        source: 'const App = () => React.createElement("div", null, "Hello JS");',
+        allFilesListed: false,
+      };
+
+      const tsVariant: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello TS</div>;',
+        allFilesListed: false,
+      };
+
+      const globalsCode: Code = {
+        default: {
+          fileName: 'global-setup.ts',
+          source: "console.log('global setup');",
+          extraFiles: {
+            'shared-styles.css': {
+              source: '.shared { font-family: Arial; }',
+            },
+          },
+        },
+      };
+
+      mockLoadVariantMeta.mockResolvedValue(tsVariant);
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'javascript',
+        {
+          javascript: jsVariant,
+          typescript: 'http://example.com/typescript',
+        },
+        false,
+        false,
+        true, // fallbackUsesAllVariants=true
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        ['javascript', 'typescript'],
+        [globalsCode],
+      );
+
+      // Verify all variants are processed and globals are included
+      expect(result.allFileNames).toContain('App.js'); // From JS variant
+      expect(result.allFileNames).toContain('App.tsx'); // From TS variant
+      expect(result.allFileNames).toContain('shared-styles.css'); // From globalsCode
+
+      // Verify that loadVariantMeta was called with globalsCode parameter
+      expect(mockLoadVariantMeta).toHaveBeenCalledWith(
+        'typescript',
+        'http://example.com/typescript',
+      );
+
+      // Check that both variants have the globals
+      const jsProcessedVariant = result.code.javascript as VariantCode;
+      const tsProcessedVariant = result.code.typescript as VariantCode;
+
+      expect(jsProcessedVariant.extraFiles?.['shared-styles.css']).toBeDefined();
+      expect(tsProcessedVariant.extraFiles?.['shared-styles.css']).toBeDefined();
+    });
+
+    it('should handle globalsCode URL string in fallback scenarios', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'const Component = () => <div>Component</div>;',
+        allFilesListed: false, // Force fallback to loadVariant
+      };
+
+      const globalsUrl = 'http://example.com/side-effects.ts';
+      const globalsVariant: VariantCode = {
+        url: globalsUrl,
+        fileName: 'side-effects.ts',
+        source: "import './styles.css';",
+        extraFiles: {
+          'styles.css': {
+            source: '.side-effects { background: yellow; }',
+          },
+        },
+      };
+
+      // Mock loadCodeMeta to return a Code object for the URL string
+      mockLoadCodeMeta.mockResolvedValue({
+        default: globalsVariant,
+      });
+
+      mockLoadVariantMeta.mockResolvedValue(globalsVariant);
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsUrl], // Pass URL string
+      );
+
+      // Verify globals extraFiles are included
+      expect(result.allFileNames).toContain('Component.tsx');
+      expect(result.allFileNames).toContain('styles.css');
+      expect(result.allFileNames).not.toContain('side-effects.ts'); // Root file excluded
+
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['styles.css']).toBeDefined();
+      expect((processedVariant.extraFiles?.['styles.css'] as any).source).toBe(
+        '.side-effects { background: yellow; }',
+      );
+
+      // Verify loadCodeMeta was called for the URL string (new architecture)
+      expect(mockLoadCodeMeta).toHaveBeenCalledWith(globalsUrl);
+    });
+
+    it('should call loadVariantMeta when globalsCode is a URL string', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: false,
+      };
+
+      const globalsUrl = 'http://example.com/global-setup.ts';
+      const globalsVariant: VariantCode = {
+        url: globalsUrl,
+        fileName: 'global-setup.ts',
+        source: "import './theme.css'; import './reset.css';",
+        extraFiles: {
+          'theme.css': {
+            source: '.theme { color: purple; }',
+          },
+          'reset.css': {
+            source: '* { margin: 0; }',
+          },
+        },
+      };
+
+      // Mock loadCodeMeta to return a Code object for the URL string
+      mockLoadCodeMeta.mockResolvedValue({
+        default: globalsVariant,
+      });
+
+      mockLoadVariantMeta.mockResolvedValue(globalsVariant);
+
+      await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsUrl], // URL string for globalsCode
+      );
+
+      // Verify loadCodeMeta is called correctly for globalsCode URL (new architecture)
+      expect(mockLoadCodeMeta).toHaveBeenCalledWith(globalsUrl);
+      expect(mockLoadCodeMeta).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call loadSource for globalsCode extraFiles URLs', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'const Component = () => <div>Component</div>;',
+        allFilesListed: false,
+      };
+
+      const globalsCode: Code = {
+        default: {
+          fileName: 'setup.ts',
+          source: "import './config.json'; import './styles.scss';",
+          extraFiles: {
+            'config.json': 'http://example.com/config.json', // URL that needs loading
+            'styles.scss': 'http://example.com/styles.scss', // URL that needs loading
+            'constants.js': {
+              source: 'export const API_URL = "https://api.example.com";', // Already loaded
+            },
+          },
+        },
+      };
+
+      // Mock loadSource responses for the URL extraFiles
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('config.json')) {
+          return {
+            source: '{"theme": "dark", "locale": "en"}',
+            extraFiles: {},
+          };
+        }
+        if (url.includes('styles.scss')) {
+          return {
+            source: '$primary-color: #007bff; .btn { color: $primary-color; }',
+            extraFiles: {},
+          };
+        }
+        return { source: 'fallback', extraFiles: {} };
+      });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsCode],
+      );
+
+      // Verify loadSource was called for each URL in globalsCode extraFiles
+      expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/config.json');
+      expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/styles.scss');
+      expect(mockLoadSource).toHaveBeenCalledTimes(2); // Only for the URLs, not the already-loaded content
+
+      // Verify the loaded content is properly integrated
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['config.json']).toBeDefined();
+      expect(processedVariant.extraFiles?.['styles.scss']).toBeDefined();
+      expect(processedVariant.extraFiles?.['constants.js']).toBeDefined();
+      expect((processedVariant.extraFiles?.['config.json'] as any).source).toBe(
+        '{"theme": "dark", "locale": "en"}',
+      );
+      expect((processedVariant.extraFiles?.['styles.scss'] as any).source).toBe(
+        '$primary-color: #007bff; .btn { color: $primary-color; }',
+      );
+      expect((processedVariant.extraFiles?.['constants.js'] as any).source).toBe(
+        'export const API_URL = "https://api.example.com";',
+      );
+    });
+
+    it('should handle complex globalsCode loading scenarios with both loadSource and loadVariantMeta', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>App</div>;',
+        extraFiles: {
+          'utils.ts': 'http://example.com/utils.ts', // Main variant also needs loading
+        },
+        allFilesListed: false,
+      };
+
+      // globalsCode as URL string that returns variant with URL extraFiles
+      const globalsUrl = 'http://example.com/complex-setup.ts';
+      const globalsVariant: VariantCode = {
+        url: globalsUrl,
+        fileName: 'complex-setup.ts',
+        source: "import './polyfills.js'; import './vendor.css';",
+        extraFiles: {
+          'polyfills.js': 'http://example.com/polyfills.js', // Needs loadSource
+          'vendor.css': 'http://example.com/vendor.css', // Needs loadSource
+          'inline-config.json': {
+            source: '{"version": "1.0.0"}', // Already loaded
+          },
+        },
+      };
+
+      // Mock loadCodeMeta to return a Code object for the URL string
+      mockLoadCodeMeta.mockResolvedValue({
+        default: globalsVariant,
+      });
+
+      // Mock loadVariantMeta for globalsCode
+      mockLoadVariantMeta.mockResolvedValue(globalsVariant);
+
+      // Mock loadSource for various URLs
+      mockLoadSource.mockImplementation(async (url: string) => {
+        if (url.includes('utils.ts')) {
+          return {
+            source: 'export const formatDate = (date) => date.toISOString();',
+            extraFiles: {},
+          };
+        }
+        if (url.includes('polyfills.js')) {
+          return {
+            source: 'window.Promise = window.Promise || Promise;',
+            extraFiles: {},
+          };
+        }
+        if (url.includes('vendor.css')) {
+          return {
+            source: '.vendor { font-family: "Vendor Font"; }',
+            extraFiles: {},
+          };
+        }
+        return { source: 'unknown', extraFiles: {} };
+      });
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsUrl],
+      );
+
+      // Verify loadCodeMeta was called for globalsCode URL (new architecture)
+      expect(mockLoadCodeMeta).toHaveBeenCalledWith(globalsUrl);
+
+      // Verify loadSource was called for all URL extraFiles (main variant + globalsCode)
+      expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/utils.ts'); // Main variant
+      expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/polyfills.js'); // globalsCode
+      expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/vendor.css'); // globalsCode
+      expect(mockLoadSource).toHaveBeenCalledTimes(3);
+
+      // Verify all files are present in results
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('utils.ts'); // From main variant
+      expect(result.allFileNames).toContain('polyfills.js'); // From globalsCode
+      expect(result.allFileNames).toContain('vendor.css'); // From globalsCode
+      expect(result.allFileNames).toContain('inline-config.json'); // From globalsCode
+      expect(result.allFileNames).not.toContain('complex-setup.ts'); // Root file excluded
+
+      // Verify content is properly loaded and integrated
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['utils.ts']).toBeDefined();
+      expect(processedVariant.extraFiles?.['polyfills.js']).toBeDefined();
+      expect(processedVariant.extraFiles?.['vendor.css']).toBeDefined();
+      expect(processedVariant.extraFiles?.['inline-config.json']).toBeDefined();
+
+      expect((processedVariant.extraFiles?.['utils.ts'] as any).source).toBe(
+        'export const formatDate = (date) => date.toISOString();',
+      );
+      expect((processedVariant.extraFiles?.['polyfills.js'] as any).source).toBe(
+        'window.Promise = window.Promise || Promise;',
+      );
+      expect((processedVariant.extraFiles?.['vendor.css'] as any).source).toBe(
+        '.vendor { font-family: "Vendor Font"; }',
+      );
+      expect((processedVariant.extraFiles?.['inline-config.json'] as any).source).toBe(
+        '{"version": "1.0.0"}',
+      );
+    });
+
+    it('should work correctly when globalsCode is provided but early return path is taken', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        extraFiles: {
+          'existing.css': {
+            source: '.existing { color: blue; }',
+          },
+        },
+        allFilesListed: true, // This should allow early return
+      };
+
+      const globalsCode: Code = {
+        default: {
+          fileName: 'theme.ts',
+          source: "console.log('theme');",
+          extraFiles: {
+            'theme.css': {
+              source: '.theme { color: red; }',
+            },
+          },
+        },
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false, // No extra processing needed
+        false, // No all variants needed
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsCode], // globalsCode provided but should be ignored in early return
+      );
+
+      // In early return path, globalsCode should not be processed
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('existing.css');
+      expect(result.allFileNames).not.toContain('theme.css'); // Not processed in early return
+
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['existing.css']).toBeDefined();
+      expect(processedVariant.extraFiles?.['theme.css']).toBeUndefined(); // Not processed
+    });
+
+    it('should handle globalsCode with complex extraFiles in fallback', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>Hello</div>;',
+        allFilesListed: false,
+      };
+
+      const globalsCode: Code = {
+        default: {
+          fileName: 'complex-setup.ts',
+          source: "import './base.css'; import './components.css';",
+          extraFiles: {
+            'base.css': {
+              source: '* { box-sizing: border-box; }',
+            },
+            'components/button.css': {
+              source: '.btn { padding: 8px; }',
+            },
+            'utils/helpers.js': {
+              source: 'export const format = (s) => s.trim();',
+            },
+          },
+        },
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        true, // fallbackUsesExtraFiles=true
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsCode],
+      );
+
+      // Verify all globals extraFiles are included
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('base.css');
+      expect(result.allFileNames).toContain('components/button.css');
+      expect(result.allFileNames).toContain('utils/helpers.js');
+      expect(result.allFileNames).not.toContain('complex-setup.ts'); // Root excluded
+
+      const processedVariant = result.code.default as VariantCode;
+      expect(processedVariant.extraFiles?.['base.css']).toBeDefined();
+      expect(processedVariant.extraFiles?.['components/button.css']).toBeDefined();
+      expect(processedVariant.extraFiles?.['utils/helpers.js']).toBeDefined();
+      expect((processedVariant.extraFiles?.['base.css'] as any).source).toBe(
+        '* { box-sizing: border-box; }',
+      );
+      expect((processedVariant.extraFiles?.['components/button.css'] as any).source).toBe(
+        '.btn { padding: 8px; }',
+      );
+      expect((processedVariant.extraFiles?.['utils/helpers.js'] as any).source).toBe(
+        'export const format = (s) => s.trim();',
+      );
+
+      // Verify that globals files are marked with metadata: true
+      expect((processedVariant.extraFiles?.['base.css'] as any).metadata).toBe(true);
+      expect((processedVariant.extraFiles?.['components/button.css'] as any).metadata).toBe(true);
+      expect((processedVariant.extraFiles?.['utils/helpers.js'] as any).metadata).toBe(true);
+    });
+
+    it('should resolve Code objects to VariantCode objects for efficient loadVariant processing', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>App</div>;',
+        allFilesListed: false, // Force loadVariant processing
+      };
+
+      // Pass globalsCode as Code object (simulating loadFallbackCode receiving it from component)
+      const globalsCodeAsCodeObject: Code = {
+        default: {
+          fileName: 'global-theme.css',
+          source: '.global-theme { color: blue; }',
+          extraFiles: {
+            'theme-vars.css': { source: ':root { --theme-blue: #007bff; }' },
+          },
+        },
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false,
+        false,
+        false,
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsCodeAsCodeObject],
+      );
+
+      // Verify that loadFallbackCode resolved the Code object and passed VariantCode to loadVariant
+      // The mock loadVariant should have been called with resolved VariantCode objects in globalsCode
+      expect(mockLoadVariant).toHaveBeenCalledWith(
+        'http://example.com',
+        'default',
+        variantCode,
+        expect.any(Promise),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        undefined,
+        expect.objectContaining({
+          disableTransforms: true,
+          disableParsing: true,
+          globalsCode: expect.arrayContaining([
+            expect.objectContaining({
+              fileName: 'global-theme.css',
+              source: '.global-theme { color: blue; }',
+              extraFiles: expect.objectContaining({
+                'theme-vars.css': { source: ':root { --theme-blue: #007bff; }' },
+              }),
+            }),
+          ]),
+        }),
+      );
+
+      // Verify that the globalsCode processing worked (from our mock)
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('theme-vars.css');
+    });
+
+    it('should handle string URLs in globalsCode without requiring preprocessing', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'Component.tsx',
+        url: 'http://example.com/Component.tsx',
+        source: 'const Component = () => <span>Component</span>;',
+        allFilesListed: true, // Allow early return
+      };
+
+      const globalsUrl = 'http://example.com/lazy-styles.css';
+
+      // Provide the loaded Code object with our variant
+      const loaded: Code = {
+        default: variantCode,
+      };
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        loaded, // Provide loaded Code
+        false, // shouldHighlight
+        false, // fallbackUsesExtraFiles
+        false, // fallbackUsesAllVariants
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        'Component.tsx', // initialFilename
+        undefined, // variants
+        [globalsUrl], // globalsCode - Pass URL string directly
+      );
+
+      // Verify that the function completes successfully with globalsCode
+      expect(result.allFileNames).toContain('Component.tsx');
+      expect(result.initialSource).toBeDefined();
+
+      // The key test: globalsCode string URLs should be accepted without preprocessing
+      // This is an optimization where strings are passed through directly to loadVariant
+      // when it's needed, avoiding unnecessary pre-resolution
+
+      // Verify the result structure is correct
+      expect(result.allFileNames).toContain('Component.tsx');
+    });
+
+    it('should handle early return scenarios efficiently without processing globalsCode', async () => {
+      const variantCode: VariantCode = {
+        fileName: 'QuickComponent.tsx',
+        url: 'http://example.com/QuickComponent.tsx',
+        source: 'const QuickComponent = () => <div>Quick</div>;',
+        allFilesListed: true, // Enable early return
+      };
+
+      const globalsUrl = 'http://example.com/unused-globals.css';
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'default',
+        { default: variantCode },
+        false, // shouldHighlight=false
+        false, // fallbackUsesExtraFiles=false
+        false, // fallbackUsesAllVariants=false
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        undefined,
+        [globalsUrl], // globalsCode provided but should be ignored in early return
+      );
+
+      // Verify early return took place (loadVariant should not have been called)
+      expect(mockLoadVariant).not.toHaveBeenCalled();
+
+      // Verify no globalsCode processing occurred (loadVariantMeta not called)
+      expect(mockLoadVariantMeta).not.toHaveBeenCalled();
+
+      // Result should only contain the main variant without globalsCode processing
+      expect(result.allFileNames).toEqual(['QuickComponent.tsx']);
+      expect(result.initialSource).toBe('const QuickComponent = () => <div>Quick</div>;');
+    });
+
+    it('should handle fallbackUsesAllVariants with globalsCode sharing across variants', async () => {
+      const jsVariant: VariantCode = {
+        fileName: 'App.js',
+        url: 'http://example.com/App.js',
+        source: 'const App = () => React.createElement("div", null, "JS");',
+        allFilesListed: false,
+      };
+
+      const tsVariant: VariantCode = {
+        fileName: 'App.tsx',
+        url: 'http://example.com/App.tsx',
+        source: 'const App = () => <div>TS</div>;',
+        allFilesListed: false,
+      };
+
+      const sharedGlobalsCode: Code = {
+        default: {
+          fileName: 'shared.css',
+          source: '.shared { font-family: Arial; }',
+          extraFiles: {
+            'reset.css': { source: '* { margin: 0; }' },
+          },
+        },
+      };
+
+      mockLoadVariantMeta.mockResolvedValue(tsVariant);
+
+      const result = await loadFallbackCode(
+        'http://example.com',
+        'javascript', // Initial variant
+        {
+          javascript: jsVariant,
+          typescript: 'http://example.com/typescript', // String URL
+        },
+        false,
+        false,
+        true, // fallbackUsesAllVariants=true
+        Promise.resolve(mockParseSource),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        mockLoadCodeMeta,
+        undefined,
+        ['javascript', 'typescript'],
+        [sharedGlobalsCode], // Shared across variants
+      );
+
+      // Verify loadVariant was called for both variants with the same resolved globalsCode
+      expect(mockLoadVariant).toHaveBeenCalledTimes(2);
+
+      // Both calls should receive the same resolved globalsCode
+      const expectedGlobalsCode = expect.arrayContaining([
+        expect.objectContaining({
+          fileName: 'shared.css',
+          source: '.shared { font-family: Arial; }',
+          extraFiles: expect.objectContaining({
+            'reset.css': { source: '* { margin: 0; }' },
+          }),
+        }),
+      ]);
+
+      expect(mockLoadVariant).toHaveBeenCalledWith(
+        'http://example.com',
+        'javascript',
+        jsVariant,
+        expect.any(Promise),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        undefined,
+        expect.objectContaining({
+          globalsCode: expectedGlobalsCode,
+        }),
+      );
+
+      expect(mockLoadVariant).toHaveBeenCalledWith(
+        'http://example.com',
+        'typescript',
+        'http://example.com/typescript', // URL string, not VariantCode object
+        expect.any(Promise),
+        mockLoadSource,
+        mockLoadVariantMeta,
+        undefined,
+        expect.objectContaining({
+          disableTransforms: true,
+          disableParsing: true,
+          globalsCode: expectedGlobalsCode,
+        }),
+      );
+
+      // Verify both variants are included in results
+      expect(result.allFileNames).toContain('App.js');
+      expect(result.allFileNames).toContain('App.tsx');
+      expect(result.allFileNames).toContain('reset.css'); // From shared globalsCode
     });
   });
 });

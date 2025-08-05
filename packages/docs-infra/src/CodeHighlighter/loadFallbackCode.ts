@@ -60,6 +60,7 @@ export type FallbackVariants = {
   initialSource: VariantSource;
   initialExtraFiles?: VariantExtraFiles;
   allFileNames: string[];
+  processedGlobalsCode?: Array<Code>;
 };
 
 export async function loadFallbackCode(
@@ -75,6 +76,7 @@ export async function loadFallbackCode(
   loadCodeMeta?: LoadCodeMeta,
   initialFilename?: string,
   variants?: string[],
+  globalsCode?: Array<Code | string>,
 ): Promise<FallbackVariants> {
   loaded = { ...loaded };
 
@@ -266,6 +268,47 @@ export async function loadFallbackCode(
   }
 
   // Step 2b: Fall back to full loadVariant processing
+  // Load globalsCode - convert string URLs to Code objects, keep Code objects as-is
+  let globalsCodeObjects: Array<Code> | undefined;
+  if (globalsCode && globalsCode.length > 0) {
+    const hasStringUrls = globalsCode.some((item) => typeof item === 'string');
+    if (hasStringUrls && !loadCodeMeta) {
+      throw new Error('loadCodeMeta function is required when globalsCode contains string URLs');
+    }
+
+    // Load all string URLs in parallel, keep Code objects as-is
+    const globalsPromises = globalsCode.map(async (globalItem) => {
+      if (typeof globalItem === 'string') {
+        // String URL - load Code object via loadCodeMeta
+        try {
+          return await loadCodeMeta!(globalItem);
+        } catch (error) {
+          throw new Error(
+            `Failed to load globalsCode from URL: ${globalItem}. Error: ${JSON.stringify(error)}`,
+          );
+        }
+      } else {
+        // Code object - return as-is
+        return globalItem;
+      }
+    });
+
+    globalsCodeObjects = await Promise.all(globalsPromises);
+  }
+
+  // Convert globalsCodeObjects to VariantCode | string for this specific variant
+  let resolvedGlobalsCode: Array<VariantCode | string> | undefined;
+  if (globalsCodeObjects && globalsCodeObjects.length > 0) {
+    resolvedGlobalsCode = [];
+    for (const codeObj of globalsCodeObjects) {
+      // Only use the variant that matches the current initialVariant
+      const targetVariant = codeObj[initialVariant];
+      if (targetVariant) {
+        resolvedGlobalsCode.push(targetVariant);
+      }
+    }
+  }
+
   try {
     const { code: loadedVariant } = await loadVariant(
       url,
@@ -278,6 +321,7 @@ export async function loadFallbackCode(
       {
         disableTransforms: true, // Don't apply transforms for fallback
         disableParsing: !shouldHighlight, // Only parse if highlighting is needed
+        globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
       },
     );
 
@@ -348,6 +392,21 @@ export async function loadFallbackCode(
             {
               disableTransforms: true,
               disableParsing: !shouldHighlight,
+              globalsCode:
+                globalsCodeObjects && globalsCodeObjects.length > 0
+                  ? (() => {
+                      // Convert globalsCodeObjects to VariantCode | string for this specific variant
+                      const variantGlobalsCode: Array<VariantCode | string> = [];
+                      for (const codeObj of globalsCodeObjects) {
+                        // Only use the variant that matches the current variantName
+                        const targetVariant = codeObj[variantName];
+                        if (targetVariant) {
+                          variantGlobalsCode.push(targetVariant);
+                        }
+                      }
+                      return variantGlobalsCode;
+                    })()
+                  : undefined,
             },
           );
 
@@ -411,5 +470,6 @@ export async function loadFallbackCode(
     initialSource: finalFileSource,
     initialExtraFiles: finalInitial.extraFiles || {},
     allFileNames: Array.from(allFileNames),
+    processedGlobalsCode: globalsCodeObjects,
   };
 }
