@@ -173,14 +173,24 @@ function walkDependencyTree(chunkKey, manifest, visited = new Set()) {
 
 /**
  * Process vite output to extract bundle sizes
- * @param {string} outDir - The output directory
+ * @param {import('vite').Rollup.RollupOutput['output']} output - The Vite output
  * @param {string} entryName - The entry name
  * @returns {Promise<Map<string, { parsed: number, gzip: number }>>} - Map of bundle names to size information
  */
-async function processBundleSizes(outDir, entryName) {
+async function processBundleSizes(output, entryName) {
+  const chunksByFileName = new Map(output.map((chunk) => [chunk.fileName, chunk]));
+
   // Read the manifest file to find the generated chunks
-  const manifestPath = path.join(outDir, '.vite/manifest.json');
-  const manifestContent = await fs.readFile(manifestPath, 'utf8');
+  const manifestChunk = chunksByFileName.get('.vite/manifest.json');
+  if (manifestChunk?.type !== 'asset') {
+    throw new Error(`Manifest file not found in output for entry: ${entryName}`);
+  }
+
+  const manifestContent =
+    typeof manifestChunk.source === 'string'
+      ? manifestChunk.source
+      : new TextDecoder().decode(manifestChunk.source);
+
   /** @type {Manifest} */
   const manifest = JSON.parse(manifestContent);
 
@@ -197,8 +207,11 @@ async function processBundleSizes(outDir, entryName) {
   // Process each chunk in the dependency tree in parallel
   const chunkPromises = Array.from(allChunks, async (chunkKey) => {
     const chunk = manifest[chunkKey];
-    const filePath = path.join(outDir, chunk.file);
-    const fileContent = await fs.readFile(filePath, 'utf8');
+    const outputChunk = chunksByFileName.get(chunk.file);
+    if (outputChunk?.type !== 'chunk') {
+      throw new Error(`Output chunk not found for ${chunk.file}`);
+    }
+    const fileContent = outputChunk.code;
 
     // Calculate sizes
     const parsed = Buffer.byteLength(fileContent);
@@ -223,11 +236,14 @@ async function processBundleSizes(outDir, entryName) {
 export async function getViteSizes(entry, args) {
   // Create vite configuration
   const { configuration } = await createViteConfig(entry, args);
-  const outDir = path.join(rootDir, 'build', entry.id);
 
   // Run vite build
-  await build(configuration);
+  const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));
+  const manifestChunk = output.find((chunk) => chunk.fileName === '.vite/manifest.json');
+  if (!manifestChunk) {
+    throw new Error(`Manifest file not found in output for entry: ${entry.id}`);
+  }
 
   // Process the output to get bundle sizes
-  return processBundleSizes(outDir, entry.id);
+  return processBundleSizes(output, entry.id);
 }
