@@ -181,13 +181,18 @@ async function processBundleSizes(output, entryName) {
   const chunksByFileName = new Map(output.map((chunk) => [chunk.fileName, chunk]));
 
   // Read the manifest file to find the generated chunks
-  const manifestContent = chunksByFileName.get('.vite/manifest.json');
-  if (manifestContent?.type !== 'asset') {
+  const manifestChunk = chunksByFileName.get('.vite/manifest.json');
+  if (manifestChunk?.type !== 'asset') {
     throw new Error(`Manifest file not found in output for entry: ${entryName}`);
   }
 
+  const manifestContent =
+    typeof manifestChunk.source === 'string'
+      ? manifestChunk.source
+      : new TextDecoder().decode(manifestChunk.source);
+
   /** @type {Manifest} */
-  const manifest = JSON.parse(String(manifestContent.source));
+  const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
   const mainEntry = manifest['virtual:entry.tsx'];
