@@ -3,7 +3,7 @@
  */
 
 // Formatter for byte sizes (absolute values) - no sign
-export const byteSizeFormatter = new Intl.NumberFormat('en-US', {
+export const byteSizeFormatter = new Intl.NumberFormat(undefined, {
   style: 'unit',
   unit: 'byte',
   notation: 'compact',
@@ -13,13 +13,13 @@ export const byteSizeFormatter = new Intl.NumberFormat('en-US', {
 });
 
 // Formatter for size changes - always show sign
-export const byteSizeChangeFormatter = new Intl.NumberFormat('en-US', {
+export const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
   ...byteSizeFormatter.resolvedOptions(),
   signDisplay: 'exceptZero',
 });
 
 // Formatter for percentage display
-export const displayPercentFormatter = new Intl.NumberFormat('en-US', {
+export const displayPercentFormatter = new Intl.NumberFormat(undefined, {
   style: 'percent',
   signDisplay: 'exceptZero',
   minimumFractionDigits: 2,
