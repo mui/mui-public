@@ -173,12 +173,11 @@ function walkDependencyTree(chunkKey, manifest, visited = new Set()) {
 
 /**
  * Process vite output to extract bundle sizes
- * @param {string} outDir - The output directory
- * @param {string} entryName - The entry name
  * @param {import('vite').Rollup.RollupOutput['output']} output - The Vite output
+ * @param {string} entryName - The entry name
  * @returns {Promise<Map<string, { parsed: number, gzip: number }>>} - Map of bundle names to size information
  */
-async function processBundleSizes(outDir, entryName, output) {
+async function processBundleSizes(output, entryName) {
   const chunksByFileName = new Map(output.map((chunk) => [chunk.fileName, chunk]));
 
   // Read the manifest file to find the generated chunks
@@ -232,7 +231,6 @@ async function processBundleSizes(outDir, entryName, output) {
 export async function getViteSizes(entry, args) {
   // Create vite configuration
   const { configuration } = await createViteConfig(entry, args);
-  const outDir = path.join(rootDir, 'build', entry.id);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));
@@ -242,5 +240,5 @@ export async function getViteSizes(entry, args) {
   }
 
   // Process the output to get bundle sizes
-  return processBundleSizes(outDir, entry.id, output);
+  return processBundleSizes(output, entry.id);
 }
