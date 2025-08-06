@@ -141,7 +141,7 @@ export function renderMarkdownReportContent(
 
     markdownContent += formatMarkdownTable(
       [
-        { field: 'id', header: 'Bundle' },
+        { field: 'id', header: 'Bundle', align: 'left' },
         { field: 'parsed', header: 'Parsed size', align: 'right' },
         { field: 'gzip', header: 'Gzip size', align: 'right' },
       ],
