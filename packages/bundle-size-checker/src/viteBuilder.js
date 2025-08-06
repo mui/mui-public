@@ -4,6 +4,7 @@ import * as zlib from 'zlib';
 import { promisify } from 'util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import * as timers from 'timers/promises';
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -215,6 +216,28 @@ async function processBundleSizes(outDir, entryName) {
 }
 
 /**
+ * @param {string} folderPath
+ */
+async function waitForFolder(folderPath, timeout = 2000, interval = 50, startTime = Date.now()) {
+  try {
+    const stat = await fs.stat(folderPath);
+    if (stat.isDirectory()) {
+      return true;
+    }
+  } catch {
+    // Folder doesn't exist yet
+  }
+
+  await timers.setTimeout(interval);
+
+  if (Date.now() - startTime >= timeout) {
+    throw new Error(`Timeout: Folder "${folderPath}" did not appear within ${timeout}ms`);
+  }
+
+  return waitForFolder(folderPath, timeout, interval, startTime);
+}
+
+/**
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
@@ -227,6 +250,8 @@ export async function getViteSizes(entry, args) {
 
   // Run vite build
   await build(configuration);
+
+  await waitForFolder(outDir);
 
   // Process the output to get bundle sizes
   return processBundleSizes(outDir, entry.id);
