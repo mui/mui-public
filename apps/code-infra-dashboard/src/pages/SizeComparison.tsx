@@ -90,7 +90,7 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
     <Table>
       <TableHead>
         <TableRow>
-          <BundleCell>bundle</BundleCell>
+          <BundleCell>Bundle</BundleCell>
           <TableCell align="right">Size change</TableCell>
           <TableCell align="right">Size</TableCell>
           <TableCell align="right">Gzip change</TableCell>
@@ -268,7 +268,6 @@ function Comparison({
             Bundle Size Comparison
           </Typography>
         )}
-
         <Typography variant="body2" color="text.secondary">
           {circleCIBuildNumber && (
             <React.Fragment>
@@ -288,7 +287,6 @@ function Comparison({
           </Link>
           ).
         </Typography>
-
         {baseError && (
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
             <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
@@ -301,7 +299,6 @@ function Comparison({
             </Typography>
           </Box>
         )}
-
         {!isLoading && !error && (
           <React.Fragment>
             <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
@@ -328,7 +325,6 @@ function Comparison({
                 )}
               </Typography>
             </Box>
-
             <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
               <Typography variant="body2" color="text.secondary">
                 <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
@@ -338,7 +334,6 @@ function Comparison({
           </React.Fragment>
         )}
       </Box>
-
       <ComparisonTable entries={entries} isLoading={isLoading} error={error} />
     </Paper>
   );
