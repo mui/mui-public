@@ -7,7 +7,7 @@
       "groupName": "Node.js v22 updates",
       "description": "Pin all Node.js versions to latest v22 (except engines field)",
       "matchPackageNames": ["node"],
-      "matchDatasources": ["github-tags", "node-version", "nodenv"],
+      "matchDatasources": ["github-tags", "node-version"],
       "matchManagers": ["github-actions", "regex", "nodenv"],
       "allowedVersions": "^22.0.0",
       "enabled": true
