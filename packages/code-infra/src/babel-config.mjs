@@ -7,6 +7,7 @@ import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
+import { getOutExtension } from './utils/build.mjs';
 
 /**
  * @param {Object} param0
@@ -114,11 +115,12 @@ export function getBaseConfig({
  */
 export default function getBabelConfig(api) {
   // This needs to be called to bust caching between cjs and esm builds
-  api.env();
+  const apiEnv = api.env();
+  const isStable = apiEnv === 'stable';
   return getBaseConfig({
     debug: process.env.MUI_BUILD_VERBOSE === 'true',
-    bundle: process.env.BABEL_ENV === 'stable' ? 'esm' : 'cjs',
-    outExtension: process.env.MUI_OUT_FILE_EXTENSION ?? null,
+    bundle: isStable ? 'esm' : 'cjs',
+    outExtension: getOutExtension(isStable ? 'esm' : 'cjs'),
     // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
     runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
     optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',

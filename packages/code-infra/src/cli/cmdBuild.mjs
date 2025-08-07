@@ -4,12 +4,11 @@ import { globby } from 'globby';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-
-const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
+import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
- * @property {import('./babel.mjs').BundleType[]} bundle - The bundles to build.
+ * @property {import('../utils/build.mjs').BundleType[]} bundle - The bundles to build.
  * @property {boolean} hasLargeFiles - The large files to build.
  * @property {boolean} skipModulePackageJson - Whether to skip generating a package.json file in the /esm folder.
  * @property {string} cjsOutDir - The directory to copy the cjs files to.
@@ -28,27 +27,11 @@ const validBundles = [
 ];
 
 /**
- * @param {import('./babel.mjs').BundleType} bundle
- */
-function getOutExtension(bundle, isType = false) {
-  if (isType) {
-    if (!isMjsBuild) {
-      return '.d.ts';
-    }
-    return bundle === 'esm' ? '.d.mts' : '.d.ts';
-  }
-  if (!isMjsBuild) {
-    return '.js';
-  }
-  return bundle === 'esm' ? '.mjs' : '.js';
-}
-
-/**
  * @param {Object} options
  * @param {string} options.name - The name of the package.
  * @param {string} options.version - The version of the package.
  * @param {string} options.license - The license of the package.
- * @param {import('./babel.mjs').BundleType} options.bundle
+ * @param {import('../utils/build.mjs').BundleType} options.bundle
  * @param {string} options.outputDir
  */
 async function addLicense({ name, version, license, bundle, outputDir }) {
@@ -140,7 +123,7 @@ async function createExportsFor({
 /**
  * @param {Object} param0
  * @param {any} param0.packageJson - The package.json content.
- * @param {{type: import('./babel.mjs').BundleType; dir: string}[]} param0.bundles
+ * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
  * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
@@ -169,12 +152,10 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
     bundles.map(async ({ type, dir }) => {
       const outExtension = getOutExtension(type);
       const typeOutExtension = getOutExtension(type, true);
-      const indexFileExists = await fs
-        .stat(path.join(outputDir, dir, `index${getOutExtension(type)}`))
-        .then(
-          (stats) => stats.isFile(),
-          () => false,
-        );
+      const indexFileExists = await fs.stat(path.join(outputDir, dir, `index${outExtension}`)).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
       const typeFileExists =
         addTypes &&
         (await fs.stat(path.join(outputDir, dir, `index${typeOutExtension}`)).then(

@@ -110,7 +110,7 @@ async function renameDeclarations({ directory }) {
  * @param {Object} param0
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.outDir - The base output directory.
- * @param {import('./babel.mjs').BundleType} param0.bundle - The bundle type to process.
+ * @param {import('../utils/build.mjs').BundleType} param0.bundle - The bundle type to process.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
  * @param {boolean} param0.isMjsBuild - Whether the build is for ESM (ECMAScript Modules).

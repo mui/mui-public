@@ -20,10 +20,6 @@ const OUT_EXTENSION_MAP = {
 };
 
 /**
- * @typedef {'esm' | 'cjs'} BundleType
- */
-
-/**
  * @param {string} pkgVersion
  * @returns {Record<string, string>} An object containing version-related environment variables.
  */
@@ -67,7 +63,7 @@ export function getVersionEnvVariables(pkgVersion) {
  * @param {string} options.outDir - The output directory for the build.
  * @param {string} options.outExtension - The output file extension for the build.
  * @param {boolean} options.hasLargeFiles - Whether the build includes large files.
- * @param {BundleType} options.bundle - The bundles to build.
+ * @param {import('../utils/build.mjs').BundleType} options.bundle - The bundles to build.
  * @param {string} options.babelRuntimeVersion - The version of @babel/runtime to use.
  * @returns {Promise<void>}
  */
@@ -114,6 +110,7 @@ export async function babelBuild({
   ) {
     configFile = path.join(workspaceDir, 'babel.config.mjs');
   }
+  const envName = bundle === 'esm' ? 'stable' : 'node';
   /**
    * @type {import('@babel/core').TransformOptions}
    */
@@ -121,16 +118,14 @@ export async function babelBuild({
     configFile,
     babelrc: false,
     compact: hasLargeFiles,
-    browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
+    browserslistEnv: envName,
+    envName,
   };
   const env = {
-    NODE_ENV: process.env.NODE_ENV ?? 'production',
-    BABEL_ENV: (process.env.BABEL_ENV ?? bundle === 'esm') ? 'stable' : 'node',
     MUI_BUILD_VERBOSE: verbose ? 'true' : undefined,
     MUI_OPTIMIZE_CLSX: optimizeClsx ? 'true' : undefined,
     MUI_REMOVE_PROP_TYPES: removePropTypes ? 'true' : undefined,
     MUI_BABEL_RUNTIME_VERSION: babelRuntimeVersion,
-    MUI_OUT_FILE_EXTENSION: outExtension,
     ...getVersionEnvVariables(pkgVersion),
   };
   Object.entries(env).forEach(([key, value]) => {
