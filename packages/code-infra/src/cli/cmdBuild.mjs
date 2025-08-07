@@ -1,8 +1,6 @@
 /* eslint-disable no-console */
-import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import { globby } from 'globby';
-import deepMerge from 'lodash-es/merge.js';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -20,12 +18,6 @@ const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {string[]} ignore - Globs to be ignored by Babel.
- */
-
-/**
- * @typedef {Object} PkgJson
- * @property {Object} [code-infra] - Code infra specific configuration.
- * @property {import('./babel.mjs').BuildConfig} [code-infra.build] - Code infra specific configuration.
  */
 
 const validBundles = [
@@ -347,49 +339,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
 
     const babelMod = await import('./babel.mjs');
-    const workspaceDir = await findWorkspaceDir(cwd);
-
-    /**
-     * @type {import('./babel.mjs').BuildConfig | undefined}
-     */
-    let buildConfig;
-
-    if (workspaceDir) {
-      buildConfig = /** @type {PkgJson} */ (
-        JSON.parse(await fs.readFile(path.join(workspaceDir, 'package.json'), 'utf8'))
-      )?.['code-infra']?.build;
-      if (buildConfig?.errorCodesPath) {
-        buildConfig.errorCodesPath = path.join(workspaceDir, buildConfig.errorCodesPath);
-      }
-      if (buildConfig?.searchAndReplaceModule) {
-        buildConfig.searchAndReplaceModule = path.join(
-          workspaceDir,
-          buildConfig.searchAndReplaceModule,
-        );
-      }
-    }
-
-    const localBuildConfig = /** @type {PkgJson} */ (packageJson)?.['code-infra']?.build;
-    if (localBuildConfig?.errorCodesPath) {
-      localBuildConfig.errorCodesPath = path.join(cwd, localBuildConfig.errorCodesPath);
-    }
-    if (localBuildConfig?.searchAndReplaceModule) {
-      localBuildConfig.searchAndReplaceModule = path.join(
-        cwd,
-        localBuildConfig.searchAndReplaceModule,
-      );
-    }
-    if (localBuildConfig) {
-      buildConfig = deepMerge(buildConfig, localBuildConfig);
-    }
-
-    buildConfig = deepMerge({ cjsOutDir }, buildConfig);
 
     await Promise.all(
       bundles.map(async (bundle) => {
         const outExtension = getOutExtension(bundle);
         const relativeOutDir = {
-          cjs: buildConfig.cjsOutDir ?? '.',
+          cjs: cjsOutDir,
           esm: 'esm',
         }[bundle];
         const outputDir = path.join(buildDir, relativeOutDir);
@@ -397,6 +352,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         await fs.mkdir(outputDir, { recursive: true });
 
         await babelMod.babelBuild({
+          cwd,
           sourceDir,
           outDir: outputDir,
           babelRuntimeVersion,
@@ -407,7 +363,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
             packageJson.dependencies.clsx !== undefined ||
             packageJson.dependencies.classnames !== undefined,
           removePropTypes: packageJson.dependencies['prop-types'] !== undefined,
-          buildConfig,
           pkgVersion: packageJson.version,
           ignores: extraIgnores,
           outExtension,
@@ -452,8 +407,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         });
       }),
     );
-    const normalizedCjsOutDir =
-      buildConfig.cjsOutDir === '.' || buildConfig.cjsOutDir === './' ? '.' : buildConfig.cjsOutDir;
+    const normalizedCjsOutDir = cjsOutDir === '.' || cjsOutDir === './' ? '.' : cjsOutDir;
     await writePackageJson({
       cwd,
       packageJson,
