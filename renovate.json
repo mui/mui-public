@@ -4,15 +4,19 @@
   "ignoreDeps": [],
   "packageRules": [
     {
-      "groupName": "node",
-      "matchDatasources": ["docker", "node-version"],
-      "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
-      "enabled": true,
-      "allowedVersions": "24"
+      "groupName": "Node.js v22 updates",
+      "description": "Pin all Node.js versions to latest v22 (except engines field)",
+      "matchPackageNames": ["node"],
+      "matchDatasources": ["github-tags", "node-version", "nodenv"],
+      "matchManagers": ["github-actions", "regex", "nodenv"],
+      "allowedVersions": "^22.0.0",
+      "enabled": true
     },
     {
-      "description": "Ignore engines field in package.json",
-      "matchDatasources": ["engines"],
+      "description": "Do not update node version in package.json engines field",
+      "matchPackageNames": ["node"],
+      "matchDepTypes": ["engines"],
+      "matchManagers": ["npm"],
       "enabled": false
     }
   ]
