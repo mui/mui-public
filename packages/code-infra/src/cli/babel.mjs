@@ -105,11 +105,20 @@ export async function babelBuild({
   if (!workspaceDir) {
     throw new Error(`No workspace found for ${cwd}`);
   }
+  let configFile = path.join(workspaceDir, 'babel.config.js');
+  if (
+    !(await fs
+      .stat(configFile)
+      .then(() => true)
+      .catch(() => false))
+  ) {
+    configFile = path.join(workspaceDir, 'babel.config.mjs');
+  }
   /**
    * @type {import('@babel/core').TransformOptions}
    */
   const babelConfig = {
-    configFile: path.join(workspaceDir, 'babel.config.js'),
+    configFile,
     babelrc: false,
     compact: hasLargeFiles,
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
