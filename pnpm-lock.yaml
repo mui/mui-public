@@ -73,6 +73,10 @@ importers:
       vitest:
         specifier: ^3.1.3
         version: 3.1.3(@types/debug@4.1.12)(@types/node@24.0.3)(jiti@2.4.2)(terser@5.39.0)(tsx@4.20.3)(yaml@2.7.1)
+    devDependencies:
+      '@babel/plugin-transform-react-constant-elements':
+        specifier: ^7.27.1
+        version: 7.27.1(@babel/core@7.28.0)
 
   apps/code-infra-dashboard:
     dependencies:
@@ -163,7 +167,7 @@ importers:
         version: 6.1.5
       '@toolpad/studio':
         specifier: ^0.12.0
-        version: 0.12.0(@types/react@19.1.8)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(next@15.3.4(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(terser@5.39.0)(webpack@5.94.0)
+        version: 0.12.0(@types/react@19.1.8)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(next@15.3.4(@babel/core@7.28.0)(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(terser@5.39.0)(webpack@5.94.0)
       axios:
         specifier: ^1.8.2
         version: 1.10.0(debug@4.4.1)
@@ -17885,7 +17889,7 @@ snapshots:
 
   '@tokenizer/token@0.3.0': {}
 
-  '@toolpad/core@0.12.0(19ebdffc70328028a738f22c9b984b08)':
+  '@toolpad/core@0.12.0(47c19b98610336e46e73138365c15e46)':
     dependencies:
       '@babel/runtime': 7.27.6
       '@mui/icons-material': 6.3.1(@mui/material@6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@types/react@19.1.8)(react@19.1.0)
@@ -17974,7 +17978,7 @@ snapshots:
       - nodemailer
       - react-dom
 
-  '@toolpad/studio@0.12.0(@types/react@19.1.8)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(next@15.3.4(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(terser@5.39.0)(webpack@5.94.0)':
+  '@toolpad/studio@0.12.0(@types/react@19.1.8)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(next@15.3.4(@babel/core@7.28.0)(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(terser@5.39.0)(webpack@5.94.0)':
     dependencies:
       '@auth/core': 0.37.4
       '@emotion/cache': 11.14.0
@@ -17998,7 +18002,7 @@ snapshots:
       '@mui/x-tree-view': 7.23.2(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@mui/material@6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mui/system@6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@tanstack/react-query': 5.61.3(react@19.1.0)
       '@tanstack/react-query-devtools': 5.61.3(@tanstack/react-query@5.61.3(react@19.1.0))(react@19.1.0)
-      '@toolpad/core': 0.12.0(19ebdffc70328028a738f22c9b984b08)
+      '@toolpad/core': 0.12.0(47c19b98610336e46e73138365c15e46)
       '@toolpad/studio-components': 0.12.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@mui/system@6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(date-fns@3.6.0)(luxon@3.6.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vm-browserify@1.1.2)
       '@toolpad/studio-runtime': 0.12.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vm-browserify@1.1.2)
       '@toolpad/utils': 0.12.0(react@19.1.0)
