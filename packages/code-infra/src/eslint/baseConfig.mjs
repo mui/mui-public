@@ -82,6 +82,20 @@ export function createBaseConfig(
           ],
         },
       },
+
+      // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
+      //   * Creates non-portable types in base ui. [1]
+      //   * This pattern [2] leads to broken bundling in codesandbox [3].
+      // Gauging the ecosystem it also looks like support for namespaces in tooling is poor and tends to
+      // be treated as a deprecated feature.
+      // [1] https://github.com/mui/base-ui/pull/2324
+      // [2] https://github.com/mui/mui-x/blob/1cf853ed45cf301211ece1c0ca21981ea208edfb/packages/x-virtualizer/src/models/core.ts#L4-L10
+      // [3] https://codesandbox.io/embed/kgylpd?module=/src/Demo.tsx&fontsize=12
+      {
+        rules: {
+          '@typescript-eslint/no-namespace': 'error',
+        },
+      },
     )
   );
 }
