@@ -21,7 +21,8 @@
   },
   "scripts": {
     "typescript": "tsc -p tsconfig.json",
-    "test": "pnpm -w test --project @mui/internal-code-infra"
+    "test": "pnpm -w test --project @mui/internal-code-infra",
+    "test:copy": "node bin/code-infra.mjs copy-files --glob \"src/*/*.mjs\""
   },
   "dependencies": {
     "@argos-ci/core": "^3.2.0",

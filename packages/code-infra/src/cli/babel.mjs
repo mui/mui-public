@@ -121,6 +121,7 @@ export async function babelBuild({
     MUI_OPTIMIZE_CLSX: optimizeClsx ? 'true' : undefined,
     MUI_REMOVE_PROP_TYPES: removePropTypes ? 'true' : undefined,
     MUI_BABEL_RUNTIME_VERSION: babelRuntimeVersion,
+    MUI_OUT_FILE_EXTENSION: outExtension,
     ...getVersionEnvVariables(pkgVersion),
   };
   Object.entries(env).forEach(([key, value]) => {

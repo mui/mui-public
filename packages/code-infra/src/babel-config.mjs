@@ -112,7 +112,9 @@ export function getBaseConfig({
 /**
  * @type {import('@babel/core').ConfigFunction}
  */
-export default function getBabelConfig() {
+export default function getBabelConfig(api) {
+  // This needs to be called to bust caching between cjs and esm builds
+  api.env();
   return getBaseConfig({
     debug: process.env.MUI_BUILD_VERBOSE === 'true',
     bundle: process.env.BABEL_ENV === 'stable' ? 'esm' : 'cjs',

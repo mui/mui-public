@@ -248,6 +248,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         choices: validBundles,
         description: 'Bundles to output',
+        default: ['esm', 'cjs'],
       })
       .option('hasLargeFiles', {
         type: 'boolean',
@@ -294,7 +295,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   },
   async handler(args) {
     const {
-      bundle: bundles,
+      bundle: inputBundles,
       hasLargeFiles,
       skipModulePackageJson,
       cjsOutDir = '.',
@@ -304,6 +305,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipTsc,
       skipBabelRuntimeCheck = false,
     } = args;
+    const bundles = Array.from(new Set(inputBundles));
 
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
