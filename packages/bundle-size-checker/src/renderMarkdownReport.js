@@ -141,9 +141,9 @@ export function renderMarkdownReportContent(
 
     markdownContent += formatMarkdownTable(
       [
-        { field: 'id', header: 'Bundle' },
-        { field: 'parsed', header: 'Parsed Size', align: 'right' },
-        { field: 'gzip', header: 'Gzip Size', align: 'right' },
+        { field: 'id', header: 'Bundle', align: 'left' },
+        { field: 'parsed', header: 'Parsed size', align: 'right' },
+        { field: 'gzip', header: 'Gzip size', align: 'right' },
       ],
       trackedEntries.map(({ id, parsed, gzip }) => ({
         id,
