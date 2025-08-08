@@ -44,6 +44,7 @@ export function exportVariantAsCra(
     description,
     htmlPrefix: 'public/',
     packageType: undefined, // CRA should not have 'type: module'
+    htmlSkipJsLink: true,
     frameworkFiles: {}, // Prevent Vite-specific files from being generated
     devDependencies: craDevDependencies,
     scripts: craScripts,

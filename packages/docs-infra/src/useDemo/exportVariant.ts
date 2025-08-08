@@ -106,15 +106,15 @@ export function defaultHtmlTemplate({
   title: string;
   description: string;
   head?: string;
-  entrypoint: string;
+  entrypoint?: string;
 }): string {
-  return `<!doctype html>
+  return `<!DOCTYPE html>
 <html lang="${language}">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
     <title>${title}</title>
-    <meta name="description" content="${description}" />${head ? `\n    ${head}` : ''}
+    ${description ? `<meta name="description" content="${description}" />` : ''}
+    <meta name="viewport" content="initial-scale=1, width=device-width" />${head ? `\n    ${head}` : ''}
   </head>
   <body>
     <div id="root"></div>${entrypoint ? `\n    <script type="module" src="${entrypoint}"></script>` : ''}
@@ -166,7 +166,7 @@ export interface ExportConfig {
     title: string;
     description: string;
     head?: string;
-    entrypoint: string;
+    entrypoint?: string;
     variant?: VariantCode;
     variantName?: string;
   }) => string;
@@ -205,6 +205,10 @@ export interface ExportConfig {
    * When true, skips generating index.html and entrypoint files
    */
   frameworkHandlesEntrypoint?: boolean;
+  /**
+   * Whether to skip adding the JavaScript link in the HTML
+   */
+  htmlSkipJsLink?: boolean;
   /** Framework-specific files that override default files (index.html, entrypoint, etc.) */
   frameworkFiles?: { variant?: VariantCode; globals?: VariantExtraFiles };
   /**
@@ -277,6 +281,7 @@ export function exportVariant(
     sourcePrefix = 'src/',
     assetPrefix = '',
     frameworkHandlesEntrypoint = false,
+    htmlSkipJsLink = false,
     htmlTemplate,
     headTemplate,
     rootIndexTemplate,
@@ -356,7 +361,7 @@ export function exportVariant(
 
   // The main entrypoint is always src/index.tsx (or .jsx)
   const mainEntrypointFilename = `index.${ext}`;
-  const entrypoint = `${sourcePrefix}${mainEntrypointFilename}`;
+  const entrypoint = !htmlSkipJsLink ? `${sourcePrefix}${mainEntrypointFilename}` : undefined;
 
   // Get relative import path for the main component
   let importPath: string;

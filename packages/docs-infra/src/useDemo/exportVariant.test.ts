@@ -1314,7 +1314,7 @@ describe('exportVariant', () => {
         // The original '../theme.css' from the variant gets processed by extractMetadata
         // We need to find and remove it from globals. Since extractMetadata can change paths,
         // let's remove any theme.css files from globals
-        Object.keys(newGlobals).forEach(key => {
+        Object.keys(newGlobals).forEach((key) => {
           if (key.includes('theme.css')) {
             delete newGlobals[key];
           }
@@ -1345,8 +1345,8 @@ describe('exportVariant', () => {
       expect(themePaths[0]).toMatch(/custom-theme\.css$/);
 
       // Should not have the original theme.css
-      const originalThemePaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
-        path.includes('theme.css') && !path.includes('custom-theme.css'), // Exclude the renamed file
+      const originalThemePaths = Object.keys(result.exported.extraFiles || {}).filter(
+        (path) => path.includes('theme.css') && !path.includes('custom-theme.css'), // Exclude the renamed file
       );
       expect(originalThemePaths).toHaveLength(0);
 
@@ -1408,7 +1408,7 @@ describe('exportVariant', () => {
         const newGlobals = { ...globals };
         // Remove the original files that were moved/renamed
         // Since extractMetadata can change paths, search by basename
-        Object.keys(newGlobals).forEach(key => {
+        Object.keys(newGlobals).forEach((key) => {
           if (key.includes('main.css') || key.includes('theme.css') || key.includes('app.json')) {
             delete newGlobals[key];
           }
@@ -1439,7 +1439,8 @@ describe('exportVariant', () => {
       // Only look for the renamed styles.css file (from styles/main.css -> assets/styles.css)
       // Don't count new-styles.css as it's a newly added file
       const stylesPaths = Object.keys(result.exported.extraFiles || {}).filter(
-        (path) => path.includes('main.css') || (path.includes('styles.css') && path.includes('assets')),
+        (path) =>
+          path.includes('main.css') || (path.includes('styles.css') && path.includes('assets')),
       );
       expect(stylesPaths).toHaveLength(1); // Should only have assets/styles.css (repositioned)
 
