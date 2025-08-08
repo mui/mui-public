@@ -66,6 +66,7 @@ type BaseContentProps = {
   code?: Code;
   components?: Components;
   url?: string;
+  variantType?: string;
 };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
@@ -90,6 +91,7 @@ interface CodeHighlighterBaseProps {
   code?: Code;
   globalsCode?: Array<Code | string>;
   components?: Components; // TODO: rename to preview
+  variantType?: string;
   variants?: string[];
   variant?: string;
   fileName?: string;

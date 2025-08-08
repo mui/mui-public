@@ -106,7 +106,7 @@ describe('useTransformManagement', () => {
       );
 
       // Should read from localStorage with correct key
-      expect(mockGetItem).toHaveBeenCalledWith('_docs_infra_transform_prefs_JavaScript:TypeScript');
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_transform_pref:JavaScript:TypeScript');
       expect(result.current.selectedTransform).toBe('TypeScript');
     });
 
@@ -161,7 +161,7 @@ describe('useTransformManagement', () => {
 
       // Should save to localStorage after user selection
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        '_docs_infra_transform_prefs_JavaScript:TypeScript',
+        '_docs_transform_pref:JavaScript:TypeScript',
         'TypeScript',
       );
     });
@@ -190,7 +190,7 @@ describe('useTransformManagement', () => {
 
       // Should save empty string preference to localStorage (not 'null')
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        '_docs_infra_transform_prefs_JavaScript:TypeScript',
+        '_docs_transform_pref:JavaScript:TypeScript',
         '',
       );
     });
@@ -250,7 +250,7 @@ describe('useTransformManagement', () => {
       );
 
       // Expected storage key should be sorted regardless of input order
-      const expectedKey = '_docs_infra_transform_prefs_Flow:JavaScript:TypeScript';
+      const expectedKey = '_docs_transform_pref:Flow:JavaScript:TypeScript';
 
       // Should read from the expected key
       expect(mockGetItem).toHaveBeenCalledWith(expectedKey);
@@ -334,7 +334,7 @@ describe('useTransformManagement', () => {
       );
 
       // Should attempt to read from localStorage even for single transform
-      expect(mockGetItem).toHaveBeenCalledWith('_docs_infra_transform_prefs_TypeScript');
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_transform_pref:TypeScript');
 
       // Clear previous calls
       vi.clearAllMocks();
@@ -345,10 +345,7 @@ describe('useTransformManagement', () => {
       });
 
       // Should save the selection to localStorage
-      expect(mockSetItem).toHaveBeenCalledWith(
-        '_docs_infra_transform_prefs_TypeScript',
-        'TypeScript',
-      );
+      expect(mockSetItem).toHaveBeenCalledWith('_docs_transform_pref:TypeScript', 'TypeScript');
 
       // Clear again
       vi.clearAllMocks();
@@ -359,7 +356,7 @@ describe('useTransformManagement', () => {
       });
 
       // Should save empty string preference to localStorage (not 'null')
-      expect(mockSetItem).toHaveBeenCalledWith('_docs_infra_transform_prefs_TypeScript', '');
+      expect(mockSetItem).toHaveBeenCalledWith('_docs_transform_pref:TypeScript', '');
     });
 
     it('should restore single transform preference from localStorage', () => {
@@ -591,7 +588,7 @@ describe('useTransformManagement', () => {
       });
 
       // Check that an empty string was stored (our null representation)
-      const storageKey = '_docs_infra_transform_prefs_JavaScript:TypeScript';
+      const storageKey = '_docs_transform_pref:JavaScript:TypeScript';
       expect(store[storageKey]).toBe('');
 
       expect(result.current.selectedTransform).toBe(null);

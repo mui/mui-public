@@ -1,8 +1,8 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
 import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
-import useLocalStorageState from '../useLocalStorageState';
 import { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { usePreference } from '../usePreference';
 
 interface UseTransformManagementProps {
   context?: CodeHighlighterContextType;
@@ -43,21 +43,16 @@ export function useTransformManagement({
     return getAvailableTransforms(effectiveCode, selectedVariantKey);
   }, [context?.availableTransforms, effectiveCode, selectedVariantKey]);
 
-  // Generate storage key from sorted available transforms
-  const storageKey = React.useMemo(() => {
-    if (availableTransforms.length === 0) {
-      return null; // Don't use localStorage when no transforms are available
-    }
-    const sortedTransforms = [...availableTransforms].sort();
-    return `_docs_infra_transform_prefs_${sortedTransforms.join(':')}`;
-  }, [availableTransforms]);
-
   // Use localStorage hook for transform persistence - this is our single source of truth
-  const [storedValue, setStoredValue] = useLocalStorageState(storageKey, () => {
-    // Don't use initialTransform as the fallback - localStorage should always take precedence
-    // We'll handle the initial transform separately below
-    return null;
-  });
+  const [storedValue, setStoredValue] = usePreference(
+    'transform',
+    availableTransforms.length === 1 ? availableTransforms[0] : availableTransforms,
+    () => {
+      // Don't use initialTransform as the fallback - localStorage should always take precedence
+      // We'll handle the initial transform separately below
+      return null;
+    },
+  );
 
   // Handle validation manually - empty string means "no transform selected"
   const selectedTransform = React.useMemo(() => {

@@ -26,6 +26,7 @@ type BaseHelperProps<T extends {}> = Pick<
   | 'code'
   | 'components'
   | 'variants'
+  | 'variantType'
   | 'highlightAt'
   | 'Content'
   | 'contentProps'
@@ -84,6 +85,7 @@ function createClientProps<T extends {}>(
     name: props.name,
     slug: props.slug,
     url: props.url,
+    variantType: props.variantType,
     ...(props.contentProps || {}),
   } as ContentProps<T>;
 
