@@ -1,23 +1,13 @@
 /* eslint-disable no-console */
 /// <reference types="../untyped-plugins" />
 
-import { transformFileAsync } from '@babel/core';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { $ } from 'execa';
 
-/**
- * @type {Record<string, string>}
- */
-const OUT_EXTENSION_MAP = {
-  '.cjs': '.cjs',
-  '.mjs': '.mjs',
-  '.cts': '.cjs',
-  '.ctsx': '.cjs',
-  '.mts': '.mjs',
-  '.mtsx': '.mjs',
-};
+const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
 
 /**
  * @param {string} pkgVersion
@@ -45,11 +35,46 @@ export function getVersionEnvVariables(pkgVersion) {
 }
 
 /**
+ * Copies CommonJS files from one directory to another.
+ * @param {Object} param0
+ * @param {string} param0.from - The source directory.
+ * @param {string} param0.to - The destination directory.
+ * @returns {Promise<void>}
+ */
+export async function cjsCopy({ from, to }) {
+  if (
+    !(await fs
+      .stat(to)
+      .then(() => true)
+      .catch(() => false))
+  ) {
+    console.warn(`path ${to} does not exists`);
+    return;
+  }
+
+  const files = await globby('**/*.cjs', { cwd: from });
+  const cmds = files.map((file) => fs.cp(path.resolve(from, file), path.resolve(to, file)));
+  await Promise.all(cmds);
+}
+
+/**
  * @typedef {Object} ErrorCodeMetadata
  * @property {string} outputPath - The path where the error code file should be written.
  * @property {'annotate' | 'throw' | 'write'} [missingError] - How to handle missing error codes.
  * @property {string} [runtimeModule] - The runtime module to replace the errors with.
  */
+
+const BASE_IGNORES = [
+  '**/*.test.js',
+  '**/*.test.ts',
+  '**/*.test.tsx',
+  '**/*.spec.js',
+  '**/*.spec.ts',
+  '**/*.spec.tsx',
+  '**/*.d.ts',
+  '**/*.test/*.*',
+  '**/test-cases/*.*',
+];
 
 /**
  * @param {Object} options
@@ -81,21 +106,8 @@ export async function babelBuild({
   verbose = false,
   ignores = [],
 }) {
-  const files = await globby(['**/*.{cjs,js,mjs,cts,ts,mts,cjsx,ctsx,tsx,mtsx}'], {
-    cwd: sourceDir,
-    gitignore: true,
-    ignore: [
-      '**/*.d.ts',
-      '**/*.d.mts',
-      '**/*.test.*',
-      '**/*.spec.*',
-      '**/*.test/*.*',
-      '**/test-cases/*.*',
-      ...ignores,
-    ],
-  });
   console.log(
-    `Transpiling ${files.length} files to ${path.relative(path.dirname(sourceDir), outDir)}`,
+    `Transpiling files to "${path.relative(path.dirname(sourceDir), outDir)}" for "${bundle}" bundle.`,
   );
   const workspaceDir = await findWorkspaceDir(cwd);
   if (!workspaceDir) {
@@ -110,60 +122,32 @@ export async function babelBuild({
   ) {
     configFile = path.join(workspaceDir, 'babel.config.mjs');
   }
-  const envName = bundle === 'esm' ? 'stable' : 'node';
-  /**
-   * @type {import('@babel/core').TransformOptions}
-   */
-  const babelConfig = {
-    configFile,
-    babelrc: false,
-    compact: hasLargeFiles,
-    browserslistEnv: envName,
-    envName,
-  };
   const env = {
+    NODE_ENV: 'production',
+    BABEL_ENV: bundle === 'esm' ? 'stable' : 'node',
     MUI_BUILD_VERBOSE: verbose ? 'true' : undefined,
     MUI_OPTIMIZE_CLSX: optimizeClsx ? 'true' : undefined,
     MUI_REMOVE_PROP_TYPES: removePropTypes ? 'true' : undefined,
     MUI_BABEL_RUNTIME_VERSION: babelRuntimeVersion,
+    MUI_OUT_FILE_EXTENSION: outExtension ?? '.js',
     ...getVersionEnvVariables(pkgVersion),
   };
-  Object.entries(env).forEach(([key, value]) => {
-    if (verbose) {
-      console.log(`Setting environment variable: ${key}=${value}`);
-    }
-    if (typeof value === 'undefined') {
-      return;
-    }
-    process.env[key] = value.toString();
-  });
-
-  await Promise.all(
-    files.map(async (file) => {
-      const result = await transformFileAsync(path.join(sourceDir, file), babelConfig);
-      if (!result || !result.code) {
-        console.error(`Failed to transform file: ${file}`);
-        return;
-      }
-      const outfileDir = path.dirname(file);
-      const basename = path.basename(file);
-      if (outfileDir !== '.') {
-        await fs.mkdir(path.join(outDir, outfileDir), { recursive: true });
-      }
-      const ext = path.extname(basename);
-      const outFilePath = path.join(
-        outDir,
-        outfileDir,
-        basename.replace(ext, OUT_EXTENSION_MAP[ext] || outExtension),
-      );
-      await fs.writeFile(outFilePath, result.code, { encoding: 'utf8' });
-    }),
-  );
-
-  if (verbose) {
-    console.log('Resetting environment variables.');
+  const res = await $({
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      ...env,
+    },
+  })`pnpm babel --config-file ${configFile} --extensions ${TO_TRANSFORM_EXTENSIONS.join(',')} ${sourceDir} --out-dir ${outDir} --ignore ${BASE_IGNORES.concat(ignores).join(',')} --out-file-extension ${outExtension !== '.js' ? outExtension : '.js'} --compact ${hasLargeFiles ? 'true' : 'false'}`;
+  if (res.stderr) {
+    throw new Error(`'${res.escapedCommand}' failed with \n${res.stderr}`);
   }
-  Object.keys(env).forEach((key) => {
-    delete process.env[key];
-  });
+  if (verbose) {
+    console.log(`'${res.escapedCommand}' succeeded with \n${res.stdout}`);
+  }
+
+  // cjs for reexporting from commons only modules.
+  // If we need to rely more on this we can think about setting up a separate commonjs => commonjs build for .cjs files to .cjs
+  // `--extensions-.cjs --out-file-extension .cjs`
+  await cjsCopy({ from: sourceDir, to: outDir });
 }
