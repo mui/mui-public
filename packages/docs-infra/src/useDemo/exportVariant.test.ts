@@ -40,7 +40,163 @@ describe('exportVariant', () => {
     expect(result.exported.extraFiles!['../vite.config.js']).toBeDefined();
     const viteConfig = result.exported.extraFiles!['../vite.config.js'];
     if (typeof viteConfig === 'object' && 'source' in viteConfig) {
-      expect(stringOrHastToString(viteConfig.source!)).toContain('@vitejs/plugin-react');
+      const viteConfigSource = stringOrHastToString(viteConfig.source!);
+      expect(viteConfigSource).toContain("import { defineConfig } from 'vite';");
+      expect(viteConfigSource).toContain("import react from '@vitejs/plugin-react';");
+      expect(viteConfigSource).toContain('plugins: [react()]');
+      expect(viteConfigSource).toContain("define: { 'process.env': {} }");
+      expect(viteConfigSource).toContain('export default defineConfig({');
+      expect(viteConfig.metadata).toBe(true);
+    }
+  });
+
+  it('should merge custom viteConfig options correctly', () => {
+    const config: ExportConfig = {
+      viteConfig: {
+        server: {
+          port: 3000,
+          host: true,
+        },
+        build: {
+          outDir: 'dist',
+          sourcemap: true,
+        },
+        define: {
+          __APP_VERSION__: '"1.0.0"',
+        },
+      },
+    };
+
+    const result = exportVariant(baseVariantCode, config);
+
+    expect(result.exported.extraFiles!['../vite.config.js']).toBeDefined();
+    const viteConfig = result.exported.extraFiles!['../vite.config.js'];
+    if (typeof viteConfig === 'object' && 'source' in viteConfig) {
+      const viteConfigSource = stringOrHastToString(viteConfig.source!);
+
+      // Should contain the basic Vite setup
+      expect(viteConfigSource).toContain("import { defineConfig } from 'vite';");
+      expect(viteConfigSource).toContain("import react from '@vitejs/plugin-react';");
+      expect(viteConfigSource).toContain('plugins: [react()]');
+      expect(viteConfigSource).toContain("define: { 'process.env': {} }");
+
+      // Should contain the custom config merged in
+      expect(viteConfigSource).toContain('"server": {');
+      expect(viteConfigSource).toContain('"port": 3000');
+      expect(viteConfigSource).toContain('"host": true');
+      expect(viteConfigSource).toContain('"build": {');
+      expect(viteConfigSource).toContain('"outDir": "dist"');
+      expect(viteConfigSource).toContain('"sourcemap": true');
+      expect(viteConfigSource).toContain('"define": {');
+      expect(viteConfigSource).toContain('"__APP_VERSION__": "\\"1.0.0\\""');
+
+      // Should be properly formatted as JSON with correct indentation
+      expect(viteConfigSource).toMatch(/\.\.\.\s*{\s*"server":/);
+      expect(viteConfig.metadata).toBe(true);
+    }
+  });
+
+  it('should use vite.config.ts when useTypescript is true', () => {
+    const config: ExportConfig = {
+      useTypescript: true,
+      viteConfig: {
+        server: { port: 4000 },
+      },
+    };
+
+    const result = exportVariant(baseVariantCode, config);
+
+    // Should create TypeScript vite config
+    expect(result.exported.extraFiles!['../vite.config.ts']).toBeDefined();
+    expect(result.exported.extraFiles!['../vite.config.js']).toBeUndefined();
+
+    const viteConfig = result.exported.extraFiles!['../vite.config.ts'];
+    if (typeof viteConfig === 'object' && 'source' in viteConfig) {
+      const viteConfigSource = stringOrHastToString(viteConfig.source!);
+      expect(viteConfigSource).toContain("import { defineConfig } from 'vite';");
+      expect(viteConfigSource).toContain('"server": {');
+      expect(viteConfigSource).toContain('"port": 4000');
+      expect(viteConfig.metadata).toBe(true);
+    }
+  });
+
+  it('should handle empty viteConfig object gracefully', () => {
+    const config: ExportConfig = {
+      viteConfig: {},
+    };
+
+    const result = exportVariant(baseVariantCode, config);
+
+    expect(result.exported.extraFiles!['../vite.config.js']).toBeDefined();
+    const viteConfig = result.exported.extraFiles!['../vite.config.js'];
+    if (typeof viteConfig === 'object' && 'source' in viteConfig) {
+      const viteConfigSource = stringOrHastToString(viteConfig.source!);
+
+      // Should still contain basic setup
+      expect(viteConfigSource).toContain("import { defineConfig } from 'vite';");
+      expect(viteConfigSource).toContain("import react from '@vitejs/plugin-react';");
+      expect(viteConfigSource).toContain('plugins: [react()]');
+      expect(viteConfigSource).toContain("define: { 'process.env': {} }");
+
+      // Should contain empty object spread
+      expect(viteConfigSource).toContain('...{}');
+      expect(viteConfig.metadata).toBe(true);
+    }
+  });
+
+  it('should format nested viteConfig objects with proper indentation', () => {
+    const config: ExportConfig = {
+      viteConfig: {
+        server: {
+          port: 3000,
+          host: true,
+          cors: {
+            origin: ['http://localhost:3000', 'http://localhost:3001'],
+            credentials: true,
+          },
+        },
+        build: {
+          rollupOptions: {
+            external: ['react', 'react-dom'],
+            output: {
+              globals: {
+                react: 'React',
+                'react-dom': 'ReactDOM',
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const result = exportVariant(baseVariantCode, config);
+
+    expect(result.exported.extraFiles!['../vite.config.js']).toBeDefined();
+    const viteConfig = result.exported.extraFiles!['../vite.config.js'];
+    if (typeof viteConfig === 'object' && 'source' in viteConfig) {
+      const viteConfigSource = stringOrHastToString(viteConfig.source!);
+
+      // Should contain properly formatted nested objects
+      expect(viteConfigSource).toContain('"server": {');
+      expect(viteConfigSource).toContain('"cors": {');
+      expect(viteConfigSource).toContain('"rollupOptions": {');
+      expect(viteConfigSource).toContain('"output": {');
+      expect(viteConfigSource).toContain('"globals": {');
+
+      // Should have proper array formatting (JSON.stringify puts arrays on multiple lines)
+      expect(viteConfigSource).toContain('"origin": [');
+      expect(viteConfigSource).toContain('"http://localhost:3000"');
+      expect(viteConfigSource).toContain('"http://localhost:3001"');
+      expect(viteConfigSource).toContain('"external": [');
+      expect(viteConfigSource).toContain('"react"');
+      expect(viteConfigSource).toContain('"react-dom"');
+
+      // Should have proper indentation (JSON.stringify with 2 spaces + additional indentation)
+      expect(viteConfigSource).toContain('    "port": 3000');
+      expect(viteConfigSource).toContain('    "host": true');
+      expect(viteConfigSource).toContain('      "origin": [');
+      expect(viteConfigSource).toContain('      "credentials": true');
+
       expect(viteConfig.metadata).toBe(true);
     }
   });

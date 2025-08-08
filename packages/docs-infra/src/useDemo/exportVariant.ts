@@ -114,12 +114,13 @@ export function defaultHtmlTemplate({
     <meta charset="utf-8" />
     <title>${title}</title>
     ${description ? `<meta name="description" content="${description}" />` : ''}
-    <meta name="viewport" content="initial-scale=1, width=device-width" />${head ? `\n    ${head}` : ''}
+    <meta name="viewport" content="initial-scale=1, width=device-width" />${head ? `\n    ${head.split('\n').join('\n    ')}` : ''}
   </head>
   <body>
     <div id="root"></div>${entrypoint ? `\n    <script type="module" src="${entrypoint}"></script>` : ''}
   </body>
-</html>`;
+</html>
+`;
 }
 
 export interface ExportConfig {
@@ -196,6 +197,8 @@ export interface ExportConfig {
   packageJsonFields?: Record<string, any>;
   /** Extra tsconfig.json options to merge */
   tsconfigOptions?: Record<string, any>;
+  /** Vite configuration options */
+  viteConfig?: Record<string, any>;
   /** Whether to include TypeScript configuration files */
   useTypescript?: boolean;
   /** Custom metadata files to add */
@@ -291,6 +294,7 @@ export function exportVariant(
     packageType,
     packageJsonFields = {},
     tsconfigOptions = {},
+    viteConfig = {},
     useTypescript = false,
     extraMetadataFiles = {},
     frameworkFiles = {},
@@ -459,7 +463,7 @@ export function exportVariant(
   };
 
   metadataFiles['package.json'] = {
-    source: JSON.stringify(packageJson, null, 2),
+    source: `${JSON.stringify(packageJson, null, 2)}\n`,
   };
 
   // Generate entrypoint and HTML files unless framework handles them
@@ -473,7 +477,8 @@ ReactDOM.createRoot(document.getElementById('root')${useTypescript ? '!' : ''}).
   <React.StrictMode>
     <App />
   </React.StrictMode>
-);`;
+);
+`;
 
     const entrypointContent = rootIndexTemplate
       ? rootIndexTemplate({
@@ -491,13 +496,14 @@ ReactDOM.createRoot(document.getElementById('root')${useTypescript ? '!' : ''}).
   if (!isFramework) {
     const viteConfigContent = `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { externalsToPackages } from '../loaderUtils/externalsToPackages';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   define: { 'process.env': {} },
-});`;
+  ...${JSON.stringify(viteConfig, null, 2).split('\n').join('\n  ')}
+});
+`;
 
     metadataFiles[`vite.config.${useTypescript ? 'ts' : 'js'}`] = {
       source: viteConfigContent,
@@ -542,7 +548,7 @@ export default defineConfig({
       };
 
       metadataFiles['tsconfig.json'] = {
-        source: JSON.stringify(defaultTsConfig, null, 2),
+        source: `${JSON.stringify(defaultTsConfig, null, 2)}\n`,
       };
     }
 
@@ -561,7 +567,7 @@ export default defineConfig({
       };
 
       metadataFiles['tsconfig.node.json'] = {
-        source: JSON.stringify(nodeTsConfig, null, 2),
+        source: `${JSON.stringify(nodeTsConfig, null, 2)}\n`,
       };
     }
   }
