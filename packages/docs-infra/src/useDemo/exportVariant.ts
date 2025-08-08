@@ -326,12 +326,12 @@ export function exportVariant(
   const sourceFilename = getFilenameFromVariant(processedVariantCode);
 
   // Get path context to understand navigation
-  const pathContext = createPathContext(variantCode); // Determine if we need to rename the source file (if it's index.tsx in src dir)
+  const pathContext = createPathContext(variantCode);
 
+  // Determine if we need to rename the source file
   const ext = useTypescript ? 'tsx' : 'jsx';
   const isSourceFileIndex = sourceFilename === `index.${ext}`;
-  // Use urlDirectory to determine if it's in src root (should only have 'src' as the directory)
-  const isInSrcRoot = pathContext.urlDirectory.length <= 1;
+  const hasBackNavigation = pathContext.maxBackNavigation > 0;
 
   let actualSourceFilename = sourceFilename;
 
@@ -342,12 +342,13 @@ export function exportVariant(
     : `${sourcePrefix}${sourceFilename}`;
 
   // If the source file is index.tsx and it's in the src root, we need to rename it
-  if (isSourceFileIndex && isInSrcRoot) {
+  if (isSourceFileIndex && !hasBackNavigation) {
     actualSourceFilename = generateEntrypointFilename(
       processedVariantCode.extraFiles || {},
       sourceFilename,
       useTypescript,
     );
+    // When renaming due to conflicts, place the file in src root regardless of original location
     actualRootFile = `${sourcePrefix}${actualSourceFilename}`;
   }
 
@@ -357,7 +358,7 @@ export function exportVariant(
 
   // Get relative import path for the main component
   let importPath: string;
-  if (isInSrcRoot) {
+  if (!hasBackNavigation) {
     // Component is in src root - import directly
     importPath = getRelativeImportPath(actualSourceFilename);
   } else {
@@ -383,7 +384,7 @@ export function exportVariant(
   // Update the variant's fileName if we renamed it
   if (
     isSourceFileIndex &&
-    isInSrcRoot &&
+    !hasBackNavigation &&
     actualSourceFilename &&
     actualSourceFilename !== sourceFilename
   ) {

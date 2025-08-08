@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { exportVariant, type ExportConfig } from './exportVariant';
 import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { stringOrHastToString } from '../pipeline/hastUtils';
+import { flattenVariant } from './flattenVariant';
 
 describe('exportVariant', () => {
   const baseVariantCode: VariantCode = {
@@ -1106,6 +1107,94 @@ describe('exportVariant', () => {
       expect(result.exported.extraFiles!['utils.js']).toBeDefined(); // Non-metadata added to variant
       expect(result.exported.extraFiles!['../config.json']).toBeDefined(); // Metadata added to globals (moved to ../)
       expect(result.exported.extraFiles!['../theme.css']).toBeDefined(); // Original metadata moved to ../
+    });
+  });
+
+  describe('issue: index.tsx + CSS files with metadata', () => {
+    it('should export index.tsx + index.module.css + theme.css with metadata: true correctly', () => {
+      const variantCode: VariantCode = {
+        url: 'file:///app/components/hero/css-modules/index.tsx',
+        fileName: 'index.tsx',
+        source: 'export default function App() { return <div>Hello World</div>; }',
+        extraFiles: {
+          'index.module.css': {
+            source: '.container { padding: 20px; }',
+          },
+          'theme.css': {
+            source: ':root { --primary-color: blue; }',
+            metadata: true,
+          },
+        },
+      };
+
+      const config: ExportConfig = {
+        useTypescript: true,
+      };
+
+      const result = exportVariant(variantCode, config);
+
+      // Check what the filename was changed to
+      const exportedFileName = result.exported.fileName;
+
+      // Check if the entrypoint contains ReactDOM (indicating it's the entrypoint, not the component)
+      const entrypointFile = result.exported.extraFiles!['index.tsx'];
+      const isEntrypoint =
+        typeof entrypointFile === 'object' &&
+        'source' in entrypointFile &&
+        stringOrHastToString(entrypointFile.source!).includes('ReactDOM.createRoot');
+
+      // Validate the renaming and entrypoint creation worked correctly
+      if (!isEntrypoint) {
+        expect.fail('Expected index.tsx to be an entrypoint with ReactDOM.createRoot');
+      }
+
+      if (exportedFileName !== 'App.tsx') {
+        expect.fail(`Expected fileName to be renamed to App.tsx, but got: ${exportedFileName}`);
+      }
+
+      // The main component should exist in the variant with the renamed fileName
+      expect(result.exported.fileName).toBe('App.tsx');
+      expect(result.exported.source).toBe(
+        'export default function App() { return <div>Hello World</div>; }',
+      );
+
+      // Check for expected files
+      expect(result.exported.extraFiles).toBeDefined();
+
+      // Should have a main entrypoint
+      expect(result.exported.extraFiles!['index.tsx']).toBeDefined();
+
+      // Should have metadata files positioned correctly
+      expect(result.exported.extraFiles!['index.module.css']).toBeDefined();
+      expect(result.exported.extraFiles!['../theme.css']).toBeDefined();
+
+      // Should have standard project files
+      expect(result.exported.extraFiles!['../package.json']).toBeDefined();
+      expect(result.exported.extraFiles!['../tsconfig.json']).toBeDefined();
+
+      // Check for expected files
+      expect(result.exported.extraFiles).toBeDefined();
+
+      // Test flattening to verify the renamed component file appears correctly
+      const flattened = flattenVariant(result.exported);
+
+      // The flattened output should contain App.tsx with the component source
+      // Find the App.tsx file in the flattened output
+      const appTsxPath = Object.keys(flattened).find((path) => path.endsWith('/App.tsx'));
+      expect(appTsxPath).toBeDefined();
+      expect(flattened[appTsxPath!]).toBeDefined();
+      expect(flattened[appTsxPath!].source).toBe(
+        'export default function App() { return <div>Hello World</div>; }',
+      ); // Should also contain the entrypoint
+      expect(flattened['src/index.tsx']).toBeDefined();
+      expect(flattened['src/index.tsx'].source).toContain('ReactDOM.createRoot');
+      expect(flattened['src/index.tsx'].source).toContain("import App from './App';");
+
+      // This test validates that the export system correctly:
+      // 1. Renames index.tsx component to App.tsx (fileName property)
+      // 2. Creates index.tsx as entrypoint (in extraFiles)
+      // 3. Maintains the component source in the main variant
+      // 4. The renamed component should be accessible when the variant is flattened
     });
   });
 });
