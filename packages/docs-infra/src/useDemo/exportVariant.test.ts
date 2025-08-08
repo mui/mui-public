@@ -1197,4 +1197,282 @@ describe('exportVariant', () => {
       // 4. The renamed component should be accessible when the variant is flattened
     });
   });
+
+  describe('issue: transformVariant file duplication', () => {
+    it('should not duplicate files when transformVariant moves metadata files and deletes original keys', () => {
+      const baseVariant: VariantCode = {
+        url: 'file:///src/components/Button/index.tsx',
+        fileName: 'index.tsx',
+        source: 'export default function Button() { return <button>Click me</button>; }',
+        extraFiles: {
+          'styles.css': { source: '.button { color: blue; }', metadata: true },
+          'helper.js': { source: 'export const helper = () => {};' },
+        },
+      };
+
+      const transformVariant = (
+        variant: VariantCode,
+        variantName?: string,
+        globals?: VariantExtraFiles,
+      ) => {
+        // Simulate moving a metadata file to a different location
+        const newExtraFiles = {
+          ...variant.extraFiles,
+          // Move styles.css to a deeper path
+          '../theme/styles.css': { source: '.button { color: red; }', metadata: true },
+        };
+
+        // Delete the original key to simulate a move operation
+        delete (newExtraFiles as any)['styles.css'];
+
+        const modifiedVariant = {
+          ...variant,
+          extraFiles: newExtraFiles,
+        };
+
+        // When moving a file from globals to variant, we should remove it from globals
+        // to avoid duplication. Create new globals without the moved file.
+        const newGlobals = { ...globals };
+        delete (newGlobals as any)['styles.css'];
+
+        return {
+          variant: modifiedVariant,
+          globals: newGlobals,
+        };
+      };
+
+      const result = exportVariant(baseVariant, {
+        transformVariant,
+        useTypescript: true,
+      });
+
+      // Get all file paths that contain 'styles.css'
+      const stylesPaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
+        path.includes('styles.css'),
+      );
+
+      // Should only have one styles.css file, not duplicated
+      expect(stylesPaths).toHaveLength(1);
+
+      // Should not have the original 'styles.css' path
+      expect(result.exported.extraFiles!['styles.css']).toBeUndefined();
+
+      // Should have the moved file at the correct metadata-scoped location
+      const movedStylesPath = stylesPaths[0];
+      expect(movedStylesPath).toBeDefined();
+      expect(movedStylesPath).toMatch(/\.\..*styles\.css$/); // Should be prefixed with ../ for metadata positioning
+
+      const movedStylesFile = result.exported.extraFiles![movedStylesPath];
+      if (typeof movedStylesFile === 'object' && 'source' in movedStylesFile) {
+        expect(stringOrHastToString(movedStylesFile.source!)).toBe('.button { color: red; }');
+        expect(movedStylesFile.metadata).toBe(true);
+      }
+
+      // Helper.js should remain unchanged
+      expect(result.exported.extraFiles!['helper.js']).toBeDefined();
+      const helperFile = result.exported.extraFiles!['helper.js'];
+      if (typeof helperFile === 'object' && 'source' in helperFile) {
+        expect(stringOrHastToString(helperFile.source!)).toBe('export const helper = () => {};');
+        expect(helperFile.metadata).toBe(false);
+      }
+    });
+
+    it('should not duplicate metadata files when transformVariant modifies existing metadata files', () => {
+      const baseVariant: VariantCode = {
+        url: 'file:///src/components/ui/Card/index.tsx',
+        fileName: 'index.tsx',
+        source: 'export default function Card() { return <div>Card</div>; }',
+        extraFiles: {
+          'card.module.css': { source: '.card { border: 1px solid; }' },
+          '../theme.css': { source: '.theme { color: blue; }', metadata: true },
+          '../../global.css': { source: 'body { margin: 0; }', metadata: true },
+        },
+      };
+
+      const transformVariant = (
+        variant: VariantCode,
+        variantName?: string,
+        globals?: VariantExtraFiles,
+      ) => {
+        // Modify the variant by adding a new metadata file and changing an existing one
+        const newExtraFiles = {
+          ...variant.extraFiles,
+          // Modify an existing metadata file by changing its path and content
+          '../custom-theme.css': { source: '.theme { color: red; }', metadata: true },
+        };
+
+        // Delete the original theme.css to simulate renaming
+        delete (newExtraFiles as any)['../theme.css'];
+
+        const modifiedVariant = {
+          ...variant,
+          extraFiles: newExtraFiles,
+        };
+
+        // Remove the renamed file from globals and add new metadata
+        const newGlobals = { ...globals };
+        // The original '../theme.css' from the variant gets processed by extractMetadata
+        // We need to find and remove it from globals. Since extractMetadata can change paths,
+        // let's remove any theme.css files from globals
+        Object.keys(newGlobals).forEach(key => {
+          if (key.includes('theme.css')) {
+            delete newGlobals[key];
+          }
+        });
+
+        return {
+          variant: modifiedVariant,
+          globals: {
+            ...newGlobals,
+            // Add a new metadata file via globals
+            'new-config.json': { source: '{"new": true}', metadata: true },
+          },
+        };
+      };
+
+      const result = exportVariant(baseVariant, {
+        transformVariant,
+        useTypescript: true,
+      });
+
+      // Check that we don't have duplicated theme files
+      const themePaths = Object.keys(result.exported.extraFiles || {}).filter(
+        (path) => path.includes('theme.css') || path.includes('custom-theme.css'),
+      );
+
+      // Should only have the renamed theme file, not both
+      expect(themePaths).toHaveLength(1);
+      expect(themePaths[0]).toMatch(/custom-theme\.css$/);
+
+      // Should not have the original theme.css
+      const originalThemePaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
+        path.includes('theme.css') && !path.includes('custom-theme.css'), // Exclude the renamed file
+      );
+      expect(originalThemePaths).toHaveLength(0);
+
+      // Should have global.css repositioned
+      const globalPaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
+        path.includes('global.css'),
+      );
+      expect(globalPaths).toHaveLength(1);
+
+      // Should have the new config file
+      const configPaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
+        path.includes('new-config.json'),
+      );
+      expect(configPaths).toHaveLength(1);
+
+      // Verify all metadata files have the metadata flag
+      const allMetadataPaths = [themePaths[0], globalPaths[0], configPaths[0]];
+      allMetadataPaths.forEach((path) => {
+        const file = result.exported.extraFiles![path];
+        if (typeof file === 'object' && 'metadata' in file) {
+          expect(file.metadata).toBe(true);
+        }
+      });
+    });
+
+    it('should handle complex transformVariant scenarios without duplication', () => {
+      const baseVariant: VariantCode = {
+        url: 'file:///src/pages/Dashboard/index.tsx',
+        fileName: 'index.tsx',
+        source: 'export default function Dashboard() { return <div>Dashboard</div>; }',
+        extraFiles: {
+          'components/Header.tsx': { source: 'export const Header = () => <header />;' },
+          'styles/main.css': { source: '.main { padding: 20px; }', metadata: true },
+          '../shared/theme.css': { source: '.theme { color: blue; }', metadata: true },
+          '../../config/app.json': { source: '{"app": "dashboard"}', metadata: true },
+        },
+      };
+
+      const transformVariant = (
+        variant: VariantCode,
+        variantName?: string,
+        globals?: VariantExtraFiles,
+      ) => {
+        // Complex transformation: move files, rename files, add new files, delete old files
+        const modifiedVariant = {
+          ...variant,
+          extraFiles: {
+            // Keep non-metadata files as-is
+            'components/Header.tsx': variant.extraFiles!['components/Header.tsx'],
+            // Move and rename metadata files
+            'assets/styles.css': { source: '.main { padding: 30px; }', metadata: true }, // renamed from styles/main.css
+            '../theme/custom.css': { source: '.theme { color: green; }', metadata: true }, // renamed from ../shared/theme.css
+            // Add new metadata file
+            'new-styles.css': { source: '.new { margin: 10px; }', metadata: true },
+          },
+        };
+
+        // Clean up globals: remove files that were moved/renamed and add new ones
+        const newGlobals = { ...globals };
+        // Remove the original files that were moved/renamed
+        // Since extractMetadata can change paths, search by basename
+        Object.keys(newGlobals).forEach(key => {
+          if (key.includes('main.css') || key.includes('theme.css') || key.includes('app.json')) {
+            delete newGlobals[key];
+          }
+        });
+
+        return {
+          variant: modifiedVariant,
+          globals: {
+            ...newGlobals,
+            // Modify existing global metadata
+            'settings.json': { source: '{"app": "dashboard", "version": "2.0"}', metadata: true }, // renamed from app.json
+            // Add completely new global metadata
+            'build-config.yml': { source: 'build: production', metadata: true },
+          },
+        };
+      };
+
+      const result = exportVariant(baseVariant, {
+        transformVariant,
+        useTypescript: true,
+      });
+
+      // Check that old files are gone
+      expect(result.exported.extraFiles!['styles/main.css']).toBeUndefined();
+      expect(result.exported.extraFiles!['../shared/theme.css']).toBeUndefined();
+
+      // Check that we don't have duplicates of renamed files
+      // Only look for the renamed styles.css file (from styles/main.css -> assets/styles.css)
+      // Don't count new-styles.css as it's a newly added file
+      const stylesPaths = Object.keys(result.exported.extraFiles || {}).filter(
+        (path) => path.includes('main.css') || (path.includes('styles.css') && path.includes('assets')),
+      );
+      expect(stylesPaths).toHaveLength(1); // Should only have assets/styles.css (repositioned)
+
+      const themePaths = Object.keys(result.exported.extraFiles || {}).filter(
+        (path) => path.includes('custom.css') || path.includes('theme.css'),
+      );
+      expect(themePaths).toHaveLength(1); // Should only have the renamed theme file
+
+      const configPaths = Object.keys(result.exported.extraFiles || {}).filter(
+        (path) => path.includes('app.json') || path.includes('settings.json'),
+      );
+      expect(configPaths).toHaveLength(1); // Should only have settings.json (renamed from app.json)
+
+      // Check that new files are present
+      const newStylesPaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
+        path.includes('new-styles.css'),
+      );
+      expect(newStylesPaths).toHaveLength(1);
+
+      const buildConfigPaths = Object.keys(result.exported.extraFiles || {}).filter((path) =>
+        path.includes('build-config.yml'),
+      );
+      expect(buildConfigPaths).toHaveLength(1);
+
+      // Verify non-metadata files remain unchanged
+      expect(result.exported.extraFiles!['components/Header.tsx']).toBeDefined();
+      const headerFile = result.exported.extraFiles!['components/Header.tsx'];
+      if (typeof headerFile === 'object' && 'source' in headerFile) {
+        expect(stringOrHastToString(headerFile.source!)).toBe(
+          'export const Header = () => <header />;',
+        );
+        expect(headerFile.metadata).toBe(false);
+      }
+    });
+  });
 });

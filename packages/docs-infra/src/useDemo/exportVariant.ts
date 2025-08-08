@@ -307,10 +307,12 @@ export function exportVariant(
     const transformed = transformVariant(processedVariantCode, variantName, processedGlobals);
     if (transformed) {
       // Re-extract metadata after transformation
-      const result = extractMetadata(transformed.variant || variantCode);
-      processedVariantCode = result.variant;
-      // Combine metadata from extraction with transformed globals
-      processedGlobals = { ...result.metadata, ...transformed.globals };
+      const result = transformed.variant && extractMetadata(transformed.variant);
+      processedVariantCode = result?.variant || processedVariantCode;
+
+      // Start fresh with only the new metadata and explicitly transformed globals
+      // Do NOT merge with the original processedGlobals to avoid duplication
+      processedGlobals = { ...result?.metadata, ...transformed.globals };
     }
   }
 
