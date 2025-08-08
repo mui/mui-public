@@ -4,7 +4,7 @@
  * Uses addPathsToVariant for the core logic, then flattens the result
  */
 
-import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
+import type { VariantCode } from '../CodeHighlighter/types';
 import { stringOrHastToString } from '../pipeline/hastUtils';
 import { addPathsToVariant } from '../CodeHighlighter/addPathsToVariant';
 
@@ -37,7 +37,7 @@ export function flattenVariant(variant: VariantCode): FlattenedFiles {
 
   // Add extra files if they exist
   if (variantWithPaths.extraFiles) {
-    for (const [relativePath, fileWithPath] of Object.entries(variantWithPaths.extraFiles)) {
+    for (const fileWithPath of Object.values(variantWithPaths.extraFiles)) {
       // Skip files with no source content
       if (!fileWithPath.source && fileWithPath.source !== '') {
         continue;

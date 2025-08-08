@@ -147,7 +147,7 @@ describe('flattenVariant', () => {
       expect(result[variantWithPaths.path!]).toEqual({ source: "console.log('index.ts')" });
 
       if (variantWithPaths.extraFiles) {
-        for (const [relativePath, fileWithPath] of Object.entries(variantWithPaths.extraFiles)) {
+        for (const fileWithPath of Object.values(variantWithPaths.extraFiles)) {
           expect(result[fileWithPath.path]).toEqual({
             source: "console.log('helper.ts')",
           });
