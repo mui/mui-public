@@ -276,7 +276,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   },
   async handler(args) {
     const {
-      bundle: inputBundles,
+      bundle: bundles,
       hasLargeFiles,
       skipModulePackageJson,
       cjsOutDir = '.',
@@ -286,7 +286,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipTsc,
       skipBabelRuntimeCheck = false,
     } = args;
-    const bundles = Array.from(new Set(inputBundles));
 
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
@@ -299,7 +298,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
     const buildDir = path.join(cwd, buildDirBase);
 
-    console.log(`Selected output directory: ${buildDirBase}`);
+    console.log(`Selected output directory: "${buildDirBase}"`);
 
     let babelRuntimeVersion = packageJson.dependencies['@babel/runtime'];
     if (babelRuntimeVersion === 'catalog:') {
@@ -322,36 +321,40 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
 
     const babelMod = await import('./babel.mjs');
+    const relativeOutDirs = {
+      cjs: cjsOutDir,
+      esm: 'esm',
+    };
+    const sourceDir = path.join(cwd, 'src');
 
+    // js build start
     await Promise.all(
       bundles.map(async (bundle) => {
         const outExtension = getOutExtension(bundle);
-        const relativeOutDir = {
-          cjs: cjsOutDir,
-          esm: 'esm',
-        }[bundle];
+        const relativeOutDir = relativeOutDirs[bundle];
         const outputDir = path.join(buildDir, relativeOutDir);
-        const sourceDir = path.join(cwd, 'src');
         await fs.mkdir(outputDir, { recursive: true });
 
-        await babelMod.babelBuild({
-          cwd,
-          sourceDir,
-          outDir: outputDir,
-          babelRuntimeVersion,
-          hasLargeFiles,
-          bundle,
-          verbose,
-          optimizeClsx:
-            packageJson.dependencies.clsx !== undefined ||
-            packageJson.dependencies.classnames !== undefined,
-          removePropTypes: packageJson.dependencies['prop-types'] !== undefined,
-          pkgVersion: packageJson.version,
-          ignores: extraIgnores,
-          outExtension,
-        });
-
         const promises = [];
+
+        promises.push(
+          babelMod.babelBuild({
+            cwd,
+            sourceDir,
+            outDir: outputDir,
+            babelRuntimeVersion,
+            hasLargeFiles,
+            bundle,
+            verbose,
+            optimizeClsx:
+              packageJson.dependencies.clsx !== undefined ||
+              packageJson.dependencies.classnames !== undefined,
+            removePropTypes: packageJson.dependencies['prop-types'] !== undefined,
+            pkgVersion: packageJson.version,
+            ignores: extraIgnores,
+            outExtension,
+          }),
+        );
 
         if (buildDir !== outputDir && !skipModulePackageJson && !isMjsBuild) {
           // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
@@ -366,20 +369,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           );
         }
 
-        if (buildTypes) {
-          const tsMod = await import('./typescript.mjs');
-          promises.push(
-            tsMod.generateTypes({
-              srcDir: sourceDir,
-              outDir: outputDir,
-              cwd,
-              skipTsc,
-              bundle,
-              isMjsBuild,
-            }),
-          );
-        }
-
         await Promise.all(promises);
         await addLicense({
           bundle,
@@ -390,6 +379,27 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         });
       }),
     );
+    // js build end
+
+    if (buildTypes) {
+      const tsMod = await import('./typescript.mjs');
+      /**
+       * @type {{type: import('../utils/build.mjs').BundleType, dir: string}[]};
+       */
+      const bundleMap = bundles.map((type) => ({
+        type,
+        dir: relativeOutDirs[type],
+      }));
+
+      await tsMod.createTypes({
+        bundles: bundleMap,
+        srcDir: sourceDir,
+        cwd,
+        skipTsc,
+        isMjsBuild,
+        buildDir,
+      });
+    }
     const normalizedCjsOutDir = cjsOutDir === '.' || cjsOutDir === './' ? '.' : cjsOutDir;
     await writePackageJson({
       cwd,

@@ -139,11 +139,12 @@ export async function babelBuild({
       ...env,
     },
   })`pnpm babel --config-file ${configFile} --extensions ${TO_TRANSFORM_EXTENSIONS.join(',')} ${sourceDir} --out-dir ${outDir} --ignore ${BASE_IGNORES.concat(ignores).join(',')} --out-file-extension ${outExtension !== '.js' ? outExtension : '.js'} --compact ${hasLargeFiles ? 'true' : 'false'}`;
+
   if (res.stderr) {
-    throw new Error(`'${res.escapedCommand}' failed with \n${res.stderr}`);
+    throw new Error(`Command: '${res.escapedCommand}' failed with \n${res.stderr}`);
   }
   if (verbose) {
-    console.log(`'${res.escapedCommand}' succeeded with \n${res.stdout}`);
+    console.log(`Command: '${res.escapedCommand}' succeeded with \n${res.stdout}`);
   }
 
   // cjs for reexporting from commons only modules.

@@ -41,7 +41,7 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
       if (stats.isDirectory()) {
         return true;
       }
-      return src.endsWith('.d.ts');
+      return src.endsWith('.d.ts') || src.endsWith('.d.mts');
     },
   });
 }
@@ -96,7 +96,7 @@ async function renameDeclarations({ directory }) {
   if (dtsFiles.length === 0) {
     return;
   }
-  console.log(`Renaming d.ts files to d.mts declaration files in ${directory}`);
+  console.log(`Renaming d.ts files to d.mts in ${directory}`);
   await Promise.all(
     dtsFiles.map(async (dtsFile) => {
       const newFileName = dtsFile.replace(/\.d\.ts$/, '.d.mts');
@@ -106,41 +106,67 @@ async function renameDeclarations({ directory }) {
 }
 
 /**
- * Generates types for the package.
+ * Creates TypeScript declaration files for the specified bundles.
+ * This is a very hard-coded process where the types are first created in build/esm directory
+ * regardless of user input bundles. These are then copied over to other bundle directories
+ * to avoid triggering tsc cli again and again.
+ * The whole pipeline is same as that in core-repo's `scripts/buildTypes.mts`
+ *
  * @param {Object} param0
+ * @param {boolean} [param0.isMjsBuild] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
- * @param {string} param0.outDir - The base output directory.
- * @param {import('../utils/build.mjs').BundleType} param0.bundle - The bundle type to process.
+ * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
- * @param {boolean} param0.isMjsBuild - Whether the build is for ESM (ECMAScript Modules).
  */
-export async function generateTypes({ srcDir, outDir, cwd, skipTsc, bundle, isMjsBuild }) {
-  await copyDeclarations(srcDir, outDir);
+export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isMjsBuild }) {
+  // const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
+  // Actual os-level tmpdir doesn't work here because of our usage of babel-plugin-resolve-imports plugin which
+  // adds extension based on the existense of the relevant js files.
+  const tmpDir = path.join(buildDir, 'esm');
 
-  const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
-  const tsconfigExists = await fs.stat(tsconfigPath).then(
-    (file) => file.isFile(),
-    () => false,
-  );
-  if (!skipTsc) {
-    if (!tsconfigExists) {
-      throw new Error(
-        'Unable to find a tsconfig to build this project. ' +
-          `The package root needs to contain a 'tsconfig.build.json'. ` +
-          `The package root is '${cwd}'`,
-      );
+  try {
+    await copyDeclarations(srcDir, tmpDir);
+    const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
+    const tsconfigExists = await fs.stat(tsconfigPath).then(
+      (file) => file.isFile(),
+      () => false,
+    );
+    if (!skipTsc) {
+      if (!tsconfigExists) {
+        throw new Error(
+          'Unable to find a tsconfig to build this project. ' +
+            `The package root needs to contain a 'tsconfig.build.json'. ` +
+            `The package root is '${cwd}'`,
+        );
+      }
+      await emitDeclarations(tsconfigPath, tmpDir);
     }
-    await emitDeclarations(tsconfigPath, outDir);
-  }
-
-  if (bundle === 'esm' && isMjsBuild) {
-    await renameDeclarations({
-      directory: outDir,
+    await postProcessDeclarations({
+      directory: tmpDir,
     });
-  }
 
-  await postProcessDeclarations({
-    directory: outDir,
-  });
+    await Promise.all(
+      bundles.map(async ({ type: bundleType, dir: bundleOutDir }) => {
+        const fullOutDir = path.join(buildDir, bundleOutDir);
+        if (bundleType !== 'esm') {
+          await fs.cp(tmpDir, fullOutDir, {
+            recursive: true,
+            force: true,
+            filter: (file) => file.endsWith('.d.ts'),
+          });
+        }
+        if (bundleType === 'esm' && isMjsBuild) {
+          await renameDeclarations({
+            directory: fullOutDir,
+          });
+        }
+      }),
+    );
+  } finally {
+    if (bundles.length === 1 && bundles[0].type !== 'esm') {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  }
 }

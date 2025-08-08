@@ -21,8 +21,8 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --bundle cjs --bundle esm && pnpm build:copy-files",
-    "build:copy-files": "code-infra copy-files .npmignore",
+    "build": "code-infra build --bundle esm && pnpm build:copy-files",
+    "build:copy-files": "code-infra copy-files",
     "prebuild": "rimraf build",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "exit 0",
