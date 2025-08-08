@@ -8,7 +8,6 @@ import { externalsToPackages } from '../pipeline/loaderUtils';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { createPathContext } from '../CodeHighlighter/examineVariant';
 import { mergeMetadata, extractMetadata } from '../CodeHighlighter/mergeMetadata';
-import { mergeExternals } from '../pipeline/loaderUtils/mergeExternals';
 
 /**
  * Merges multiple file objects into a single object.
@@ -126,8 +125,16 @@ export function defaultHtmlTemplate({
 export interface ExportConfig {
   /** The title for the demo (used in HTML title and package.json name) */
   title?: string;
+  /** Optional prefix to add before the title */
+  titlePrefix?: string;
+  /** Optional suffix to add after the title */
+  titleSuffix?: string;
   /** Description for package.json */
   description?: string;
+  /** Optional prefix to add before the description */
+  descriptionPrefix?: string;
+  /** Optional suffix to add after the description */
+  descriptionSuffix?: string;
   /** The variant name/identifier for this specific code variant */
   variantName?: string;
   /**
@@ -148,11 +155,6 @@ export interface ExportConfig {
    * Prefix for code files (e.g., 'src/' for Vite)
    */
   sourcePrefix?: string;
-  /**
-   * Whether the framework handles entrypoint and HTML generation (e.g., CRA with webpack)
-   * When true, skips generating index.html and entrypoint files
-   */
-  frameworkHandlesEntrypoint?: boolean;
   /**
    * Custom HTML template function
    * @example
@@ -198,6 +200,11 @@ export interface ExportConfig {
   useTypescript?: boolean;
   /** Custom metadata files to add */
   extraMetadataFiles?: Record<string, { source: string }>;
+  /**
+   * Whether the framework handles entrypoint and HTML generation (e.g., CRA with webpack)
+   * When true, skips generating index.html and entrypoint files
+   */
+  frameworkHandlesEntrypoint?: boolean;
   /** Framework-specific files that override default files (index.html, entrypoint, etc.) */
   frameworkFiles?: { variant?: VariantCode; globals?: VariantExtraFiles };
   /**
@@ -223,6 +230,31 @@ export interface ExportConfig {
     variantName?: string,
     globals?: VariantExtraFiles,
   ) => { variant?: VariantCode; globals?: VariantExtraFiles } | undefined;
+  /**
+   * Version overrides for core packages (react, react-dom, @types/react, @types/react-dom)
+   * @example
+   * versions: {
+   *   '@types/react': '^19',
+   *   '@types/react-dom': '^19',
+   *   react: '^19',
+   *   'react-dom': '^19',
+   * }
+   */
+  versions?: Record<string, string>;
+  /**
+   * Custom dependency resolution function
+   * @example
+   * resolveDependencies: (packageName, envVars) => {
+   *   if (packageName === '@mui/material') {
+   *     return { '@mui/material': 'latest', '@emotion/react': 'latest' };
+   *   }
+   *   return { [packageName]: 'latest' };
+   * }
+   */
+  resolveDependencies?: (
+    packageName: string,
+    envVars?: Record<string, string>,
+  ) => Record<string, string>;
 }
 
 /**
@@ -234,7 +266,11 @@ export function exportVariant(
 ): { exported: VariantCode; rootFile: string } {
   const {
     title = 'Demo',
+    titlePrefix,
+    titleSuffix,
     description = 'Demo created with Vite',
+    descriptionPrefix,
+    descriptionSuffix,
     variantName,
     language = 'en',
     htmlPrefix = '',
@@ -254,7 +290,15 @@ export function exportVariant(
     extraMetadataFiles = {},
     frameworkFiles = {},
     transformVariant,
+    versions = {},
+    resolveDependencies,
   } = config;
+
+  // Build final title and description with prefixes and suffixes
+  const finalTitle = [titlePrefix, title, titleSuffix].filter(Boolean).join('');
+  const finalDescription = [descriptionPrefix, description, descriptionSuffix]
+    .filter(Boolean)
+    .join('');
 
   // Use extractMetadata to properly separate metadata and non-metadata files
   let { variant: processedVariantCode, metadata: processedGlobals } = extractMetadata(variantCode);
@@ -318,8 +362,6 @@ export function exportVariant(
     importPath = getRelativeImportPath(actualSourceFilename);
   } else {
     // Component is in a subdirectory - import with full path from src root
-    // Use urlDirectory excluding the root level to get the full directory path
-    const directoryPath = pathContext.urlDirectory.slice(1).join('/'); // Remove 'src' and join the rest
     const componentPath = directoryPath
       ? `${directoryPath}/${actualSourceFilename}`
       : actualSourceFilename;
@@ -354,7 +396,16 @@ export function exportVariant(
   const externalPackages = externalsToPackages(processedVariantCode.externals || []);
   const variantDeps = Object.keys(externalPackages).reduce(
     (acc, pkg) => {
-      acc[pkg] = 'latest';
+      // Check if we have a specific version for this package first
+      if (versions[pkg]) {
+        acc[pkg] = versions[pkg];
+      } else if (resolveDependencies) {
+        const resolvedDeps = resolveDependencies(pkg);
+        Object.assign(acc, resolvedDeps);
+      } else {
+        // Simple fallback: just use 'latest' for each package
+        acc[pkg] = 'latest';
+      }
       return acc;
     },
     {} as Record<string, string>,
@@ -366,9 +417,9 @@ export function exportVariant(
   // Generate package.json
   const packageJson = {
     private: true,
-    name: title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+    name: finalTitle.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     version: '0.0.0',
-    description,
+    description: finalDescription,
     ...(finalPackageType && { type: finalPackageType }), // Add type if specified
     scripts: {
       ...(!isFramework && {
@@ -379,8 +430,8 @@ export function exportVariant(
       ...scripts,
     },
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: versions.react || 'latest',
+      'react-dom': versions['react-dom'] || 'latest',
       ...variantDeps,
       ...dependencies,
     },
@@ -391,8 +442,8 @@ export function exportVariant(
       }),
       ...(useTypescript && {
         typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/react-dom': 'latest',
+        '@types/react': versions['@types/react'] || 'latest',
+        '@types/react-dom': versions['@types/react-dom'] || 'latest',
       }),
       ...devDependencies,
     },
@@ -522,8 +573,8 @@ export default defineConfig({
     const htmlContent = htmlTemplate
       ? htmlTemplate({
           language,
-          title,
-          description,
+          title: finalTitle,
+          description: finalDescription,
           head: headContent,
           entrypoint,
           variant: processedVariantCode,
@@ -531,8 +582,8 @@ export default defineConfig({
         })
       : defaultHtmlTemplate({
           language,
-          title,
-          description,
+          title: finalTitle,
+          description: finalDescription,
           head: headContent,
           entrypoint,
         });
