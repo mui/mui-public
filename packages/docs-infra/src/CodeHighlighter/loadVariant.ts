@@ -15,6 +15,53 @@ import type {
   Externals,
 } from './types';
 
+/**
+ * Generate a conflict-free filename for globalsCode files.
+ * Strategy:
+ * 1. Try original filename
+ * 2. If conflict, try "global_" prefix
+ * 3. If still conflict, add numbers: "global_filename_1.ext", "global_filename_2.ext", etc.
+ */
+function generateConflictFreeFilename(
+  originalFilename: string,
+  existingFiles: Set<string>,
+): string {
+  // First try the original filename
+  if (!existingFiles.has(originalFilename)) {
+    return originalFilename;
+  }
+
+  // Try with global_ prefix
+  const globalFilename = `global_${originalFilename}`;
+  if (!existingFiles.has(globalFilename)) {
+    return globalFilename;
+  }
+
+  // Split filename into name and extension for proper numbering
+  const lastDotIndex = originalFilename.lastIndexOf('.');
+  let nameWithoutExt: string;
+  let extension: string;
+
+  if (lastDotIndex === -1 || lastDotIndex === 0) {
+    // No extension or starts with dot (hidden file)
+    nameWithoutExt = originalFilename;
+    extension = '';
+  } else {
+    nameWithoutExt = originalFilename.substring(0, lastDotIndex);
+    extension = originalFilename.substring(lastDotIndex); // includes the dot
+  }
+
+  // Add numbers until we find a free name, preserving extension
+  let counter = 1;
+  let candidateName: string;
+  do {
+    candidateName = `global_${nameWithoutExt}_${counter}${extension}`;
+    counter += 1;
+  } while (existingFiles.has(candidateName));
+
+  return candidateName;
+}
+
 // Helper function to check if we're in production
 function isProduction(): boolean {
   return typeof process !== 'undefined' && process.env.NODE_ENV === 'production';
@@ -312,6 +359,7 @@ async function loadExtraFiles(
   options: LoadFileOptions = {},
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
+  globalsFileKeys: Set<string> = new Set(), // Track which files came from globals
 ): Promise<{ extraFiles: VariantExtraFiles; allFilesUsed: string[]; allExternals: Externals }> {
   const { maxDepth = 10, loadedFiles = new Set() } = options;
 
@@ -404,9 +452,20 @@ async function loadExtraFiles(
 
   for (const { fileName, result, filesUsed, externals } of extraFileResults) {
     const normalizedFileName = normalizePathKey(fileName);
+    const originalFileData = extraFiles[fileName];
+
+    // Preserve metadata flag if it exists in the original data, or if this file came from globals
+    let metadata: boolean | undefined;
+    if (typeof originalFileData !== 'string') {
+      metadata = originalFileData.metadata;
+    } else if (globalsFileKeys.has(fileName)) {
+      metadata = true;
+    }
+
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
       transforms: result.transforms,
+      ...(metadata !== undefined && { metadata }),
     };
 
     // Add files used from this file load
@@ -437,6 +496,7 @@ async function loadExtraFiles(
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
           allFilesListed,
           knownExtraFiles,
+          globalsFileKeys, // Pass through globals file tracking
         ).then((nestedResult) => ({
           files: nestedResult.extraFiles,
           allFilesUsed: nestedResult.allFilesUsed,
@@ -494,6 +554,8 @@ export async function loadVariant(
   if (!variant) {
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
+
+  const { globalsCode } = options;
 
   // Create a cache for loadSource calls scoped to this loadVariant call
   const loadSourceCache = new Map<
@@ -628,6 +690,112 @@ export async function loadVariant(
     ...(mainFileResult.extraFiles || {}),
   };
 
+  // Track which files come from globals for metadata marking
+  const globalsFileKeys = new Set<string>(); // Track globals file keys for loadExtraFiles
+
+  // Process globalsCode array and add to extraFiles if provided
+  if (globalsCode && globalsCode.length > 0) {
+    // Collect existing filenames to avoid conflicts
+    const existingFiles = new Set<string>();
+
+    // Add main variant filename if it exists
+    if (variant.fileName) {
+      existingFiles.add(variant.fileName);
+    }
+
+    // Add already loaded extra files
+    for (const key of Object.keys(extraFilesToLoad)) {
+      existingFiles.add(key);
+    }
+
+    // Process all globals items in parallel
+    const globalsPromises = globalsCode.map(async (globalsItem) => {
+      let globalsVariant: VariantCode;
+
+      if (typeof globalsItem === 'string') {
+        // Handle string case - load the variant metadata
+        if (!loadVariantMeta) {
+          // Create a basic variant as fallback
+          const { fileName: globalsFileName } = getFileNameFromUrl(globalsItem);
+          if (!globalsFileName) {
+            throw new Error(
+              `Cannot determine fileName from globalsCode URL "${globalsItem}". ` +
+                `Please provide a loadVariantMeta function or ensure the URL has a valid file extension.`,
+            );
+          }
+          globalsVariant = {
+            url: globalsItem,
+            fileName: globalsFileName,
+          };
+        } else {
+          try {
+            globalsVariant = await loadVariantMeta(variantName, globalsItem);
+          } catch (error) {
+            throw new Error(
+              `Failed to load globalsCode variant metadata (variant: ${variantName}, url: ${globalsItem}): ${JSON.stringify(error)}`,
+            );
+          }
+        }
+      } else {
+        globalsVariant = globalsItem;
+      }
+
+      // Load the globals code separately without affecting allFilesListed
+      try {
+        const globalsResult = await loadVariant(
+          globalsVariant.url,
+          variantName,
+          globalsVariant,
+          sourceParser,
+          loadSource,
+          loadVariantMeta,
+          sourceTransformers,
+          { ...options, globalsCode: undefined }, // Prevent infinite recursion
+        );
+
+        return globalsResult;
+      } catch (error) {
+        throw new Error(
+          `Failed to load globalsCode (variant: ${variantName}): ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+        );
+      }
+    });
+
+    // Wait for all globals to load
+    const globalsResults = await Promise.all(globalsPromises);
+
+    // Merge results from all globals
+    for (const globalsResult of globalsResults) {
+      // Add globals extraFiles (but NOT the main file)
+      if (globalsResult.code.extraFiles) {
+        // Add globals extra files with conflict-free naming and metadata flag
+        for (const [key, value] of Object.entries(globalsResult.code.extraFiles)) {
+          const conflictFreeKey = generateConflictFreeFilename(key, existingFiles);
+
+          // Always add metadata: true flag for globals files
+          if (typeof value === 'string') {
+            // For string URLs, we can't easily wrap them but need to track for later metadata addition
+            extraFilesToLoad[conflictFreeKey] = value;
+            globalsFileKeys.add(conflictFreeKey); // Track for loadExtraFiles
+          } else {
+            // For object values, add metadata directly
+            extraFilesToLoad[conflictFreeKey] = {
+              ...value,
+              metadata: true,
+            };
+          }
+          existingFiles.add(conflictFreeKey); // Track the added file for subsequent iterations
+        }
+      }
+
+      // Add globals dependencies
+      allFilesUsed.push(...globalsResult.dependencies);
+
+      // Add globals externals
+      allExternals = mergeExternals([allExternals, globalsResult.externals]);
+    }
+  }
+
   // Load all extra files if any exist and we have a URL
   if (Object.keys(extraFilesToLoad).length > 0) {
     if (!url) {
@@ -651,10 +819,12 @@ export async function loadVariant(
         // Process loadable files: inline sources without URL-based loading, absolute URLs with loading
         for (const [key, value] of Object.entries(loadableFiles)) {
           if (typeof value !== 'string') {
-            // Inline source
+            // Inline source - preserve metadata if it was marked as globals
+            const metadata = value.metadata || globalsFileKeys.has(key) ? true : undefined;
             allExtraFiles[normalizePathKey(key)] = {
               source: value.source!,
               transforms: value.transforms,
+              ...(metadata !== undefined && { metadata }),
             };
           }
         }
@@ -681,6 +851,7 @@ export async function loadVariant(
             { ...options, loadedFiles },
             variant.allFilesListed || false,
             knownExtraFiles,
+            globalsFileKeys, // Pass globals file tracking
           );
           allExtraFiles = { ...allExtraFiles, ...extraFilesResult.extraFiles };
           allFilesUsed.push(...extraFilesResult.allFilesUsed);
@@ -700,12 +871,15 @@ export async function loadVariant(
         { ...options, loadedFiles },
         variant.allFilesListed || false,
         knownExtraFiles,
+        globalsFileKeys, // Pass globals file tracking
       );
       allExtraFiles = extraFilesResult.extraFiles;
       allFilesUsed.push(...extraFilesResult.allFilesUsed);
       allExternals = mergeExternals([allExternals, extraFilesResult.allExternals]);
     }
   }
+
+  // Note: metadata marking is now handled during loadExtraFiles processing
 
   const finalVariant: VariantCode = {
     ...variant,

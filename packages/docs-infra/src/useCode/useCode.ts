@@ -9,13 +9,12 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
+import { UseCopierOpts } from '../useCopier';
 
 type UseCodeOpts = {
   defaultOpen?: boolean;
-  copy?: any; // UseCopierOpts
+  copy?: UseCopierOpts;
   githubUrlPrefix?: string;
-  codeSandboxUrlPrefix?: string;
-  stackBlitzPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
 };
@@ -31,6 +30,7 @@ export interface UseCodeResult<T extends {} = {}> {
   selectVariant: React.Dispatch<React.SetStateAction<string>>;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectedFile: React.ReactNode;
+  selectedFileLines: number;
   selectedFileName: string | undefined;
   selectFileName: (fileName: string) => void;
   expanded: boolean;
@@ -143,6 +143,7 @@ export function useCode<T extends {} = {}>(
     selectVariant: variantSelection.selectVariant,
     files: fileNavigation.files,
     selectedFile: fileNavigation.selectedFileComponent,
+    selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
     selectFileName: fileNavigation.selectFileName,
     expanded: uiState.expanded,

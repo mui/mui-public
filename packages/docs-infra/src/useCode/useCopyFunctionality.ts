@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { stringOrHastToString } from '../pipeline/hastUtils';
 import { useCopier, UseCopierOpts } from '../useCopier';
+import { VariantSource } from '../CodeHighlighter';
 
 interface UseCopyFunctionalityProps {
-  selectedFile: any;
+  selectedFile: VariantSource | null;
   copyOpts?: UseCopierOpts;
 }
 
@@ -28,7 +29,7 @@ export function useCopyFunctionality({
     }
 
     if (selectedFile && typeof selectedFile === 'object' && 'hastJson' in selectedFile) {
-      return (selectedFile as { hastJson: string }).hastJson;
+      return selectedFile.hastJson;
     }
 
     return stringOrHastToString(selectedFile);

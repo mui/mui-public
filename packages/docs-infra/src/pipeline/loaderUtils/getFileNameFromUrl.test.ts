@@ -31,7 +31,47 @@ describe('getFileNameFromUrl', () => {
       const result = getFileNameFromUrl('file:///src/component.test.tsx');
       expect(result).toEqual({
         fileName: 'component.test.tsx',
-        extension: '.tsx',
+        extension: '.test.tsx',
+      });
+    });
+
+    it('should handle CSS module files', () => {
+      const result = getFileNameFromUrl('file:///src/styles.module.css');
+      expect(result).toEqual({
+        fileName: 'styles.module.css',
+        extension: '.module.css',
+      });
+    });
+
+    it('should handle TypeScript declaration files', () => {
+      const result = getFileNameFromUrl('file:///src/types.d.ts');
+      expect(result).toEqual({
+        fileName: 'types.d.ts',
+        extension: '.d.ts',
+      });
+    });
+
+    it('should handle config files', () => {
+      const result = getFileNameFromUrl('file:///tailwind.config.js');
+      expect(result).toEqual({
+        fileName: 'tailwind.config.js',
+        extension: '.config.js',
+      });
+    });
+
+    it('should handle story files', () => {
+      const result = getFileNameFromUrl('file:///Button.stories.tsx');
+      expect(result).toEqual({
+        fileName: 'Button.stories.tsx',
+        extension: '.stories.tsx',
+      });
+    });
+
+    it('should handle index module files', () => {
+      const result = getFileNameFromUrl('file:///src/components/index.module.css');
+      expect(result).toEqual({
+        fileName: 'index.module.css',
+        extension: '.module.css',
       });
     });
 

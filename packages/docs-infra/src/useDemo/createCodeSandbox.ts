@@ -41,11 +41,10 @@ export function createCodeSandbox({
 
   const parameters = compress({ files });
 
-  // ref: https://codesandbox.io/docs/api/#define-api
+  // ref: https://codesandbox.io/docs/learn/browser-sandboxes/cli-api#supported-parameters
   const formData: Record<string, string> = {
     parameters,
-    embed: '1',
-    query: `module=/${rootFile}&fontsize=12`,
+    query: `file=${rootFile}`,
   };
 
   return {

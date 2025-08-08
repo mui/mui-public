@@ -1,10 +1,11 @@
-import type { Nodes as HastNodes } from 'hast';
+import type { Root, RootData } from 'hast';
 import type { Delta } from 'jsondiffpatch';
 
 export type Components = { [key: string]: React.ReactNode };
 
 type CodeMeta = {
   fileName?: string;
+  path?: string;
 };
 
 export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
@@ -18,7 +19,11 @@ export interface ExternalImportItem {
 
 export type Externals = Record<string, ExternalImportItem[]>;
 
-export type VariantSource = string | HastNodes | { hastJson: string };
+export interface HastRoot extends Root {
+  data?: RootData & { totalLines?: number };
+}
+
+export type VariantSource = string | HastRoot | { hastJson: string };
 export type VariantExtraFiles = {
   [fileName: string]:
     | string
@@ -27,12 +32,14 @@ export type VariantExtraFiles = {
         transforms?: Transforms;
         skipTransforms?: boolean;
         metadata?: boolean;
+        path?: string;
       };
 };
 export type VariantCode = CodeMeta & {
   url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
+  metadataPrefix?: string;
   externals?: string[];
   namedExport?: string;
   filesOrder?: string[];
@@ -81,6 +88,7 @@ interface CodeHighlighterBaseProps {
   name?: string;
   slug?: string;
   code?: Code;
+  globalsCode?: Array<Code | string>;
   components?: Components; // TODO: rename to preview
   variants?: string[];
   variant?: string;
@@ -118,7 +126,7 @@ export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-export type ParseSource = (source: string, fileName: string) => HastNodes;
+export type ParseSource = (source: string, fileName: string) => HastRoot;
 
 export type SourceTransformer = {
   extensions: string[];
@@ -138,6 +146,8 @@ export interface LoadFileOptions {
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /** Side effects code to inject into extraFiles */
+  globalsCode?: Array<VariantCode | string>;
 }
 
 export interface CodeHighlighterProps<T extends {}> extends CodeHighlighterBaseProps {

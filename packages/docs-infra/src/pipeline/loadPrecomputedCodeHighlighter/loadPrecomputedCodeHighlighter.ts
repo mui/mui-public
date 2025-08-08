@@ -1,6 +1,7 @@
 import { loadVariant } from '../../CodeHighlighter/loadVariant';
 import { createParseSource } from '../parseSource';
-import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
+// TODO: re-enable following benchmarking
+// import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceTransformers, Externals, VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
@@ -86,7 +87,9 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
-    const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
+    // const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
+    // TODO: maybe we should have `loadPrecomputedCodeHighlighterWithJsToTs`
+    const sourceTransformers: SourceTransformers = [];
 
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();

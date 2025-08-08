@@ -7,7 +7,7 @@ import type { ContentProps } from '../CodeHighlighter/types';
 import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
 import { createStackBlitz } from './createStackBlitz';
 import { createCodeSandbox } from './createCodeSandbox';
-import { exportVariant } from './exportVariant';
+import { exportVariant, type ExportConfig } from './exportVariant';
 import { exportVariantAsCra } from './exportVariantAsCra';
 import { flattenVariant } from './flattenVariant';
 
@@ -34,6 +34,12 @@ type UseDemoOpts = {
   stackBlitzPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
+  /** Common export configuration applied to both StackBlitz and CodeSandbox */
+  export?: ExportConfig;
+  /** StackBlitz-specific export configuration (merged with common export config) */
+  exportStackBlitz?: ExportConfig;
+  /** CodeSandbox-specific export configuration (merged with common export config) */
+  exportCodeSandbox?: ExportConfig;
 };
 
 /**
@@ -78,7 +84,14 @@ export function openWithForm({
 
 // TODO: take initialVariant and initialTransforms as parameters
 export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?: UseDemoOpts) {
-  const codeResult = useCode(contentProps, opts);
+  const code = useCode(contentProps, opts);
+
+  // Extract export configuration options
+  const {
+    export: commonExportConfig = {},
+    exportStackBlitz: stackBlitzExportConfig = {},
+    exportCodeSandbox: codeSandboxExportConfig = {},
+  } = opts || {};
 
   // Get context to access components if available (using React.useContext to avoid import conflicts)
   const context = React.useContext(CodeHighlighterContext);
@@ -96,8 +109,8 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
   // Get the component for the current variant
   const component = React.useMemo(() => {
-    return effectiveComponents[codeResult.selectedVariant] || null;
-  }, [effectiveComponents, codeResult.selectedVariant]);
+    return effectiveComponents[code.selectedVariant] || null;
+  }, [effectiveComponents, code.selectedVariant]);
 
   // Demo-specific ref and focus management
   const ref = React.useRef<HTMLDivElement | null>(null);
@@ -113,7 +126,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
   // Create StackBlitz demo callback
   const openStackBlitz = React.useCallback(() => {
     // Get the current variant code
-    const variantCode = effectiveCode[codeResult.selectedVariant];
+    const variantCode = effectiveCode[code.selectedVariant];
 
     if (!variantCode || typeof variantCode === 'string') {
       console.warn('No valid variant code available for StackBlitz demo');
@@ -125,14 +138,21 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
     // Determine if we should use TypeScript based on whether 'js' transform is NOT applied
     // If 'js' transform is applied, it means we're showing the JS version of TS code
-    const useTypescript = codeResult.selectedTransform !== 'js';
+    const useTypescript = code.selectedTransform !== 'js';
 
-    // Export variant with additional configuration files
-    const { exported, rootFile } = exportVariant(variantCode, {
+    // Merge common export config with StackBlitz-specific config
+    const mergedConfig: ExportConfig = {
+      ...commonExportConfig,
+      ...stackBlitzExportConfig,
+      variantName: code.selectedVariant,
       title,
       description,
       useTypescript,
-    });
+    };
+
+    // Use custom export function if provided, otherwise use default exportVariant
+    const exportFunction = mergedConfig.exportFunction || exportVariant;
+    const { exported, rootFile } = exportFunction(variantCode, mergedConfig);
 
     // Flatten the variant to get a flat file structure
     const flattenedFiles = flattenVariant(exported);
@@ -145,12 +165,19 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     });
 
     openWithForm(stackBlitzDemo);
-  }, [effectiveCode, codeResult.selectedVariant, codeResult.selectedTransform, contentProps.name]);
+  }, [
+    effectiveCode,
+    code.selectedVariant,
+    code.selectedTransform,
+    contentProps.name,
+    commonExportConfig,
+    stackBlitzExportConfig,
+  ]);
 
   // Create CodeSandbox demo callback
   const openCodeSandbox = React.useCallback(() => {
     // Get the current variant code
-    const variantCode = effectiveCode[codeResult.selectedVariant];
+    const variantCode = effectiveCode[code.selectedVariant];
 
     if (!variantCode || typeof variantCode === 'string') {
       console.warn('No valid variant code available for CodeSandbox demo');
@@ -162,14 +189,21 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
     // Determine if we should use TypeScript based on whether 'js' transform is NOT applied
     // If 'js' transform is applied, it means we're showing the JS version of TS code
-    const useTypescript = codeResult.selectedTransform !== 'js';
+    const useTypescript = code.selectedTransform !== 'js';
 
-    // Export variant as CRA template with additional configuration files
-    const { exported: craExport, rootFile } = exportVariantAsCra(variantCode, {
+    // Merge common export config with CodeSandbox-specific config
+    const mergedConfig: ExportConfig = {
+      ...commonExportConfig,
+      ...codeSandboxExportConfig,
+      variantName: code.selectedVariant,
       title,
       description,
       useTypescript,
-    });
+    };
+
+    // Use custom export function if provided, otherwise use default exportVariantAsCra
+    const exportFunction = mergedConfig.exportFunction || exportVariantAsCra;
+    const { exported: craExport, rootFile } = exportFunction(variantCode, mergedConfig);
 
     // Flatten the variant to get a flat file structure
     const flattenedFiles = flattenVariant(craExport);
@@ -180,10 +214,17 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     });
 
     openWithForm(codeSandboxDemo);
-  }, [effectiveCode, codeResult.selectedVariant, codeResult.selectedTransform, contentProps.name]);
+  }, [
+    effectiveCode,
+    code.selectedVariant,
+    code.selectedTransform,
+    contentProps.name,
+    commonExportConfig,
+    codeSandboxExportConfig,
+  ]);
 
   return {
-    ...codeResult,
+    ...code,
     // Demo-specific additions
     component,
     ref,

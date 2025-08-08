@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { Code, CodeHighlighterClientProps, ControlledCode } from './types';
+import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeInitialData } from './maybeInitialData';
 import { loadFallbackCode } from './loadFallbackCode';
@@ -16,6 +16,7 @@ import { applyTransforms, getAvailableTransforms } from './transformCode';
 import { parseControlledCode } from './parseControlledCode';
 import { useOnHydrate } from '../useOnHydrate';
 import { useOnIdle } from '../useOnIdle';
+import { mergeMetadata } from './mergeMetadata';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -30,6 +31,8 @@ function useInitialData({
   fallbackUsesExtraFiles,
   fallbackUsesAllVariants,
   isControlled,
+  globalsCode,
+  setProcessedGlobalsCode,
 }: {
   variants: string[];
   variantName: string;
@@ -41,6 +44,8 @@ function useInitialData({
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   isControlled: boolean;
+  globalsCode?: Array<Code | string>;
+  setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
   const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
@@ -99,12 +104,17 @@ function useInitialData({
         loadCodeMeta,
         fileName,
         variants,
+        globalsCode, // Let loadFallbackCode handle processing
       ).catch((error) => ({ error }));
 
       if ('error' in loaded) {
         // TODO: handle error
       } else {
         setCode(loaded.code);
+        // Store processed globalsCode from loadFallbackCode result
+        if (loaded.processedGlobalsCode) {
+          setProcessedGlobalsCode(loaded.processedGlobalsCode);
+        }
       }
     })();
   }, [
@@ -124,6 +134,8 @@ function useInitialData({
     fallbackUsesAllVariants,
     fileName,
     variants,
+    globalsCode,
+    setProcessedGlobalsCode,
   ]);
 }
 
@@ -134,6 +146,9 @@ function useAllVariants({
   url,
   code,
   setCode,
+  processedGlobalsCode,
+  globalsCode,
+  setProcessedGlobalsCode,
 }: {
   readyForContent: boolean;
   variants: string[];
@@ -141,6 +156,9 @@ function useAllVariants({
   url?: string;
   code?: Code;
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
+  processedGlobalsCode?: Array<Code>;
+  globalsCode?: Array<Code | string>;
+  setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
   const { loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
@@ -166,10 +184,44 @@ function useAllVariants({
         loadedCode = await loadCodeMeta(url);
       }
 
+      // Use the already-processed globalsCode from state, or process it if not available
+      let globalsCodeObjects: Array<Code> = [];
+      if (processedGlobalsCode) {
+        // Use the already-processed globalsCode from state
+        globalsCodeObjects = processedGlobalsCode;
+      } else if (globalsCode && globalsCode.length > 0) {
+        // Process globalsCode: load any string URLs into Code objects
+        globalsCodeObjects = await Promise.all(
+          globalsCode.map(async (item) => {
+            if (typeof item === 'string') {
+              // Load Code object from URL string
+              if (!loadCodeMeta) {
+                throw new Error(
+                  '"loadCodeMeta" function is required for string URLs in globalsCode',
+                );
+              }
+              return loadCodeMeta(item);
+            }
+            // Already a Code object
+            return item;
+          }),
+        );
+        // Store processed globalsCode in state for future use
+        setProcessedGlobalsCode(globalsCodeObjects);
+      }
+
       // Load variant data without parsing or transforming
       const result = await Promise.all(
-        variants.map((name) =>
-          loadVariant(
+        variants.map((name) => {
+          // Resolve globalsCode for this specific variant
+          const globalsForVariant = globalsCodeObjects
+            .map((codeObj: Code) => {
+              // Only include if this variant exists in the globalsCode
+              return codeObj[name];
+            })
+            .filter((item: any): item is VariantCode | string => Boolean(item));
+
+          return loadVariant(
             url,
             name,
             loadedCode[name],
@@ -177,11 +229,15 @@ function useAllVariants({
             loadSource,
             loadVariantMeta,
             undefined, // sourceTransformers - skip transforming
-            { disableParsing: true, disableTransforms: true },
+            {
+              disableParsing: true,
+              disableTransforms: true,
+              globalsCode: globalsForVariant,
+            },
           )
             .then((variant) => ({ name, variant }))
-            .catch((error) => ({ error })),
-        ),
+            .catch((error) => ({ error }));
+        }),
       );
 
       const resultCode: Code = {};
@@ -210,6 +266,9 @@ function useAllVariants({
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    processedGlobalsCode,
+    globalsCode,
+    setProcessedGlobalsCode,
   ]);
 
   return { readyForContent };
@@ -314,6 +373,273 @@ function useControlledCodeParsing({ controlledCode }: { controlledCode?: Control
   return { parsedControlledCode };
 }
 
+function useGlobalsCodeMerging({
+  code,
+  globalsCode,
+  processedGlobalsCode,
+  setProcessedGlobalsCode,
+  readyForContent,
+  variants,
+}: {
+  code?: Code;
+  globalsCode?: Array<Code | string>;
+  processedGlobalsCode?: Array<Code>;
+  setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  readyForContent: boolean;
+  variants: string[];
+}) {
+  const { loadCodeMeta, loadSource, loadVariantMeta } = useCodeContext();
+
+  // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
+  React.useEffect(() => {
+    if (!globalsCode || processedGlobalsCode) {
+      return; // No globals or already processed
+    }
+
+    // Check if all items are already Code objects (precomputed)
+    if (globalsCode.every((item) => typeof item === 'object')) {
+      const codeObjects = globalsCode as Array<Code>;
+      // Check if all Code objects have all their own variants
+      const allReady = codeObjects.every((codeObj) =>
+        hasAllVariants(Object.keys(codeObj), codeObj),
+      );
+      if (allReady) {
+        setProcessedGlobalsCode(codeObjects);
+        return;
+      }
+      // If not all ready, fall through to loading logic below
+    }
+
+    // Need to load string URLs or load missing variants
+    (async () => {
+      try {
+        // First, load any string URLs into Code objects
+        const basicCodeObjects = await Promise.all(
+          globalsCode.map(async (item) => {
+            if (typeof item === 'string') {
+              if (!loadCodeMeta) {
+                throw new Error(
+                  '"loadCodeMeta" function is required for string URLs in globalsCode',
+                );
+              }
+              return { codeObj: await loadCodeMeta(item), originalUrl: item };
+            }
+            return { codeObj: item, originalUrl: undefined };
+          }),
+        );
+
+        // Now check if we need to load variants for any of the Code objects
+        const fullyLoadedCodeObjects = await Promise.all(
+          basicCodeObjects.map(async ({ codeObj, originalUrl }) => {
+            // Check if this Code object has all required variants
+            if (hasAllVariants(variants, codeObj)) {
+              return codeObj; // Already has all variants
+            }
+
+            // Need to load missing variants
+            const loadedVariants: Code = { ...codeObj };
+
+            await Promise.all(
+              variants.map(async (variantName) => {
+                if (codeObj[variantName] && typeof codeObj[variantName] === 'object') {
+                  return; // Variant already loaded
+                }
+
+                // Need to load this variant
+                try {
+                  const result = await loadVariant(
+                    originalUrl || '', // Use the original URL if available
+                    variantName,
+                    codeObj[variantName], // May be undefined or string
+                    undefined, // sourceParser - skip parsing for now
+                    loadSource,
+                    loadVariantMeta,
+                    undefined, // sourceTransformers - skip transforming
+                    {
+                      disableParsing: true,
+                      disableTransforms: true,
+                    },
+                  );
+                  loadedVariants[variantName] = result.code;
+                } catch (error) {
+                  console.warn(`Failed to load variant ${variantName} for globalsCode:`, error);
+                  // Keep the original variant data (may be undefined)
+                }
+              }),
+            );
+
+            return loadedVariants;
+          }),
+        );
+
+        setProcessedGlobalsCode(fullyLoadedCodeObjects);
+      } catch (error) {
+        console.warn('Failed to load globalsCode:', error);
+      }
+    })();
+  }, [
+    globalsCode,
+    processedGlobalsCode,
+    setProcessedGlobalsCode,
+    loadCodeMeta,
+    loadSource,
+    loadVariantMeta,
+    variants,
+  ]);
+
+  // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)
+  const globalsCodeObjects = React.useMemo(() => {
+    if (processedGlobalsCode) {
+      return processedGlobalsCode;
+    }
+
+    if (globalsCode && globalsCode.every((item) => typeof item === 'object')) {
+      const codeObjects = globalsCode as Array<Code>;
+      const allGlobalsReady = codeObjects.every((codeObj) =>
+        hasAllVariants(Object.keys(codeObj), codeObj),
+      );
+
+      if (allGlobalsReady) {
+        return codeObjects;
+      }
+    }
+
+    return undefined;
+  }, [processedGlobalsCode, globalsCode]);
+
+  // Merge globalsCode with code when ready
+  return React.useMemo(() => {
+    // If no globalsCode or code not ready, return as-is
+    if (!globalsCode || !code || !readyForContent) {
+      return code;
+    }
+
+    // If globalsCodeObjects isn't ready yet, return unmerged code for now
+    if (!globalsCodeObjects) {
+      return code;
+    }
+
+    // For precomputed code, do simple synchronous merging of extraFiles
+    const mergedCode: Code = { ...code };
+    let hasChanges = false;
+
+    variants.forEach((variant) => {
+      const variantData = code[variant];
+      if (!variantData || typeof variantData === 'string') {
+        return;
+      }
+
+      // Get globalsCode for this variant (only exact matches, no fallback)
+      const globalsForVariant = globalsCodeObjects
+        .map((codeObj: Code) => codeObj[variant])
+        .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
+
+      if (globalsForVariant.length > 0) {
+        // Use mergeMetadata for sophisticated globals merging with proper positioning
+        let currentVariant = variantData;
+
+        globalsForVariant.forEach((globalVariant) => {
+          if (globalVariant.extraFiles) {
+            // Convert globals extraFiles to metadata format for mergeMetadata
+            const globalsMetadata: Record<string, any> = {};
+
+            for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
+              if (typeof value === 'string') {
+                globalsMetadata[key] = { source: value };
+              } else {
+                globalsMetadata[key] = { ...value };
+              }
+            }
+
+            // Use mergeMetadata to properly position and merge the globals
+            currentVariant = mergeMetadata(currentVariant, globalsMetadata);
+          }
+        });
+
+        // Only update if the variant actually changed
+        if (currentVariant !== variantData) {
+          mergedCode[variant] = currentVariant;
+          hasChanges = true;
+        }
+      }
+    });
+
+    // Return merged code if we made changes, otherwise return original code
+    return hasChanges ? mergedCode : code;
+  }, [code, globalsCode, globalsCodeObjects, readyForContent, variants]);
+}
+
+function usePropsCodeGlobalsMerging({
+  code,
+  globalsCode,
+  processedGlobalsCode,
+  variants,
+}: {
+  code?: Code;
+  globalsCode?: Array<Code | string>;
+  processedGlobalsCode?: Array<Code>;
+  variants: string[];
+}) {
+  // For props.code, always do synchronous merging if possible
+  // We don't want to cache this in state since props.code can change frequently
+  return React.useMemo(() => {
+    if (!code || !globalsCode || !processedGlobalsCode) {
+      return code; // No merge needed or not ready
+    }
+
+    // Use processedGlobalsCode for synchronous merging
+    const globalsCodeObjects = processedGlobalsCode;
+
+    // For props.code (controlled), do simple synchronous merging
+    const mergedCode: Code = { ...code };
+    let hasChanges = false;
+
+    variants.forEach((variant) => {
+      const variantData = code[variant];
+      if (!variantData || typeof variantData === 'string') {
+        return;
+      }
+
+      // Get globalsCode for this variant (only exact matches, no fallback)
+      const globalsForVariant = globalsCodeObjects
+        .map((codeObj: Code) => codeObj[variant])
+        .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
+
+      if (globalsForVariant.length > 0) {
+        // Use mergeMetadata for sophisticated globals merging with proper positioning
+        let currentVariant = variantData;
+
+        globalsForVariant.forEach((globalVariant) => {
+          if (globalVariant.extraFiles) {
+            // Convert globals extraFiles to metadata format for mergeMetadata
+            const globalsMetadata: Record<string, any> = {};
+
+            for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
+              if (typeof value === 'string') {
+                globalsMetadata[key] = { source: value };
+              } else {
+                globalsMetadata[key] = { ...value };
+              }
+            }
+
+            // Use mergeMetadata to properly position and merge the globals
+            currentVariant = mergeMetadata(currentVariant, globalsMetadata);
+          }
+        });
+
+        // Only update if the variant actually changed
+        if (currentVariant !== variantData) {
+          mergedCode[variant] = currentVariant;
+          hasChanges = true;
+        }
+      }
+    });
+
+    // Return merged code if we made changes, otherwise return original code
+    return hasChanges ? mergedCode : code;
+  }, [code, globalsCode, processedGlobalsCode, variants]);
+}
+
 export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const {
     controlledCode,
@@ -334,6 +660,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // TODO: should we empty this state if controlled?
   const [code, setCode] = React.useState(
     typeof props.precompute === 'object' ? props.precompute : undefined,
+  );
+
+  // State to store processed globalsCode to avoid duplicate loading
+  const [processedGlobalsCode, setProcessedGlobalsCode] = React.useState<Array<Code> | undefined>(
+    undefined,
   );
 
   // TODO: if using props.variant, then the variant is controlled and we can't use our own state
@@ -365,6 +696,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     isControlled,
+    globalsCode: props.globalsCode,
+    setProcessedGlobalsCode,
   });
 
   const readyForContent = React.useMemo(() => {
@@ -398,10 +731,34 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     url,
     code,
     setCode,
+    processedGlobalsCode,
+    globalsCode: props.globalsCode,
+    setProcessedGlobalsCode,
   });
 
+  // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
+  const stateCodeWithGlobals = useGlobalsCodeMerging({
+    code, // Only use internal state, not props.code
+    globalsCode: props.globalsCode,
+    processedGlobalsCode,
+    setProcessedGlobalsCode,
+    readyForContent,
+    variants,
+  });
+
+  // For props.code (controlled), always re-merge when it changes (don't cache in state)
+  const propsCodeWithGlobals = usePropsCodeGlobalsMerging({
+    code: props.code,
+    globalsCode: props.globalsCode,
+    processedGlobalsCode,
+    variants,
+  });
+
+  // Use props.code result if available, otherwise use state code result
+  const codeWithGlobals = propsCodeWithGlobals || stateCodeWithGlobals;
+
   const { parsedCode, deferHighlight } = useCodeParsing({
-    code: props.code || code,
+    code: codeWithGlobals,
     readyForContent: readyForContent || Boolean(props.code),
     highlightAt,
   });
@@ -416,7 +773,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   });
 
   // Determine the final overlaid code (controlled takes precedence)
-  const overlaidCode = parsedControlledCode || transformedCode;
+  const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback = overlaidCode || (controlledCode ? undefined : props.code || code);
@@ -441,7 +798,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
-      code: overlaidCode || transformedCode, // Use processed/transformed code
+      code: overlaidCode, // Use processed/transformed code
       setCode: controlledSetCode,
       selection: controlledSelection || selection,
       setSelection: controlledSetSelection || setSelection,
@@ -452,7 +809,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
-      transformedCode,
       controlledSetCode,
       selection,
       controlledSelection,

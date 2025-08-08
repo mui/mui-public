@@ -1,9 +1,10 @@
 import * as React from 'react';
+import type { Root as HastRoot } from 'hast';
 import { stringOrHastToJsx } from '../pipeline/hastUtils';
-import type { VariantSource } from '../CodeHighlighter/types';
+import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
-
-type Source = VariantSource;
+import { countLines } from '../pipeline/parseSource/addLineGutters';
+import type { TransformedFiles } from './useCodeUtils';
 
 /**
  * Converts a string to kebab-case
@@ -61,20 +62,8 @@ function generateFileSlug(
   return `${kebabMainSlug}:${kebabVariantName}:${kebabFileName}`;
 }
 
-interface TransformedFile {
-  name: string;
-  originalName: string;
-  source: Source;
-  component: React.ReactNode;
-}
-
-interface TransformedFiles {
-  files: TransformedFile[];
-  filenameMap: { [originalName: string]: string };
-}
-
 interface UseFileNavigationProps {
-  selectedVariant: any;
+  selectedVariant: VariantCode | null;
   transformedFiles: TransformedFiles | undefined;
   mainSlug?: string;
   selectedVariantKey?: string;
@@ -85,8 +74,9 @@ interface UseFileNavigationProps {
 
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
-  selectedFile: any;
+  selectedFile: VariantSource | null;
   selectedFileComponent: React.ReactNode;
+  selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
 }
@@ -291,7 +281,7 @@ export function useFileNavigation({
 
     // Otherwise, use the original untransformed files
     if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
-      return selectedVariant.source;
+      return selectedVariant.source ?? null;
     }
 
     // Look in extraFiles
@@ -305,7 +295,7 @@ export function useFileNavigation({
         return extraFile;
       }
       if (extraFile && typeof extraFile === 'object' && 'source' in extraFile) {
-        return extraFile.source;
+        return extraFile.source ?? null;
       }
     }
 
@@ -325,7 +315,10 @@ export function useFileNavigation({
 
     // Otherwise, create component from original untransformed files
     if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
-      return stringOrHastToJsx(selectedVariant.source as Source, shouldHighlight);
+      if (selectedVariant.source == null) {
+        return null;
+      }
+      return stringOrHastToJsx(selectedVariant.source, shouldHighlight);
     }
 
     // Look in extraFiles
@@ -335,7 +328,7 @@ export function useFileNavigation({
       selectedVariant.extraFiles[selectedFileNameInternal]
     ) {
       const extraFile = selectedVariant.extraFiles[selectedFileNameInternal];
-      let source: any;
+      let source: VariantSource | undefined;
 
       if (typeof extraFile === 'string') {
         source = extraFile;
@@ -345,11 +338,55 @@ export function useFileNavigation({
         return null;
       }
 
-      return stringOrHastToJsx(source as Source, shouldHighlight);
+      if (source == null) {
+        return null;
+      }
+
+      return stringOrHastToJsx(source, shouldHighlight);
     }
 
     return null;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles, shouldHighlight]);
+
+  const selectedFileLines = React.useMemo(() => {
+    if (selectedFile == null) {
+      return 0;
+    }
+
+    // If it's a string, split by newlines and count
+    if (typeof selectedFile === 'string') {
+      return selectedFile.split('\n').length;
+    }
+
+    // If it's a hast object, count the children length
+    if (selectedFile && typeof selectedFile === 'object') {
+      let hastSelectedFile: HastRoot;
+      if ('hastJson' in selectedFile) {
+        hastSelectedFile = JSON.parse(selectedFile.hastJson);
+      } else {
+        hastSelectedFile = selectedFile;
+      }
+
+      if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
+        const totalLines = hastSelectedFile.data.totalLines;
+        // Check if totalLines is a valid number (not null, undefined, or NaN)
+        if (totalLines != null && !Number.isNaN(Number(totalLines))) {
+          const numLines = Number(totalLines);
+          if (numLines >= 0) {
+            return numLines;
+          }
+        }
+        // Fall through to children count if totalLines is invalid
+      }
+
+      if ('children' in hastSelectedFile) {
+        // Use countLines for more accurate line counting of HAST trees
+        return countLines(hastSelectedFile);
+      }
+    }
+
+    return 0;
+  }, [selectedFile]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -375,7 +412,7 @@ export function useFileNavigation({
     const result: Array<{ name: string; slug?: string; component: React.ReactNode }> = [];
 
     // Only add main file if it has a fileName
-    if (selectedVariant.fileName) {
+    if (selectedVariant.fileName && selectedVariant.source) {
       result.push({
         name: selectedVariant.fileName,
         slug: generateFileSlug(
@@ -384,13 +421,13 @@ export function useFileNavigation({
           selectedVariantKey,
           isInitialVariant,
         ),
-        component: stringOrHastToJsx(selectedVariant.source as Source, shouldHighlight),
+        component: stringOrHastToJsx(selectedVariant.source, shouldHighlight),
       });
     }
 
     if (selectedVariant.extraFiles) {
       Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
-        let source: any;
+        let source: VariantSource | undefined;
 
         if (typeof fileData === 'string') {
           source = fileData;
@@ -400,10 +437,14 @@ export function useFileNavigation({
           return; // Skip invalid entries
         }
 
+        if (!source) {
+          return; // Skip null/undefined sources
+        }
+
         result.push({
           name: fileName,
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
-          component: stringOrHastToJsx(source as Source, shouldHighlight),
+          component: stringOrHastToJsx(source, shouldHighlight),
         });
       });
     }
@@ -485,6 +526,7 @@ export function useFileNavigation({
     selectedFileName,
     selectedFile,
     selectedFileComponent,
+    selectedFileLines,
     files,
     selectFileName,
   };

@@ -55,10 +55,10 @@ jobs:
       - checkout
       - install_js
       - run:
-          name: Eslint
+          name: ESLint
           command: pnpm eslint:ci
       - run:
-          name: Typescript
+          name: TypeScript
           command: pnpm typescript
       - run:
           name: JSON
@@ -85,6 +85,7 @@ jobs:
       - run:
           name: 'Run tests'
           command: pnpm test
+
 workflows:
   version: 2
   pipeline:

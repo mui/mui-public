@@ -1,13 +1,14 @@
 import * as React from 'react';
-import type { Code } from '../CodeHighlighter/types';
+import type { Code, VariantCode } from '../CodeHighlighter/types';
 import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
 import useLocalStorageState from '../useLocalStorageState';
+import { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 interface UseTransformManagementProps {
-  context?: any;
+  context?: CodeHighlighterContextType;
   effectiveCode: Code;
   selectedVariantKey: string;
-  selectedVariant: any;
+  selectedVariant: VariantCode | null;
   initialTransform?: string;
   shouldHighlight: boolean;
 }
@@ -15,7 +16,7 @@ interface UseTransformManagementProps {
 export interface UseTransformManagementResult {
   availableTransforms: string[];
   selectedTransform: string | null;
-  transformedFiles: any; // TransformedFiles | undefined from utils
+  transformedFiles: ReturnType<typeof createTransformedFiles>;
   selectTransform: (transformName: string | null) => void;
 }
 

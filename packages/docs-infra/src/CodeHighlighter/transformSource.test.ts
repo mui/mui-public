@@ -187,13 +187,18 @@ describe('transformSource', () => {
 
     it('should handle HAST node source', async () => {
       const hastSource = {
-        type: 'element' as const,
-        tagName: 'pre',
-        properties: {},
+        type: 'root' as const,
         children: [
           {
-            type: 'text' as const,
-            value: 'const x = 1;',
+            type: 'element' as const,
+            tagName: 'pre',
+            properties: {},
+            children: [
+              {
+                type: 'text' as const,
+                value: 'const x = 1;',
+              },
+            ],
           },
         ],
       };
