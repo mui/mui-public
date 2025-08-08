@@ -16,6 +16,7 @@ import { applyTransforms, getAvailableTransforms } from './transformCode';
 import { parseControlledCode } from './parseControlledCode';
 import { useOnHydrate } from '../useOnHydrate';
 import { useOnIdle } from '../useOnIdle';
+import { mergeMetadata } from './mergeMetadata';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -534,23 +535,30 @@ function useGlobalsCodeMerging({
         .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
-        // Simple merge for precomputed data - just combine extraFiles
-        const mergedExtraFiles = { ...(variantData.extraFiles || {}) };
+        // Use mergeMetadata for sophisticated globals merging with proper positioning
+        let currentVariant = variantData;
 
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
-            Object.assign(mergedExtraFiles, globalVariant.extraFiles);
+            // Convert globals extraFiles to metadata format for mergeMetadata
+            const globalsMetadata: Record<string, any> = {};
+
+            for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
+              if (typeof value === 'string') {
+                globalsMetadata[key] = { source: value };
+              } else {
+                globalsMetadata[key] = { ...value };
+              }
+            }
+
+            // Use mergeMetadata to properly position and merge the globals
+            currentVariant = mergeMetadata(currentVariant, globalsMetadata);
           }
         });
 
-        // Only update if we actually have extra files to merge
-        if (
-          Object.keys(mergedExtraFiles).length > Object.keys(variantData.extraFiles || {}).length
-        ) {
-          mergedCode[variant] = {
-            ...variantData,
-            extraFiles: mergedExtraFiles,
-          };
+        // Only update if the variant actually changed
+        if (currentVariant !== variantData) {
+          mergedCode[variant] = currentVariant;
           hasChanges = true;
         }
       }
@@ -598,23 +606,30 @@ function usePropsCodeGlobalsMerging({
         .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
-        // Simple merge for controlled data - just combine extraFiles
-        const mergedExtraFiles = { ...(variantData.extraFiles || {}) };
+        // Use mergeMetadata for sophisticated globals merging with proper positioning
+        let currentVariant = variantData;
 
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
-            Object.assign(mergedExtraFiles, globalVariant.extraFiles);
+            // Convert globals extraFiles to metadata format for mergeMetadata
+            const globalsMetadata: Record<string, any> = {};
+
+            for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
+              if (typeof value === 'string') {
+                globalsMetadata[key] = { source: value };
+              } else {
+                globalsMetadata[key] = { ...value };
+              }
+            }
+
+            // Use mergeMetadata to properly position and merge the globals
+            currentVariant = mergeMetadata(currentVariant, globalsMetadata);
           }
         });
 
-        // Only update if we actually have extra files to merge
-        if (
-          Object.keys(mergedExtraFiles).length > Object.keys(variantData.extraFiles || {}).length
-        ) {
-          mergedCode[variant] = {
-            ...variantData,
-            extraFiles: mergedExtraFiles,
-          };
+        // Only update if the variant actually changed
+        if (currentVariant !== variantData) {
+          mergedCode[variant] = currentVariant;
           hasChanges = true;
         }
       }

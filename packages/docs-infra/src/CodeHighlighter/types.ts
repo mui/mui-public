@@ -5,6 +5,7 @@ export type Components = { [key: string]: React.ReactNode };
 
 type CodeMeta = {
   fileName?: string;
+  path?: string;
 };
 
 export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
@@ -31,12 +32,14 @@ export type VariantExtraFiles = {
         transforms?: Transforms;
         skipTransforms?: boolean;
         metadata?: boolean;
+        path?: string;
       };
 };
 export type VariantCode = CodeMeta & {
   url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
+  metadataPrefix?: string;
   externals?: string[];
   namedExport?: string;
   filesOrder?: string[];

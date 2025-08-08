@@ -179,6 +179,40 @@ describe('exportVariantAsCra', () => {
       expect(packageJson.type).toBeUndefined();
     }
   });
+
+  it('should not include Vite-specific files (regression test)', () => {
+    const result = exportVariantAsCra(mockVariantCode, {
+      title: 'CRA Demo',
+      useTypescript: true,
+    });
+
+    const extraFiles = result.exported.extraFiles!;
+    const fileKeys = Object.keys(extraFiles);
+
+    // Should NOT include any Vite-specific files
+    const viteFiles = fileKeys.filter(
+      (key) => key.includes('vite.config') || key.includes('tsconfig.node.json'),
+    );
+    expect(viteFiles).toHaveLength(0);
+
+    // Should NOT include Vite dependencies in package.json
+    const packageJsonFile = extraFiles['../package.json'];
+    if (typeof packageJsonFile === 'object' && 'source' in packageJsonFile) {
+      const packageJson = JSON.parse(stringOrHastToString(packageJsonFile.source!));
+      expect(packageJson.devDependencies.vite).toBeUndefined();
+      expect(packageJson.devDependencies['@vitejs/plugin-react']).toBeUndefined();
+      expect(packageJson.scripts.dev).toBeUndefined();
+      expect(packageJson.scripts.build).toBe('react-scripts build'); // Should have CRA scripts instead
+      expect(packageJson.scripts.start).toBe('react-scripts start');
+    }
+
+    // Should include CRA-specific dependencies
+    const packageJsonFile2 = extraFiles['../package.json'];
+    if (typeof packageJsonFile2 === 'object' && 'source' in packageJsonFile2) {
+      const packageJson = JSON.parse(stringOrHastToString(packageJsonFile2.source!));
+      expect(packageJson.devDependencies['react-scripts']).toBe('latest');
+    }
+  });
 });
 
 describe('Integration with exportVariant', () => {
@@ -204,6 +238,7 @@ describe('Integration with exportVariant', () => {
     const complexVariantCode: VariantCode = {
       fileName: 'ComplexDemo.js',
       source: 'export default function ComplexDemo() { return <div>Complex</div>; }',
+      metadataPrefix: 'src/',
       extraFiles: {
         'components/Button.jsx': {
           source: 'export const Button = () => <button>Click</button>;',

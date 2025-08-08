@@ -3,10 +3,35 @@
  * Users can pass configuration options that vary the output here.
  */
 
-import type { VariantCode } from '../CodeHighlighter/types';
+import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { externalsToPackages } from '../pipeline/loaderUtils';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
-import { createPathContext } from './examineVariant';
+import { createPathContext } from '../CodeHighlighter/examineVariant';
+import { mergeMetadata, extractMetadata } from '../CodeHighlighter/mergeMetadata';
+import { mergeExternals } from '../pipeline/loaderUtils/mergeExternals';
+
+/**
+ * Merges multiple file objects into a single object.
+ * Similar to mergeExternals but for file structures.
+ * Automatically adds metadata: false to files that don't have a metadata property.
+ */
+function mergeFiles(...fileSets: Array<VariantExtraFiles>): VariantExtraFiles {
+  const merged: VariantExtraFiles = {};
+
+  for (const fileSet of fileSets) {
+    for (const [fileName, fileData] of Object.entries(fileSet)) {
+      // Later files override earlier ones (similar to Object.assign behavior)
+      const normalizedData = typeof fileData === 'string' ? { source: fileData } : { ...fileData };
+      // Add metadata: false if not already set (source files default to false)
+      if (!('metadata' in normalizedData)) {
+        normalizedData.metadata = false;
+      }
+      merged[fileName] = normalizedData;
+    }
+  }
+
+  return merged;
+}
 
 /**
  * Extract filename from URL or return undefined if not available
@@ -26,14 +51,14 @@ export function getFilenameFromVariant(variantCode: VariantCode): string | undef
  * Generate a unique entrypoint filename that doesn't conflict with existing files
  */
 export function generateEntrypointFilename(
-  existingFiles: Record<string, any>,
+  existingFiles: VariantExtraFiles,
   sourceFilename: string | undefined,
   useTypescript: boolean,
   pathPrefix: string = '',
 ): string {
   const ext = useTypescript ? 'tsx' : 'jsx';
   const candidates = [
-    `${pathPrefix}index.${ext}`,
+    `${pathPrefix}App.${ext}`,
     `${pathPrefix}entrypoint.${ext}`,
     `${pathPrefix}main.${ext}`,
   ];
@@ -103,12 +128,26 @@ export interface ExportConfig {
   title?: string;
   /** Description for package.json */
   description?: string;
+  /** The variant name/identifier for this specific code variant */
+  variantName?: string;
+  /**
+   * Language for the HTML document (default is 'en')
+   */
+  language?: string;
   /**
    * Prefix for output file paths (e.g., 'public/' for CRA, '' for Vite)
    * @example
    * htmlPrefix: 'public/' // outputs index.html to correct depth + public/index.html
    */
   htmlPrefix?: string;
+  /**
+   * Prefix for asset files (e.g., 'assets/' for CRA)
+   */
+  assetPrefix?: string;
+  /**
+   * Prefix for code files (e.g., 'src/' for Vite)
+   */
+  sourcePrefix?: string;
   /**
    * Whether the framework handles entrypoint and HTML generation (e.g., CRA with webpack)
    * When true, skips generating index.html and entrypoint files
@@ -117,7 +156,7 @@ export interface ExportConfig {
   /**
    * Custom HTML template function
    * @example
-   * htmlTemplate: ({ language, title, description, head, entrypoint }) =>
+   * htmlTemplate: ({ language, title, description, head, entrypoint, variant, variantName }) =>
    *   `<!doctype html><html><head><title>${title}</title>${head || ''}</head><body><div id="root"></div><script src="${entrypoint}"></script></body></html>`
    */
   htmlTemplate?: (params: {
@@ -126,14 +165,21 @@ export interface ExportConfig {
     description: string;
     head?: string;
     entrypoint: string;
+    variant?: VariantCode;
+    variantName?: string;
   }) => string;
   /**
    * Custom head template function for generating additional head content
    * @example
-   * headTemplate: ({ sourcePrefix, assetPrefix }) =>
+   * headTemplate: ({ sourcePrefix, assetPrefix, variant, variantName }) =>
    *   `<link rel="stylesheet" href="${assetPrefix}/styles.css" />\n<meta name="theme-color" content="#000000" />`
    */
-  headTemplate?: (params: { sourcePrefix: string; assetPrefix: string }) => string;
+  headTemplate?: (params: {
+    sourcePrefix: string;
+    assetPrefix: string;
+    variant?: VariantCode;
+    variantName?: string;
+  }) => string;
   /** Custom React root index template function */
   rootIndexTemplate?: (params: { importString: string; useTypescript: boolean }) => string;
   /** Extra package.json dependencies to add */
@@ -151,14 +197,36 @@ export interface ExportConfig {
   /** Whether to include TypeScript configuration files */
   useTypescript?: boolean;
   /** Custom metadata files to add */
-  extraMetadataFiles?: Record<string, { source: string; metadata?: boolean }>;
+  extraMetadataFiles?: Record<string, { source: string }>;
   /** Framework-specific files that override default files (index.html, entrypoint, etc.) */
-  frameworkFiles?: Record<string, { source: string; metadata?: boolean }>;
+  frameworkFiles?: { variant?: VariantCode; globals?: VariantExtraFiles };
+  /**
+   * Custom export function to use instead of the default exportVariant or exportVariantAsCra
+   * @example
+   * exportFunction: (variantCode, config) => ({ exported: customProcessedCode, rootFile: 'custom-entry.js' })
+   */
+  exportFunction?: (
+    variantCode: VariantCode,
+    config: ExportConfig,
+  ) => { exported: VariantCode; rootFile: string };
+  /**
+   * Transform function that runs at the very start of the export process
+   * Can modify the variant code and metadata before any other processing happens
+   * @example
+   * transformVariant: (variant, globals, variantName) => ({
+   *   variant: { ...variant, source: modifiedSource },
+   *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
+   * })
+   */
+  transformVariant?: (
+    variant: VariantCode,
+    variantName?: string,
+    globals?: VariantExtraFiles,
+  ) => { variant?: VariantCode; globals?: VariantExtraFiles } | undefined;
 }
 
 /**
- * Export a VariantCode with additional configuration files
- * Returns an object with the exported VariantCode and rootPath path
+ * Export a variant as a standalone project with metadata files properly scoped
  */
 export function exportVariant(
   variantCode: VariantCode,
@@ -167,7 +235,11 @@ export function exportVariant(
   const {
     title = 'Demo',
     description = 'Demo created with Vite',
+    variantName,
+    language = 'en',
     htmlPrefix = '',
+    sourcePrefix = 'src/',
+    assetPrefix = '',
     frameworkHandlesEntrypoint = false,
     htmlTemplate,
     headTemplate,
@@ -181,7 +253,22 @@ export function exportVariant(
     useTypescript = false,
     extraMetadataFiles = {},
     frameworkFiles = {},
+    transformVariant,
   } = config;
+
+  // Use extractMetadata to properly separate metadata and non-metadata files
+  let { variant: processedVariantCode, metadata: processedGlobals } = extractMetadata(variantCode);
+
+  if (transformVariant) {
+    const transformed = transformVariant(processedVariantCode, variantName, processedGlobals);
+    if (transformed) {
+      // Re-extract metadata after transformation
+      const result = extractMetadata(transformed.variant || variantCode);
+      processedVariantCode = result.variant;
+      // Combine metadata from extraction with transformed globals
+      processedGlobals = { ...result.metadata, ...transformed.globals };
+    }
+  }
 
   // If packageType is explicitly provided (even as undefined), use that value
   let finalPackageType: 'module' | 'commonjs' | undefined;
@@ -192,47 +279,79 @@ export function exportVariant(
   }
 
   // Get existing extraFiles and source filename
-  const existingExtraFiles = variantCode.extraFiles || {};
-  const sourceFilename = getFilenameFromVariant(variantCode);
+  const sourceFilename = getFilenameFromVariant(processedVariantCode);
 
-  // Get path context to calculate proper URLs
-  const pathContext = createPathContext(variantCode);
+  // Get path context to understand navigation
+  const pathContext = createPathContext(variantCode); // Determine if we need to rename the source file (if it's index.tsx in src dir)
 
-  // Calculate the correct prefix for metadata files based on path depth
-  const metadataPrefix = '../'.repeat(pathContext.maxBackNavigation + 1);
+  const ext = useTypescript ? 'tsx' : 'jsx';
+  const isSourceFileIndex = sourceFilename === `index.${ext}`;
+  // Use urlDirectory to determine if it's in src root (should only have 'src' as the directory)
+  const isInSrcRoot = pathContext.urlDirectory.length <= 1;
 
-  // Generate unique entrypoint filename
-  const entrypointFilename = generateEntrypointFilename(
-    existingExtraFiles,
-    sourceFilename,
-    useTypescript,
-  );
+  let actualSourceFilename = sourceFilename;
 
-  // Calculate the entrypoint URL relative to the root
-  const entrypoint = `/src/${pathContext.pathInwardFromRoot}${entrypointFilename}`;
+  // Use urlDirectory to construct the full path from src root
+  const directoryPath = pathContext.urlDirectory.slice(1).join('/'); // Remove 'src' and join the rest
+  let actualRootFile = directoryPath
+    ? `${sourcePrefix}${directoryPath}/${sourceFilename}`
+    : `${sourcePrefix}${sourceFilename}`;
 
-  // Get relative import path for the main component
-  const rootFile = `src/${pathContext.pathInwardFromRoot}${sourceFilename}`;
-  const importPath = getRelativeImportPath(sourceFilename);
-  const importString = variantCode.namedExport
-    ? `import { ${variantCode.namedExport} as App } from '${importPath}';`
-    : `import App from '${importPath}';`;
-
-  // Create new extraFiles object
-  const newExtraFiles = { ...existingExtraFiles };
-
-  // Add framework-specific files (if any)
-  for (const [fileName, fileData] of Object.entries(frameworkFiles)) {
-    newExtraFiles[fileName] = {
-      source: fileData.source,
-      metadata: fileData.metadata ?? true,
-    };
+  // If the source file is index.tsx and it's in the src root, we need to rename it
+  if (isSourceFileIndex && isInSrcRoot) {
+    actualSourceFilename = generateEntrypointFilename(
+      processedVariantCode.extraFiles || {},
+      sourceFilename,
+      useTypescript,
+    );
+    actualRootFile = `${sourcePrefix}${actualSourceFilename}`;
   }
 
-  // Check if we're using a framework (has framework files)
-  const isFramework = frameworkFiles && Object.keys(frameworkFiles).length > 0;
+  // The main entrypoint is always src/index.tsx (or .jsx)
+  const mainEntrypointFilename = `index.${ext}`;
+  const entrypoint = `${sourcePrefix}${mainEntrypointFilename}`;
 
-  const externalPackages = externalsToPackages(variantCode.externals || []);
+  // Get relative import path for the main component
+  let importPath: string;
+  if (isInSrcRoot) {
+    // Component is in src root - import directly
+    importPath = getRelativeImportPath(actualSourceFilename);
+  } else {
+    // Component is in a subdirectory - import with full path from src root
+    // Use urlDirectory excluding the root level to get the full directory path
+    const directoryPath = pathContext.urlDirectory.slice(1).join('/'); // Remove 'src' and join the rest
+    const componentPath = directoryPath
+      ? `${directoryPath}/${actualSourceFilename}`
+      : actualSourceFilename;
+    importPath = `./${(componentPath || '').replace(/\.[^.]*$/, '')}`; // Remove extension
+  }
+
+  // Strip /index from the end of import paths since module resolution handles it automatically
+  if (importPath.endsWith('/index')) {
+    importPath = importPath.slice(0, -6); // Remove '/index'
+  }
+
+  const importString = processedVariantCode.namedExport
+    ? `import { ${processedVariantCode.namedExport} as App } from '${importPath}';`
+    : `import App from '${importPath}';`;
+
+  // Collect all files that will be generated
+  const generatedFiles: VariantExtraFiles = {};
+
+  // Update the variant's fileName if we renamed it
+  if (
+    isSourceFileIndex &&
+    isInSrcRoot &&
+    actualSourceFilename &&
+    actualSourceFilename !== sourceFilename
+  ) {
+    processedVariantCode.fileName = actualSourceFilename;
+  }
+
+  // Check if they're providing their own framework
+  const isFramework = 'frameworkFiles' in config;
+
+  const externalPackages = externalsToPackages(processedVariantCode.externals || []);
   const variantDeps = Object.keys(externalPackages).reduce(
     (acc, pkg) => {
       acc[pkg] = 'latest';
@@ -241,7 +360,10 @@ export function exportVariant(
     {} as Record<string, string>,
   );
 
-  // Generate package.json (always)
+  // Collect metadata files to be generated
+  const metadataFiles: VariantExtraFiles = {};
+
+  // Generate package.json
   const packageJson = {
     private: true,
     name: title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
@@ -277,45 +399,12 @@ export function exportVariant(
     ...packageJsonFields,
   };
 
-  newExtraFiles[`${metadataPrefix}package.json`] = {
+  metadataFiles['package.json'] = {
     source: JSON.stringify(packageJson, null, 2),
-    metadata: true,
   };
 
   // Generate entrypoint and HTML files unless framework handles them
   if (!frameworkHandlesEntrypoint) {
-    // Add index.html (with configurable prefix for different frameworks)
-    const headContent = headTemplate
-      ? headTemplate({
-          sourcePrefix: '/src',
-          assetPrefix: '',
-        })
-      : undefined;
-
-    const htmlContent = htmlTemplate
-      ? htmlTemplate({
-          language: 'en',
-          title,
-          description,
-          head: headContent,
-          entrypoint,
-        })
-      : defaultHtmlTemplate({
-          language: 'en',
-          title,
-          description,
-          head: headContent,
-          entrypoint,
-        });
-
-    const htmlFilePath = htmlPrefix
-      ? `${metadataPrefix}${htmlPrefix}index.html`
-      : `${metadataPrefix}index.html`;
-    newExtraFiles[htmlFilePath] = {
-      source: htmlContent,
-      metadata: true,
-    };
-
     // Create entrypoint file that imports the main component
     const defaultEntrypointContent = `import * as React from 'react';
 import * as ReactDOM from 'react-dom/client';
@@ -334,9 +423,8 @@ ReactDOM.createRoot(document.getElementById('root')${useTypescript ? '!' : ''}).
         })
       : defaultEntrypointContent;
 
-    newExtraFiles[entrypointFilename] = {
+    generatedFiles[mainEntrypointFilename] = {
       source: entrypointContent,
-      metadata: false,
     };
   }
 
@@ -352,18 +440,17 @@ export default defineConfig({
   define: { 'process.env': {} },
 });`;
 
-    newExtraFiles[`${metadataPrefix}vite.config.${useTypescript ? 'ts' : 'js'}`] = {
+    metadataFiles[`vite.config.${useTypescript ? 'ts' : 'js'}`] = {
       source: viteConfigContent,
-      metadata: true,
     };
   }
 
-  // Add TypeScript configuration if requested (up one directory, metadata: true)
+  // Add TypeScript configuration if requested
   if (useTypescript) {
     // Check if frameworkFiles already includes a tsconfig
     const hasFrameworkTsConfig =
-      frameworkFiles &&
-      Object.keys(frameworkFiles).some(
+      frameworkFiles?.globals &&
+      Object.keys(frameworkFiles.globals).some(
         (fileName) =>
           fileName.includes('tsconfig.json') && !fileName.includes('tsconfig.node.json'),
       );
@@ -395,9 +482,8 @@ export default defineConfig({
         }),
       };
 
-      newExtraFiles[`${metadataPrefix}tsconfig.json`] = {
+      metadataFiles['tsconfig.json'] = {
         source: JSON.stringify(defaultTsConfig, null, 2),
-        metadata: true,
       };
     }
 
@@ -415,27 +501,77 @@ export default defineConfig({
         include: ['vite.config.ts'],
       };
 
-      newExtraFiles[`${metadataPrefix}tsconfig.node.json`] = {
+      metadataFiles['tsconfig.node.json'] = {
         source: JSON.stringify(nodeTsConfig, null, 2),
-        metadata: true,
       };
     }
   }
 
-  // Add custom metadata files (respect metadata flag)
-  for (const [fileName, fileData] of Object.entries(extraMetadataFiles)) {
-    newExtraFiles[`${metadataPrefix}${fileName}`] = {
-      source: fileData.source,
-      metadata: fileData.metadata ?? true,
+  // Generate HTML file after all files are ready
+  if (!frameworkHandlesEntrypoint) {
+    // Add index.html
+    const headContent = headTemplate
+      ? headTemplate({
+          sourcePrefix,
+          assetPrefix,
+          variant: processedVariantCode,
+          variantName,
+        })
+      : undefined;
+
+    const htmlContent = htmlTemplate
+      ? htmlTemplate({
+          language,
+          title,
+          description,
+          head: headContent,
+          entrypoint,
+          variant: processedVariantCode,
+          variantName,
+        })
+      : defaultHtmlTemplate({
+          language,
+          title,
+          description,
+          head: headContent,
+          entrypoint,
+        });
+
+    const htmlFileName = htmlPrefix ? `${htmlPrefix}index.html` : 'index.html';
+    metadataFiles[htmlFileName] = {
+      source: htmlContent,
     };
   }
 
-  // Return new VariantCode with updated extraFiles
+  // Merge all metadata files including framework metadata and globals
+  const allMetadataFiles = mergeFiles(
+    processedGlobals || {},
+    metadataFiles,
+    extraMetadataFiles,
+    frameworkFiles.globals || {},
+  );
+
+  // Merge all files using mergeMetadata to properly position everything with 'src/' (sourcePrefix opt) prefix
+  const allSourceFilesWithFramework = mergeFiles(
+    processedVariantCode.extraFiles || {},
+    generatedFiles,
+    frameworkFiles.variant?.extraFiles || {},
+  );
+
+  // Update the variant with all source files including framework source files
+  const finalVariantWithSources: VariantCode = {
+    ...processedVariantCode,
+    extraFiles: allSourceFilesWithFramework,
+  };
+
+  // Use mergeMetadata to position everything correctly
+  const finalVariant = mergeMetadata(finalVariantWithSources, allMetadataFiles, {
+    metadataPrefix: sourcePrefix,
+  });
+
+  // Return new VariantCode with properly positioned files
   return {
-    exported: {
-      ...variantCode,
-      extraFiles: newExtraFiles,
-    },
-    rootFile,
+    exported: finalVariant,
+    rootFile: actualRootFile,
   };
 }
