@@ -1,0 +1,108 @@
+.tabsRoot {
+  display: flex;
+}
+
+.tabsList {
+  display: flex;
+  gap: 0px;
+  overflow-x: auto;
+  max-width: 100%;
+  padding-top: 14px;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}
+
+.name:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.name span {
+  color: #65636d;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+}
+
+.tab {
+  padding: 10px 8px 8px 8px;
+  border: 1px solid #d0cdd7;
+  border-bottom: none;
+  background-color: transparent;
+  color: #65636d;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+  margin-left: 0;
+  margin-right: 0;
+  white-space: nowrap;
+}
+
+.tab:hover:not(.tabSelected) {
+  background-color: #30004010;
+}
+
+.tab:active:not(.tabSelected) {
+  background-color: #20003820;
+}
+
+.tabSelected {
+  border-radius: 12px 12px 0 0;
+  background-color: color(display-p3 0.523 0.318 0.751);
+  background-color: #8e4ec6;
+  border-color: color(display-p3 0.523 0.318 0.751);
+  border-color: #8e4ec6;
+  color: #ffffff;
+  z-index: 2;
+}
+
+.tabSelected:active {
+  border-radius: 16px 16px 0 0;
+}
+
+.tabFirst {
+  border-radius: 12px 0 0 0;
+}
+
+.tabLast {
+  border-radius: 0 12px 0 0;
+}
+
+.tabMiddle {
+  border-radius: 0;
+}
+
+.tabNextSelected {
+  padding: 10px 20px 8px 8px;
+  margin-right: -12px;
+}
+
+.tabPrevSelected {
+  padding: 10px 8px 8px 20px;
+  margin-left: -12px;
+}
+
+.tabNoBorderRight {
+  border-right: 1px solid transparent;
+}
+
+.tabNoBorderRight:not(.tabNextSelected) {
+  margin-right: -1px;
+}
+
+.tabWithBorderRight {
+  border-right: 1px solid #d0cdd7;
+}
+
+.tabSelected.tabWithBorderRight {
+  border-right: 1px solid #8e4ec6;
+  border-color: color(display-p3 0.523 0.318 0.751);
+  border-color: #8e4ec6;
+}
