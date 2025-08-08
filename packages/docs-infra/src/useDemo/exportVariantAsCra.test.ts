@@ -289,12 +289,12 @@ describe('Integration with exportVariant', () => {
 
     if (typeof htmlFile === 'object' && 'source' in htmlFile) {
       const htmlContent = stringOrHastToString(htmlFile.source!);
-      
+
       // For CRA, the HTML should NOT include script tags for the entrypoint
       // because CRA injects them automatically during build
       expect(htmlContent).not.toContain('<script type="module" src="src/index.');
       expect(htmlContent).not.toContain('<script src="src/index.');
-      
+
       // But it should still have the basic HTML structure
       expect(htmlContent).toContain('<title>CRA Demo</title>');
       expect(htmlContent).toContain('<div id="root"></div>');
