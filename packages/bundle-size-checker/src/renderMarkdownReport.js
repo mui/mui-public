@@ -97,11 +97,13 @@ function formatMarkdownTable(columns, data) {
   const separators = alignments.map((align) => {
     switch (align) {
       case 'center':
-        return ':----------:';
+        return ':---------:';
       case 'right':
         return '----------:';
+      case 'left':
+        return ':----------';
       default:
-        return '----------';
+        return '-----------';
     }
   });
   table += `|${separators.join('|')}|\n`;
