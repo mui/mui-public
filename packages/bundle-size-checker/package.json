@@ -45,7 +45,7 @@
     "terser-webpack-plugin": "^5.3.10",
     "vite": "^6.3.5",
     "webpack": "^5.90.3",
-    "webpack-bundle-analyzer": "^4.10.1",
+    "webpack-bundle-analyzer": "^4.10.2",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
