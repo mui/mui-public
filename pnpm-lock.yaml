@@ -159,8 +159,8 @@ importers:
         specifier: ^7.17.0
         version: 7.23.2(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@mui/material@6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mui/system@6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@octokit/core':
-        specifier: ^6.1.2
-        version: 6.1.5
+        specifier: ^6.1.6
+        version: 6.1.6
       '@toolpad/studio':
         specifier: ^0.12.0
         version: 0.12.0(@types/react@19.1.8)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.29.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(next@15.3.4(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(terser@5.39.0)(webpack@5.94.0)
@@ -3470,8 +3470,8 @@ packages:
     resolution: {integrity: sha512-1LFfa/qnMQvEOAdzlQymH0ulepxbxnCYAKJZfMci/5XJyIHWgEYnDmgnKakbTh7CH2tFQ5O60oYDvns4i9RAIg==}
     engines: {node: '>= 18'}
 
-  '@octokit/core@6.1.5':
-    resolution: {integrity: sha512-vvmsN0r7rguA+FySiCsbaTTobSftpIDIpPW81trAmsv9TGxg3YCujAxRYp/Uy8xmDgYCzzgulG62H7KYUFmeIg==}
+  '@octokit/core@6.1.6':
+    resolution: {integrity: sha512-kIU8SLQkYWGp3pVKiYzA5OSaNF5EE03P/R8zEmmrG6XwOg5oBjXyQVVIauQ0dgau4zYhpZEhJrvIYt6oM+zZZA==}
     engines: {node: '>= 18'}
 
   '@octokit/core@7.0.2':
@@ -16236,7 +16236,7 @@ snapshots:
       before-after-hook: 2.2.3
       universal-user-agent: 6.0.1
 
-  '@octokit/core@6.1.5':
+  '@octokit/core@6.1.6':
     dependencies:
       '@octokit/auth-token': 5.1.1
       '@octokit/graphql': 8.2.2
@@ -16302,9 +16302,9 @@ snapshots:
       '@octokit/core': 5.2.0
       '@octokit/types': 13.10.0
 
-  '@octokit/plugin-paginate-rest@11.6.0(@octokit/core@6.1.5)':
+  '@octokit/plugin-paginate-rest@11.6.0(@octokit/core@6.1.6)':
     dependencies:
-      '@octokit/core': 6.1.5
+      '@octokit/core': 6.1.6
       '@octokit/types': 13.10.0
 
   '@octokit/plugin-paginate-rest@13.1.0(@octokit/core@7.0.2)':
@@ -16321,9 +16321,9 @@ snapshots:
     dependencies:
       '@octokit/core': 5.2.0
 
-  '@octokit/plugin-request-log@5.3.1(@octokit/core@6.1.5)':
+  '@octokit/plugin-request-log@5.3.1(@octokit/core@6.1.6)':
     dependencies:
-      '@octokit/core': 6.1.5
+      '@octokit/core': 6.1.6
 
   '@octokit/plugin-request-log@6.0.0(@octokit/core@7.0.2)':
     dependencies:
@@ -16339,9 +16339,9 @@ snapshots:
       '@octokit/core': 5.2.0
       '@octokit/types': 13.10.0
 
-  '@octokit/plugin-rest-endpoint-methods@13.5.0(@octokit/core@6.1.5)':
+  '@octokit/plugin-rest-endpoint-methods@13.5.0(@octokit/core@6.1.6)':
     dependencies:
-      '@octokit/core': 6.1.5
+      '@octokit/core': 6.1.6
       '@octokit/types': 13.10.0
 
   '@octokit/plugin-rest-endpoint-methods@16.0.0(@octokit/core@7.0.2)':
@@ -16395,10 +16395,10 @@ snapshots:
 
   '@octokit/rest@21.1.1':
     dependencies:
-      '@octokit/core': 6.1.5
-      '@octokit/plugin-paginate-rest': 11.6.0(@octokit/core@6.1.5)
-      '@octokit/plugin-request-log': 5.3.1(@octokit/core@6.1.5)
-      '@octokit/plugin-rest-endpoint-methods': 13.5.0(@octokit/core@6.1.5)
+      '@octokit/core': 6.1.6
+      '@octokit/plugin-paginate-rest': 11.6.0(@octokit/core@6.1.6)
+      '@octokit/plugin-request-log': 5.3.1(@octokit/core@6.1.6)
+      '@octokit/plugin-rest-endpoint-methods': 13.5.0(@octokit/core@6.1.6)
 
   '@octokit/rest@22.0.0':
     dependencies:
