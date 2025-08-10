@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@babel/cli": "^7.27.2",
-    "@babel/core": "^7.27.4",
+    "@babel/core": "^7.28.0",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.27.4",
     "@types/node": "^24.0.3",
