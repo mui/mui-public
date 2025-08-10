@@ -150,8 +150,8 @@ importers:
   apps/tools-public:
     dependencies:
       '@googleapis/sheets':
-        specifier: ^9.3.1
-        version: 9.3.1(encoding@0.1.13)
+        specifier: ^9.8.0
+        version: 9.8.0(encoding@0.1.13)
       '@mui/system':
         specifier: ^6.1.0
         version: 6.3.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0)
@@ -2190,6 +2190,10 @@ packages:
 
   '@googleapis/sheets@9.3.1':
     resolution: {integrity: sha512-nPgzOiDs/FSFhE+dX2KfkmsmkXM3WfXYP06FoW8cXvHshwxHSI3FbXwe5XJYstDAWXP9YA7AMSvmwnuD4OAl2w==}
+    engines: {node: '>=12.0.0'}
+
+  '@googleapis/sheets@9.8.0':
+    resolution: {integrity: sha512-PyzLalHcx25o7+jDYrEm62IsMnNvtBGVJi9Mr2zeIUbTp4y1tBJnPAkQCTBPvmqc14DQchxXnYqsNPIYzkIKmw==}
     engines: {node: '>=12.0.0'}
 
   '@graphql-typed-document-node/core@3.2.0':
@@ -14636,6 +14640,13 @@ snapshots:
       - supports-color
 
   '@googleapis/sheets@9.3.1(encoding@0.1.13)':
+    dependencies:
+      googleapis-common: 7.2.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
+  '@googleapis/sheets@9.8.0(encoding@0.1.13)':
     dependencies:
       googleapis-common: 7.2.0(encoding@0.1.13)
     transitivePeerDependencies:
