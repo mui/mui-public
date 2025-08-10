@@ -325,7 +325,7 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0
       fast-glob:
-        specifier: ^3.3.2
+        specifier: ^3.3.3
         version: 3.3.3
       file-loader:
         specifier: ^6.2.0
@@ -544,7 +544,7 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0
       fast-glob:
-        specifier: ^3.3.2
+        specifier: ^3.3.3
         version: 3.3.3
       fs-extra:
         specifier: ^11.3.0
