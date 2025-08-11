@@ -17,7 +17,7 @@
     "semver": "^7.7.2"
   },
   "devDependencies": {
-    "@types/etag": "^1.8.3",
+    "@types/etag": "^1.8.4",
     "@types/node": "^24.0.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.2",
