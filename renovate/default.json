@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for MUI repositories.",
-  "extends": [":semanticCommitsDisabled"],
+  "extends": [":semanticCommitsDisabled", "config:recommended"],
   "automerge": false,
   "commitMessageAction": "Bump",
   "commitMessageExtra": "to {{newValue}}",
@@ -25,40 +25,10 @@
       "rangeStrategy": "widen"
     },
     {
-      "groupName": "babel",
-      "matchPackageNames": ["^@babel/", "^@types/babel", "^babel-"]
-    },
-    {
       "groupName": "Infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
       "schedule": null
-    },
-    {
-      "groupName": "core-js",
-      "matchPackageNames": ["core-js"],
-      "allowedVersions": "< 2.0.0"
-    },
-    {
-      "groupName": "Emotion",
-      "matchPackageNames": ["@emotion/*"]
-    },
-    {
-      "groupName": "React",
-      "matchPackageNames": [
-        "react",
-        "react-dom",
-        "react-is",
-        "@types/react",
-        "@types/react-dom",
-        "@types/react-is",
-        "use-sync-external-store",
-        "@types/use-sync-external-store"
-      ]
-    },
-    {
-      "groupName": "Playwright",
-      "matchPackageNames": ["@playwright/*", "playwright", "mcr.microsoft.com/playwright"]
     },
     {
       "groupName": "GitHub Actions",
@@ -74,10 +44,6 @@
       "matchPackageNames": ["@definitelytyped/*"]
     },
     {
-      "groupName": "Testing libraries",
-      "matchPackageNames": ["@testing-library/*"]
-    },
-    {
       "groupName": "node",
       "matchDatasources": ["docker", "node-version"],
       "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
@@ -85,13 +51,7 @@
     },
     {
       "groupName": "eslint",
-      "matchPackageNames": [
-        "eslint",
-        "eslint-*",
-        "typescript-eslint",
-        "@typescript-eslint/*",
-        "@types/eslint-*"
-      ]
+      "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
     },
     {
       "groupName": "Vite & Vitest",
