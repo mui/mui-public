@@ -1,23 +1,3 @@
-// WebpackEntry type
-interface WebpackEntry {
-  import: string;
-  importName?: string;
-}
-
-// Webpack stats types
-interface StatsAsset {
-  name: string;
-  size: number;
-  related?: {
-    find: (predicate: (asset: any) => boolean) => { size: number; type: string };
-  };
-}
-
-interface StatsChunkGroup {
-  name: string;
-  assets: Array<{ name: string; size: number }>;
-}
-
 // Upload configuration with optional properties
 interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
@@ -70,7 +50,6 @@ interface CommandLineArgs {
   verbose?: boolean;
   filter?: string[];
   concurrency?: number;
-  vite?: boolean;
 }
 
 interface ReportCommandArgs {

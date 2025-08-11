@@ -43,12 +43,12 @@ async function getCurrentRepoInfo() {
 }
 
 /**
- * creates size snapshot for every bundle that built with webpack
+ * creates size snapshot for every bundle
  * @param {CommandLineArgs} args
  * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
  * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
  */
-async function getWebpackSizes(args, config) {
+async function getBundleSizes(args, config) {
   const worker = new Piscina({
     filename: new URL('./worker.js', import.meta.url).href,
     maxThreads: args.concurrency || DEFAULT_CONCURRENCY,
@@ -146,12 +146,14 @@ async function run(argv) {
   // eslint-disable-next-line no-console
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
 
-  const webpackSizes = await getWebpackSizes(argv, config);
-  const bundleSizes = Object.fromEntries(webpackSizes.sort((a, b) => a[0].localeCompare(b[0])));
+  const bundleSizes = await getBundleSizes(argv, config);
+  const sortedBundleSizes = Object.fromEntries(
+    bundleSizes.sort((a, b) => a[0].localeCompare(b[0])),
+  );
 
   // Ensure output directory exists
   await fs.mkdir(path.dirname(snapshotDestPath), { recursive: true });
-  await fs.writeFile(snapshotDestPath, JSON.stringify(bundleSizes, null, 2));
+  await fs.writeFile(snapshotDestPath, JSON.stringify(sortedBundleSizes, null, 2));
 
   // eslint-disable-next-line no-console
   console.log(`Bundle size snapshot written to ${snapshotDestPath}`);
@@ -181,7 +183,7 @@ yargs(process.argv.slice(2))
         return cmdYargs
           .option('analyze', {
             default: false,
-            describe: 'Creates a webpack-bundle-analyzer report for each bundle.',
+            describe: 'Creates a report for each bundle.',
             type: 'boolean',
           })
           .option('accurateBundles', {
@@ -192,11 +194,6 @@ yargs(process.argv.slice(2))
           .option('verbose', {
             default: false,
             describe: 'Show more detailed information during compilation.',
-            type: 'boolean',
-          })
-          .option('vite', {
-            default: false,
-            describe: 'Use Vite instead of webpack for bundling.',
             type: 'boolean',
           })
           .option('output', {

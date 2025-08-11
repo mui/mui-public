@@ -10,6 +10,8 @@ default-job: &default-job
   working_directory: /tmp/mui
   docker:
     - image: cimg/node:24.3
+  environment:
+    DANGER_DISABLE_TRANSPILATION: 'true'
 
 default-context: &default-context
   context:
@@ -85,6 +87,35 @@ jobs:
       - run:
           name: 'Run tests'
           command: pnpm test
+  test_bundle_size_monitor:
+    <<: *default-job
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: prepare danger on PRs
+          command: pnpm danger ci
+          environment:
+            DANGER_COMMAND: prepareBundleSizeReport
+
+      - aws-cli/setup:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID_ARTIFACTS
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY_ARTIFACTS
+          region: ${AWS_REGION_ARTIFACTS}
+
+      - run:
+          name: create and upload a size snapshot
+          command: |
+            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
+            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
+            export AWS_REGION=$AWS_REGION_ARTIFACTS
+            pnpm size:snapshot --concurrency 6
+
+      - run:
+          name: Run danger on PRs
+          command: pnpm danger ci --fail-on-errors
+          environment:
+            DANGER_COMMAND: reportBundleSize
 
 workflows:
   version: 2
