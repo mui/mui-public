@@ -343,7 +343,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3(rollup@4.39.0)
       terser-webpack-plugin:
-        specifier: ^5.3.10
+        specifier: ^5.3.14
         version: 5.3.14(webpack@5.94.0)
       vite:
         specifier: ^6.3.5
