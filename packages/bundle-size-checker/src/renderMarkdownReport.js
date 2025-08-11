@@ -5,10 +5,11 @@
  */
 
 import { calculateSizeDiff } from './sizeDiff.js';
-import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
+import { fetchSnapshot } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 import { octokit } from './github.js';
 import { getCurrentRepoInfo, getMergeBase } from './git.js';
+import { fetchSnapshotWithFallback } from './fetchSnapshotWithFallback.js';
 
 /**
  * Generates a symbol based on the relative change value.
