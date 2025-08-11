@@ -4,7 +4,7 @@ import { octokit } from './github.js';
  *
  * @param {string} repo - The name of the repository e.g. 'mui/material-ui'
  * @param {string} sha - The commit SHA
- * @returns {Promise<import('./sizeDiff').SizeSnapshot>} - The size snapshot data
+ * @returns {Promise<import('./sizeDiff.js').SizeSnapshot>} - The size snapshot data
  */
 export async function fetchSnapshot(repo, sha) {
   const urlsToTry = [
@@ -27,7 +27,7 @@ export async function fetchSnapshot(repo, sha) {
         continue;
       }
 
-      return response.json();
+      return /** @type {Promise<any>} */ (response.json());
     } catch (error) {
       lastError = error;
       continue;
@@ -68,7 +68,7 @@ async function getParentCommits(repo, commit, depth = 4) {
  * @param {string} repo - Repository name
  * @param {string} commit - The commit SHA to start from
  * @param {number} [fallbackDepth=3] - How many parent commits to try as fallback
- * @returns {Promise<{snapshot: import('./sizeDiff').SizeSnapshot | null, actualCommit: string | null}>}
+ * @returns {Promise<{snapshot: import('./sizeDiff.js').SizeSnapshot | null, actualCommit: string | null}>}
  */
 export async function fetchSnapshotWithFallback(repo, commit, fallbackDepth = 3) {
   // Try the original commit first
