@@ -193,8 +193,8 @@ importers:
         specifier: ^24.0.3
         version: 24.0.3
       '@types/ssh2':
-        specifier: ^1.15.1
-        version: 1.15.1
+        specifier: ^1.15.5
+        version: 1.15.5
 
   packages/babel-plugin-display-name:
     dependencies:
@@ -5181,8 +5181,8 @@ packages:
   '@types/source-list-map@0.1.6':
     resolution: {integrity: sha512-5JcVt1u5HDmlXkwOD2nslZVllBBc7HDuOICfiZah2Z0is8M8g+ddAEawbmd3VjedfDHBzxCaXLs07QEmb7y54g==}
 
-  '@types/ssh2@1.15.1':
-    resolution: {integrity: sha512-ZIbEqKAsi5gj35y4P4vkJYly642wIbY6PqoN0xiyQGshKUGXR9WQjF/iF9mXBQ8uBKy3ezfsCkcoHKhd0BzuDA==}
+  '@types/ssh2@1.15.5':
+    resolution: {integrity: sha512-N1ASjp/nXH3ovBHddRJpli4ozpk6UdDYIX4RJWFa9L1YKnzdhTlVmiGHm4DZnj/jLbqZpes4aeR30EFGQtvhQQ==}
 
   '@types/tapable@1.0.12':
     resolution: {integrity: sha512-bTHG8fcxEqv1M9+TD14P8ok8hjxoOCkfKc8XXLaaD05kI7ohpeI956jtDOD3XHKBQrlyPughUtzm1jtVhHpA5Q==}
@@ -18305,7 +18305,7 @@ snapshots:
 
   '@types/source-list-map@0.1.6': {}
 
-  '@types/ssh2@1.15.1':
+  '@types/ssh2@1.15.5':
     dependencies:
       '@types/node': 18.19.50
 
