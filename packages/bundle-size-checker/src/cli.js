@@ -6,12 +6,11 @@ import fs from 'fs/promises';
 import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
-import { execa } from 'execa';
-import gitUrlParse from 'git-url-parse';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { octokit } from './github.js';
+import { getCurrentRepoInfo } from './git.js';
 
 /**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
@@ -21,26 +20,6 @@ import { octokit } from './github.js';
 const DEFAULT_CONCURRENCY = os.availableParallelism();
 
 const rootDir = process.cwd();
-
-/**
- * Gets the current repository owner and name from git remote
- * @returns {Promise<{owner: string | null, repo: string | null}>}
- */
-async function getCurrentRepoInfo() {
-  try {
-    const { stdout } = await execa('git', ['remote', 'get-url', 'origin']);
-    const parsed = gitUrlParse(stdout.trim());
-    return {
-      owner: parsed.owner,
-      repo: parsed.name,
-    };
-  } catch (error) {
-    return {
-      owner: null,
-      repo: null,
-    };
-  }
-}
 
 /**
  * creates size snapshot for every bundle

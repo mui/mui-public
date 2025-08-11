@@ -8,6 +8,7 @@ import { calculateSizeDiff } from './sizeDiff.js';
 import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 import { octokit } from './github.js';
+import { getCurrentRepoInfo, getMergeBase } from './git.js';
 
 /**
  * Generates a symbol based on the relative change value.
@@ -232,13 +233,21 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const { fallbackDepth = 3 } = options;
 
   const [owner, repoName] = repo.split('/');
-  const { data } = await octokit.repos.compareCommits({
-    owner,
-    repo: repoName,
-    base: prInfo.base.sha,
-    head: prCommit,
-  });
-  const baseCommit = data.merge_base_commit.sha;
+
+  const currentRepo = await getCurrentRepoInfo();
+
+  let baseCommit;
+  if (owner === currentRepo.owner && repoName === currentRepo.repo) {
+    baseCommit = await getMergeBase(prInfo.base.sha, prCommit);
+  } else {
+    const { data } = await octokit.repos.compareCommits({
+      owner,
+      repo: repoName,
+      base: prInfo.base.sha,
+      head: prCommit,
+    });
+    baseCommit = data.merge_base_commit.sha;
+  }
 
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
