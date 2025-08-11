@@ -45,7 +45,6 @@ interface NormalizedBundleSizeCheckerConfig {
 // Command line argument types
 interface CommandLineArgs {
   analyze?: boolean;
-  accurateBundles?: boolean;
   output?: string;
   verbose?: boolean;
   filter?: string[];

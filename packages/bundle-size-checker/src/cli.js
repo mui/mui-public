@@ -189,11 +189,6 @@ yargs(process.argv.slice(2))
             describe: 'Creates a report for each bundle.',
             type: 'boolean',
           })
-          .option('accurateBundles', {
-            default: false,
-            describe: 'Displays used bundles accurately at the cost of more CPU cycles.',
-            type: 'boolean',
-          })
           .option('verbose', {
             default: false,
             describe: 'Show more detailed information during compilation.',
