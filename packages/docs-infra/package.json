@@ -4,15 +4,40 @@
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "main": "./index.js",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./index.js",
-    "./*": "./*/index.js",
-    "./*/types": "./*/types.js",
-    "./*/errors": "./*/errors.js",
-    "./pipeline": "./pipeline/index.js",
-    "./pipeline/*": "./pipeline/*/index.js",
-    "./pipeline/*/types": "./pipeline/*/types.js",
-    "./pipeline/*/errors": "./pipeline/*/errors.js"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./*": {
+      "types": "./*/index.d.ts",
+      "default": "./*/index.js"
+    },
+    "./*/types": {
+      "types": "./*/types.d.ts",
+      "default": "./*/types.js"
+    },
+    "./*/errors": {
+      "types": "./*/errors.d.ts",
+      "default": "./*/errors.js"
+    },
+    "./pipeline": {
+      "types": "./pipeline/index.d.ts",
+      "default": "./pipeline/index.js"
+    },
+    "./pipeline/*": {
+      "types": "./pipeline/*/index.d.ts",
+      "default": "./pipeline/*/index.js"
+    },
+    "./pipeline/*/types": {
+      "types": "./pipeline/*/types.d.ts",
+      "default": "./pipeline/*/types.js"
+    },
+    "./pipeline/*/errors": {
+      "types": "./pipeline/*/errors.d.ts",
+      "default": "./pipeline/*/errors.js"
+    }
   },
   "keywords": [
     "react",
