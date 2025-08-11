@@ -1,23 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>mui/mui-public//renovate/default"],
-  "ignoreDeps": [],
-  "packageRules": [
-    {
-      "groupName": "Node.js updates",
-      "description": "Pin all Node.js versions to latest v24 (except engines field)",
-      "matchPackageNames": ["node"],
-      "matchDatasources": ["github-tags", "node-version"],
-      "matchManagers": ["github-actions", "regex", "nodenv"],
-      "allowedVersions": "^24.0.0",
-      "enabled": true
-    },
-    {
-      "description": "Do not update node version in package.json engines field",
-      "matchPackageNames": ["node"],
-      "matchDepTypes": ["engines"],
-      "matchManagers": ["npm"],
-      "enabled": false
-    }
-  ]
+  "extends": ["config:recommended", "github>mui/mui-public//renovate/default"],
+  "ignoreDeps": []
 }
