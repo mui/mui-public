@@ -12,6 +12,7 @@ export interface CodeHighlighterContextType {
   availableTransforms?: string[];
   url?: string;
   deferHighlight?: boolean;
+  setErrors?: React.Dispatch<React.SetStateAction<Error[]>>;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(

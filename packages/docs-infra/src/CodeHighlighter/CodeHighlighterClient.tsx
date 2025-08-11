@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
+import { CodeErrorsContext } from '../useErrors/ErrorsContext';
 import { maybeInitialData } from './maybeInitialData';
 import { loadFallbackCode } from './loadFallbackCode';
 import { hasAllVariants } from './hasAllVariants';
@@ -33,6 +34,7 @@ function useInitialData({
   isControlled,
   globalsCode,
   setProcessedGlobalsCode,
+  setErrors,
 }: {
   variants: string[];
   variantName: string;
@@ -46,6 +48,7 @@ function useInitialData({
   isControlled: boolean;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  setErrors: React.Dispatch<React.SetStateAction<Error[]>>;
 }) {
   const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
@@ -79,7 +82,12 @@ function useInitialData({
     }
 
     if (!url) {
-      // TODO: handle error - URL is required for loading fallback data
+      // URL is required for loading fallback data
+      const urlError = new Error(
+        'URL is required for loading fallback data when no initial code is provided',
+      );
+      console.error('CodeHighlighterClient: URL is required for loading fallback data', urlError);
+      setErrors((prev) => [...prev, urlError]);
       return;
     }
 
@@ -108,7 +116,7 @@ function useInitialData({
       ).catch((error) => ({ error }));
 
       if ('error' in loaded) {
-        // TODO: handle error
+        setErrors((prev) => [...prev, loaded.error]);
       } else {
         setCode(loaded.code);
         // Store processed globalsCode from loadFallbackCode result
@@ -136,6 +144,7 @@ function useInitialData({
     variants,
     globalsCode,
     setProcessedGlobalsCode,
+    setErrors,
   ]);
 }
 
@@ -149,6 +158,7 @@ function useAllVariants({
   processedGlobalsCode,
   globalsCode,
   setProcessedGlobalsCode,
+  setErrors,
 }: {
   readyForContent: boolean;
   variants: string[];
@@ -159,6 +169,7 @@ function useAllVariants({
   processedGlobalsCode?: Array<Code>;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  setErrors: React.Dispatch<React.SetStateAction<Error[]>>;
 }) {
   const { loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
 
@@ -175,85 +186,92 @@ function useAllVariants({
     // TODO: abort controller
 
     (async () => {
-      let loadedCode = code;
-      if (!loadedCode) {
-        if (!loadCodeMeta) {
-          throw new Error('"loadCodeMeta" function is required when no code is provided');
+      try {
+        let loadedCode = code;
+        if (!loadedCode) {
+          if (!loadCodeMeta) {
+            throw new Error('"loadCodeMeta" function is required when no code is provided');
+          }
+
+          loadedCode = await loadCodeMeta(url);
         }
 
-        loadedCode = await loadCodeMeta(url);
-      }
-
-      // Use the already-processed globalsCode from state, or process it if not available
-      let globalsCodeObjects: Array<Code> = [];
-      if (processedGlobalsCode) {
-        // Use the already-processed globalsCode from state
-        globalsCodeObjects = processedGlobalsCode;
-      } else if (globalsCode && globalsCode.length > 0) {
-        // Process globalsCode: load any string URLs into Code objects
-        globalsCodeObjects = await Promise.all(
-          globalsCode.map(async (item) => {
-            if (typeof item === 'string') {
-              // Load Code object from URL string
-              if (!loadCodeMeta) {
-                throw new Error(
-                  '"loadCodeMeta" function is required for string URLs in globalsCode',
-                );
+        // Use the already-processed globalsCode from state, or process it if not available
+        let globalsCodeObjects: Array<Code> = [];
+        if (processedGlobalsCode) {
+          // Use the already-processed globalsCode from state
+          globalsCodeObjects = processedGlobalsCode;
+        } else if (globalsCode && globalsCode.length > 0) {
+          // Process globalsCode: load any string URLs into Code objects
+          globalsCodeObjects = await Promise.all(
+            globalsCode.map(async (item) => {
+              if (typeof item === 'string') {
+                // Load Code object from URL string
+                if (!loadCodeMeta) {
+                  throw new Error(
+                    '"loadCodeMeta" function is required for string URLs in globalsCode',
+                  );
+                }
+                return loadCodeMeta(item);
               }
-              return loadCodeMeta(item);
-            }
-            // Already a Code object
-            return item;
+              // Already a Code object
+              return item;
+            }),
+          );
+          // Store processed globalsCode in state for future use
+          setProcessedGlobalsCode(globalsCodeObjects);
+        }
+
+        // Load variant data without parsing or transforming
+        const result = await Promise.all(
+          variants.map((name) => {
+            // Resolve globalsCode for this specific variant
+            const globalsForVariant = globalsCodeObjects
+              .map((codeObj: Code) => {
+                // Only include if this variant exists in the globalsCode
+                return codeObj[name];
+              })
+              .filter((item: any): item is VariantCode | string => Boolean(item));
+
+            return loadVariant(
+              url,
+              name,
+              loadedCode[name],
+              undefined, // sourceParser - skip parsing
+              loadSource,
+              loadVariantMeta,
+              undefined, // sourceTransformers - skip transforming
+              {
+                disableParsing: true,
+                disableTransforms: true,
+                globalsCode: globalsForVariant,
+              },
+            )
+              .then((variant) => ({ name, variant }))
+              .catch((error) => ({ error }));
           }),
         );
-        // Store processed globalsCode in state for future use
-        setProcessedGlobalsCode(globalsCodeObjects);
-      }
 
-      // Load variant data without parsing or transforming
-      const result = await Promise.all(
-        variants.map((name) => {
-          // Resolve globalsCode for this specific variant
-          const globalsForVariant = globalsCodeObjects
-            .map((codeObj: Code) => {
-              // Only include if this variant exists in the globalsCode
-              return codeObj[name];
-            })
-            .filter((item: any): item is VariantCode | string => Boolean(item));
-
-          return loadVariant(
-            url,
-            name,
-            loadedCode[name],
-            undefined, // sourceParser - skip parsing
-            loadSource,
-            loadVariantMeta,
-            undefined, // sourceTransformers - skip transforming
-            {
-              disableParsing: true,
-              disableTransforms: true,
-              globalsCode: globalsForVariant,
-            },
-          )
-            .then((variant) => ({ name, variant }))
-            .catch((error) => ({ error }));
-        }),
-      );
-
-      const resultCode: Code = {};
-      const errors: Error[] = [];
-      for (const item of result) {
-        if ('error' in item) {
-          errors.push(item.error);
-        } else {
-          resultCode[item.name] = item.variant.code;
+        const resultCode: Code = {};
+        const errors: Error[] = [];
+        for (const item of result) {
+          if ('error' in item) {
+            errors.push(item.error);
+          } else {
+            resultCode[item.name] = item.variant.code;
+          }
         }
-      }
 
-      if (errors.length > 0) {
-        // TODO: handle error
-      } else {
-        setCode(resultCode);
+        if (errors.length > 0) {
+          console.error('CodeHighlighterClient: Failed to load variants', errors);
+          // Add individual errors for specific error reporting
+          setErrors((prev) => [...prev, ...errors]);
+        } else {
+          setCode(resultCode);
+        }
+      } catch (error) {
+        console.error('CodeHighlighterClient: Failed to load all variants', error);
+        setErrors((prev) => [...prev, error instanceof Error ? error : new Error(String(error))]);
       }
     })();
   }, [
@@ -269,6 +287,7 @@ function useAllVariants({
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
+    setErrors,
   ]);
 
   return { readyForContent };
@@ -667,6 +686,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     undefined,
   );
 
+  // Error state for handling various loading and processing errors
+  const [errors, setErrors] = React.useState<Error[]>([]);
+
   // TODO: if using props.variant, then the variant is controlled and we can't use our own state
   // does props.variant make any sense instead of controlledSelection?.variant?
   const [selection, setSelection] = React.useState<Selection>({
@@ -698,6 +720,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     isControlled,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
+    setErrors,
   });
 
   const readyForContent = React.useMemo(() => {
@@ -734,6 +757,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     processedGlobalsCode,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
+    setErrors,
   });
 
   // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
@@ -806,6 +830,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      setErrors,
     }),
     [
       overlaidCode,
@@ -819,12 +844,24 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      setErrors,
     ],
   );
 
   if (!props.variants && !props.components && !activeCode) {
     throw new Error(
       'CodeHighlighterClient requires either `variants`, `components`, or `code` to be provided.',
+    );
+  }
+
+  const errorsContextValue = React.useMemo(() => ({ errors }), [errors]);
+
+  // If there are errors and an errorHandler, show the errorHandler
+  if (errors.length > 0 && props.errorHandler) {
+    return (
+      <CodeErrorsContext.Provider value={errorsContextValue}>
+        {props.errorHandler}
+      </CodeErrorsContext.Provider>
     );
   }
 

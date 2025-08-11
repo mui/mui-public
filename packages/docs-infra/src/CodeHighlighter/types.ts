@@ -83,7 +83,10 @@ export type BaseContentLoadingProps = ContentLoadingVariant & {
 };
 export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps & T;
 
-type ErrorHandler = React.ComponentType<{ error: Error }>;
+export type ErrorHandlerProps = {
+  errors?: Error[];
+};
+export type ErrorHandler = React.ComponentType<ErrorHandlerProps>;
 
 interface CodeHighlighterBaseProps {
   name?: string;
