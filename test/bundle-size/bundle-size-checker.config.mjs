@@ -30,5 +30,6 @@ export default defineConfig(async () => {
       '@base-ui-components/react/checkbox',
       '@base-ui-components/react/checkbox#Checkbox',
     ],
+    upload: !!process.env.CI,
   };
 });

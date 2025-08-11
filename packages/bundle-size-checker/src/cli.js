@@ -171,6 +171,9 @@ async function run(argv) {
       // Exit with error code to indicate failure
       process.exit(1);
     }
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('No upload configuration provided, skipping upload.');
   }
 }
 
