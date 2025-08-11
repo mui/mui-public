@@ -66,6 +66,7 @@ type BaseContentProps = {
   code?: Code;
   components?: Components;
   url?: string;
+  variantType?: string;
 };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
@@ -82,7 +83,10 @@ export type BaseContentLoadingProps = ContentLoadingVariant & {
 };
 export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps & T;
 
-type ErrorHandler = React.ComponentType<{ error: Error }>;
+export type ErrorHandlerProps = {
+  errors?: Error[];
+};
+export type ErrorHandler = React.ComponentType<ErrorHandlerProps>;
 
 interface CodeHighlighterBaseProps {
   name?: string;
@@ -90,6 +94,7 @@ interface CodeHighlighterBaseProps {
   code?: Code;
   globalsCode?: Array<Code | string>;
   components?: Components; // TODO: rename to preview
+  variantType?: string;
   variants?: string[];
   variant?: string;
   fileName?: string;

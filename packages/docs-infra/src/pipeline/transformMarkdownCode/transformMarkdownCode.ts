@@ -17,18 +17,18 @@ import type { Code, Parent } from 'mdast';
  * yarn add @mui/internal-docs-infra
  * ```
  *
- * OR with variant-group (with labels between):
+ * OR with variant-type (with labels between):
  *
  * npm
- * ```bash variant-group=install
+ * ```bash variant-type=install
  * npm install @mui/internal-docs-infra
  * ```
  * pnpm
- * ```bash variant-group=install
+ * ```bash variant-type=install
  * pnpm install @mui/internal-docs-infra
  * ```
  * yarn
- * ```bash variant-group=install
+ * ```bash variant-type=install
  * yarn add @mui/internal-docs-infra
  * ```
  *
@@ -55,7 +55,7 @@ import type { Code, Parent } from 'mdast';
  * Parse meta string to extract variant and other properties
  */
 function parseMeta(meta: string) {
-  const result: { variant?: string; variantGroup?: string; props: Record<string, string> } = {
+  const result: { variant?: string; variantType?: string; props: Record<string, string> } = {
     props: {},
   };
 
@@ -76,8 +76,8 @@ function parseMeta(meta: string) {
 
     if (key === 'variant') {
       result.variant = value;
-    } else if (key === 'variant-group') {
-      result.variantGroup = value;
+    } else if (key === 'variant-type') {
+      result.variantType = value;
     } else {
       result.props[key] = value;
     }
@@ -100,9 +100,9 @@ function parseMeta(meta: string) {
     if (part === 'variant') {
       // This shouldn't happen, but just in case
       result.variant = 'true';
-    } else if (part === 'variant-group') {
+    } else if (part === 'variant-type') {
       // This shouldn't happen, but just in case
-      result.variantGroup = 'true';
+      result.variantType = 'true';
     } else {
       // Handle standalone flags (e.g., "transform" becomes "transform": "true")
       result.props[part] = 'true';
@@ -142,8 +142,8 @@ export const transformMarkdownCode: Plugin = () => {
           langFromMeta = null;
         }
 
-        // Check if we have variants/variant-groups or individual options
-        let metaData: { variant?: string; variantGroup?: string; props: Record<string, string> } = {
+        // Check if we have variants/variant-types or individual options
+        let metaData: { variant?: string; variantType?: string; props: Record<string, string> } = {
           props: {},
         };
 
@@ -155,7 +155,7 @@ export const transformMarkdownCode: Plugin = () => {
         const allProps = metaData.props;
 
         // Handle individual code blocks with options (but no variants)
-        if (!metaData.variant && !metaData.variantGroup && Object.keys(allProps).length > 0) {
+        if (!metaData.variant && !metaData.variantType && Object.keys(allProps).length > 0) {
           // Create a simple pre/code element for individual blocks with options
           const hProperties: Record<string, any> = {};
 
@@ -207,12 +207,12 @@ export const transformMarkdownCode: Plugin = () => {
           return;
         }
 
-        // Handle variant/variant-group logic (existing code)
+        // Handle variant/variant-type logic (existing code)
         if (!metaString) {
           return;
         }
 
-        if (metaData.variant || metaData.variantGroup) {
+        if (metaData.variant || metaData.variantType) {
           // Collect consecutive code blocks that belong together
           const codeBlocks: Array<{
             node: Code;
@@ -225,11 +225,11 @@ export const transformMarkdownCode: Plugin = () => {
 
           let currentIndex = index;
 
-          // For variant-group, look for pattern: [label] -> code block
+          // For variant-type, look for pattern: [label] -> code block
           // For variant, look for adjacent code blocks only
 
-          if (metaData.variantGroup) {
-            // Add the current code block as the first one for variant-group
+          if (metaData.variantType) {
+            // Add the current code block as the first one for variant-type
             let currentLabelFromPrevious: string | undefined;
             if (index > 0) {
               const prevNode = parentNode.children[index - 1] as any;
@@ -245,7 +245,7 @@ export const transformMarkdownCode: Plugin = () => {
             codeBlocks.push({
               node: codeNode,
               index,
-              variant: currentLabelFromPrevious || metaData.variantGroup || 'default',
+              variant: currentLabelFromPrevious || metaData.variantType || 'default',
               props: allProps,
               actualLang: langFromMeta,
               labelFromPrevious: currentLabelFromPrevious,
@@ -255,7 +255,7 @@ export const transformMarkdownCode: Plugin = () => {
             // Start looking from the next element
             currentIndex = index + 1;
 
-            // Collect all blocks with the same variant-group
+            // Collect all blocks with the same variant-type
             while (currentIndex < parentNode.children.length) {
               const currentNode = parentNode.children[currentIndex] as any;
 
@@ -269,7 +269,7 @@ export const transformMarkdownCode: Plugin = () => {
                 if (currentIndex + 1 < parentNode.children.length) {
                   const nextNode = parentNode.children[currentIndex + 1] as any;
                   if (nextNode.type === 'code') {
-                    // Check if this code block has the same variant-group
+                    // Check if this code block has the same variant-type
                     let nextMetaString = nextNode.meta;
                     let nextActualLang = nextNode.lang;
 
@@ -281,13 +281,13 @@ export const transformMarkdownCode: Plugin = () => {
                     if (nextMetaString) {
                       const nextMetaData = parseMeta(nextMetaString);
 
-                      if (nextMetaData.variantGroup === metaData.variantGroup) {
+                      if (nextMetaData.variantType === metaData.variantType) {
                         const labelFromPrevious = currentNode.children[0].value.trim();
 
                         codeBlocks.push({
                           node: nextNode,
                           index: currentIndex + 1,
-                          variant: labelFromPrevious || nextMetaData.variantGroup || 'default',
+                          variant: labelFromPrevious || nextMetaData.variantType || 'default',
                           props: nextMetaData.props,
                           actualLang: nextActualLang,
                           labelFromPrevious,
@@ -319,7 +319,7 @@ export const transformMarkdownCode: Plugin = () => {
                 if (currentMetaString) {
                   const currentMetaData = parseMeta(currentMetaString);
 
-                  if (currentMetaData.variantGroup === metaData.variantGroup) {
+                  if (currentMetaData.variantType === metaData.variantType) {
                     // Look for label before this code block
                     let labelFromPrevious: string | undefined;
                     if (currentIndex > 0) {
@@ -336,7 +336,7 @@ export const transformMarkdownCode: Plugin = () => {
                     codeBlocks.push({
                       node: currentNode,
                       index: currentIndex,
-                      variant: labelFromPrevious || currentMetaData.variantGroup || 'default',
+                      variant: labelFromPrevious || currentMetaData.variantType || 'default',
                       props: currentMetaData.props,
                       actualLang: currentActualLang,
                       labelFromPrevious,

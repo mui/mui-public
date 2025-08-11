@@ -97,11 +97,13 @@ function formatMarkdownTable(columns, data) {
   const separators = alignments.map((align) => {
     switch (align) {
       case 'center':
-        return ':----------:';
+        return ':---------:';
       case 'right':
         return '----------:';
+      case 'left':
+        return ':----------';
       default:
-        return '----------';
+        return '-----------';
     }
   });
   table += `|${separators.join('|')}|\n`;
@@ -141,9 +143,9 @@ export function renderMarkdownReportContent(
 
     markdownContent += formatMarkdownTable(
       [
-        { field: 'id', header: 'Bundle' },
-        { field: 'parsed', header: 'Parsed Size', align: 'right' },
-        { field: 'gzip', header: 'Gzip Size', align: 'right' },
+        { field: 'id', header: 'Bundle', align: 'left' },
+        { field: 'parsed', header: 'Parsed size', align: 'right' },
+        { field: 'gzip', header: 'Gzip size', align: 'right' },
       ],
       trackedEntries.map(({ id, parsed, gzip }) => ({
         id,

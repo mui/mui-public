@@ -1,10 +1,11 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
-import useLocalStorageState from '../useLocalStorageState';
+import { usePreference } from '../usePreference';
 
 interface UseVariantSelectionProps {
   effectiveCode: Code;
   initialVariant?: string;
+  variantType?: string;
 }
 
 export interface UseVariantSelectionResult {
@@ -21,6 +22,7 @@ export interface UseVariantSelectionResult {
 export function useVariantSelection({
   effectiveCode,
   initialVariant,
+  variantType,
 }: UseVariantSelectionProps): UseVariantSelectionResult {
   // Get variant keys from effective code
   const variantKeys = React.useMemo(() => {
@@ -30,17 +32,8 @@ export function useVariantSelection({
     });
   }, [effectiveCode]);
 
-  // Generate storage key from sorted variant keys (only for multiple variants)
-  const storageKey = React.useMemo(() => {
-    if (variantKeys.length <= 1) {
-      return null; // Don't use localStorage for single variants - no choice to remember
-    }
-    const sortedKeys = [...variantKeys].sort();
-    return `_docs_infra_variant_prefs_${sortedKeys.join(':')}`;
-  }, [variantKeys]);
-
   // Use localStorage hook for variant persistence - this is our single source of truth
-  const [storedValue, setStoredValue] = useLocalStorageState(storageKey, () => {
+  const [storedValue, setStoredValue] = usePreference('variant', variantType || variantKeys, () => {
     // Don't use initialVariant as the fallback - localStorage should take precedence
     // We'll handle the initial variant separately in the selectedVariantKey logic
     return null;

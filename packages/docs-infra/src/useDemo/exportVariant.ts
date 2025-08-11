@@ -106,20 +106,21 @@ export function defaultHtmlTemplate({
   title: string;
   description: string;
   head?: string;
-  entrypoint: string;
+  entrypoint?: string;
 }): string {
-  return `<!doctype html>
+  return `<!DOCTYPE html>
 <html lang="${language}">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
     <title>${title}</title>
-    <meta name="description" content="${description}" />${head ? `\n    ${head}` : ''}
+    ${description ? `<meta name="description" content="${description}" />` : ''}
+    <meta name="viewport" content="initial-scale=1, width=device-width" />${head ? `\n    ${head.split('\n').join('\n    ')}` : ''}
   </head>
   <body>
     <div id="root"></div>${entrypoint ? `\n    <script type="module" src="${entrypoint}"></script>` : ''}
   </body>
-</html>`;
+</html>
+`;
 }
 
 export interface ExportConfig {
@@ -166,7 +167,7 @@ export interface ExportConfig {
     title: string;
     description: string;
     head?: string;
-    entrypoint: string;
+    entrypoint?: string;
     variant?: VariantCode;
     variantName?: string;
   }) => string;
@@ -196,6 +197,8 @@ export interface ExportConfig {
   packageJsonFields?: Record<string, any>;
   /** Extra tsconfig.json options to merge */
   tsconfigOptions?: Record<string, any>;
+  /** Vite configuration options */
+  viteConfig?: Record<string, any>;
   /** Whether to include TypeScript configuration files */
   useTypescript?: boolean;
   /** Custom metadata files to add */
@@ -205,6 +208,10 @@ export interface ExportConfig {
    * When true, skips generating index.html and entrypoint files
    */
   frameworkHandlesEntrypoint?: boolean;
+  /**
+   * Whether to skip adding the JavaScript link in the HTML
+   */
+  htmlSkipJsLink?: boolean;
   /** Framework-specific files that override default files (index.html, entrypoint, etc.) */
   frameworkFiles?: { variant?: VariantCode; globals?: VariantExtraFiles };
   /**
@@ -277,6 +284,7 @@ export function exportVariant(
     sourcePrefix = 'src/',
     assetPrefix = '',
     frameworkHandlesEntrypoint = false,
+    htmlSkipJsLink = false,
     htmlTemplate,
     headTemplate,
     rootIndexTemplate,
@@ -286,6 +294,7 @@ export function exportVariant(
     packageType,
     packageJsonFields = {},
     tsconfigOptions = {},
+    viteConfig = {},
     useTypescript = false,
     extraMetadataFiles = {},
     frameworkFiles = {},
@@ -307,10 +316,12 @@ export function exportVariant(
     const transformed = transformVariant(processedVariantCode, variantName, processedGlobals);
     if (transformed) {
       // Re-extract metadata after transformation
-      const result = extractMetadata(transformed.variant || variantCode);
-      processedVariantCode = result.variant;
-      // Combine metadata from extraction with transformed globals
-      processedGlobals = { ...result.metadata, ...transformed.globals };
+      const result = transformed.variant && extractMetadata(transformed.variant);
+      processedVariantCode = result?.variant || processedVariantCode;
+
+      // Start fresh with only the new metadata and explicitly transformed globals
+      // Do NOT merge with the original processedGlobals to avoid duplication
+      processedGlobals = { ...result?.metadata, ...transformed.globals };
     }
   }
 
@@ -354,7 +365,7 @@ export function exportVariant(
 
   // The main entrypoint is always src/index.tsx (or .jsx)
   const mainEntrypointFilename = `index.${ext}`;
-  const entrypoint = `${sourcePrefix}${mainEntrypointFilename}`;
+  const entrypoint = !htmlSkipJsLink ? `${sourcePrefix}${mainEntrypointFilename}` : undefined;
 
   // Get relative import path for the main component
   let importPath: string;
@@ -452,7 +463,7 @@ export function exportVariant(
   };
 
   metadataFiles['package.json'] = {
-    source: JSON.stringify(packageJson, null, 2),
+    source: `${JSON.stringify(packageJson, null, 2)}\n`,
   };
 
   // Generate entrypoint and HTML files unless framework handles them
@@ -466,7 +477,8 @@ ReactDOM.createRoot(document.getElementById('root')${useTypescript ? '!' : ''}).
   <React.StrictMode>
     <App />
   </React.StrictMode>
-);`;
+);
+`;
 
     const entrypointContent = rootIndexTemplate
       ? rootIndexTemplate({
@@ -484,13 +496,14 @@ ReactDOM.createRoot(document.getElementById('root')${useTypescript ? '!' : ''}).
   if (!isFramework) {
     const viteConfigContent = `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { externalsToPackages } from '../loaderUtils/externalsToPackages';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   define: { 'process.env': {} },
-});`;
+  ...${JSON.stringify(viteConfig, null, 2).split('\n').join('\n  ')}
+});
+`;
 
     metadataFiles[`vite.config.${useTypescript ? 'ts' : 'js'}`] = {
       source: viteConfigContent,
@@ -535,7 +548,7 @@ export default defineConfig({
       };
 
       metadataFiles['tsconfig.json'] = {
-        source: JSON.stringify(defaultTsConfig, null, 2),
+        source: `${JSON.stringify(defaultTsConfig, null, 2)}\n`,
       };
     }
 
@@ -554,7 +567,7 @@ export default defineConfig({
       };
 
       metadataFiles['tsconfig.node.json'] = {
-        source: JSON.stringify(nodeTsConfig, null, 2),
+        source: `${JSON.stringify(nodeTsConfig, null, 2)}\n`,
       };
     }
   }

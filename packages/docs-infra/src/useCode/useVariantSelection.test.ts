@@ -59,7 +59,7 @@ describe('useVariantSelection', () => {
       );
 
       // Should read from localStorage with correct key
-      expect(mockGetItem).toHaveBeenCalledWith('_docs_infra_variant_prefs_Alternative:Default');
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:Alternative:Default');
       expect(result.current.selectedVariantKey).toBe('Alternative');
     });
 
@@ -93,7 +93,7 @@ describe('useVariantSelection', () => {
 
       // Should save to localStorage after user selection (no JSON serialization)
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        '_docs_infra_variant_prefs_variant1:variant2',
+        '_docs_variant_pref:variant1:variant2',
         'variant2', // Direct string value
       );
     });
@@ -147,7 +147,7 @@ describe('useVariantSelection', () => {
       };
 
       // Expected storage key should be sorted regardless of input order
-      const expectedKey = '_docs_infra_variant_prefs_Npm:Pnpm:Yarn';
+      const expectedKey = '_docs_variant_pref:Npm:Pnpm:Yarn';
 
       // Test first variant order
       renderHook(() => useVariantSelection({ effectiveCode: effectiveCode1 }));
@@ -184,7 +184,7 @@ describe('useVariantSelection', () => {
 
       // Should save to localStorage (no JSON serialization)
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        '_docs_infra_variant_prefs_Alternative:Default',
+        '_docs_variant_pref:Alternative:Default',
         'Alternative', // Direct string value
       );
     });
@@ -287,6 +287,196 @@ describe('useVariantSelection', () => {
 
       // State remains the same when localStorage fails since useSyncExternalStore
       // doesn't update when the external store (localStorage) fails to change
+      expect(result.current.selectedVariantKey).toBe('Default');
+    });
+  });
+
+  describe('variantType parameter', () => {
+    it('should use variantType for localStorage key when provided', () => {
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: mockGetItem,
+          setItem: mockSetItem,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const effectiveCode = {
+        Default: { source: 'const x = 1;', fileName: 'test.js' },
+        Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+      };
+
+      // Use a custom variantType instead of the actual variant keys
+      renderHook(() => useVariantSelection({ effectiveCode, variantType: 'packageManager' }));
+
+      // Should use the variantType for localStorage key instead of sorted variant keys
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:packageManager');
+    });
+
+    it('should allow sharing preferences across different variant sets with same variantType', () => {
+      // Mock localStorage to return a stored preference
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: mockGetItem,
+          setItem: mockSetItem,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      // Set up localStorage to return 'npm' preference
+      mockGetItem.mockReturnValue('npm');
+
+      // First set of variants (npm, yarn, pnpm)
+      const effectiveCode1 = {
+        npm: { source: 'npm install', fileName: 'install.sh' },
+        yarn: { source: 'yarn install', fileName: 'install.sh' },
+        pnpm: { source: 'pnpm install', fileName: 'install.sh' },
+      };
+
+      const { result: result1 } = renderHook(() =>
+        useVariantSelection({ effectiveCode: effectiveCode1, variantType: 'packageManager' }),
+      );
+
+      // Should read from localStorage and select 'npm'
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:packageManager');
+      expect(result1.current.selectedVariantKey).toBe('npm');
+
+      // Clear previous calls
+      mockGetItem.mockClear();
+
+      // Second set of variants (different names but same variantType)
+      const effectiveCode2 = {
+        npm: { source: 'npm run build', fileName: 'build.sh' },
+        yarn: { source: 'yarn build', fileName: 'build.sh' },
+        pnpm: { source: 'pnpm build', fileName: 'build.sh' },
+      };
+
+      const { result: result2 } = renderHook(() =>
+        useVariantSelection({ effectiveCode: effectiveCode2, variantType: 'packageManager' }),
+      );
+
+      // Should use the same localStorage key and preference
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:packageManager');
+      expect(result2.current.selectedVariantKey).toBe('npm');
+    });
+
+    it('should save selections under variantType key', () => {
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: mockGetItem,
+          setItem: mockSetItem,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const effectiveCode = {
+        npm: { source: 'npm install', fileName: 'install.sh' },
+        yarn: { source: 'yarn install', fileName: 'install.sh' },
+        pnpm: { source: 'pnpm install', fileName: 'install.sh' },
+      };
+
+      const { result } = renderHook(() =>
+        useVariantSelection({ effectiveCode, variantType: 'packageManager' }),
+      );
+
+      // Clear any previous calls
+      vi.clearAllMocks();
+
+      // User selects a variant
+      act(() => {
+        result.current.selectVariant('yarn');
+      });
+
+      // Should save under the variantType key
+      expect(mockSetItem).toHaveBeenCalledWith('_docs_variant_pref:packageManager', 'yarn');
+    });
+
+    it('should fallback to variant keys when variantType is not provided', () => {
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: mockGetItem,
+          setItem: mockSetItem,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const effectiveCode = {
+        Default: { source: 'const x = 1;', fileName: 'test.js' },
+        Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+      };
+
+      // Don't provide variantType - should use variant keys
+      renderHook(() => useVariantSelection({ effectiveCode }));
+
+      // Should use sorted variant keys for localStorage key
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:Alternative:Default');
+    });
+
+    it('should fallback to variant keys when variantType is empty or falsy', () => {
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: mockGetItem,
+          setItem: mockSetItem,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const effectiveCode = {
+        Default: { source: 'const x = 1;', fileName: 'test.js' },
+        Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+      };
+
+      // Use empty string as variantType - should fallback to variant keys
+      const { result } = renderHook(() => useVariantSelection({ effectiveCode, variantType: '' }));
+
+      // Should fallback to using variant keys since empty string is falsy
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:Alternative:Default');
+      expect(result.current.selectedVariantKey).toBe('Default'); // Should fallback to first variant
+    });
+
+    it('should work with single variant and variantType', () => {
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: mockGetItem,
+          setItem: mockSetItem,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const effectiveCode = {
+        Default: { source: 'const x = 1;', fileName: 'test.js' },
+        // Only one variant
+      };
+
+      const { result } = renderHook(() =>
+        useVariantSelection({ effectiveCode, variantType: 'singleType' }),
+      );
+
+      // Should use the variantType even with single variant
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:singleType');
       expect(result.current.selectedVariantKey).toBe('Default');
     });
   });

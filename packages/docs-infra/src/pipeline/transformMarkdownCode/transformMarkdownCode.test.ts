@@ -54,18 +54,18 @@ yarn add @mui/internal-docs-infra
       expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
     });
 
-    it('should transform code blocks with variant-group and labels into grouped HTML elements', () => {
+    it('should transform code blocks with variant-type and labels into grouped HTML elements', () => {
       const markdown = `
 npm
-\`\`\`bash variant-group=install
+\`\`\`bash variant-type=install
 npm install @mui/internal-docs-infra
 \`\`\`
 pnpm
-\`\`\`bash variant-group=install
+\`\`\`bash variant-type=install
 pnpm install @mui/internal-docs-infra
 \`\`\`
 yarn
-\`\`\`bash variant-group=install
+\`\`\`bash variant-type=install
 yarn add @mui/internal-docs-infra
 \`\`\`
 `;
@@ -279,13 +279,13 @@ yarn add @mui/internal-docs-infra
       );
     });
 
-    it('should produce correct HTML for variant-group with labels', () => {
+    it('should produce correct HTML for variant-type with labels', () => {
       const markdown = `npm
-\`\`\`bash variant-group=install
+\`\`\`bash variant-type=install
 npm install @mui/internal-docs-infra
 \`\`\`
 pnpm
-\`\`\`bash variant-group=install
+\`\`\`bash variant-type=install
 pnpm install @mui/internal-docs-infra
 \`\`\``;
 

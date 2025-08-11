@@ -277,4 +277,30 @@ describe('Integration with exportVariant', () => {
     expect(typeof result.rootFile).toBe('string');
     expect(result.rootFile).toMatch(/^src\/.*\.js$/);
   });
+
+  it('should skip JavaScript links in HTML (htmlSkipJsLink behavior)', () => {
+    const result = exportVariantAsCra(mockVariantCode, {
+      title: 'CRA Demo',
+    });
+
+    // Check that HTML file exists
+    const htmlFile = result.exported.extraFiles!['../public/index.html'];
+    expect(htmlFile).toBeDefined();
+
+    if (typeof htmlFile === 'object' && 'source' in htmlFile) {
+      const htmlContent = stringOrHastToString(htmlFile.source!);
+
+      // For CRA, the HTML should NOT include script tags for the entrypoint
+      // because CRA injects them automatically during build
+      expect(htmlContent).not.toContain('<script type="module" src="src/index.');
+      expect(htmlContent).not.toContain('<script src="src/index.');
+
+      // But it should still have the basic HTML structure
+      expect(htmlContent).toContain('<title>CRA Demo</title>');
+      expect(htmlContent).toContain('<div id="root"></div>');
+      expect(htmlContent.toLowerCase()).toContain('<!doctype html>');
+    } else {
+      throw new Error('Expected HTML file to be an object with source property');
+    }
+  });
 });

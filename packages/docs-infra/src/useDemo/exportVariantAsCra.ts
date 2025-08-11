@@ -13,7 +13,7 @@ import { exportVariant, type ExportConfig } from './exportVariant';
  */
 export function exportVariantAsCra(
   variantCode: VariantCode,
-  config: ExportConfig = {},
+  config: Omit<ExportConfig, 'viteConfig' | 'packageType' | 'htmlSkipJsLink'> = {},
 ): { exported: VariantCode; rootFile: string } {
   const {
     title = 'Demo',
@@ -44,6 +44,7 @@ export function exportVariantAsCra(
     description,
     htmlPrefix: 'public/',
     packageType: undefined, // CRA should not have 'type: module'
+    htmlSkipJsLink: true,
     frameworkFiles: {}, // Prevent Vite-specific files from being generated
     devDependencies: craDevDependencies,
     scripts: craScripts,

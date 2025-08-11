@@ -18,6 +18,7 @@ import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
+import { CodeErrorHandler } from './CodeErrorHandler';
 
 // Common props shared across helper functions
 type BaseHelperProps<T extends {}> = Pick<
@@ -26,6 +27,7 @@ type BaseHelperProps<T extends {}> = Pick<
   | 'code'
   | 'components'
   | 'variants'
+  | 'variantType'
   | 'highlightAt'
   | 'Content'
   | 'contentProps'
@@ -64,10 +66,6 @@ interface CodeInitialSourceLoaderProps<T extends {}> extends BaseHelperProps<T> 
 const DEFAULT_HIGHLIGHT_AT = 'stream';
 const DEBUG = false; // Set to true for debugging purposes
 
-function HighlightErrorHandler({ error }: { error: Error }) {
-  return <div>Error: {error.message}</div>;
-}
-
 function createClientProps<T extends {}>(
   props: BaseHelperProps<T> & {
     code?: Code;
@@ -84,8 +82,11 @@ function createClientProps<T extends {}>(
     name: props.name,
     slug: props.slug,
     url: props.url,
+    variantType: props.variantType,
     ...(props.contentProps || {}),
   } as ContentProps<T>;
+
+  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
 
   return {
     url: props.url,
@@ -98,19 +99,24 @@ function createClientProps<T extends {}>(
     initialVariant: props.initialVariant,
     defaultVariant: props.defaultVariant,
     highlightAt: highlightAt || 'init',
-    fallback: props.fallback,
     skipFallback: props.skipFallback,
     controlled: props.controlled,
     name: props.name,
     slug: props.slug,
     // Use processedGlobalsCode if available, otherwise fall back to raw globalsCode
     globalsCode: props.processedGlobalsCode || props.globalsCode,
+
+    // Note: it is important that we render components before passing them to the client
+    // otherwise we will get an error because functions can't be serialized
+    // On the client, in order to send data to these components, we have to set context
+    fallback: props.fallback,
+    errorHandler: <ErrorHandler />,
     children: <props.Content {...contentProps} />,
   };
 }
 
 async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
-  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
 
   // Start with the loaded code from precompute, or load it if needed
   let loadedCode = props.code || props.precompute;
@@ -118,14 +124,16 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
     if (!props.loadCodeMeta) {
       return (
         <ErrorHandler
-          error={new Error('No code provided and "loadCodeMeta" function is not defined')}
+          errors={[new Error('No code provided and "loadCodeMeta" function is not defined')]}
         />
       );
     }
 
     if (!props.url) {
       return (
-        <ErrorHandler error={new Error('URL is required when loading code with "loadCodeMeta"')} />
+        <ErrorHandler
+          errors={[new Error('URL is required when loading code with "loadCodeMeta"')]}
+        />
       );
     }
 
@@ -134,9 +142,11 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
     } catch (error) {
       return (
         <ErrorHandler
-          error={
-            new Error(`Failed to load code from URL: ${props.url}. Error: ${JSON.stringify(error)}`)
-          }
+          errors={[
+            new Error(
+              `Failed to load code from URL: ${props.url}. Error: ${JSON.stringify(error)}`,
+            ),
+          ]}
         />
       );
     }
@@ -151,9 +161,9 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
     if (hasStringUrls && !props.loadCodeMeta) {
       return (
         <ErrorHandler
-          error={
-            new Error('loadCodeMeta function is required when globalsCode contains string URLs')
-          }
+          errors={[
+            new Error('loadCodeMeta function is required when globalsCode contains string URLs'),
+          ]}
         />
       );
     }
@@ -178,7 +188,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
     try {
       processedGlobalsCode = await Promise.all(globalsPromises);
     } catch (error) {
-      return <ErrorHandler error={error as Error} />;
+      return <ErrorHandler errors={[error as Error]} />;
     }
   }
 
@@ -228,11 +238,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   }
 
   if (errors.length > 0) {
-    return (
-      <ErrorHandler
-        error={new Error(`Failed loading code: ${errors.map((err) => err.message).join('\n ')}`)}
-      />
-    );
+    return <ErrorHandler errors={errors} />;
   }
 
   const clientProps = createClientProps({
@@ -253,7 +259,7 @@ function renderCodeHighlighter<T extends {}>(
     processedGlobalsCode?: Array<Code>;
   },
 ) {
-  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
 
   const code = props.code || props.precompute;
   const variants = props.variants || Object.keys(props.components || code || {});
@@ -262,7 +268,7 @@ function renderCodeHighlighter<T extends {}>(
   if (!allCodeVariantsLoaded) {
     if (props.forceClient) {
       return (
-        <ErrorHandler error={new Error('Client only mode requires precomputed source code')} />
+        <ErrorHandler errors={[new Error('Client only mode requires precomputed source code')]} />
       );
     }
 
@@ -337,10 +343,10 @@ function renderWithInitialSource<T extends {}>(
 }
 
 async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoaderProps<T>) {
-  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
 
   if (!props.url) {
-    return <ErrorHandler error={new Error('URL is required for loading initial source')} />;
+    return <ErrorHandler errors={[new Error('URL is required for loading initial source')]} />;
   }
 
   const loaded = await loadFallbackCode(
@@ -359,7 +365,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     props.globalsCode,
   ).catch((error) => ({ error }));
   if ('error' in loaded) {
-    return <ErrorHandler error={loaded.error} />;
+    return <ErrorHandler errors={[loaded.error]} />;
   }
 
   const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } = loaded;
@@ -376,13 +382,13 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
 }
 
 export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
-  const ErrorHandler = props.ErrorHandler || HighlightErrorHandler;
+  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
 
   // Validate mutually exclusive props
   if (props.children && (props.code || props.precompute)) {
     return (
       <ErrorHandler
-        error={new Error('Cannot provide both "children" and "code" or "precompute" props')}
+        errors={[new Error('Cannot provide both "children" and "code" or "precompute" props')]}
       />
     );
   }
@@ -404,7 +410,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   const variants =
     props.variants || Object.keys(props.components || code || props.precompute || {});
   if (variants.length === 0) {
-    return <ErrorHandler error={new Error('No code or components provided')} />;
+    return <ErrorHandler errors={[new Error('No code or components provided')]} />;
   }
 
   // Validate fileName is provided when extraFiles are present
@@ -419,11 +425,11 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
       ) {
         return (
           <ErrorHandler
-            error={
+            errors={[
               new Error(
                 `fileName or url is required for variant "${variantName}" when extraFiles are provided`,
-              )
-            }
+              ),
+            ]}
           />
         );
       }
@@ -436,7 +442,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
       // if the user explicitly sets highlightAt to 'stream', we need a ContentLoading component
       return (
         <ErrorHandler
-          error={new Error('ContentLoading component is required for stream highlighting')}
+          errors={[new Error('ContentLoading component is required for stream highlighting')]}
         />
       );
     }
@@ -450,7 +456,9 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   const initialKey = props.initialVariant || props.variant || props.defaultVariant || 'Default';
   const initial = code?.[initialKey];
   if (!initial && !props.components?.[initialKey]) {
-    return <ErrorHandler error={new Error(`No code or component for variant "${initialKey}"`)} />;
+    return (
+      <ErrorHandler errors={[new Error(`No code or component for variant "${initialKey}"`)]} />
+    );
   }
 
   // TODO: use initial.filesOrder to determing which source to use
@@ -476,18 +484,18 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
       if (highlightAt === 'init') {
         return (
           <ErrorHandler
-            error={
+            errors={[
               new Error(
                 'Client only mode with highlightAt: init requires precomputed and parsed source code',
-              )
-            }
+              ),
+            ]}
           />
         );
       }
 
       // TODO: send directly to client component?
       return (
-        <ErrorHandler error={new Error('Client only mode requires precomputed source code')} />
+        <ErrorHandler errors={[new Error('Client only mode requires precomputed source code')]} />
       );
     }
 

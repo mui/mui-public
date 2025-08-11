@@ -100,6 +100,7 @@ export function useCode<T extends {} = {}>(
   const variantSelection = useVariantSelection({
     effectiveCode,
     initialVariant,
+    variantType: contentProps.variantType,
   });
 
   // Sub-hook: Transform Management

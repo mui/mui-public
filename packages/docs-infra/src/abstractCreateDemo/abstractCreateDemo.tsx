@@ -8,6 +8,7 @@ type CreateDemoMeta = {
   name?: string;
   slug?: string;
   displayName?: string;
+  variantType?: string;
   skipPrecompute?: boolean;
   precompute?: Code;
   CodeExternalsProvider?: React.ComponentType<{ children: React.ReactNode }>;
@@ -19,6 +20,7 @@ type AbstractCreateDemoOptions<T extends {}> = {
   DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
   controlled?: boolean;
   demoGlobalData?: DemoGlobalData[];
+  variantTypes?: Record<string, string>;
 }; // TODO: allow passing any CodeHighlighter prop
 
 export function abstractCreateDemo<T extends {}>(
@@ -28,6 +30,9 @@ export function abstractCreateDemo<T extends {}>(
   meta: CreateDemoMeta | undefined,
 ): React.ComponentType<T> & { Title: React.ComponentType } {
   const demoData = createDemoDataWithVariants(url, variants, meta);
+
+  const variantType =
+    options.variantTypes && options.variantTypes[Object.keys(variants).sort().join(':')];
 
   const globalCode: Array<Code | string> = [];
   if (options.demoGlobalData) {
@@ -49,6 +54,7 @@ export function abstractCreateDemo<T extends {}>(
         url={demoData.url}
         name={demoData.name}
         slug={demoData.slug}
+        variantType={meta?.variantType || variantType}
         precompute={demoData.precompute}
         globalsCode={globalCode}
         components={renderedComponents}
