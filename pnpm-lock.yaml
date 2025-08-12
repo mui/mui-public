@@ -352,7 +352,7 @@ importers:
         specifier: ^5.90.3
         version: 5.94.0
       webpack-bundle-analyzer:
-        specifier: ^4.10.1
+        specifier: ^4.10.2
         version: 4.10.2
       yargs:
         specifier: ^17.7.2
