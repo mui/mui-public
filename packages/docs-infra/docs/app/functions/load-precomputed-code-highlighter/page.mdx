@@ -27,6 +27,9 @@ The loader processes demo files that use the `createDemo` factory pattern, autom
 
 Add the loader to your `next.config.mjs`:
 
+> [!NOTE]
+> The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
+
 ```javascript
 /** @type {import('next').NextConfig} */
 const nextConfig = {
