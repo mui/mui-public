@@ -138,8 +138,7 @@ export async function loadPrecomputedCodeHighlighter(
             externals, // Combined externals from all loaded files
           };
         } catch (error) {
-          console.warn(`Failed to load variant ${variantName} from ${fileUrl}:`, error);
-          return null;
+          throw new Error(`Failed to load variant ${variantName} from ${fileUrl}: ${error}`);
         }
       },
     );
