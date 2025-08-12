@@ -1,4 +1,4 @@
-name: Branch Monitor
+name: Branch monitor
 
 on:
   push:
@@ -18,9 +18,8 @@ jobs:
       issues: write
       checks: read
     timeout-minutes: 60
-
     steps:
-      - name: Monitor Branch Status
+      - name: Monitor branch status
         uses: actions/github-script@v7
         with:
           script: |

@@ -1,5 +1,4 @@
-name: PR Package Releases
-
+name: PR Package releases
 on:
   push:
     branches-ignore:
