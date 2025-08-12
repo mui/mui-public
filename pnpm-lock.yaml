@@ -164,9 +164,6 @@ importers:
       '@toolpad/studio':
         specifier: ^0.12.0
         version: 0.12.0(@types/react@19.1.9)(date-fns@3.6.0)(encoding@0.1.13)(eslint@9.33.0(jiti@2.4.2))(jiti@2.4.2)(luxon@3.6.1)(next@15.3.4(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(terser@5.39.0)(webpack@5.94.0)
-      axios:
-        specifier: ^1.8.2
-        version: 1.11.0(debug@4.4.1)
       dayjs:
         specifier: ^1.11.13
         version: 1.11.13
