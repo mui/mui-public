@@ -6,6 +6,8 @@ on:
       - master
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
