@@ -6,6 +6,316 @@ const restrictedSyntaxRules = restrictedMethods.map((method) => ({
 }));
 
 /**
+ * Critical Airbnb rules missing from individual plugin recommended configs
+ * @type {import('eslint').Linter.Config['rules']}
+ */
+const criticalAirbnbRules = {
+  // Security & Best Practices
+  'no-eval': 'error',
+  'no-script-url': 'error',
+  'array-callback-return': ['error', { allowImplicit: true }],
+  'consistent-return': 'error',
+  eqeqeq: ['error', 'always', { null: 'ignore' }],
+  // 'no-param-reassign': ['error', { props: true }],
+  'guard-for-in': 'error',
+  radix: 'error',
+  // disallow usage of __proto__ property
+  // https://eslint.org/docs/rules/no-proto
+  'no-proto': 'error',
+  'vars-on-top': 'error',
+  // disallow use of labels for anything other than loops and switches
+  // https://eslint.org/docs/rules/no-labels
+  'no-labels': ['error', { allowLoop: false, allowSwitch: false }],
+  // disallow unnecessary nested blocks
+  // https://eslint.org/docs/rules/no-lone-blocks
+  'no-lone-blocks': 'error',
+  // disallow use of new operator when not part of the assignment or comparison
+  // https://eslint.org/docs/rules/no-new
+  'no-new': 'error',
+  // disallow use of new operator for Function object
+  // https://eslint.org/docs/rules/no-new-func
+  'no-new-func': 'error',
+
+  // disallow comparisons where both sides are exactly the same
+  // https://eslint.org/docs/rules/no-self-compare
+  'no-self-compare': 'error',
+  'no-restricted-globals': ['error', 'isFinite', 'isNaN'],
+
+  // Styles
+  // require or disallow an empty line between class members
+  // https://eslint.org/docs/rules/lines-between-class-members
+  'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: false }],
+  // require a capital letter for constructors
+  'new-cap': [
+    'error',
+    {
+      newIsCap: true,
+      newIsCapExceptions: [],
+      capIsNew: false,
+      capIsNewExceptions: ['Immutable.Map', 'Immutable.Set', 'Immutable.List'],
+    },
+  ],
+  // disallow use of unary operators, ++ and --
+  // https://eslint.org/docs/rules/no-plusplus
+  'no-plusplus': 'error',
+  // disallow use of bitwise operators
+  // https://eslint.org/docs/rules/no-bitwise
+  'no-bitwise': 'error',
+  // disallow if as the only statement in an else block
+  // https://eslint.org/docs/rules/no-lonely-if
+  'no-lonely-if': 'error',
+
+  // ES6+ Modern JavaScript
+  'no-var': 'error',
+  'prefer-const': ['error', { destructuring: 'any', ignoreReadBeforeAssign: true }],
+  'prefer-template': 'error',
+  'object-shorthand': ['error', 'always'],
+
+  // Error
+  // Disallow template literal placeholder syntax in regular strings
+  // https://eslint.org/docs/rules/no-template-curly-in-string
+  'no-template-curly-in-string': 'error',
+  // Disallow returning values from Promise executor functions
+  // https://eslint.org/docs/rules/no-promise-executor-return
+  'no-promise-executor-return': 'error',
+
+  // Import rules (critical ones not in recommended)
+  'import/order': ['error', { groups: [['builtin', 'external', 'internal']] }],
+  'import/first': 'error',
+  'import/no-mutable-exports': 'error',
+  'import/newline-after-import': 'error',
+  // https://github.com/import-js/eslint-plugin-import/blob/master/docs/rules/namespace.md
+  'import/namespace': 'off',
+  // Forbid require() calls with expressions
+  // https://github.com/import-js/eslint-plugin-import/blob/master/docs/rules/no-dynamic-require.md
+  'import/no-dynamic-require': 'error',
+
+  // Additional best practices
+  'default-case': ['error', { commentPattern: '^no default$' }],
+  'default-case-last': 'error',
+  'no-else-return': ['error', { allowElseIf: false }],
+  'no-multi-assign': 'error',
+  'no-nested-ternary': 'error',
+  'no-unneeded-ternary': ['error', { defaultAssignment: false }],
+  'spaced-comment': [
+    'error',
+    'always',
+    {
+      line: { markers: ['/'], exceptions: ['-', '+'] },
+      block: { markers: ['*'], exceptions: ['*'], balanced: true },
+    },
+  ],
+  // require all requires be top-level
+  // https://eslint.org/docs/rules/global-require
+  'global-require': 'error',
+  // disallow use of assignment in return statement
+  // https://eslint.org/docs/rules/no-return-assign
+  'no-return-assign': ['error', 'always'],
+  // disallow useless string concatenation
+  // https://eslint.org/docs/rules/no-useless-concat
+  'no-useless-concat': 'error',
+
+  // React
+  // Prevent usage of button elements without an explicit type attribute
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/843d71a432baf0f01f598d7cf1eea75ad6896e4b/docs/rules/button-has-type.md
+  'react/button-has-type': [
+    'error',
+    {
+      button: true,
+      submit: true,
+      reset: false,
+    },
+  ],
+  // Prevent missing displayName in a React component definition
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/display-name.md
+  'react/display-name': ['off', { ignoreTranspilerName: false }],
+  // Enforce a specific function type for function components
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/function-component-definition.md
+  'react/function-component-definition': [
+    'error',
+    {
+      namedComponents: ['function-declaration', 'function-expression'],
+      unnamedComponents: 'function-expression',
+    },
+  ],
+  // Prevent react contexts from taking non-stable values
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/e2eaadae316f9506d163812a09424eb42698470a/docs/rules/jsx-no-constructed-context-values.md
+  'react/jsx-no-constructed-context-values': 'error',
+  // Require stateless functions when not using lifecycle methods, setState or ref
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/prefer-stateless-function.md
+  'react/prefer-stateless-function': ['error', { ignorePureComponents: true }],
+  // Forbids using non-exported propTypes
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/forbid-foreign-prop-types.md
+  // this is intentionally set to "warn". it would be "error",
+  // but it's only critical if you're stripping propTypes in production.
+  'react/forbid-foreign-prop-types': ['warn', { allowInPropTypes: true }],
+  // Validate JSX has key prop when in array or iterator
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-key.md
+  // Turned off because it has too many false positives
+  'react/jsx-key': 'off',
+  // Prevent unused propType definitions
+  // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/no-unused-prop-types.md
+  'react/no-unused-prop-types': [
+    'error',
+    {
+      customValidators: [],
+      skipShapeProps: true,
+    },
+  ],
+};
+
+/**
+ * TypeScript-specific rules (replaces Airbnb TypeScript config)
+ * @type {import('eslint').Linter.Config['rules']}
+ */
+const typescriptOverrides = {
+  // Disable ESLint rules handled by TypeScript compiler
+  'constructor-super': 'off',
+  'getter-return': 'off',
+  'no-const-assign': 'off',
+  'no-dupe-args': 'off',
+  'no-dupe-class-members': 'off',
+  'no-dupe-keys': 'off',
+  'no-func-assign': 'off',
+  'no-import-assign': 'off',
+  'no-new-symbol': 'off',
+  'no-obj-calls': 'off',
+  'no-setter-return': 'off',
+  'no-this-before-super': 'off',
+  'no-undef': 'off',
+  'no-unreachable': 'off',
+  'no-unsafe-negation': 'off',
+  'valid-typeof': 'off',
+
+  'import/no-named-as-default-member': 'off',
+  'import/no-unresolved': 'off',
+
+  // TypeScript equivalents of ESLint rules
+  'default-param-last': 'off',
+  '@typescript-eslint/default-param-last': 'error',
+  'no-array-constructor': 'off',
+  '@typescript-eslint/no-array-constructor': 'error',
+  '@typescript-eslint/triple-slash-reference': 'off',
+  'no-empty-function': 'off',
+  // disallow empty functions, except for standalone funcs/arrows
+  // https://eslint.org/docs/rules/no-empty-function
+  '@typescript-eslint/no-empty-function': [
+    'error',
+    {
+      allow: ['arrowFunctions', 'functions', 'methods'],
+    },
+  ],
+  'no-loss-of-precision': 'error',
+  'no-loop-func': 'off',
+  '@typescript-eslint/no-loop-func': 'error',
+  'no-shadow': 'off',
+  '@typescript-eslint/no-shadow': 'error',
+  'no-unused-expressions': 'off',
+  '@typescript-eslint/no-unused-expressions': [
+    'error',
+    { allowShortCircuit: false, allowTernary: false },
+  ],
+  'no-useless-constructor': 'off',
+  '@typescript-eslint/no-useless-constructor': 'error',
+  'require-await': 'off',
+
+  // TypeScript naming convention (replaces camelcase)
+  camelcase: 'off',
+
+  // The `@typescript-eslint/naming-convention` rule allows `leadingUnderscore` and `trailingUnderscore` settings. However, the existing `no-underscore-dangle` rule already takes care of this.
+  '@typescript-eslint/naming-convention': [
+    'error',
+    // Allow camelCase variables (23.2), PascalCase variables (23.8), and UPPER_CASE variables (23.10)
+    {
+      selector: 'variable',
+      format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
+    },
+    // Allow camelCase functions (23.2), and PascalCase functions (23.8)
+    {
+      selector: 'function',
+      format: ['camelCase', 'PascalCase'],
+    },
+    // Airbnb recommends PascalCase for classes (23.3), and although Airbnb does not make TypeScript recommendations, we are assuming this rule would similarly apply to anything "type like", including interfaces, type aliases, and enums
+    {
+      selector: 'typeLike',
+      format: ['PascalCase'],
+    },
+  ],
+
+  // Namespace rule
+  '@typescript-eslint/no-namespace': 'off',
+  '@typescript-eslint/no-this-alias': 'off',
+
+  // TypeScript extensions handling
+  'import/extensions': [
+    'error',
+    'ignorePackages',
+    {
+      js: 'never',
+      mjs: 'never',
+      jsx: 'never',
+      ts: 'never',
+      tsx: 'never',
+    },
+  ],
+};
+
+/**
+ * @type {import('eslint').Linter.Config['rules']}
+ */
+const airbnbJsxA11y = {
+  // Enforce that all elements that require alternative text have meaningful information
+  // https://github.com/evcohen/eslint-plugin-jsx-a11y/blob/master/docs/rules/alt-text.md
+  'jsx-a11y/alt-text': [
+    'error',
+    {
+      elements: ['img'],
+    },
+  ],
+
+  // ensure <a> tags are valid
+  // https://github.com/evcohen/eslint-plugin-jsx-a11y/blob/0745af376cdc8686d85a361ce36952b1fb1ccf6e/docs/rules/anchor-is-valid.md
+  'jsx-a11y/anchor-is-valid': [
+    'error',
+    {
+      components: ['Link'],
+      specialLink: ['to'],
+      aspects: ['noHref', 'invalidHref', 'preferButton'],
+    },
+  ],
+
+  // Enforce that a control (an interactive element) has a text label.
+  // https://github.com/jsx-eslint/eslint-plugin-jsx-a11y/blob/master/docs/rules/control-has-associated-label.md
+  'jsx-a11y/control-has-associated-label': [
+    'error',
+    {
+      labelAttributes: ['label'],
+      controlComponents: [],
+      ignoreElements: ['audio', 'canvas', 'embed', 'input', 'textarea', 'tr', 'video'],
+      ignoreRoles: [
+        'grid',
+        'listbox',
+        'menu',
+        'menubar',
+        'radiogroup',
+        'row',
+        'tablist',
+        'toolbar',
+        'tree',
+        'treegrid',
+      ],
+      depth: 5,
+    },
+  ],
+
+  // Disallow await inside of loops
+  // https://eslint.org/docs/rules/no-await-in-loop
+  'no-await-in-loop': 'error',
+  // disallow assignment in conditional expressions
+  'no-cond-assign': ['error', 'always'],
+};
+
+/**
  * @param {Object} [options]
  * @param {boolean} [options.reactCompilerEnabled] - Whether the config is for spec files.
  * @returns {import('typescript-eslint').InfiniteDepthConfigWithExtends[]}
@@ -14,7 +324,29 @@ export function createCoreConfig(options = {}) {
   return [
     {
       name: 'material-ui-base',
+      settings: {
+        'import/resolver': {
+          node: {
+            extensions: ['.mjs', '.js', '.json'],
+          },
+          typescript: {
+            project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
+          },
+        },
+        'import/extensions': ['.js', '.mjs', '.jsx', '.ts', '.tsx', '.d.ts'],
+        'import/core-modules': [],
+        'import/ignore': ['node_modules', '\\.(css|svg|json)$'],
+        // Override with TypeScript-specific settings
+        'import/parsers': {
+          '@typescript-eslint/parser': ['.ts', '.tsx'],
+        },
+        // Extend Airbnb extensions with TypeScript
+        'import/external-module-folders': ['node_modules', 'node_modules/@types'],
+      },
       rules: {
+        ...criticalAirbnbRules,
+        ...airbnbJsxA11y,
+        ...typescriptOverrides,
         'no-redeclare': 'off',
         '@typescript-eslint/no-redeclare': 'off',
         'consistent-this': ['error', 'self'],
@@ -39,9 +371,7 @@ export function createCoreConfig(options = {}) {
         'no-throw-literal': 'error',
         // Use the proptype inheritance chain
         'no-prototype-builtins': 'off',
-        'no-return-await': 'error',
         'no-underscore-dangle': 'error',
-        'nonblock-statement-body-position': 'error',
         'prefer-arrow-callback': ['error', { allowNamedFunctions: true }],
         // Destructuring harm grep potential.
         'prefer-destructuring': 'off',

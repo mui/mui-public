@@ -1,14 +1,16 @@
 import { includeIgnoreFile } from '@eslint/compat';
+import eslintJs from '@eslint/js';
 import prettier from 'eslint-config-prettier/flat';
-import reactCompilerPlugin from 'eslint-plugin-react-compiler';
+import importPlugin from 'eslint-plugin-import';
+import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
+import reactPlugin from 'eslint-plugin-react';
+import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import { configs as reactHookConfigs } from 'eslint-plugin-react-hooks';
 import globals from 'globals';
-import * as tseslint from 'typescript-eslint';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as tseslint from 'typescript-eslint';
 
-import { airbnbBaseConfig, airbnbReactConfig } from './airbnb/base.mjs';
-import airbnbTypescript from './airbnb/typescript.mjs';
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
 /**
@@ -36,16 +38,19 @@ export function createBaseConfig(
   return /** @type {import('eslint').Linter.Config[]} */ (
     tseslint.config(
       ...ignoreRules,
-      airbnbBaseConfig,
-      airbnbReactConfig,
-      airbnbTypescript,
+      eslintJs.configs.recommended,
+      importPlugin.flatConfigs.recommended,
+      importPlugin.flatConfigs.react,
+      jsxA11yPlugin.flatConfigs.recommended,
+      reactPlugin.configs.flat.recommended,
       reactHookConfigs.recommended,
-      enableReactCompiler ? reactCompilerPlugin.configs.recommended : {},
+      importPlugin.flatConfigs.typescript,
+      tseslint.configs.recommended,
+      enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
       prettier,
       {
         name: 'typescript-eslint-parser',
         languageOptions: {
-          parser: tseslint.parser,
           ecmaVersion: 7,
           globals: {
             ...globals.es2020,
@@ -54,18 +59,7 @@ export function createBaseConfig(
           },
         },
         plugins: {
-          '@typescript-eslint': tseslint.plugin,
           'material-ui': muiPlugin,
-        },
-        settings: {
-          'import/parsers': {
-            '@typescript-eslint/parser': ['.ts', '.tsx'],
-          },
-          'import/resolver': {
-            typescript: {
-              project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
-            },
-          },
         },
         extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
       },
@@ -82,7 +76,6 @@ export function createBaseConfig(
           ],
         },
       },
-
       // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
       //   * Creates non-portable types in base ui. [1]
       //   * This pattern [2] leads to broken bundling in codesandbox [3].
@@ -94,6 +87,14 @@ export function createBaseConfig(
       {
         rules: {
           '@typescript-eslint/no-namespace': 'error',
+        },
+      },
+      // Part of the migration away from airbnb config. Turned of initially.
+      {
+        rules: {
+          '@typescript-eslint/no-explicit-any': 'off',
+          '@typescript-eslint/no-unsafe-function-type': 'off',
+          '@typescript-eslint/no-empty-object-type': 'off',
         },
       },
     )
