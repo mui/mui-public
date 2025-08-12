@@ -1,6 +1,6 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import prettier from 'eslint-config-prettier/flat';
-import reactCompilerPlugin from 'eslint-plugin-react-compiler';
+import { configs as reactCompilerConfigs } from 'eslint-plugin-react-compiler';
 import { configs as reactHookConfigs } from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
@@ -40,7 +40,7 @@ export function createBaseConfig(
       airbnbReactConfig,
       airbnbTypescript,
       reactHookConfigs.recommended,
-      enableReactCompiler ? reactCompilerPlugin.configs.recommended : {},
+      enableReactCompiler ? reactCompilerConfigs.recommended : {},
       prettier,
       {
         name: 'typescript-eslint-parser',
@@ -58,10 +58,10 @@ export function createBaseConfig(
           'material-ui': muiPlugin,
         },
         settings: {
-          'import/parsers': {
+          'import-x/parsers': {
             '@typescript-eslint/parser': ['.ts', '.tsx'],
           },
-          'import/resolver': {
+          'import-x/resolver': {
             typescript: {
               project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
             },
@@ -72,7 +72,7 @@ export function createBaseConfig(
       {
         files: ['**/*.mjs'],
         rules: {
-          'import/extensions': [
+          'import-x/extensions': [
             'error',
             'ignorePackages',
             {
