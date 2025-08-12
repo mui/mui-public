@@ -681,6 +681,16 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     typeof props.precompute === 'object' ? props.precompute : undefined,
   );
 
+  // Sync code state with precompute prop changes (for hot-reload)
+  React.useEffect(() => {
+    if (typeof props.precompute === 'object') {
+      setCode(props.precompute);
+    } else if (props.precompute === undefined) {
+      // Only reset to undefined if precompute is explicitly undefined
+      setCode(undefined);
+    }
+  }, [props.precompute]);
+
   // State to store processed globalsCode to avoid duplicate loading
   const [processedGlobalsCode, setProcessedGlobalsCode] = React.useState<Array<Code> | undefined>(
     undefined,
