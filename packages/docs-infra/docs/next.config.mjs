@@ -16,6 +16,10 @@ const nextConfig = {
         as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
+      './app/**/types.ts': {
+        as: '*.ts',
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+      },
     },
   },
 };

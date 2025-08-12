@@ -86,6 +86,7 @@
     "rehype-sanitize": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
+    "typescript-api-extractor": "1.0.0-alpha.8",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
