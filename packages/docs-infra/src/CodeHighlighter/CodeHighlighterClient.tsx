@@ -689,14 +689,20 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Error state for handling various loading and processing errors
   const [errors, setErrors] = React.useState<Error[]>([]);
 
+  const activeCode = controlledCode || props.code || code;
+  const variants = React.useMemo(
+    () => props.variants || Object.keys(props.components || activeCode || {}),
+    [props.variants, props.components, activeCode],
+  );
+
   // TODO: if using props.variant, then the variant is controlled and we can't use our own state
   // does props.variant make any sense instead of controlledSelection?.variant?
   const [selection, setSelection] = React.useState<Selection>({
-    variant: props.initialVariant || props.defaultVariant || 'Default',
+    variant: props.initialVariant || props.defaultVariant || variants[0],
   });
 
   const variantName = controlledSelection?.variant || props.variant || selection.variant;
-  const activeCode = controlledCode || props.code || code;
+
   let initialFilename: string | undefined;
   if (typeof activeCode?.[variantName] === 'object') {
     const variant = activeCode[variantName];
@@ -704,7 +710,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }
   const fileName = controlledSelection?.fileName || props.fileName || initialFilename;
 
-  const variants = props.variants || Object.keys(props.components || activeCode || {});
   const { url, highlightAt, fallbackUsesExtraFiles, fallbackUsesAllVariants } = props;
 
   useInitialData({
