@@ -41,8 +41,8 @@ jobs:
             const commitSha = context.sha;
             const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${commitSha}`;
             const commitMessage = context.payload.head_commit.message;
-            const commitAuthor = context.payload.head_commit.author.username 
-              ? `@${context.payload.head_commit.author.username}` 
+            const commitAuthor = context.payload.head_commit.author.username
+              ? `@${context.payload.head_commit.author.username}`
               : context.payload.head_commit.author.name;
             const commitDate = context.payload.head_commit.timestamp;
             console.log(JSON.stringify(context, null, 2));
@@ -96,7 +96,7 @@ jobs:
               // Filter out the current workflow run (this monitor job)
               const currentJobName = process.env.GITHUB_JOB;
               const otherChecks = allChecks.filter(check => check.name !== currentJobName);
-              
+
               console.log(`Filtered out current job '${currentJobName}', ${otherChecks.length} other checks remaining`);
 
               if (otherChecks.length === 0) {
@@ -107,7 +107,7 @@ jobs:
 
               // Check if all other checks are completed
               const otherStates = otherChecks.map(check => check.state);
-              const completedStates = otherStates.filter(s => 
+              const completedStates = otherStates.filter(s =>
                 s === 'success' || s === 'failure' || s === 'error' || s === 'cancelled' || s === 'timed_out' || s === 'skipped'
               );
               const allOtherCompleted = completedStates.length === otherChecks.length;
@@ -180,7 +180,7 @@ jobs:
               issue_number: issueNumber
             });
 
-            const existingFailureComment = comments.find(comment => 
+            const existingFailureComment = comments.find(comment =>
               comment.body.includes(COMMENT_MARKER)
             );
 

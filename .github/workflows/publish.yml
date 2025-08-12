@@ -14,17 +14,14 @@ jobs:
     permissions:
       contents: write # Required for pushing tags and creating releases
       id-token: write # Required for provenance
-
     steps:
       - name: Checkout specific SHA
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sha }}
           fetch-depth: 0 # Fetch full history for proper git operations
-
       - name: Set up pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -32,13 +29,10 @@ jobs:
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Build packages
         run: pnpm run release:build
-
       - name: Publish stable packages with GitHub release
         run: pnpm code-infra publish --github-release --provenance
         env:
