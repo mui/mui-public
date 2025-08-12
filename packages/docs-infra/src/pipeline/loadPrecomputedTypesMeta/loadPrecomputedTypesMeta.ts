@@ -30,20 +30,21 @@ interface LoaderContext {
  */
 export async function loadPrecomputedTypesMeta(this: LoaderContext, source: string): Promise<void> {
   const callback = this.async();
-  // this.cacheable(); TODO: we need parseFromProgram to return all dependencies
+  // this.cacheable(); TODO: we need parseFromProgram to return all dependencies before we can cache
 
   try {
-    // Parse the source to find a single createDemo call
-    const demoCall = await parseCreateFactoryCall(source, this.resourcePath);
+    // Parse the source to find a single createTypesMeta call
+    // TODO: our create factory parser doesn't appear to support external imports
+    const typesMetaCall = await parseCreateFactoryCall(source, this.resourcePath);
 
-    // If no createDemo call found, return the source unchanged
-    if (!demoCall) {
+    // If no createTypesMeta call found, return the source unchanged
+    if (!typesMetaCall) {
       callback(null, source);
       return;
     }
 
     // If skipPrecompute is true, return the source unchanged
-    if (demoCall.options.skipPrecompute) {
+    if (typesMetaCall.options.skipPrecompute) {
       callback(null, source);
       return;
     }
@@ -53,13 +54,14 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     const allDependencies: string[] = [];
 
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
-    const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants);
+    const resolvedVariantMap = await resolveVariantPathsWithFs(typesMetaCall.variants);
 
     // Resolve tsconfig.json relative to the webpack project root (rootContext),
     // with graceful fallbacks to process.cwd().
     const tsconfigCandidates = [
       this.rootContext && path.join(this.rootContext, 'tsconfig.json'),
       path.join(process.cwd(), 'tsconfig.json'),
+      // TODO: what if we need to load the tsconfig.json from an external project?
     ].filter(Boolean) as string[];
 
     const tsconfigPath = tsconfigCandidates.find((p) => p && fs.existsSync(p));
@@ -75,7 +77,7 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
-        const namedExport = demoCall.namedExports[variantName];
+        const namedExport = typesMetaCall.namedExports[variantName];
         const variant: VariantCode | string = fileUrl;
         if (namedExport) {
           const { fileName } = getFileNameFromUrl(variant);
@@ -87,7 +89,8 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
           }
         }
 
-        const moduleInfo: ModuleNode = parseFromProgram(fileUrl.replace('file://', ''), program);
+        const entrypoint = fileUrl.replace('file://', '');
+        const moduleInfo: ModuleNode = parseFromProgram(entrypoint, program);
 
         return {
           variantName,
@@ -96,7 +99,10 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
               [namedExport || 'default']: moduleInfo,
             },
           },
-          dependencies: [],
+          dependencies: [
+            entrypoint, // TODO: parseFromProgram should return a list of imports used within the entrypoint
+            // If the ts parse API doesn't return it, we can try to reuse @mui/internal-docs-infra/loaderUtils
+          ],
         };
       },
     );
@@ -114,7 +120,7 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     }
 
     // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
+    const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
