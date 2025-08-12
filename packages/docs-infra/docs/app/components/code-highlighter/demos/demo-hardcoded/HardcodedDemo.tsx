@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { createParseSource } from '@mui/internal-docs-infra/parseSource';
-import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/transformTypescriptToJavascript';
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
 import { DemoContent } from '../DemoContent';
 
 // Counter component for the demo
@@ -166,7 +166,6 @@ export default Counter;`,
         sourceParser={createParseSource()}
         sourceTransformers={[TypescriptToJavascriptTransformer]}
         name="Counter Component"
-        description="Interactive counter with increment, decrement, and reset functionality"
       />
     </div>
   );

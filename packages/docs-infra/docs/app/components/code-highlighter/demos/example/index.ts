@@ -1,8 +1,8 @@
-import { createDemo } from '../createDemo';
+import { createDemoWithVariants } from '../createDemo';
 import BasicExampleWrapper from './BasicExampleWrapper';
 import VariantsExampleWrapper from './VariantsExampleWrapper';
 
-export const CreateDemoExamples = createDemo(
+export const CreateDemoExamples = createDemoWithVariants(
   import.meta.url,
   {
     Basic: BasicExampleWrapper,

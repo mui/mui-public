@@ -157,7 +157,6 @@ export default GenericForm;`;
         sourceParser={createParseSource()}
         sourceTransformers={[TypescriptToJavascriptTransformer]}
         name="Generic Form Component"
-        description="A reusable TypeScript form component with generics and type safety"
       />
     </div>
   );
