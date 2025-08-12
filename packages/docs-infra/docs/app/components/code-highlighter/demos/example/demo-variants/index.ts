@@ -1,8 +1,8 @@
-import { createDemo } from '../../createDemo';
+import { createDemoWithVariants } from '../../createDemo';
 import RedButton from './RedButton';
 import BlueButton from './BlueButton';
 
-const VariantsExample = createDemo(
+const VariantsExample = createDemoWithVariants(
   import.meta.url,
   {
     Red: RedButton,
@@ -11,7 +11,6 @@ const VariantsExample = createDemo(
   {
     name: 'Button Variants',
     slug: 'button-variants',
-    description: 'Two color variants of a button.',
   },
 );
 

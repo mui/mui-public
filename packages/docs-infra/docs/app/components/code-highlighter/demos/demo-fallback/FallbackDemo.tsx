@@ -34,7 +34,6 @@ export default function FallbackDemo() {
         sourceParser={createParseSource()}
         sourceTransformers={[TypescriptToJavascriptTransformer]}
         name="Async Button Demo"
-        description="Interactive button that demonstrates async operations with loading states"
       />
     </div>
   );
