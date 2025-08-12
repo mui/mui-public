@@ -453,7 +453,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
     });
   }
 
-  const initialKey = props.initialVariant || props.variant || props.defaultVariant || 'Default';
+  const initialKey = props.initialVariant || props.variant || props.defaultVariant || variants[0];
   const initial = code?.[initialKey];
   if (!initial && !props.components?.[initialKey]) {
     return (
