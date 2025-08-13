@@ -1,6 +1,9 @@
 name: Publish Stable Packages
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       sha:
@@ -17,10 +20,10 @@ jobs:
       contents: write # Required for pushing tags and creating releases
       id-token: write # Required for provenance
     steps:
-      - name: Checkout specific SHA
+      - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
-          ref: ${{ inputs.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.sha || github.sha }}
           fetch-depth: 0 # Fetch full history for proper git operations
       - name: Set up pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
@@ -38,5 +41,10 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: pnpm run release:build
-      - name: Publish stable packages with GitHub release
-        run: pnpm code-infra publish --github-release
+      - name: Publish packages
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            pnpm code-infra publish --github-release
+          else
+            pnpm code-infra publish-canary
+          fi
