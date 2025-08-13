@@ -37,6 +37,7 @@
     {
       "matchDepTypes": ["action"],
       "automerge": true,
+      "matchCurrentVersion": "!/^0/",
       "matchUpdateTypes": ["minor", "patch", "digest"]
     },
     {
