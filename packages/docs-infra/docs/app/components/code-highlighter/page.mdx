@@ -1,0 +1,583 @@
+# Code Highlighter
+
+The `CodeHighlighter` component provides a powerful and flexible way to display interactive code examples with syntax highlighting, multiple variants, and live previews.
+It supports both static code blocks and interactive demos with component previews.
+
+## Features
+
+- **Syntax highlighting** with support for multiple languages using [Starry Night](https://github.com/wooorm/starry-night)
+- **Live component previews** alongside code
+- **Multiple Variant** support for showing different implementation styles
+- **Automatic Transformations** from TypeScript to JavaScript
+- **Lazy loading** with fallback content
+- **Lazy syntax highlighting** for performance optimization
+- **Customizable content renderers**
+- **Hybrid rendering** support for build, server, or client-time loading, parsing, and transforming
+- **Webpack integration** for build-time pre-computation
+
+## Basic Usage
+
+Let's start with the fundamentals. `CodeHighlighter` can display simple code blocks with syntax highlighting, perfect for documentation where you just need to show code examples:
+
+import { DemoCodeHighlighterCode } from './demos/code';
+
+<DemoCodeHighlighterCode.Title />
+
+We can use it to highlight code snippets in various languages, like JavaScript, TypeScript, or even CSS.
+
+<DemoCodeHighlighterCode />
+
+But `CodeHighlighter` really shines when you want to combine working React components with their source code. This creates an interactive experience where users can see both the rendered output and the implementation.
+
+import { DemoCodeHighlighterDemo } from './demos/demo';
+
+<DemoCodeHighlighterDemo.Title />
+
+<DemoCodeHighlighterDemo />
+
+## Demo Factory Pattern
+
+To unlock `CodeHighlighter`'s full potential—especially build-time optimization—you'll need to use the factory pattern. This isn't just a convention; it's **required** for precomputation to work.
+
+The factory pattern uses `createDemo()` to structure your demos in a way that the webpack loader can process and cache at build time.
+You implement `createDemo` within your app using [`abstractCreateDemo`](../../functions/abstract-create-demo/page.tsx) to define the structure and behavior of your demos.
+
+### Factory Structure
+
+All demos must use this structure in an `index.ts` file:
+
+```typescript
+// app/components/checkbox/demos/basic/index.ts
+import { createDemo } from '../createDemo';
+import { Checkbox } from './Checkbox';
+
+export const DemoCheckboxBasic = createDemo(import.meta.url, Checkbox);
+```
+
+For multiple variants:
+
+```typescript
+// app/components/checkbox/demos/basic/index.ts
+import { createDemoWithVariants } from '../createDemo';
+import { Checkbox as CssModules } from './css-modules/Checkbox';
+import { Checkbox as Tailwind } from './tailwind/Checkbox';
+
+export const DemoCheckboxBasic = createDemoWithVariants(import.meta.url, { CssModules, Tailwind });
+```
+
+### Demo File Structure
+
+When using the factory pattern with precomputation, organize your demo files like this:
+
+```
+app/components/checkbox/demos/
+  basic/
+    index.ts             # Factory file (processed by webpack loader)
+    Checkbox.tsx         # Component implementation
+    Checkbox.module.css  # Dependencies (auto-loaded)
+```
+
+This follows Next.js' file based routing conventions, similar to how `app/components/checkbox/page.tsx` is built as a "page",
+`app/components/checkbox/demos/basic/index.ts` is built as a "demo".
+
+This also allows demo components to follow internal naming conventions, like `CheckboxBasic.tsx` that has a named export of `CheckboxBasic`, while the demo itself can be loaded by importing `./demos/basic` (without needing to specify the index file).
+
+It allows imports to remain the same when variants are added, e.g. `import { DemoCheckboxBasic } from './demos/basic'` will still work even if the demo is split into multiple variants.
+
+```
+app/components/checkbox/demos/
+  basic/
+    index.ts               # Factory file (processed by webpack loader)
+    tailwind/
+      index.ts             # Simple re-export of the implementation (optional)
+      Checkbox.tsx         # Component implementation
+    css-modules/
+      index.ts             # Simple re-export of the implementation (optional)
+      Checkbox.tsx         # Component implementation
+      Checkbox.module.css  # Dependencies (auto-loaded)
+```
+
+### Webpack Loader Integration
+
+The precomputation is handled by a webpack loader that processes demo files at build time, enabling caching by the contents of the demo index file and all of its dependencies.
+
+> [!NOTE]
+> For detailed information about the webpack loader implementation, configuration, and advanced usage, see the [Precompute Loader Documentation](../../functions/load-precomputed-code-highlighter/page.mdx).
+
+> [!TIP]
+> **Client-Side Implementation**: For client-side loading, highlighting, and transforms, see the [Code Provider Documentation](../code-provider/page.mdx) which provides detailed examples of runtime processing.
+
+**Important**: Precomputation only works:
+
+- [✓] In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
+- [✓] Using `createDemo()`
+- [✓] In both main demos and nested demo examples
+- [x] Not in direct `CodeHighlighter` usage
+- [x] Not in files outside the configured loader pattern
+
+## Advanced Features
+
+Once you've mastered the basics, `CodeHighlighter` offers several powerful features for more sophisticated use cases.
+
+import { DemoCodeHighlighterDemoVariants } from './demos/demo-variants';
+
+<DemoCodeHighlighterDemoVariants.Title />
+
+Sometimes you want to show different approaches to the same problem: CSS Modules versus Tailwind, Hooks or Blocks pattern, or different implementation strategies.
+`CodeHighlighter` makes this seamless with variant switching.
+Your components can even appear differently, but we recommend keeping them as similar as possible to avoid confusion.
+
+<DemoCodeHighlighterDemoVariants />
+
+---
+
+import { CodeTransformations } from './demos/code-transformed';
+
+<CodeTransformations.Title />
+
+One of CodeHighlighter's most powerful features is automatic code transformation. Write your examples in TypeScript, and users can instantly see the JavaScript equivalent:
+
+{/* <CodeTransformations /> */}
+
+---
+
+import { LazyHighlighting } from './demos/code-highlight-idle';
+
+<LazyHighlighting.Title />
+
+For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
+
+{/* <LazyHighlighting /> */}
+
+---
+
+import { FallbackContent } from './demos/demo-fallback';
+
+<FallbackContent.Title />
+
+Good user experience means showing meaningful feedback during loading.
+The fallback is also not provided any data other than the rendered content html and a list of fileNames.
+`CodeHighlighter` supports custom loading components and skeleton loaders:
+
+{/* <FallbackContent /> */}
+
+---
+
+import { ServerSideLoading } from './demos/demo-server-loaded';
+
+<ServerSideLoading.Title />
+
+For more dynamic use cases, you can load code content from external sources or APIs at runtime:
+
+{/* <ServerSideLoading /> */}
+
+---
+
+### Client-Side Rendering
+
+`CodeHighlighter` can also be used on the client side, allowing you to load and parse code dynamically without server-side rendering. This is useful for applications that fetch code from APIs or databases.
+
+You can do so by using the [CodeProvider](../code-provider/page.mdx) component, which provides the necessary context for CodeHighlighter to function correctly on the client.
+
+---
+
+### Controlled Code Editor
+
+`CodeHighlighter` also supports controlled code editors, allowing users to edit code directly in the browser. This is useful for allowing editing code blocks or experimenting with demos.
+
+You can use the [Code Controller](../code-controller/page.mdx) for this purpose, which provides a controlled environment for code editing and state management.
+
+---
+
+## Authoring Recommendations
+
+### Component Name
+
+Demos are exported as `Demo${componentName}${demoName}` e.g. `DemoCheckboxBasic`
+This makes it easy to import a demo by simply typing `<DemoCheckbox`, and your IDE should display a list of existing demos to auto-import.
+
+### Demo Titles
+
+We recommend exporting a `Title` component attached within your `createDemo()` factory.
+This allows us to use an automatically generated title and slug from the URL of the demo index.
+This ensures that the link for the title is consistent with links to files within the demo itself.
+
+e.g. `./app/components/checkbox/demos/advanced-keyboard/index.ts` would generate a title of `Advanced Keyboard` and a slug of `advanced-keyboard`.
+The URL for this demo would be `/components/checkbox#advanced-keyboard` and a file within it could be `/components/checkbox#advanced-keyboard:file.ts`.
+
+Also, when MDX is rendered in GitHub, `<DemoCheckboxAdvancedKeyboard.Title />` will be visible on the page because it contains the dot.
+The import is also visible, so readers on GitHub will see this in the place of a demo:
+
+```mdx
+import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard';
+
+<DemoCheckboxAdvancedKeyboard.Title />
+
+Description of the demo.
+```
+
+If this convention isn't followed, URLs might deviate e.g. `/components/checkbox#advanced-keyboard` might not link to the correct demo.
+
+```mdx
+// This is not recommended
+import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard'
+
+### An Advanced Keyboard Demo
+
+Description of the demo.
+
+<DemoCheckboxAdvancedKeyboard />
+```
+
+This would result in the URL becoming `/components/checkbox#an-advanced-keyboard-demo`, and the file URL being `/components/checkbox#advanced-keyboard:file.ts`, which is not expected.
+
+### Descriptions
+
+The description should be a short, concise explanation of what the demo does or why it shows a useful case.
+It is located directly in the component's docs because it can have rich contents like links, images, or other components.
+Try to avoid referring directly to the demo itself as when viewing the raw markdown, users won't see the code or renderings from the demo.
+Ideally, the reader can picture the demo in their mind without needing to see it.
+
+### Separators
+
+Use horizontal rules (`---`) to separate different sections of the demo. This allows the description of the previous demo to be visually distinct from the next demo.
+
+```mdx
+import { DemoCheckboxBasic } from './demos/basic';
+
+<DemoCheckboxBasic.Title />
+
+Description of the basic demo.
+
+<DemoCheckboxBasic />
+
+---
+
+import { DemoCheckboxAdvanced } from './demos/second-demo';
+
+<DemoCheckboxAdvanced.Title />
+
+Description of the second demo.
+
+<DemoCheckboxAdvanced />
+```
+
+Within GitHub, it will display like this without rendering the demo:
+
+```mdx
+import { DemoCheckboxBasic } from './demos/basic';
+
+<DemoCheckboxBasic.Title />
+
+Description of the basic demo.
+
+---
+
+import { DemoCheckboxAdvanced } from './demos/advanced';
+
+<DemoCheckboxAdvanced.Title />
+
+Description of the advanced demo.
+```
+
+## Build-Time vs Server Rendering vs Client Rendering
+
+> [!NOTE]
+> The [CodeController](../code-controller/page.mdx) works with all three rendering methods.
+
+When rendering a code block, the user should consider the following options based on their use case:
+
+### Build-Time (Recommended)
+
+Use the factory pattern optimal performance:
+
+**Advantages:**
+
+- [✓] Faster initial load times
+- [✓] Isomorphic rendering support
+- [✓] Automatic caching based on dependencies for each demo
+
+**Requirements:**
+
+- Must use `createDemo()` in `index.ts` files
+- Must be in a demo directory structure
+
+### Server Rendering
+
+Use direct `CodeHighlighter` for dynamic content:
+
+**Advantages:**
+
+- [✓] Works with dynamic content
+- [✓] Flexible component structure
+- [✓] Can still benefit from the page level cache
+
+**Trade-offs:**
+
+- [x] Slower initial rendering
+- [x] No per-demo build-time cache
+- [x] Can only be used within a Server Component
+
+### Client Rendering
+
+Use `CodeHighlighter` on the client with [CodeProvider](../code-provider/page.mdx):
+
+**Advantages:**
+
+- [✓] Works with dynamic content fetched on the client
+- [✓] Doesn't require an API or server-side rendering
+- [✓] Can be used anywhere in the app
+- [✓] Flexible component structure
+
+**Trade-offs:**
+
+- [x] Slower initial rendering
+- [x] Requires loading and highlighting functions to be bundled
+- x No automatic caching
+
+## API Reference
+
+### Props
+
+The `CodeHighlighter` component accepts the following props:
+
+#### Required Props
+
+- `Content` (React.ComponentType): Component to render the code content
+
+#### Core Props
+
+- `name` (string): Display name for the demo
+- `slug` (string): URL-friendly identifier
+- `code` (Code): Precomputed code variants
+- `components` (Components): React components for live preview
+- `variants` (string[]): Available code variant names
+- `variant` (string): Currently selected variant
+- `fileName` (string): Display name for the file
+- `url` (string): Unique identifier for the code source
+- `contentProps` (T): Additional props passed to the Content component
+
+#### Variant Control Props
+
+- `initialVariant` (string): Initial variant to display on first render
+- `defaultVariant` (string): Default variant to fall back to
+- `precompute` (Code): Precomputed code for build-time optimization
+- `controlled` (boolean): Enable controlled mode
+- `children` (string): Direct code content (for CodeHighlighterBaseProps)
+
+#### Rendering Props
+
+- `highlightAt` ('init' | 'stream' | 'hydration' | 'idle'): When to highlight code
+  - **Default**: 'stream'
+- `forceClient` (boolean): Force client-side rendering only
+
+#### Loading Props
+
+- `loadCodeMeta` (LoadCodeMeta): Function to load code metadata
+- `loadVariantMeta` (LoadVariantMeta): Function to load variant metadata
+- `loadSource` (LoadSource): Function to load source code
+- `sourceParser` (Promise of ParseSource): Parser for syntax highlighting
+- `sourceTransformers` (SourceTransformer[]): Code transformers
+
+#### Fallback Props
+
+- `ContentLoading` (React.ComponentType): Loading state component
+- `ErrorHandler` (React.ComponentType): Error display component
+- `fallbackUsesExtraFiles` (boolean): Include extra files in fallback
+- `fallbackUsesAllVariants` (boolean): Include all variants in fallback
+
+## Best Practices
+
+1. **Use precompute for static content** - Enables a per-demo cache for faster builds
+2. **Implement proper loading states** - Provide `ContentLoading` for quicker hydration
+3. **Handle errors gracefully** - Use `ErrorHandler` to display meaningful error messages
+4. **Optimize highlight timing** - Use `highlightAt: 'idle'` for non-critical code blocks
+5. **Group related variants** - Keep related code variations together
+
+## Troubleshooting
+
+### Common Issues
+
+**Code not highlighting:**
+
+- Ensure `sourceParser` is provided
+- Check that the code variant exists
+- Verify `highlightAt` timing is appropriate
+
+**Loading states not showing:**
+
+- Provide `ContentLoading` component
+- Use `highlightAt: 'stream'` for loading states
+- Check `fallbackUsesExtraFiles` settings
+
+**Performance issues:**
+
+- Use demo factory pattern for build-time optimization
+- Consider `highlightAt: 'idle'` for non-critical code
+- Implement proper error boundaries
+- Remember: precomputation only works with `createDemo()` in `index.ts` files
+
+**Precomputation not working:**
+
+- Ensure you're using `createDemo()` in an `index.ts` file
+- Verify the file is in the correct path pattern: `./app/**/demos/*/index.ts`
+- Make sure the webpack loader is configured correctly
+
+**Variants not switching:**
+
+- Verify variant names match between `components` and `variants`
+- Check that source transformers are configured correctly
+- Ensure controlled mode is set up properly if needed
+
+## Type Definitions
+
+### Basic Types
+
+```typescript
+// Component mapping for live previews
+type Components = {
+  [key: string]: React.ReactNode;
+};
+
+// Content rendering props (generic)
+type ContentProps<T extends {}> = {
+  name?: string;
+  slug?: string;
+  code?: Code;
+  components?: Components;
+} & T;
+```
+
+### Source Types
+
+```typescript
+// Source can be string, HAST nodes, or serialized HAST
+type VariantSource = string | HastNodes | { hastJson: string };
+
+// Transform definitions with deltas
+type Transforms = Record<
+  string,
+  {
+    delta: Delta;
+    fileName?: string;
+  }
+>;
+```
+
+### File Structure Types
+
+```typescript
+// Extra files for a variant
+type VariantExtraFiles = {
+  [fileName: string]:
+    | string
+    | {
+        source?: VariantSource;
+        transforms?: Transforms;
+        skipTransforms?: boolean;
+      };
+};
+
+// Single variant configuration
+type VariantCode = {
+  fileName?: string;
+  url?: string;
+  source?: VariantSource;
+  extraFiles?: VariantExtraFiles;
+  filesOrder?: string[];
+  transforms?: Transforms;
+  allFilesListed?: boolean;
+  skipTransforms?: boolean;
+};
+
+// Code structure for all variants
+type Code = {
+  [key: string]: undefined | string | VariantCode;
+};
+```
+
+### Controlled Code Types
+
+```typescript
+// Controlled extra files (for editable demos)
+type ControlledVariantExtraFiles = {
+  [fileName: string]: { source: string | null };
+};
+
+// Controlled variant code (for editable demos)
+type ControlledVariantCode = {
+  fileName?: string;
+  url?: string;
+  source?: string | null;
+  extraFiles?: ControlledVariantExtraFiles;
+  filesOrder?: string[];
+};
+
+// Controlled code structure (for editable demos)
+type ControlledCode = {
+  [key: string]: undefined | null | ControlledVariantCode;
+};
+```
+
+### Loading Options
+
+```typescript
+// Options for controlling file loading behavior
+interface LoadFileOptions {
+  /** Disable applying source transformers */
+  disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
+  disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
+  maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
+  loadedFiles?: Set<string>;
+}
+```
+
+### Processing Functions
+
+```typescript
+// Parse source code to HAST nodes
+type ParseSource = (source: string, fileName: string) => HastNodes;
+
+// Transform source code (e.g., TS to JS)
+type TransformSource = (
+  source: string,
+  fileName: string,
+) => Promise<
+  | Record<
+      string,
+      {
+        source: string;
+        fileName?: string;
+      }
+    >
+  | undefined
+>;
+
+// Source transformer configuration
+type SourceTransformer = {
+  extensions: string[];
+  transformer: TransformSource;
+};
+
+type SourceTransformers = Array<SourceTransformer>;
+```
+
+### Loading Functions
+
+```typescript
+// Load source code and extra files
+type LoadSource = (url: string) => Promise<{
+  source: string;
+  extraFiles?: VariantExtraFiles;
+  extraDependencies?: string[];
+}>;
+
+// Load variant-specific metadata
+type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
+
+// Load code metadata from URL
+type LoadCodeMeta = (url: string) => Promise<Code>;
+```
