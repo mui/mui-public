@@ -370,7 +370,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
               path.join(outputDir, 'package.json'),
               JSON.stringify({
                 type: bundle === 'esm' ? 'module' : 'commonjs',
-                sideEffects: packageJson.sideEffects || undefined,
+                sideEffects: packageJson.sideEffects ?? false,
               }),
             ),
           );
