@@ -30,7 +30,7 @@ interface LoaderContext {
  */
 export async function loadPrecomputedTypesMeta(this: LoaderContext, source: string): Promise<void> {
   const callback = this.async();
-  // this.cacheable(); // Now we can cache since we track all dependencies properly
+  this.cacheable();
 
   try {
     // Parse the source to find a single createTypesMeta call

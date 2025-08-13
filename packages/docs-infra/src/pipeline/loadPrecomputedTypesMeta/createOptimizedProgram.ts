@@ -135,14 +135,14 @@ export function createOptimizedProgram(
   // Load the base configuration
   const config = loadConfig(tsconfigPath);
 
+  // Calculate build info file path
+  const buildInfoPath = path.resolve(path.dirname(tsconfigPath), 'tsconfig.tsbuildinfo');
+
   // Create optimized compiler options
   const optimizedOptions: ts.CompilerOptions = {
     ...config.options,
     // Use tsconfig directory as baseUrl if not explicitly set
     baseUrl: config.options.baseUrl || path.dirname(tsconfigPath),
-
-    // Add rootUrl for better path resolution
-    rootUrl: config.options.rootUrl || path.dirname(tsconfigPath),
 
     // Ensure rootDir is set for proper relative path calculations
     rootDir: config.options.rootDir || path.dirname(tsconfigPath),
@@ -157,14 +157,23 @@ export function createOptimizedProgram(
     // Enable incremental compilation for faster subsequent builds
     // This is required for composite projects and beneficial for all projects
     incremental: true,
-    tsBuildInfoFile: './tsconfig.tsbuildinfo',
+    tsBuildInfoFile: buildInfoPath,
   };
 
   // Start with just the entrypoints - TypeScript will resolve imports automatically
   const allFiles = [...entrypoints];
 
   // Create the optimized program
-  const program = ts.createProgram(allFiles, optimizedOptions);
+  const incrementalProgram = ts.createIncrementalProgram({
+    rootNames: allFiles,
+    options: optimizedOptions,
+  });
+
+  const program = incrementalProgram.getProgram();
+
+  // Force the build info to be written by triggering an emit
+  // This is necessary for the .tsbuildinfo file to be created
+  incrementalProgram.emit();
 
   // Check for compilation errors that might indicate missing global types
   const diagnostics = ts.getPreEmitDiagnostics(program);
