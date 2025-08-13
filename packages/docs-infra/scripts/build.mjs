@@ -5,25 +5,17 @@ import path from 'path';
 import { promisify } from 'util';
 import yargs from 'yargs';
 import * as fs from 'fs/promises';
-import { cjsCopy } from './copyFilesUtils.mjs';
 import { getVersionEnvVariables, getWorkspaceRoot } from './utils.mjs';
 
 const exec = promisify(childProcess.exec);
 
 const validBundles = [
-  // build for node using commonJS modules
-  'node',
   // build with a hardcoded target using ES6 modules
   'stable',
 ];
 
-const bundleTypes = {
-  stable: 'module',
-  node: 'commonjs',
-};
-
 async function run(argv) {
-  const { bundle, largeFiles, outDir: outDirBase, verbose, cjsDir } = argv;
+  const { bundle, largeFiles, outDir: outDirBase, verbose } = argv;
 
   if (!validBundles.includes(bundle)) {
     throw new TypeError(
@@ -58,8 +50,7 @@ async function run(argv) {
   const outFileExtension = '.js';
 
   const relativeOutDir = {
-    node: cjsDir,
-    stable: './esm',
+    stable: './',
   }[bundle];
 
   const outDir = path.resolve(outDirBase, relativeOutDir);
@@ -106,22 +97,6 @@ async function run(argv) {
     throw new Error(`'${command}' failed with \n${stderr}`);
   }
 
-  // cjs for reexporting from commons only modules.
-  // If we need to rely more on this we can think about setting up a separate commonjs => commonjs build for .cjs files to .cjs
-  // `--extensions-.cjs --out-file-extension .cjs`
-  await cjsCopy({ from: srcDir, to: outDir });
-
-  // Write a package.json file in the output directory if we are building the stable bundle
-  // or if the output directory is not the root of the package.
-  const shouldWriteBundlePackageJson = bundle === 'stable' || relativeOutDir !== './';
-  if (shouldWriteBundlePackageJson && !argv.skipEsmPkg) {
-    const rootBundlePackageJson = path.join(outDir, 'package.json');
-    await fs.writeFile(
-      rootBundlePackageJson,
-      JSON.stringify({ type: bundleTypes[bundle], sideEffects: packageJson.sideEffects }),
-    );
-  }
-
   if (verbose) {
     // eslint-disable-next-line no-console
     console.log(stdout);
@@ -148,11 +123,6 @@ yargs(process.argv.slice(2))
           default: false,
           describe:
             "Set to `true` if you don't want to generate a package.json file in the /esm folder.",
-        })
-        .option('cjsDir', {
-          default: './',
-          type: 'string',
-          description: 'The directory to copy the cjs files to.',
         })
         .option('out-dir', { default: './build', type: 'string' })
         .option('verbose', { type: 'boolean' });

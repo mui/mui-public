@@ -15,12 +15,12 @@ export function useCopier(contents: (() => string | undefined) | string, opts?: 
   const { onCopied, onError, onClick, timeout = 2000 } = opts || {};
 
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [disabled, setDisabled] = React.useState(false);
+  const [recentlySuccessful, setRecentlySuccessful] = React.useState(false);
 
   const copy = React.useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       clearTimeout(copyTimeoutRef.current);
-      setDisabled(true);
+      setRecentlySuccessful(false);
 
       try {
         const content = typeof contents === 'function' ? contents() : contents;
@@ -37,11 +37,11 @@ export function useCopier(contents: (() => string | undefined) | string, opts?: 
 
       copyTimeoutRef.current = setTimeout(() => {
         clearTimeout(copyTimeoutRef.current);
-        setDisabled(false);
+        setRecentlySuccessful(false);
       }, timeout);
     },
     [contents, timeout, onCopied, onError, onClick],
   );
 
-  return { copy, disabled };
+  return { copy, recentlySuccessful };
 }

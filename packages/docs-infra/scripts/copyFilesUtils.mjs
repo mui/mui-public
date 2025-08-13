@@ -178,8 +178,8 @@ export async function createPackageFile(useEsmExports = false) {
         private: false,
         ...(packageDataOther.main
           ? {
-              main: './index.js',
-              module: './esm/index.js',
+              type: 'module',
+              module: './index.js',
             }
           : {}),
         exports: packageExports,
@@ -189,11 +189,9 @@ export async function createPackageFile(useEsmExports = false) {
         private: false,
         ...(packageDataOther.main
           ? {
-              main: fse.existsSync(path.resolve(buildPath, './node/index.js'))
-                ? './node/index.js'
-                : './index.js',
-              module: fse.existsSync(path.resolve(buildPath, './esm/index.js'))
-                ? './esm/index.js'
+              type: 'module',
+              module: fse.existsSync(path.resolve(buildPath, './index.js'))
+                ? './index.js'
                 : './index.js',
             }
           : {}),
