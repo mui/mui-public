@@ -18,7 +18,6 @@ import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
  * @typedef {Object} Args
  * @property {boolean} dry-run Run in dry-run mode without publishing
  * @property {boolean} no-git-checks - Skip git checks before publishing
- * @property {boolean} provenance - Enable provenance tracking for the publish
  */
 
 /**
@@ -271,24 +270,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip git checks before publishing',
-      })
-      .option('provenance', {
-        type: 'boolean',
-        default: false,
-        description: 'Enable provenance tracking for the publish',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, provenance = false, githubRelease = false } = argv;
+    const { dryRun = false, githubRelease = false } = argv;
 
-    const options = { dryRun, provenance };
+    const options = { dryRun };
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
-    }
-
-    if (provenance) {
-      console.log('🔐 Provenance enabled - packages will include provenance information\n');
     }
 
     // Get all packages

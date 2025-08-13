@@ -14,7 +14,6 @@ import * as semver from 'semver';
 /**
  * @typedef {Object} Args
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
- * @property {boolean} [provenance] - Whether to include provenance information
  */
 
 import {
@@ -181,29 +180,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'publish-canary',
   describe: 'Publish canary packages to npm',
   builder: (yargs) => {
-    return yargs
-      .option('dry-run', {
-        type: 'boolean',
-        default: false,
-        description: 'Run in dry-run mode without publishing',
-      })
-      .option('provenance', {
-        type: 'boolean',
-        default: false,
-        description: 'Include provenance information in published packages',
-      });
+    return yargs.option('dry-run', {
+      type: 'boolean',
+      default: false,
+      description: 'Run in dry-run mode without publishing',
+    });
   },
   handler: async (argv) => {
-    const { dryRun = false, provenance = false } = argv;
+    const { dryRun = false } = argv;
 
-    const options = { dryRun, provenance };
+    const options = { dryRun };
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
-    }
-
-    if (provenance) {
-      console.log('🔐 Provenance enabled - packages will include provenance information\n');
     }
 
     // Always get all packages first

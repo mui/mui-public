@@ -1,12 +1,20 @@
 name: Publish Stable Packages
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       sha:
         description: 'Commit SHA to release from'
-        required: true
+        required: false
         type: string
+      canary:
+        description: 'Force canary publishing instead of stable release'
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -17,10 +25,10 @@ jobs:
       contents: write # Required for pushing tags and creating releases
       id-token: write # Required for provenance
     steps:
-      - name: Checkout specific SHA
+      - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
-          ref: ${{ inputs.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.sha || github.sha }}
           fetch-depth: 0 # Fetch full history for proper git operations
       - name: Set up pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
@@ -31,12 +39,17 @@ jobs:
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
+      # Ensure npm 11.5.1 or later is installed
+      - name: Update npm
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: pnpm run release:build
-      - name: Publish stable packages with GitHub release
-        run: pnpm code-infra publish --github-release --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish packages
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.canary }}" != "true" ]; then
+            pnpm code-infra publish --github-release
+          else
+            pnpm code-infra publish-canary
+          fi
