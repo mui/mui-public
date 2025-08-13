@@ -18,6 +18,8 @@ on:
         required: false
         default: false
 
+permissions: {}
+
 jobs:
   pkg-releases:
     name: pkg.pr.new releases

@@ -4,6 +4,8 @@ on:
   push:
     branches: ['master']
 
+permissions: {}
+
 env:
   ISSUE_NUMBER: ${{ vars.MONITOR_ISSUE_NUMBER }}
 
