@@ -61,6 +61,7 @@ export interface FactoryOptions {
   slug?: string;
   skipPrecompute?: boolean;
   precompute?: any; // Can be true, false, or an object
+  extra?: Record<string, any>; // Parsed extra options (string | number | boolean | object | array)
 }
 
 export interface ParsedCreateFactory {
@@ -301,6 +302,12 @@ export async function parseCreateFactoryCall(
     precomputeValueEnd = precomputeInfo.valueEnd;
     precomputeValue = precomputeInfo.value;
     options.precompute = precomputeValue;
+  }
+
+  // Extract additional options that are not part of the known properties
+  const extraOptions = parseAdditionalOptions(optionsObjectStr);
+  if (Object.keys(extraOptions).length > 0) {
+    options.extra = parseAndConvertExtraOptions(extraOptions);
   }
 
   // Transform externals from parseImports format to simplified format
@@ -544,4 +551,164 @@ function extractPrecomputeFromOptions(optionsObjectStr: string): {
     valueEnd,
     value: parsedValue,
   };
+}
+
+/**
+ * Parses additional options from the options object that are not part of the known properties
+ */
+function parseAdditionalOptions(optionsObjectStr: string): Record<string, string> {
+  const knownProperties = new Set(['name', 'slug', 'skipPrecompute', 'precompute']);
+  const extraOptions: Record<string, string> = {};
+
+  // Remove outer braces and trim
+  const content = optionsObjectStr.trim().slice(1, -1);
+
+  // Parse each property manually by tracking bracket/brace depth
+  let currentPos = 0;
+
+  while (currentPos < content.length) {
+    // Skip whitespace and commas
+    while (currentPos < content.length && /[\s,]/.test(content[currentPos])) {
+      currentPos += 1;
+    }
+
+    if (currentPos >= content.length) {
+      break;
+    }
+
+    // Find property name
+    const keyStart = currentPos;
+    // First character must be letter, underscore, or dollar sign
+    if (currentPos < content.length && /[a-zA-Z_$]/.test(content[currentPos])) {
+      currentPos += 1;
+      // Subsequent characters can be letters, digits, underscores, or dollar signs
+      while (currentPos < content.length && /[a-zA-Z0-9_$]/.test(content[currentPos])) {
+        currentPos += 1;
+      }
+    }
+    const key = content.slice(keyStart, currentPos);
+
+    if (!key) {
+      break;
+    }
+
+    // Skip whitespace and colon
+    while (currentPos < content.length && /[\s:]/.test(content[currentPos])) {
+      currentPos += 1;
+    }
+
+    // Find value end by tracking nested structures
+    const valueStart = currentPos;
+    let depth = 0;
+    let inString = false;
+    let stringChar = '';
+
+    while (currentPos < content.length) {
+      const char = content[currentPos];
+
+      if (!inString) {
+        if (char === '"' || char === "'" || char === '`') {
+          inString = true;
+          stringChar = char;
+        } else if (char === '{' || char === '[') {
+          depth += 1;
+        } else if (char === '}' || char === ']') {
+          depth -= 1;
+        } else if (char === ',' && depth === 0) {
+          break; // Found end of this property
+        }
+      } else if (char === stringChar && content[currentPos - 1] !== '\\') {
+        inString = false;
+        stringChar = '';
+      }
+
+      currentPos += 1;
+    }
+
+    const value = content.slice(valueStart, currentPos).trim();
+
+    // Only include properties that are not known properties
+    if (!knownProperties.has(key)) {
+      extraOptions[key] = value;
+    }
+  }
+
+  return extraOptions;
+}
+
+/**
+ * Parses and converts extra options to their appropriate JavaScript types
+ */
+function parseAndConvertExtraOptions(extraOptions: Record<string, string>): Record<string, any> {
+  const convertedOptions: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(extraOptions)) {
+    convertedOptions[key] = parseJavaScriptValue(value);
+  }
+
+  return convertedOptions;
+}
+
+/**
+ * Attempts to parse a JavaScript value from a string
+ */
+function parseJavaScriptValue(value: string): any {
+  const trimmed = value.trim();
+
+  // Handle quoted strings
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    (trimmed.startsWith('`') && trimmed.endsWith('`'))
+  ) {
+    return trimmed.slice(1, -1); // Remove quotes
+  }
+
+  // Handle booleans
+  if (trimmed === 'true') {
+    return true;
+  }
+  if (trimmed === 'false') {
+    return false;
+  }
+
+  // Handle numbers
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+
+  // Handle arrays - try to parse with JSON.parse
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      // First try direct JSON parsing
+      return JSON.parse(trimmed);
+    } catch {
+      try {
+        // If that fails, try converting single quotes to double quotes for arrays
+        const normalizedArray = trimmed.replace(/'/g, '"');
+        return JSON.parse(normalizedArray);
+      } catch {
+        // If all parsing fails, return as string
+        return trimmed;
+      }
+    }
+  }
+
+  // Handle objects - try to parse with JSON.parse
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      // First try direct JSON parsing
+      return JSON.parse(trimmed);
+    } catch {
+      try {
+        // If that fails, try converting single quotes to double quotes for objects
+        const normalizedObject = trimmed.replace(/'/g, '"');
+        return JSON.parse(normalizedObject);
+      } catch {
+        // If all parsing fails, return as string
+        return trimmed;
+      }
+    }
+  } // Return as string for everything else
+  return trimmed;
 }
