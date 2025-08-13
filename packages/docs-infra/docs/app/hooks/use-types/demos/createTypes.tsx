@@ -10,11 +10,13 @@ export type TypesTableMeta = {
   };
   name?: string;
   displayName?: string;
+  disableOptimization?: boolean;
+  globalTypes: string[];
 };
 
 export function createTypes(
   url: string,
-  typeDef: React.ComponentType<any>,
+  typeDef: any,
   meta?: TypesTableMeta | undefined,
 ): React.ComponentType<TypesTableProps> {
   if (!url.startsWith('file:')) {
