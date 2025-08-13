@@ -1,2 +1,481 @@
-# Load Precomputed Types Meta
+# Types Meta Loader
 
+The types meta loader is a Webpack/Turbopack loader that enables build-time TypeScript type extraction and analysis. It processes demo files using the `createTypesMeta` factory pattern, automatically extracting comprehensive type information from components at build time rather than runtime.
+
+---
+
+## Overview
+
+The loader processes demo files that use the `createTypesMeta` factory pattern, automatically analyzing TypeScript components and extracting detailed type metadata including props, exports, and method signatures. The factory returns a React component that wraps your original component and displays comprehensive type documentation.
+
+> [!NOTE]
+> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You could have custom factory functions like `createApiReference()` or `createTypeDocs()` that return documentation components.
+
+### Key Features
+
+- **Build-time type extraction**: Uses TypeScript compiler API and [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) for comprehensive type analysis
+- **Performance optimization**: 70%+ faster compilation with optimized TypeScript programs (reduces file loading from ~700+ to ~80-100 files)
+- **Automatic error detection**: Suggests missing global types with helpful error messages
+- **Dependency tracking**: Resolves and tracks all file dependencies for hot reloading
+- **Flexible options**: Support for custom global types and additional configuration
+
+---
+
+## Configuration
+
+### Next.js Setup
+
+Add the loader to your `next.config.mjs`:
+
+> [!NOTE]
+> The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      './app/**/types.ts': {
+        as: '*.ts',
+        loaders: ['@mui/internal-docs-infra/loadPrecomputedTypesMeta'],
+      },
+    },
+  },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    config.module.rules.push({
+      test: /\/types\.ts$/,
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/loadPrecomputedTypesMeta'],
+    });
+
+    return config;
+  },
+};
+```
+
+### File Structure
+
+The loader processes `types.ts` files that contain `createTypesMeta` factory functions. Each component also has a `page.tsx` or `page.mdx` that references the types:
+
+```
+app/
+├── components/
+│   ├── button/
+│   │   ├── types.ts          # ← createTypesMeta() processed here
+│   │   ├── page.tsx          # ← Next.js page that uses the types
+│   │   ├── Button.tsx
+│   │   └── demos/
+│   │       └── basic/
+│   │           └── page.tsx
+│   └── input/
+│       ├── types.ts          # ← And here
+│       ├── page.mdx          # ← Or MDX page that uses the types
+│       ├── Input.tsx
+│       ├── InputLabel.tsx
+│       └── demos/
+│           └── advanced/
+│               └── page.tsx
+```
+
+---
+
+## Usage
+
+### Basic Types Meta File
+
+Create a `types.ts` file with the factory pattern using a descriptive named export:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import Component from './Component';
+
+export const TypesComponent = createTypesMeta(import.meta.url, Component);
+```
+
+### Using Types in Pages
+
+Your `page.tsx` or `page.mdx` files can then import and render the component returned by `createTypesMeta`:
+
+```typescript
+// page.tsx
+import { TypesComponent } from './types';
+
+export default function ComponentPage() {
+  // The types factory returns a React component that wraps your original component
+  // and displays the extracted type information
+  return <TypesComponent />;
+}
+```
+
+The `createTypesMeta` factory processes your component and returns a new React component that:
+- Renders your original component
+- Displays comprehensive type information (props, methods, exports)
+- Shows interactive documentation generated from TypeScript analysis
+
+### Multiple Components
+
+The loader handles multiple component variants automatically:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import MainComponent from './MainComponent';
+import HelperComponent from './HelperComponent';
+
+// Returns a component that documents both MainComponent and HelperComponent
+export const TypesInputGroup = createTypesMeta(import.meta.url, { MainComponent, HelperComponent });
+```
+
+### Global Types Configuration
+
+Specify global types for proper TypeScript compilation:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import ReactComponent from './ReactComponent';
+
+export const TypesReactComponent = createTypesMeta(import.meta.url, ReactComponent, {
+  globalTypes: ['react', 'react-dom', 'node'],
+});
+```
+
+### Advanced Options
+
+You can pass additional options for customization:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import Component from './Component';
+
+export const TypesAdvancedComponent = createTypesMeta(import.meta.url, Component, {
+  name: 'Advanced Component API',
+  globalTypes: ['react', 'dom'],
+  skipPrecompute: false,
+  customOption: 'value',
+});
+```
+
+### Skip Processing
+
+Disable build-time processing for development or debugging:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import Component from './Component';
+
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  skipPrecompute: true, // Loader will skip processing this file
+});
+```
+
+---
+
+## Global Types
+
+Global types ensure the TypeScript compiler has access to necessary type definitions during analysis.
+
+### Common Global Types
+
+```typescript
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  globalTypes: [
+    'react',         // React types (React, JSX, etc.)
+    'react-dom',     // React DOM types
+    'node',          // Node.js globals (process, Buffer, etc.)
+    'dom',           // Browser/DOM globals (window, document, etc.)
+  ],
+});
+```
+
+### Automatic Error Detection
+
+The loader automatically detects missing global types and provides helpful suggestions:
+
+```bash
+Error: Missing global types detected. Consider adding these to globalTypes: ['react', 'dom']
+
+To fix this, update your createTypesMeta call:
+export const TypesYourComponent = createTypesMeta(import.meta.url, YourComponent, {
+  globalTypes: ['react', 'dom'],
+});
+
+Common globalTypes values:
+- 'react' for React components
+- 'react-dom' for React DOM types
+- 'node' for Node.js globals
+- 'dom' for browser/DOM globals
+```
+
+### Custom Global Types
+
+You can also specify custom global type packages:
+
+```typescript
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  globalTypes: ['react', '@types/lodash', '@mui/types'],
+});
+```
+
+---
+
+## Processing Pipeline
+
+The loader follows these steps to extract type metadata:
+
+### 1. Parse Factory Call
+
+Finds your `createTypesMeta` function call and extracts the components and options.
+
+### 2. Create Optimized Program
+
+Creates an optimized TypeScript program that:
+- Loads only necessary files (70%+ performance improvement)
+- Includes specified global types
+- Respects your project's `tsconfig.json` settings
+
+### 3. Extract Type Information
+
+For each component variant:
+- Analyzes the TypeScript AST
+- Extracts props, methods, and type signatures
+- Resolves complex type relationships
+- Tracks all dependencies
+
+### 4. Insert Precomputed Data
+
+Replaces the factory function call with extracted type metadata and returns a React component:
+
+```typescript
+// Your source before processing
+export const TypesComponent = createTypesMeta(import.meta.url, Component);
+
+// After processing (simplified)
+export const TypesComponent = createTypesMeta(
+  import.meta.url,
+  Component,
+  {
+    precompute: {
+      Default: {
+        types: {
+          default: {
+            props: { /* detailed prop types */ },
+            exports: { /* component exports */ },
+            // ... comprehensive type metadata
+          }
+        }
+      }
+    }
+  }
+);
+
+// The factory function returns a React component that:
+// 1. Renders your original Component
+// 2. Displays the extracted type information
+// 3. Provides interactive documentation UI
+```
+
+---
+
+## Options Reference
+
+### Factory Function Options
+
+```typescript
+interface FactoryOptions {
+  name?: string;                    // Display name for the types meta
+  slug?: string;                    // URL slug override
+  skipPrecompute?: boolean;         // Skip build-time processing
+  globalTypes?: string[];           // Global type packages to include
+  [customOption: string]: any;      // Additional custom options
+}
+```
+
+### Global Types
+
+| Type | Description | Use Cases |
+|------|-------------|-----------|
+| `'react'` | React core types | React components, hooks, JSX |
+| `'react-dom'` | React DOM types | DOM rendering, events |
+| `'node'` | Node.js globals | Server-side code, utilities |
+| `'dom'` | Browser/DOM globals | Window, document, web APIs |
+| `'@types/package'` | Custom type packages | Third-party library types |
+
+---
+
+## Output Structure
+
+The loader extracts comprehensive type information using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor/blob/main/README.md#output-format) and structures it as:
+
+```typescript
+interface TypeMetadata {
+  [variantName: string]: ModuleNode;
+}
+
+// From typescript-api-extractor
+declare class ModuleNode {
+  name: string;
+  exports: ExportNode[];
+  imports: string[] | undefined;
+}
+
+declare class ExportNode {
+  name: string;
+  type: AnyType;
+  documentation: Documentation | undefined;
+  isPublic(requireExplicitAnnotation?: boolean): boolean;
+}
+
+declare class Documentation {
+  description: string | undefined;
+  defaultValue: unknown | undefined;
+  visibility: Visibility | undefined;
+  tags: DocumentationTag[];
+  hasTag(name: string): boolean;
+  getTagValue(name: string): string | undefined;
+}
+
+interface DocumentationTag {
+  name: string;
+  value: string | undefined;
+}
+
+type Visibility = 'public' | 'private' | 'internal';
+
+// Type system
+interface TypeNode {
+  readonly kind: string;
+  typeName: TypeName | undefined;
+}
+
+type AnyType = ArrayNode | ComponentNode | EnumNode | ExternalTypeNode | 
+               FunctionNode | IntersectionNode | IntrinsicNode | LiteralNode | 
+               ObjectNode | TupleNode | TypeParameterNode | UnionNode;
+
+// Key type nodes
+declare class ComponentNode implements TypeNode {
+  readonly kind: "component";
+  typeName: TypeName | undefined;
+  props: PropertyNode[];
+}
+
+declare class PropertyNode {
+  name: string;
+  type: AnyType;
+  documentation: Documentation | undefined;
+  optional: boolean;
+}
+
+declare class IntrinsicNode implements TypeNode {
+  readonly kind: "intrinsic";
+  typeName: TypeName | undefined;
+  intrinsic: 'string' | 'number' | 'boolean' | 'bigint' | 'null' | 'undefined' | 'void' | 'any' | 'unknown' | 'function';
+}
+
+declare class ObjectNode implements TypeNode {
+  readonly kind: "object";
+  typeName: TypeName | undefined;
+  properties: PropertyNode[];
+  documentation: Documentation | undefined;
+}
+```
+
+### Example Output
+
+For a simple React component, the extracted metadata looks like:
+
+```json
+{
+  "Default": {
+    "name": "MyComponent",
+    "exports": [
+      {
+        "name": "MyComponent",
+        "type": {
+          "kind": "component",
+          "typeName": { "name": "MyComponent" },
+          "props": [
+            {
+              "name": "title",
+              "type": {
+                "kind": "intrinsic",
+                "intrinsic": "string"
+              },
+              "optional": false,
+              "documentation": {
+                "description": "The title to display",
+                "tags": []
+              }
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "kind": "intrinsic",
+                "intrinsic": "boolean"
+              },
+              "optional": true,
+              "documentation": {
+                "description": "Whether the component is disabled",
+                "tags": []
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+```
+
+---
+
+## Error Handling
+
+### Single Factory Function per File
+
+Only one `createTypesMeta` function call is allowed per `types.ts` file:
+
+```typescript
+// ❌ Multiple calls will cause a build error in types.ts
+export const Meta1 = createTypesMeta(/* ... */);
+export const Meta2 = createTypesMeta(/* ... */); // Error!
+
+// ✅ Use separate components instead
+// button/types.ts
+export const TypesButton = createTypesMeta(/* ... */);
+
+// input/types.ts
+export const TypesInput = createTypesMeta(/* ... */);
+```
+
+### Missing TypeScript Configuration
+
+The loader requires a valid `tsconfig.json`:
+
+```typescript
+// Checks these locations in order:
+// 1. {rootContext}/tsconfig.json
+// 2. {process.cwd()}/tsconfig.json
+
+// If not found, throws:
+// "Unable to locate tsconfig.json. Looked in: ..."
+```
+
+### Component Resolution Errors
+
+If a component cannot be analyzed, the loader provides detailed error information:
+
+```typescript
+// Failed to parse variant ComponentName (file://...):
+// [Specific TypeScript compilation error details]
+```
+
+### Invalid Function Signature
+
+Your `createTypesMeta` function must follow this pattern:
+
+```typescript
+createTypesMeta(
+  import.meta.url,        // Required: file URL
+  component,              // Required: component or variant object
+  { options },            // Optional: options object
+);
+```

@@ -1,5 +1,353 @@
 .root {
-  border: 1px solid black;
+  color: #211f26;
+  border: 1px solid #d0cdd7;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
+  background-color: #fafafa;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 1.25em;
+  margin-bottom: 8px;
+  color: #0d74ce;
+  border-bottom: 2px solid #0090ff;
+  padding-bottom: 4px;
+}
+
+.documentation {
+  color: #211f26;
+  margin-bottom: 8px;
+  font-style: italic;
+  line-height: 1.4;
+  padding: 6px 12px;
+  background-color: #f5f5f5;
+  border-left: 4px solid #0090ff;
+  border-radius: 4px;
+}
+
+.typeDoc {
+  border: 1px solid #d0cdd7;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 0;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.typeName {
+  font-weight: 600;
+  color: #0d74ce;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: rgba(0, 144, 255, 0.1);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.typeContent {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.intrinsicType {
+  color: #0d74ce;
+  font-weight: 600;
+  padding: 2px 6px;
+  background-color: rgba(0, 144, 255, 0.1);
+  border-radius: 3px;
+}
+
+.literalType {
+  color: #2a7e3b;
+  font-weight: 500;
+  padding: 2px 4px;
+  background-color: rgba(70, 167, 88, 0.1);
+  border-radius: 3px;
+}
+
+.arrayType {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 4px;
+  background-color: rgba(142, 78, 198, 0.1);
+  border: 1px solid rgba(142, 78, 198, 0.2);
+}
+
+.unionType {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: rgba(255, 230, 41, 0.1);
+  border: 1px solid rgba(255, 230, 41, 0.3);
+  vertical-align: middle;
+  min-height: 1.5em;
+}
+
+.unionSeparator {
+  color: #9e6c00;
+  font-weight: bold;
+  font-size: 1.1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.intersectionType {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: rgba(70, 167, 88, 0.1);
+  border: 1px solid rgba(70, 167, 88, 0.2);
+  vertical-align: middle;
+}
+
+.intersectionSeparator {
+  color: #2a7e3b;
+  font-weight: bold;
+  font-size: 1.1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.objectType {
+  margin: 8px 0;
+  border-radius: 6px;
+  background-color: #fafafa;
+  border: 1px solid #d0cdd7;
+}
+
+.objectBrace {
+  color: #211f26;
+  font-weight: bold;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: #f5f5f5;
+}
+
+.objectProperties {
+  margin-left: 12px;
+  border-left: 4px solid #d0cdd7;
+  padding-left: 8px;
+  padding: 4px 0 4px 8px;
+}
+
+.property {
+  margin: 4px 0;
+  padding: 4px;
+  background-color: #fafafa;
+  border-radius: 4px;
+  border-left: 4px solid #0090ff;
+}
+
+.propertyName {
+  color: #0d74ce;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.propertyType {
+  display: inline-block;
+  margin-left: 4px;
+}
+
+.propertyDoc {
+  font-size: 0.85em;
+  color: #211f26;
+  font-style: italic;
+  margin-top: 2px;
+  padding: 3px 6px;
+  background-color: #f9f9f9;
+  border-radius: 3px;
+  border-left: 2px solid #d0cdd7;
+}
+
+.componentType {
+  margin: 8px 0;
+  border-radius: 6px;
+  background-color: rgba(70, 167, 88, 0.05);
+  border: 1px solid rgba(70, 167, 88, 0.2);
+  padding: 8px;
+}
+
+.componentName {
+  color: #2a7e3b;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: rgba(70, 167, 88, 0.1);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.componentProps {
+  margin-left: 8px;
+  border-left: 4px solid #46a758;
+  padding-left: 8px;
+}
+
+.functionType {
+  margin: 8px 0;
+  padding: 8px;
+  background-color: rgba(142, 78, 198, 0.05);
+  border: 1px solid rgba(142, 78, 198, 0.2);
+  border-radius: 6px;
+}
+
+.callSignature {
+  display: block;
+  margin: 3px 0;
+  padding: 4px 6px;
+  background-color: rgba(142, 78, 198, 0.08);
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+.functionParams {
+  color: #8145b5;
+  font-weight: 500;
+}
+
+.paramName {
+  color: #8145b5;
+  font-weight: 600;
+}
+
+.paramType {
+  margin-left: 4px;
+}
+
+.functionArrow {
+  color: #8145b5;
+  font-weight: bold;
+  margin: 0 4px;
+}
+
+.returnType {
+  color: #8145b5;
+  font-weight: 500;
+}
+
+.tupleType {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background-color: rgba(0, 144, 255, 0.1);
+  border: 1px solid rgba(0, 144, 255, 0.2);
+  border-radius: 4px;
+  color: #0d74ce;
+  font-weight: 500;
+}
+
+.enumType {
+  margin: 8px 0;
+  padding: 8px;
+  background-color: rgba(255, 230, 41, 0.05);
+  border: 1px solid rgba(255, 230, 41, 0.3);
+  border-radius: 6px;
+}
+
+.enumName {
+  color: #9e6c00;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: rgba(255, 230, 41, 0.1);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.enumMembers {
+  margin-left: 8px;
+  border-left: 4px solid #ffe629;
+  padding-left: 8px;
+}
+
+.enumMember {
+  margin: 3px 0;
+  padding: 3px 6px;
+  background-color: rgba(255, 230, 41, 0.05);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.enumMemberName {
+  color: #9e6c00;
+  font-weight: 600;
+}
+
+.enumMemberValue {
+  color: #9e6c00;
+  font-weight: 500;
+}
+
+.enumMemberDoc {
+  font-size: 0.85em;
+  color: #211f26;
+  font-style: italic;
+  margin-left: 8px;
+}
+
+.externalType {
+  color: #d13415;
+  font-style: italic;
+  font-weight: 500;
+  padding: 2px 6px;
+  background-color: rgba(229, 77, 46, 0.1);
+  border-radius: 3px;
+  border: 1px solid rgba(229, 77, 46, 0.2);
+}
+
+.typeParameterType {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: rgba(142, 78, 198, 0.1);
+  border: 1px solid rgba(142, 78, 198, 0.2);
+  border-radius: 4px;
+}
+
+.typeParameterName {
+  color: #8145b5;
+  font-weight: 600;
+}
+
+.typeParameterConstraint,
+.typeParameterDefault {
+  color: #8145b5;
+  font-size: 0.9em;
+}
+
+.unknownType {
+  color: #d13415;
+  font-style: italic;
+  padding: 2px 6px;
+  background-color: rgba(229, 77, 46, 0.1);
+  border-radius: 3px;
+  border: 1px solid rgba(229, 77, 46, 0.2);
 }

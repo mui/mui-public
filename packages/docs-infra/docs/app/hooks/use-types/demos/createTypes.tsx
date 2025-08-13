@@ -1,24 +1,20 @@
 import { TypesTable, TypesTableProps } from './TypesTable';
-
-type TypeDef = {
-  type: 'object' | 'array' | 'string';
-  properties: string[];
-};
+import type { ModuleNode } from 'typescript-api-extractor';
 
 export type TypesTableMeta = {
   precompute?: {
     [variant: string]: {
-      types?: TypeDef;
+      types?: ModuleNode;
+      importedFrom: string;
     };
   };
-  types?: TypeDef;
   name?: string;
   displayName?: string;
 };
 
 export function createTypes(
   url: string,
-  typeDef: React.ComponentType,
+  typeDef: React.ComponentType<any>,
   meta?: TypesTableMeta | undefined,
 ): React.ComponentType<TypesTableProps> {
   if (!url.startsWith('file:')) {

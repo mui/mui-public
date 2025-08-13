@@ -4,6 +4,6 @@ export type TypesMeta = {
   types?: ModuleNode;
 };
 
-export function useTypes(props: any): TypesMeta {
+export function useTypes(props: TypesMeta): TypesMeta {
   return { types: props.types };
 }

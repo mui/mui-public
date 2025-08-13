@@ -1,8 +1,4 @@
 import { createTypes } from '../createTypes';
-import Component from './Component'; // TODO: it should also work with external packages
-// import { Checkbox } from '../../../../../components/Checkbox'; // TODO: more complex
+import { MyComponent } from './Component'; // TODO: it should also work with external packages
 
-export const TypesCheckbox = createTypes(import.meta.url, Component, {
-  name: 'Checkbox',
-}) as React.ComponentType;
-// TODO: add passthrough generic for createDemo here
+export const TypesCheckbox = createTypes(import.meta.url, MyComponent) as React.ComponentType<{}>; // TODO: passthrough types in demos.
