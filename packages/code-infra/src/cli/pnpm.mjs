@@ -21,7 +21,6 @@ import * as semver from 'semver';
 /**
  * @typedef {Object} PublishOptions
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
- * @property {boolean} [provenance] - Whether to include provenance information
  * @property {boolean} [noGitChecks] - Whether to skip git checks
  */
 
@@ -127,14 +126,7 @@ export async function publishPackages(packages, tag, options = {}) {
     args.push('--no-git-checks');
   }
 
-  // Set up environment variables
-  /** @type {Record<string, string>} */
-  const env = {};
-  if (options.provenance) {
-    env.NPM_CONFIG_PROVENANCE = 'true';
-  }
-
-  await $({ stdio: 'inherit', env })`pnpm -r publish --access public --tag=${tag} ${args}`;
+  await $({ stdio: 'inherit' })`pnpm -r publish --access public --tag=${tag} ${args}`;
 }
 
 /**

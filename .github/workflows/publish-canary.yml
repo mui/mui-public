@@ -26,9 +26,12 @@ jobs:
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
+      # Ensure npm 11.5.1 or later is installed
+      - name: Update npm
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Publish canary packages
-        run: pnpm code-infra publish-canary --provenance
+        run: pnpm code-infra publish-canary
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

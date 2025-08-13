@@ -31,12 +31,15 @@ jobs:
           # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
+      # Ensure npm 11.5.1 or later is installed
+      - name: Update npm
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: pnpm run release:build
       - name: Publish stable packages with GitHub release
-        run: pnpm code-infra publish --github-release --provenance
+        run: pnpm code-infra publish --github-release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
