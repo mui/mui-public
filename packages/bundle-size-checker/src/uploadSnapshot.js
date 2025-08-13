@@ -20,7 +20,7 @@ async function getCurrentCommitSHA() {
  */
 function sanitizeS3TagString(str) {
   // Replace disallowed characters with underscore
-  const safe = str.replace(/[^a-zA-Z0-9 +-=.:/@]+/g, '_');
+  const safe = str.replace(/[^a-zA-Z0-9 +\-=.:/@]+/g, '_');
   // Truncate to max lengths (256 for value)
   const maxLen = 256;
   return safe.length > maxLen ? safe.substring(0, maxLen) : safe;
