@@ -8,7 +8,7 @@ on:
     inputs:
       sha:
         description: 'Commit SHA to release from'
-        required: true
+        required: false
         type: string
 
 permissions: {}
