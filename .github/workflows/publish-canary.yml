@@ -33,5 +33,3 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Publish canary packages
         run: pnpm code-infra publish-canary
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
