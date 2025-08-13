@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for MUI repositories.",
-  "extends": [":semanticCommitsDisabled", "config:recommended"],
+  "extends": [":semanticCommitsDisabled", "config:recommended", "helpers:pinGitHubActionDigests"],
   "automerge": false,
   "commitMessageAction": "Bump",
   "commitMessageExtra": "to {{newValue}}",
@@ -36,8 +36,8 @@
     },
     {
       "matchDepTypes": ["action"],
-      "pinDigests": true,
-      "automerge": true
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch", "digest"]
     },
     {
       "groupName": "@definitelytyped tools",
