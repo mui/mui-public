@@ -7,6 +7,7 @@ const createEnumerationFromArray = (stringArray) =>
         .join(', ')} or \`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
+// See definition in https://www.notion.so/mui-org/GitHub-issues-Product-backlog-c1d7072e0c2545b0beb43b115f6030f6?source=copy_link#1e3cbfe7b660801e8af6eed5b0d0ce68
 const typeLabels = [
   'type: bug',
   'type: regression',
