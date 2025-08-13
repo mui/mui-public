@@ -35,8 +35,9 @@
       "matchManagers": ["github-actions"]
     },
     {
-      "matchDepTypes": ["action"],
-      "automerge": true
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch", "digest"]
     },
     {
       "groupName": "@definitelytyped tools",
