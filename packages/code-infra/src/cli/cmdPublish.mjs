@@ -260,6 +260,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   describe: 'Publish packages to npm',
   builder: (yargs) => {
     return yargs
+      .parserConfiguration({ 'boolean-negation': false })
       .option('dry-run', {
         type: 'boolean',
         default: false,
@@ -272,9 +273,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false } = argv;
+    const { dryRun = false, githubRelease = false, noGitChecks = false } = argv;
 
-    const options = { dryRun };
+    const options = { dryRun, noGitChecks };
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
