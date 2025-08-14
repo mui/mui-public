@@ -6,7 +6,6 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { globby } from 'globby';
-import { upload } from '@argos-ci/core';
 
 /**
  * @param {string} name
@@ -91,10 +90,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           ),
         ),
       );
+      const argos = await import('@argos-ci/core');
 
       for (let i = 0; i < batches.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
-        const result = await upload({
+        const result = await argos.upload({
           root: `${tempDir}/${i}`,
           commit: circleSha1,
           branch: circleBranch,
