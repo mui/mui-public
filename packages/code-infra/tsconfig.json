@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "composite": true,
     "target": "ES2022",
     "module": "es2020",
     "moduleResolution": "bundler",
@@ -11,7 +10,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "outDir": "./build",
+    "outDir": "build",
     "noEmit": true
   },
   "include": ["src"],

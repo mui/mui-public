@@ -22,6 +22,7 @@
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
     "build": "code-infra build --bundle esm && pnpm build:copy-files",
+    "build:tsdown": "tsdown && code-infra copy-files",
     "build:copy-files": "code-infra copy-files",
     "test": "exit 0",
     "typescript": "tsc -p tsconfig.json"
@@ -40,6 +41,7 @@
     "@babel/core": "^7.28.3",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.28.3",
+    "@mui/internal-code-infra": "workspace:*",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.11",
     "babel-plugin-istanbul": "^7.0.0",
