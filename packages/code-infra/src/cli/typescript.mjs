@@ -122,13 +122,13 @@ async function renameDeclarations({ directory }) {
  *
  * @param {Object} param0
  * @param {boolean} [param0.isMjsBuild] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.skipTsc=false] - Whether to skip running TypeScript compiler (tsc) for building types.
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
- * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
  */
-export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isMjsBuild }) {
+export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc = false, isMjsBuild }) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
 
   try {

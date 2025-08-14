@@ -8,15 +8,15 @@ import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle - The bundles to build.
- * @property {boolean} hasLargeFiles - The large files to build.
- * @property {boolean} skipBundlePackageJson - Whether to skip generating a package.json file in the /esm folder.
- * @property {string} cjsOutDir - The directory to copy the cjs files to.
- * @property {boolean} verbose - Whether to enable verbose logging.
- * @property {boolean} buildTypes - Whether to build types for the package.
- * @property {boolean} skipTsc - Whether to build types for the package.
- * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
- * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
- * @property {string[]} ignore - Globs to be ignored by Babel.
+ * @property {boolean} [hasLargeFiles=false] - The large files to build.
+ * @property {boolean} [skipBundlePackageJson=false] - Whether to skip generating a package.json file in the /esm folder.
+ * @property {string} [cjsOutDir="."] - The directory to copy the cjs files to.
+ * @property {boolean} [verbose=false] - Whether to enable verbose logging.
+ * @property {boolean} [buildTypes=true] - Whether to build types for the package.
+ * @property {boolean} [skipTsc=false] - Whether to build types for the package.
+ * @property {boolean} [skipBabelRuntimeCheck=false] - Whether to skip checking for Babel runtime dependencies in the package.
+ * @property {boolean} [skipPackageJson=false] - Whether to skip generating the package.json file in the bundle output.
+ * @property {string[]} [ignore] - Globs to be ignored by Babel.
  */
 
 const validBundles = [
@@ -122,11 +122,11 @@ async function createExportsFor({
 
 /**
  * @param {Object} param0
+ * @param {boolean} [param0.addTypes=false] - Whether to add type declarations for the package.
  * @param {any} param0.packageJson - The package.json content.
  * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
- * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
  */
 async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes = false }) {
   delete packageJson.scripts;
@@ -134,7 +134,7 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   delete packageJson.devDependencies;
   delete packageJson.imports;
 
-  packageJson.type = packageJson.type || 'commonjs';
+  packageJson.type = packageJson.type ?? 'commonjs';
 
   /**
    * @type {Record<string, string | Record<string, string> | null>}
