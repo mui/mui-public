@@ -1,4 +1,4 @@
-name: Publish Stable Packages
+name: Publish stable packages
 
 on:
   push:
