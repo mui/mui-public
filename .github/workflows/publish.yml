@@ -1,4 +1,4 @@
-name: Publish stable packages
+name: Publish packages
 
 on:
   push:
@@ -12,6 +12,11 @@ on:
         type: string
       canary:
         description: 'Force canary publishing instead of stable release'
+        required: false
+        type: boolean
+        default: false
+      dry-run:
+        description: 'Run in dry-run mode without actually publishing packages'
         required: false
         type: boolean
         default: false
@@ -49,7 +54,7 @@ jobs:
       - name: Publish packages
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.canary }}" != "true" ]; then
-            pnpm code-infra publish --github-release
+            pnpm code-infra publish --github-release ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
           else
-            pnpm code-infra publish-canary
+            pnpm code-infra publish-canary ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
           fi
