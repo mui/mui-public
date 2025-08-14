@@ -1,12 +1,10 @@
-#!/usr/bin/env node
-
 /* eslint-disable no-console */
 
 /**
  * @typedef {import('./pnpm.mjs').Package} Package
  */
 
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import * as path from 'path';
 import { getWorkspacePackages } from './pnpm.mjs';
 

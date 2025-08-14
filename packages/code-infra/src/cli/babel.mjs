@@ -82,12 +82,12 @@ const BASE_IGNORES = [
  * @param {boolean} [options.optimizeClsx=false] - Whether to enable clsx call optimization transform.
  * @param {boolean} [options.removePropTypes=true] - Whether to enable removal of React prop types.
  * @param {string[]} [options.ignores] - The globs to be ignored by Babel.
+ * @param {boolean} [options.hasLargeFiles=false] - Whether the build includes large files.
  * @param {string} options.cwd - The package root directory.
  * @param {string} options.pkgVersion - The package version.
  * @param {string} options.sourceDir - The source directory to build from.
  * @param {string} options.outDir - The output directory for the build.
  * @param {string} options.outExtension - The output file extension for the build.
- * @param {boolean} options.hasLargeFiles - Whether the build includes large files.
  * @param {import('../utils/build.mjs').BundleType} options.bundle - The bundles to build.
  * @param {string} options.babelRuntimeVersion - The version of @babel/runtime to use.
  * @returns {Promise<void>}
@@ -97,7 +97,7 @@ export async function babelBuild({
   sourceDir,
   outDir,
   babelRuntimeVersion,
-  hasLargeFiles,
+  hasLargeFiles = false,
   bundle,
   pkgVersion,
   outExtension,
