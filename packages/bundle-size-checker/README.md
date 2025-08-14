@@ -20,7 +20,6 @@ bundle-size-checker [options]
 Options:
 
 - `--analyze`: Creates a webpack-bundle-analyzer report for each bundle
-- `--accurateBundles`: Displays used bundles accurately at the cost of more CPU cycles
 - `--output`, `-o`: Path to output the size snapshot JSON file
 
 ### Configuration

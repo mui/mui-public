@@ -6,12 +6,11 @@ import fs from 'fs/promises';
 import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
-import { execa } from 'execa';
-import gitUrlParse from 'git-url-parse';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { octokit } from './github.js';
+import { getCurrentRepoInfo } from './git.js';
 
 /**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
@@ -23,32 +22,12 @@ const DEFAULT_CONCURRENCY = os.availableParallelism();
 const rootDir = process.cwd();
 
 /**
- * Gets the current repository owner and name from git remote
- * @returns {Promise<{owner: string | null, repo: string | null}>}
- */
-async function getCurrentRepoInfo() {
-  try {
-    const { stdout } = await execa('git', ['remote', 'get-url', 'origin']);
-    const parsed = gitUrlParse(stdout.trim());
-    return {
-      owner: parsed.owner,
-      repo: parsed.name,
-    };
-  } catch (error) {
-    return {
-      owner: null,
-      repo: null,
-    };
-  }
-}
-
-/**
- * creates size snapshot for every bundle that built with webpack
+ * creates size snapshot for every bundle
  * @param {CommandLineArgs} args
  * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
  * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
  */
-async function getWebpackSizes(args, config) {
+async function getBundleSizes(args, config) {
   const worker = new Piscina({
     filename: new URL('./worker.js', import.meta.url).href,
     maxThreads: args.concurrency || DEFAULT_CONCURRENCY,
@@ -146,12 +125,14 @@ async function run(argv) {
   // eslint-disable-next-line no-console
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
 
-  const webpackSizes = await getWebpackSizes(argv, config);
-  const bundleSizes = Object.fromEntries(webpackSizes.sort((a, b) => a[0].localeCompare(b[0])));
+  const bundleSizes = await getBundleSizes(argv, config);
+  const sortedBundleSizes = Object.fromEntries(
+    bundleSizes.sort((a, b) => a[0].localeCompare(b[0])),
+  );
 
   // Ensure output directory exists
   await fs.mkdir(path.dirname(snapshotDestPath), { recursive: true });
-  await fs.writeFile(snapshotDestPath, JSON.stringify(bundleSizes, null, 2));
+  await fs.writeFile(snapshotDestPath, JSON.stringify(sortedBundleSizes, null, 2));
 
   // eslint-disable-next-line no-console
   console.log(`Bundle size snapshot written to ${snapshotDestPath}`);
@@ -169,6 +150,9 @@ async function run(argv) {
       // Exit with error code to indicate failure
       process.exit(1);
     }
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('No upload configuration provided, skipping upload.');
   }
 }
 
@@ -181,22 +165,12 @@ yargs(process.argv.slice(2))
         return cmdYargs
           .option('analyze', {
             default: false,
-            describe: 'Creates a webpack-bundle-analyzer report for each bundle.',
-            type: 'boolean',
-          })
-          .option('accurateBundles', {
-            default: false,
-            describe: 'Displays used bundles accurately at the cost of more CPU cycles.',
+            describe: 'Creates a report for each bundle.',
             type: 'boolean',
           })
           .option('verbose', {
             default: false,
             describe: 'Show more detailed information during compilation.',
-            type: 'boolean',
-          })
-          .option('vite', {
-            default: false,
-            describe: 'Use Vite instead of webpack for bundling.',
             type: 'boolean',
           })
           .option('output', {

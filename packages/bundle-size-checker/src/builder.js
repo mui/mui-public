@@ -29,7 +29,7 @@ const rootDir = process.cwd();
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
- * @returns {Promise<{configuration: import('vite').InlineConfig, externalsArray: string[]}>}
+ * @returns {Promise<import('vite').InlineConfig>}
  */
 async function createViteConfig(entry, args) {
   const entryName = entry.id;
@@ -132,7 +132,7 @@ async function createViteConfig(entry, args) {
     ],
   };
 
-  return { configuration, externalsArray };
+  return configuration;
 }
 
 /**
@@ -233,9 +233,9 @@ async function processBundleSizes(output, entryName) {
  * @param {CommandLineArgs} args - Command line arguments
  * @returns {Promise<Map<string, { parsed: number, gzip: number }>>}
  */
-export async function getViteSizes(entry, args) {
+export async function getBundleSizes(entry, args) {
   // Create vite configuration
-  const { configuration } = await createViteConfig(entry, args);
+  const configuration = await createViteConfig(entry, args);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));

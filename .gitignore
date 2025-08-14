@@ -43,3 +43,5 @@ dist/
 build
 
 *.tsbuildinfo
+
+size-snapshot.json

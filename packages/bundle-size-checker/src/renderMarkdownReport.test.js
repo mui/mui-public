@@ -2,9 +2,12 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import * as fetchSnapshotModule from './fetchSnapshot.js';
+import * as fetchSnapshotWithFallbackModule from './fetchSnapshotWithFallback.js';
 
 // Mock the fetchSnapshot module
 vi.mock('./fetchSnapshot.js');
+// Mock the fetchSnapshotWithFallback module
+vi.mock('./fetchSnapshotWithFallback.js');
 // Mock the @octokit/rest module
 vi.mock('@octokit/rest', () => ({
   Octokit: vi.fn(() => ({
@@ -20,7 +23,9 @@ vi.mock('@octokit/rest', () => ({
 
 describe('renderMarkdownReport', () => {
   const mockFetchSnapshot = vi.mocked(fetchSnapshotModule.fetchSnapshot);
-  const mockFetchSnapshotWithFallback = vi.mocked(fetchSnapshotModule.fetchSnapshotWithFallback);
+  const mockFetchSnapshotWithFallback = vi.mocked(
+    fetchSnapshotWithFallbackModule.fetchSnapshotWithFallback,
+  );
 
   /** @type {PrInfo} */
   const mockPrInfo = {
