@@ -68,15 +68,15 @@ export function createCoreConfig(options = {}) {
         ],
 
         // Not needed in general, can be turned on for specific files
-        'import/prefer-default-export': 'off',
+        'import-x/prefer-default-export': 'off',
         // Not sure why it doesn't work
-        'import/named': 'off',
-        'import/no-cycle': 'off',
+        'import-x/named': 'off',
+        'import-x/no-cycle': 'off',
         // Missing yarn workspace support
-        'import/no-extraneous-dependencies': 'off',
+        'import-x/no-extraneous-dependencies': 'off',
         // The code is already coupled to webpack. Prefer explicit coupling.
-        'import/no-webpack-loader-syntax': 'off',
-        'import/no-relative-packages': 'error',
+        'import-x/no-webpack-loader-syntax': 'off',
+        'import-x/no-relative-packages': 'error',
 
         // doesn't work?
         'jsx-a11y/label-has-associated-control': [

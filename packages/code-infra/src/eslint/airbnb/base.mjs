@@ -12,7 +12,7 @@ import baseStyle from 'eslint-config-airbnb-base/rules/style';
 import baseVariables from 'eslint-config-airbnb-base/rules/variables';
 import airbnbReact from 'eslint-config-airbnb/rules/react';
 import airbnbReactA11y from 'eslint-config-airbnb/rules/react-a11y';
-import eslintPluginImport from 'eslint-plugin-import';
+import eslintPluginImportX from 'eslint-plugin-import-x';
 import eslintPluginJsxA11y from 'eslint-plugin-jsx-a11y';
 import eslintPluginReact from 'eslint-plugin-react';
 
@@ -29,6 +29,25 @@ const baseES6Plugin = {
   rules: baseEs6.rules,
 };
 
+/**
+ * @param {Record<string, unknown>} obj
+ * @returns {Record<string, unknown>}
+ */
+function migrateToImportX(obj) {
+  /**
+   * @type {Record<string, unknown>}
+   */
+  const newObj = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key.startsWith('import/')) {
+      newObj[key.replace('import/', 'import-x/')] = value;
+    } else {
+      newObj[key] = value;
+    }
+  }
+  return newObj;
+}
+
 const baseImportPlugin = {
   languageOptions: {
     globals: {
@@ -36,10 +55,14 @@ const baseImportPlugin = {
     },
     parserOptions: baseImports.parserOptions,
   },
-  settings: baseImports.settings,
-  rules: baseImports.rules,
+  settings: baseImports.settings ? migrateToImportX(baseImports.settings) : undefined,
+  rules: baseImports.rules
+    ? /** @type {Partial<import('eslint').Linter.RulesRecord>} */ (
+        migrateToImportX(baseImports.rules)
+      )
+    : undefined,
   plugins: {
-    import: eslintPluginImport,
+    'import-x': eslintPluginImportX,
   },
 };
 
