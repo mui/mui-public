@@ -26,8 +26,7 @@ import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
  */
 async function getReleaseVersion() {
   const result = await $`pnpm pkg get version`;
-  const versionData = JSON.parse(result.stdout.trim());
-  const version = versionData.version;
+  const version = JSON.parse(result.stdout.trim());
   return semver.valid(version);
 }
 
