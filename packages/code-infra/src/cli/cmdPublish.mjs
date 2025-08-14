@@ -22,19 +22,13 @@ import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
 
 /**
  * Get the version to release from the root package.json
- * @returns {Promise<string>} Version string
+ * @returns {Promise<string | null>} Version string
  */
 async function getReleaseVersion() {
   const result = await $`pnpm pkg get version`;
   const versionData = JSON.parse(result.stdout.trim());
   const version = versionData.version;
-
-  const validVersion = semver.valid(version);
-  if (!validVersion) {
-    throw new Error(`Invalid version in root package.json: ${version}`);
-  }
-
-  return validVersion;
+  return semver.valid(version);
 }
 
 /**
@@ -171,15 +165,20 @@ async function createGitTag(version, dryRun = false) {
 
 /**
  * Validate GitHub release requirements
- * @param {string} version - Version to validate
- * @returns {Promise<{changelogContent: string, repoInfo: {owner: string, repo: string}}>}
+ * @param {string | null} version - Version to validate
+ * @returns {Promise<{changelogContent: string, version: string, repoInfo: {owner: string, repo: string}}>}
  */
 async function validateGitHubRelease(version) {
   console.log('🔍 Validating GitHub release requirements...');
 
+  const validVersion = semver.valid(version);
+  if (!validVersion) {
+    throw new Error(`Invalid version in root package.json: ${version}`);
+  }
+
   // Check if CHANGELOG.md exists and parse it
-  console.log(`📄 Parsing CHANGELOG.md for version ${version}...`);
-  const changelogContent = await parseChangelog('CHANGELOG.md', version);
+  console.log(`📄 Parsing CHANGELOG.md for version ${validVersion}...`);
+  const changelogContent = await parseChangelog('CHANGELOG.md', validVersion);
   console.log('✅ Found changelog content for version');
 
   // Get repository info
@@ -191,20 +190,20 @@ async function validateGitHubRelease(version) {
     auth: process.env.GITHUB_TOKEN,
   });
 
-  console.log(`🔍 Checking if GitHub release v${version} already exists...`);
+  console.log(`🔍 Checking if GitHub release v${validVersion} already exists...`);
   const releaseExists = await checkGitHubReleaseExists(
     octokit,
     repoInfo.owner,
     repoInfo.repo,
-    version,
+    validVersion,
   );
 
   if (releaseExists) {
-    throw new Error(`GitHub release v${version} already exists`);
+    throw new Error(`GitHub release v${validVersion} already exists`);
   }
   console.log('✅ GitHub release does not exist yet');
 
-  return { changelogContent, repoInfo };
+  return { changelogContent, repoInfo, version: validVersion };
 }
 
 /**
@@ -292,11 +291,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Get version from root package.json
     const version = await getReleaseVersion();
-    console.log(`📋 Release version: ${version}`);
 
     // Early validation for GitHub release (before any publishing)
     let githubReleaseData = null;
     if (githubRelease) {
+      console.log(`📋 Release version: ${version}`);
       githubReleaseData = await validateGitHubRelease(version);
     }
 
@@ -304,11 +303,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     await publishToNpm(allPackages, options);
 
     // Create GitHub release or git tag after successful npm publishing
-    if (githubRelease && githubReleaseData && !dryRun) {
-      await createRelease(version, githubReleaseData.changelogContent, githubReleaseData.repoInfo);
-    } else if (githubRelease && dryRun) {
-      console.log('\n🚀 Would create GitHub draft release (dry-run)');
-    } else {
+    if (githubRelease && githubReleaseData) {
+      if (dryRun) {
+        console.log('\n🚀 Would create GitHub draft release (dry-run)');
+        console.log(githubReleaseData?.changelogContent);
+      } else {
+        await createRelease(
+          githubReleaseData.version,
+          githubReleaseData.changelogContent,
+          githubReleaseData.repoInfo,
+        );
+      }
+    } else if (version) {
       // Create git tag when not doing GitHub release
       await createGitTag(version, dryRun);
     }
