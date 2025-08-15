@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: true
+      no-git-checks:
+        description: 'Skip git checks before publishing'
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -58,8 +63,21 @@ jobs:
         run: pnpm run release:build
       - name: Publish packages
         run: |
+          # Build common flags
+          ARGS=""
+          if [ "${{ inputs.no-git-checks }}" = "true" ]; then
+            ARGS="$ARGS --no-git-checks"
+          fi
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          # Execute publish command
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.canary }}" != "true" ]; then
-            pnpm code-infra publish ${{ inputs.github-release == 'true' && '--github-release' || '' }} ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
+            if [ "${{ inputs.github-release }}" = "true" ]; then
+              ARGS="$ARGS --github-release"
+            fi
+            pnpm code-infra publish $ARGS
           else
-            pnpm code-infra publish-canary ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
+            pnpm code-infra publish-canary $ARGS
           fi
