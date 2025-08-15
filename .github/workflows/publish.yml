@@ -20,6 +20,11 @@ on:
         required: false
         type: boolean
         default: false
+      github-release:
+        description: 'Create a GitHub release after publishing'
+        required: false
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -54,7 +59,7 @@ jobs:
       - name: Publish packages
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.canary }}" != "true" ]; then
-            pnpm code-infra publish --github-release ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
+            pnpm code-infra publish ${{ inputs.github-release == 'true' && '--github-release' || '' }} ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
           else
             pnpm code-infra publish-canary ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
           fi
