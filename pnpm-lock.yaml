@@ -465,6 +465,9 @@ importers:
         specifier: ^17.7.2
         version: 17.7.2
     devDependencies:
+      '@babel/cli':
+        specifier: ^7.28.3
+        version: 7.28.3(@babel/core@7.28.0)
       '@types/babel__core':
         specifier: ^7.20.5
         version: 7.20.5
@@ -818,6 +821,13 @@ packages:
 
   '@babel/cli@7.27.2':
     resolution: {integrity: sha512-cfd7DnGlhH6OIyuPSSj3vcfIdnbXukhAyKY8NaZrFadC7pXyL9mOL5WgjcptiEJLi5k3j8aYvLIVCzezrWTaiA==}
+    engines: {node: '>=6.9.0'}
+    hasBin: true
+    peerDependencies:
+      '@babel/core': ^7.0.0-0
+
+  '@babel/cli@7.28.3':
+    resolution: {integrity: sha512-n1RU5vuCX0CsaqaXm9I0KUCNKNQMy5epmzl/xdSSm70bSqhg9GWhgeosypyQLc0bK24+Xpk1WGzZlI9pJtkZdg==}
     engines: {node: '>=6.9.0'}
     hasBin: true
     peerDependencies:
@@ -13127,6 +13137,20 @@ snapshots:
       tslib: 2.8.1
 
   '@babel/cli@7.27.2(@babel/core@7.28.0)':
+    dependencies:
+      '@babel/core': 7.28.0
+      '@jridgewell/trace-mapping': 0.3.29
+      commander: 6.2.1
+      convert-source-map: 2.0.0
+      fs-readdir-recursive: 1.1.0
+      glob: 7.2.3
+      make-dir: 2.1.0
+      slash: 2.0.0
+    optionalDependencies:
+      '@nicolo-ribaudo/chokidar-2': 2.1.8-no-fsevents.3
+      chokidar: 3.6.0
+
+  '@babel/cli@7.28.3(@babel/core@7.28.0)':
     dependencies:
       '@babel/core': 7.28.0
       '@jridgewell/trace-mapping': 0.3.29
