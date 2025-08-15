@@ -13,6 +13,11 @@ on:
         description: 'Commit SHA to release from'
         required: false
         type: string
+      canary:
+        description: 'Force canary publishing instead of stable release'
+        required: false
+        type: boolean
+        default: false
       dry-run:
         description: 'Run in dry-run mode without actually publishing packages'
         required: false
@@ -30,13 +35,14 @@ permissions:
 
 jobs:
   publish-canary:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.canary == true)
     uses: ./.github/workflows/publish-canary.yml
     with:
-      sha: ${{ github.sha }}
+      sha: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
+      dry-run: ${{ inputs.dry-run }}
 
   publish-stable:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.canary != true
     uses: ./.github/workflows/publish-stable.yml
     with:
       sha: ${{ inputs.sha }}

@@ -51,4 +51,4 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
-          pnpm code-infra publish-canary $ARGS
+          pnpm code-infra publish-canary --no-git-checks $ARGS
