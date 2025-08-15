@@ -24,7 +24,9 @@ on:
         type: boolean
         default: true
 
-permissions: {}
+permissions:
+  contents: write # Required for pushing tags and creating releases
+  id-token: write # Required for provenance
 
 jobs:
   publish-canary:
