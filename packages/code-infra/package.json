@@ -14,12 +14,15 @@
     "./package.json": "./package.json",
     "./prettier": "./src/prettier.mjs",
     "./eslint": "./src/eslint/index.mjs",
-    "./babel-config": "./src/babel-config.mjs"
+    "./babel-config": "./src/babel-config.mjs",
+    "./tsdown-config": "./src/tsdown-config.mjs"
   },
   "bin": {
     "code-infra": "./bin/code-infra.mjs"
   },
   "scripts": {
+    "build": "tsdown --config ./src/tsdown-config.mjs",
+    "prebuild": "rimraf build",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
@@ -43,6 +46,7 @@
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
     "babel-plugin-transform-remove-imports": "^1.8.0",
+    "browserslist": "^4.25.1",
     "chalk": "^5.4.1",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -64,11 +68,14 @@
     "minimatch": "^10.0.3",
     "semver": "^7.7.2",
     "typescript-eslint": "^8.35.1",
+    "unplugin-dts": "^1.0.0-beta.6",
     "yargs": "^17.7.2"
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "tsdown": "^0.14.1",
+    "vite": "^6 || ^7"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
@@ -82,7 +89,9 @@
     "@typescript-eslint/rule-tester": "^8.35.0",
     "eslint": "^9.29.0",
     "prettier": "^3.6.2",
-    "typescript-eslint": "^8.35.0"
+    "rimraf": "^6.0.1",
+    "tsdown": "^0.14.1",
+    "vite": "^6.3.5"
   },
   "files": [
     "bin",

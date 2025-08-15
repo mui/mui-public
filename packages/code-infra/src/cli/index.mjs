@@ -11,18 +11,20 @@ import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 
-const pkgJson = createRequire(import.meta.url)('../../package.json');
+export default function start() {
+  const pkgJson = createRequire(import.meta.url)('../../package.json');
 
-yargs()
-  .command(cmdPublish)
-  .command(cmdPublishCanary)
-  .command(cmdListWorkspaces)
-  .command(cmdJsonLint)
-  .command(cmdArgosPush)
-  .command(cmdSetVersionOverrides)
-  .command(cmdCopyFiles)
-  .command(cmdBuild)
-  .demandCommand(1, 'You need at least one command before moving on')
-  .help()
-  .version(pkgJson.version)
-  .parse(hideBin(process.argv));
+  yargs()
+    .command(cmdPublish)
+    .command(cmdPublishCanary)
+    .command(cmdListWorkspaces)
+    .command(cmdJsonLint)
+    .command(cmdArgosPush)
+    .command(cmdSetVersionOverrides)
+    .command(cmdCopyFiles)
+    .command(cmdBuild)
+    .demandCommand(1, 'You need at least one command before moving on')
+    .help()
+    .version(pkgJson.version)
+    .parse(hideBin(process.argv));
+}
