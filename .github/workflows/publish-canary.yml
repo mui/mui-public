@@ -50,5 +50,5 @@ jobs:
           if [ "${{ inputs.dry-run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
-          
+
           pnpm code-infra publish-canary $ARGS

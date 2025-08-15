@@ -58,5 +58,5 @@ jobs:
           if [ "${{ inputs.github-release }}" = "true" ]; then
             ARGS="$ARGS --github-release"
           fi
-          
+
           pnpm code-infra publish $ARGS
