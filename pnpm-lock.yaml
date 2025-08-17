@@ -320,8 +320,8 @@ importers:
         specifier: ^4.0.8
         version: 4.0.8
       piscina:
-        specifier: ^4.2.1
-        version: 4.7.0
+        specifier: ^4.9.2
+        version: 4.9.2
       rollup-plugin-visualizer:
         specifier: ^6.0.3
         version: 6.0.3(rollup@4.39.0)
@@ -10339,6 +10339,9 @@ packages:
 
   piscina@4.7.0:
     resolution: {integrity: sha512-b8hvkpp9zS0zsfa939b/jXbe64Z2gZv0Ha7FYPNUiDIB1y2AtxcOZdfP8xN8HFjUaqQiT9gRlfjAsoL8vdJ1Iw==}
+
+  piscina@4.9.2:
+    resolution: {integrity: sha512-Fq0FERJWFEUpB4eSY59wSNwXD4RYqR+nR/WiEVcZW8IWfVBxJJafcgTEZDQo8k3w0sUarJ8RyVbbUF4GQ2LGbQ==}
 
   pkg-dir@4.2.0:
     resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
@@ -24494,6 +24497,10 @@ snapshots:
   pinpoint@1.1.0: {}
 
   piscina@4.7.0:
+    optionalDependencies:
+      '@napi-rs/nice': 1.0.1
+
+  piscina@4.9.2:
     optionalDependencies:
       '@napi-rs/nice': 1.0.1
 
