@@ -384,7 +384,7 @@ importers:
         specifier: ^22.0.0
         version: 22.0.0
       '@pnpm/find-workspace-dir':
-        specifier: ^1000.1.0
+        specifier: ^1000.1.2
         version: 1000.1.2
       babel-plugin-optimize-clsx:
         specifier: ^2.6.2
