@@ -10,7 +10,7 @@
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
   "lockFileMaintenance": {
-    "enabled": true,
+    "enabled": true
   },
   "postUpdateOptions": ["pnpmDedupe"],
   "prConcurrentLimit": 30,
