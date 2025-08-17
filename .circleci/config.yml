@@ -72,7 +72,14 @@ jobs:
       - install_js
       - run:
           name: '`pnpm prettier` changes committed?'
-          command: pnpm prettier --check
+          command: |
+            # #target-branch-reference
+            if [[ $(git diff --name-status master | grep pnpm-lock) == "" ]];
+            then
+                pnpm prettier --check
+            else
+                pnpm exec prettier --check . --ignore-path .lintignore
+            fi
       - run:
           # make sure the netlify ignore command has the correct dependencies
           name: '`pnpm update-netlify-ignore` changes committed?'

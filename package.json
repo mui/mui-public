@@ -5,7 +5,7 @@
     "preinstall": "npx only-allow pnpm",
     "eslint": "eslint . --cache --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
     "eslint:ci": "eslint . --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
-    "prettier": "pretty-quick --ignore-path .lintignore",
+    "prettier": "pretty-quick --ignore-path .lintignore --branch master",
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "node ./update-netlify-ignore.js @app/code-infra-dashboard",
     "test": "vitest",
