@@ -28,7 +28,7 @@
     "@octokit/auth-action": "^6.0.1",
     "@octokit/rest": "^22.0.0",
     "chalk": "^5.4.1",
-    "env-ci": "^11.1.0",
+    "env-ci": "^11.1.1",
     "execa": "^7.2.0",
     "fast-glob": "^3.3.3",
     "git-url-parse": "^16.1.0",
