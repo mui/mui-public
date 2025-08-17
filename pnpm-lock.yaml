@@ -56,7 +56,7 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0
       lerna:
-        specifier: ^8.2.2
+        specifier: ^8.2.3
         version: 8.2.3(babel-plugin-macros@3.1.0)(encoding@0.1.13)
       prettier:
         specifier: ^3.6.2
