@@ -1,5 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>mui/mui-public//renovate/default"],
-  "ignoreDeps": []
+  // 5-10am on Sunday.
+  "schedule": "* 5-9 * * 7",
+  "lockFileMaintenance": {
+    // 0-5am on day-of-month 3.
+    "schedule": "* 0-4 3 * *"
+  },
 }

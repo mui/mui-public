@@ -9,10 +9,8 @@
   "dependencyDashboard": true,
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
-  "schedule": "on sunday before 6:00am",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": "before 6:00am on the first day of the month"
   },
   "postUpdateOptions": ["pnpmDedupe"],
   "prConcurrentLimit": 30,
