@@ -17,7 +17,7 @@
     "graphql": "^16.9.0",
     "graphql-request": "^7.1.0",
     "mysql": "^2.18.1",
-    "mysql2": "^3.11.2",
+    "mysql2": "^3.14.3",
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
