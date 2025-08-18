@@ -34,34 +34,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   handler: async (args) => {
     const cwd = process.cwd();
 
-    /** @type {string|undefined} */
-    let ignoreFile;
-
-    for (const file of ['.lintignore', '.eslintignore']) {
-      const lintIgnorePath = path.join(cwd, file);
-      // eslint-disable-next-line no-await-in-loop
-      const stats = await fs
-        .stat(lintIgnorePath)
-        .catch((error) => (error.code === 'ENOENT' ? null : Promise.reject(error)));
-      if (stats) {
-        ignoreFile = file;
-        break;
-      }
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`Reading ignore patterns from ${ignoreFile}`);
-
     const filenames = await globby('**/*.json', {
       cwd,
       gitignore: true,
-      ignoreFiles: ignoreFile ? [ignoreFile] : [],
+      ignoreFiles: ['.lintignore'],
       ignore: ['**/tsconfig*.json'],
       followSymbolicLinks: false,
     });
 
     const fileIterator = filenames[Symbol.iterator]();
-    const concurrency = 20;
+    const concurrency = Math.min(20, filenames.length);
     let passed = true;
     const workers = [];
 
