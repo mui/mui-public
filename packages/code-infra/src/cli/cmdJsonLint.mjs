@@ -34,8 +34,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   handler: async (args) => {
     const cwd = process.cwd();
 
-    /** @type {string[]} */
-    const ignoreFiles = [];
+    /** @type {string|undefined} */
+    let ignoreFile;
 
     for (const file of ['.lintignore', '.eslintignore']) {
       const lintIgnorePath = path.join(cwd, file);
@@ -44,18 +44,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         .stat(lintIgnorePath)
         .catch((error) => (error.code === 'ENOENT' ? null : Promise.reject(error)));
       if (stats) {
-        ignoreFiles.push(file);
+        ignoreFile = file;
         break;
       }
     }
 
     // eslint-disable-next-line no-console
-    console.log(`Reading ignore patterns from ${ignoreFiles.join(', ')}`);
+    console.log(`Reading ignore patterns from ${ignoreFile}`);
 
     const filenames = await globby('**/*.json', {
       cwd,
       gitignore: true,
-      ignoreFiles,
+      ignoreFiles: ignoreFile ? [ignoreFile] : [],
       ignore: ['**/tsconfig*.json'],
       followSymbolicLinks: false,
     });
