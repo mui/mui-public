@@ -25,8 +25,7 @@
     "@types/chai": "^4.3.20",
     "@types/node": "^24.3.0",
     "@types/resolve": "^1.20.6",
-    "babel-plugin-tester": "^12.0.0",
-    "chai": "^4.5.0"
+    "babel-plugin-tester": "^12.0.0"
   },
   "peerDependencies": {
     "@babel/core": "7"
