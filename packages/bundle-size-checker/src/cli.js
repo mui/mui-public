@@ -105,8 +105,18 @@ async function reportCommand(argv) {
     pull_number: pr,
   });
 
+  const getMergeBaseFromGithubApi = async (
+    /** @type {string} */ base,
+    /** @type {string} */ head,
+  ) => {
+    const { data } = await octokit.repos.compareCommits({ owner, repo, base, head });
+    return data.merge_base_commit.sha;
+  };
+
   // Generate and print the markdown report
-  const report = await renderMarkdownReport(prInfo);
+  const report = await renderMarkdownReport(prInfo, undefined, {
+    getMergeBase: getMergeBaseFromGithubApi,
+  });
   // eslint-disable-next-line no-console
   console.log(report);
 }
