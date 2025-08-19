@@ -23,6 +23,7 @@ yargs()
   .command(cmdCopyFiles)
   .command(cmdBuild)
   .demandCommand(1, 'You need at least one command before moving on')
+  .strict()
   .help()
   .version(pkgJson.version)
   .parse(hideBin(process.argv));
