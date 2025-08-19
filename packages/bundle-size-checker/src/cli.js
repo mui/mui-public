@@ -85,7 +85,7 @@ async function reportCommand(argv) {
   // Get current repo info and coerce with provided arguments
   const currentRepo = await getCurrentRepoInfo();
   const owner = argOwner ?? currentRepo.owner;
-  const repo = argRepo ?? currentRepo.repo;
+  const repo = argRepo ?? currentRepo.name;
 
   if (typeof pr !== 'number') {
     throw new Error('Invalid pull request number. Please provide a valid --pr option.');

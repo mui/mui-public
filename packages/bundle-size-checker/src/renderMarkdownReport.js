@@ -224,6 +224,7 @@ function getDetailsUrl(prInfo, options = {}) {
  * @param {string[]} [options.track] - Array of bundle IDs to track
  * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
  * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
+ * @param {boolean} [options.allowGithubApiFallback] - Whether to allow fallback to GitHub API if not executed in an actual git repo
  * @returns {Promise<string>} Markdown report
  */
 export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
@@ -238,9 +239,9 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const currentRepo = await getCurrentRepoInfo();
 
   let baseCommit;
-  if (owner === currentRepo.owner && repoName === currentRepo.repo) {
+  if (owner === currentRepo.owner && repoName === currentRepo.name) {
     baseCommit = await getMergeBase(prInfo.base.sha, prCommit);
-  } else {
+  } else if (options.allowGithubApiFallback) {
     const { data } = await octokit.repos.compareCommits({
       owner,
       repo: repoName,
@@ -248,6 +249,12 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
       head: prCommit,
     });
     baseCommit = data.merge_base_commit.sha;
+  }
+
+  if (!baseCommit) {
+    throw new Error(
+      `Unable to determine base commit for PR ${prInfo.base.repo.full_name} #${prInfo.number}\n  current repo: ${currentRepo.owner}/${currentRepo.name}\n  base: ${prInfo.base.sha}  head: ${prCommit}`,
+    );
   }
 
   const [baseResult, prSnapshot] = await Promise.all([
