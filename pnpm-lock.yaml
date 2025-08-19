@@ -181,11 +181,11 @@ importers:
         specifier: ^9.15.1
         version: 9.15.1(encoding@0.1.13)
       graphql:
-        specifier: ^16.9.0
-        version: 16.9.0
+        specifier: ^16.11.0
+        version: 16.11.0
       graphql-request:
         specifier: ^7.2.0
-        version: 7.2.0(graphql@16.9.0)
+        version: 7.2.0(graphql@16.11.0)
       mysql:
         specifier: ^2.18.1
         version: 2.18.1
@@ -7878,8 +7878,8 @@ packages:
     peerDependencies:
       graphql: 14 - 16
 
-  graphql@16.9.0:
-    resolution: {integrity: sha512-GGTKBX4SD7Wdb8mqeDLni2oaRGYQWjWHGKPQ24ZMnUtKfcsVoiv4uX8+LJr1K6U5VW2Lu1BwJnj7uiori0YtRw==}
+  graphql@16.11.0:
+    resolution: {integrity: sha512-mS1lbMsxgQj6hge1XZ6p7GPhbrtFwUFYi3wRzXAC/FmYnyXMTvvI3td3rjmQ2u8ewXueaSvRPWaEcgVVOT9Jnw==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   gtoken@7.1.0:
@@ -14234,9 +14234,9 @@ snapshots:
       - encoding
       - supports-color
 
-  '@graphql-typed-document-node/core@3.2.0(graphql@16.9.0)':
+  '@graphql-typed-document-node/core@3.2.0(graphql@16.11.0)':
     dependencies:
-      graphql: 16.9.0
+      graphql: 16.11.0
 
   '@heroku/socksv5@0.0.9':
     dependencies:
@@ -21435,12 +21435,12 @@ snapshots:
 
   graphemer@1.4.0: {}
 
-  graphql-request@7.2.0(graphql@16.9.0):
+  graphql-request@7.2.0(graphql@16.11.0):
     dependencies:
-      '@graphql-typed-document-node/core': 3.2.0(graphql@16.9.0)
-      graphql: 16.9.0
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
+      graphql: 16.11.0
 
-  graphql@16.9.0: {}
+  graphql@16.11.0: {}
 
   gtoken@7.1.0(encoding@0.1.13):
     dependencies:
