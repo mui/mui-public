@@ -263,9 +263,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, '12345', {
-      allowGithubApiFallback: true,
-    });
+    const result = await renderMarkdownReport(mockPrInfo, '12345');
 
     expect(result).toContain('circleCIBuildNumber=12345');
     expect(result).toMatchInlineSnapshot(`
@@ -336,7 +334,6 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
-      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -372,7 +369,6 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
-      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -408,7 +404,6 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js'],
-      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -443,7 +438,6 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
-      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -477,7 +471,6 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js'],
-      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -509,7 +502,6 @@ describe('renderMarkdownReport', () => {
     await expect(
       renderMarkdownReport(mockPrInfo, undefined, {
         track: ['@mui/material/Button/index.js', '@mui/material/NonExistent/index.js'],
-        allowGithubApiFallback: true,
       }),
     ).rejects.toThrow(
       'Tracked bundle not found in head snapshot: @mui/material/NonExistent/index.js',
@@ -571,7 +563,6 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       fallbackDepth: 1,
-      allowGithubApiFallback: true,
     });
 
     expect(result).toContain(
