@@ -80,7 +80,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toMatchInlineSnapshot(`
       "**Total Size Change:** 🔺+400B<sup>(+1.08%)</sup> - **Total Gzip Change:** 🔺+100B<sup>(+0.91%)</sup>
@@ -114,7 +116,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toMatchInlineSnapshot(`
       "**Total Size Change:** 🔺+3.5KB<sup>(+23.33%)</sup> - **Total Gzip Change:** 🔺+1.2KB<sup>(+26.67%)</sup>
@@ -140,7 +144,9 @@ describe('renderMarkdownReport', () => {
     mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: null, actualCommit: null });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toContain(
       'No bundle size snapshot found for merge base abc123 or any of its 3 parent commits.',
@@ -162,7 +168,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toMatchInlineSnapshot(`
       "**Total Size Change:** ▼-500B<sup>(-3.33%)</sup> - **Total Gzip Change:** ▼-200B<sup>(-4.44%)</sup>
@@ -196,7 +204,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toMatchInlineSnapshot(`
       "**Total Size Change:** ▼-22KB<sup>(-59.46%)</sup> - **Total Gzip Change:** ▼-6.5KB<sup>(-59.09%)</sup>
@@ -237,7 +247,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toMatchInlineSnapshot(`
       "**Total Size Change:** 🔺+1.15KB<sup>(+3.83%)</sup> - **Total Gzip Change:** 🔺+250B<sup>(+2.78%)</sup>
@@ -284,7 +296,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, '12345');
+    const result = await renderMarkdownReport(mockPrInfo, '12345', {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toContain('circleCIBuildNumber=12345');
     expect(result).toMatchInlineSnapshot(`
@@ -317,7 +331,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toMatchInlineSnapshot(`
       "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
@@ -355,6 +371,7 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
+      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -390,6 +407,7 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
+      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -425,6 +443,7 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js'],
+      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -459,6 +478,7 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
+      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -492,6 +512,7 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo, undefined, {
       track: ['@mui/material/Button/index.js'],
+      allowGithubApiFallback: true,
     });
 
     expect(result).toMatchInlineSnapshot(`
@@ -523,6 +544,7 @@ describe('renderMarkdownReport', () => {
     await expect(
       renderMarkdownReport(mockPrInfo, undefined, {
         track: ['@mui/material/Button/index.js', '@mui/material/NonExistent/index.js'],
+        allowGithubApiFallback: true,
       }),
     ).rejects.toThrow(
       'Tracked bundle not found in head snapshot: @mui/material/NonExistent/index.js',
@@ -544,7 +566,9 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toContain(
       'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
@@ -560,7 +584,9 @@ describe('renderMarkdownReport', () => {
     mockFetchSnapshotWithFallback.mockResolvedValueOnce({ snapshot: null, actualCommit: null });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo);
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toContain(
       'No bundle size snapshot found for merge base abc123 or any of its 3 parent commits.',
@@ -582,7 +608,10 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, { fallbackDepth: 1 });
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      fallbackDepth: 1,
+      allowGithubApiFallback: true,
+    });
 
     expect(result).toContain(
       'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
