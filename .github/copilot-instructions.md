@@ -101,7 +101,7 @@ test/
 
 ### Build and CI
 
-- `.github/workflows/ci-base.yml` -- Main CI workflow
+- `.github/workflows/ci.yml` -- Main CI workflow
 - `.github/workflows/publish.yml` -- Package publishing workflow
 - `lerna.json` -- Lerna configuration for versioning
 
