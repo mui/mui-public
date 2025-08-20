@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { globby } from 'globby';
 import fs from 'node:fs/promises';
@@ -10,6 +8,7 @@ import path from 'node:path';
  * @property {boolean} [silent] Run in silent mode without logging
  * @property {boolean} [excludeDefaults] Exclude default files from the copy operation
  * @property {string[]} [glob] Glob patterns to copy
+ * @property {string[]} [files] Extra files to copy
  */
 
 /**
@@ -44,6 +43,7 @@ async function recursiveCopy({ source, target, silent = false }) {
   try {
     await fs.cp(source, target, { recursive: true });
     if (!silent) {
+      // eslint-disable-next-line no-console
       console.log(`Copied ${source} to ${target}`);
     }
     return true;
@@ -123,7 +123,7 @@ async function processGlobs({ globs, cwd, silent = true, buildDir }) {
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
-  command: 'copy-files',
+  command: 'copy-files [files...]',
   describe: 'Copy files from source to target paths within the build directory.',
   builder: (yargs) => {
     return yargs
@@ -143,25 +143,21 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         array: true,
         description: 'Glob pattern to match files.',
       })
-      .positional('_', {
+      .positional('files', {
         type: 'string',
         describe: 'Files to copy, can be specified as `source:target` pairs or just `source`.',
         array: true,
-        demandOption: true,
+        default: [],
       });
   },
   handler: async (args) => {
     const { silent = false, excludeDefaults = false, glob: globs = [] } = args;
     const cwd = process.cwd();
     const pkgJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf-8'));
-    /**
-     * @type {string}
-     */
+    /** @type {string} */
     const buildDir = pkgJson.publishConfig?.directory || 'build';
-    const extraFiles = /** @type {string[]} */ (args._.slice(1));
-    /**
-     * @type {string[]}
-     */
+    const extraFiles = args.files ?? [];
+    /** @type {string[]} */
     const defaultFiles = [];
     const workspaceDir = await findWorkspaceDir(cwd);
     if (!workspaceDir) {
@@ -184,7 +180,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       }),
     );
 
-    const filesToCopy = excludeDefaults ? extraFiles : [...defaultFiles, ...extraFiles];
+    const filesToCopy = [...(excludeDefaults ? [] : defaultFiles), ...extraFiles];
     let result = filesToCopy.length;
 
     if (filesToCopy.length) {
@@ -212,6 +208,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         silent,
       });
     }
+    // eslint-disable-next-line no-console
     console.log(`Copied ${result} files.`);
   },
 });

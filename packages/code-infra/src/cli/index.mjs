@@ -14,6 +14,7 @@ import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 const pkgJson = createRequire(import.meta.url)('../../package.json');
 
 yargs()
+  .scriptName('code-infra')
   .command(cmdPublish)
   .command(cmdPublishCanary)
   .command(cmdListWorkspaces)
