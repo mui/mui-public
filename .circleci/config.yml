@@ -9,7 +9,7 @@ parameters:
 default-job: &default-job
   working_directory: /tmp/mui
   docker:
-    - image: cimg/node:24.3
+    - image: cimg/node:22.18
   environment:
     DANGER_DISABLE_TRANSPILATION: 'true'
 
