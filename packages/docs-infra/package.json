@@ -29,7 +29,7 @@
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/runtime": "^7.27.6",
+    "@babel/runtime": "^7.28.3",
     "@types/hast": "^3.0.4",
     "clipboard-copy": "^4.0.1",
     "hast": "^1.0.0",
@@ -38,12 +38,12 @@
     "kebab-case": "^2.0.2"
   },
   "devDependencies": {
-    "@babel/cli": "^7.27.2",
-    "@babel/core": "^7.27.4",
+    "@babel/cli": "^7.28.3",
+    "@babel/core": "^7.28.3",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
-    "@babel/plugin-transform-runtime": "^7.27.4",
-    "@types/node": "^24.0.3",
-    "@types/react": "^19.1.9",
+    "@babel/plugin-transform-runtime": "^7.28.3",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.10",
     "babel-plugin-istanbul": "^7.0.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-plugin-optimize-clsx": "^2.6.2",
@@ -51,13 +51,13 @@
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
     "csstype": "^3.1.3",
-    "execa": "^7.2.0",
+    "execa": "^9.6.0",
     "fast-glob": "^3.3.3",
     "jsonc-parser": "^3.3.1",
-    "next": "^15.3.4",
+    "next": "^15.4.6",
     "react": "^19.1.1",
     "rimraf": "^6.0.1",
-    "yargs": "^17.7.2"
+    "yargs": "^18.0.0"
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",

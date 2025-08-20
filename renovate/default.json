@@ -10,14 +10,12 @@
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
   "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": "before 6:00am on the first day of the month"
+    "enabled": true
   },
   "postUpdateOptions": ["pnpmDedupe"],
   "prConcurrentLimit": 30,
   "prHourlyLimit": 0,
   "rangeStrategy": "bump",
-  "schedule": "on sunday before 6:00am",
   "timezone": "UTC",
   "packageRules": [
     {
