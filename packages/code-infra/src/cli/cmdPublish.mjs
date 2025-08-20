@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./pnpm.mjs').Package} Package
+ * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
  * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
  */
 
@@ -207,7 +207,7 @@ async function validateGitHubRelease(version) {
 
 /**
  * Publish packages to npm
- * @param {Package[]} packages - Packages to publish
+ * @param {PublicPackage[]} packages - Packages to publish
  * @param {PublishOptions} options - Publishing options
  * @returns {Promise<void>}
  */
@@ -282,6 +282,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
+
     const allPackages = await getWorkspacePackages({ publicOnly: true });
 
     if (allPackages.length === 0) {
