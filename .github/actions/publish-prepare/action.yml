@@ -1,20 +1,9 @@
 name: 'Publish Preparation'
-description: 'Common setup steps for publishing MUI packages'
-
-inputs:
-  checkout-ref:
-    description: 'Git ref to checkout'
-    required: true
-    type: string
+description: 'Common setup steps for publishing MUI packages (after checkout)'
 
 runs:
   using: 'composite'
   steps:
-    - name: Checkout
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-      with:
-        ref: ${{ inputs.checkout-ref }}
-        fetch-depth: 0 # Fetch full history for proper git operations
     - name: Set up pnpm
       uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
     - name: Setup Node.js
