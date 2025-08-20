@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { globby } from 'globby';
 import fs from 'node:fs/promises';
@@ -45,6 +43,7 @@ async function recursiveCopy({ source, target, silent = false }) {
   try {
     await fs.cp(source, target, { recursive: true });
     if (!silent) {
+      // eslint-disable-next-line no-console
       console.log(`Copied ${source} to ${target}`);
     }
     return true;
@@ -155,15 +154,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const { silent = false, excludeDefaults = false, glob: globs = [] } = args;
     const cwd = process.cwd();
     const pkgJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf-8'));
-    /**
-     * @type {string}
-     */
+    /** @type {string} */
     const buildDir = pkgJson.publishConfig?.directory || 'build';
     const extraFiles = args.files ?? [];
-    console.log(args.files);
-    /**
-     * @type {string[]}
-     */
+    /** @type {string[]} */
     const defaultFiles = [];
     const workspaceDir = await findWorkspaceDir(cwd);
     if (!workspaceDir) {
@@ -214,6 +208,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         silent,
       });
     }
+    // eslint-disable-next-line no-console
     console.log(`Copied ${result} files.`);
   },
 });
