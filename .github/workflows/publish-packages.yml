@@ -26,6 +26,8 @@ jobs:
     permissions:
       contents: write # Required for pushing tags and creating releases
       id-token: write # Required for provenance
+    environment:
+      name: npm-publish
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5

@@ -1,6 +1,6 @@
 name: Publish packages
 
-# single workflow for both canary and stable as we can only specify a single
+# single workflow for both preview and stable as we can only specify a single
 # workflow file for trusted publishing
 
 on:
@@ -15,8 +15,8 @@ on:
         description: 'Commit SHA to release from'
         required: false
         type: string
-      canary:
-        description: 'Force canary publishing instead of stable release'
+      preview:
+        description: 'Force preview publishing instead of stable release'
         required: false
         type: boolean
         default: false
@@ -36,19 +36,19 @@ permissions:
   id-token: write # Required for provenance
 
 jobs:
-  publish-canary:
+  publish-preview:
     if: >
       github.event_name == 'schedule'
       || (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'Bump '))
-      || (github.event_name == 'workflow_dispatch' && inputs.canary == true)
-    uses: ./.github/workflows/publish-canary.yml
+      || (github.event_name == 'workflow_dispatch' && inputs.preview == true)
+    uses: ./.github/workflows/publish-preview.yml
     with:
       sha: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
       dry-run: ${{ inputs.dry-run }}
 
-  publish-stable:
-    if: github.event_name == 'workflow_dispatch' && inputs.canary != true
-    uses: ./.github/workflows/publish-stable.yml
+  publish-packages:
+    if: github.event_name == 'workflow_dispatch' && inputs.preview != true
+    uses: ./.github/workflows/publish-packages.yml
     with:
       sha: ${{ inputs.sha }}
       dry-run: ${{ inputs.dry-run }}
