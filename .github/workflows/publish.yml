@@ -44,12 +44,12 @@ jobs:
     uses: ./.github/workflows/publish-preview.yml
     with:
       sha: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
-      dry-run: ${{ inputs.dry-run }}
+      dry-run: ${{ inputs.dry-run || false }}
 
   publish-packages:
     if: github.event_name == 'workflow_dispatch' && inputs.preview != true
     uses: ./.github/workflows/publish-packages.yml
     with:
       sha: ${{ inputs.sha }}
-      dry-run: ${{ inputs.dry-run }}
-      github-release: ${{ inputs.github-release }}
+      dry-run: ${{ inputs.dry-run || false }}
+      github-release: ${{ inputs.github-release || true }}
