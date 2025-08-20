@@ -6,10 +6,19 @@ import * as path from 'path';
 import * as semver from 'semver';
 
 /**
- * @typedef {Object} Package
+ * @typedef {Object} PrivatePackage
+ * @property {string} [name] - Package name
+ * @property {string} [version] - Package version
+ * @property {string} path - Package directory path
+ * @property {true} isPrivate - Whether the package is private
+ */
+
+/**
+ * @typedef {Object} PublicPackage
  * @property {string} name - Package name
  * @property {string} version - Package version
  * @property {string} path - Package directory path
+ * @property {false} isPrivate - Whether the package is private
  */
 
 /**
@@ -41,7 +50,7 @@ import * as semver from 'semver';
 /**
  * Get workspace packages with optional filtering
  * @param {GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
- * @returns {Promise<Package[]>} Array of packages
+ * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
  */
 export async function getWorkspacePackages(options = {}) {
   const { sinceRef = null, publicOnly = false } = options;
@@ -53,18 +62,20 @@ export async function getWorkspacePackages(options = {}) {
   const packageData = JSON.parse(result.stdout);
 
   // Filter packages based on options
-  const filteredPackages = packageData
-    .filter((pkg) => !publicOnly || !pkg.private)
-    .map((pkg) => {
-      if (!pkg.name || !pkg.version) {
-        throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
-      }
-      return {
+  const filteredPackages = packageData.flatMap((pkg) => {
+    const isPrivate = pkg.private || !pkg.name || !pkg.version;
+    if (publicOnly && isPrivate) {
+      return [];
+    }
+    return [
+      /** @type {PublicPackage | PrivatePackage} */ ({
         name: pkg.name,
         version: pkg.version,
         path: pkg.path,
-      };
-    });
+        isPrivate,
+      }),
+    ];
+  });
 
   return filteredPackages;
 }
@@ -104,7 +115,7 @@ export async function getPackageVersionInfo(packageName, baseVersion) {
 
 /**
  * Publish packages with the given options
- * @param {Package[]} packages - Packages to publish
+ * @param {PublicPackage[]} packages - Packages to publish
  * @param {string} tag - npm tag to publish with
  * @param {PublishOptions} [options={}] - Publishing options
  * @returns {Promise<void>}
