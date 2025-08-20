@@ -29,6 +29,9 @@ async function loadConfigFile(configPath) {
       resolvedConfig = await config;
     } else if (typeof config === 'function') {
       resolvedConfig = await config();
+    } else {
+      // Handle plain config objects
+      resolvedConfig = config;
     }
 
     return resolvedConfig;

@@ -70,7 +70,7 @@ async function createViteConfig(entry, args) {
 
     build: {
       write: true,
-      minify: true,
+      minify: args.debug ? 'esbuild' : true,
       outDir,
       emptyOutDir: true,
       rollupOptions: {
@@ -100,6 +100,11 @@ async function createViteConfig(entry, args) {
 
     esbuild: {
       legalComments: 'none',
+      ...(args.debug && {
+        minifyIdentifiers: false,
+        minifyWhitespace: false,
+        minifySyntax: true, // This enables tree-shaking and other safe optimizations
+      }),
     },
 
     define: {
