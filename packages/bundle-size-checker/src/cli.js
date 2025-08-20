@@ -175,7 +175,8 @@ yargs(process.argv.slice(2))
           })
           .option('debug', {
             default: false,
-            describe: 'Build with readable output (no name mangling or whitespace collapse, but still tree-shake).',
+            describe:
+              'Build with readable output (no name mangling or whitespace collapse, but still tree-shake).',
             type: 'boolean',
           })
           .option('output', {
