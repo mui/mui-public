@@ -42,6 +42,7 @@ Always reference these instructions first and fallback to search or bash command
 - **CRITICAL**: When running pnpm commands for workspace packages, always use the `-F` flag followed by the package name.
 - **Example**: `pnpm -F @mui/internal-bundle-size-checker add micromatch`
 - **Do NOT use `cd` to navigate into package directories** for workspace operations.
+- **Do NOT manually edit package.json files to add/remove dependencies** - always use `pnpm -F <workspace> add <dependency>` or `pnpm -F <workspace> remove <dependency>` to keep the order deterministic.
 - **ALWAYS run `pnpm dedupe`** after installing a dependency.
 
 ### Repository Structure
