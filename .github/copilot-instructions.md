@@ -12,7 +12,6 @@ Always reference these instructions first and fallback to search or bash command
 
 - **Prerequisites**: Node.js 18+ required. Install pnpm: `npm install -g pnpm@10.14.0`
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
-  - **Known Issue**: The `test/bundle-size` package may have dependencies on `pkg.pr.new` that fail due to network issues. If install fails, set the `@base-ui-components/react` dependency in `test/bundle-size/package.json` to `"latest"` and rerun.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Linting**: `pnpm eslint` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -76,26 +75,11 @@ test/
 
 - **Version packages**: `pnpm release:version` (uses lerna)
 - **Build packages**: `pnpm release:build` -- builds all packages in `/packages/*`
-- **Bundle size check**: `pnpm size:snapshot` -- **Note**: May fail due to missing pkg.pr.new dependency
+- **Bundle size check**: `pnpm size:snapshot`
 
 ## Troubleshooting
 
 ### Common Issues and Workarounds
-
-#### pnpm install fails with pkg.pr.new error
-
-```bash
-# Temporarily edit test/bundle-size/package.json to set the problematic dependency:
-# Set: "@base-ui-components/react": "latest"
-# Then run: pnpm install --no-frozen-lockfile
-```
-
-#### Bundle size check fails
-
-```bash
-# This is expected if the pkg.pr.new dependency was changed to "latest"
-# The bundle size check will fail but other functionality works normally
-```
 
 #### Peer dependency warnings
 

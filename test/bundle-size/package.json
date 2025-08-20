@@ -8,6 +8,7 @@
     "@mui/internal-bundle-size-checker": "workspace:*"
   },
   "dependencies": {
-    "radix-ui": "^1.4.2"
+    "radix-ui": "^1.4.2",
+    "@base-ui-components/react": "latest"
   }
 }
