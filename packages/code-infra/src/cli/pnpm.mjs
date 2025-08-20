@@ -49,6 +49,19 @@ import * as semver from 'semver';
 
 /**
  * Get workspace packages with optional filtering
+ *
+ * @overload
+ * @param {{ publicOnly: true } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<PublicPackage[]>} Array of packages
+ *
+ * @overload
+ * @param {{ publicOnly?: false | undefined } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<PrivatePackage[]>} Array of packages
+ *
+ * @overload
+ * @param {GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
+ *
  * @param {GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
  * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
  */
