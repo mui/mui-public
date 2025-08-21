@@ -167,7 +167,11 @@ function transformMessage(
 /**
  * Resolves the runtime module path recursively.
  */
-function resolveRuntimeModule(runtimeModule: string, state: PluginState, visitedModules = new Set<string>()): string {
+function resolveRuntimeModule(
+  runtimeModule: string,
+  state: PluginState,
+  visitedModules = new Set<string>(),
+): string {
   if (!runtimeModule.startsWith('#')) {
     return runtimeModule;
   }
@@ -245,26 +249,26 @@ export default function plugin(
         switch (detection) {
           case 'opt-in': {
             if (
-              !newExpressionPath.node.leadingComments?.some((comment: any) =>
+              !newExpressionPath.node.leadingComments?.some((comment) =>
                 comment.value.includes(COMMENT_OPT_IN_MARKER),
               )
             ) {
               return;
             }
             newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
-              (comment: any) => !comment.value.includes(COMMENT_OPT_IN_MARKER),
+              (comment) => !comment.value.includes(COMMENT_OPT_IN_MARKER),
             );
             break;
           }
           case 'opt-out': {
             if (
-              newExpressionPath.node.leadingComments?.some((comment: any) =>
+              newExpressionPath.node.leadingComments?.some((comment) =>
                 comment.value.includes(COMMENT_OPT_OUT_MARKER),
               )
             ) {
               newExpressionPath.node.leadingComments =
                 newExpressionPath.node.leadingComments.filter(
-                  (comment: any) => !comment.value.includes(COMMENT_OPT_OUT_MARKER),
+                  (comment) => !comment.value.includes(COMMENT_OPT_OUT_MARKER),
                 );
               return;
             }
