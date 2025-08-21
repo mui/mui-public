@@ -19,17 +19,15 @@ const $$ = $({ stdio: 'inherit' });
 export async function emitDeclarations(tsconfig, outDir) {
   const tsconfigDir = path.dirname(tsconfig);
   const rootDir = path.resolve(tsconfigDir, './src');
-  const tsBuildInfoFile = path.resolve(tsconfigDir, './build/tsconfig.build.tsbuildinfo');
-  await $$`tsc 
-    -p ${tsconfig} 
+  await $$`tsc
+    -p ${tsconfig}
     --rootDir ${rootDir}
-    --outDir ${outDir} 
-    --declaration 
-    --emitDeclarationOnly 
+    --outDir ${outDir}
+    --declaration
+    --emitDeclarationOnly
     --noEmit false
     --composite false
-    --incremental false
-    --tsBuildInfoFile ${tsBuildInfoFile}`;
+    --incremental false`;
 }
 
 /**
