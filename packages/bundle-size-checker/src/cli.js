@@ -173,6 +173,12 @@ yargs(process.argv.slice(2))
             describe: 'Show more detailed information during compilation.',
             type: 'boolean',
           })
+          .option('debug', {
+            default: false,
+            describe:
+              'Build with readable output (no name mangling or whitespace collapse, but still tree-shake).',
+            type: 'boolean',
+          })
           .option('output', {
             alias: 'o',
             describe:

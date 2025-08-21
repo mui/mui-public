@@ -49,6 +49,7 @@ interface CommandLineArgs {
   verbose?: boolean;
   filter?: string[];
   concurrency?: number;
+  debug?: boolean;
 }
 
 interface ReportCommandArgs {
