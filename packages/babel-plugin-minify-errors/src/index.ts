@@ -25,6 +25,7 @@ const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
 export interface PluginState extends PluginPass {
   updatedErrorCodes?: boolean;
   formatErrorMessageIdentifier?: t.Identifier;
+  filename?: string;
 }
 
 export type MissingError = 'annotate' | 'throw' | 'write';

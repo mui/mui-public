@@ -17,11 +17,7 @@
     "url": "https://opencollective.com/mui-org"
   },
   "scripts": {
-    "build": "npm run build:js && npm run build:types",
-    "build:js": "npm run build:cjs && npm run build:esm",
-    "build:cjs": "babel src --out-dir build/cjs --extensions .ts --env-name cjs",
-    "build:esm": "babel src --out-dir build/esm --extensions .ts --env-name esm --out-file-extension .mjs",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build": "code-infra build --bundle cjs --bundle esm && code-infra copy-files",
     "prebuild": "rimraf build",
     "typescript": "tsc -p tsconfig.json"
   },
@@ -30,10 +26,6 @@
     "find-package-json": "^1.2.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.28.3",
-    "@babel/core": "^7.28.3",
-    "@babel/preset-env": "^7.28.3",
-    "@babel/preset-typescript": "^7.27.1",
     "@types/babel__core": "^7.20.5",
     "@types/babel__helper-module-imports": "^7.18.3",
     "@types/find-package-json": "^1.2.6",
@@ -46,13 +38,8 @@
   },
   "sideEffects": false,
   "type": "commonjs",
-  "main": "./build/cjs/index.js",
   "exports": {
-    ".": {
-      "types": "./build/esm/index.d.ts",
-      "import": "./build/esm/index.mjs",
-      "require": "./build/cjs/index.js"
-    }
+    ".": "./src/index.ts"
   },
   "engines": {
     "node": ">=14.0.0"

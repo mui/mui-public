@@ -1,4 +1,2 @@
 __fixtures__
 *.tsbuildinfo
-src
-babel.config.json
