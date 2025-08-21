@@ -52,7 +52,7 @@ pluginTester({
     },
     {
       title: 'can throw on missing error codes',
-      error: /: Unminified error\. React uses minified messages in production builds to reduce the file size\. Please use development builds when debugging\./,
+      error: /: Missing error code for message 'missing'. Did you forget to run `pnpm extract-error-codes` first\?/,
       fixture: path.join(fixturePath, 'no-error-code-throw', 'input.js'),
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'no-error-code-throw', 'error-codes.json'),
