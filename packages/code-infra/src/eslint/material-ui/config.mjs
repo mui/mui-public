@@ -115,6 +115,12 @@ const criticalAirbnbRules = {
   // https://eslint.org/docs/rules/no-useless-concat
   'no-useless-concat': 'error',
 
+  // Disallow await inside of loops
+  // https://eslint.org/docs/rules/no-await-in-loop
+  'no-await-in-loop': 'error',
+  // disallow assignment in conditional expressions
+  'no-cond-assign': ['error', 'always'],
+
   // React
   // Prevent usage of button elements without an explicit type attribute
   // https://github.com/jsx-eslint/eslint-plugin-react/blob/843d71a432baf0f01f598d7cf1eea75ad6896e4b/docs/rules/button-has-type.md
@@ -169,24 +175,9 @@ const criticalAirbnbRules = {
  * @type {import('eslint').Linter.Config['rules']}
  */
 const typescriptOverrides = {
-  // Disable ESLint rules handled by TypeScript compiler
-  'constructor-super': 'off',
-  'getter-return': 'off',
-  'no-const-assign': 'off',
-  'no-dupe-args': 'off',
-  'no-dupe-class-members': 'off',
-  'no-dupe-keys': 'off',
-  'no-func-assign': 'off',
-  'no-import-assign': 'off',
-  'no-new-symbol': 'off',
-  'no-obj-calls': 'off',
-  'no-setter-return': 'off',
-  'no-this-before-super': 'off',
-  'no-undef': 'off',
-  'no-unreachable': 'off',
-  'no-unsafe-negation': 'off',
-  'valid-typeof': 'off',
-
+  // The following rules are enabled in Airbnb config, but are recommended to be disabled within TypeScript projects
+  // See: https://github.com/typescript-eslint/typescript-eslint/blob/13583e65f5973da2a7ae8384493c5e00014db51b/docs/linting/TROUBLESHOOTING.md#eslint-plugin-import
+  'import/named': 'off',
   'import/no-named-as-default-member': 'off',
   'import/no-unresolved': 'off',
 
@@ -307,12 +298,6 @@ const airbnbJsxA11y = {
       depth: 5,
     },
   ],
-
-  // Disallow await inside of loops
-  // https://eslint.org/docs/rules/no-await-in-loop
-  'no-await-in-loop': 'error',
-  // disallow assignment in conditional expressions
-  'no-cond-assign': ['error', 'always'],
 };
 
 /**

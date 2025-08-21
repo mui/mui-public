@@ -44,8 +44,8 @@ export function createBaseConfig(
       jsxA11yPlugin.flatConfigs.recommended,
       reactPlugin.configs.flat.recommended,
       reactHookConfigs.recommended,
-      importPlugin.flatConfigs.typescript,
       tseslint.configs.recommended,
+      importPlugin.flatConfigs.typescript,
       enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
       prettier,
       {
