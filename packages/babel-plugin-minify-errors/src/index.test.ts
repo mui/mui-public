@@ -52,7 +52,8 @@ pluginTester({
     },
     {
       title: 'can throw on missing error codes',
-      error: /: Missing error code for message 'missing'. Did you forget to run `pnpm extract-error-codes` first\?/,
+      error:
+        /: Missing error code for message 'missing'. Did you forget to run `pnpm extract-error-codes` first\?/,
       fixture: path.join(fixturePath, 'no-error-code-throw', 'input.js'),
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'no-error-code-throw', 'error-codes.json'),

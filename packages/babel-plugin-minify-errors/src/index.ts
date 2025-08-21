@@ -1,5 +1,5 @@
 import * as helperModuleImports from '@babel/helper-module-imports';
-import type { PluginObj, PluginPass, types as t, NodePath } from '@babel/core';
+import * as babel from '@babel/core';
 import * as fs from 'fs';
 import * as nodePath from 'path';
 import finder from 'find-package-json';
@@ -22,10 +22,9 @@ function pathToNodeImportSpecifier(importPath: string): string {
 const COMMENT_OPT_IN_MARKER = 'minify-error';
 const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
 
-export interface PluginState extends PluginPass {
+export interface PluginState extends babel.PluginPass {
   updatedErrorCodes?: boolean;
-  formatErrorMessageIdentifier?: t.Identifier;
-  filename?: string;
+  formatErrorMessageIdentifier?: babel.types.Identifier;
 }
 
 export type MissingError = 'annotate' | 'throw' | 'write';
@@ -40,13 +39,13 @@ export interface Options {
 
 interface ExtractedMessage {
   message: string;
-  expressions: t.Expression[];
+  expressions: babel.types.Expression[];
 }
 
 /**
  * Extracts the message and expressions from a node.
  */
-function extractMessage(t: typeof import('@babel/types'), node: t.Node): ExtractedMessage | null {
+function extractMessage(t: typeof babel.types, node: babel.types.Node): ExtractedMessage | null {
   if (t.isTemplateLiteral(node)) {
     return {
       message: node.quasis.map((quasi) => quasi.value.cooked).join('%s'),
@@ -78,7 +77,7 @@ function extractMessage(t: typeof import('@babel/types'), node: t.Node): Extract
 /**
  * Handles unminifyable errors based on the missingError option.
  */
-function handleUnminifyableError(missingError: MissingError, path: NodePath): void {
+function handleUnminifyableError(missingError: MissingError, path: babel.NodePath): void {
   switch (missingError) {
     case 'annotate':
       path.addComment(
@@ -101,15 +100,15 @@ function handleUnminifyableError(missingError: MissingError, path: NodePath): vo
  * Transforms the error message node.
  */
 function transformMessage(
-  t: typeof import('@babel/types'),
-  path: NodePath,
-  messageNode: t.Expression,
+  t: typeof babel.types,
+  path: babel.NodePath,
+  messageNode: babel.types.Expression,
   state: PluginState,
   errorCodesLookup: Map<string, number>,
   missingError: MissingError,
   runtimeModule: string,
   outExtension: string,
-): t.Expression | null {
+): babel.types.Expression | null {
   const message = extractMessage(t, messageNode);
   if (!message) {
     handleUnminifyableError(missingError, path);
@@ -218,7 +217,7 @@ function transformExtension(importSpecifier: string, outExtension = '.js'): stri
  * Babel plugin for minifying error messages.
  */
 export default function plugin(
-  { types: t }: { types: typeof import('@babel/types') },
+  { types: t }: typeof babel,
   {
     errorCodesPath,
     missingError = 'annotate',
@@ -226,7 +225,7 @@ export default function plugin(
     detection = 'opt-in',
     outExtension = '.js',
   }: Options,
-): PluginObj<PluginState> {
+): babel.PluginObj<PluginState> {
   if (!errorCodesPath) {
     throw new Error('errorCodesPath is required.');
   }
@@ -241,7 +240,10 @@ export default function plugin(
   return {
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
-      NewExpression(newExpressionPath: NodePath<t.NewExpression>, state: PluginState) {
+      NewExpression(
+        newExpressionPath: babel.NodePath<babel.types.NewExpression>,
+        state: PluginState,
+      ) {
         if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
           return;
         }
