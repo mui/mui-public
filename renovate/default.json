@@ -1,7 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for MUI repositories.",
-  "extends": [":semanticCommitsDisabled", "config:recommended", "helpers:pinGitHubActionDigests"],
+  "extends": [
+    ":semanticCommitsDisabled",
+    "group:definitelyTyped",
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
   "automerge": false,
   "commitMessageAction": "Bump",
   "commitMessageExtra": "to {{newValue}}",
@@ -51,6 +56,11 @@
     {
       "groupName": "eslint",
       "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
+    },
+    {
+      "groupName": "playwright monorepo",
+      "description": "Extends existing playwright preset to include docker images.",
+      "matchPackageNames": ["mcr.microsoft.com/playwright"]
     },
     {
       "groupName": "Vite & Vitest",
