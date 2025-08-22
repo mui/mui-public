@@ -34,7 +34,7 @@ export async function queryStoreDatabase(execute: QueryStoreDatabaseExecute) {
   try {
     return await execute(connection);
   } finally {
-    await connection.end().catch(() => {});
-    await ssh.close().catch(() => {});
+    await connection.end().catch((ex) => console.error(ex));
+    await ssh.close().catch((ex) => console.error(ex));
   }
 }

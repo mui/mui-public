@@ -26,13 +26,15 @@
   },
   "dependencies": {
     "@argos-ci/core": "^4.0.3",
+    "@babel/cli": "^7.28.3",
     "@babel/core": "^7.28.3",
-    "@babel/plugin-transform-runtime": "^7.28.3",
     "@babel/plugin-syntax-typescript": "^7.27.1",
+    "@babel/plugin-transform-runtime": "^7.28.3",
     "@babel/preset-env": "^7.28.3",
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/compat": "^1.3.2",
+    "@eslint/js": "^9.33.0",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
@@ -44,8 +46,6 @@
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
     "babel-plugin-transform-remove-imports": "^1.8.0",
     "chalk": "^5.5.0",
-    "eslint-config-airbnb": "^19.0.4",
-    "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-module-utils": "^2.12.1",
@@ -68,7 +68,8 @@
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "typescript": "^5.0.0"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",

@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 import { $ } from 'execa';
-import { globby } from 'globby';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -307,6 +306,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     console.log(`Selected output directory: "${buildDirBase}"`);
 
+    await fs.rm(buildDir, { recursive: true, force: true });
+
     let babelRuntimeVersion = packageJson.dependencies['@babel/runtime'];
     if (babelRuntimeVersion === 'catalog:') {
       // resolve the version from the given package
@@ -423,16 +424,5 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: buildDir,
       addTypes: buildTypes,
     });
-
-    // cleanup
-    const tsbuildinfo = await globby('**/*.tsbuildinfo', {
-      absolute: true,
-      cwd: buildDir,
-    });
-    await Promise.all(
-      tsbuildinfo.map(async (file) => {
-        await fs.rm(file);
-      }),
-    );
   },
 });

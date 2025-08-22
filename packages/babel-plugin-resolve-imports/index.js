@@ -1,4 +1,5 @@
 // @ts-check
+
 /// <reference path="./resolve.d.ts" />
 
 const nodePath = require('path');

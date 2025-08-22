@@ -134,11 +134,13 @@ export async function babelBuild({
   };
   const res = await $({
     stdio: 'inherit',
+    preferLocal: true,
+    localDir: import.meta.dirname,
     env: {
       ...process.env,
       ...env,
     },
-  })`pnpm babel --config-file ${configFile} --extensions ${TO_TRANSFORM_EXTENSIONS.join(',')} ${sourceDir} --out-dir ${outDir} --ignore ${BASE_IGNORES.concat(ignores).join(',')} --out-file-extension ${outExtension !== '.js' ? outExtension : '.js'} --compact ${hasLargeFiles ? 'false' : 'auto'}`;
+  })`babel --config-file ${configFile} --extensions ${TO_TRANSFORM_EXTENSIONS.join(',')} ${sourceDir} --out-dir ${outDir} --ignore ${BASE_IGNORES.concat(ignores).join(',')} --out-file-extension ${outExtension !== '.js' ? outExtension : '.js'} --compact ${hasLargeFiles ? 'false' : 'auto'}`;
 
   if (res.stderr) {
     throw new Error(`Command: '${res.escapedCommand}' failed with \n${res.stderr}`);

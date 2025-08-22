@@ -45,3 +45,4 @@ build
 *.tsbuildinfo
 
 size-snapshot.json
+.generated
