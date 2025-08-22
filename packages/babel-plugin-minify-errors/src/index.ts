@@ -1,7 +1,7 @@
 import * as helperModuleImports from '@babel/helper-module-imports';
 import * as babel from '@babel/core';
-import * as fs from 'fs';
-import * as nodePath from 'path';
+import * as fs from 'node:fs';
+import * as nodePath from 'node:path';
 import finder from 'find-package-json';
 
 /**
