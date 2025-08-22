@@ -1,6 +1,6 @@
 import * as babel from '@babel/core';
 import * as nodePath from 'node:path';
-import resolve from 'resolve/sync';
+import { sync as resolveSync } from 'resolve';
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
@@ -62,7 +62,7 @@ export default function plugin(
 
     if (!resolvedPath) {
       // resolve to actual file
-      resolvedPath = resolve(absoluteImportPath, { extensions });
+      resolvedPath = resolveSync(absoluteImportPath, { extensions });
 
       if (!resolvedPath) {
         throw new Error(`could not resolve "${importedPath}" from "${state.filename}"`);
