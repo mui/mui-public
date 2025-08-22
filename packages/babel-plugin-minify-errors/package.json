@@ -18,7 +18,6 @@
   },
   "scripts": {
     "build": "code-infra build --skip-babel-runtime-check && code-infra copy-files",
-    "prebuild": "rimraf build",
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
