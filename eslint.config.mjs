@@ -7,67 +7,10 @@ import {
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
+import nPlugin from 'eslint-plugin-n';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
-
-// List of Node.js builtin modules that should use node: protocol
-const builtinModules = [
-  'assert',
-  'assert/strict',
-  'async_hooks',
-  'buffer',
-  'child_process',
-  'cluster',
-  'console',
-  'constants',
-  'crypto',
-  'dgram',
-  'diagnostics_channel',
-  'dns',
-  'dns/promises',
-  'domain',
-  'events',
-  'fs',
-  'fs/promises',
-  'http',
-  'http2',
-  'https',
-  'inspector',
-  'inspector/promises',
-  'module',
-  'net',
-  'os',
-  'path',
-  'path/posix',
-  'path/win32',
-  'perf_hooks',
-  'process',
-  'punycode',
-  'querystring',
-  'readline',
-  'readline/promises',
-  'repl',
-  'stream',
-  'stream/consumers',
-  'stream/promises',
-  'stream/web',
-  'string_decoder',
-  'sys',
-  'timers',
-  'timers/promises',
-  'tls',
-  'trace_events',
-  'tty',
-  'url',
-  'util',
-  'util/types',
-  'v8',
-  'vm',
-  'wasi',
-  'worker_threads',
-  'zlib',
-];
 
 export default defineConfig(
   {
@@ -125,17 +68,12 @@ export default defineConfig(
   },
   {
     name: 'Node.js builtin modules protocol enforcement',
+    plugins: {
+      n: nPlugin,
+    },
     rules: {
       // Enforce using node: protocol for builtin modules
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: builtinModules.map((module) => ({
-            name: module,
-            message: `Import '${module}' using the 'node:' protocol instead. Use 'node:${module}' to make it clear this is a Node.js builtin module.`,
-          })),
-        },
-      ],
+      'n/prefer-node-protocol': 'error',
     },
   },
 );
