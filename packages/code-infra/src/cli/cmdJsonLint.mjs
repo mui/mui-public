@@ -3,7 +3,7 @@
 import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import { globby } from 'globby';
-import path from 'path';
+import path from 'node:path';
 
 /**
  * @typedef {Object} Args

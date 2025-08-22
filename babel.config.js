@@ -4,7 +4,7 @@
 // defaultAlias modified
 // @mui/internal-babel-plugin-minify-errors removed
 
-const path = require('path');
+const path = require('node:path');
 const { default: getBaseConfig } = require('@mui/internal-code-infra/babel-config');
 
 /**

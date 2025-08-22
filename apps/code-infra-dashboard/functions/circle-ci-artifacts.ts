@@ -1,6 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import zlib from 'zlib';
-import util from 'util';
+import util from 'node:util';
 import computeEtag from 'etag';
 
 const gzip = util.promisify(zlib.gzip);

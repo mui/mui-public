@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import fs from 'fs';
-import { execSync } from 'child_process';
-import path from 'path';
+import fs from 'node:fs';
+import { execSync } from 'node:child_process';
+import path from 'node:path';
 
 // Get the package name from command line arguments
 const packageName = process.argv[2];

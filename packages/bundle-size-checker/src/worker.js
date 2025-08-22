@@ -1,6 +1,6 @@
-import { pathToFileURL } from 'url';
-import path from 'path';
-import fs from 'fs/promises';
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import chalk from 'chalk';
 import * as module from 'module';
 import { byteSizeFormatter } from './formatUtils.js';
