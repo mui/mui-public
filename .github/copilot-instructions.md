@@ -15,7 +15,7 @@ Always reference these instructions first and fallback to search or bash command
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Linting**: `pnpm eslint` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
-- **Formatting**: `pnpm prettier` -- always run before pushing code.
+- **Formatting**: `pnpm prettier` -- always run before pushing code. **NOTE**: This uses `pretty-quick --branch master` which only formats files changed since master. For already-committed files, use `npx prettier --write <files>` directly.
 - **Run tests**: `pnpm test` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 
 ### Run Applications
@@ -33,7 +33,7 @@ Always reference these instructions first and fallback to search or bash command
   2. Run tests to ensure no regressions
   3. Test CLI functionality with `pnpm code-infra --help`
 - You can build and run the code-infra-dashboard web application, and interact with it via browser or programmatically.
-- **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail.
+- **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail. **NOTE**: If prettier reports no changes but you know files need formatting, run `npx prettier --write <files>` directly on the specific files.
 
 ## Common Tasks
 
