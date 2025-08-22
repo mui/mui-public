@@ -3,24 +3,21 @@
   "version": "2.0.5",
   "author": "MUI Team",
   "description": "Babel plugin that resolves import specifiers to their actual output file.",
-  "main": "./index.js",
-  "exports": {
-    ".": "./index.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/babel-plugin-resolve-imports"
   },
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build": "code-infra build --skip-babel-runtime-check && code-infra copy-files",
+    "typescript": "tsc -p tsconfig.json"
+  },
   "dependencies": {
+    "@babel/core": "7",
     "resolve": "^1.22.10"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.3",
-    "@babel/plugin-syntax-typescript": "^7.27.1",
-    "@babel/preset-typescript": "^7.27.1",
     "@types/babel__core": "^7.20.5",
     "@types/chai": "^4.3.20",
     "@types/node": "^24.3.0",
@@ -30,7 +27,16 @@
   "peerDependencies": {
     "@babel/core": "7"
   },
+  "sideEffects": false,
+  "type": "commonjs",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "directory": "build"
   }
 }
