@@ -7,6 +7,7 @@ import {
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
+import nPlugin from 'eslint-plugin-n';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -17,12 +18,17 @@ export default defineConfig(
     extends: createBaseConfig({
       baseDirectory: dirname,
     }),
+    plugins: {
+      n: nPlugin,
+    },
     rules: {
       // No time for this
       'react/prop-types': 'off',
       'jsx-a11y/control-has-associated-label': 'off',
       'jsx-a11y/no-autofocus': 'off',
       '@typescript-eslint/triple-slash-reference': 'off',
+      // Enforce using node: protocol for builtin modules
+      'n/prefer-node-protocol': 'error',
     },
     settings: {
       'import/resolver': {
