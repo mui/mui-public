@@ -30,7 +30,6 @@
     "chalk": "^5.5.0",
     "env-ci": "^11.1.1",
     "execa": "^9.6.0",
-    "fast-glob": "^3.3.3",
     "git-url-parse": "^16.1.0",
     "micromatch": "^4.0.8",
     "piscina": "^5.1.3",
