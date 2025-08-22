@@ -17,7 +17,7 @@
     "url": "https://opencollective.com/mui-org"
   },
   "scripts": {
-    "build": "code-infra build --bundle cjs --bundle esm --skip-babel-runtime-check && code-infra copy-files",
+    "build": "code-infra build --skip-babel-runtime-check && code-infra copy-files",
     "prebuild": "rimraf build",
     "typescript": "tsc -p tsconfig.json"
   },
