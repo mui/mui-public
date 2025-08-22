@@ -1,54 +1,41 @@
-// @ts-check
-
-/// <reference path="./resolve.d.ts" />
-
-const nodePath = require('path');
-const resolve = require('resolve/sync');
-
-/**
- * @typedef {import('@babel/core')} babel
- */
+import * as babel from '@babel/core';
+import * as nodePath from 'node:path';
+import resolve from 'resolve/sync';
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
- * @param {string} importPath
- * @returns {string}
  */
-function toPosixPath(importPath) {
+function toPosixPath(importPath: string): string {
   return nodePath.normalize(importPath).split(nodePath.sep).join(nodePath.posix.sep);
 }
 
 /**
  * Converts a file path to a node import specifier.
- * @param {string} importPath
- * @returns {string}
  */
-function pathToNodeImportSpecifier(importPath) {
+function pathToNodeImportSpecifier(importPath: string): string {
   const normalized = toPosixPath(importPath);
   return normalized.startsWith('/') || normalized.startsWith('.') ? normalized : `./${normalized}`;
 }
 
-/**
- * @typedef {{ outExtension?: string }} Options
- */
+export interface Options {
+  outExtension?: string;
+}
 
 /**
- * @param {babel} file
- * @param {Options} options
- * @returns {babel.PluginObj}
+ * Babel plugin for resolving import specifiers.
  */
-module.exports = function plugin({ types: t }, { outExtension }) {
-  /** @type {Map<string, string>} */
-  const cache = new Map();
+export default function plugin(
+  { types: t }: typeof babel,
+  { outExtension }: Options,
+): babel.PluginObj {
+  const cache = new Map<string, string>();
   const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
   const extensionsSet = new Set(extensions);
 
-  /**
-   *
-   * @param {babel.NodePath<babel.types.StringLiteral>} importSource
-   * @param {babel.PluginPass} state
-   */
-  function doResolve(importSource, state) {
+  function doResolve(
+    importSource: babel.NodePath<babel.types.StringLiteral>,
+    state: babel.PluginPass,
+  ): void {
     const importedPath = importSource.node.value;
 
     const importExt = nodePath.extname(importedPath);
@@ -101,11 +88,11 @@ module.exports = function plugin({ types: t }, { outExtension }) {
 
   return {
     visitor: {
-      TSImportType(path, state) {
+      TSImportType(path: babel.NodePath<babel.types.TSImportType>, state: babel.PluginPass) {
         const source = path.get('argument');
         doResolve(source, state);
       },
-      CallExpression(path, state) {
+      CallExpression(path: babel.NodePath<babel.types.CallExpression>, state: babel.PluginPass) {
         const callee = path.get('callee');
         if (callee.isImport()) {
           const source = path.get('arguments')[0];
@@ -114,26 +101,26 @@ module.exports = function plugin({ types: t }, { outExtension }) {
           }
         }
       },
-      ImportExpression(path, state) {
+      ImportExpression(path: babel.NodePath<babel.types.ImportExpression>, state: babel.PluginPass) {
         const source = path.get('source');
         if (source.isStringLiteral()) {
           doResolve(source, state);
         }
       },
-      ImportDeclaration(path, state) {
+      ImportDeclaration(path: babel.NodePath<babel.types.ImportDeclaration>, state: babel.PluginPass) {
         const source = path.get('source');
         doResolve(source, state);
       },
-      ExportNamedDeclaration(path, state) {
+      ExportNamedDeclaration(path: babel.NodePath<babel.types.ExportNamedDeclaration>, state: babel.PluginPass) {
         const source = path.get('source');
         if (source.isStringLiteral()) {
           doResolve(source, state);
         }
       },
-      ExportAllDeclaration(path, state) {
+      ExportAllDeclaration(path: babel.NodePath<babel.types.ExportAllDeclaration>, state: babel.PluginPass) {
         const source = path.get('source');
         doResolve(source, state);
       },
     },
   };
-};
+}

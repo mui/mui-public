@@ -1,31 +1,27 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { pluginTester } from 'babel-plugin-tester';
 import plugin from './index';
 
-const fixturePath = path.resolve(__dirname, './__fixtures__');
+const fixturePath = path.resolve(__dirname, '../__fixtures__');
 
 /**
  * Reads the output fixture and normalizes line endings
- * @param {string} fixture
- * @param {string} file
- * @returns {string}
  */
-function readOutputFixtureSync(fixture, file) {
-  // babel hardcodes the linefeed to \n and can add extra newlines
-  return normalizeQuotesAndWhitespace(
-    fs
-      .readFileSync(path.join(fixturePath, fixture, file), { encoding: 'utf8' })
-      .replace(/\r?\n/g, '\n'),
-  );
+function readOutputFixtureSync(fixture: string, file: string): string {
+  // babel hardcodes the linefeed to \n
+  const result = fs
+    .readFileSync(path.join(fixturePath, fixture, file), { encoding: 'utf8' })
+    .replace(/\r?\n/g, '\n');
+  
+  // Apply the same normalization as the formatResult function
+  return normalizeQuotesAndWhitespace(result);
 }
 
 /**
  * Normalize string quotes and whitespace for comparison
- * @param {string} str
- * @returns {string}
  */
-function normalizeQuotesAndWhitespace(str) {
+function normalizeQuotesAndWhitespace(str: string): string {
   return str
     .trim()
     .replace(/["']/g, "'") // Convert all quotes to single quotes for comparison
@@ -35,7 +31,7 @@ function normalizeQuotesAndWhitespace(str) {
 pluginTester({
   plugin,
   pluginName: 'resolve-imports',
-  filepath: __filename,
+  filepath: '/home/runner/work/mui-public/mui-public/packages/babel-plugin-resolve-imports/src/index.test.ts',
   formatResult: (r) => normalizeQuotesAndWhitespace(r),
 
   tests: [
