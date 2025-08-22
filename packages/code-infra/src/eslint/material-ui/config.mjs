@@ -5,6 +5,64 @@ const restrictedSyntaxRules = restrictedMethods.map((method) => ({
   selector: `MemberExpression[object.name='window'][property.name='${method}']`,
 }));
 
+// List of Node.js builtin modules that should use node: protocol
+const builtinModules = [
+  'assert',
+  'assert/strict',
+  'async_hooks',
+  'buffer',
+  'child_process',
+  'cluster',
+  'console',
+  'constants',
+  'crypto',
+  'dgram',
+  'diagnostics_channel',
+  'dns',
+  'dns/promises',
+  'domain',
+  'events',
+  'fs',
+  'fs/promises',
+  'http',
+  'http2',
+  'https',
+  'inspector',
+  'inspector/promises',
+  'module',
+  'net',
+  'os',
+  'path',
+  'path/posix',
+  'path/win32',
+  'perf_hooks',
+  'process',
+  'punycode',
+  'querystring',
+  'readline',
+  'readline/promises',
+  'repl',
+  'stream',
+  'stream/consumers',
+  'stream/promises',
+  'stream/web',
+  'string_decoder',
+  'sys',
+  'timers',
+  'timers/promises',
+  'tls',
+  'trace_events',
+  'tty',
+  'url',
+  'util',
+  'util/types',
+  'v8',
+  'vm',
+  'wasi',
+  'worker_threads',
+  'zlib',
+];
+
 /**
  * Critical Airbnb rules missing from individual plugin recommended configs
  * @type {import('eslint').Linter.Config['rules']}
@@ -452,6 +510,17 @@ export function createCoreConfig(options = {}) {
         // noopener is enough
         // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-no-target-blank.md#rule-options
         'react/jsx-no-target-blank': ['error', { allowReferrer: true }],
+
+        // Enforce using node: protocol for builtin modules
+        'no-restricted-imports': [
+          'error',
+          {
+            paths: builtinModules.map((module) => ({
+              name: module,
+              message: `Import '${module}' using the 'node:' protocol instead. Use 'node:${module}' to make it clear this is a Node.js builtin module.`,
+            })),
+          },
+        ],
 
         'no-restricted-syntax': [
           'error',

@@ -1,5 +1,5 @@
 import type { Handler } from '@netlify/functions';
-import zlib from 'zlib';
+import zlib from 'node:zlib';
 import util from 'node:util';
 import computeEtag from 'etag';
 

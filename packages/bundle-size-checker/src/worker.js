@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import chalk from 'chalk';
-import * as module from 'module';
+import * as module from 'node:module';
 import { byteSizeFormatter } from './formatUtils.js';
 import { getBundleSizes } from './builder.js';
 

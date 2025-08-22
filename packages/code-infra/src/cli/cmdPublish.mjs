@@ -8,7 +8,7 @@
  */
 
 import { Octokit } from '@octokit/rest';
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import gitUrlParse from 'git-url-parse';
 import { $ } from 'execa';

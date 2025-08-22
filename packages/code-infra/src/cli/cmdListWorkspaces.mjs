@@ -6,7 +6,7 @@
  * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
  */
 
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getWorkspacePackages } from './pnpm.mjs';
 

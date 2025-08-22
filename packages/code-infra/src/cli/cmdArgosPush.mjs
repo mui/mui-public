@@ -2,7 +2,7 @@
 
 /* eslint-disable no-console */
 
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { globby } from 'globby';

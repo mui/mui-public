@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { $ } from 'execa';
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as semver from 'semver';
 

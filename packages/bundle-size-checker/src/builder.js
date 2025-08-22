@@ -1,7 +1,7 @@
-import path from 'path';
-import fs from 'fs/promises';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import * as zlib from 'node:zlib';
+import { promisify } from 'node:util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
