@@ -101,23 +101,35 @@ export default function plugin(
           }
         }
       },
-      ImportExpression(path: babel.NodePath<babel.types.ImportExpression>, state: babel.PluginPass) {
+      ImportExpression(
+        path: babel.NodePath<babel.types.ImportExpression>,
+        state: babel.PluginPass,
+      ) {
         const source = path.get('source');
         if (source.isStringLiteral()) {
           doResolve(source, state);
         }
       },
-      ImportDeclaration(path: babel.NodePath<babel.types.ImportDeclaration>, state: babel.PluginPass) {
+      ImportDeclaration(
+        path: babel.NodePath<babel.types.ImportDeclaration>,
+        state: babel.PluginPass,
+      ) {
         const source = path.get('source');
         doResolve(source, state);
       },
-      ExportNamedDeclaration(path: babel.NodePath<babel.types.ExportNamedDeclaration>, state: babel.PluginPass) {
+      ExportNamedDeclaration(
+        path: babel.NodePath<babel.types.ExportNamedDeclaration>,
+        state: babel.PluginPass,
+      ) {
         const source = path.get('source');
         if (source.isStringLiteral()) {
           doResolve(source, state);
         }
       },
-      ExportAllDeclaration(path: babel.NodePath<babel.types.ExportAllDeclaration>, state: babel.PluginPass) {
+      ExportAllDeclaration(
+        path: babel.NodePath<babel.types.ExportAllDeclaration>,
+        state: babel.PluginPass,
+      ) {
         const source = path.get('source');
         doResolve(source, state);
       },

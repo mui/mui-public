@@ -13,7 +13,7 @@ function readOutputFixtureSync(fixture: string, file: string): string {
   const result = fs
     .readFileSync(path.join(fixturePath, fixture, file), { encoding: 'utf8' })
     .replace(/\r?\n/g, '\n');
-  
+
   // Apply the same normalization as the formatResult function
   return normalizeQuotesAndWhitespace(result);
 }
@@ -31,7 +31,8 @@ function normalizeQuotesAndWhitespace(str: string): string {
 pluginTester({
   plugin,
   pluginName: 'resolve-imports',
-  filepath: '/home/runner/work/mui-public/mui-public/packages/babel-plugin-resolve-imports/src/index.test.ts',
+  filepath:
+    '/home/runner/work/mui-public/mui-public/packages/babel-plugin-resolve-imports/src/index.test.ts',
   formatResult: (r) => normalizeQuotesAndWhitespace(r),
 
   tests: [
