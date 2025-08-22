@@ -200,14 +200,14 @@ async function processBundleSizes(output, entryName) {
   const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
-  const mainEntry = manifest['virtual:entry.tsx'];
+  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === '_virtual_entry');
 
   if (!mainEntry) {
     throw new Error(`No main entry found in manifest for ${entryName}`);
   }
 
   // Walk the dependency tree to get all chunks that are part of this entry
-  const allChunks = walkDependencyTree('virtual:entry.tsx', manifest);
+  const allChunks = walkDependencyTree(mainEntry[0], manifest);
 
   // Process each chunk in the dependency tree in parallel
   const chunkPromises = Array.from(allChunks, async (chunkKey) => {
@@ -224,7 +224,7 @@ async function processBundleSizes(output, entryName) {
     const gzipSize = Buffer.byteLength(gzipBuffer);
 
     // Use chunk key as the name, or fallback to entry name for main chunk
-    const chunkName = chunkKey === 'virtual:entry.tsx' ? entryName : chunkKey;
+    const chunkName = chunk.name === '_virtual_entry' ? entryName : chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
