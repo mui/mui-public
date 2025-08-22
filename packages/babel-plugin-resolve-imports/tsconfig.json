@@ -9,5 +9,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "__fixtures__/**/*"]
+  "include": ["src/**/*", "types.d.ts"],
+  "exclude": ["__fixtures__/**/*"]
 }
