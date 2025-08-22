@@ -68,7 +68,8 @@
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "typescript": "^5.0.0"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
