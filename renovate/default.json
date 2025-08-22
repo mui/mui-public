@@ -28,7 +28,11 @@
       "rangeStrategy": "widen"
     },
     {
-      "groupName": "Infra packages",
+      "groupName": "MUI public packages",
+      "matchPackageNames": ["@mui/*"]
+    },
+    {
+      "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
       "schedule": null
