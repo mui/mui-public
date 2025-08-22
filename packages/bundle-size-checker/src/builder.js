@@ -200,9 +200,7 @@ async function processBundleSizes(output, entryName) {
   const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
-  const mainEntry = Object.entries(manifest).find(
-    ([key, entry]) => entry.name === '_virtual_entry',
-  );
+  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === '_virtual_entry');
 
   if (!mainEntry) {
     throw new Error(`No main entry found in manifest for ${entryName}`);
