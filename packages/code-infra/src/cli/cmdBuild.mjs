@@ -134,6 +134,12 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   delete packageJson.devDependencies;
   delete packageJson.imports;
 
+  if (packageJson.private === false) {
+    throw new Error(
+      `Remove the field "private": false from "${packageJson.name}" package.json. This is redundant.`,
+    );
+  }
+
   packageJson.type = packageJson.type || 'commonjs';
 
   /**
