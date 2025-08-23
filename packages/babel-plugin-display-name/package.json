@@ -8,7 +8,7 @@
     "directory": "packages/babel-plugin-display-name"
   },
   "main": "src/index.js",
-  "author": "mui",
+  "author": "MUI Team",
   "files": [
     "src/index.js"
   ],
