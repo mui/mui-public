@@ -105,8 +105,8 @@ importers:
         specifier: ^8.10.2
         version: 8.10.2(@emotion/react@11.14.0(@types/react@19.1.11)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.11)(react@19.1.1))(@types/react@19.1.11)(react@19.1.1))(@mui/material@7.3.1(@emotion/react@11.14.0(@types/react@19.1.11)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.11)(react@19.1.1))(@types/react@19.1.11)(react@19.1.1))(@types/react@19.1.11)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(@mui/system@7.3.1(@emotion/react@11.14.0(@types/react@19.1.11)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.11)(react@19.1.1))(@types/react@19.1.11)(react@19.1.1))(@types/react@19.1.11)(react@19.1.1))(@types/react@19.1.11)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@netlify/functions':
-        specifier: ^4.2.1
-        version: 4.2.1(encoding@0.1.13)(rollup@4.46.2)
+        specifier: ^4.2.2
+        version: 4.2.2(encoding@0.1.13)(rollup@4.46.2)
       '@tanstack/react-query':
         specifier: ^5.85.3
         version: 5.85.3(react@19.1.1)
@@ -2975,8 +2975,8 @@ packages:
     resolution: {integrity: sha512-4fEEhHLwCe7K1JM8XW0ThVk4xxer7RlbNbArNxJyiUWzuAiQkIl0UDohJGGc12srru1o+cK6hYT8N4pZNutIlw==}
     engines: {node: '>=18.14.0'}
 
-  '@netlify/functions@4.2.1':
-    resolution: {integrity: sha512-FhwXULPeD9qbUdWxtD9AUjV5GEjB93fqLhl0N4KZAf00i1Ec0t3WmCJ4j5bCbnETxXEkTOYhhUBHZi2BAFQSgw==}
+  '@netlify/functions@4.2.2':
+    resolution: {integrity: sha512-FZ7+Y4e1x5VJ3+36tpcB5kyBk4/mFWR7UBlhNksHWjdhNhC3CP6fqckMBW+OnZ849fMcZL2kq93/fIM49LjS+Q==}
     engines: {node: '>=18.0.0'}
 
   '@netlify/git-utils@6.0.2':
@@ -15362,7 +15362,7 @@ snapshots:
       - rollup
       - supports-color
 
-  '@netlify/functions@4.2.1(encoding@0.1.13)(rollup@4.46.2)':
+  '@netlify/functions@4.2.2(encoding@0.1.13)(rollup@4.46.2)':
     dependencies:
       '@netlify/blobs': 10.0.8
       '@netlify/dev-utils': 4.1.1
