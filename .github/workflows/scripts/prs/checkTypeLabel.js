@@ -47,13 +47,6 @@ module.exports = async ({ core, context, github }) => {
       ?.map((label) => label.name)
       .filter((labelName) => labelRegex.test(labelName));
 
-    await github.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      per_page: 100,
-    });
-
     if (typeLabelsFound.length === 0) {
       core.info(`>>> No type labels found`);
       core.setFailed(`>>> ${NO_LABELS_COMMENT} ${createEnumerationFromArray(typeLabels)}`);
