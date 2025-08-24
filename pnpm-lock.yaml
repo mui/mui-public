@@ -340,8 +340,8 @@ importers:
   packages/code-infra:
     dependencies:
       '@argos-ci/core':
-        specifier: ^4.0.3
-        version: 4.0.3
+        specifier: ^4.1.0
+        version: 4.1.0
       '@babel/cli':
         specifier: ^7.28.3
         version: 7.28.3(@babel/core@7.28.3)
@@ -622,12 +622,12 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@argos-ci/api-client@0.10.0':
-    resolution: {integrity: sha512-BegP4fl8TBPV5m3gu697vMqiXaZHLz4RUa5vgj1zXTBquOyyfxehGiUMLoo6lieTk3vsMbvFEHLwRSWFB1Mr3Q==}
+  '@argos-ci/api-client@0.11.0':
+    resolution: {integrity: sha512-mv7LWrJfEDjjs+CmAJaM1GIexpb3A8TwuyTUCTKgDp/SHdbU0uF8uC6lV4P/mfeGIvBYZzIRKq/frd+IETlC2g==}
     engines: {node: '>=20.0.0'}
 
-  '@argos-ci/core@4.0.3':
-    resolution: {integrity: sha512-HApdthNy9Jhuq7GkWCu4BFQzOsvmh03NSKjLN/U84rryps+VYI9TDPCJQj5WNL192dX8uUTAQZvzACzOUaOYNQ==}
+  '@argos-ci/core@4.1.0':
+    resolution: {integrity: sha512-e2qEZU6NBxu8zwWmyCJcUtT5HSeWzy9yWI3F1Lo9cWGV9gG+6keEXElnmCmOt37YuXjFIRSV6Vvi5tA/TywERA==}
     engines: {node: '>=20.0.0'}
 
   '@argos-ci/util@3.1.0':
@@ -12276,16 +12276,16 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.12
       '@jridgewell/trace-mapping': 0.3.29
 
-  '@argos-ci/api-client@0.10.0':
+  '@argos-ci/api-client@0.11.0':
     dependencies:
       debug: 4.4.1(supports-color@8.1.1)
       openapi-fetch: 0.14.0
     transitivePeerDependencies:
       - supports-color
 
-  '@argos-ci/core@4.0.3':
+  '@argos-ci/core@4.1.0':
     dependencies:
-      '@argos-ci/api-client': 0.10.0
+      '@argos-ci/api-client': 0.11.0
       '@argos-ci/util': 3.1.0
       convict: 6.2.4
       debug: 4.4.1(supports-color@8.1.1)
