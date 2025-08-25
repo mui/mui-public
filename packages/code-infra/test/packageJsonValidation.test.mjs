@@ -363,7 +363,7 @@ describe('packageJsonValidation', () => {
       );
     });
 
-    it('should run validation with allowOverwritableFields false by default', async () => {
+    it('should run validation by default', async () => {
       // Create a test file so the main field validation passes
       await fs.mkdir(path.join(tempDir, 'dist'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'dist', 'index.js'), 'module.exports = {};');
@@ -377,40 +377,9 @@ describe('packageJsonValidation', () => {
       await fs.writeFile(path.join(tempDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
       // Should run without throwing, but would show warnings
-      await expect(lintPackageJson(tempDir, false)).resolves.not.toThrow();
+      await expect(lintPackageJson(tempDir)).resolves.not.toThrow();
     });
 
-    it('should suppress overwritable field warnings when allowOverwritableFields is true', async () => {
-      // Create a test file so the main field validation passes
-      await fs.mkdir(path.join(tempDir, 'dist'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'dist', 'index.js'), 'module.exports = {};');
 
-      const packageJson = {
-        name: 'test-package',
-        version: '1.0.0',
-        main: './dist/index.js',
-      };
-
-      await fs.writeFile(path.join(tempDir, 'package.json'), JSON.stringify(packageJson, null, 2));
-
-      // Should run without throwing or showing warnings
-      await expect(lintPackageJson(tempDir, true)).resolves.not.toThrow();
-    });
-
-    it('should still show errors even with allowOverwritableFields true', async () => {
-      const packageJson = {
-        name: 'test-package',
-        version: '1.0.0',
-        private: false, // This should still cause an error
-        main: './dist/index.js', // This warning should be suppressed but file error should remain
-      };
-
-      await fs.writeFile(path.join(tempDir, 'package.json'), JSON.stringify(packageJson, null, 2));
-
-      // Should throw because of the private field error and missing file error
-      await expect(lintPackageJson(tempDir, true)).rejects.toThrow(
-        'Package.json validation failed',
-      );
-    });
   });
 });

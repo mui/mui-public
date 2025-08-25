@@ -171,19 +171,16 @@ export async function validateAndLogPackageJson(packageJson, options = {}) {
     console.error('❌ Package.json validation errors:');
     errors.forEach((error) => console.error(`   ${error}`));
     console.error('');
-    throw new Error(
-      'Package.json validation failed. Fix the errors above or use --allow-overwritable-fields for overwritable field warnings.',
-    );
+    throw new Error('Package.json validation failed. Fix the errors above.');
   }
 }
 
 /**
  * Comprehensive package.json linting function to be called at the start of build process
  * @param {string} cwd - Current working directory
- * @param {boolean} [allowOverwritableFields] - Whether to allow overwritable fields without warnings
  * @throws {Error} If validation fails
  */
-export async function lintPackageJson(cwd, allowOverwritableFields = false) {
+export async function lintPackageJson(cwd) {
   const pkgJsonPath = path.join(cwd, 'package.json');
 
   let packageJson;
@@ -195,41 +192,9 @@ export async function lintPackageJson(cwd, allowOverwritableFields = false) {
     throw new Error(`Failed to read or parse package.json: ${errorMessage}`);
   }
 
-  // If allowOverwritableFields is true, we suppress overwritable field warnings but still check other validations
-  if (allowOverwritableFields) {
-    // Run validation but filter out overwritable field warnings
-    const { warnings, errors } = await validatePackageJson(packageJson, {
-      errorOnOverwritable: false,
-      cwd,
-    });
-
-    // Filter out overwritable field warnings
-    const filteredWarnings = warnings.filter(
-      (warning) =>
-        !OVERWRITABLE_FIELDS.some((field) =>
-          warning.includes(`Field "${field}" is present in package.json but will be overwritten`),
-        ),
-    );
-
-    // Show non-overwritable warnings
-    if (filteredWarnings.length > 0) {
-      console.warn('⚠️  Package.json validation warnings:');
-      filteredWarnings.forEach((warning) => console.warn(`   ${warning}`));
-      console.warn('');
-    }
-
-    // Show all errors (errors are always critical)
-    if (errors.length > 0) {
-      console.error('❌ Package.json validation errors:');
-      errors.forEach((error) => console.error(`   ${error}`));
-      console.error('');
-      throw new Error('Package.json validation failed. Fix the errors above.');
-    }
-  } else {
-    // Run full validation including overwritable field warnings
-    await validateAndLogPackageJson(packageJson, {
-      errorOnOverwritable: false,
-      cwd,
-    });
-  }
+  // Run full validation including overwritable field warnings
+  await validateAndLogPackageJson(packageJson, {
+    errorOnOverwritable: false,
+    cwd,
+  });
 }

@@ -17,7 +17,6 @@ import { lintPackageJson } from '../utils/packageJsonValidation.mjs';
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
- * @property {boolean} allowOverwritableFields - Whether to allow overwritable fields in source package.json without warnings.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
 
@@ -280,12 +279,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
       })
-      .option('allowOverwritableFields', {
-        type: 'boolean',
-        default: false,
-        description:
-          'Allow overwritable fields (main, module, types, exports) in source package.json without warnings.',
-      });
+
   },
   async handler(args) {
     const {
@@ -299,13 +293,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipTsc,
       skipBabelRuntimeCheck = false,
       skipPackageJson = false,
-      allowOverwritableFields = false,
     } = args;
 
     const cwd = process.cwd();
 
     // Run comprehensive package.json linting at the start before any other build functions
-    await lintPackageJson(cwd, allowOverwritableFields);
+    await lintPackageJson(cwd);
 
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
