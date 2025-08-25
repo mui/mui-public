@@ -1,5 +1,5 @@
-import { writeFile, mkdir, access, readFile, constants } from 'fs/promises';
-import { dirname, join, relative, basename, parse } from 'path';
+import { writeFile, mkdir, access, readFile, constants } from 'node:fs/promises';
+import { dirname, join, relative, basename, parse } from 'node:path';
 
 export interface LoaderContext {
   resourcePath: string;

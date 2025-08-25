@@ -1,9 +1,3 @@
-/**
- * Utility function for creating CodeSandbox demos
- * Returns the configuration that can be used with openWithForm
- */
-
-// @ts-ignore
 import LZString from 'lz-string';
 
 import type { FlattenedFiles } from './flattenVariant';
@@ -19,7 +13,8 @@ function compress(object: any): string {
 }
 
 /**
- * Create CodeSandbox for use with openWithForm
+ * Utility function for creating CodeSandbox demos
+ * Returns the configuration that can be used with openWithForm
  */
 export function createCodeSandbox({
   flattenedFiles,
