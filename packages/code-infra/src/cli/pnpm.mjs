@@ -94,7 +94,7 @@ export async function getWorkspacePackages(options = {}) {
   // Filter by published status if requested
   if (publishedOnly) {
     const publishStatusMap = await getPackagePublishStatusMap(filteredPackages);
-    return filteredPackages.filter((pkg) => publishStatusMap.get(pkg.path) === true);
+    return filteredPackages.filter((pkg) => publishStatusMap.get(pkg.path));
   }
 
   return filteredPackages;
