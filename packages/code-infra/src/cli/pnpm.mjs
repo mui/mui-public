@@ -120,6 +120,7 @@ export async function isPackagePublished(packageName) {
  * @returns {Promise<Map<string, boolean>>} Map from package path to published status
  */
 export async function getPackagePublishStatusMap(packages) {
+  /** @type {[string, boolean][]} */
   const publishedChecks = await Promise.all(
     packages.map(async (pkg) => {
       // Skip packages without names (private packages might not have names)
