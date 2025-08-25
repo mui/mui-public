@@ -1,0 +1,10 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate base configuration included before any preset.",
+  "packageRules": [
+    {
+      "groupName": "code-infra:devDependencies",
+      "matchDepTypes": ["devDependencies"]
+    }
+  ]
+}
