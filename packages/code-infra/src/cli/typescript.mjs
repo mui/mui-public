@@ -17,8 +17,17 @@ const $$ = $({ stdio: 'inherit' });
  * @param {string} outDir - The output directory for the declaration files.
  */
 export async function emitDeclarations(tsconfig, outDir) {
-  console.log(`Building types for ${tsconfig} in ${outDir}`);
-  await $$`tsc -p ${tsconfig} --outDir ${outDir} --declaration --emitDeclarationOnly`;
+  const tsconfigDir = path.dirname(tsconfig);
+  const rootDir = path.resolve(tsconfigDir, './src');
+  await $$`tsc
+    -p ${tsconfig}
+    --rootDir ${rootDir}
+    --outDir ${outDir}
+    --declaration
+    --emitDeclarationOnly
+    --noEmit false
+    --composite false
+    --incremental false`;
 }
 
 /**
@@ -137,6 +146,7 @@ export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isM
             `The package root is '${cwd}'`,
         );
       }
+      console.log(`Building types for ${tsconfigPath} in ${tmpDir}`);
       await emitDeclarations(tsconfigPath, tmpDir);
     }
 

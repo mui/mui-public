@@ -10,9 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Check PR type labels
     permissions:
-      issues: write
-      pull-requests: write
-      contents: write
+      pull-requests: read
     if: ${{ github.event.pull_request.merged == false }}
     steps:
       - name: Check out mui-public repo

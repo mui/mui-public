@@ -1,9 +1,10 @@
+// @ts-check
+/* eslint-disable @typescript-eslint/no-require-imports */
 // copied from https://github.com/mui/material-ui/blob/master/babel.config.js
 // defaultAlias modified
 // @mui/internal-babel-plugin-minify-errors removed
 
-// @ts-check
-const path = require('path');
+const path = require('node:path');
 const { default: getBaseConfig } = require('@mui/internal-code-infra/babel-config');
 
 /**

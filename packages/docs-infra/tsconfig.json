@@ -7,5 +7,5 @@
     "resolveJsonModule": true,
     "types": ["react", "node", "csstype"]
   },
-  "include": ["./types.d.ts", "src/**/*", "test/**/*"]
+  "include": ["src"]
 }

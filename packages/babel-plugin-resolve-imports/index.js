@@ -1,7 +1,8 @@
 // @ts-check
+
 /// <reference path="./resolve.d.ts" />
 
-const nodePath = require('path');
+const nodePath = require('node:path');
 const resolve = require('resolve/sync');
 
 /**

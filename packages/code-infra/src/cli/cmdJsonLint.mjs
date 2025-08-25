@@ -3,7 +3,7 @@
 import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import { globby } from 'globby';
-import path from 'path';
+import path from 'node:path';
 
 /**
  * @typedef {Object} Args
@@ -33,46 +33,42 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   },
   handler: async (args) => {
     const cwd = process.cwd();
-    const lintIgnoreContent = await (async () => {
-      // Reads both for backwards compatibility in the desired order
-      for (const ignoreFile of ['.lintignore', '.eslintignore']) {
-        const lintIgnorePath = path.join(cwd, ignoreFile);
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          return await fs.readFile(lintIgnorePath, { encoding: 'utf8' });
-        } catch (ex) {
-          console.error(ex);
-          continue;
-        }
-      }
-      return '';
-    })();
-
-    const lintignore = lintIgnoreContent.split(/\r?\n/).filter(Boolean);
 
     const filenames = await globby('**/*.json', {
       cwd,
       gitignore: true,
-      ignore: [...lintignore, '**/tsconfig*.json'],
+      ignoreFiles: ['.lintignore'],
+      ignore: ['**/tsconfig*.json'],
       followSymbolicLinks: false,
     });
 
+    const fileIterator = filenames[Symbol.iterator]();
+    const concurrency = Math.min(20, filenames.length);
     let passed = true;
-    const checks = filenames.map(async (filename) => {
-      const content = await fs.readFile(path.join(cwd, filename), { encoding: 'utf8' });
-      try {
-        JSON.parse(content);
-        if (!args.silent) {
-          // eslint-disable-next-line no-console
-          console.log(passMessage(filename));
-        }
-      } catch (error) {
-        passed = false;
-        console.error(failMessage(`Error parsing ${filename}:\n\n${String(error)}`));
-      }
-    });
+    const workers = [];
 
-    await Promise.allSettled(checks);
+    for (let i = 0; i < concurrency; i += 1) {
+      // eslint-disable-next-line @typescript-eslint/no-loop-func
+      const worker = Promise.resolve().then(async () => {
+        for (const filename of fileIterator) {
+          // eslint-disable-next-line no-await-in-loop
+          const content = await fs.readFile(path.join(cwd, filename), { encoding: 'utf8' });
+          try {
+            JSON.parse(content);
+            if (!args.silent) {
+              // eslint-disable-next-line no-console
+              console.log(passMessage(filename));
+            }
+          } catch (error) {
+            passed = false;
+            console.error(failMessage(`Error parsing ${filename}:\n\n${String(error)}`));
+          }
+        }
+      });
+      workers.push(worker);
+    }
+
+    await Promise.allSettled(workers);
     if (!passed) {
       throw new Error('❌ At least one file did not pass. Check the console output');
     }

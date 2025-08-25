@@ -469,6 +469,6 @@ function setInternalFunctionName(t, path, name) {
   if (path.isArrowFunctionExpression()) {
     path.arrowFunctionToExpression();
   }
-  // @ts-expect-error
+  // @ts-expect-error Not really an error
   path.node.id = id;
 }

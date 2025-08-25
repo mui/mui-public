@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./pnpm.mjs').Package} Package
+ * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
  * @typedef {import('./pnpm.mjs').VersionInfo} VersionInfo
  * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
  */
@@ -67,8 +67,8 @@ async function createCanaryTag(dryRun = false) {
 
 /**
  * Publish canary versions with updated dependencies
- * @param {Package[]} packagesToPublish - Packages that need canary publishing
- * @param {Package[]} allPackages - All workspace packages
+ * @param {PublicPackage[]} packagesToPublish - Packages that need canary publishing
+ * @param {PublicPackage[]} allPackages - All workspace packages
  * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
  * @param {PublishOptions} [options={}] - Publishing options
  * @returns {Promise<void>}

@@ -8,7 +8,8 @@
     "@mui/internal-bundle-size-checker": "workspace:*"
   },
   "dependencies": {
-    "@base-ui-components/react": "https://pkg.pr.new/@base-ui-components/react@e4647f7",
-    "radix-ui": "^1.4.2"
+    "radix-ui": "^1.4.2",
+    "@base-ui-components/react": "latest",
+    "@mui/x-charts-pro": "latest"
   }
 }

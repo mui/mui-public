@@ -5,5 +5,6 @@
   "compilerOptions": {
     "paths": {}
   },
-  "exclude": ["**/*.spec.*", "**/*.test.*"]
+  "include": ["./types.d.ts", "src/**/*.ts*", "src/**/*.json"],
+  "exclude": ["src/**/*.spec.ts*", "src/**/*.test.ts*"]
 }

@@ -14,8 +14,10 @@ const typeLabels = [
   'type: enhancement',
   'type: new feature',
   'type: expected behavior',
-  // only used by renovate bot so we can ignore the "type: " prefix here
+  // Those are not technically type labels but for those kind of PRs, adding a type is so redundant
+  // that it feels like noise.
   'dependencies',
+  'duplicate',
   'release',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
@@ -47,13 +49,6 @@ module.exports = async ({ core, context, github }) => {
     const typeLabelsFound = pr.labels
       ?.map((label) => label.name)
       .filter((labelName) => labelRegex.test(labelName));
-
-    await github.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      per_page: 100,
-    });
 
     if (typeLabelsFound.length === 0) {
       core.info(`>>> No type labels found`);

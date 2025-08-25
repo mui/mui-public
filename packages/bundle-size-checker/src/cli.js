@@ -1,8 +1,8 @@
 // @ts-check
 
-import path from 'path';
-import os from 'os';
-import fs from 'fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs/promises';
 import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
@@ -171,6 +171,12 @@ yargs(process.argv.slice(2))
           .option('verbose', {
             default: false,
             describe: 'Show more detailed information during compilation.',
+            type: 'boolean',
+          })
+          .option('debug', {
+            default: false,
+            describe:
+              'Build with readable output (no name mangling or whitespace collapse, but still tree-shake).',
             type: 'boolean',
           })
           .option('output', {
