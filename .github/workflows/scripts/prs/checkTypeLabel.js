@@ -13,6 +13,7 @@ const typeLabels = [
   'type: regression',
   'type: enhancement',
   'type: new feature',
+  'type: expected behavior',
   // Those are not technically type labels but for those kind of PRs, adding a type is so redundant
   // that it feels like noise.
   'dependencies',
