@@ -1,7 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for MUI repositories.",
-  "extends": [":semanticCommitsDisabled", "config:recommended"],
+  "extends": [
+    ":semanticCommitsDisabled",
+    "group:definitelyTyped",
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
   "automerge": false,
   "commitMessageAction": "Bump",
   "commitMessageExtra": "to {{newValue}}",
@@ -10,14 +15,12 @@
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
   "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": "before 6:00am on the first day of the month"
+    "enabled": true
   },
   "postUpdateOptions": ["pnpmDedupe"],
   "prConcurrentLimit": 30,
   "prHourlyLimit": 0,
   "rangeStrategy": "bump",
-  "schedule": "on sunday before 6:00am",
   "timezone": "UTC",
   "packageRules": [
     {
@@ -25,7 +28,11 @@
       "rangeStrategy": "widen"
     },
     {
-      "groupName": "Infra packages",
+      "groupName": "MUI public packages",
+      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
+    },
+    {
+      "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
       "schedule": null
@@ -36,8 +43,9 @@
     },
     {
       "matchDepTypes": ["action"],
-      "pinDigests": true,
-      "automerge": true
+      "automerge": true,
+      "matchCurrentVersion": "!/^0/",
+      "matchUpdateTypes": ["minor", "patch", "digest"]
     },
     {
       "groupName": "@definitelytyped tools",
@@ -52,6 +60,11 @@
     {
       "groupName": "eslint",
       "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
+    },
+    {
+      "groupName": "playwright monorepo",
+      "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
+      "matchPackageNames": ["mcr.microsoft.com/playwright"]
     },
     {
       "groupName": "Vite & Vitest",

@@ -2,8 +2,8 @@
  * Utility to load the bundle-size-checker configuration
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import envCi from 'env-ci';
 
 /**
@@ -29,6 +29,9 @@ async function loadConfigFile(configPath) {
       resolvedConfig = await config;
     } else if (typeof config === 'function') {
       resolvedConfig = await config();
+    } else {
+      // Handle plain config objects
+      resolvedConfig = config;
     }
 
     return resolvedConfig;

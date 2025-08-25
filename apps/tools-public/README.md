@@ -5,7 +5,7 @@
 This application relies on the following environment variables.
 You need to create a `.env` file in the same folder as this README file and fill in the values.
 
-```shell
+```bash
 GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN=
 GITHUB_TOKEN= # https://github.com/settings/tokens with no scopes
 GOOGLE_SHEET_TOKEN=
