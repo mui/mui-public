@@ -4,7 +4,7 @@ import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
-import { validateAndLogPackageJson } from '../utils/packageJsonValidation.mjs';
+import { lintPackageJson } from '../utils/packageJsonValidation.mjs';
 
 /**
  * @typedef {Object} Args
@@ -303,13 +303,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     } = args;
 
     const cwd = process.cwd();
+
+    // Run comprehensive package.json linting at the start before any other build functions
+    await lintPackageJson(cwd, allowOverwritableFields);
+
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-
-    // Validate package.json for fields that will be overwritten during build
-    if (!allowOverwritableFields) {
-      validateAndLogPackageJson(packageJson);
-    }
 
     const buildDirBase = packageJson.publishConfig?.directory;
     if (!buildDirBase) {
