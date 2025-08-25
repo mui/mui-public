@@ -94,6 +94,20 @@ export async function getWorkspacePackages(options = {}) {
 }
 
 /**
+ * Check if a package is published to npm registry
+ * @param {string} packageName - Name of the package
+ * @returns {Promise<boolean>} Whether the package is published
+ */
+export async function isPackagePublished(packageName) {
+  try {
+    await $`pnpm view ${packageName} version`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get package version info from registry
  * @param {string} packageName - Name of the package
  * @param {string} baseVersion - Base version to check

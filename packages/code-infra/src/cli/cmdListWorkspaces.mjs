@@ -8,11 +8,12 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getWorkspacePackages } from './pnpm.mjs';
+import { getWorkspacePackages, isPackagePublished } from './pnpm.mjs';
 
 /**
  * @typedef {Object} Args
  * @property {boolean} [publicOnly] - Whether to filter to only public packages
+ * @property {boolean} [publishedOnly] - Whether to filter to only published packages
  * @property {'json'|'path'|'name'|'publish-dir'} [output] - Output format (name, path, or json)
  * @property {string} [sinceRef] - Git reference to filter changes since
  */
@@ -27,6 +28,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Filter to only public packages',
       })
+      .option('published-only', {
+        type: 'boolean',
+        default: false,
+        description: 'Filter to only packages published on npm',
+      })
       .option('output', {
         type: 'string',
         choices: ['json', 'path', 'name', 'publish-dir'],
@@ -40,10 +46,28 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   handler: async (argv) => {
-    const { publicOnly = false, output = 'name', sinceRef } = argv;
+    const { publicOnly = false, publishedOnly = false, output = 'name', sinceRef } = argv;
 
     // Get packages using our helper function
-    const packages = await getWorkspacePackages({ sinceRef, publicOnly });
+    let packages = await getWorkspacePackages({ sinceRef, publicOnly });
+
+    // Filter by published status if requested
+    if (publishedOnly) {
+      // Check published status in parallel for performance
+      const publishedChecks = await Promise.all(
+        packages.map(async (pkg) => {
+          // Skip packages without names (private packages might not have names)
+          if (!pkg.name) {
+            return { pkg, isPublished: false };
+          }
+          const isPublished = await isPackagePublished(pkg.name);
+          return { pkg, isPublished };
+        }),
+      );
+
+      // Filter to only published packages
+      packages = publishedChecks.filter(({ isPublished }) => isPublished).map(({ pkg }) => pkg);
+    }
 
     if (output === 'json') {
       // Serialize packages to JSON
