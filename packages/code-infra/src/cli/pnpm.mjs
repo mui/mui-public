@@ -108,6 +108,26 @@ export async function isPackagePublished(packageName) {
 }
 
 /**
+ * Get published status for multiple packages
+ * @param {(PrivatePackage | PublicPackage)[]} packages - Array of packages to check
+ * @returns {Promise<Map<string, boolean>>} Map from package path to published status
+ */
+export async function getPackagePublishStatusMap(packages) {
+  const publishedChecks = await Promise.all(
+    packages.map(async (pkg) => {
+      // Skip packages without names (private packages might not have names)
+      if (!pkg.name) {
+        return { path: pkg.path, isPublished: false };
+      }
+      const isPublished = await isPackagePublished(pkg.name);
+      return { path: pkg.path, isPublished };
+    }),
+  );
+
+  return new Map(publishedChecks.map(({ path: pkgPath, isPublished }) => [pkgPath, isPublished]));
+}
+
+/**
  * Get package version info from registry
  * @param {string} packageName - Name of the package
  * @param {string} baseVersion - Base version to check

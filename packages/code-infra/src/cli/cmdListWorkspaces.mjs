@@ -8,7 +8,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getWorkspacePackages, isPackagePublished } from './pnpm.mjs';
+import { getWorkspacePackages, getPackagePublishStatusMap } from './pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -53,20 +53,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Filter by published status if requested
     if (publishedOnly) {
-      // Check published status in parallel for performance
-      const publishedChecks = await Promise.all(
-        packages.map(async (pkg) => {
-          // Skip packages without names (private packages might not have names)
-          if (!pkg.name) {
-            return { pkg, isPublished: false };
-          }
-          const isPublished = await isPackagePublished(pkg.name);
-          return { pkg, isPublished };
-        }),
-      );
-
-      // Filter to only published packages
-      packages = publishedChecks.filter(({ isPublished }) => isPublished).map(({ pkg }) => pkg);
+      const publishStatusMap = await getPackagePublishStatusMap(packages);
+      packages = packages.filter((pkg) => publishStatusMap.get(pkg.path) === true);
     }
 
     if (output === 'json') {
