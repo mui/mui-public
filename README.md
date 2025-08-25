@@ -19,6 +19,13 @@ Internal public Toolpad apps that run the operations of MUI, built using https:/
 - Hosting: https://app.netlify.com/sites/mui-frontend-public/overview
 - [Docs](./apps/code-infra-dashboard/#readme)
 
+## Packages
+
+### [docs-infra](./packages/docs-infra/)
+
+- Folder: `/packages/docs-infra/`
+- [Docs](./packages/docs-infra/README.md)
+
 ## Versioning
 
 Steps:
