@@ -33,7 +33,7 @@ Always reference these instructions first and fallback to search or bash command
   2. Run tests to ensure no regressions
   3. Test CLI functionality with `pnpm code-infra --help`
 - You can build and run the code-infra-dashboard web application, and interact with it via browser or programmatically.
-- **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail.
+- **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail. You MUST run `pnpm typescript` even when only javascript files have changed.
 
 ## Common Tasks
 

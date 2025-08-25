@@ -45,6 +45,7 @@ import * as semver from 'semver';
  * @typedef {Object} GetWorkspacePackagesOptions
  * @property {string|null} [sinceRef] - Git reference to filter changes since
  * @property {boolean} [publicOnly=false] - Whether to filter to only public packages
+ * @property {boolean} [publishedOnly=false] - Whether to filter to only published packages
  */
 
 /**
@@ -66,7 +67,7 @@ import * as semver from 'semver';
  * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
  */
 export async function getWorkspacePackages(options = {}) {
-  const { sinceRef = null, publicOnly = false } = options;
+  const { sinceRef = null, publicOnly = false, publishedOnly = false } = options;
 
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
@@ -90,7 +91,48 @@ export async function getWorkspacePackages(options = {}) {
     ];
   });
 
+  // Filter by published status if requested
+  if (publishedOnly) {
+    const publishStatusMap = await getPackagePublishStatusMap(filteredPackages);
+    return filteredPackages.filter((pkg) => publishStatusMap.get(pkg.path));
+  }
+
   return filteredPackages;
+}
+
+/**
+ * Check if a package is published to npm registry
+ * @param {string} packageName - Name of the package
+ * @returns {Promise<boolean>} Whether the package is published
+ */
+export async function isPackagePublished(packageName) {
+  try {
+    await $`pnpm view ${packageName} version`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get published status for multiple packages
+ * @param {(PrivatePackage | PublicPackage)[]} packages - Array of packages to check
+ * @returns {Promise<Map<string, boolean>>} Map from package path to published status
+ */
+export async function getPackagePublishStatusMap(packages) {
+  /** @type {[string, boolean][]} */
+  const publishedChecks = await Promise.all(
+    packages.map(async (pkg) => {
+      // Skip packages without names (private packages might not have names)
+      if (!pkg.name) {
+        return [pkg.path, false];
+      }
+      const isPublished = await isPackagePublished(pkg.name);
+      return [pkg.path, isPublished];
+    }),
+  );
+
+  return new Map(publishedChecks);
 }
 
 /**

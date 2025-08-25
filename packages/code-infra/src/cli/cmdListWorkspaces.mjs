@@ -13,6 +13,7 @@ import { getWorkspacePackages } from './pnpm.mjs';
 /**
  * @typedef {Object} Args
  * @property {boolean} [publicOnly] - Whether to filter to only public packages
+ * @property {boolean} [publishedOnly] - Whether to filter to only published packages
  * @property {'json'|'path'|'name'|'publish-dir'} [output] - Output format (name, path, or json)
  * @property {string} [sinceRef] - Git reference to filter changes since
  */
@@ -27,6 +28,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Filter to only public packages',
       })
+      .option('published-only', {
+        type: 'boolean',
+        default: false,
+        description: 'Filter to only packages published on npm',
+      })
       .option('output', {
         type: 'string',
         choices: ['json', 'path', 'name', 'publish-dir'],
@@ -40,10 +46,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   handler: async (argv) => {
-    const { publicOnly = false, output = 'name', sinceRef } = argv;
+    const { publicOnly = false, publishedOnly = false, output = 'name', sinceRef } = argv;
 
-    // Get packages using our helper function
-    const packages = await getWorkspacePackages({ sinceRef, publicOnly });
+    // Get packages using our helper function with all filters applied
+    const packages = await getWorkspacePackages({ sinceRef, publicOnly, publishedOnly });
 
     if (output === 'json') {
       // Serialize packages to JSON
