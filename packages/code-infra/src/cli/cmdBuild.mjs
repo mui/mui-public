@@ -278,8 +278,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
-      })
-
+      });
   },
   async handler(args) {
     const {
@@ -297,11 +296,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const cwd = process.cwd();
 
-    // Run comprehensive package.json linting at the start before any other build functions
-    await lintPackageJson(cwd);
-
+    // Read package.json once
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
+
+    // Run comprehensive package.json linting at the start before any other build functions
+    await lintPackageJson(packageJson, cwd);
 
     const buildDirBase = packageJson.publishConfig?.directory;
     if (!buildDirBase) {

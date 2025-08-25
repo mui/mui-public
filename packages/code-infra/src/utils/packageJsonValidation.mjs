@@ -4,14 +4,14 @@ import * as path from 'node:path';
 
 /**
  * Fields that get overwritten during the build process and should not be manually set
- * in the source package.json
+ * in the source package.json (excluding exports which has separate validation)
  */
-const OVERWRITABLE_FIELDS = ['main', 'module', 'types', 'exports'];
+const OVERWRITABLE_FIELDS = ['main', 'module', 'types'];
 
 /**
- * File fields that should point to existing files if present
+ * File fields that should point to existing files if present (excluding overwritable fields)
  */
-const FILE_FIELDS = ['main', 'module', 'types', 'typings'];
+const FILE_FIELDS = ['typings'];
 
 /**
  * Checks if a file exists
@@ -19,12 +19,8 @@ const FILE_FIELDS = ['main', 'module', 'types', 'typings'];
  * @returns {Promise<boolean>} Whether the file exists
  */
 async function fileExists(filePath) {
-  try {
-    const stats = await fs.stat(filePath);
-    return stats.isFile();
-  } catch {
-    return false;
-  }
+  const stats = await fs.stat(filePath);
+  return stats.isFile();
 }
 
 /**
@@ -40,19 +36,18 @@ async function validateExportEntry(exportEntry, cwd) {
     // Handle simple string exports
     if (exportEntry.includes('*')) {
       // Handle glob patterns
-      try {
-        const matches = await globby(exportEntry, { cwd });
-        if (matches.length === 0) {
-          errors.push(`Export pattern "${exportEntry}" matches no files`);
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        errors.push(`Error checking export pattern "${exportEntry}": ${errorMessage}`);
+      const matches = await globby(exportEntry, { cwd });
+      if (matches.length === 0) {
+        errors.push(`Export pattern "${exportEntry}" matches no files`);
       }
     } else {
       // Handle direct file paths
       const fullPath = path.resolve(cwd, exportEntry);
-      if (!(await fileExists(fullPath))) {
+      try {
+        if (!(await fileExists(fullPath))) {
+          errors.push(`Export file "${exportEntry}" does not exist`);
+        }
+      } catch {
         errors.push(`Export file "${exportEntry}" does not exist`);
       }
     }
@@ -81,24 +76,53 @@ async function validateExportEntry(exportEntry, cwd) {
  * @returns {Promise<{warnings: string[], errors: string[]}>} Validation results
  */
 export async function validatePackageJson(packageJson, options = {}) {
-  const {
-    errorOnOverwritable = false,
-    cwd = process.cwd(),
-    checkFileExistence = true,
-    checkPrivateField = true,
-  } = options;
+  const { cwd = process.cwd(), checkFileExistence = true, checkPrivateField = true } = options;
   const warnings = [];
   const errors = [];
 
-  // Check for overwritable fields
-  for (const field of OVERWRITABLE_FIELDS) {
-    if (packageJson.hasOwnProperty(field) && packageJson[field] !== undefined) {
-      const message = `Field "${field}" is present in package.json but will be overwritten during build. Consider removing it from the source package.json.`;
+  // Check for overwritable fields - warn only if they don't point to existing files
+  if (checkFileExistence) {
+    for (const field of OVERWRITABLE_FIELDS) {
+      if (packageJson.hasOwnProperty(field) && packageJson[field] !== undefined) {
+        const fieldValue = packageJson[field];
 
-      if (errorOnOverwritable) {
-        errors.push(message);
-      } else {
-        warnings.push(message);
+        if (typeof fieldValue === 'string' && field !== 'exports') {
+          // For simple file fields (main, module, types)
+          const fullPath = path.resolve(cwd, fieldValue);
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            if (!(await fileExists(fullPath))) {
+              warnings.push(
+                `Field "${field}" points to non-existent file: ${fieldValue}. Consider omitting this field from the source package.json.`,
+              );
+            }
+          } catch {
+            warnings.push(
+              `Field "${field}" points to non-existent file: ${fieldValue}. Consider omitting this field from the source package.json.`,
+            );
+          }
+        } else if (field === 'exports' && typeof fieldValue === 'object' && fieldValue !== null) {
+          // For exports field, validate all entries
+          for (const [, exportValue] of Object.entries(fieldValue)) {
+            if (exportValue !== null) {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                const exportErrors = await validateExportEntry(exportValue, cwd);
+                if (exportErrors.length > 0) {
+                  warnings.push(
+                    `Field "exports" contains invalid entries. Consider omitting this field from the source package.json.`,
+                  );
+                  break; // Only warn once for exports field
+                }
+              } catch {
+                warnings.push(
+                  `Field "exports" contains invalid entries. Consider omitting this field from the source package.json.`,
+                );
+                break;
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -123,8 +147,12 @@ export async function validatePackageJson(packageJson, options = {}) {
         const filePath = packageJson[field];
         if (typeof filePath === 'string') {
           const fullPath = path.resolve(cwd, filePath);
-          // eslint-disable-next-line no-await-in-loop
-          if (!(await fileExists(fullPath))) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            if (!(await fileExists(fullPath))) {
+              errors.push(`File field "${field}" points to non-existent file: ${filePath}`);
+            }
+          } catch {
             errors.push(`File field "${field}" points to non-existent file: ${filePath}`);
           }
         }
@@ -137,9 +165,14 @@ export async function validatePackageJson(packageJson, options = {}) {
       if (typeof exports === 'object' && exports !== null) {
         for (const [exportKey, exportValue] of Object.entries(exports)) {
           if (exportValue !== null) {
-            // eslint-disable-next-line no-await-in-loop
-            const exportErrors = await validateExportEntry(exportValue, cwd);
-            errors.push(...exportErrors.map((error) => `In exports["${exportKey}"]: ${error}`));
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const exportErrors = await validateExportEntry(exportValue, cwd);
+              errors.push(...exportErrors.map((error) => `In exports["${exportKey}"]: ${error}`));
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              errors.push(`In exports["${exportKey}"]: Error validating export - ${errorMessage}`);
+            }
           }
         }
       }
@@ -177,21 +210,11 @@ export async function validateAndLogPackageJson(packageJson, options = {}) {
 
 /**
  * Comprehensive package.json linting function to be called at the start of build process
+ * @param {Record<string, any>} packageJson - The parsed package.json content
  * @param {string} cwd - Current working directory
  * @throws {Error} If validation fails
  */
-export async function lintPackageJson(cwd) {
-  const pkgJsonPath = path.join(cwd, 'package.json');
-
-  let packageJson;
-  try {
-    const content = await fs.readFile(pkgJsonPath, { encoding: 'utf8' });
-    packageJson = JSON.parse(content);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to read or parse package.json: ${errorMessage}`);
-  }
-
+export async function lintPackageJson(packageJson, cwd) {
   // Run full validation including overwritable field warnings
   await validateAndLogPackageJson(packageJson, {
     errorOnOverwritable: false,
