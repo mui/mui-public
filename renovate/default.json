@@ -63,7 +63,7 @@
     },
     {
       "groupName": "playwright monorepo",
-      "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
+      "description": "Extends existing playwright preset to include docker images.",
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
     },
     {
