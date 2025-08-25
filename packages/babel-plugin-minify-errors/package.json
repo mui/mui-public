@@ -16,18 +16,19 @@
     "type": "opencollective",
     "url": "https://opencollective.com/mui-org"
   },
-  "scripts": {},
+  "scripts": {
+    "build": "code-infra build --skip-babel-runtime-check && code-infra copy-files",
+    "typescript": "tsc -p tsconfig.json"
+  },
   "dependencies": {
     "@babel/helper-module-imports": "^7.27.1",
     "find-package-json": "^1.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.27.4",
     "@types/babel__core": "^7.20.5",
     "@types/babel__helper-module-imports": "^7.18.3",
     "@types/find-package-json": "^1.2.6",
-    "babel-plugin-tester": "^12.0.0",
-    "chai": "^4.5.0"
+    "babel-plugin-tester": "^12.0.0"
   },
   "peerDependencies": {
     "@babel/core": "7"
@@ -35,12 +36,13 @@
   "sideEffects": false,
   "type": "commonjs",
   "exports": {
-    ".": "./index.js"
+    ".": "./src/index.ts"
   },
   "engines": {
     "node": ">=14.0.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "directory": "build"
   }
 }

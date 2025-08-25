@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import fs from 'fs/promises';
-import os from 'os';
-import path from 'path';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import * as semver from 'semver';
 import { $ } from 'execa';
 import { resolveVersion, findDependencyVersionFromSpec } from './pnpm.mjs';

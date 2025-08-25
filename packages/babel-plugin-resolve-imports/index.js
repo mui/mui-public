@@ -1,7 +1,8 @@
 // @ts-check
+
 /// <reference path="./resolve.d.ts" />
 
-const nodePath = require('path');
+const nodePath = require('node:path');
 const resolve = require('resolve/sync');
 
 /**
@@ -51,8 +52,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
     const importedPath = importSource.node.value;
 
     const importExt = nodePath.extname(importedPath);
-    // ignore if the import already has an extension
-    if (extensionsSet.has(importExt)) {
+    // ignore if the import already has a desired extension or if it is a css import.
+    if (extensionsSet.has(importExt) || importExt === '.css') {
       return;
     }
 
