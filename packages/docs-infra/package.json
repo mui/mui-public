@@ -6,38 +6,12 @@
   "main": "./index.js",
   "types": "./index.d.ts",
   "exports": {
-    ".": {
-      "types": "./index.d.ts",
-      "default": "./index.js"
-    },
-    "./*": {
-      "types": "./*/index.d.ts",
-      "default": "./*/index.js"
-    },
-    "./*/types": {
-      "types": "./*/types.d.ts",
-      "default": "./*/types.js"
-    },
-    "./*/errors": {
-      "types": "./*/errors.d.ts",
-      "default": "./*/errors.js"
-    },
-    "./pipeline": {
-      "types": "./pipeline/index.d.ts",
-      "default": "./pipeline/index.js"
-    },
-    "./pipeline/*": {
-      "types": "./pipeline/*/index.d.ts",
-      "default": "./pipeline/*/index.js"
-    },
-    "./pipeline/*/types": {
-      "types": "./pipeline/*/types.d.ts",
-      "default": "./pipeline/*/types.js"
-    },
-    "./pipeline/*/errors": {
-      "types": "./pipeline/*/errors.d.ts",
-      "default": "./pipeline/*/errors.js"
-    }
+    "./*": "./*/index.ts",
+    "./*/types": "./*/types.ts",
+    "./*/errors": "./*/errors.ts",
+    "./pipeline/*": "./pipeline/*/index.ts",
+    "./pipeline/*/types": "./pipeline/*/types.ts",
+    "./pipeline/*/errors": "./pipeline/*/errors.ts"
   },
   "keywords": [
     "react",

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { writeFile, mkdir, access, readFile } from 'fs/promises';
+import { writeFile, mkdir, access, readFile } from 'node:fs/promises';
 import {
   emitExternalsProvider,
   testHelpers,
