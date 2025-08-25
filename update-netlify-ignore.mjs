@@ -9,7 +9,7 @@ const packageName = process.argv[2];
 
 if (!packageName) {
   console.error(
-    'Error: Package name is required. Usage: node update-netlify-ignore.js <package-name>',
+    'Error: Package name is required. Usage: node update-netlify-ignore.mjs <package-name>',
   );
   process.exit(1);
 }
