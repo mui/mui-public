@@ -556,6 +556,12 @@ importers:
       remark-stringify:
         specifier: ^11.0.0
         version: 11.0.0
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.2
+      typescript-api-extractor:
+        specifier: 1.0.0-alpha.8
+        version: 1.0.0-alpha.8(typescript@5.9.2)
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -706,9 +712,6 @@ importers:
       eslint-config-next:
         specifier: 15.3.4
         version: 15.3.4(eslint@9.34.0(jiti@2.4.2))(typescript@5.9.2)
-      typescript:
-        specifier: ^5
-        version: 5.9.2
 
   test/bundle-size:
     dependencies:
@@ -12252,6 +12255,12 @@ packages:
 
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
+
+  typescript-api-extractor@1.0.0-alpha.8:
+    resolution: {integrity: sha512-xYxfwZJY69gIHSsfBxTmHj2ezXZe6DYV6NA5uLjvjHbW4f3pQ4ad7M0uiWXMC/rBx+rrx84UNxvn9HD4ZBlquw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      typescript: ^5.8
 
   typescript-eslint@8.40.0:
     resolution: {integrity: sha512-Xvd2l+ZmFDPEt4oj1QEXzA4A2uUK6opvKu3eGN9aGjB8au02lIVcLyi375w94hHyejTOmzIU77L8ol2sRg9n7Q==}
@@ -27479,6 +27488,11 @@ snapshots:
       reflect.getprototypeof: 1.0.10
 
   typedarray@0.0.6: {}
+
+  typescript-api-extractor@1.0.0-alpha.8(typescript@5.9.2):
+    dependencies:
+      lodash: 4.17.21
+      typescript: 5.9.2
 
   typescript-eslint@8.40.0(eslint@9.34.0(jiti@2.4.2))(typescript@5.9.2):
     dependencies:

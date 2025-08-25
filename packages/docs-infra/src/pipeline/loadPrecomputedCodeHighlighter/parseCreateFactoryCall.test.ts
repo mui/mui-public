@@ -248,6 +248,9 @@ describe('parseCreateFactoryCall', () => {
       name: 'Double quotes',
       slug: 'single quotes',
       skipPrecompute: false,
+      extra: {
+        description: 'template literal',
+      },
     });
   });
 
@@ -284,7 +287,12 @@ describe('parseCreateFactoryCall', () => {
       name: 'Test Demo',
       slug: 'test-slug',
       skipPrecompute: true,
-      // Custom options should be preserved but not parsed into typed fields
+      extra: {
+        customOption: 'custom value',
+        anotherCustom: 42,
+        booleanCustom: false,
+        objectCustom: "{ nested: 'value' }",
+      },
     });
 
     // The full options object string should contain all the original options
@@ -311,9 +319,17 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
-    // Only known options should be parsed
+    // Known options and extra options should be parsed
     expect(result!.options).toEqual({
       name: 'Test',
+      extra: {
+        customString: 'double quotes',
+        customTemplate: 'template literal',
+        customNumber: 123.45,
+        customArray: [1, 2, 3],
+        customFunction: "() => console.log('test')",
+        customRegex: '/pattern/gi',
+      },
     });
 
     // But the raw options string should preserve everything
@@ -341,11 +357,16 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
-    // Known options should be parsed
+    // Known options and extra options should be parsed
     expect(result!.options).toEqual({
       name: 'Test Demo',
       skipPrecompute: false,
       precompute: "{ some: 'data' }", // precompute is stored as string
+      extra: {
+        customBefore: 'before precompute',
+        customAfter: 'after precompute',
+        metadata: "{ version: '1.0', tags: ['demo', 'test'] }",
+      },
     });
 
     // Custom options should be preserved in the raw string
@@ -827,6 +848,239 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.options.slug).toBe('live-demo');
       expect(result!.options.skipPrecompute).toBe(true);
       expect(result!.hasPrecompute).toBe(true);
+    });
+  });
+
+  describe('extra property functionality', () => {
+    it('should parse globalTypes in extra property', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Test Demo',
+          globalTypes: ['React', 'Node'],
+          customOption: 'value'
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Test Demo',
+        extra: {
+          globalTypes: ['React', 'Node'], // Parsed as array
+          customOption: 'value',
+        },
+      });
+    });
+
+    it('should parse multiple extra options with different types', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Test Demo',
+          slug: 'test-slug',
+          globalTypes: ['React', 'DOM'],
+          debug: true,
+          timeout: 5000,
+          mode: 'development',
+          features: ['experimental', 'beta']
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Test Demo',
+        slug: 'test-slug',
+        extra: {
+          globalTypes: ['React', 'DOM'], // Parsed as array
+          debug: true, // Parsed as boolean
+          timeout: 5000, // Parsed as number
+          mode: 'development', // Parsed as string
+          features: ['experimental', 'beta'], // Parsed as array
+        },
+      });
+    });
+
+    it('should handle extra options without known properties', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          globalTypes: ['React'],
+          customSetting: 'enabled',
+          experimental: true
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        extra: {
+          globalTypes: ['React'], // Parsed as array
+          customSetting: 'enabled', // Parsed as string
+          experimental: true, // Parsed as boolean
+        },
+      });
+    });
+
+    it('should handle quoted string values in extra options', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Test',
+          globalTypes: ['React', 'Node'],
+          description: "A test component",
+          template: 'basic',
+          config: \`advanced settings\`
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Test',
+        extra: {
+          globalTypes: ['React', 'Node'], // Parsed as array
+          description: 'A test component', // Parsed as string (quotes removed)
+          template: 'basic', // Parsed as string (quotes removed)
+          config: 'advanced settings', // Parsed as string (quotes removed)
+        },
+      });
+    });
+
+    it('should not include known properties in extra', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Test Demo',
+          slug: 'test-slug',
+          skipPrecompute: true,
+          precompute: { data: 'value' },
+          globalTypes: ['React'],
+          customOption: 'value'
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Test Demo',
+        slug: 'test-slug',
+        skipPrecompute: true,
+        precompute: "{ data: 'value' }",
+        extra: {
+          globalTypes: ['React'], // Parsed as array
+          customOption: 'value', // Parsed as string
+        },
+      });
+    });
+
+    it('should handle empty extra options', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Test Demo',
+          slug: 'test-slug'
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Test Demo',
+        slug: 'test-slug',
+      });
+      // Should not have extra property when no extra options exist
+      expect(result!.options.extra).toBeUndefined();
+    });
+
+    it('should handle complex nested values in extra options', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Complex Demo',
+          globalTypes: ['React', 'Node', 'DOM'],
+          metadata: { "version": "1.0", "author": "test" },
+          features: [1, 2, 3],
+          enabled: false
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Complex Demo',
+        extra: {
+          globalTypes: ['React', 'Node', 'DOM'], // Parsed as array
+          metadata: { version: '1.0', author: 'test' }, // Parsed as object
+          features: [1, 2, 3], // Parsed as array
+          enabled: false, // Parsed as boolean
+        },
+      });
+    });
+
+    it('should handle single globalTypes value as string', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Single Global',
+          globalTypes: 'React'
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Single Global',
+        extra: {
+          globalTypes: 'React', // Single value as string
+        },
+      });
+    });
+
+    it('should handle mixed value types', async () => {
+      const code = `
+        import Component from './Component';
+        
+        createDemo(import.meta.url, Component, {
+          name: 'Mixed Types',
+          stringValue: 'hello',
+          numberValue: 42,
+          booleanValue: true,
+          arrayValue: ['a', 'b', 'c'],
+          objectValue: { "key": "value" }
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.options).toEqual({
+        name: 'Mixed Types',
+        extra: {
+          stringValue: 'hello',
+          numberValue: 42,
+          booleanValue: true,
+          arrayValue: ['a', 'b', 'c'],
+          objectValue: { key: 'value' },
+        },
+      });
     });
   });
 
