@@ -124,14 +124,14 @@ export async function getPackagePublishStatusMap(packages) {
     packages.map(async (pkg) => {
       // Skip packages without names (private packages might not have names)
       if (!pkg.name) {
-        return { path: pkg.path, isPublished: false };
+        return [pkg.path, false];
       }
       const isPublished = await isPackagePublished(pkg.name);
-      return { path: pkg.path, isPublished };
+      return [pkg.path, isPublished];
     }),
   );
 
-  return new Map(publishedChecks.map(({ path: pkgPath, isPublished }) => [pkgPath, isPublished]));
+  return new Map(publishedChecks);
 }
 
 /**
