@@ -8,7 +8,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getWorkspacePackages, getPackagePublishStatusMap } from './pnpm.mjs';
+import { getWorkspacePackages } from './pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -48,14 +48,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   handler: async (argv) => {
     const { publicOnly = false, publishedOnly = false, output = 'name', sinceRef } = argv;
 
-    // Get packages using our helper function
-    let packages = await getWorkspacePackages({ sinceRef, publicOnly });
-
-    // Filter by published status if requested
-    if (publishedOnly) {
-      const publishStatusMap = await getPackagePublishStatusMap(packages);
-      packages = packages.filter((pkg) => publishStatusMap.get(pkg.path) === true);
-    }
+    // Get packages using our helper function with all filters applied
+    const packages = await getWorkspacePackages({ sinceRef, publicOnly, publishedOnly });
 
     if (output === 'json') {
       // Serialize packages to JSON
