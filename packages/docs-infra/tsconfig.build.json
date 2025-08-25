@@ -3,14 +3,7 @@
   // Actual .ts source files are transpiled via babel
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "noEmit": false,
-    "emitDeclarationOnly": true,
-    "outDir": "build/",
-    "rootDir": "./src",
-    "tsBuildInfoFile": "build/tsconfig.build.tsbuildinfo"
+    "paths": {}
   },
-  "include": ["./types.d.ts", "src/**/*.ts*", "src/**/*.json"],
-  "exclude": ["src/**/*.spec.ts*", "src/**/*.test.ts*"]
+  "exclude": ["**/*.spec.*", "**/*.test.*"]
 }

@@ -1,7 +1,7 @@
-import path from 'path';
-import fs from 'fs/promises';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import * as zlib from 'node:zlib';
+import { promisify } from 'node:util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -29,7 +29,7 @@ const rootDir = process.cwd();
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
- * @returns {Promise<{configuration: import('vite').InlineConfig, externalsArray: string[]}>}
+ * @returns {Promise<import('vite').InlineConfig>}
  */
 async function createViteConfig(entry, args) {
   const entryName = entry.id;
@@ -70,7 +70,7 @@ async function createViteConfig(entry, args) {
 
     build: {
       write: true,
-      minify: true,
+      minify: args.debug ? 'esbuild' : true,
       outDir,
       emptyOutDir: true,
       rollupOptions: {
@@ -100,6 +100,11 @@ async function createViteConfig(entry, args) {
 
     esbuild: {
       legalComments: 'none',
+      ...(args.debug && {
+        minifyIdentifiers: false,
+        minifyWhitespace: false,
+        minifySyntax: true, // This enables tree-shaking and other safe optimizations
+      }),
     },
 
     define: {
@@ -132,7 +137,7 @@ async function createViteConfig(entry, args) {
     ],
   };
 
-  return { configuration, externalsArray };
+  return configuration;
 }
 
 /**
@@ -195,14 +200,14 @@ async function processBundleSizes(output, entryName) {
   const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
-  const mainEntry = manifest['virtual:entry.tsx'];
+  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === '_virtual_entry');
 
   if (!mainEntry) {
     throw new Error(`No main entry found in manifest for ${entryName}`);
   }
 
   // Walk the dependency tree to get all chunks that are part of this entry
-  const allChunks = walkDependencyTree('virtual:entry.tsx', manifest);
+  const allChunks = walkDependencyTree(mainEntry[0], manifest);
 
   // Process each chunk in the dependency tree in parallel
   const chunkPromises = Array.from(allChunks, async (chunkKey) => {
@@ -219,7 +224,7 @@ async function processBundleSizes(output, entryName) {
     const gzipSize = Buffer.byteLength(gzipBuffer);
 
     // Use chunk key as the name, or fallback to entry name for main chunk
-    const chunkName = chunkKey === 'virtual:entry.tsx' ? entryName : chunkKey;
+    const chunkName = chunk.name === '_virtual_entry' ? entryName : chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
@@ -233,9 +238,9 @@ async function processBundleSizes(output, entryName) {
  * @param {CommandLineArgs} args - Command line arguments
  * @returns {Promise<Map<string, { parsed: number, gzip: number }>>}
  */
-export async function getViteSizes(entry, args) {
+export async function getBundleSizes(entry, args) {
   // Create vite configuration
-  const { configuration } = await createViteConfig(entry, args);
+  const configuration = await createViteConfig(entry, args);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));

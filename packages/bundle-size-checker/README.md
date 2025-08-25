@@ -19,9 +19,12 @@ bundle-size-checker [options]
 
 Options:
 
-- `--analyze`: Creates a webpack-bundle-analyzer report for each bundle
-- `--accurateBundles`: Displays used bundles accurately at the cost of more CPU cycles
+- `--analyze`: Creates a report for each bundle (using rollup-plugin-visualizer)
+- `--debug`: Build with readable output (no name mangling or whitespace collapse, but still tree-shake)
+- `--verbose`: Show more detailed information during compilation
 - `--output`, `-o`: Path to output the size snapshot JSON file
+- `--filter`, `-F`: Filter entry points by glob pattern(s) applied to their IDs
+- `--concurrency`, `-c`: Number of workers to use for parallel processing
 
 ### Configuration
 
