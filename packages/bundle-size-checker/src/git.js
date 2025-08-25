@@ -26,20 +26,25 @@ export async function getMergeBase(base, head) {
 
 /**
  * Gets the current repository owner and name from git remote
- * @returns {Promise<{owner: string | null, repo: string | null}>}
+ * @returns {Promise<string | null>}
+ */
+async function getRemoteUrl(remote = 'origin') {
+  try {
+    const { stdout } = await execa('git', ['remote', 'get-url', remote]);
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Gets the current repository owner and name from git remote
+ * @returns {Promise<{owner: string | null, name: string | null}>}
  */
 export async function getCurrentRepoInfo() {
-  try {
-    const { stdout } = await execa('git', ['remote', 'get-url', 'origin']);
-    const parsed = gitUrlParse(stdout.trim());
-    return {
-      owner: parsed.owner,
-      repo: parsed.name,
-    };
-  } catch (error) {
-    return {
-      owner: null,
-      repo: null,
-    };
+  const remoteUrl = (await getRemoteUrl('upstream')) || (await getRemoteUrl('origin'));
+  if (!remoteUrl) {
+    return { owner: null, name: null };
   }
+  return gitUrlParse(remoteUrl);
 }
