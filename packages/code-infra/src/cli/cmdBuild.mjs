@@ -4,6 +4,7 @@ import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
+import { validateAndLogPackageJson } from '../utils/packageJsonValidation.mjs';
 
 /**
  * @typedef {Object} Args
@@ -16,6 +17,7 @@ import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
+ * @property {boolean} allowOverwritableFields - Whether to allow overwritable fields in source package.json without warnings.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
 
@@ -277,6 +279,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
+      })
+      .option('allowOverwritableFields', {
+        type: 'boolean',
+        default: false,
+        description:
+          'Allow overwritable fields (main, module, types, exports) in source package.json without warnings.',
       });
   },
   async handler(args) {
@@ -291,11 +299,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipTsc,
       skipBabelRuntimeCheck = false,
       skipPackageJson = false,
+      allowOverwritableFields = false,
     } = args;
 
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
+
+    // Validate package.json for fields that will be overwritten during build
+    if (!allowOverwritableFields) {
+      validateAndLogPackageJson(packageJson);
+    }
+
     const buildDirBase = packageJson.publishConfig?.directory;
     if (!buildDirBase) {
       throw new Error(
