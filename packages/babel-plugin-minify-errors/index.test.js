@@ -1,17 +1,20 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { pluginTester } from 'babel-plugin-tester';
 import { expect } from 'vitest';
 import plugin from './index';
 
 const temporaryErrorCodesPath = path.join(os.tmpdir(), 'error-codes.json');
-const fixturePath = path.resolve(__dirname, '../__fixtures__');
+const fixturePath = path.resolve(__dirname, './__fixtures__');
 
 /**
- * Read output fixture and normalize line endings
+ *
+ * @param {string} fixture
+ * @param {string} file
+ * @returns {string}
  */
-function readOutputFixtureSync(fixture: string, file: string): string {
+function readOutputFixtureSync(fixture, file) {
   // babel hardcodes the linefeed to \n
   return fs
     .readFileSync(path.join(fixturePath, fixture, file), { encoding: 'utf8' })
@@ -52,6 +55,8 @@ pluginTester({
     },
     {
       title: 'can throw on missing error codes',
+      // babel prefixes with filename.
+      // We're only interested in the message.
       error:
         /: Missing error code for message 'missing'. Did you forget to run `pnpm extract-error-codes` first\?/,
       fixture: path.join(fixturePath, 'no-error-code-throw', 'input.js'),
@@ -62,7 +67,7 @@ pluginTester({
       },
     },
     {
-      title: 'can annotate unminifyable errors',
+      title: 'annotates unminifyable errors',
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'unminifyable-annotation', 'error-codes.json'),
         runtimeModule: '@mui/utils/formatMuiErrorMessage',
@@ -136,20 +141,7 @@ pluginTester({
       output: readOutputFixtureSync('custom-runtime-imports', 'output.js'),
     },
     {
-      title: 'uses custom runtime module with imports recursive',
-      pluginOptions: {
-        errorCodesPath: path.join(
-          fixturePath,
-          'custom-runtime-imports-recursive',
-          'error-codes.json',
-        ),
-        runtimeModule: '#error-formatter',
-      },
-      fixture: path.join(fixturePath, 'custom-runtime-imports-recursive', 'input.js'),
-      output: readOutputFixtureSync('custom-runtime-imports-recursive', 'output.js'),
-    },
-    {
-      title: 'uses custom runtime module with imports relative path',
+      title: 'uses custom runtime module with relative path',
       pluginOptions: {
         errorCodesPath: path.join(
           fixturePath,
@@ -160,6 +152,19 @@ pluginTester({
       },
       fixture: path.join(fixturePath, 'custom-runtime-imports-relative', 'input.js'),
       output: readOutputFixtureSync('custom-runtime-imports-relative', 'output.js'),
+    },
+    {
+      title: 'uses custom runtime module with recursive imports',
+      pluginOptions: {
+        errorCodesPath: path.join(
+          fixturePath,
+          'custom-runtime-imports-recursive',
+          'error-codes.json',
+        ),
+        runtimeModule: '#error-formatter',
+      },
+      fixture: path.join(fixturePath, 'custom-runtime-imports-recursive', 'input.js'),
+      output: readOutputFixtureSync('custom-runtime-imports-recursive', 'output.js'),
     },
   ],
 });
