@@ -7,8 +7,7 @@
 import { calculateSizeDiff } from './sizeDiff.js';
 import { fetchSnapshot } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
-import { octokit } from './github.js';
-import { getCurrentRepoInfo, getMergeBase } from './git.js';
+import { getMergeBase } from './git.js';
 import { fetchSnapshotWithFallback } from './fetchSnapshotWithFallback.js';
 
 /**
@@ -224,6 +223,7 @@ function getDetailsUrl(prInfo, options = {}) {
  * @param {string[]} [options.track] - Array of bundle IDs to track
  * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
  * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
+ * @param {(base: string, head: string) => Promise<string>} [options.getMergeBase] - Custom function to get merge base commit
  * @returns {Promise<string>} Markdown report
  */
 export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
@@ -233,22 +233,8 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const repo = prInfo.base.repo.full_name;
   const { fallbackDepth = 3 } = options;
 
-  const [owner, repoName] = repo.split('/');
-
-  const currentRepo = await getCurrentRepoInfo();
-
-  let baseCommit;
-  if (owner === currentRepo.owner && repoName === currentRepo.repo) {
-    baseCommit = await getMergeBase(prInfo.base.sha, prCommit);
-  } else {
-    const { data } = await octokit.repos.compareCommits({
-      owner,
-      repo: repoName,
-      base: prInfo.base.sha,
-      head: prCommit,
-    });
-    baseCommit = data.merge_base_commit.sha;
-  }
+  const getMergeBaseFn = options.getMergeBase || getMergeBase;
+  const baseCommit = await getMergeBaseFn(prInfo.base.sha, prCommit);
 
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
