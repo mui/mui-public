@@ -134,12 +134,6 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   delete packageJson.devDependencies;
   delete packageJson.imports;
 
-  if (packageJson.private === false) {
-    throw new Error(
-      `Remove the field "private": false from "${packageJson.name}" package.json. This is redundant.`,
-    );
-  }
-
   packageJson.type = packageJson.type || 'commonjs';
 
   /**
@@ -306,6 +300,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (!buildDirBase) {
       throw new Error(
         'No build directory specified in package.json. Specify it in the "publishConfig.directory" field.',
+      );
+    }
+    if (packageJson.private === false) {
+      throw new Error(
+        `Remove the field "private": false from "${packageJson.name}" package.json. This is redundant.`,
       );
     }
     const buildDir = path.join(cwd, buildDirBase);
