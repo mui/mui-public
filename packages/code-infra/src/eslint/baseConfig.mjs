@@ -1,7 +1,7 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import eslintJs from '@eslint/js';
 import prettier from 'eslint-config-prettier/flat';
-import importPlugin from 'eslint-plugin-import';
+import importPlugin from 'eslint-plugin-import-x';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
@@ -66,7 +66,7 @@ export function createBaseConfig(
       {
         files: ['**/*.mjs'],
         rules: {
-          'import/extensions': [
+          'import-x/extensions': [
             'error',
             'ignorePackages',
             {
