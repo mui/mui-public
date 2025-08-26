@@ -299,7 +299,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const buildDirBase = packageJson.publishConfig?.directory;
     if (!buildDirBase) {
       throw new Error(
-        'No build directory specified in package.json. Specify it in the "publishConfig.directory" field.',
+        `No build directory specified in "${packageJson.name}" package.json. Specify it in the "publishConfig.directory" field.`,
       );
     }
     if (packageJson.private === false) {
