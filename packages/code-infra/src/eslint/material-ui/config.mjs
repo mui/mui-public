@@ -82,15 +82,15 @@ const criticalAirbnbRules = {
   'no-promise-executor-return': 'error',
 
   // Import rules (critical ones not in recommended)
-  'import/order': ['error', { groups: [['builtin', 'external', 'internal']] }],
-  'import/first': 'error',
-  'import/no-mutable-exports': 'error',
-  'import/newline-after-import': 'error',
-  // https://github.com/import-js/eslint-plugin-import/blob/master/docs/rules/namespace.md
-  'import/namespace': 'off',
+  'import-x/order': ['error', { groups: [['builtin', 'external', 'internal']] }],
+  'import-x/first': 'error',
+  'import-x/no-mutable-exports': 'error',
+  'import-x/newline-after-import': 'error',
+  // https://github.com/import-js/eslint-plugin-import-x/blob/master/docs/rules/namespace.md
+  'import-x/namespace': 'off',
   // Forbid require() calls with expressions
-  // https://github.com/import-js/eslint-plugin-import/blob/master/docs/rules/no-dynamic-require.md
-  'import/no-dynamic-require': 'error',
+  // https://github.com/import-js/eslint-plugin-import-x/blob/master/docs/rules/no-dynamic-require.md
+  'import-x/no-dynamic-require': 'error',
 
   // Additional best practices
   'default-case': ['error', { commentPattern: '^no default$' }],
@@ -179,9 +179,9 @@ const criticalAirbnbRules = {
 const typescriptOverrides = {
   // The following rules are enabled in Airbnb config, but are recommended to be disabled within TypeScript projects
   // See: https://github.com/typescript-eslint/typescript-eslint/blob/13583e65f5973da2a7ae8384493c5e00014db51b/docs/linting/TROUBLESHOOTING.md#eslint-plugin-import
-  'import/named': 'off',
-  'import/no-named-as-default-member': 'off',
-  'import/no-unresolved': 'off',
+  'import-x/named': 'off',
+  'import-x/no-named-as-default-member': 'off',
+  'import-x/no-unresolved': 'off',
 
   // TypeScript equivalents of ESLint rules
   'default-param-last': 'off',
@@ -240,7 +240,7 @@ const typescriptOverrides = {
   '@typescript-eslint/no-this-alias': 'off',
 
   // TypeScript extensions handling
-  'import/extensions': [
+  'import-x/extensions': [
     'error',
     'ignorePackages',
     {
@@ -312,7 +312,7 @@ export function createCoreConfig(options = {}) {
     {
       name: 'material-ui-base',
       settings: {
-        'import/resolver': {
+        'import-x/resolver': {
           node: {
             extensions: ['.mjs', '.js', '.json'],
           },
@@ -320,15 +320,15 @@ export function createCoreConfig(options = {}) {
             project: ['tsconfig.node.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
           },
         },
-        'import/extensions': ['.js', '.mjs', '.jsx', '.ts', '.tsx', '.d.ts'],
-        'import/core-modules': [],
-        'import/ignore': ['node_modules', '\\.(css|svg|json)$'],
+        'import-x/extensions': ['.js', '.mjs', '.jsx', '.mts', '.ts', '.tsx', '.d.ts'],
+        'import-x/core-modules': [],
+        'import-x/ignore': ['node_modules', '\\.(css|svg|json)$'],
         // Override with TypeScript-specific settings
-        'import/parsers': {
+        'import-x/parsers': {
           '@typescript-eslint/parser': ['.ts', '.tsx'],
         },
         // Extend Airbnb extensions with TypeScript
-        'import/external-module-folders': ['node_modules', 'node_modules/@types'],
+        'import-x/external-module-folders': ['node_modules', 'node_modules/@types'],
       },
       rules: {
         ...criticalAirbnbRules,
@@ -385,15 +385,15 @@ export function createCoreConfig(options = {}) {
         ],
 
         // Not needed in general, can be turned on for specific files
-        'import/prefer-default-export': 'off',
+        'import-x/prefer-default-export': 'off',
         // Not sure why it doesn't work
-        'import/named': 'off',
-        'import/no-cycle': 'off',
+        'import-x/named': 'off',
+        'import-x/no-cycle': 'off',
         // Missing yarn workspace support
-        'import/no-extraneous-dependencies': 'off',
+        'import-x/no-extraneous-dependencies': 'off',
         // The code is already coupled to webpack. Prefer explicit coupling.
-        'import/no-webpack-loader-syntax': 'off',
-        'import/no-relative-packages': 'error',
+        'import-x/no-webpack-loader-syntax': 'off',
+        'import-x/no-relative-packages': 'error',
 
         // doesn't work?
         'jsx-a11y/label-has-associated-control': [

@@ -2,7 +2,7 @@ import path from 'node:path';
 import getPort from 'get-port';
 import { describe, expect, it } from 'vitest';
 
-// eslint-disable-next-line import/extensions
+// eslint-disable-next-line import-x/extensions
 import { crawl, Issue, Link } from './index.mjs';
 
 type ExpectedIssue = Omit<Partial<Issue>, 'link'> & { link?: Partial<Link> };

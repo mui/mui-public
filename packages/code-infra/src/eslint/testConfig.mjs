@@ -24,7 +24,7 @@ export const baseSpecRules = {
     '@typescript-eslint/no-use-before-define': 'off',
     '@typescript-eslint/ban-ts-comment': 'off',
 
-    'import/prefer-default-export': 'off',
+    'import-x/prefer-default-export': 'off',
 
     'jsx-a11y/anchor-has-content': 'off',
     'jsx-a11y/anchor-is-valid': 'off',
