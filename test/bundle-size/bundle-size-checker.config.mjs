@@ -26,7 +26,7 @@ export default defineConfig(async () => {
         `,
         externals: ['react', 'react-dom'],
       },
-      { id: '@base-ui-components/react', track: true },
+      { import: '@base-ui-components/react', track: true },
       '@base-ui-components/react/checkbox',
       '@base-ui-components/react/checkbox#Checkbox',
       '@mui/x-charts-pro/BarChartPro',
