@@ -26,11 +26,12 @@ export default defineConfig(async () => {
         `,
         externals: ['react', 'react-dom'],
       },
-      '@base-ui-components/react',
+      { id: '@base-ui-components/react', track: true },
       '@base-ui-components/react/checkbox',
       '@base-ui-components/react/checkbox#Checkbox',
       '@mui/x-charts-pro/BarChartPro',
     ],
     upload: !!process.env.CI,
+    comment: true,
   };
 });

@@ -6,11 +6,13 @@ import fs from 'node:fs/promises';
 import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
+import envCi from 'env-ci';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { octokit } from './github.js';
 import { getCurrentRepoInfo } from './git.js';
+import { notifyPr } from './notifyPr.js';
 
 /**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
@@ -76,6 +78,47 @@ async function getBundleSizes(args, config) {
 }
 
 /**
+ * Posts initial "in progress" PR comment with CircleCI build information
+ * @returns {Promise<void>}
+ */
+async function postInitialPrComment() {
+  /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, prNumber?: number}} */
+  const ciInfo = envCi();
+
+  if (!ciInfo.isPr || !ciInfo.slug || !ciInfo.prNumber) {
+    // eslint-disable-next-line no-console
+    console.log('Not in CI PR environment, skipping initial PR comment.');
+    return;
+  }
+
+  const circleBuildNum = process.env.CIRCLE_BUILD_NUM;
+  const circleBuildUrl = process.env.CIRCLE_BUILD_URL;
+
+  if (!circleBuildNum || !circleBuildUrl) {
+    // eslint-disable-next-line no-console
+    console.log('CircleCI environment variables not found, skipping initial PR comment.');
+    return;
+  }
+
+  try {
+    // eslint-disable-next-line no-console
+    console.log('Posting initial PR comment...');
+
+    const initialComment = `## Bundle size report
+
+Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.`;
+
+    await notifyPr(ciInfo.slug, ciInfo.prNumber, 'bundle-size-report', initialComment);
+
+    // eslint-disable-next-line no-console
+    console.log(`Initial PR comment posted for PR #${ciInfo.prNumber}`);
+  } catch (/** @type {any} */ error) {
+    console.error('Failed to post initial PR comment:', error.message);
+    // Don't fail the build for comment failures
+  }
+}
+
+/**
  * Report command handler
  * @param {ReportCommandArgs} argv - Command line arguments
  */
@@ -114,7 +157,7 @@ async function reportCommand(argv) {
   };
 
   // Generate and print the markdown report
-  const report = await renderMarkdownReport(prInfo, undefined, {
+  const report = await renderMarkdownReport(prInfo, {
     getMergeBase: getMergeBaseFromGithubApi,
   });
   // eslint-disable-next-line no-console
@@ -131,6 +174,11 @@ async function run(argv) {
   const snapshotDestPath = output ? path.resolve(output) : path.join(rootDir, 'size-snapshot.json');
 
   const config = await loadConfig(rootDir);
+
+  // Post initial PR comment if enabled and in CI environment
+  if (config && config.comment) {
+    await postInitialPrComment();
+  }
 
   // eslint-disable-next-line no-console
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
@@ -163,6 +211,51 @@ async function run(argv) {
   } else {
     // eslint-disable-next-line no-console
     console.log('No upload configuration provided, skipping upload.');
+  }
+
+  // Post PR comment if enabled and in CI environment
+  if (config && config.comment) {
+    /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, prNumber?: number}} */
+    const ciInfo = envCi();
+
+    if (ciInfo.isPr && ciInfo.slug && ciInfo.prNumber) {
+      try {
+        // eslint-disable-next-line no-console
+        console.log('Generating PR comment with bundle size changes...');
+
+        // Get tracked bundles from config
+        const trackedBundles = config.entrypoints
+          .filter((entry) => entry.track === true)
+          .map((entry) => entry.id);
+
+        // Get PR info for renderMarkdownReport
+        const { data: prInfo } = await octokit.pulls.get({
+          owner: ciInfo.slug.split('/')[0],
+          repo: ciInfo.slug.split('/')[1],
+          pull_number: ciInfo.prNumber,
+        });
+
+        // Generate markdown report
+        const report = await renderMarkdownReport(prInfo, {
+          track: trackedBundles.length > 0 ? trackedBundles : undefined,
+        });
+
+        // Post or update PR comment
+        await notifyPr(ciInfo.slug, ciInfo.prNumber, 'bundle-size-report', report);
+
+        // eslint-disable-next-line no-console
+        console.log(`PR comment posted/updated for PR #${ciInfo.prNumber}`);
+      } catch (/** @type {any} */ error) {
+        console.error('Failed to post PR comment:', error.message);
+        // Don't exit with error for comment failures
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('Not in CI PR environment, skipping PR comment.');
+    }
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('PR commenting disabled in configuration, skipping comment.');
   }
 }
 

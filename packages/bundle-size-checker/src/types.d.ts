@@ -21,6 +21,7 @@ interface ObjectEntry {
   import?: string; // Optional package name to import
   importedNames?: string[]; // Optional array of named imports
   externals?: string[]; // Optional array of packages to exclude from the bundle
+  track?: boolean; // Whether this bundle should be tracked in PR comments (defaults to false)
 }
 
 type EntryPoint = StringEntry | ObjectEntry;
@@ -29,6 +30,7 @@ type EntryPoint = StringEntry | ObjectEntry;
 interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
+  comment?: boolean; // Whether to post PR comments (defaults to true)
 }
 
 type BundleSizeCheckerConfig =
@@ -40,6 +42,7 @@ type BundleSizeCheckerConfig =
 interface NormalizedBundleSizeCheckerConfig {
   entrypoints: ObjectEntry[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
+  comment: boolean; // Whether to post PR comments
 }
 
 // Command line argument types

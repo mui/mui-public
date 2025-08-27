@@ -150,6 +150,7 @@ function applyConfigDefaults(config) {
   const result = {
     entrypoints: normalizeEntries(config.entrypoints),
     upload: null, // Default to disabled
+    comment: config.comment !== undefined ? config.comment : true, // Default to enabled
   };
 
   // Handle different types of upload value
