@@ -1,25 +1,199 @@
 /**
  * Utility function for parsing function parameters and handling nested structures
- * in JavaScript/TypeScript code.
+ * in JavaScript/TypeScript code with structured representations.
  */
 
-export interface ParsedParameters {
-  /** The raw parameter strings split by top-level commas */
-  parts: string[];
-  /** Extracted balanced brace objects from each part (null if not an object) */
-  objects: (string | null)[];
+/**
+ * Structured parameter types for discriminating between different code constructs:
+ * - `[Array]`: Literal array - e.g., `['1', '2', '3']`
+ * - `[String, Array]`: Function call - e.g., `['func', ['a', 'b']]`
+ * - `[String, Array, Array]`: Function with generics - e.g., `['Component', [{ foo: 'string' }], []]`
+ * - `[String, Array, null]`: Type with generics - e.g., `['Theme', ['"dark" | "light"'], null]`
+ * - `[Array, any]`: Simple arrow function - e.g., `[['evt'], 'evt.preventDefault()']`
+ * - `[Array, [any, any], any]`: Typed arrow function - e.g., `[['data'], ['string', 'Promise<string>'], ['Promise.resolve', ['data']]]`
+ * - `['as', string, any]`: TypeScript type assertion - e.g., `['as', 'React.FC<Props>', 'Component']`
+ * - `Record<string, any>`: Object literal - e.g., `{ key: 'value' }`
+ * - `string`: Plain string value
+ */
+export type SplitParameters = Array<string | SplitParameters | Record<string, any>>;
+
+/**
+ * Type guard and extractor for literal arrays
+ * @param value - The value to check
+ * @returns Object with items array if it's a literal array, false otherwise
+ */
+export function isArray(value: any): { items: any[] } | false {
+  if (Array.isArray(value) && value.length === 1 && Array.isArray(value[0])) {
+    return { items: value };
+  }
+  return false;
 }
 
 /**
- * Parses function parameters, splitting by top-level commas and extracting object literals.
- * This combines comma-splitting with object extraction for common use cases.
+ * Type guard and extractor for function calls
+ * @param value - The value to check
+ * @returns Object with name and parameters if it's a function call, false otherwise
  */
-export function parseFunctionParameters(str: string): ParsedParameters {
-  const parts: string[] = [];
-  const objects: (string | null)[] = [];
+export function isFunction(value: any): { name: string; parameters: any[] } | false {
+  if (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    typeof value[0] === 'string' &&
+    Array.isArray(value[1])
+  ) {
+    return { name: value[0], parameters: value[1] };
+  }
+  return false;
+}
+
+/**
+ * Type guard and extractor for generics (both function and type generics)
+ * @param value - The value to check
+ * @returns Object with name, generics, and parameters (or null for types) if it's a generic, false otherwise
+ */
+export function isGeneric(
+  value: any,
+): { name: string; generics: any[]; parameters: any[] | null } | false {
+  if (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    typeof value[0] === 'string' &&
+    Array.isArray(value[1])
+  ) {
+    return { name: value[0], generics: value[1], parameters: value[2] };
+  }
+  return false;
+}
+
+/**
+ * Type guard and extractor for arrow functions
+ * @param value - The value to check
+ * @returns Object with params, types (if typed), and returnValue if it's an arrow function, false otherwise
+ */
+export function isArrowFunction(
+  value: any,
+): { params: any[]; types?: [any, any]; returnValue: any } | false {
+  if (Array.isArray(value) && Array.isArray(value[0])) {
+    if (value.length === 2) {
+      // Simple arrow function: [Array, any]
+      return { params: value[0], returnValue: value[1] };
+    }
+    if (value.length === 3 && Array.isArray(value[1]) && value[1].length === 2) {
+      // Typed arrow function: [Array, [inputTypes, outputTypes], any]
+      return { params: value[0], types: [value[1][0], value[1][1]], returnValue: value[2] };
+    }
+  }
+  return false;
+}
+
+/**
+ * Type guard and extractor for object literals
+ * @param value - The value to check
+ * @returns Object with properties if it's an object literal, false otherwise
+ */
+export function isObjectLiteral(value: any): { properties: Record<string, any> } | false {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    return { properties: value };
+  }
+  return false;
+}
+
+/**
+ * Type guard and extractor for TypeScript type assertions
+ * @param value - The value to check
+ * @returns Object with type and expression if it's a type assertion, false otherwise
+ */
+export function isTypeAssertion(value: any): { type: string; expression: any } | false {
+  if (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    value[0] === 'as' &&
+    typeof value[1] === 'string'
+  ) {
+    return { type: value[1], expression: value[2] };
+  }
+  return false;
+}
+
+/**
+ * Main API: Parse parameters and return structured representation
+ * This is the primary parsing function optimized for recursive data structures
+ */
+export function parseFunctionParameters(str: string): SplitParameters {
+  return parseParametersRecursive(str);
+}
+
+/**
+ * Parse entire file and extract all exports with their function calls
+ * Returns a mapping of export names to their function call information
+ */
+export function parseFileExports(
+  fileContent: string,
+): Record<
+  string,
+  { functionName: string; parameters: SplitParameters; sourceRange: [number, number] }
+> {
+  const exports: Record<
+    string,
+    { functionName: string; parameters: SplitParameters; sourceRange: [number, number] }
+  > = {};
+
+  // Find all export statements that assign function calls
+  const exportRegex = /export\s+const\s+(\w+)\s*=\s*(\w+)\s*\(/g;
+  let match = exportRegex.exec(fileContent);
+
+  while (match !== null) {
+    const exportName = match[1];
+    const functionName = match[2];
+    const callStartIndex = match.index;
+    const parenIndex = match.index + match[0].length - 1; // Position of opening parenthesis
+
+    // Find the matching closing parenthesis
+    let parenCount = 0;
+    let callEndIndex = -1;
+
+    for (let i = parenIndex; i < fileContent.length; i += 1) {
+      if (fileContent[i] === '(') {
+        parenCount += 1;
+      } else if (fileContent[i] === ')') {
+        parenCount -= 1;
+        if (parenCount === 0) {
+          callEndIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (callEndIndex !== -1) {
+      // Extract the parameters content between parentheses
+      const parametersContent = fileContent.substring(parenIndex + 1, callEndIndex);
+
+      // Parse the parameters using existing logic
+      const parameters = parseFunctionParameters(parametersContent);
+
+      exports[exportName] = {
+        functionName,
+        parameters,
+        sourceRange: [callStartIndex, callEndIndex + 1],
+      };
+    }
+
+    match = exportRegex.exec(fileContent);
+  }
+
+  return exports;
+}
+
+/**
+ * Internal recursive parsing function
+ */
+function parseParametersRecursive(str: string): SplitParameters {
+  const result: SplitParameters = [];
   let current = '';
   let parenCount = 0;
   let braceCount = 0;
+  let bracketCount = 0;
+  let angleCount = 0;
   let inSingleLineComment = false;
   let inMultiLineComment = false;
   let inString = false;
@@ -90,10 +264,26 @@ export function parseFunctionParameters(str: string): ParsedParameters {
       braceCount += 1;
     } else if (char === '}') {
       braceCount -= 1;
-    } else if (char === ',' && parenCount === 0 && braceCount === 0) {
+    } else if (char === '[') {
+      bracketCount += 1;
+    } else if (char === ']') {
+      bracketCount -= 1;
+    } else if (char === '<') {
+      angleCount += 1;
+    } else if (char === '>' && str[i - 1] !== '=') {
+      // Only count > as closing angle bracket if it's not part of =>
+      angleCount -= 1;
+    } else if (
+      char === ',' &&
+      parenCount === 0 &&
+      braceCount === 0 &&
+      bracketCount === 0 &&
+      angleCount === 0
+    ) {
       const trimmedPart = current.trim();
-      parts.push(trimmedPart);
-      objects.push(extractBalancedBraces(trimmedPart));
+      if (trimmedPart) {
+        result.push(parseElement(trimmedPart));
+      }
       current = '';
       continue;
     }
@@ -101,32 +291,97 @@ export function parseFunctionParameters(str: string): ParsedParameters {
     current += char;
   }
 
+  // Handle the last part
   if (current.trim()) {
     const trimmedPart = current.trim();
-    parts.push(trimmedPart);
-    objects.push(extractBalancedBraces(trimmedPart));
+    result.push(parseElement(trimmedPart));
   }
 
-  return { parts, objects };
+  return result;
 }
 
 /**
- * Extracts a balanced brace object from a string, handling leading whitespace and comments
+ * Parse a single element and determine its type/structure
  */
-export function extractBalancedBraces(str: string): string | null {
-  // Find the first opening brace, skipping whitespace and comments
-  let startIndex = -1;
+function parseElement(element: string): any {
+  let trimmed = element.trim();
+
+  // Remove comments
+  trimmed = removeComments(trimmed);
+
+  // Handle object literals FIRST before checking for 'as'
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return parseObjectLiteral(trimmed);
+  }
+
+  // Handle TypeScript 'as' type assertions with structured representation
+  if (trimmed.includes(' as ')) {
+    return parseTypeAssertion(trimmed);
+  }
+
+  // Handle array literals
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    return parseArrayLiteral(trimmed);
+  }
+
+  // Handle arrow functions
+  if (trimmed.includes('=>')) {
+    return parseArrowFunction(trimmed);
+  }
+
+  // Handle function calls and generics
+  if (trimmed.includes('(') || trimmed.includes('<')) {
+    return parseFunctionOrGeneric(trimmed);
+  }
+
+  // Everything else is just a string
+  return trimmed;
+}
+
+/**
+ * Remove comments from a string
+ */
+function removeComments(str: string): string {
+  let result = '';
   let inSingleLineComment = false;
   let inMultiLineComment = false;
+  let inString = false;
+  let stringChar = '';
 
   for (let i = 0; i < str.length; i += 1) {
     const char = str[i];
     const nextChar = str[i + 1];
 
+    // Handle strings first
+    if (
+      !inSingleLineComment &&
+      !inMultiLineComment &&
+      !inString &&
+      (char === '"' || char === "'" || char === '`')
+    ) {
+      inString = true;
+      stringChar = char;
+      result += char;
+      continue;
+    }
+
+    if (inString && char === stringChar && str[i - 1] !== '\\') {
+      inString = false;
+      stringChar = '';
+      result += char;
+      continue;
+    }
+
+    if (inString) {
+      result += char;
+      continue;
+    }
+
     // Handle comments
     if (!inSingleLineComment && !inMultiLineComment) {
       if (char === '/' && nextChar === '/') {
         inSingleLineComment = true;
+        i += 1; // Skip next character
         continue;
       }
       if (char === '/' && nextChar === '*') {
@@ -138,6 +393,7 @@ export function extractBalancedBraces(str: string): string | null {
 
     if (inSingleLineComment && char === '\n') {
       inSingleLineComment = false;
+      result += char;
       continue;
     }
 
@@ -151,39 +407,391 @@ export function extractBalancedBraces(str: string): string | null {
       continue;
     }
 
-    // Skip whitespace
-    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
-      continue;
-    }
+    result += char;
+  }
 
-    // Found first non-whitespace, non-comment character
-    if (char === '{') {
-      startIndex = i;
-      break;
+  return result.trim();
+}
+
+/**
+ * Parse object literal like { key: value, other: data }
+ */
+function parseObjectLiteral(str: string): Record<string, any> {
+  const content = str.slice(1, -1).trim(); // Remove { }
+  if (!content) {
+    return {};
+  }
+
+  const obj: Record<string, any> = {};
+
+  // Parse object properties manually to handle complex types
+  const properties = parseObjectProperties(content);
+
+  for (const prop of properties) {
+    const colonIndex = prop.indexOf(':');
+    if (colonIndex !== -1) {
+      const key = prop.substring(0, colonIndex).trim();
+      const value = prop.substring(colonIndex + 1).trim();
+      // Parse the value
+      const parsedValue = parseElement(value);
+
+      // For object properties: preserve strings as-is, but only wrap array LITERALS in another array
+      if (typeof parsedValue === 'string' && !Array.isArray(parsedValue)) {
+        obj[key] = parsedValue;
+      } else if (Array.isArray(parsedValue)) {
+        // Only double-wrap array literals (parsed from [1, 2, 3])
+        // Functions and generics should remain as single arrays
+        const originalValue = value.trim();
+        if (originalValue.startsWith('[') && originalValue.endsWith(']')) {
+          // This is an array literal - double wrap it
+          obj[key] = [parsedValue];
+        } else {
+          // This is a function call or generic - keep as single array
+          obj[key] = parsedValue;
+        }
+      } else {
+        obj[key] = parsedValue;
+      }
     } else {
-      // If it's not a brace, this isn't a valid object
-      return null;
+      // Shorthand property like { foo } -> { foo: 'foo' }
+      const trimmed = prop.trim();
+      obj[trimmed] = trimmed;
     }
   }
 
-  if (startIndex === -1) {
-    return null;
+  return obj;
+}
+
+/**
+ * Parse object properties, handling complex nested types
+ */
+function parseObjectProperties(content: string): string[] {
+  const properties: string[] = [];
+  let current = '';
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    const nextChar = content[i + 1];
+
+    if (!inString && (char === '"' || char === "'" || char === '`')) {
+      inString = true;
+      stringChar = char;
+    } else if (inString && char === stringChar && content[i - 1] !== '\\') {
+      inString = false;
+      stringChar = '';
+    }
+
+    if (!inString) {
+      if (char === '<' || char === '{' || char === '(' || char === '[') {
+        depth += 1;
+      } else if (char === '>' && nextChar !== '=' && content[i - 1] !== '=') {
+        // Only count > as closing bracket if it's not part of => or >=
+        depth -= 1;
+      } else if (char === '}' || char === ')' || char === ']') {
+        depth -= 1;
+      } else if (char === ',' && depth === 0) {
+        if (current.trim()) {
+          properties.push(current.trim());
+        }
+        current = '';
+        continue;
+      }
+    }
+
+    current += char;
   }
 
-  let braceCount = 0;
-  let endIndex = -1;
+  if (current.trim()) {
+    properties.push(current.trim());
+  }
 
-  for (let i = startIndex; i < str.length; i += 1) {
-    if (str[i] === '{') {
-      braceCount += 1;
-    } else if (str[i] === '}') {
-      braceCount -= 1;
-      if (braceCount === 0) {
-        endIndex = i;
+  return properties;
+}
+
+/**
+ * Parse array literal like [1, 2, 3]
+ */
+function parseArrayLiteral(str: string): any[] {
+  const content = str.slice(1, -1).trim(); // Remove [ ]
+  if (!content) {
+    return [];
+  }
+
+  return parseParametersRecursive(content);
+}
+
+/**
+ * Parse arrow function like (a) => a + 1 or (data: string): Promise<string> => Promise.resolve(data)
+ */
+function parseArrowFunction(str: string): any[] {
+  const arrowIndex = str.indexOf('=>');
+  const leftPart = str.substring(0, arrowIndex).trim();
+  const rightPart = str.substring(arrowIndex + 2).trim();
+
+  // Parse parameters
+  let params: any[] = [];
+  let types: [any, any] | undefined;
+
+  if (leftPart.startsWith('(') && leftPart.includes(')')) {
+    const parenEnd = leftPart.lastIndexOf(')');
+    const paramsPart = leftPart.substring(1, parenEnd);
+    const afterParen = leftPart.substring(parenEnd + 1).trim();
+
+    params = paramsPart ? parseParametersRecursive(paramsPart) : [];
+
+    // Check for return type annotation
+    if (afterParen.startsWith(':')) {
+      const returnType = afterParen.substring(1).trim();
+      // Extract input types from params if they have type annotations
+      const inputTypes = params.map((param) => {
+        if (typeof param === 'string' && param.includes(':')) {
+          return param.split(':')[1].trim();
+        }
+        return 'any';
+      });
+
+      // Clean parameter names (remove type annotations)
+      params = params.map((param) => {
+        if (typeof param === 'string' && param.includes(':')) {
+          return param.split(':')[0].trim();
+        }
+        return param;
+      });
+
+      types = [inputTypes.length === 1 ? inputTypes[0] : inputTypes, returnType];
+    }
+  } else {
+    params = [leftPart];
+  }
+
+  const returnValue = parseElement(rightPart);
+
+  if (types) {
+    return [params, types, returnValue];
+  }
+  return [params, returnValue];
+}
+
+/**
+ * Parse function calls and generics like func(a, b) or Component<{ foo: string }>
+ */
+function parseFunctionOrGeneric(str: string): any {
+  // Check for generics first
+  const angleStart = str.indexOf('<');
+  const parenStart = str.indexOf('(');
+
+  if (angleStart !== -1 && (parenStart === -1 || angleStart < parenStart)) {
+    return parseGeneric(str);
+  }
+
+  if (parenStart !== -1) {
+    const result = parseFunctionCall(str);
+    // If parseFunctionCall detected property access and returned [str], unwrap it
+    if (Array.isArray(result) && result.length === 1 && result[0] === str) {
+      return str;
+    }
+    return result;
+  }
+
+  return str;
+}
+
+/**
+ * Parse generic content while preserving nested structures
+ */
+function parseGenericContent(content: string): any[] {
+  const elements: any[] = [];
+  let current = '';
+  let parenCount = 0;
+  let braceCount = 0;
+  let bracketCount = 0;
+  let angleCount = 0;
+  let inString = false;
+  let stringChar = '';
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+
+    if (!inString && (char === '"' || char === "'")) {
+      inString = true;
+      stringChar = char;
+      current += char;
+    } else if (inString && char === stringChar && content[i - 1] !== '\\') {
+      inString = false;
+      stringChar = '';
+      current += char;
+    } else if (!inString) {
+      if (char === '(') {
+        parenCount += 1;
+      } else if (char === ')') {
+        parenCount -= 1;
+      } else if (char === '{') {
+        braceCount += 1;
+      } else if (char === '}') {
+        braceCount -= 1;
+      } else if (char === '[') {
+        bracketCount += 1;
+      } else if (char === ']') {
+        bracketCount -= 1;
+      } else if (char === '<') {
+        angleCount += 1;
+      } else if (char === '>') {
+        angleCount -= 1;
+      } else if (
+        char === ',' &&
+        parenCount === 0 &&
+        braceCount === 0 &&
+        bracketCount === 0 &&
+        angleCount === 0
+      ) {
+        if (current.trim()) {
+          elements.push(parseElement(current.trim()));
+        }
+        current = '';
+        continue;
+      }
+      current += char;
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.trim()) {
+    elements.push(parseElement(current.trim()));
+  }
+
+  return elements;
+}
+
+/**
+ * Parse generic like Component<{ foo: string }> or Theme<"dark" | "light", Component[]>
+ */
+function parseGeneric(str: string): any[] {
+  const angleStart = str.indexOf('<');
+  const name = str.substring(0, angleStart).trim();
+
+  // Find matching closing angle bracket
+  let angleCount = 0;
+  let angleEnd = -1;
+
+  for (let i = angleStart; i < str.length; i += 1) {
+    if (str[i] === '<') {
+      angleCount += 1;
+    } else if (str[i] === '>') {
+      angleCount -= 1;
+      if (angleCount === 0) {
+        angleEnd = i;
         break;
       }
     }
   }
 
-  return endIndex !== -1 ? str.substring(startIndex, endIndex + 1) : null;
+  if (angleEnd === -1) {
+    return [str];
+  }
+
+  const genericContent = str.substring(angleStart + 1, angleEnd).trim();
+  const afterGeneric = str.substring(angleEnd + 1).trim();
+
+  // Parse generic content - don't split on commas within generics for unions and arrays
+  const generics = genericContent ? parseGenericContent(genericContent) : [];
+
+  // Check if there are function parameters after the generic
+  if (afterGeneric.startsWith('(') && afterGeneric.endsWith(')')) {
+    const paramContent = afterGeneric.slice(1, -1).trim();
+    const parameters = paramContent ? parseParametersRecursive(paramContent) : [];
+    return [name, generics, parameters];
+  }
+
+  // For standalone generics like Component<Props>, treat as function call with empty params
+  // This matches the test expectation for Component<{ foo: string }> -> ['Component', [{ foo: 'string' }], []]
+  return [name, generics, []];
+}
+
+/**
+ * Parse function call like func(a, b)
+ */
+function parseFunctionCall(str: string): any[] {
+  const parenStart = str.indexOf('(');
+  const name = str.substring(0, parenStart).trim();
+
+  // Find matching closing parenthesis
+  let parenCount = 0;
+  let parenEnd = -1;
+
+  for (let i = parenStart; i < str.length; i += 1) {
+    if (str[i] === '(') {
+      parenCount += 1;
+    } else if (str[i] === ')') {
+      parenCount -= 1;
+      if (parenCount === 0) {
+        parenEnd = i;
+        break;
+      }
+    }
+  }
+
+  if (parenEnd === -1) {
+    return [str];
+  }
+
+  // Check if there's meaningful continuation after the closing parenthesis
+  const remainingLength = str.length - parenEnd - 1;
+  if (remainingLength > 0) {
+    // Skip whitespace to find the first meaningful character
+    let i = parenEnd + 1;
+    while (
+      i < str.length &&
+      (str[i] === ' ' || str[i] === '\t' || str[i] === '\n' || str[i] === '\r')
+    ) {
+      i += 1;
+    }
+
+    if (i < str.length) {
+      const firstChar = str[i];
+      if (firstChar === '.' || firstChar === '[' || firstChar === '(' || firstChar === '!') {
+        // Property access, bracket notation, chained calls, or non-null assertion
+        return [str];
+      }
+      if (firstChar === '?' && i + 1 < str.length && str[i + 1] === '.') {
+        // Optional chaining
+        return [str];
+      }
+    }
+  }
+
+  const paramContent = str.substring(parenStart + 1, parenEnd).trim();
+  if (!paramContent) {
+    return [name, []];
+  }
+
+  const parameters = parseParametersRecursive(paramContent);
+
+  // Special case: if there's a single array literal parameter, flatten it
+  if (parameters.length === 1 && Array.isArray(parameters[0])) {
+    return [name, parameters[0]];
+  }
+
+  return [name, parameters];
+}
+
+/**
+ * Parse TypeScript type assertion like "Component as React.FC<Props>"
+ */
+function parseTypeAssertion(str: string): any[] {
+  const asIndex = str.indexOf(' as ');
+  if (asIndex === -1) {
+    return [str]; // fallback to string if no 'as' found
+  }
+
+  const expression = str.substring(0, asIndex).trim();
+  const type = str.substring(asIndex + 4).trim(); // +4 for ' as '
+
+  // Parse the expression part recursively in case it's complex
+  const parsedExpression = parseElement(expression);
+
+  return ['as', type, parsedExpression];
 }

@@ -62,10 +62,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx",
     "source": {
@@ -73,8 +70,7 @@ export const demo = createDemo(
       "children": []
     }
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -102,13 +98,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "test": "value"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -136,13 +128,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "test": "value"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -170,13 +158,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "test": "value"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -186,11 +170,7 @@ export const demo = createDemo(
     const source = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: { old: 'data', nested: { value: 123 } } }
-);
+export const demo = createDemo(import.meta.url, { Component }, { precompute: { old: 'data', nested: { value: 123 } } });
 `;
 
     const data = { new: 'data' };
@@ -204,13 +184,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "new": "data"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -220,12 +196,7 @@ export const demo = createDemo(
     const source = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { 
-    name: 'test',
-    precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
       complex: 'object',
       with: {
         nested: 'values',
@@ -245,19 +216,10 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { 
-    name: 'test',
-    precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "replacement": "data"
-},
-    slug: 'demo'
-  }
-);
+} });
 `;
-
     expect(result).toBe(expected);
   });
 
@@ -270,10 +232,9 @@ createDemo(import.meta.url,{Component},{name:'test'});`;
     const result1 = replacePrecomputeValue(source1, { data: 'test' }, demoCall1!);
 
     const expected1 = `import Component from './Component';
-createDemo(import.meta.url,{Component},{name:'test',
-  precompute: {
+createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "data": "test"
-}});`;
+} });`;
     expect(result1).toBe(expected1);
 
     // Test with extra spaces
@@ -284,10 +245,9 @@ createDemo( import.meta.url , { Component } , {  name : 'test'  } );`;
     const result2 = replacePrecomputeValue(source2, { data: 'test' }, demoCall2!);
 
     const expected2 = `import Component from './Component';
-createDemo( import.meta.url , { Component } , {  name : 'test',
-  precompute: {
+createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "data": "test"
-}  } );`;
+} });`;
     expect(result2).toBe(expected2);
   });
 
@@ -300,7 +260,7 @@ createDemo(import.meta.url,{Component});`;
     const result1 = replacePrecomputeValue(source1, { data: 'test' }, demoCall1!);
 
     const expected1 = `import Component from './Component';
-createDemo(import.meta.url,{Component}, { precompute: {
+createDemo(import.meta.url, { Component }, { precompute: {
   "data": "test"
 } });`;
     expect(result1).toBe(expected1);
@@ -316,10 +276,7 @@ createDemo(
     const result2 = replacePrecomputeValue(source2, { data: 'test' }, demoCall2!);
 
     const expected2 = `import Component from './Component';
-createDemo(
-      import.meta.url,
-      { Component }
-    , { precompute: {
+createDemo(import.meta.url, { Component }, { precompute: {
   "data": "test"
 } });`;
     expect(result2).toBe(expected2);
@@ -350,19 +307,10 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { 
-    precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { someOtherFlag: true, enabled: true, precompute: {
   "test": "value"
-},
-    someOtherFlag: true,
-    enabled: true
-  }
-);
+} });
 `;
-
     expect(result).toBe(expected);
   });
 
@@ -407,10 +355,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx",
     "source": {
@@ -441,8 +386,7 @@ export const demo = createDemo(
       }
     }
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -469,11 +413,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {} }
-);
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {} });
 `;
 
     expect(result).toBe(expected);
@@ -508,10 +448,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "nested": {
       "deeply": {
@@ -519,10 +456,8 @@ export const demo = createDemo(
       }
     }
   }
-} }
-);
+} });
 `;
-
     expect(result).toBe(expected);
   });
 
@@ -535,10 +470,10 @@ export const CodeDemo = createDemo(
   import.meta.url,
   { Component },
   {
-    name: 'Basic Code Block',
+    name: "Basic Code Block",
     slug: 'code',
     precompute: true,
-    description: 'A simple demo'
+    description: "A simple demo"
   },
 );
 
@@ -556,20 +491,11 @@ export default CodeDemo;`;
 import Component from './Component';
 
 // This is a comment
-export const CodeDemo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'Basic Code Block',
-    slug: 'code',
-    precompute: {
+export const CodeDemo = createDemo(import.meta.url, { Component }, { name: "Basic Code Block", slug: 'code', description: "A simple demo", precompute: {
   "Component": {
     "test": "value"
   }
-},
-    description: 'A simple demo'
-  },
-);
+} });
 
 // Another comment
 export default CodeDemo;`;
@@ -613,16 +539,11 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'test', slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -647,10 +568,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component }
-, { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -680,16 +598,11 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}}
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -716,15 +629,11 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'test', precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -735,8 +644,8 @@ export const demo = createDemo(
 import { DemoCheckboxBasic } from './demo-basic';
 
 export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic, {
-  name: 'Interactive Demo',
-  slug: 'interactive-demo',
+  name: "Interactive Demo",
+  slug: "interactive-demo",
 });`;
 
     const data = { DemoCheckboxBasic: { fileName: 'demo-basic.tsx' } };
@@ -748,15 +657,11 @@ export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxB
     const expected = `import { createDemo } from '@/functions/createDemo';
 import { DemoCheckboxBasic } from './demo-basic';
 
-export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic, {
-  name: 'Interactive Demo',
-  slug: 'interactive-demo',
-  precompute: {
+export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic, { name: "Interactive Demo", slug: "interactive-demo", precompute: {
   "DemoCheckboxBasic": {
     "fileName": "demo-basic.tsx"
   }
-}
-});`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -805,19 +710,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'test',
-    slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}
-  }
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -841,18 +738,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'test',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}
-  },
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -877,19 +767,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'test',
-    slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}
-  }
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -911,16 +793,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'test',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-} }
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -941,10 +818,7 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-, { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -982,8 +856,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
-export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -1019,8 +892,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', }
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
-export const demo = createDemo(import.meta.url, { Component }, { name: 'test',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -1261,13 +1133,11 @@ export const demo = createDemo(
   import.meta.url,
   { Component },
   {
-    name: 'Multi-Property Demo',
-    slug: 'multi-prop',
+    name: "Multi-Property Demo",
+    slug: "multi-prop",
     description: 'A demo with many properties',
     precompute: { old: 'data' },
-    metadata: { version: '1.0' }
-  }
-);
+    metadata: { version: '1.0' } });
 `;
 
       const data = { Component: { fileName: 'Component.tsx' } };
@@ -1276,12 +1146,12 @@ export const demo = createDemo(
       const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
 
       expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain("name: 'Multi-Property Demo',");
-      expect(result).toContain("slug: 'multi-prop',");
+      expect(result).toContain('name: "Multi-Property Demo",');
+      expect(result).toContain('slug: "multi-prop",');
       expect(result).toContain("description: 'A demo with many properties',");
       expect(result).toContain('precompute: {');
       expect(result).toContain('"fileName": "Component.tsx"');
-      expect(result).toContain('}, CodeExternalsProvider,');
+      expect(result).toContain('}, CodeExternalsProvider');
       expect(result).toContain("metadata: { version: '1.0' }");
     });
 
