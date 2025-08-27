@@ -227,7 +227,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      'Invalid variants parameter in createDemo call in /src/demo.ts. Expected an object mapping variant names to imports or a single component identifier, but got: "not an object"',
+      'Invalid variants parameter in createDemo call in /src/demo.ts. Expected a valid component identifier, but got: ""not an object""',
     );
   });
 
@@ -247,6 +247,7 @@ describe('parseCreateFactoryCall', () => {
     expect(result!.options).toEqual({
       name: 'Double quotes',
       slug: 'single quotes',
+      description: 'template literal',
       skipPrecompute: false,
     });
   });
@@ -284,14 +285,18 @@ describe('parseCreateFactoryCall', () => {
       name: 'Test Demo',
       slug: 'test-slug',
       skipPrecompute: true,
-      // Custom options should be preserved but not parsed into typed fields
+      customOption: 'custom value',
+      anotherCustom: 42,
+      booleanCustom: false,
+      objectCustom: { nested: 'value' },
     });
 
-    // The full options object string should contain all the original options
-    expect(result!.optionsObjectStr).toContain('customOption');
-    expect(result!.optionsObjectStr).toContain('anotherCustom');
-    expect(result!.optionsObjectStr).toContain('booleanCustom');
-    expect(result!.optionsObjectStr).toContain('objectCustom');
+    // The structured options should contain all the original options with their original formatting
+    const structuredOptionsStr = JSON.stringify(result!.structuredOptions);
+    expect(structuredOptionsStr).toContain('customOption');
+    expect(structuredOptionsStr).toContain('anotherCustom');
+    expect(structuredOptionsStr).toContain('booleanCustom');
+    expect(structuredOptionsStr).toContain('objectCustom');
   });
 
   it('should preserve unrecognized options with various formats', async () => {
@@ -314,15 +319,22 @@ describe('parseCreateFactoryCall', () => {
     // Only known options should be parsed
     expect(result!.options).toEqual({
       name: 'Test',
+      customString: 'double quotes',
+      customTemplate: 'template literal',
+      customNumber: 123.45,
+      customArray: [1, 2, 3],
+      customFunction: "() => console.log('test')",
+      customRegex: '/pattern/gi',
     });
 
-    // But the raw options string should preserve everything
-    expect(result!.optionsObjectStr).toContain('customString');
-    expect(result!.optionsObjectStr).toContain('customTemplate');
-    expect(result!.optionsObjectStr).toContain('customNumber');
-    expect(result!.optionsObjectStr).toContain('customArray');
-    expect(result!.optionsObjectStr).toContain('customFunction');
-    expect(result!.optionsObjectStr).toContain('customRegex');
+    // But the structured options should preserve everything
+    const structuredOptionsStr = JSON.stringify(result!.structuredOptions);
+    expect(structuredOptionsStr).toContain('customString');
+    expect(structuredOptionsStr).toContain('customTemplate');
+    expect(structuredOptionsStr).toContain('customNumber');
+    expect(structuredOptionsStr).toContain('customArray');
+    expect(structuredOptionsStr).toContain('customFunction');
+    expect(structuredOptionsStr).toContain('customRegex');
   });
 
   it('should preserve unrecognized options alongside precompute values', async () => {
@@ -341,23 +353,27 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
-    // Known options should be parsed
+    // All options should be parsed including custom ones
     expect(result!.options).toEqual({
       name: 'Test Demo',
       skipPrecompute: false,
-      precompute: "{ some: 'data' }", // precompute is stored as string
+      precompute: { some: 'data' },
+      customBefore: 'before precompute',
+      customAfter: 'after precompute',
+      metadata: { version: '1.0', tags: ['demo', 'test'] },
     });
 
-    // Custom options should be preserved in the raw string
-    expect(result!.optionsObjectStr).toContain('customBefore');
-    expect(result!.optionsObjectStr).toContain('customAfter');
-    expect(result!.optionsObjectStr).toContain('metadata');
-    expect(result!.optionsObjectStr).toContain('version');
-    expect(result!.optionsObjectStr).toContain('tags');
+    // Custom options should be preserved in the structured options
+    const structuredOptionsStr = JSON.stringify(result!.structuredOptions);
+    expect(structuredOptionsStr).toContain('customBefore');
+    expect(structuredOptionsStr).toContain('customAfter');
+    expect(structuredOptionsStr).toContain('metadata');
+    expect(structuredOptionsStr).toContain('version');
+    expect(structuredOptionsStr).toContain('tags');
 
     // Precompute parsing should work correctly
-    expect(result!.hasPrecompute).toBe(true);
-    expect(result!.precomputeValue).toBe("{ some: 'data' }"); // precomputeValue is also stored as string
+    expect(result!.options.precompute).toBeDefined();
+    expect(result!.options.precompute).toEqual({ some: 'data' });
   });
 
   // Advanced import scenarios
@@ -445,17 +461,17 @@ describe('parseCreateFactoryCall', () => {
   });
 
   // URL format variations
-  it('should accept CJS URL format', async () => {
+  it('should only accept import.meta.url', async () => {
     const code = `
         import Component from './Component';
         
         createDemo(require('url').pathToFileURL(__filename).toString(), { Default: Component }, { name: 'CJS Example' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
 
-    expect(result).not.toBeNull();
-    expect(result!.url).toBe("require('url').pathToFileURL(__filename).toString()");
+    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+      "Invalid URL parameter in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: require('url').pathToFileURL(__filename).toString()",
+    );
   });
 
   // Edge cases and validation
@@ -494,7 +510,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid URL parameter in createDemo call in /src/demo.ts. Expected 'import.meta.url' or 'require('url').pathToFileURL(__filename).toString()' but got: './file.ts'",
+      "Invalid URL parameter in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: './file.ts'",
     );
   });
 
@@ -520,7 +536,7 @@ describe('parseCreateFactoryCall', () => {
     `;
     const resultNoOptions = await parseCreateFactoryCall(codeNoOptions, '/src/demo.ts');
     expect(resultNoOptions!.hasOptions).toBe(false);
-    expect(resultNoOptions!.optionsObjectStr).toBe('{}');
+    expect(resultNoOptions!.structuredOptions).toBeUndefined();
 
     // Test with empty options
     const codeEmptyOptions = `
@@ -529,7 +545,7 @@ describe('parseCreateFactoryCall', () => {
     `;
     const resultEmptyOptions = await parseCreateFactoryCall(codeEmptyOptions, '/src/demo.ts');
     expect(resultEmptyOptions!.hasOptions).toBe(true);
-    expect(resultEmptyOptions!.optionsObjectStr).toBe('{}');
+    expect(resultEmptyOptions!.structuredOptions).toEqual({});
 
     // Test with actual options
     const codeWithOptions = `
@@ -538,7 +554,7 @@ describe('parseCreateFactoryCall', () => {
     `;
     const resultWithOptions = await parseCreateFactoryCall(codeWithOptions, '/src/demo.ts');
     expect(resultWithOptions!.hasOptions).toBe(true);
-    expect(resultWithOptions!.optionsObjectStr).toBe("{ name: 'Test' }");
+    expect(resultWithOptions!.structuredOptions).toEqual({ name: "'Test'" }); // Structured format preserves quotes
   });
 
   // Externals tests
@@ -826,7 +842,7 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.options.name).toBe('Live Demo');
       expect(result!.options.slug).toBe('live-demo');
       expect(result!.options.skipPrecompute).toBe(true);
-      expect(result!.hasPrecompute).toBe(true);
+      expect(result!.options.precompute).toBeDefined(); // Check precompute exists instead of hasPrecompute
     });
   });
 
@@ -907,6 +923,68 @@ describe('parseCreateFactoryCall', () => {
         Default: undefined, // Default import
         Aliased: 'NamedComp', // Named import with alias
         Direct: 'DirectNamed', // Direct named import
+      });
+    });
+  });
+
+  // TypeScript generic types in createDemo calls
+  describe('TypeScript generic types support', () => {
+    it('should handle TypeScript generic types in createDemo variants', async () => {
+      const code = `
+          import { BasicDemo } from './BasicDemo';
+          import { WithProps } from './WithProps';
+          
+          export const demo = createDemo(
+            import.meta.url,
+            { Default: BasicDemo as React.ComponentType<{ prop: boolean }>, WithProps },
+            { name: "My Demo" }
+          );
+        `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.variants).toEqual({
+        Default: '/src/BasicDemo',
+        WithProps: '/src/WithProps',
+      });
+      expect(result!.options).toEqual({
+        name: 'My Demo',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: 'BasicDemo',
+        WithProps: 'WithProps',
+      });
+    });
+
+    it('should handle complex TypeScript generic types with nested generics', async () => {
+      const code = `
+          import { ComplexComponent } from './ComplexComponent';
+          import { SimpleComponent } from './SimpleComponent';
+          
+          export const demo = createDemo(
+            import.meta.url,
+            { 
+              Complex: ComplexComponent as React.ComponentType<{ data: Array<{ id: string; value: Record<string, any> }>; onSelect: (item: { id: string }) => void; }>,
+              Simple: SimpleComponent
+            },
+            { name: "Complex Types Demo" }
+          );
+        `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.variants).toEqual({
+        Complex: '/src/ComplexComponent',
+        Simple: '/src/SimpleComponent',
+      });
+      expect(result!.options).toEqual({
+        name: 'Complex Types Demo',
+      });
+      expect(result!.namedExports).toEqual({
+        Complex: 'ComplexComponent',
+        Simple: 'SimpleComponent',
       });
     });
   });

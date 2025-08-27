@@ -314,7 +314,7 @@ function renderWithInitialSource<T extends {}>(
     url: props.url,
     fileNames,
     source,
-    ...(props.contentProps || {}),
+    ...props.contentProps,
   } as ContentLoadingProps<T>;
 
   const ContentLoading = props.ContentLoading;
@@ -324,7 +324,6 @@ function renderWithInitialSource<T extends {}>(
     return renderCodeHighlighter({
       ...props,
       fallback,
-      processedGlobalsCode: props.processedGlobalsCode,
     });
   }
 
@@ -335,7 +334,6 @@ function renderWithInitialSource<T extends {}>(
           ...props,
           fallback,
           skipFallback: true,
-          processedGlobalsCode: props.processedGlobalsCode,
         })}
       </CodeHighlighterSuspense>
     </React.Suspense>

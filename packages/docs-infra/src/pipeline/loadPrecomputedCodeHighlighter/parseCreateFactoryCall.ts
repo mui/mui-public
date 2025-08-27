@@ -1,6 +1,259 @@
 import { parseImports } from '../loaderUtils';
-import { parseFunctionParameters, extractBalancedBraces } from './parseFunctionParameters';
+import {
+  parseFunctionParameters,
+  type SplitParameters,
+  isTypeAssertion,
+  isFunction,
+  isGeneric,
+  isArray,
+  isArrowFunction,
+  isObjectLiteral,
+} from './parseFunctionParameters';
 import type { Externals } from '../../CodeHighlighter/types';
+
+/**
+ * Helper function to extract string value from parser output, removing quotes if present
+ */
+function extractStringValue(value: any): string {
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+
+  // Remove surrounding quotes if present
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+
+  // Handle template literals
+  if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
+/**
+ * Helper function to recursively clean up structured data from parser for user consumption,
+ * removing quotes from strings and converting basic types
+ */
+function cleanStructuredData(data: any): any {
+  // Check all structured data types first using the parser helpers
+
+  // Check for function calls
+  const functionCall = isFunction(data);
+  if (functionCall) {
+    // Build a function call string like "console.log('test')"
+    const argStr = functionCall.parameters
+      .map((arg: any) => {
+        if (Array.isArray(arg)) {
+          return arg.map((a: any) => (typeof a === 'string' ? a : String(a))).join(', ');
+        }
+        return typeof arg === 'string' ? arg : String(arg);
+      })
+      .join(', ');
+    return `${functionCall.name}(${argStr})`;
+  }
+
+  // Check for generic structures
+  const generic = isGeneric(data);
+  if (generic) {
+    // Build a generic string like "Component<{ foo: string }>"
+    const genericsStr = generic.generics
+      .map((g: any) => (typeof g === 'string' ? g : JSON.stringify(g)))
+      .join(', ');
+    if (generic.parameters && generic.parameters.length > 0) {
+      // Function with generics: Component<T>(args)
+      const argsStr = generic.parameters
+        .map((p: any) => (typeof p === 'string' ? p : String(p)))
+        .join(', ');
+      return `${generic.name}<${genericsStr}>(${argsStr})`;
+    }
+    // Type with generics: Component<T>
+    return `${generic.name}<${genericsStr}>`;
+  }
+
+  // Check for type assertions
+  const typeAssertion = isTypeAssertion(data);
+  if (typeAssertion) {
+    const cleanedExpression = cleanStructuredData(typeAssertion.expression);
+    return `${cleanedExpression} as ${typeAssertion.type}`;
+  }
+
+  // Check for arrow functions
+  const arrowFunction = isArrowFunction(data);
+  if (arrowFunction) {
+    const paramsStr = arrowFunction.params
+      .map((p: any) => (typeof p === 'string' ? p : String(p)))
+      .join(', ');
+
+    if (arrowFunction.types) {
+      // Typed arrow function
+      const [inputType, outputType] = arrowFunction.types;
+      const returnValue = cleanStructuredData(arrowFunction.returnValue);
+      return `(${paramsStr}: ${inputType}): ${outputType} => ${returnValue}`;
+    }
+
+    // Simple arrow function
+    const returnValue = cleanStructuredData(arrowFunction.returnValue);
+    return `(${paramsStr}) => ${returnValue}`;
+  }
+
+  // Check for literal arrays
+  const arrayLiteral = isArray(data);
+  if (arrayLiteral) {
+    return arrayLiteral.items[0].map(cleanStructuredData);
+  }
+
+  // Check for object literals
+  const objectLiteral = isObjectLiteral(data);
+  if (objectLiteral) {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(objectLiteral.properties)) {
+      cleaned[key] = cleanStructuredData(value);
+    }
+    return cleaned;
+  }
+
+  // Handle basic types after structured data checks
+
+  if (typeof data === 'string') {
+    // First extract string value (handle quotes)
+    const extracted = extractStringValue(data);
+
+    // Then try type conversion
+    if (extracted === 'true') {
+      return true;
+    }
+    if (extracted === 'false') {
+      return false;
+    }
+
+    // Check if it's a number (but be conservative about version strings like "1.0")
+    if (/^\d+(\.\d+)?$/.test(extracted)) {
+      const num = Number(extracted);
+      if (!Number.isNaN(num) && Number.isFinite(num)) {
+        // Don't convert simple version-like patterns (e.g., "1.0", "2.0", but convert "123.45")
+        if (extracted.includes('.')) {
+          // For decimals, only convert if it's not a simple version pattern
+          // Version patterns are typically single digit followed by .0 or simple patterns
+          if (!/^\d{1,2}\.0$/.test(extracted)) {
+            return num;
+          }
+        } else {
+          // Convert all integers
+          return num;
+        }
+      }
+    }
+
+    return extracted;
+  }
+
+  if (Array.isArray(data)) {
+    // Fallback for arrays that don't match structured patterns
+    return data.map(cleanStructuredData);
+  }
+
+  if (data && typeof data === 'object') {
+    // Fallback for objects that don't match structured patterns
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      cleaned[key] = cleanStructuredData(value);
+    }
+    return cleaned;
+  }
+
+  return data;
+}
+
+/**
+ * Helper function to con    );
+  }
+
+  // Throw error if the identifier is not found in imports
+  throw new Error(
+    `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+      `Component '${typeof structuredVariants === 'string' ? structuredVariants : JSON.stringify(structuredVariants)}' is not imported. Make sure to import it first.`,
+  );
+}
+
+/**
+ * Parse variants from object representation (new format)
+ */
+function parseVariantsObjectFromObject(
+  obj: Record<string, any>,
+  importMap: Map<string, string>,
+  namedExportsMap: Map<string, string | undefined>,
+  functionName: string,
+  filePath: string,
+): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
+  const demoImports: Record<string, string> = {};
+  const namedExports: Record<string, string | undefined> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    // Handle both string values and structured values (arrays for TypeScript generics)
+    let importName: string;
+
+    // Use type discriminators to determine the structure type
+    const typeAssertion = isTypeAssertion(value);
+    if (typeAssertion) {
+      // This is a structured type assertion: ['as', 'React.FC<Props>', 'Component']
+      // Extract the actual component name from the expression
+      const { expression } = typeAssertion;
+      importName = typeof expression === 'string' ? expression : String(expression);
+    } else if (typeof value === 'string') {
+      // Simple string value - strip TypeScript type assertions
+      const asIndex = value.indexOf(' as ');
+      importName = asIndex !== -1 ? value.substring(0, asIndex).trim() : value.trim();
+    } else {
+      // Handle other structured types (functions, generics, arrays)
+      const functionCall = isFunction(value);
+      const generic = isGeneric(value);
+      const arrayLiteral = isArray(value);
+
+      if (functionCall) {
+        // Function call: ['Component', [...]]
+        importName = functionCall.name;
+      } else if (generic) {
+        // Generic: ['Component', [...], [...]]
+        importName = generic.name;
+      } else if (arrayLiteral) {
+        // Array literal: handle first element
+        const firstItem = arrayLiteral.items[0];
+        importName = typeof firstItem === 'string' ? firstItem : String(firstItem);
+      } else if (Array.isArray(value) && value.length > 0) {
+        // Fallback for unrecognized array structures
+        const componentExpression = String(value[0]);
+        const asIndex = componentExpression.indexOf(' as ');
+        importName =
+          asIndex !== -1
+            ? componentExpression.substring(0, asIndex).trim()
+            : componentExpression.trim();
+      } else {
+        // Final fallback - convert to string and extract
+        const valueStr = String(value);
+        const asIndex = valueStr.indexOf(' as ');
+        importName = asIndex !== -1 ? valueStr.substring(0, asIndex).trim() : valueStr.trim();
+      }
+    }
+
+    if (importMap.has(importName)) {
+      demoImports[key] = importMap.get(importName)!;
+      namedExports[key] = namedExportsMap.get(importName);
+    } else {
+      throw new Error(
+        `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+          `Component '${importName}' is not imported. Make sure to import it first.`,
+      );
+    }
+  }
+
+  return { variants: demoImports, namedExports };
+}
 
 /**
  * Helper function to convert the new parseImports format to a Map
@@ -70,24 +323,25 @@ export interface ParsedCreateFactory {
   namedExports: Record<string, string | undefined>;
   options: FactoryOptions;
   fullMatch: string;
-  variantsObjectStr: string;
-  optionsObjectStr: string;
   hasOptions: boolean;
-  hasPrecompute: boolean;
-  precomputeValue?: any;
   externals: Externals;
   live: boolean; // True if the function name contains "live"
-  // For replacement purposes
-  precomputeKeyStart?: number; // Start index of "precompute" in optionsObjectStr
-  precomputeValueStart?: number; // Start index of the value in optionsObjectStr
-  precomputeValueEnd?: number; // End index of the value in optionsObjectStr
+  // For replacement purposes - positions in the original source code
+  parametersStartIndex: number; // Start position of the parameters (after opening parenthesis)
+  parametersEndIndex: number; // End position of the parameters (before closing parenthesis)
+  // Structured data for serialization
+  structuredUrl: string;
+  structuredVariants: string | SplitParameters | Record<string, string>;
+  structuredOptions?: Record<string, any>;
+  // Remaining content after the function call
+  remaining: string;
 }
 
 /**
- * Parses a variants object string and maps variant names to their import paths
+ * Parses a variants object using pre-parsed structured data
  */
-function parseVariantsObject(
-  variantsObjectStr: string,
+function parseVariantsObjectFromStructured(
+  structuredData: SplitParameters,
   importMap: Map<string, string>,
   namedExportsMap: Map<string, string | undefined>,
   functionName: string,
@@ -96,65 +350,114 @@ function parseVariantsObject(
   const demoImports: Record<string, string> = {};
   const namedExports: Record<string, string | undefined> = {};
 
-  // Parse the demo object to extract key-value pairs
-  // Handle both { Default: BasicCode } and { Default } syntax
-  const objectContentRegex = /(\w+)(?:\s*:\s*(\w+))?/g;
-  let objectMatch = objectContentRegex.exec(variantsObjectStr);
+  for (const item of structuredData) {
+    // If it's a string, process it directly
+    if (typeof item === 'string') {
+      const trimmedPart = item.trim();
 
-  while (objectMatch !== null) {
-    const [, key, value] = objectMatch;
-    const importName = value || key; // Use value if provided, otherwise use key (shorthand syntax)
+      // Check if this part contains a colon (key: value syntax)
+      const colonIndex = trimmedPart.indexOf(':');
 
-    if (importMap.has(importName)) {
-      demoImports[key] = importMap.get(importName)!;
-      namedExports[key] = namedExportsMap.get(importName);
-    } else {
-      // Throw error if any variant component is not imported
-      throw new Error(
-        `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-          `Component '${importName}' is not imported. Make sure to import it first.`,
-      );
+      if (colonIndex !== -1) {
+        // Handle "key: value" syntax
+        const key = trimmedPart.substring(0, colonIndex).trim();
+        const valueExpression = trimmedPart.substring(colonIndex + 1).trim();
+
+        // Strip TypeScript type assertions (e.g., "Component as React.ComponentType<...>" -> "Component")
+        const asIndex = valueExpression.indexOf(' as ');
+        const importName =
+          asIndex !== -1 ? valueExpression.substring(0, asIndex).trim() : valueExpression;
+
+        if (importMap.has(importName)) {
+          demoImports[key] = importMap.get(importName)!;
+          namedExports[key] = namedExportsMap.get(importName);
+        } else {
+          throw new Error(
+            `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+              `Component '${importName}' is not imported. Make sure to import it first.`,
+          );
+        }
+      } else {
+        // Handle shorthand syntax (just the component name)
+        const importName = trimmedPart;
+
+        if (importMap.has(importName)) {
+          demoImports[importName] = importMap.get(importName)!;
+          namedExports[importName] = namedExportsMap.get(importName);
+        } else {
+          throw new Error(
+            `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+              `Component '${importName}' is not imported. Make sure to import it first.`,
+          );
+        }
+      }
     }
-
-    objectMatch = objectContentRegex.exec(variantsObjectStr);
+    // If it's an array (nested structure), we don't expect this in variants parsing
+    // but we could handle it if needed in the future
   }
 
   return { variants: demoImports, namedExports };
 }
 
 /**
- * Parses variants parameter which can be either an object literal or a single component identifier
+ * Parses variants parameter using pre-parsed structured data
  */
-function parseVariantsParameter(
-  variantsParam: string,
+function parseVariantsParameterFromStructured(
+  structuredVariants: string | SplitParameters | Record<string, string>,
   importMap: Map<string, string>,
   namedExportsMap: Map<string, string | undefined>,
   functionName: string,
   filePath: string,
 ): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
-  const trimmed = variantsParam.trim();
-
-  // If it's an object literal, use existing logic
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return parseVariantsObject(trimmed, importMap, namedExportsMap, functionName, filePath);
+  // If it's an object (Record<string, string>)
+  if (typeof structuredVariants === 'object' && !Array.isArray(structuredVariants)) {
+    // We have an object with key-value pairs
+    return parseVariantsObjectFromObject(
+      structuredVariants,
+      importMap,
+      namedExportsMap,
+      functionName,
+      filePath,
+    );
   }
 
-  // If it's a single identifier, map it to "Default"
-  if (importMap.has(trimmed)) {
-    return {
-      variants: {
-        Default: importMap.get(trimmed)!,
-      },
-      namedExports: {
-        Default: namedExportsMap.get(trimmed),
-      },
-    };
+  // If it's an array (object literal parsed into structured data)
+  if (Array.isArray(structuredVariants)) {
+    // Parse the object contents using structured data
+    return parseVariantsObjectFromStructured(
+      structuredVariants,
+      importMap,
+      namedExportsMap,
+      functionName,
+      filePath,
+    );
   }
 
-  // Throw error if the identifier is not found in imports
+  // If it's a single identifier string
+  if (typeof structuredVariants === 'string') {
+    const componentName = structuredVariants.trim();
+    if (importMap.has(componentName)) {
+      return {
+        variants: {
+          Default: importMap.get(componentName)!,
+        },
+        namedExports: {
+          Default: namedExportsMap.get(componentName),
+        },
+      };
+    }
+
+    // Throw error if the identifier is not found in imports
+    throw new Error(
+      `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+        `Component '${componentName}' is not imported. Make sure to import it first.`,
+    );
+  }
+
+  // If we reach here, the structured data format is unexpected
   throw new Error(
-    `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-      `Component '${trimmed}' is not imported. Make sure to import it first.`,
+    `Unexpected structured variants format in ${functionName} call in ${filePath}. ` +
+      `Expected string, array, or object but got: ${typeof structuredVariants}`,
   );
 }
 
@@ -164,22 +467,18 @@ function parseVariantsParameter(
 function validateUrlParameter(url: string, functionName: string, filePath: string): void {
   const trimmedUrl = url.trim();
 
-  // Check for import.meta.url
+  // Only accept import.meta.url
   if (trimmedUrl === 'import.meta.url') {
     return;
   }
 
-  // Check for CJS equivalent: require('url').pathToFileURL(__filename).toString()
-  // https://github.com/javiertury/babel-plugin-transform-import-meta#importmetaurl
-  const cjsPattern =
-    /require\s*\(\s*['"`]url['"`]\s*\)\s*\.\s*pathToFileURL\s*\(\s*__filename\s*\)\s*\.\s*toString\s*\(\s*\)/;
-  if (cjsPattern.test(trimmedUrl)) {
-    return;
-  }
+  // For error messages, show the parameter as parsed by parseFunctionParameters
+  // Simple string literals preserve their quotes, complex expressions are shown as parsed
+  const errorUrl = trimmedUrl;
 
   throw new Error(
     `Invalid URL parameter in ${functionName} call in ${filePath}. ` +
-      `Expected 'import.meta.url' or 'require('url').pathToFileURL(__filename).toString()' but got: ${trimmedUrl}`,
+      `Expected 'import.meta.url' but got: ${errorUrl}`,
   );
 }
 
@@ -187,38 +486,46 @@ function validateUrlParameter(url: string, functionName: string, filePath: strin
  * Validates that a variants parameter is either an object mapping to imports or a single identifier
  */
 function validateVariantsParameter(
-  variantsParam: string,
+  structuredVariants: string | SplitParameters | Record<string, string>,
   functionName: string,
   filePath: string,
 ): void {
-  if (!variantsParam || variantsParam.trim() === '') {
+  if (!structuredVariants) {
     throw new Error(
       `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
         `Expected an object mapping variant names to imports or a single component identifier.`,
     );
   }
 
-  const trimmed = variantsParam.trim();
-
-  // Check if it's an object literal
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return; // Valid object literal
+  // Check if it's a valid single identifier (string)
+  if (typeof structuredVariants === 'string') {
+    const trimmed = structuredVariants.trim();
+    if (!trimmed || !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(trimmed)) {
+      throw new Error(
+        `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
+          `Expected a valid component identifier, but got: "${trimmed}"`,
+      );
+    }
+    return; // Valid identifier
   }
 
-  // Check if it's a valid identifier (single component)
-  if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(trimmed)) {
-    return; // Valid identifier
+  // Check if it's an array (object literal structure) or object (parsed key-value pairs)
+  if (
+    Array.isArray(structuredVariants) ||
+    (typeof structuredVariants === 'object' && structuredVariants !== null)
+  ) {
+    return; // Valid object structure
   }
 
   throw new Error(
     `Invalid variants parameter in ${functionName} call in ${filePath}. ` +
-      `Expected an object mapping variant names to imports or a single component identifier, but got: ${trimmed}`,
+      `Expected an object mapping variant names to imports or a single component identifier, but got: ${typeof structuredVariants}`,
   );
 }
 
 /**
  * Parses a file to extract a single create* factory call and its variants and options
- * Only supports one create* call per file - will throw an error if multiple are found
+ * Returns the parsed result with remaining content included
  * Returns null if no create* call is found
  */
 export async function parseCreateFactoryCall(
@@ -246,20 +553,29 @@ export async function parseCreateFactoryCall(
   }
 
   const match = createFactoryMatches[0];
-  const { functionName, fullMatch, urlParam, variantsParam, optionsObjectStr, hasOptions } = match;
+  const {
+    functionName,
+    fullMatch,
+    urlParam,
+    structuredVariants,
+    optionsStructured,
+    hasOptions,
+    parametersStartIndex,
+    parametersEndIndex,
+  } = match;
 
   // Validate URL parameter
   validateUrlParameter(urlParam, functionName, filePath);
 
   // Validate variants parameter
-  validateVariantsParameter(variantsParam, functionName, filePath);
+  validateVariantsParameter(structuredVariants, functionName, filePath);
 
   // Extract URL (typically import.meta.url)
   const url = urlParam.trim();
 
-  // Resolve variants for this specific create* call
-  const { variants, namedExports } = parseVariantsParameter(
-    variantsParam,
+  // Resolve variants using structured data
+  const { variants, namedExports } = parseVariantsParameterFromStructured(
+    structuredVariants,
     importMap,
     namedExportsMap,
     functionName,
@@ -267,40 +583,35 @@ export async function parseCreateFactoryCall(
   );
 
   // Parse options object
-  const options: FactoryOptions = {};
-  let hasPrecompute = false;
-  let precomputeValue: any;
-  let precomputeKeyStart: number | undefined;
-  let precomputeValueStart: number | undefined;
-  let precomputeValueEnd: number | undefined;
+  // Initialize with all options from structured data, then override specific fields
+  const options: FactoryOptions =
+    optionsStructured && typeof optionsStructured === 'object'
+      ? cleanStructuredData(optionsStructured)
+      : {};
 
-  // Extract name
-  const nameMatch = optionsObjectStr.match(/name\s*:\s*['"`]([^'"`]+)['"`]/);
-  if (nameMatch) {
-    options.name = nameMatch[1];
-  }
+  // Override with specific processing for known fields that need special handling
+  if (optionsStructured && typeof optionsStructured === 'object') {
+    if ('name' in optionsStructured) {
+      options.name = extractStringValue(optionsStructured.name);
+    }
 
-  // Extract slug
-  const slugMatch = optionsObjectStr.match(/slug\s*:\s*['"`]([^'"`]+)['"`]/);
-  if (slugMatch) {
-    options.slug = slugMatch[1];
-  }
+    if ('slug' in optionsStructured) {
+      options.slug = extractStringValue(optionsStructured.slug);
+    }
 
-  // Extract skipPrecompute
-  const skipPrecomputeMatch = optionsObjectStr.match(/skipPrecompute\s*:\s*(true|false)/);
-  if (skipPrecomputeMatch) {
-    options.skipPrecompute = skipPrecomputeMatch[1] === 'true';
-  }
+    if ('skipPrecompute' in optionsStructured) {
+      const skipPrecomputeValue = optionsStructured.skipPrecompute;
+      if (skipPrecomputeValue === 'true' || skipPrecomputeValue === true) {
+        options.skipPrecompute = true;
+      } else if (skipPrecomputeValue === 'false' || skipPrecomputeValue === false) {
+        options.skipPrecompute = false;
+      }
+    }
 
-  // Extract precompute value using robust parsing
-  const precomputeInfo = extractPrecomputeFromOptions(optionsObjectStr);
-  if (precomputeInfo) {
-    hasPrecompute = true;
-    precomputeKeyStart = precomputeInfo.keyStart;
-    precomputeValueStart = precomputeInfo.valueStart;
-    precomputeValueEnd = precomputeInfo.valueEnd;
-    precomputeValue = precomputeInfo.value;
-    options.precompute = precomputeValue;
+    // Handle precompute from structured data - clean for user consumption
+    if ('precompute' in optionsStructured) {
+      options.precompute = cleanStructuredData(optionsStructured.precompute);
+    }
   }
 
   // Transform externals from parseImports format to simplified format
@@ -318,24 +629,88 @@ export async function parseCreateFactoryCall(
   // But avoids false positives like: createDelivery, delivery, etc.
   const live = /Live/.test(functionName);
 
-  return {
+  // Calculate remaining content after the function call
+  const remaining = code.substring(match.functionEndIndex + 1);
+
+  const parsed: ParsedCreateFactory = {
     functionName,
     url,
     variants,
     namedExports,
     options,
     fullMatch,
-    variantsObjectStr: variantsParam,
-    optionsObjectStr,
     hasOptions,
-    hasPrecompute,
-    precomputeValue: hasPrecompute ? precomputeValue : undefined,
     externals: transformedExternals,
     live,
-    precomputeKeyStart: hasPrecompute ? precomputeKeyStart : undefined,
-    precomputeValueStart: hasPrecompute ? precomputeValueStart : undefined,
-    precomputeValueEnd: hasPrecompute ? precomputeValueEnd : undefined,
+    parametersStartIndex,
+    parametersEndIndex,
+    // Add structured data for serialization - this preserves quotes for proper output
+    structuredUrl: urlParam,
+    structuredVariants,
+    structuredOptions: optionsStructured, // Use original structured data, not cleaned options
+    remaining,
   };
+
+  return parsed;
+}
+
+/**
+ * Parses all create* factory calls in a file sequentially
+ * Returns a record of export names mapped to their parsed factory calls
+ */
+export async function parseAllCreateFactoryCalls(
+  code: string,
+  filePath: string,
+): Promise<Record<string, ParsedCreateFactory>> {
+  const results: Record<string, ParsedCreateFactory> = {};
+
+  // Find all export statements first
+  const exportStatements: Array<{ name: string; startIndex: number }> = [];
+  const exportRegex = /export\s+const\s+(\w+)\s*=/g;
+
+  // Use Array.from with matchAll to avoid assignment in while loop
+  const matches = Array.from(code.matchAll(exportRegex));
+  for (const match of matches) {
+    if (match.index !== undefined) {
+      exportStatements.push({
+        name: match[1],
+        startIndex: match.index,
+      });
+    }
+  }
+
+  // Process each export statement in parallel
+  const parsePromises = exportStatements.map(async (exportStatement, index) => {
+    const nextStatement = exportStatements[index + 1];
+
+    // Extract the code for this export (from this export to the next one, or to end of file)
+    const startIndex = exportStatement.startIndex;
+    const endIndex = nextStatement ? nextStatement.startIndex : code.length;
+    const exportCode = code.substring(startIndex, endIndex);
+
+    try {
+      const result = await parseCreateFactoryCall(exportCode, filePath);
+      if (result) {
+        return { name: exportStatement.name, parsed: result };
+      }
+      return null;
+    } catch (error) {
+      // If parsing fails for this export, return null
+      return null;
+    }
+  });
+
+  // Wait for all parsing to complete
+  const parseResults = await Promise.all(parsePromises);
+
+  // Collect the successful results
+  for (const result of parseResults) {
+    if (result) {
+      results[result.name] = result.parsed;
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -348,17 +723,27 @@ function findCreateFactoryCalls(
   functionName: string;
   fullMatch: string;
   urlParam: string;
-  variantsParam: string;
-  optionsObjectStr: string;
+  structuredVariants: string | SplitParameters | Record<string, string>;
+  optionsStructured?: Record<string, any>;
   hasOptions: boolean;
+  // Position information in original source
+  functionStartIndex: number;
+  functionEndIndex: number;
+  parametersStartIndex: number;
+  parametersEndIndex: number;
 }> {
   const results: Array<{
     functionName: string;
     fullMatch: string;
     urlParam: string;
-    variantsParam: string;
-    optionsObjectStr: string;
+    structuredVariants: string | SplitParameters | Record<string, string>;
+    optionsStructured?: Record<string, any>;
     hasOptions: boolean;
+    // Position information in original source
+    functionStartIndex: number;
+    functionEndIndex: number;
+    parametersStartIndex: number;
+    parametersEndIndex: number;
   }> = [];
 
   // Find all create* function calls
@@ -394,52 +779,60 @@ function findCreateFactoryCalls(
     const content = code.substring(parenIndex + 1, endIndex);
 
     // Split by commas at the top level, handling nested structures and comments
-    const { parts, objects } = parseFunctionParameters(content);
+    const structured = parseFunctionParameters(content);
 
     // Validate the function follows the convention
-    if (parts.length < 2 || parts.length > 3) {
+    if (structured.length < 2 || structured.length > 3) {
       throw new Error(
         `Invalid ${functionName} call in ${filePath}. ` +
-          `Expected 2-3 parameters (url, variants, options?) but got ${parts.length} parameters. ` +
+          `Expected 2-3 parameters (url, variants, options?) but got ${structured.length} parameters. ` +
           `Functions starting with 'create' must follow the convention: create*(url, variants, options?)`,
       );
     }
 
-    if (parts.length === 2) {
-      const [urlParam] = parts;
-
-      // The variants parameter can be either an object literal or a single identifier
-      const variantsParam = objects[1] || parts[1].trim();
+    if (structured.length === 2) {
+      const [urlParam, variantsStructured] = structured;
 
       results.push({
         functionName,
         fullMatch,
-        urlParam: urlParam.trim(),
-        variantsParam,
-        optionsObjectStr: '{}', // Default empty options
+        urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
+        structuredVariants: variantsStructured,
+        optionsStructured: undefined,
         hasOptions: false, // No options parameter was provided
+        functionStartIndex: startIndex,
+        functionEndIndex: endIndex,
+        parametersStartIndex: parenIndex + 1,
+        parametersEndIndex: endIndex,
       });
-    } else if (parts.length === 3) {
-      const [urlParam] = parts;
+    } else if (structured.length === 3) {
+      const [urlParam, variantsStructured, optionsStructured] = structured;
 
-      // The variants parameter can be either an object literal or a single identifier
-      const variantsParam = objects[1] || parts[1].trim();
-      const optionsObjectStr = objects[2];
-
-      if (!optionsObjectStr) {
+      // Options should be an object (Record<string, any>) or an empty object
+      if (
+        typeof optionsStructured === 'string' ||
+        (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
+      ) {
         throw new Error(
           `Invalid options parameter in ${functionName} call in ${filePath}. ` +
-            `Expected an object but could not parse: ${parts[2].trim()}`,
+            `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
         );
       }
 
       results.push({
         functionName,
         fullMatch,
-        urlParam: urlParam.trim(),
-        variantsParam,
-        optionsObjectStr,
+        urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
+        structuredVariants: variantsStructured,
+        optionsStructured:
+          typeof optionsStructured === 'object' && optionsStructured !== null
+            ? optionsStructured
+            : undefined,
         hasOptions: true, // Options parameter was provided
+        functionStartIndex: startIndex,
+        functionEndIndex: endIndex,
+        parametersStartIndex: parenIndex + 1,
+        parametersEndIndex: endIndex,
       });
     }
 
@@ -447,101 +840,4 @@ function findCreateFactoryCalls(
   }
 
   return results;
-}
-
-/**
- * Extracts precompute property from options object using robust parsing
- */
-function extractPrecomputeFromOptions(optionsObjectStr: string): {
-  keyStart: number;
-  valueStart: number;
-  valueEnd: number;
-  value: any;
-} | null {
-  // Find the precompute property using regex
-  const precomputeMatch = optionsObjectStr.match(/precompute\s*:\s*/);
-  if (!precomputeMatch) {
-    return null;
-  }
-
-  const keyStart = precomputeMatch.index!;
-  const valueStartIndex = keyStart + precomputeMatch[0].length;
-
-  // Extract the remaining part after "precompute:"
-  const remainingStr = optionsObjectStr.substring(valueStartIndex);
-
-  // Try to extract a balanced object first
-  const objectValue = extractBalancedBraces(remainingStr);
-
-  if (objectValue) {
-    // It's an object value
-    let actualValueStart = valueStartIndex;
-    while (
-      actualValueStart < optionsObjectStr.length &&
-      /\s/.test(optionsObjectStr[actualValueStart])
-    ) {
-      actualValueStart += 1;
-    }
-
-    const valueEnd = actualValueStart + objectValue.length;
-
-    return {
-      keyStart,
-      valueStart: actualValueStart,
-      valueEnd,
-      value: objectValue, // Keep object as string
-    };
-  }
-
-  // It's a simple value (true, false, etc.)
-  // Parse until comma, newline, or closing brace
-  let i = 0;
-  let inString = false;
-  let stringChar = '';
-
-  while (i < remainingStr.length) {
-    const char = remainingStr[i];
-
-    if (!inString && (char === '"' || char === "'" || char === '`')) {
-      inString = true;
-      stringChar = char;
-    } else if (inString && char === stringChar && remainingStr[i - 1] !== '\\') {
-      inString = false;
-      stringChar = '';
-    } else if (!inString && (char === ',' || char === '}' || char === '\n')) {
-      break;
-    }
-
-    i += 1;
-  }
-
-  const valueStr = remainingStr.substring(0, i).trim();
-
-  // Calculate precise boundaries
-  let actualValueStart = valueStartIndex;
-  while (
-    actualValueStart < optionsObjectStr.length &&
-    /\s/.test(optionsObjectStr[actualValueStart])
-  ) {
-    actualValueStart += 1;
-  }
-
-  const valueEnd = actualValueStart + valueStr.length;
-
-  // Parse the value
-  let parsedValue: any;
-  if (valueStr === 'true') {
-    parsedValue = true;
-  } else if (valueStr === 'false') {
-    parsedValue = false;
-  } else {
-    parsedValue = valueStr;
-  }
-
-  return {
-    keyStart,
-    valueStart: actualValueStart,
-    valueEnd,
-    value: parsedValue,
-  };
 }

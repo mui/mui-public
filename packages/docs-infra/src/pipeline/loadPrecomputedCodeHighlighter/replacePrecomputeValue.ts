@@ -1,92 +1,81 @@
+import { serializeFunctionParameters } from './serializeFunctionParameters';
+import type { ParsedCreateFactory } from './parseCreateFactoryCall';
+
 /**
  * Adds or replaces precompute data in createDemo function calls.
  *
- * This function handles multiple scenarios:
- * 1. Replaces any existing 'precompute' property with actual data
- * 2. Adds precompute property to existing options object when missing
- * 3. Adds entire options object with precompute when no options exist
- * 4. Optionally adds an ExternalsProvider property for external dependencies
- *
  * @param source - The source code string containing createDemo calls
  * @param precomputeData - The data object to inject
- * @param demoCallInfo - Information about the parsed demo call structure
+ * @param demoCallInfo - Information about the parsed demo call structure from parseCreateFactoryCall
  * @param externalsProviderPath - Optional path to the generated externals provider file
  * @returns The modified source code with precompute data injected
  */
 export function replacePrecomputeValue(
   source: string,
   precomputeData: Record<string, any>,
-  demoCallInfo?: {
-    fullMatch: string;
-    optionsObjectStr: string;
-    hasOptions: boolean;
-    hasPrecompute: boolean;
-    precomputeValue?: any;
-    precomputeKeyStart?: number;
-    precomputeValueStart?: number;
-    precomputeValueEnd?: number;
-  },
+  demoCallInfo?: ParsedCreateFactory,
   externalsProviderPath?: string,
 ): string {
-  // Convert the data to a properly formatted JSON string
-  const precomputeDataString = JSON.stringify(precomputeData, null, 2);
-
   // If no demoCallInfo provided, return unchanged
   if (!demoCallInfo) {
     return source;
   }
 
-  const callInfo = demoCallInfo;
   const {
-    fullMatch,
-    optionsObjectStr,
     hasOptions,
-    hasPrecompute,
-    precomputeKeyStart,
-    precomputeValueEnd,
-  } = callInfo;
+    parametersStartIndex,
+    parametersEndIndex,
+    structuredUrl,
+    structuredVariants,
+    structuredOptions,
+  } = demoCallInfo;
 
-  // Prepare externals provider import and property if needed
-  let modifiedSource = source;
-  let additionalProperties = '';
+  // Prepare externals provider import if needed
+  let result = source;
+  let importAdjustment = 0;
 
   if (externalsProviderPath) {
     // Add import statement at the top of the file
     const importStatement = `import { CodeExternalsProvider } from '${externalsProviderPath}';\n`;
-    modifiedSource = importStatement + modifiedSource;
-
-    // Prepare the CodeExternalsProvider property
-    additionalProperties = `, CodeExternalsProvider`;
+    result = importStatement + result;
+    importAdjustment = importStatement.length;
   }
 
-  // Case 1: Replace existing precompute property (from key start to value end)
-  if (hasPrecompute && precomputeKeyStart !== undefined && precomputeValueEnd !== undefined) {
-    // Replace the entire property from key start to value end
-    const beforeProperty = optionsObjectStr.substring(0, precomputeKeyStart);
-    const afterProperty = optionsObjectStr.substring(precomputeValueEnd);
-    const newOptionsStr = `${beforeProperty}precompute: ${precomputeDataString}${additionalProperties}${afterProperty}`;
-    return modifiedSource.replace(optionsObjectStr, newOptionsStr);
+  // Create new options object with precompute data as JSON string
+  const newOptions: Record<string, any> = {};
+
+  // First, copy all existing options to preserve their order
+  if (hasOptions && structuredOptions) {
+    Object.entries(structuredOptions).forEach(([key, value]) => {
+      if (key !== 'precompute') {
+        // Skip existing precompute, we'll replace it
+        newOptions[key] = value;
+      }
+    });
   }
 
-  // Case 2: Add precompute to existing options object
-  if (hasOptions) {
-    const optionsMatch = optionsObjectStr.match(/^(\s*\{)([\s\S]*?)(\s*\}\s*)$/);
-    if (optionsMatch) {
-      const [, openBrace, content, closeBrace] = optionsMatch;
-      const trimmedContent = content.trim();
-      const needsComma = trimmedContent !== '' && !trimmedContent.endsWith(',');
-      const newOptions = `${openBrace}${content}${needsComma ? ',' : ''}\n  precompute: ${precomputeDataString}${additionalProperties}${closeBrace}`;
+  // Add precompute data as JSON string so it gets serialized as raw JavaScript
+  newOptions.precompute = JSON.stringify(precomputeData, null, 2);
 
-      return modifiedSource.replace(optionsObjectStr, newOptions);
-    }
+  if (externalsProviderPath) {
+    newOptions.CodeExternalsProvider = 'CodeExternalsProvider'; // This will be serialized as shorthand property
+  }
+
+  // Serialize all parameters using the standard function
+  let params: any[];
+  if (hasOptions || Object.keys(newOptions).length > 0) {
+    params = [structuredUrl, structuredVariants, newOptions];
   } else {
-    // Case 3: Add entire options object
-    const newCall = fullMatch.replace(
-      /(\s*)\)$/,
-      `$1, { precompute: ${precomputeDataString}${additionalProperties} })`,
-    );
-    return modifiedSource.replace(fullMatch, newCall);
+    params = [structuredUrl, structuredVariants];
   }
 
-  return source;
+  const serializedParams = serializeFunctionParameters(params);
+
+  // Replace the parameters section
+  const parametersStart = parametersStartIndex + importAdjustment;
+  const parametersEnd = parametersEndIndex + importAdjustment;
+  const before = result.substring(0, parametersStart);
+  const after = result.substring(parametersEnd);
+
+  return `${before}${serializedParams}${after}`;
 }
