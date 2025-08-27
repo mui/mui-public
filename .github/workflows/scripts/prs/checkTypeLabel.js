@@ -13,8 +13,11 @@ const typeLabels = [
   'type: regression',
   'type: enhancement',
   'type: new feature',
-  // only used by renovate bot so we can ignore the "type: " prefix here
+  'type: expected behavior',
+  // Those are not technically type labels but for those kind of PRs, adding a type is so redundant
+  // that it feels like noise.
   'dependencies',
+  'duplicate',
   'release',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
