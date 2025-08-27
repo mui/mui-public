@@ -70,7 +70,6 @@ interface DiffCommandArgs {
 interface PrCommandArgs {
   prNumber: number;
   output?: 'json' | 'markdown';
-  circleci?: string;
 }
 
 interface PrInfo {
