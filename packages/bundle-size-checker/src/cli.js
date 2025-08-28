@@ -15,6 +15,21 @@ import { getCurrentRepoInfo } from './git.js';
 import { notifyPr } from './notifyPr.js';
 
 /**
+ */
+function getCiInfo() {
+  const ciInfo = envCi();
+  if (!ciInfo.isCi) {
+    return null;
+  }
+  switch (ciInfo.name) {
+    case 'CircleCI':
+      return ciInfo;
+    default:
+      return null;
+  }
+}
+
+/**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
  */
 
@@ -82,11 +97,10 @@ async function getBundleSizes(args, config) {
  * @returns {Promise<void>}
  */
 async function postInitialPrComment() {
-  /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, pr?: number, isCi?: boolean}} */
-  const ciInfo = envCi();
+  // /** @type {envCi.CircleCiEnv} */
+  const ciInfo = getCiInfo();
 
-  // Skip silently if not in CI or not a PR
-  if (!ciInfo.isCi || !ciInfo.isPr) {
+  if (!ciInfo || !ciInfo.isPr) {
     return;
   }
 
@@ -95,11 +109,14 @@ async function postInitialPrComment() {
     throw new Error('PR commenting enabled but repository information missing in CI PR build');
   }
 
+  const prNumber = Number(ciInfo.pr);
   const circleBuildNum = process.env.CIRCLE_BUILD_NUM;
   const circleBuildUrl = process.env.CIRCLE_BUILD_URL;
 
   if (!circleBuildNum || !circleBuildUrl) {
-    throw new Error('PR commenting enabled but CircleCI environment variables missing in CI PR build');
+    throw new Error(
+      'PR commenting enabled but CircleCI environment variables missing in CI PR build',
+    );
   }
 
   try {
@@ -110,10 +127,10 @@ async function postInitialPrComment() {
 
 Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.`;
 
-    await notifyPr(ciInfo.slug, ciInfo.pr, 'bundle-size-report', initialComment);
+    await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', initialComment);
 
     // eslint-disable-next-line no-console
-    console.log(`Initial PR comment posted for PR #${ciInfo.pr}`);
+    console.log(`Initial PR comment posted for PR #${prNumber}`);
   } catch (/** @type {any} */ error) {
     console.error('Failed to post initial PR comment:', error.message);
     // Don't fail the build for comment failures
@@ -217,11 +234,10 @@ async function run(argv) {
 
   // Post PR comment if enabled and in CI environment
   if (config && config.comment) {
-    /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, pr?: number, isCi?: boolean}} */
-    const ciInfo = envCi();
+    const ciInfo = getCiInfo();
 
     // Skip silently if not in CI or not a PR
-    if (!ciInfo.isCi || !ciInfo.isPr) {
+    if (!ciInfo || !ciInfo.isPr) {
       return;
     }
 
@@ -229,6 +245,8 @@ async function run(argv) {
     if (!ciInfo.slug || !ciInfo.pr) {
       throw new Error('PR commenting enabled but repository information missing in CI PR build');
     }
+
+    const prNumber = Number(ciInfo.pr);
 
     try {
       // eslint-disable-next-line no-console
@@ -243,7 +261,7 @@ async function run(argv) {
       const { data: prInfo } = await octokit.pulls.get({
         owner: ciInfo.slug.split('/')[0],
         repo: ciInfo.slug.split('/')[1],
-        pull_number: ciInfo.pr,
+        pull_number: prNumber,
       });
 
       // Generate markdown report
@@ -252,10 +270,10 @@ async function run(argv) {
       });
 
       // Post or update PR comment
-      await notifyPr(ciInfo.slug, ciInfo.pr, 'bundle-size-report', report);
+      await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', report);
 
       // eslint-disable-next-line no-console
-      console.log(`PR comment posted/updated for PR #${ciInfo.pr}`);
+      console.log(`PR comment posted/updated for PR #${prNumber}`);
     } catch (/** @type {any} */ error) {
       console.error('Failed to post PR comment:', error.message);
       // Don't exit with error for comment failures
