@@ -16,7 +16,36 @@ const nextConfig = {
         as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
+      // Client files for live demos - processes externals
+      './app/**/demos/*/client.ts': {
+        as: '*.ts',
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+      },
+      './app/**/demos/*/demo-*/client.ts': {
+        as: '*.ts',
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+      },
     },
+  },
+  webpack: (config, { defaultLoaders }) => {
+    config.module.rules.push({
+      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/index\.ts$'),
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+      ],
+    });
+
+    // Client files for live demos - processes externals
+    config.module.rules.push({
+      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/client\.ts$'),
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+      ],
+    });
+
+    return config;
   },
 };
 
