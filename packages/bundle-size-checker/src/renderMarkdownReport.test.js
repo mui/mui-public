@@ -3,29 +3,21 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import * as fetchSnapshotModule from './fetchSnapshot.js';
 import * as fetchSnapshotWithFallbackModule from './fetchSnapshotWithFallback.js';
+import * as gitModule from './git.js';
 
 // Mock the fetchSnapshot module
 vi.mock('./fetchSnapshot.js');
 // Mock the fetchSnapshotWithFallback module
 vi.mock('./fetchSnapshotWithFallback.js');
-// Mock the @octokit/rest module
-vi.mock('@octokit/rest', () => ({
-  Octokit: vi.fn(() => ({
-    repos: {
-      compareCommits: vi.fn(),
-      listCommits: vi.fn(),
-    },
-    pulls: {
-      get: vi.fn(),
-    },
-  })),
-}));
+// Mock the git module
+vi.mock('./git.js');
 
 describe('renderMarkdownReport', () => {
   const mockFetchSnapshot = vi.mocked(fetchSnapshotModule.fetchSnapshot);
   const mockFetchSnapshotWithFallback = vi.mocked(
     fetchSnapshotWithFallbackModule.fetchSnapshotWithFallback,
   );
+  const mockGetMergeBase = vi.mocked(gitModule.getMergeBase);
 
   /** @type {PrInfo} */
   const mockPrInfo = {
@@ -41,26 +33,13 @@ describe('renderMarkdownReport', () => {
     },
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     mockFetchSnapshot.mockClear();
     mockFetchSnapshotWithFallback.mockClear();
+    mockGetMergeBase.mockClear();
 
-    // Import and mock the octokit instance after mocking the module
-    const { octokit } = await import('./github.js');
-
-    // Set up default mock for compareCommits to return the base commit SHA
-    vi.mocked(octokit.repos.compareCommits).mockResolvedValue(
-      /** @type {any} */ ({
-        data: {
-          merge_base_commit: {
-            sha: mockPrInfo.base.sha,
-          },
-        },
-      }),
-    );
-
-    // Clear any previous mock calls
-    vi.mocked(octokit.repos.compareCommits).mockClear();
+    // Set up default mock for getMergeBase
+    mockGetMergeBase.mockResolvedValue(mockPrInfo.base.sha);
   });
 
   it('should generate markdown report with size increases', async () => {
@@ -582,11 +561,83 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, { fallbackDepth: 1 });
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      fallbackDepth: 1,
+    });
 
     expect(result).toContain(
       'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
     );
     expect(mockFetchSnapshotWithFallback).toHaveBeenCalledWith('mui/material-ui', 'abc123', 1);
+  });
+
+  it('should throw error when default getMergeBase fails', async () => {
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    // Mock getMergeBase to fail (simulating no merge base found)
+    mockGetMergeBase.mockRejectedValue(new Error('fatal: Not a valid object name abc123'));
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    await expect(renderMarkdownReport(mockPrInfo)).rejects.toThrow(
+      'fatal: Not a valid object name abc123',
+    );
+
+    // Verify that getMergeBase was called with correct parameters
+    expect(mockGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
+  });
+
+  it('should use custom getMergeBase function when provided', async () => {
+    const baseSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15400, gzip: 4600 },
+    };
+
+    const customGetMergeBase = vi.fn().mockResolvedValue('custom123');
+
+    // Reset mocks to ensure clean state for this test
+    mockFetchSnapshotWithFallback.mockReset();
+    mockFetchSnapshot.mockReset();
+
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({
+      snapshot: baseSnapshot,
+      actualCommit: 'custom123',
+    });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+      getMergeBase: customGetMergeBase,
+    });
+
+    // Verify that custom getMergeBase was called instead of default
+    expect(customGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
+    expect(mockGetMergeBase).not.toHaveBeenCalled();
+    expect(mockFetchSnapshotWithFallback).toHaveBeenCalledWith('mui/material-ui', 'custom123', 3);
+
+    expect(result).toContain('**Total Size Change:** 🔺+400B');
+  });
+
+  it('should throw error when custom getMergeBase fails', async () => {
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    const customGetMergeBase = vi.fn().mockRejectedValue(new Error('Custom merge base error'));
+
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    await expect(
+      renderMarkdownReport(mockPrInfo, undefined, {
+        getMergeBase: customGetMergeBase,
+      }),
+    ).rejects.toThrow('Custom merge base error');
+
+    // Verify that custom getMergeBase was called
+    expect(customGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
+    expect(mockGetMergeBase).not.toHaveBeenCalled();
   });
 });
