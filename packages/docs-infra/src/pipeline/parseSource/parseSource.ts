@@ -5,9 +5,10 @@ import { starryNightGutter } from './addLineGutters';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
-let starryNight: StarryNight | null = null;
+const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
 export const parseSource: ParseSource = (source, fileName) => {
+  const starryNight = (globalThis as any)[STARRY_NIGHT_KEY] as StarryNight | undefined;
   if (!starryNight) {
     throw new Error(
       'Starry Night not initialized. Use createParseSource to create an initialized parseSource function.',
@@ -36,8 +37,8 @@ export const parseSource: ParseSource = (source, fileName) => {
 };
 
 export const createParseSource = async (): Promise<ParseSource> => {
-  if (!starryNight) {
-    starryNight = await createStarryNight(grammars);
+  if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
+    (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
   }
 
   return parseSource;
