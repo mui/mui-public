@@ -82,22 +82,24 @@ async function getBundleSizes(args, config) {
  * @returns {Promise<void>}
  */
 async function postInitialPrComment() {
-  /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, prNumber?: number}} */
+  /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, pr?: number, isCi?: boolean}} */
   const ciInfo = envCi();
 
-  if (!ciInfo.isPr || !ciInfo.slug || !ciInfo.prNumber) {
-    // eslint-disable-next-line no-console
-    console.log('Not in CI PR environment, skipping initial PR comment.');
+  // Skip silently if not in CI or not a PR
+  if (!ciInfo.isCi || !ciInfo.isPr) {
     return;
+  }
+
+  // In CI PR builds, all required info must be present
+  if (!ciInfo.slug || !ciInfo.pr) {
+    throw new Error('PR commenting enabled but repository information missing in CI PR build');
   }
 
   const circleBuildNum = process.env.CIRCLE_BUILD_NUM;
   const circleBuildUrl = process.env.CIRCLE_BUILD_URL;
 
   if (!circleBuildNum || !circleBuildUrl) {
-    // eslint-disable-next-line no-console
-    console.log('CircleCI environment variables not found, skipping initial PR comment.');
-    return;
+    throw new Error('PR commenting enabled but CircleCI environment variables missing in CI PR build');
   }
 
   try {
@@ -108,10 +110,10 @@ async function postInitialPrComment() {
 
 Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.`;
 
-    await notifyPr(ciInfo.slug, ciInfo.prNumber, 'bundle-size-report', initialComment);
+    await notifyPr(ciInfo.slug, ciInfo.pr, 'bundle-size-report', initialComment);
 
     // eslint-disable-next-line no-console
-    console.log(`Initial PR comment posted for PR #${ciInfo.prNumber}`);
+    console.log(`Initial PR comment posted for PR #${ciInfo.pr}`);
   } catch (/** @type {any} */ error) {
     console.error('Failed to post initial PR comment:', error.message);
     // Don't fail the build for comment failures
@@ -215,47 +217,49 @@ async function run(argv) {
 
   // Post PR comment if enabled and in CI environment
   if (config && config.comment) {
-    /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, prNumber?: number}} */
+    /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string, pr?: number, isCi?: boolean}} */
     const ciInfo = envCi();
 
-    if (ciInfo.isPr && ciInfo.slug && ciInfo.prNumber) {
-      try {
-        // eslint-disable-next-line no-console
-        console.log('Generating PR comment with bundle size changes...');
-
-        // Get tracked bundles from config
-        const trackedBundles = config.entrypoints
-          .filter((entry) => entry.track === true)
-          .map((entry) => entry.id);
-
-        // Get PR info for renderMarkdownReport
-        const { data: prInfo } = await octokit.pulls.get({
-          owner: ciInfo.slug.split('/')[0],
-          repo: ciInfo.slug.split('/')[1],
-          pull_number: ciInfo.prNumber,
-        });
-
-        // Generate markdown report
-        const report = await renderMarkdownReport(prInfo, {
-          track: trackedBundles.length > 0 ? trackedBundles : undefined,
-        });
-
-        // Post or update PR comment
-        await notifyPr(ciInfo.slug, ciInfo.prNumber, 'bundle-size-report', report);
-
-        // eslint-disable-next-line no-console
-        console.log(`PR comment posted/updated for PR #${ciInfo.prNumber}`);
-      } catch (/** @type {any} */ error) {
-        console.error('Failed to post PR comment:', error.message);
-        // Don't exit with error for comment failures
-      }
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('Not in CI PR environment, skipping PR comment.');
+    // Skip silently if not in CI or not a PR
+    if (!ciInfo.isCi || !ciInfo.isPr) {
+      return;
     }
-  } else {
-    // eslint-disable-next-line no-console
-    console.log('PR commenting disabled in configuration, skipping comment.');
+
+    // In CI PR builds, all required info must be present
+    if (!ciInfo.slug || !ciInfo.pr) {
+      throw new Error('PR commenting enabled but repository information missing in CI PR build');
+    }
+
+    try {
+      // eslint-disable-next-line no-console
+      console.log('Generating PR comment with bundle size changes...');
+
+      // Get tracked bundles from config
+      const trackedBundles = config.entrypoints
+        .filter((entry) => entry.track === true)
+        .map((entry) => entry.id);
+
+      // Get PR info for renderMarkdownReport
+      const { data: prInfo } = await octokit.pulls.get({
+        owner: ciInfo.slug.split('/')[0],
+        repo: ciInfo.slug.split('/')[1],
+        pull_number: ciInfo.pr,
+      });
+
+      // Generate markdown report
+      const report = await renderMarkdownReport(prInfo, {
+        track: trackedBundles.length > 0 ? trackedBundles : undefined,
+      });
+
+      // Post or update PR comment
+      await notifyPr(ciInfo.slug, ciInfo.pr, 'bundle-size-report', report);
+
+      // eslint-disable-next-line no-console
+      console.log(`PR comment posted/updated for PR #${ciInfo.pr}`);
+    } catch (/** @type {any} */ error) {
+      console.error('Failed to post PR comment:', error.message);
+      // Don't exit with error for comment failures
+    }
   }
 }
 
