@@ -855,4 +855,72 @@ describe('parseCreateFactoryCall', () => {
       });
     });
   });
+
+  describe('metadataOnly option', () => {
+    it('should handle createDemoClient with only URL parameter', async () => {
+      const code = `
+        import { createDemoClient } from './createDemoClient';
+        
+        export const DemoClient = createDemoClient(import.meta.url);
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemoClient');
+      expect(result!.url).toBe('import.meta.url');
+      expect(result!.variants).toBeUndefined();
+      expect(result!.namedExports).toBeUndefined();
+      expect(result!.options).toEqual({});
+      expect(result!.hasOptions).toBe(false);
+      expect(result!.structuredVariants).toBeUndefined();
+    });
+
+    it('should handle createDemoClient with URL and options', async () => {
+      const code = `
+        import { createDemoClient } from './createDemoClient';
+        
+        export const DemoClient = createDemoClient(import.meta.url, {
+          name: 'Test Client'
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemoClient');
+      expect(result!.url).toBe('import.meta.url');
+      expect(result!.variants).toBeUndefined();
+      expect(result!.namedExports).toBeUndefined();
+      expect(result!.options).toEqual({
+        name: 'Test Client',
+      });
+      expect(result!.hasOptions).toBe(true);
+      expect(result!.structuredVariants).toBeUndefined();
+    });
+
+    it('should reject calls with too many parameters in metadataOnly mode', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createDemo(import.meta.url, Component, { name: 'test' });
+      `;
+      const filePath = '/src/demo.ts';
+
+      await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
+        'Expected 1-2 parameters (url, options?) but got 3 parameters',
+      );
+    });
+
+    it('should reject calls with no parameters in metadataOnly mode', async () => {
+      const code = `
+        export const demo = createDemo();
+      `;
+      const filePath = '/src/demo.ts';
+
+      await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
+        'Expected 1-2 parameters (url, options?) but got 0 parameters',
+      );
+    });
+  });
 });

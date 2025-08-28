@@ -7,12 +7,15 @@ import type { ParsedCreateFactory } from './parseCreateFactoryCall';
  * @param source - The source code string containing createDemo calls
  * @param precomputeData - The data object to inject
  * @param demoCallInfo - Information about the parsed demo call structure from parseCreateFactoryCall
+ * @param options - Optional configuration
+ * @param options.passPrecomputeAsIs - Whether to pass precompute data as-is without JSON stringifying (default: false)
  * @returns The modified source code with precompute data injected
  */
 export function replacePrecomputeValue(
   source: string,
   precomputeData: Record<string, any>,
   demoCallInfo?: ParsedCreateFactory,
+  options: { passPrecomputeAsIs?: boolean } = {},
 ): string {
   // If no demoCallInfo provided, return unchanged
   if (!demoCallInfo) {
@@ -28,7 +31,9 @@ export function replacePrecomputeValue(
     structuredOptions,
   } = demoCallInfo;
 
-  // Create new options object with precompute data as JSON string
+  const { passPrecomputeAsIs = false } = options;
+
+  // Create new options object with precompute data
   const newOptions: Record<string, any> = {};
 
   // First, copy all existing options to preserve their order
@@ -41,15 +46,30 @@ export function replacePrecomputeValue(
     });
   }
 
-  // Add precompute data as JSON string so it gets serialized as raw JavaScript
-  newOptions.precompute = JSON.stringify(precomputeData, null, 2);
+  // Add precompute data - pass as-is if requested, otherwise JSON stringify
+  newOptions.precompute = passPrecomputeAsIs
+    ? precomputeData
+    : JSON.stringify(precomputeData, null, 2);
 
   // Serialize all parameters using the standard function
   let params: any[];
+
+  // Build parameters array based on what's available
   if (hasOptions || Object.keys(newOptions).length > 0) {
-    params = [structuredUrl, structuredVariants, newOptions];
-  } else {
+    // We need to include options
+    if (structuredVariants !== undefined) {
+      // Normal case: url, variants, options
+      params = [structuredUrl, structuredVariants, newOptions];
+    } else {
+      // Metadata-only case: url, options (skip undefined variants)
+      params = [structuredUrl, newOptions];
+    }
+  } else if (structuredVariants !== undefined) {
+    // No options needed, but we have variants
     params = [structuredUrl, structuredVariants];
+  } else {
+    // Only URL parameter
+    params = [structuredUrl];
   }
 
   const serializedParams = serializeFunctionParameters(params);

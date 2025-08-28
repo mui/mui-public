@@ -319,8 +319,8 @@ export interface FactoryOptions {
 export interface ParsedCreateFactory {
   functionName: string;
   url: string;
-  variants: Record<string, string>;
-  namedExports: Record<string, string | undefined>;
+  variants: Record<string, string> | undefined;
+  namedExports: Record<string, string | undefined> | undefined;
   options: FactoryOptions;
   fullMatch: string;
   hasOptions: boolean;
@@ -330,7 +330,7 @@ export interface ParsedCreateFactory {
   parametersEndIndex: number; // End position of the parameters (before closing parenthesis)
   // Structured data for serialization
   structuredUrl: string;
-  structuredVariants: string | SplitParameters | Record<string, string>;
+  structuredVariants: string | SplitParameters | Record<string, string> | undefined;
   structuredOptions?: Record<string, any>;
   // Remaining content after the function call
   remaining: string;
@@ -530,6 +530,7 @@ function validateVariantsParameter(
 export async function parseCreateFactoryCall(
   code: string,
   filePath: string,
+  parseOptions: { metadataOnly?: boolean } = {},
 ): Promise<ParsedCreateFactory | null> {
   // Get import mappings once for the entire file
   const { relative: importResult, externals } = await parseImports(code, filePath);
@@ -537,7 +538,7 @@ export async function parseCreateFactoryCall(
   const namedExportsMap = buildNamedExportsMap({ relative: importResult, externals });
 
   // Find all create* calls in the code
-  const createFactoryMatches = findCreateFactoryCalls(code, filePath);
+  const createFactoryMatches = findCreateFactoryCalls(code, filePath, parseOptions);
 
   // Enforce single create* call per file
   if (createFactoryMatches.length > 1) {
@@ -566,20 +567,30 @@ export async function parseCreateFactoryCall(
   // Validate URL parameter
   validateUrlParameter(urlParam, functionName, filePath);
 
-  // Validate variants parameter
-  validateVariantsParameter(structuredVariants, functionName, filePath);
+  // Validate variants parameter (skip in metadata-only mode)
+  const { metadataOnly = false } = parseOptions;
+  if (!metadataOnly && structuredVariants !== undefined) {
+    validateVariantsParameter(structuredVariants, functionName, filePath);
+  }
 
   // Extract URL (typically import.meta.url)
   const url = urlParam.trim();
 
-  // Resolve variants using structured data
-  const { variants, namedExports } = parseVariantsParameterFromStructured(
-    structuredVariants,
-    importMap,
-    namedExportsMap,
-    functionName,
-    filePath,
-  );
+  // Resolve variants using structured data (skip in metadata-only mode)
+  let variants: Record<string, string> | undefined;
+  let namedExports: Record<string, string | undefined> | undefined;
+
+  if (!metadataOnly && structuredVariants !== undefined) {
+    const variantsResult = parseVariantsParameterFromStructured(
+      structuredVariants,
+      importMap,
+      namedExportsMap,
+      functionName,
+      filePath,
+    );
+    variants = variantsResult.variants;
+    namedExports = variantsResult.namedExports;
+  }
 
   // Parse options object
   // Initialize with all options from structured data, then override specific fields
@@ -654,6 +665,7 @@ export async function parseCreateFactoryCall(
 export async function parseAllCreateFactoryCalls(
   code: string,
   filePath: string,
+  parseOptions: { metadataOnly?: boolean } = {},
 ): Promise<Record<string, ParsedCreateFactory>> {
   const results: Record<string, ParsedCreateFactory> = {};
 
@@ -682,7 +694,7 @@ export async function parseAllCreateFactoryCalls(
     const exportCode = code.substring(startIndex, endIndex);
 
     try {
-      const result = await parseCreateFactoryCall(exportCode, filePath);
+      const result = await parseCreateFactoryCall(exportCode, filePath, parseOptions);
       if (result) {
         return { name: exportStatement.name, parsed: result };
       }
@@ -712,11 +724,12 @@ export async function parseAllCreateFactoryCalls(
 function findCreateFactoryCalls(
   code: string,
   filePath: string,
+  parseOptions: { metadataOnly?: boolean } = {},
 ): Array<{
   functionName: string;
   fullMatch: string;
   urlParam: string;
-  structuredVariants: string | SplitParameters | Record<string, string>;
+  structuredVariants: string | SplitParameters | Record<string, string> | undefined;
   optionsStructured?: Record<string, any>;
   hasOptions: boolean;
   // Position information in original source
@@ -729,7 +742,7 @@ function findCreateFactoryCalls(
     functionName: string;
     fullMatch: string;
     urlParam: string;
-    structuredVariants: string | SplitParameters | Record<string, string>;
+    structuredVariants: string | SplitParameters | Record<string, string> | undefined;
     optionsStructured?: Record<string, any>;
     hasOptions: boolean;
     // Position information in original source
@@ -775,7 +788,19 @@ function findCreateFactoryCalls(
     const structured = parseFunctionParameters(content);
 
     // Validate the function follows the convention
-    if (structured.length < 2 || structured.length > 3) {
+    const { metadataOnly = false } = parseOptions;
+
+    if (metadataOnly) {
+      // For metadata-only mode: expect 1-2 parameters (url, options?)
+      if (structured.length < 1 || structured.length > 2) {
+        throw new Error(
+          `Invalid ${functionName} call in ${filePath}. ` +
+            `Expected 1-2 parameters (url, options?) but got ${structured.length} parameters. ` +
+            `In metadata-only mode, functions should follow: create*(url, options?)`,
+        );
+      }
+    } else if (structured.length < 2 || structured.length > 3) {
+      // Normal mode: expect 2-3 parameters (url, variants, options?)
       throw new Error(
         `Invalid ${functionName} call in ${filePath}. ` +
           `Expected 2-3 parameters (url, variants, options?) but got ${structured.length} parameters. ` +
@@ -783,50 +808,103 @@ function findCreateFactoryCalls(
       );
     }
 
-    if (structured.length === 2) {
-      const [urlParam, variantsStructured] = structured;
+    // Handle different parameter patterns based on mode
+    if (metadataOnly) {
+      // Metadata-only mode: expect 1-2 parameters (url, options?)
+      if (structured.length === 1) {
+        const [urlParam] = structured;
 
-      results.push({
-        functionName,
-        fullMatch,
-        urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
-        structuredVariants: variantsStructured,
-        optionsStructured: undefined,
-        hasOptions: false, // No options parameter was provided
-        functionStartIndex: startIndex,
-        functionEndIndex: endIndex,
-        parametersStartIndex: parenIndex + 1,
-        parametersEndIndex: endIndex,
-      });
-    } else if (structured.length === 3) {
-      const [urlParam, variantsStructured, optionsStructured] = structured;
+        results.push({
+          functionName,
+          fullMatch,
+          urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
+          structuredVariants: undefined, // No variants in metadata-only mode
+          optionsStructured: undefined,
+          hasOptions: false,
+          functionStartIndex: startIndex,
+          functionEndIndex: endIndex,
+          parametersStartIndex: parenIndex + 1,
+          parametersEndIndex: endIndex,
+        });
+      } else if (structured.length === 2) {
+        const [urlParam, optionsStructured] = structured;
 
-      // Options should be an object (Record<string, any>) or an empty object
-      if (
-        typeof optionsStructured === 'string' ||
-        (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
-      ) {
-        throw new Error(
-          `Invalid options parameter in ${functionName} call in ${filePath}. ` +
-            `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
-        );
+        // Options should be an object
+        if (
+          typeof optionsStructured === 'string' ||
+          (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
+        ) {
+          throw new Error(
+            `Invalid options parameter in ${functionName} call in ${filePath}. ` +
+              `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
+          );
+        }
+
+        results.push({
+          functionName,
+          fullMatch,
+          urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
+          structuredVariants: undefined, // No variants in metadata-only mode
+          optionsStructured:
+            typeof optionsStructured === 'object' && optionsStructured !== null
+              ? optionsStructured
+              : undefined,
+          hasOptions: true,
+          functionStartIndex: startIndex,
+          functionEndIndex: endIndex,
+          parametersStartIndex: parenIndex + 1,
+          parametersEndIndex: endIndex,
+        });
       }
+    }
 
-      results.push({
-        functionName,
-        fullMatch,
-        urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
-        structuredVariants: variantsStructured,
-        optionsStructured:
-          typeof optionsStructured === 'object' && optionsStructured !== null
-            ? optionsStructured
-            : undefined,
-        hasOptions: true, // Options parameter was provided
-        functionStartIndex: startIndex,
-        functionEndIndex: endIndex,
-        parametersStartIndex: parenIndex + 1,
-        parametersEndIndex: endIndex,
-      });
+    // Normal mode: expect 2-3 parameters (url, variants, options?)
+    if (!metadataOnly) {
+      if (structured.length === 2) {
+        const [urlParam, variantsStructured] = structured;
+
+        results.push({
+          functionName,
+          fullMatch,
+          urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
+          structuredVariants: variantsStructured,
+          optionsStructured: undefined,
+          hasOptions: false, // No options parameter was provided
+          functionStartIndex: startIndex,
+          functionEndIndex: endIndex,
+          parametersStartIndex: parenIndex + 1,
+          parametersEndIndex: endIndex,
+        });
+      } else if (structured.length === 3) {
+        const [urlParam, variantsStructured, optionsStructured] = structured;
+
+        // Options should be an object (Record<string, any>) or an empty object
+        if (
+          typeof optionsStructured === 'string' ||
+          (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
+        ) {
+          throw new Error(
+            `Invalid options parameter in ${functionName} call in ${filePath}. ` +
+              `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
+          );
+        }
+
+        results.push({
+          functionName,
+          fullMatch,
+          urlParam: typeof urlParam === 'string' ? urlParam.trim() : String(urlParam),
+          structuredVariants: variantsStructured,
+          optionsStructured:
+            typeof optionsStructured === 'object' && optionsStructured !== null
+              ? optionsStructured
+              : undefined,
+          hasOptions: true, // Options parameter was provided
+          functionStartIndex: startIndex,
+          functionEndIndex: endIndex,
+          parametersStartIndex: parenIndex + 1,
+          parametersEndIndex: endIndex,
+        });
+      }
     }
 
     match = createFactoryRegex.exec(code);

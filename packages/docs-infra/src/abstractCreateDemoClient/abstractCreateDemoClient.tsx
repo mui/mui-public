@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { Externals } from '../CodeHighlighter/types';
+import { CodeExternalsContext } from '../CodeExternalsContext';
 
 type CreateDemoClientMeta = {
   name?: string;
@@ -30,12 +31,15 @@ export function abstractCreateDemoClient(
 ): React.ComponentType<{ children: React.ReactNode }> {
   // Extract externals from precomputed data
   const externals = meta?.precompute?.externals || {};
+  const context = { externals };
 
   // Create a provider component that makes externals available to children
   function ClientProvider({ children }: { children: React.ReactNode }) {
     // In a real implementation, this would provide the externals via context
     // For now, just render children - the externals are already injected as imports
-    return <React.Fragment>{children}</React.Fragment>;
+    return (
+      <CodeExternalsContext.Provider value={context}>{children}</CodeExternalsContext.Provider>
+    );
   }
 
   if (process.env.NODE_ENV !== 'production') {

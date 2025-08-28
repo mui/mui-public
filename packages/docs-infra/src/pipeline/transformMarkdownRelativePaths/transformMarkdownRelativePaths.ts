@@ -1,7 +1,10 @@
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
+
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Link } from 'mdast';
-import path from 'path';
 
 /**
  * Remark plugin that strips page file extensions from URLs.

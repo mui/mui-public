@@ -1,4 +1,6 @@
-import path from 'node:path';
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
 
 interface ImportName {
   name: string;

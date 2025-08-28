@@ -49,11 +49,11 @@ export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {
     const code: Code = {};
 
     // Resolve all variant paths and get them as file URLs
-    const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants);
+    const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants || {});
 
     // Build Code object from the resolved variant map
     Array.from(resolvedVariantMap.entries()).forEach(([variantName, fileUrl]) => {
-      const namedExport = demoCall.namedExports[variantName];
+      const namedExport = demoCall.namedExports?.[variantName];
       code[variantName] = fileUrl;
       if (namedExport) {
         const { fileName } = getFileNameFromUrl(fileUrl);

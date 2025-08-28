@@ -1,9 +1,14 @@
 import type { LoaderContext } from 'webpack';
+
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import { readFile } from 'fs/promises';
+
 import {
   parseCreateFactoryCall,
   ParsedCreateFactory,
 } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { generateImportStatements } from './generateImportStatements';
+import { generateResolvedExternals } from './generateResolvedExternals';
 import { loadVariant } from '../../CodeHighlighter/loadVariant';
 import { createLoadServerSource } from '../loadServerSource';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
@@ -12,6 +17,7 @@ import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type { Externals, VariantCode } from '../../CodeHighlighter/types';
 import { filterRuntimeExternals } from './filterRuntimeExternals';
 import { injectImportsIntoSource } from './injectImportsIntoSource';
+import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 
 export type LoaderOptions = {};
 
@@ -35,7 +41,10 @@ export async function loadPrecomputedCodeHighlighterClient(
 
   try {
     // Parse the source to find a single createDemoClient call
-    const demoCall = await parseCreateFactoryCall(source, this.resourcePath);
+    // Use metadataOnly mode since client calls only have (url, options?) parameters
+    const demoCall = await parseCreateFactoryCall(source, this.resourcePath, {
+      metadataOnly: true,
+    });
 
     // If no createDemoClient call found, return the source unchanged
     if (!demoCall) {
@@ -67,15 +76,7 @@ export async function loadPrecomputedCodeHighlighterClient(
     // Read and parse the index.ts file to get variant information
     let indexDemoCall: ParsedCreateFactory | null = null;
     try {
-      const indexSource = await new Promise<string>((resolve, reject) => {
-        this.fs.readFile(indexPath, 'utf8', (err, content) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(content || '');
-          }
-        });
-      });
+      const indexSource = await readFile(indexPath, 'utf-8');
 
       // Add index.ts as a dependency for hot reloading
       this.addDependency(indexPath);
@@ -88,8 +89,8 @@ export async function loadPrecomputedCodeHighlighterClient(
       return;
     }
 
-    if (!indexDemoCall) {
-      console.warn(`No createDemo call found in ${indexPath} for client processing`);
+    if (!indexDemoCall || !indexDemoCall.variants) {
+      console.warn(`No createDemo call or variants found in ${indexPath} for client processing`);
       callback(null, source);
       return;
     }
@@ -106,7 +107,7 @@ export async function loadPrecomputedCodeHighlighterClient(
     // Process variants in parallel to collect externals
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
-        const namedExport = demoCall.namedExports[variantName];
+        const namedExport = indexDemoCall.namedExports?.[variantName];
         let variant: VariantCode | string = fileUrl;
         if (namedExport) {
           const { fileName } = getFileNameFromUrl(variant);
@@ -132,6 +133,8 @@ export async function loadPrecomputedCodeHighlighterClient(
             undefined, // No transforms for client
             {
               maxDepth: 5,
+              disableParsing: true,
+              disableTransforms: true,
             },
           );
 
@@ -165,71 +168,22 @@ export async function loadPrecomputedCodeHighlighterClient(
     // Filter out type-only imports since they don't exist at runtime
     const runtimeExternals = filterRuntimeExternals(allExternals);
 
-    // Generate import statements directly without creating a provider
-    const importLines = generateImportStatements(runtimeExternals);
+    // Generate import statements and resolved externals object
+    const { imports: importLines, resolvedExternals } = generateResolvedExternals(runtimeExternals);
 
-    // Inject imports at the top of the file (after 'use client' if present)
-    let modifiedSource = injectImportsIntoSource(source, importLines);
+    // Add externals parameter to the createDemoClient call using replacePrecomputeValue first
+    // (before injecting imports, so the original positions are still valid)
+    // with passPrecomputeAsIs enabled so externals are passed as resolved objects
+    const precomputeData = {
+      externals: resolvedExternals,
+    };
 
-    // Add externals parameter to the createDemoClient call by manually constructing the replacement
-    // We'll use the original parameters and add the precompute.externals data
-    const originalParameters = modifiedSource.substring(
-      demoCall.parametersStartIndex,
-      demoCall.parametersEndIndex,
-    );
+    let modifiedSource = replacePrecomputeValue(source, precomputeData, demoCall, {
+      passPrecomputeAsIs: true,
+    });
 
-    let newParameters: string;
-    if (demoCall.hasOptions && originalParameters.trim()) {
-      // There are existing parameters - we need to add externals to the options object
-      // Parse the existing parameters to see if we have an options object
-      const trimmedParams = originalParameters.trim();
-      const lastCommaIndex = trimmedParams.lastIndexOf(',');
-
-      if (lastCommaIndex > -1) {
-        // Multiple parameters - assume the last one is the options object
-        const beforeLastParam = trimmedParams.substring(0, lastCommaIndex + 1);
-        const lastParam = trimmedParams.substring(lastCommaIndex + 1).trim();
-
-        // Try to add externals to the last parameter (options object)
-        if (lastParam.startsWith('{') && lastParam.endsWith('}')) {
-          // It's an object - add the externals property
-          const objectContent = lastParam.slice(1, -1).trim();
-          const newObjectContent = objectContent
-            ? `${objectContent}, precompute: { externals: ${JSON.stringify(runtimeExternals)} }`
-            : `precompute: { externals: ${JSON.stringify(runtimeExternals)} }`;
-          newParameters = `${beforeLastParam} { ${newObjectContent} }`;
-        } else {
-          // Not an object - add a new parameter
-          newParameters = `${trimmedParams}, { precompute: { externals: ${JSON.stringify(runtimeExternals)} } }`;
-        }
-      } else {
-        // Single parameter - check if it's an options object
-        const isOptionsObject = trimmedParams.startsWith('{') && trimmedParams.endsWith('}');
-        if (isOptionsObject) {
-          // It's an object - add the externals property
-          const objectContent = trimmedParams.slice(1, -1).trim();
-          const newObjectContent = objectContent
-            ? `${objectContent}, precompute: { externals: ${JSON.stringify(runtimeExternals)} }`
-            : `precompute: { externals: ${JSON.stringify(runtimeExternals)} }`;
-          newParameters = `{ ${newObjectContent} }`;
-        } else {
-          // Not an object - add a new parameter
-          newParameters = `${trimmedParams}, { precompute: { externals: ${JSON.stringify(runtimeExternals)} } }`;
-        }
-      }
-    } else {
-      // No existing parameters or options - just add the externals
-      const externalsParam = `{ precompute: { externals: ${JSON.stringify(runtimeExternals)} } }`;
-      newParameters = originalParameters.trim()
-        ? `${originalParameters.trim()}, ${externalsParam}`
-        : externalsParam;
-    }
-
-    // Replace the parameters in the function call
-    modifiedSource =
-      modifiedSource.substring(0, demoCall.parametersStartIndex) +
-      newParameters +
-      modifiedSource.substring(demoCall.parametersEndIndex);
+    // Then inject imports at the top of the file (after 'use client' if present)
+    modifiedSource = injectImportsIntoSource(modifiedSource, importLines);
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {

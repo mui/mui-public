@@ -978,4 +978,268 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
       }
     });
   });
+
+  describe('passPrecomputeAsIs option', () => {
+    it('should JSON stringify precompute data by default', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      const data = { Component: { fileName: 'Component.tsx' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!);
+
+      // Should contain JSON stringified data
+      expect(result).toContain(
+        'precompute: {\n  "Component": {\n    "fileName": "Component.tsx"\n  }\n}',
+      );
+    });
+
+    it('should JSON stringify precompute data when passPrecomputeAsIs is explicitly false', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      const data = { Component: { fileName: 'Component.tsx' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: false });
+
+      // Should contain JSON stringified data with quotes
+      expect(result).toContain(
+        'precompute: {\n  "Component": {\n    "fileName": "Component.tsx"\n  }\n}',
+      );
+    });
+
+    it('should not JSON stringify precompute data when passPrecomputeAsIs is true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Realistic case: externals with variable names (unquoted) and string literals (quoted)
+      const data = {
+        Component: {
+          fileName: '"Component.tsx"', // String literal - user provides quotes
+          externals: { react: 'React' }, // Variable name - no quotes
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should contain object data without JSON stringification
+      expect(result).toContain(
+        'precompute: { Component: { fileName: "Component.tsx", externals: { react: React } } }',
+      );
+      // Should not contain the JSON formatted structure
+      expect(result).not.toContain('precompute: {\n  "Component"');
+    });
+
+    it('should handle complex nested objects with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Realistic case: mix of string literals (quoted) and variable names (unquoted)
+      const data = {
+        Component: {
+          fileName: '"Component.tsx"', // String literal
+          externals: { react: 'React', lodash: '_' }, // Variable names
+          metadata: { type: '"component"', version: '1' }, // Mix of string and number
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should serialize with proper quoting for string literals and unquoted variable names
+      expect(result).toContain(
+        'precompute: { Component: { fileName: "Component.tsx", externals: { react: React, lodash: _ }, metadata: { type: "component", version: 1 } } }',
+      );
+    });
+
+    it('should handle arrays correctly with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Realistic case: externals with proper quoting for package names and variable names
+      const data = {
+        externals: {
+          dependencies: ['"react"', '"lodash"'], // Package names as string literals
+          imports: [
+            { name: 'React', from: '"react"' },
+            { name: '_', from: '"lodash"' },
+          ], // Variable names unquoted, packages quoted
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should serialize arrays with proper quoting
+      expect(result).toContain('dependencies: ["react", "lodash"]');
+      expect(result).toContain(
+        'imports: [{ name: React, from: "react" }, { name: _, from: "lodash" }]',
+      );
+    });
+
+    it('should handle primitive values with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Realistic case: proper quoting for string literals, unquoted for other primitives and variables
+      const data = {
+        externals: {
+          count: 42,
+          enabled: true,
+          packageName: '"@mui/material"', // String literal - user provides quotes
+          globalVar: 'window', // Variable name - no quotes
+          value: null,
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should handle different primitive types correctly with proper quoting
+      expect(result).toContain('count: 42');
+      expect(result).toContain('enabled: true');
+      expect(result).toContain('packageName: "@mui/material"'); // String literal
+      expect(result).toContain('globalVar: window'); // Variable name
+      expect(result).toContain('value: null');
+    });
+
+    it('should handle empty objects and arrays with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      const data = {
+        externals: {},
+        dependencies: [],
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should handle empty structures correctly
+      expect(result).toContain('externals: {  }'); // Note: serializeObject adds spaces for empty objects
+      expect(result).toContain('dependencies: []');
+    });
+
+    it('should preserve existing options when using passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: true });`;
+
+      // Realistic case: externals with variable names
+      const data = { externals: { react: 'React', mui: 'MaterialUI' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve existing options and add precompute with variable names
+      expect(result).toContain("name: 'test'"); // From parser, already quoted
+      expect(result).toContain("slug: 'demo'"); // From parser, already quoted
+      expect(result).toContain('precompute: { externals: { react: React, mui: MaterialUI } }'); // Variable names, unquoted
+    });
+
+    it('should handle quoted strings when user explicitly provides them', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      const data = {
+        externals: {
+          // User explicitly provides quoted strings
+          react: '"React"',
+          lodash: "'_'",
+          // User provides unquoted identifiers
+          unquoted: 'someVariable',
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve user's choice of quoting
+      expect(result).toContain('react: "React"');
+      expect(result).toContain("lodash: '_'");
+      expect(result).toContain('unquoted: someVariable');
+    });
+
+    it('should produce valid JavaScript syntax with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Test with realistic data: variable names and proper string literals
+      const data = {
+        externals: {
+          React: 'React', // Valid identifier pointing to React global
+          ReactDOM: 'ReactDOM', // Valid identifier pointing to ReactDOM global
+          muiPackage: '"@mui/material"', // User provides quoted string for scoped package name
+          numericValue: 123,
+          version: '"5.0.0"', // String literal for version
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should handle identifiers and quoted strings properly
+      expect(result).toContain('React: React'); // Variable name -> variable name
+      expect(result).toContain('ReactDOM: ReactDOM'); // Variable name -> variable name
+      expect(result).toContain('muiPackage: "@mui/material"'); // String literal
+      expect(result).toContain('numericValue: 123');
+      expect(result).toContain('version: "5.0.0"'); // String literal
+
+      // Should produce valid syntax without syntax errors
+      expect(result).toContain('precompute: { externals: {');
+      expect(result).toContain('} }');
+    });
+  });
+
+  describe('handling cases with undefined/missing structuredVariants', () => {
+    it('should handle createDemoClient with only URL parameter', async () => {
+      const source = `import { createDemoClient } from './createDemoClient';
+export const DemoClient = createDemoClient(import.meta.url);`;
+
+      const data = { externals: { react: 'React' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', {
+        metadataOnly: true,
+      });
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should add options as second parameter since we only had URL originally
+      expect(result).toContain(
+        'createDemoClient(import.meta.url, { precompute: { externals: { react: React } } })',
+      );
+    });
+
+    it('should handle createDemoClient with URL and options (no variants)', async () => {
+      const source = `import { createDemoClient } from './createDemoClient';
+export const DemoClient = createDemoClient(import.meta.url, { name: 'test' });`;
+
+      const data = { externals: { react: 'React' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', {
+        metadataOnly: true,
+      });
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve existing options and add precompute
+      expect(result).toContain("name: 'test'");
+      expect(result).toContain('precompute: { externals: { react: React } }');
+    });
+
+    it('should handle createDemo with URL and variants but no options', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component });`;
+
+      const data = { Component: { fileName: '"Component.tsx"' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve variants and add options as third parameter
+      expect(result).toContain(
+        'createDemo(import.meta.url, { Component }, { precompute: { Component: { fileName: "Component.tsx" } } })',
+      );
+    });
+  });
 });
