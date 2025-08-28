@@ -6,12 +6,12 @@
   "main": "./index.js",
   "types": "./index.d.ts",
   "exports": {
-    "./*": "./*/index.ts",
-    "./*/types": "./*/types.ts",
-    "./*/errors": "./*/errors.ts",
-    "./pipeline/*": "./pipeline/*/index.ts",
-    "./pipeline/*/types": "./pipeline/*/types.ts",
-    "./pipeline/*/errors": "./pipeline/*/errors.ts"
+    "./*": "./src/*/index.ts",
+    "./*/types": "./src/*/types.ts",
+    "./*/errors": "./src/*/errors.ts",
+    "./pipeline/*": "./src/pipeline/*/index.ts",
+    "./pipeline/*/types": "./src/pipeline/*/types.ts",
+    "./pipeline/*/errors": "./src/pipeline/*/errors.ts"
   },
   "keywords": [
     "react",
@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --bundle esm && pnpm build:copy-files",
+    "build": "code-infra build --bundle esm && pnpm build:copy-files && node ./scripts/updateImports.mjs",
     "build:copy-files": "code-infra copy-files",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
@@ -73,6 +73,7 @@
     "@types/mdast": "^4.0.4",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.11",
+    "@types/webpack": "^5.28.5",
     "babel-plugin-istanbul": "^7.0.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-plugin-optimize-clsx": "^2.6.2",
@@ -104,6 +105,6 @@
     "directory": "build"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.12.0"
   }
 }
