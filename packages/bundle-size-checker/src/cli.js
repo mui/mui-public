@@ -25,7 +25,7 @@ function getCiInfo() {
     case 'CircleCI':
       return ciInfo;
     default:
-      return null;
+      throw new Error(`Unsupported CI environment: ${ciInfo.name}`);
   }
 }
 
