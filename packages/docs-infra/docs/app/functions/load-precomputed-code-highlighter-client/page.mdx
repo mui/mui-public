@@ -44,7 +44,10 @@ const nextConfig = {
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/demos\/[^/]+\/client\.ts$/,
-      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+      ],
     });
 
     return config;
@@ -170,24 +173,21 @@ Adds all external imports to the top of the client file and passes them as `prec
 export const DemoClient = createDemoClient(import.meta.url);
 
 // After processing (simplified)
-'use client';
+('use client');
 
 import React from 'react';
 import { Button } from '@mui/material';
 import { styled } from '@mui/system';
 
-export const DemoClient = createDemoClient(
-  import.meta.url,
-  {
-    precompute: {
-      externals: {
-        'react': React,
-        '@mui/material': { Button },
-        '@mui/system': { styled }
-      }
-    }
-  }
-);
+export const DemoClient = createDemoClient(import.meta.url, {
+  precompute: {
+    externals: {
+      react: React,
+      '@mui/material': { Button },
+      '@mui/system': { styled },
+    },
+  },
+});
 ```
 
 ---
@@ -205,18 +205,15 @@ import { Button, TextField } from '@mui/material';
 import { styled } from '@mui/system';
 
 // Function call gets externals in precompute.externals
-export const DemoClient = createDemoClient(
-  import.meta.url,
-  {
-    precompute: {
-      externals: {
-        'react': React,
-        '@mui/material': { Button, TextField },
-        '@mui/system': { styled }
-      }
-    }
-  }
-);
+export const DemoClient = createDemoClient(import.meta.url, {
+  precompute: {
+    externals: {
+      react: React,
+      '@mui/material': { Button, TextField },
+      '@mui/system': { styled },
+    },
+  },
+});
 ```
 
 ### Externals Format
@@ -230,15 +227,17 @@ interface Externals {
 
 // Examples:
 const externals = {
-  'react': React,                           // Default import
-  '@mui/material': { Button, TextField },  // Named imports as object
-  '@mui/system': { styled },               // Single named import as object
-  'lodash': lodash,                         // Namespace import
+  react: React, // Default import
+  '@mui/material': { Button, TextField }, // Named imports as object
+  '@mui/system': { styled }, // Single named import as object
+  lodash: lodash, // Namespace import
 };
 ```
 
 The externals are the actual resolved import values, not descriptors. This allows the live editing environment to directly access the imported modules without additional resolution.
+
 ```
+
 ```
 
 ---
@@ -258,12 +257,12 @@ export const DemoClient2 = createDemoClient(/* ... */); // Error!
 
 // [✓] Use separate files instead
 // demo-1/client.ts
-'use client';
+('use client');
 
 export const DemoClient1 = createDemoClient(/* ... */);
 
 // demo-2/client.ts
-'use client';
+('use client');
 
 export const DemoClient2 = createDemoClient(/* ... */);
 ```
@@ -346,3 +345,4 @@ export const DemoClient = createDemoClient(import.meta.url, {
 - [loadPrecomputedCodeHighlighter](../load-precomputed-code-highlighter/) - Main demo loader for syntax highlighting
 - [abstractCreateDemoClient](../../components/abstract-create-demo-client/) - Client factory implementation
 - [CodeHighlighter](../../components/code-highlighter/) - Code highlighting component system
+````

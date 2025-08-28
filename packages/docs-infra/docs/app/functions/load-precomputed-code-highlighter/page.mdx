@@ -43,7 +43,10 @@ const nextConfig = {
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/demos\/[^/]+\/index\.ts$/,
-      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+      ],
     });
 
     return config;
