@@ -1,11 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-import { fetchSnapshot } from './fetchSnapshot.js';
+import defineConfig from './defineConfig.js';
+import { loadConfig } from './configLoader.js';
 
-export { fetchSnapshot };
-
-/**
- * @typedef {import('./sizeDiff.js').Size} Size
- * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
- * @typedef {import('./sizeDiff.js').ComparisonResult} ComparisonResult
- */
+export { defineConfig, loadConfig };

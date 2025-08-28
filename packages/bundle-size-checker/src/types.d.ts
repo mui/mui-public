@@ -22,6 +22,7 @@ interface ObjectEntry {
   importedNames?: string[]; // Optional array of named imports
   externals?: string[]; // Optional array of packages to exclude from the bundle
   track?: boolean; // Whether this bundle should be tracked in PR comments (defaults to false)
+  expand?: boolean; // Whether to expand the entry to include all exports
 }
 
 type EntryPoint = StringEntry | ObjectEntry;
