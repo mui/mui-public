@@ -81,6 +81,16 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
 }
 
 /**
+ * Checks if the given import source is a top-level package
+ * @param {string} importSrc - The import source string
+ * @returns {boolean} - True if it's a top-level package, false otherwise
+ */
+function isPackageTopLevel(importSrc) {
+  const parts = importSrc.split('/');
+  return parts.length === 1 || (parts.length === 2 && parts[0].startsWith('@'));
+}
+
+/**
  * Normalizes entries to ensure they have a consistent format and ids are unique
  * @param {EntryPoint[]} entries - The array of entries from the config
  * @returns {ObjectEntry[]} - Normalized entries with uniqueness enforced
@@ -104,6 +114,7 @@ function normalizeEntries(entries) {
         entry = {
           id: entry,
           import: importSrc,
+          track: isPackageTopLevel(importSrc),
         };
       }
     }
