@@ -36,7 +36,6 @@ const nextConfig = {
   turbopack: {
     rules: {
       './app/**/demos/*/index.ts': {
-        as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
     },
@@ -128,12 +127,10 @@ const nextConfig = {
   turbopack: {
     rules: {
       './app/**/demos/*/index.ts': {
-        as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
       // Add pattern for snippets directory
       './app/**/snippets/*/index.ts': {
-        as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
     },

@@ -37,7 +37,6 @@ const nextConfig = {
   turbopack: {
     rules: {
       './app/**/demos/*/client.ts': {
-        as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
       },
     },
@@ -75,7 +74,7 @@ app/
 │           │   └── Vue.vue
 │           └── advanced-demo/
 │               ├── index.ts      # ← Main demo
-│               ├── client.ts     # ← Client version processed here
+│               ├── client.ts     # ← Client bundle processed here
 │               ├── TypeScript.ts
 │               └── JavaScript.js
 ```
@@ -151,7 +150,7 @@ Finds your `create*Client` function call and extracts any options.
 
 ### 2. Resolve Variant Paths
 
-Discovers related variant files by reading the corresponding main demo file (`index.ts` in the same directory) to extract variant information, name, and slug.
+Discovers related variant files by reading the corresponding main demo file (`index.ts` in the same directory) to extract variant information. The client loader uses the variants defined in the main demo file since client files typically don't define their own variants.
 
 ### 3. Collect Externals
 
@@ -182,9 +181,9 @@ export const DemoClient = createDemoClient(
   {
     precompute: {
       externals: {
-        'react': [{ name: 'default', type: 'default', isType: false }],
-        '@mui/material': [{ name: 'Button', type: 'named', isType: false }],
-        '@mui/system': [{ name: 'styled', type: 'named', isType: false }]
+        'react': React,
+        '@mui/material': { Button },
+        '@mui/system': { styled }
       }
     }
   }
@@ -211,16 +210,9 @@ export const DemoClient = createDemoClient(
   {
     precompute: {
       externals: {
-        'react': [
-          { name: 'default', type: 'default', isType: false }
-        ],
-        '@mui/material': [
-          { name: 'Button', type: 'named', isType: false },
-          { name: 'TextField', type: 'named', isType: false }
-        ],
-        '@mui/system': [
-          { name: 'styled', type: 'named', isType: false }
-        ]
+        'react': React,
+        '@mui/material': { Button, TextField },
+        '@mui/system': { styled }
       }
     }
   }
@@ -229,18 +221,23 @@ export const DemoClient = createDemoClient(
 
 ### Externals Format
 
-Each external module contains an array of imports with this structure:
+Each external module contains the actual imported values resolved at build time:
 
 ```typescript
-interface ExternalImport {
-  name: string;        // Import name ('default', 'Button', etc.)
-  type: string;        // Import type ('default', 'named', 'namespace')
-  isType: boolean;     // Whether this is a type-only import (filtered out)
+interface Externals {
+  [modulePath: string]: any; // The actual imported module or object with named exports
 }
 
-interface Externals {
-  [modulePath: string]: ExternalImport[];
-}
+// Examples:
+const externals = {
+  'react': React,                           // Default import
+  '@mui/material': { Button, TextField },  // Named imports as object
+  '@mui/system': { styled },               // Single named import as object
+  'lodash': lodash,                         // Namespace import
+};
+```
+
+The externals are the actual resolved import values, not descriptors. This allows the live editing environment to directly access the imported modules without additional resolution.
 ```
 ```
 
