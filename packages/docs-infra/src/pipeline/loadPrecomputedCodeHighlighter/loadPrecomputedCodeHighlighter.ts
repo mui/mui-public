@@ -51,7 +51,7 @@ export async function loadPrecomputedCodeHighlighter(
     const allDependencies: string[] = [];
 
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
-    const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants);
+    const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants || {});
 
     // Create loader functions
     const loadSource = createLoadServerSource({
@@ -70,7 +70,7 @@ export async function loadPrecomputedCodeHighlighter(
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
-        const namedExport = demoCall.namedExports[variantName];
+        const namedExport = demoCall.namedExports?.[variantName];
         let variant: VariantCode | string = fileUrl;
         if (namedExport) {
           const { fileName } = getFileNameFromUrl(variant);

@@ -1,4 +1,7 @@
-import { readFile } from 'node:fs/promises';
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import { readFile } from 'fs/promises';
+
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImports } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';

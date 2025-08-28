@@ -1,4 +1,6 @@
-import { readdir } from 'node:fs/promises';
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import { readdir } from 'fs/promises';
 import {
   resolveModulePath,
   resolveModulePaths,
