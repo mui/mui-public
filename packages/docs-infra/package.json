@@ -23,6 +23,7 @@
   "scripts": {
     "build": "code-infra build --bundle esm && pnpm build:copy-files",
     "build:tsdown": "tsdown && code-infra copy-files",
+    "build-rolldown": "code-infra rolldown && code-infra copy-files",
     "build:copy-files": "code-infra copy-files",
     "test": "exit 0",
     "typescript": "tsc -p tsconfig.json"

@@ -116,11 +116,11 @@ export function getVersionEnvVariables(pkgVersion) {
    * @type {Record<string, string>}
    */
   const res = {
-    MUI_VERSION: pkgVersion,
-    MUI_MAJOR_VERSION: major,
-    MUI_MINOR_VERSION: minor,
-    MUI_PATCH_VERSION: patch,
-    MUI_PRERELEASE: prerelease ?? 'undefined',
+    'process.env.MUI_VERSION': JSON.stringify(pkgVersion),
+    'process.env.MUI_MAJOR_VERSION': JSON.stringify(major),
+    'process.env.MUI_MINOR_VERSION': JSON.stringify(minor),
+    'process.env.MUI_PATCH_VERSION': JSON.stringify(patch),
+    'process.env.MUI_PRERELEASE': 'undefined',
   };
   return res;
 }

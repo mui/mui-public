@@ -4,6 +4,7 @@ import { hideBin } from 'yargs/helpers';
 
 import cmdArgosPush from './cmdArgosPush.mjs';
 import cmdBuild from './cmdBuild.mjs';
+import cmdBuildRolldown from './cmdBuildRolldown.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdJsonLint from './cmdJsonLint.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
@@ -12,7 +13,9 @@ import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 
 export default function start() {
-  const pkgJson = createRequire(import.meta.url)('../../package.json');
+  const version = createRequire(import.meta.url)(
+    process.env.MUI_VERSION ? '../package.json' : '../../package.json',
+  ).version;
 
   yargs()
     .scriptName('code-infra')
@@ -24,9 +27,10 @@ export default function start() {
     .command(cmdSetVersionOverrides)
     .command(cmdCopyFiles)
     .command(cmdBuild)
+    .command(cmdBuildRolldown)
     .demandCommand(1, 'You need at least one command before moving on')
     .strict()
     .help()
-    .version(pkgJson.version)
+    .version(version)
     .parse(hideBin(process.argv));
 }

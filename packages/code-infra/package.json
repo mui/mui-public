@@ -21,8 +21,8 @@
     "code-infra": "./src/bin/code-infra.mjs"
   },
   "scripts": {
-    "test": "pnpm -w test --project @mui/internal-code-infra",
-    "test:copy": "rm -rf build && node src/bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
+    "build-rolldown": "node src/bin/code-infra.mjs rolldown --watch",
+    "test": "pnpm -w test --project @mui/internal-code-infra"
   },
   "dependencies": {
     "@argos-ci/core": "^4.1.0",
@@ -71,9 +71,9 @@
   "peerDependencies": {
     "eslint": "^9.0.0",
     "prettier": "^3.5.3",
+    "rolldown": "^1.0.0-beta.34",
     "typescript": "^5.0.0",
-    "tsdown": "^0.14.1",
-    "vite": "^6 || ^7"
+    "tsdown": "^0.14.1"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
@@ -88,8 +88,8 @@
     "eslint": "^9.34.0",
     "prettier": "^3.6.2",
     "typescript-eslint": "^8.40.0",
-    "tsdown": "^0.14.1",
-    "vite": "^6.3.5"
+    "rolldown": "^1.0.0-beta.34",
+    "tsdown": "^0.14.1"
   },
   "files": [
     "bin",
@@ -99,7 +99,8 @@
     "LICENSE"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "directory": "build"
   },
   "engines": {
     "node": ">=20"

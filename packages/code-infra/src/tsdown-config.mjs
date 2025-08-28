@@ -14,6 +14,7 @@ const TS_CONFIG_PATHS = ['tsconfig.build.json', 'tsconfig.json'];
  * [ ] Figure out how to pass targets (easy to do if we want to have same target for all output formats)
  * [x] Write your own package.json exports (the one built into tsdown doesn't cut it)
  * [ ] Side effects from type imports without the "type" identifier. Need eslint rule to enforce this.
+ * [ ] Figure out how to handle conditional exports. Specifically `react-server` exports.
  */
 
 /**
@@ -73,7 +74,7 @@ async function writePkgJson(baseOutput, binOutput, nullEntries, { buildDirBase }
   delete originalPkgJson.main;
   delete originalPkgJson.types;
   delete originalPkgJson.module;
-  await fs.writeFile(originalPkgJsonPath, JSON.stringify(originalPkgJson, null, 2));
+  await fs.writeFile(originalPkgJsonPath, `${JSON.stringify(originalPkgJson, null, 2)}\n`);
 }
 
 export default defineConfig(async (opts) => {
