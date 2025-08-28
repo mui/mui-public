@@ -11,7 +11,7 @@ type CreateDemoMeta = {
   variantType?: string;
   skipPrecompute?: boolean;
   precompute?: Code;
-  CodeExternalsProvider?: React.ComponentType<{ children: React.ReactNode }>;
+  ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
 };
 
 type AbstractCreateDemoOptions<T extends {}> = {
@@ -65,9 +65,11 @@ export function abstractCreateDemo<T extends {}>(
       />
     );
 
-    const CodeExternalsProvider = meta?.CodeExternalsProvider;
-    if (CodeExternalsProvider) {
-      return <CodeExternalsProvider>{highlighter}</CodeExternalsProvider>;
+    // Use client provider if available
+    const ClientProvider = meta?.ClientProvider;
+
+    if (ClientProvider) {
+      return <ClientProvider>{highlighter}</ClientProvider>;
     }
 
     return highlighter;

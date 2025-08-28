@@ -325,7 +325,6 @@ export interface ParsedCreateFactory {
   fullMatch: string;
   hasOptions: boolean;
   externals: Externals;
-  live: boolean; // True if the function name contains "live"
   // For replacement purposes - positions in the original source code
   parametersStartIndex: number; // Start position of the parameters (after opening parenthesis)
   parametersEndIndex: number; // End position of the parameters (before closing parenthesis)
@@ -624,11 +623,6 @@ export async function parseCreateFactoryCall(
     }
   }
 
-  // Detect if this is a live demo based on function name containing "Live" as a distinct component
-  // This catches: createLive, createLiveDemo, createDemoLive, etc.
-  // But avoids false positives like: createDelivery, delivery, etc.
-  const live = /Live/.test(functionName);
-
   // Calculate remaining content after the function call
   const remaining = code.substring(match.functionEndIndex + 1);
 
@@ -641,7 +635,6 @@ export async function parseCreateFactoryCall(
     fullMatch,
     hasOptions,
     externals: transformedExternals,
-    live,
     parametersStartIndex,
     parametersEndIndex,
     // Add structured data for serialization - this preserves quotes for proper output

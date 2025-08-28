@@ -6,7 +6,7 @@ export type CreateDemoDataMeta = {
   displayName?: string;
   skipPrecompute?: boolean;
   precompute?: Code;
-  CodeExternalsProvider?: React.ComponentType<{ children: React.ReactNode }>;
+  client?: React.ComponentType<{ children: React.ReactNode }>;
 };
 
 export type DemoData<T extends React.ComponentType<any> = React.ComponentType> = {
@@ -14,7 +14,6 @@ export type DemoData<T extends React.ComponentType<any> = React.ComponentType> =
   slug: string;
   displayName: string;
   precompute: Code | undefined;
-  CodeExternalsProvider: React.ComponentType<{ children: React.ReactNode }> | undefined;
   url: string;
   components: { [key: string]: T };
 };

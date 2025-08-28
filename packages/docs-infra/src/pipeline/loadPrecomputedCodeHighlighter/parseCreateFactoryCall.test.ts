@@ -445,17 +445,17 @@ describe('parseCreateFactoryCall', () => {
     expect(result!.options).toEqual({ name: 'Code Example' });
   });
 
-  it('should work with createLiveDemo function', async () => {
+  it('should work with createDemo function', async () => {
     const code = `
         import Component from './Component';
         
-        createLiveDemo(import.meta.url, { Example: Component });
+        createDemo(import.meta.url, { Example: Component });
       `;
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
     expect(result).not.toBeNull();
-    expect(result!.functionName).toBe('createLiveDemo');
+    expect(result!.functionName).toBe('createDemo');
     expect(result!.variants).toEqual({ Example: '/src/Component' });
     expect(result!.options).toEqual({});
   });
@@ -710,139 +710,6 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.externals).toEqual({
         'complex-side-effect': [],
       });
-    });
-  });
-
-  describe('live property detection', () => {
-    it('should detect live demos with createLiveDemo function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createLiveDemo(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createLiveDemo');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should detect live demos with createDemoLive function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createDemoLive(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createDemoLive');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should detect live demos with different Live positions', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createAdvancedLiveEditor(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createAdvancedLiveEditor');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should detect live demos with live anywhere in function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createInteractiveLiveComponent(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createInteractiveLiveComponent');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should not detect live for regular createDemo function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createDemo(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createDemo');
-      expect(result!.live).toBe(false);
-    });
-
-    it('should not detect live for createDelivery function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createDelivery(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createDelivery');
-      expect(result!.live).toBe(false);
-    });
-
-    it('should work with live detection and complex options', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createLiveDemo(
-          import.meta.url,
-          { Default: Component },
-          { 
-            name: 'Live Demo',
-            slug: 'live-demo',
-            skipPrecompute: true,
-            precompute: {
-              enabled: true
-            }
-          }
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createLiveDemo');
-      expect(result!.live).toBe(true);
-      expect(result!.options.name).toBe('Live Demo');
-      expect(result!.options.slug).toBe('live-demo');
-      expect(result!.options.skipPrecompute).toBe(true);
-      expect(result!.options.precompute).toBeDefined(); // Check precompute exists instead of hasPrecompute
     });
   });
 
