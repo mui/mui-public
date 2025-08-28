@@ -37,14 +37,14 @@ const nextConfig = {
     rules: {
       './app/**/demos/*/index.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
     },
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/demos\/[^/]+\/index\.ts$/,
-      use: [defaultLoaders.babel, '@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
     });
 
     return config;
@@ -129,12 +129,12 @@ const nextConfig = {
     rules: {
       './app/**/demos/*/index.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
       // Add pattern for snippets directory
       './app/**/snippets/*/index.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/loadPrecomputedCodeHighlighter'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
     },
   },
