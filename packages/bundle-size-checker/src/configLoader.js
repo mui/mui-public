@@ -171,7 +171,11 @@ async function normalizeEntries(entries, configPath) {
           const expandedEntries = [];
           for (const exportPath of exportedPaths) {
             const importSrc = entry.import + exportPath.slice(1);
-            expandedEntries.push({ id: importSrc, import: importSrc, track: false });
+            expandedEntries.push({
+              id: importSrc,
+              import: importSrc,
+              track: isPackageTopLevel(importSrc),
+            });
           }
           return expandedEntries;
         }
