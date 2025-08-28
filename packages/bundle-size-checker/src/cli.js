@@ -269,7 +269,12 @@ async function run(argv) {
     });
 
     // Post or update PR comment
-    await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', report);
+    await notifyPr(
+      ciInfo.slug,
+      prNumber,
+      'bundle-size-report',
+      `## Bundle size report\n\n${report}`,
+    );
 
     // eslint-disable-next-line no-console
     console.log(`PR comment posted/updated for PR #${prNumber}`);
