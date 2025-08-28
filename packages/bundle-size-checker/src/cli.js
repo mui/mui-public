@@ -248,36 +248,31 @@ async function run(argv) {
 
     const prNumber = Number(ciInfo.pr);
 
-    try {
-      // eslint-disable-next-line no-console
-      console.log('Generating PR comment with bundle size changes...');
+    // eslint-disable-next-line no-console
+    console.log('Generating PR comment with bundle size changes...');
 
-      // Get tracked bundles from config
-      const trackedBundles = config.entrypoints
-        .filter((entry) => entry.track === true)
-        .map((entry) => entry.id);
+    // Get tracked bundles from config
+    const trackedBundles = config.entrypoints
+      .filter((entry) => entry.track === true)
+      .map((entry) => entry.id);
 
-      // Get PR info for renderMarkdownReport
-      const { data: prInfo } = await octokit.pulls.get({
-        owner: ciInfo.slug.split('/')[0],
-        repo: ciInfo.slug.split('/')[1],
-        pull_number: prNumber,
-      });
+    // Get PR info for renderMarkdownReport
+    const { data: prInfo } = await octokit.pulls.get({
+      owner: ciInfo.slug.split('/')[0],
+      repo: ciInfo.slug.split('/')[1],
+      pull_number: prNumber,
+    });
 
-      // Generate markdown report
-      const report = await renderMarkdownReport(prInfo, {
-        track: trackedBundles.length > 0 ? trackedBundles : undefined,
-      });
+    // Generate markdown report
+    const report = await renderMarkdownReport(prInfo, {
+      track: trackedBundles.length > 0 ? trackedBundles : undefined,
+    });
 
-      // Post or update PR comment
-      await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', report);
+    // Post or update PR comment
+    await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', report);
 
-      // eslint-disable-next-line no-console
-      console.log(`PR comment posted/updated for PR #${prNumber}`);
-    } catch (/** @type {any} */ error) {
-      console.error('Failed to post PR comment:', error.message);
-      // Don't exit with error for comment failures
-    }
+    // eslint-disable-next-line no-console
+    console.log(`PR comment posted/updated for PR #${prNumber}`);
   }
 }
 
