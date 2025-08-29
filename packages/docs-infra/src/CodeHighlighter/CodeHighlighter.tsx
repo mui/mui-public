@@ -228,6 +228,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   const errors: Error[] = [];
   for (const item of variantCodes) {
     if ('error' in item) {
+      console.error(`[docs-infra] Error loading variant of ${props.url}: ${item.error}`);
       errors.push(item.error);
     } else {
       processedCode[item.name] = item.variant.code;
