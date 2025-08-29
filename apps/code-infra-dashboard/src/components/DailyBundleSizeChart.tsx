@@ -45,6 +45,9 @@ const ToggleSelectButton = styled(Button)(({ theme }) => ({
  * @returns true if it's a top-level package, false for sub-packages
  */
 function isPackageTopLevel(importSrc: string): boolean {
+  if (importSrc.startsWith('_') || importSrc.startsWith('virtual:')) {
+    return false;
+  }
   const parts = importSrc.split('/');
   return parts.length === 1 || (parts.length === 2 && parts[0].startsWith('@'));
 }
