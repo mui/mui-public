@@ -1,0 +1,120 @@
+# Transform Markdown Blockquote Callouts
+
+The `transformMarkdownBlockquoteCallouts` plugin is a Remark plugin that enables GitHub-style callout blocks in markdown. It transforms blockquotes with special markers (like `> [!NOTE]`) into HTML blockquotes with a `data-callout-type` attribute, making it easy to style and render callouts in your documentation.
+
+## Features
+
+- **GitHub-style callouts**: Supports `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, and `[!CAUTION]` markers
+- **HTML data attributes**: Adds `data-callout-type` to blockquotes for easy styling
+- **Removes callout marker**: Cleans up the markdown so the marker does not appear in the rendered output
+- **Works with multi-paragraph and nested content**
+- **Compatible with Next.js, MDX, and unified pipelines**
+
+## Supported Callout Types
+
+| Marker         | Attribute Value |
+|---------------|-----------------|
+| `[!NOTE]`      | `note`          |
+| `[!TIP]`       | `tip`           |
+| `[!IMPORTANT]` | `important`     |
+| `[!WARNING]`   | `warning`       |
+| `[!CAUTION]`   | `caution`       |
+
+### Default Colors
+
+| Callout Type | Color         |
+|--------------|--------------|
+| `note`       | Blue         |
+| `tip`        | Green        |
+| `important`  | Purple       |
+| `warning`    | Orange       |
+| `caution`    | Red          |
+
+> [!NOTE]
+> These are the default colors used by GitHub. Colors may vary in your implementation, but try to maintain a similar visual hierarchy.
+
+## Example
+
+### How to Write a Callout in Markdown
+
+```markdown
+> [!TIP]
+> This is a tip callout. You can use any of the supported callout types:
+>
+> - [!NOTE]
+> - [!TIP]
+> - [!IMPORTANT]
+> - [!WARNING]
+> - [!CAUTION]
+>
+> The callout marker must be the first text in the blockquote.
+```
+
+### Live Callout Examples
+
+> [!NOTE]
+> This is a note callout. It uses the `[!NOTE]` marker and renders with a special style.
+
+> [!TIP]
+> This is a tip callout. Use tips for helpful suggestions or shortcuts.
+
+> [!IMPORTANT]
+> This is an important callout. Use for critical information.
+
+> [!WARNING]
+> This is a warning callout. Use for potential problems or risks.
+
+> [!CAUTION]
+> This is a caution callout. Use for things users should be careful about.
+
+You can also have multiple paragraphs:
+
+> [!NOTE]
+> This callout has multiple paragraphs.
+>
+> The second paragraph is also included in the callout.
+
+## Usage
+
+Add the plugin to your unified/remark pipeline:
+
+```ts
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkRehype from 'remark-rehype';
+import rehypeStringify from 'rehype-stringify';
+import { transformMarkdownBlockquoteCallouts } from '@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts';
+
+const processor = unified()
+  .use(remarkParse)
+  .use(transformMarkdownBlockquoteCallouts)
+  .use(remarkRehype)
+  .use(rehypeStringify);
+
+const markdown = `
+> [!TIP]
+> This is a tip!
+`;
+
+const html = await processor.process(markdown);
+console.log(html.toString());
+```
+
+## Integration
+
+This plugin is included by default in the docs-infra markdown pipeline. You can also use it in any unified/remark-based project.
+
+- **Next.js/MDX**: Add to your remarkPlugins array
+- **Custom pipelines**: Use as shown above
+
+## Best Practices
+
+1. **Use only supported callout types**: Only the five types above will be recognized and styled
+2. **Start callouts at the beginning of a blockquote**: The marker must be the first text in the first paragraph
+3. **Use for notes, tips, warnings, and important info**: Reserve callouts for content that needs to stand out
+4. **Style callouts in your CSS**: Target `[data-callout-type]` attributes for custom styles
+
+## Related
+
+- [GitHub Callouts Syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) — GitHub's official callout syntax
+- [remark](https://github.com/remarkjs/remark) — Markdown processor

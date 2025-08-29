@@ -258,7 +258,12 @@ For live demos that need to run code dynamically (like the Live Demo example), y
 
 ### Using createDemoClient
 
-The simplest approach is to use an existing `createDemoClient` function:
+
+> [!NOTE]
+> Before you can use `createDemoClient` in your demos, you must first create this file in your repo using the abstract factory.
+> See the [`abstractCreateDemoClient`](../../functions/abstract-create-demo-client/page.mdx#implementation) docs for details.
+
+Once you've created your own `createDemoClient` file, you can use it in your demos as shown below:
 
 ```tsx filename=client.ts
 // demos/my-live-demo/client.ts
