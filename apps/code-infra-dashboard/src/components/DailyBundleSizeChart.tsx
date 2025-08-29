@@ -6,6 +6,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useDailyCommitHistory, DailyCommitData } from '../hooks/useDailyCommitHistory';
@@ -21,6 +22,22 @@ const CHART_COLORS = [
   '#f57c00', // Amber
   '#5d4037', // Brown
 ];
+
+/**
+ * Styled toggle button for chart controls
+ */
+const ToggleSelectButton = styled(Button)(({ theme }) => ({
+  minWidth: 'auto',
+  padding: 0,
+  fontSize: '0.75rem',
+  textDecoration: 'underline',
+  color: theme.palette.primary.main,
+  textTransform: 'none',
+  '&:disabled': {
+    color: theme.palette.text.secondary,
+    textDecoration: 'none',
+  },
+}));
 
 /**
  * Determines if a bundle name represents a top-level package
@@ -180,73 +197,53 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               <Typography variant="caption" color="text.secondary">
                 Size type:
               </Typography>
-              <Button
+              <ToggleSelectButton
                 variant="text"
                 size="small"
                 onClick={() => setSizeType('gzip')}
-                sx={{
-                  minWidth: 'auto',
-                  p: 0,
-                  fontSize: '0.75rem',
-                  textDecoration: sizeType === 'gzip' ? 'underline' : 'none',
-                  color: sizeType === 'gzip' ? 'primary.main' : 'text.secondary',
-                }}
+                disabled={sizeType === 'gzip'}
+                active={sizeType === 'gzip'}
               >
                 gzipped
-              </Button>
+              </ToggleSelectButton>
               <Typography variant="caption" color="text.secondary">
                 |
               </Typography>
-              <Button
+              <ToggleSelectButton
                 variant="text"
                 size="small"
                 onClick={() => setSizeType('parsed')}
-                sx={{
-                  minWidth: 'auto',
-                  p: 0,
-                  fontSize: '0.75rem',
-                  textDecoration: sizeType === 'parsed' ? 'underline' : 'none',
-                  color: sizeType === 'parsed' ? 'primary.main' : 'text.secondary',
-                }}
+                disabled={sizeType === 'parsed'}
+                active={sizeType === 'parsed'}
               >
                 parsed
-              </Button>
+              </ToggleSelectButton>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Typography variant="caption" color="text.secondary">
                 Y-axis:
               </Typography>
-              <Button
+              <ToggleSelectButton
                 variant="text"
                 size="small"
                 onClick={() => setYAxisStartAtZero(true)}
-                sx={{
-                  minWidth: 'auto',
-                  p: 0,
-                  fontSize: '0.75rem',
-                  textDecoration: yAxisStartAtZero ? 'underline' : 'none',
-                  color: yAxisStartAtZero ? 'primary.main' : 'text.secondary',
-                }}
+                disabled={yAxisStartAtZero}
+                active={yAxisStartAtZero}
               >
                 start at zero
-              </Button>
+              </ToggleSelectButton>
               <Typography variant="caption" color="text.secondary">
                 |
               </Typography>
-              <Button
+              <ToggleSelectButton
                 variant="text"
                 size="small"
                 onClick={() => setYAxisStartAtZero(false)}
-                sx={{
-                  minWidth: 'auto',
-                  p: 0,
-                  fontSize: '0.75rem',
-                  textDecoration: !yAxisStartAtZero ? 'underline' : 'none',
-                  color: !yAxisStartAtZero ? 'primary.main' : 'text.secondary',
-                }}
+                disabled={!yAxisStartAtZero}
+                active={!yAxisStartAtZero}
               >
                 auto scale
-              </Button>
+              </ToggleSelectButton>
             </Box>
           </Box>
         </Box>
