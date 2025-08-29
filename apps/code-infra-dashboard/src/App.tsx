@@ -1,9 +1,19 @@
 import * as React from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Link from '@mui/material/Link';
 import * as colors from '@mui/material/colors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useSearchParams,
+  Link as RouterLink,
+} from 'react-router';
 import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
@@ -171,6 +181,11 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <div>
           <BrowserRouter>
+            <Link component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+              <Typography variant="h6" component="h1">
+                Code infra dashboard
+              </Typography>
+            </Link>
             <Routes>
               <Route
                 path="/"

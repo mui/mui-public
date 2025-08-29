@@ -3,6 +3,7 @@ import { useParams } from 'react-router';
 import Box from '@mui/material/Box';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
+import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
 import { useGitHubPRs } from '../hooks/useGitHubPRs';
 
 export default function RepositoryPRs() {
@@ -27,6 +28,8 @@ export default function RepositoryPRs() {
           Bundle Size Comparisons for {owner}/{repo}
         </Box>
       </Heading>
+
+      <DailyBundleSizeChart repo={fullRepo} />
 
       <Box sx={{ mt: 3, mb: 2 }}>
         <Heading level={2}>Pull Requests</Heading>
