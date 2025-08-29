@@ -23,6 +23,9 @@ services:
     domains:
       - tools-public.mui.com
     healthCheckPath: /health-check
+    buildFilter:
+      paths:
+        - pnpm-lock.yaml
     envVars:
       - key: NODE_VERSION
         value: 22
