@@ -64,7 +64,8 @@ export default function IdleHighlightCode() {
           fontSize: '14px',
         }}
       >
-        <strong>Performance Note:</strong> This code block uses <code>highlightAt="idle"</code>
+        <strong>Performance Note:</strong> This code block uses{' '}
+        <code>highlightAt=&quot;idle&quot;</code>
         which means syntax highlighting will be applied when the browser is idle, improving initial
         page load performance for non-critical code blocks.
       </div>

@@ -3,10 +3,10 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
-import { Tabs } from '@/components/Tabs';
-import { CopyButton } from '@/components/CopyButton';
-import Select from '@/components/Select/Select';
+import { LabeledSwitch } from '../../../../components/LabeledSwitch';
+import { Tabs } from '../../../../components/Tabs';
+import { CopyButton } from '../../../../components/CopyButton';
+import Select from '../../../../components/Select/Select';
 import styles from './CodeContent.module.css';
 
 import '@wooorm/starry-night/style/light';
@@ -15,7 +15,7 @@ const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
 };
 
-export function CodeContent(props: ContentProps<{}>) {
+export function CodeContent(props: ContentProps<object>) {
   const code = useCode(props);
 
   const hasJsTransform = code.availableTransforms.includes('js');

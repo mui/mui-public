@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import { Code } from '../../../code-highlighter/demos/Code';
 

@@ -2,9 +2,9 @@ import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 
+import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import { CodeController } from './CodeController';
 import { CodeEditorContent } from './CodeEditorContent';
-import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 
 const initialCode = {
   Default: {

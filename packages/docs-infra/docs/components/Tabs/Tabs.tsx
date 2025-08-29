@@ -17,9 +17,26 @@ export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
   const clickName = React.useCallback(() => {
     onTabSelect(tabs[0].id);
   }, [onTabSelect, tabs]);
+
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onTabSelect(tabs[0].id);
+      }
+    },
+    [onTabSelect, tabs],
+  );
+
   if (tabs.length <= 1) {
     return tabs.length === 1 ? (
-      <div className={styles.name} onClick={clickName}>
+      <div
+        className={styles.name}
+        onClick={clickName}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+      >
         <span>{tabs[0].name}</span>
       </div>
     ) : null;

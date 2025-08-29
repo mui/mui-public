@@ -19,8 +19,9 @@ export function Checkbox({ defaultChecked, name = 'checkbox', className, style }
   }, []);
 
   return (
-    <label className={styles.checkbox}>
+    <label className={styles.checkbox} htmlFor={`${name}-input`}>
       <input
+        id={`${name}-input`}
         type="checkbox"
         name={name}
         checked={checked}
@@ -29,6 +30,7 @@ export function Checkbox({ defaultChecked, name = 'checkbox', className, style }
         style={style}
       />
       <span className={styles.checkmark}></span>
+      <span className="sr-only">Checkbox</span>
     </label>
   );
 }

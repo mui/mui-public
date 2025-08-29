@@ -14,7 +14,9 @@ import { DemoContent } from '../DemoContent';
 // Mock server-side loading functions
 const mockLoadCodeMeta: LoadCodeMeta = async (url: string): Promise<Code> => {
   // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 800);
+  });
 
   // test
   // Mock response based on URL
@@ -32,7 +34,9 @@ const mockLoadCodeMeta: LoadCodeMeta = async (url: string): Promise<Code> => {
 
 const mockLoadSource: LoadSource = async (url: string) => {
   // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 600);
+  });
 
   if (url.includes('weather-widget')) {
     return {

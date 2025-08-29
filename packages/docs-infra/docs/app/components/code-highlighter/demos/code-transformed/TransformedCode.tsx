@@ -7,7 +7,7 @@ import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipe
 import { DemoContent } from '../DemoContent';
 
 // Sample TypeScript component with interfaces and generics
-function GenericForm<T extends Record<string, any>>() {
+function GenericForm<T extends Record<string, unknown>>() {
   const [data, setData] = React.useState<T>({} as T);
 
   return (
@@ -19,8 +19,8 @@ function GenericForm<T extends Record<string, any>>() {
           <input
             id="name"
             type="text"
-            value={(data as any).name || ''}
-            onChange={(e) => setData((prev) => ({ ...prev, name: e.target.value }))}
+            value={((data as Record<string, unknown>).name as string) || ''}
+            onChange={(event) => setData((prev) => ({ ...prev, name: event.target.value }))}
             style={{ marginLeft: '8px', padding: '4px' }}
           />
         </div>
@@ -29,8 +29,8 @@ function GenericForm<T extends Record<string, any>>() {
           <input
             id="email"
             type="email"
-            value={(data as any).email || ''}
-            onChange={(e) => setData((prev) => ({ ...prev, email: e.target.value }))}
+            value={((data as Record<string, unknown>).email as string) || ''}
+            onChange={(event) => setData((prev) => ({ ...prev, email: event.target.value }))}
             style={{ marginLeft: '8px', padding: '4px' }}
           />
         </div>
@@ -51,13 +51,13 @@ interface FormData {
   age?: number;
 }
 
-interface GenericFormProps<T extends Record<string, any>> {
+interface GenericFormProps<T extends Record<string, unknown>> {
   initialData?: T;
   onSubmit?: (data: T) => void;
   validation?: (data: T) => string | null;
 }
 
-function GenericForm<T extends Record<string, any>>({ 
+function GenericForm<T extends Record<string, unknown>>({ 
   initialData, 
   onSubmit,
   validation 
@@ -65,8 +65,8 @@ function GenericForm<T extends Record<string, any>>({
   const [data, setData] = React.useState<T>(initialData || {} as T);
   const [error, setError] = React.useState<string | null>(null);
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     
     if (validation) {
       const validationError = validation(data);
@@ -80,7 +80,7 @@ function GenericForm<T extends Record<string, any>>({
     onSubmit?.(data);
   };
 
-  const updateField = (field: keyof T, value: any) => {
+  const updateField = (field: keyof T, value: unknown) => {
     setData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -97,8 +97,8 @@ function GenericForm<T extends Record<string, any>>({
         <input 
           id="name"
           type="text" 
-          value={(data as any).name || ''} 
-          onChange={(e) => updateField('name' as keyof T, e.target.value)}
+          value={(data as Record<string, unknown>).name as string || ''} 
+          onChange={(event) => updateField('name' as keyof T, event.target.value)}
           required
         />
       </div>
@@ -108,8 +108,8 @@ function GenericForm<T extends Record<string, any>>({
         <input 
           id="email"
           type="email" 
-          value={(data as any).email || ''} 
-          onChange={(e) => updateField('email' as keyof T, e.target.value)}
+          value={(data as Record<string, unknown>).email as string || ''} 
+          onChange={(event) => updateField('email' as keyof T, event.target.value)}
           required
         />
       </div>

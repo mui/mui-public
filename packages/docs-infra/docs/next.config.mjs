@@ -25,7 +25,7 @@ const nextConfig = {
   },
   webpack: (config, { defaultLoaders }) => {
     config.module.rules.push({
-      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/index\.ts$'),
+      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/index\\.ts$'),
       use: [
         defaultLoaders.babel,
         '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -34,7 +34,7 @@ const nextConfig = {
 
     // Client files for live demos - processes externals
     config.module.rules.push({
-      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/client\.ts$'),
+      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/client\\.ts$'),
       use: [
         defaultLoaders.babel,
         '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',

@@ -1,7 +1,8 @@
+import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import styles from './CustomContentLoading.module.css';
 
-export function CustomContentLoading(props: ContentLoadingProps<{}>) {
+export function CustomContentLoading(props: ContentLoadingProps<object>) {
   const fileNames = props.fileNames || [];
 
   return (

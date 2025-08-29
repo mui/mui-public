@@ -20,7 +20,7 @@ export default function FallbackDemo() {
           <input
             type="checkbox"
             checked={showWithFallback}
-            onChange={(e) => setShowWithFallback(e.target.checked)}
+            onChange={(event) => setShowWithFallback(event.target.checked)}
           />
           Show with loading fallback (toggle to see difference)
         </label>

@@ -25,7 +25,9 @@ export function LabeledSwitch({
     (value: string[]) => {
       if (value.length === 0) {
         return;
-      } else if (value.length === 1) {
+      }
+
+      if (value.length === 1) {
         const newChecked = value[0] === 'true';
         onCheckedChange(newChecked);
       } else {

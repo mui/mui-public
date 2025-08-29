@@ -4,12 +4,12 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { LabeledSwitch } from '../../../../../components/LabeledSwitch';
 import styles from './CodeEditorContent.module.css';
 
 import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
 
-export function CodeEditorContent(props: ContentProps<{}>) {
+export function CodeEditorContent(props: ContentProps<object>) {
   const code = useCode(props);
 
   const hasJsTransform = code.availableTransforms.includes('js');
@@ -22,9 +22,12 @@ export function CodeEditorContent(props: ContentProps<{}>) {
     [code],
   );
 
-  const onInput = React.useCallback((text: string) => {
-    code.setSource?.(text);
-  }, []);
+  const onInput = React.useCallback(
+    (text: string) => {
+      code.setSource?.(text);
+    },
+    [code],
+  );
 
   const editorRef = React.useRef(null);
 

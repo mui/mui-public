@@ -3,7 +3,7 @@ import styles from './Blockquote.module.css';
 
 type BlockquoteProps = {
   children: React.ReactNode;
-  [key: string]: any; // Allow additional props
+  [key: string]: unknown; // Allow additional props
 };
 
 const svg: Record<string, React.ReactNode> = {

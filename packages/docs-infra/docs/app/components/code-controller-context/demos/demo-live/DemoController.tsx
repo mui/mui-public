@@ -45,12 +45,15 @@ export function DemoController({ children }: { children: React.ReactNode }) {
             {} as Record<string, React.ReactNode>,
           )
         : undefined,
-    [code, setCode],
+    [code],
+  );
+
+  const contextValue = React.useMemo(
+    () => ({ code, setCode, components }),
+    [code, setCode, components],
   );
 
   return (
-    <CodeControllerContext.Provider value={{ code, setCode, components }}>
-      {children}
-    </CodeControllerContext.Provider>
+    <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
   );
 }

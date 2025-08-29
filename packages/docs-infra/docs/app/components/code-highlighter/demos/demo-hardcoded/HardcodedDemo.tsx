@@ -15,6 +15,7 @@ function Counter() {
       <h2 style={{ margin: '0 0 16px 0', color: '#333' }}>Counter: {count}</h2>
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
         <button
+          type="button"
           onClick={() => setCount(count - 1)}
           style={{
             padding: '8px 16px',
@@ -28,6 +29,7 @@ function Counter() {
           -
         </button>
         <button
+          type="button"
           onClick={() => setCount(0)}
           style={{
             padding: '8px 16px',
@@ -41,6 +43,7 @@ function Counter() {
           Reset
         </button>
         <button
+          type="button"
           onClick={() => setCount(count + 1)}
           style={{
             padding: '8px 16px',

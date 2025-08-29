@@ -21,8 +21,8 @@ export default function Select({ items, value, onValueChange }: Props) {
         <SelectParts.Positioner className={styles.Positioner} sideOffset={8}>
           <SelectParts.ScrollUpArrow className={styles.ScrollArrow} />
           <SelectParts.Popup className={styles.Popup}>
-            {items.map(({ label, value }) => (
-              <SelectParts.Item key={label} value={value} className={styles.Item}>
+            {items.map(({ label, value: itemValue }) => (
+              <SelectParts.Item key={label} value={itemValue} className={styles.Item}>
                 <SelectParts.ItemIndicator className={styles.ItemIndicator}>
                   <CheckIcon className={styles.ItemIndicatorIcon} />
                 </SelectParts.ItemIndicator>

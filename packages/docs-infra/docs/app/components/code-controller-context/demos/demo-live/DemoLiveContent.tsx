@@ -4,18 +4,18 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
-import { Tabs } from '@/components/Tabs';
+import { LabeledSwitch } from '../../../../../components/LabeledSwitch';
+import { Tabs } from '../../../../../components/Tabs';
 import styles from './DemoLiveContent.module.css';
 
 import '@wooorm/starry-night/style/light';
-import Select from '@/components/Select/Select';
+import Select from '../../../../../components/Select/Select';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
 };
 
-export function DemoLiveContent(props: ContentProps<{}>) {
+export function DemoLiveContent(props: ContentProps<object>) {
   const demo = useDemo(props);
 
   const hasJsTransform = demo.availableTransforms.includes('js');
@@ -40,9 +40,12 @@ export function DemoLiveContent(props: ContentProps<{}>) {
   );
 
   const editorRef = React.useRef(null);
-  const onChange = React.useCallback((text: string) => {
-    demo.setSource?.(text);
-  }, []);
+  const onChange = React.useCallback(
+    (text: string) => {
+      demo.setSource?.(text);
+    },
+    [demo],
+  );
   useEditable(editorRef, onChange, { indentation: 2, disabled: !demo.setSource });
 
   return (

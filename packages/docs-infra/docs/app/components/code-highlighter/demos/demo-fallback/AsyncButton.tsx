@@ -12,7 +12,9 @@ export function AsyncButton() {
     setResult('');
 
     // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 2000);
+    });
 
     setResult('Operation completed!');
     setLoading(false);
@@ -20,7 +22,7 @@ export function AsyncButton() {
 
   return (
     <div className={styles.demoContainer}>
-      <button onClick={handleClick} disabled={loading} className={styles.asyncButton}>
+      <button type="button" onClick={handleClick} disabled={loading} className={styles.asyncButton}>
         {loading ? 'Loading...' : 'Start Async Operation'}
       </button>
 

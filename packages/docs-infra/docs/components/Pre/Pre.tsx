@@ -1,11 +1,9 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { CodeContent } from '../CodeContent';
-import styles from './Pre.module.css';
 import type { CodeHighlighterProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { CodeContent } from '../CodeContent';
 
 type PreProps = {
-  children: React.ReactNode;
   'data-precompute'?: string;
 };
 
@@ -19,7 +17,9 @@ export function Pre(props: PreProps) {
     );
   }
 
-  const precompute = JSON.parse(props['data-precompute']) as CodeHighlighterProps<{}>['precompute'];
+  const precompute = JSON.parse(
+    props['data-precompute'],
+  ) as CodeHighlighterProps<object>['precompute'];
 
   return <CodeHighlighter url="file://index.js" precompute={precompute} Content={CodeContent} />;
 }
