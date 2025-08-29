@@ -1,0 +1,248 @@
+# Transform Markdown Relative Paths
+
+The `transformMarkdownRelativePaths` plugin is a Remark plugin that automatically transforms relative markdown links to work seamlessly in both development environments (VSCode, GitHub) and production builds. It strips page file extensions and converts relative paths to absolute URLs.
+
+## Features
+
+- **Page extension stripping** - Removes `/page.tsx`, `/page.jsx`, `/page.js`, `/page.mdx`, `/page.md` from URLs
+- **Relative path resolution** - Converts `./` and `../` paths to absolute URLs based on current file location
+- **Native markdown compatibility** - Works with standard markdown linking syntax
+- **Automatic integration** - Included by default when using the Next.js plugin
+
+## How It Works
+
+The plugin processes markdown links in two phases:
+
+1. **Strip page extensions** - Removes page file extensions from all URLs
+2. **Resolve relative paths** - Converts relative paths to absolute paths based on the current file's directory structure
+
+### URL Transformations
+
+| Original Link | Current File | Transformed Link |
+|---------------|--------------|------------------|
+| `./getting-started/page.mdx` | `/docs/page.mdx` | `/docs/getting-started` |
+| `../api-reference/page.tsx` | `/docs/guides/page.mdx` | `/docs/api-reference` |
+| `/components/page.tsx` | Any file | `/components` |
+| `../hooks/page.mdx#use-state` | `/docs/page.mdx` | `/hooks#use-state` |
+
+## Best Practices for Linking
+
+### Use Relative Links with page.mdx
+
+Always link to `page.mdx` files using relative paths for the best compatibility:
+
+1. **Use Relative Links for Internal Navigation**
+   - Link to sibling pages with `./sibling-page/page.mdx`
+   - Link to parent directory with `../page.mdx`
+   - Link to child directories with `./child/page.mdx`
+
+2. **Maintain GitHub Compatibility**
+   - All links work in GitHub's file browser
+   - VSCode navigation follows links correctly
+   - No broken links in raw markdown view
+
+3. **Keep Links Simple and Readable**
+   - Use clear, descriptive file names
+   - Organize content in logical directory structures
+   - Avoid deeply nested paths when possible
+
+4. **Avoid Links in Headers**
+   - Don't use markdown links within header text (h1-h6)
+   - Links in headers can interfere with anchor generation
+   - Use separate paragraphs below headers for navigation links
+
+5. **Use Function/Class Names as Link Text**
+   - When linking to functions or classes, use their actual names as the link text
+   - Example: [`validateInput`](../validate-input/page.mdx) not [Input Validator](../validate-input/page.mdx)
+   - This makes it clear what API you're referencing and improves searchability
+
+```markdown
+### Basic Example
+
+```markdown
+<!-- In /docs/getting-started/page.mdx -->
+# Getting Started
+
+Welcome to our documentation! Check out the [API Reference](../api-reference/page.mdx) 
+or explore our [Components](../components/page.mdx).
+
+For more detailed guides, see:
+- [Installation Guide](./installation/page.mdx)
+- [Configuration](./configuration/page.mdx)
+- [Troubleshooting](./troubleshooting/page.mdx)
+```
+
+### Advanced Example with Fragments
+
+```markdown
+<!-- In /docs/guides/page.mdx -->
+# User Guides
+
+## Quick Start
+
+Start with our [Getting Started](../getting-started/page.mdx) guide.
+
+## Advanced Topics
+
+Learn about:
+- [Custom Hooks](../hooks/page.mdx#custom-hooks)
+- [State Management](../state/page.mdx#management)
+- [Performance Tips](../performance/page.mdx#optimization)
+```
+
+### Directory Structure Examples
+
+Given this directory structure:
+```
+docs/app/
+├── components/
+│   ├── page.mdx
+│   ├── button/
+│   │   └── page.mdx
+│   └── input/
+│       └── page.mdx
+└── guides/
+    └── getting-started/
+        └── page.mdx
+```
+
+From `/components/input/page.mdx`:
+
+```markdown
+<!-- Link to sibling component -->
+[Button](../button/page.mdx)
+
+<!-- Link to parent components index -->
+[Components Overview](../page.mdx)
+
+<!-- Link to guides -->
+[Getting Started](../../guides/getting-started/page.mdx)
+```
+
+### Why This Approach Works
+
+1. **GitHub Compatibility** - Links work when browsing the repository on GitHub
+2. **VSCode Navigation** - Click-to-navigate works in your editor
+3. **Build-time Optimization** - Plugin transforms links for production
+4. **SEO Friendly** - Clean URLs without file extensions in production
+
+## Integration
+
+### Automatic with Next.js Plugin
+
+The plugin is automatically included when using the docs-infra Next.js plugin:
+
+```javascript
+// next.config.js
+const { withDocsInfra } = require('@mui/internal-docs-infra/next');
+
+module.exports = withDocsInfra({
+  // Your Next.js config
+});
+```
+
+### Manual Integration
+
+You can also use the plugin directly with Remark:
+
+```javascript
+import { remark } from 'remark';
+import { transformMarkdownRelativePaths } from '@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths';
+
+const processor = remark()
+  .use(transformMarkdownRelativePaths);
+
+const result = await processor.process(markdownContent);
+```
+
+## Advanced Usage
+
+### With Query Parameters and Fragments
+
+The plugin preserves query parameters and URL fragments:
+
+```markdown
+<!-- Input -->
+[API Reference](./button/page.mdx?section=props#api-table)
+
+<!-- Output (from /components/page.mdx) -->
+/components/button?section=props#api-table
+```
+
+### Nested Directory Navigation
+
+The plugin correctly handles deeply nested directory structures:
+
+```markdown
+<!-- From /components/forms/inputs/text-field/page.mdx -->
+
+<!-- Up two levels to components -->
+[Components](../../page.mdx)
+
+<!-- To sibling form component -->
+[Select](../select/page.mdx)
+
+<!-- To different top-level section -->
+[Guides](../../../guides/page.mdx)
+```
+
+## Configuration
+
+The plugin works out of the box without configuration. It automatically:
+
+- Detects the current file's location
+- Resolves relative paths based on the `/app/` directory structure  
+- Preserves absolute paths and external URLs unchanged
+- Maintains query parameters and URL fragments
+
+## Examples
+
+### Component Cross-References
+
+```markdown
+<!-- In a component documentation file -->
+This component works with [`FormProvider`](../form-provider/page.mdx) 
+and [`useValidation`](../use-validation/page.mdx) hook.
+
+For advanced usage, see the [Integration Guide](../../guides/integration/page.mdx).
+```
+
+### Function Documentation Links
+
+```markdown
+<!-- In a function documentation file -->
+This function is used by [`validateForm`](../validate-form/page.mdx) 
+and [`submitForm`](../submit-form/page.mdx).
+
+See the [Component examples](../../components/page.mdx) for usage.
+```
+
+### Index Page Navigation
+
+```markdown
+<!-- In an index/overview page -->
+## Available Components
+
+- [`Button`](./button/page.mdx) - Interactive button component
+- [`Input`](./input/page.mdx) - Text input with validation  
+- [`Form`](./form/page.mdx) - Form container with state management
+
+## Related Utilities
+
+- [`validateInput`](../utils/validate-input/page.mdx) - Input validation
+- [`formatData`](../utils/format-data/page.mdx) - Data formatting helper
+```
+
+## Benefits
+
+- **Developer Experience** - Natural markdown linking that works everywhere
+- **Maintainability** - Links remain valid as files move within the `/app/` structure
+- **Performance** - Clean URLs in production builds
+- **Accessibility** - Standard markdown link behavior for screen readers
+- **Version Control** - Easy to review link changes in diffs
+
+## Related
+
+- **Next.js Integration** - Automatic inclusion in Next.js builds
+- **Remark Pipeline** - Part of the markdown processing pipeline
+- **Markdown Standards** - Compatible with standard markdown linking syntax
