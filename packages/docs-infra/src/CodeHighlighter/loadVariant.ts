@@ -9,9 +9,9 @@ import type {
   Transforms,
   ParseSource,
   LoadSource,
-  LoadVariantMeta,
   SourceTransformers,
   LoadFileOptions,
+  LoadVariantOptions,
   Externals,
 } from './types';
 
@@ -545,17 +545,13 @@ export async function loadVariant(
   url: string | undefined,
   variantName: string,
   variant: VariantCode | string | undefined,
-  sourceParser?: Promise<ParseSource>,
-  loadSource?: LoadSource,
-  loadVariantMeta?: LoadVariantMeta,
-  sourceTransformers?: SourceTransformers,
-  options: LoadFileOptions = {},
+  options: LoadVariantOptions = {},
 ): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }> {
   if (!variant) {
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
 
-  const { globalsCode } = options;
+  const { sourceParser, loadSource, loadVariantMeta, sourceTransformers, globalsCode } = options;
 
   // Create a cache for loadSource calls scoped to this loadVariant call
   const loadSourceCache = new Map<
@@ -746,13 +742,8 @@ export async function loadVariant(
           globalsVariant.url,
           variantName,
           globalsVariant,
-          sourceParser,
-          loadSource,
-          loadVariantMeta,
-          sourceTransformers,
           { ...options, globalsCode: undefined }, // Prevent infinite recursion
         );
-
         return globalsResult;
       } catch (error) {
         throw new Error(

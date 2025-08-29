@@ -233,20 +233,13 @@ function useAllVariants({
               })
               .filter((item: any): item is VariantCode | string => Boolean(item));
 
-            return loadVariant(
-              url,
-              name,
-              loadedCode[name],
-              undefined, // sourceParser - skip parsing
+            return loadVariant(url, name, loadedCode[name], {
+              disableParsing: true,
+              disableTransforms: true,
               loadSource,
               loadVariantMeta,
-              undefined, // sourceTransformers - skip transforming
-              {
-                disableParsing: true,
-                disableTransforms: true,
-                globalsCode: globalsForVariant,
-              },
-            )
+              globalsCode: globalsForVariant,
+            })
               .then((variant) => ({ name, variant }))
               .catch((error) => ({ error }));
           }),
@@ -470,13 +463,11 @@ function useGlobalsCodeMerging({
                     originalUrl || '', // Use the original URL if available
                     variantName,
                     codeObj[variantName], // May be undefined or string
-                    undefined, // sourceParser - skip parsing for now
-                    loadSource,
-                    loadVariantMeta,
-                    undefined, // sourceTransformers - skip transforming
                     {
                       disableParsing: true,
                       disableTransforms: true,
+                      loadSource,
+                      loadVariantMeta,
                     },
                   );
                   loadedVariants[variantName] = result.code;

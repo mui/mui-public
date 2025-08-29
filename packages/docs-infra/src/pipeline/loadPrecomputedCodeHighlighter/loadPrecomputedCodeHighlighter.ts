@@ -91,11 +91,11 @@ export async function loadPrecomputedCodeHighlighter(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,
-            sourceParser, // For syntax highlighting
-            loadSource, // For loading source files and dependencies
-            undefined,
-            sourceTransformers, // For TypeScript to JavaScript conversion
             {
+              sourceParser, // For syntax highlighting
+              loadSource, // For loading source files and dependencies
+              loadVariantMeta: undefined,
+              sourceTransformers, // For TypeScript to JavaScript conversion
               maxDepth: 5,
             },
           );

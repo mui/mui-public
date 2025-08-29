@@ -214,11 +214,13 @@ export const transformHtmlCode: Plugin = () => {
                       undefined, // url - not needed for inline code
                       variantName,
                       variantData,
-                      sourceParser,
-                      undefined, // loadSource - not needed since we have the data
-                      undefined, // loadVariantMeta - not needed since we have the data
-                      sourceTransformers,
-                      { disableTransforms: variantData.skipTransforms || false },
+                      {
+                        sourceParser,
+                        loadSource: undefined, // loadSource - not needed since we have the data
+                        loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
+                        sourceTransformers,
+                        disableTransforms: variantData.skipTransforms || false,
+                      },
                     );
 
                     return { variantName, processedVariant: result.code };

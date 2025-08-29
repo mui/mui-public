@@ -212,16 +212,13 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         }
       }
 
-      return loadVariant(
-        variantUrl,
-        variantName,
-        variantCode,
-        props.sourceParser,
-        props.loadSource,
-        props.loadVariantMeta,
-        props.sourceTransformers,
-        { globalsCode: resolvedGlobalsCode },
-      )
+      return loadVariant(variantUrl, variantName, variantCode, {
+        sourceParser: props.sourceParser,
+        loadSource: props.loadSource,
+        loadVariantMeta: props.loadVariantMeta,
+        sourceTransformers: props.sourceTransformers,
+        globalsCode: resolvedGlobalsCode,
+      })
         .then((variant) => ({ name: variantName, variant }))
         .catch((error) => ({ error }));
     }),

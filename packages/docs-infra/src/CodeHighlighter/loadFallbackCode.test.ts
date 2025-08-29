@@ -46,198 +46,189 @@ describe('loadFallbackCode', () => {
 
     // Setup default mock behavior for loadVariant to return the input variant
     // with globalsCode processing simulated
-    mockLoadVariant.mockImplementation(
-      async (
-        url,
-        variant,
-        variantCode,
-        sourceParser,
-        loadSource,
-        loadVariantMeta,
-        sourceTransformers,
-        options,
-      ) => {
-        // If variantCode is a string, we need to resolve it first using loadVariantMeta
-        let processedVariant: VariantCode;
+    mockLoadVariant.mockImplementation(async (url, variantName, variantCode, options = {}) => {
+      const { loadSource, loadVariantMeta } = options;
 
-        if (typeof variantCode === 'string') {
-          if (loadVariantMeta) {
-            // Call the actual loadVariantMeta function that was passed in
-            processedVariant = await loadVariantMeta(variant, variantCode);
-          } else {
-            // Fallback to basic variant
-            processedVariant = {
-              url: variantCode,
-              fileName: 'App.tsx',
-              source: 'fallback source',
-            };
-          }
+      // If variantCode is a string, we need to resolve it first using loadVariantMeta
+      let processedVariant: VariantCode;
+
+      if (typeof variantCode === 'string') {
+        if (loadVariantMeta) {
+          // Call the actual loadVariantMeta function that was passed in
+          processedVariant = await loadVariantMeta(variantName, variantCode);
         } else {
-          // variantCode is already a VariantCode object
-          processedVariant = variantCode as VariantCode;
-        }
-
-        // If the processed variant is missing its source and has a URL, load it
-        if (
-          !processedVariant.source &&
-          processedVariant.url &&
-          loadSource &&
-          mockLoadSource.getMockImplementation()
-        ) {
-          const loadedContent = await loadSource(processedVariant.url);
+          // Fallback to basic variant
           processedVariant = {
-            ...processedVariant,
-            source: loadedContent.source,
+            url: variantCode,
+            fileName: 'App.tsx',
+            source: 'fallback source',
           };
         }
+      } else {
+        // variantCode is already a VariantCode object
+        processedVariant = variantCode as VariantCode;
+      }
 
-        // Process the main variant's extraFiles (call loadSource for URL strings)
-        if (processedVariant.extraFiles) {
-          const processedExtraFiles = { ...processedVariant.extraFiles };
-          await Promise.all(
-            Object.entries(processedVariant.extraFiles).map(async ([fileName, fileContent]) => {
-              if (
-                typeof fileContent === 'string' &&
-                loadSource &&
-                mockLoadSource.getMockImplementation()
-              ) {
-                // String URL - call loadSource to resolve it
-                const loadedContent = await loadSource(fileContent);
-                processedExtraFiles[fileName] = {
-                  source: loadedContent.source,
-                };
-              }
-              // Otherwise keep the file as-is (object with source)
-            }),
-          );
+      // If the processed variant is missing its source and has a URL, load it
+      if (
+        !processedVariant.source &&
+        processedVariant.url &&
+        loadSource &&
+        mockLoadSource.getMockImplementation()
+      ) {
+        const loadedContent = await loadSource(processedVariant.url);
+        processedVariant = {
+          ...processedVariant,
+          source: loadedContent.source,
+        };
+      }
 
-          processedVariant = {
-            ...processedVariant,
-            extraFiles: processedExtraFiles,
-          };
-        }
-
-        if (options?.globalsCode && Array.isArray(options.globalsCode)) {
-          // Simulate merging globalsCode extraFiles into the variant
-          const mergedExtraFiles = { ...processedVariant.extraFiles };
-          const existingFiles = new Set(Object.keys(mergedExtraFiles));
-
-          // Helper function to generate conflict-free filenames (mimics loadVariant logic)
-          const generateConflictFreeFilename = (originalFilename: string): string => {
-            if (!existingFiles.has(originalFilename)) {
-              return originalFilename;
+      // Process the main variant's extraFiles (call loadSource for URL strings)
+      if (processedVariant.extraFiles) {
+        const processedExtraFiles = { ...processedVariant.extraFiles };
+        await Promise.all(
+          Object.entries(processedVariant.extraFiles).map(async ([fileName, fileContent]) => {
+            if (
+              typeof fileContent === 'string' &&
+              loadSource &&
+              mockLoadSource.getMockImplementation()
+            ) {
+              // String URL - call loadSource to resolve it
+              const loadedContent = await loadSource(fileContent);
+              processedExtraFiles[fileName] = {
+                source: loadedContent.source,
+              };
             }
+            // Otherwise keep the file as-is (object with source)
+          }),
+        );
 
-            const globalFilename = `global_${originalFilename}`;
-            if (!existingFiles.has(globalFilename)) {
-              return globalFilename;
-            }
+        processedVariant = {
+          ...processedVariant,
+          extraFiles: processedExtraFiles,
+        };
+      }
 
-            // Split filename into name and extension for proper numbering
-            const lastDotIndex = originalFilename.lastIndexOf('.');
-            let nameWithoutExt: string;
-            let extension: string;
+      if (options.globalsCode && Array.isArray(options.globalsCode)) {
+        // Simulate merging globalsCode extraFiles into the variant
+        const mergedExtraFiles = { ...processedVariant.extraFiles };
+        const existingFiles = new Set(Object.keys(mergedExtraFiles));
 
-            if (lastDotIndex === -1 || lastDotIndex === 0) {
-              nameWithoutExt = originalFilename;
-              extension = '';
-            } else {
-              nameWithoutExt = originalFilename.substring(0, lastDotIndex);
-              extension = originalFilename.substring(lastDotIndex);
-            }
+        // Helper function to generate conflict-free filenames (mimics loadVariant logic)
+        const generateConflictFreeFilename = (originalFilename: string): string => {
+          if (!existingFiles.has(originalFilename)) {
+            return originalFilename;
+          }
 
-            let counter = 1;
-            let candidateName: string;
-            do {
-              candidateName = `global_${nameWithoutExt}_${counter}${extension}`;
-              counter += 1;
-            } while (existingFiles.has(candidateName));
+          const globalFilename = `global_${originalFilename}`;
+          if (!existingFiles.has(globalFilename)) {
+            return globalFilename;
+          }
 
-            return candidateName;
-          };
+          // Split filename into name and extension for proper numbering
+          const lastDotIndex = originalFilename.lastIndexOf('.');
+          let nameWithoutExt: string;
+          let extension: string;
 
-          await Promise.all(
-            options.globalsCode.map(async (globalVariant) => {
-              if (typeof globalVariant === 'string') {
-                // String URL - call loadVariantMeta to resolve it
-                if (loadVariantMeta && mockLoadVariantMeta.getMockImplementation()) {
-                  const resolvedVariant = await loadVariantMeta('default', globalVariant);
-                  if (resolvedVariant && resolvedVariant.extraFiles) {
-                    await Promise.all(
-                      Object.entries(resolvedVariant.extraFiles).map(
-                        async ([fileName, fileContent]) => {
-                          const conflictFreeFilename = generateConflictFreeFilename(fileName);
+          if (lastDotIndex === -1 || lastDotIndex === 0) {
+            nameWithoutExt = originalFilename;
+            extension = '';
+          } else {
+            nameWithoutExt = originalFilename.substring(0, lastDotIndex);
+            extension = originalFilename.substring(lastDotIndex);
+          }
 
-                          if (typeof fileContent === 'string') {
-                            // String URL in resolved variant - call loadSource to resolve it
-                            if (loadSource && mockLoadSource.getMockImplementation()) {
-                              const loadedContent = await loadSource(fileContent);
-                              mergedExtraFiles[conflictFreeFilename] = {
-                                source: loadedContent.source,
-                                metadata: true,
-                              };
-                            } else {
-                              // Fallback if no loadSource
-                              mergedExtraFiles[conflictFreeFilename] = fileContent;
-                            }
-                          } else {
-                            // Object with source - mark globalsCode files with metadata: true
+          let counter = 1;
+          let candidateName: string;
+          do {
+            candidateName = `global_${nameWithoutExt}_${counter}${extension}`;
+            counter += 1;
+          } while (existingFiles.has(candidateName));
+
+          return candidateName;
+        };
+
+        await Promise.all(
+          options.globalsCode.map(async (globalVariant) => {
+            if (typeof globalVariant === 'string') {
+              // String URL - call loadVariantMeta to resolve it
+              if (loadVariantMeta && mockLoadVariantMeta.getMockImplementation()) {
+                const resolvedVariant = await loadVariantMeta('default', globalVariant);
+                if (resolvedVariant && resolvedVariant.extraFiles) {
+                  await Promise.all(
+                    Object.entries(resolvedVariant.extraFiles).map(
+                      async ([fileName, fileContent]) => {
+                        const conflictFreeFilename = generateConflictFreeFilename(fileName);
+
+                        if (typeof fileContent === 'string') {
+                          // String URL in resolved variant - call loadSource to resolve it
+                          if (loadSource && mockLoadSource.getMockImplementation()) {
+                            const loadedContent = await loadSource(fileContent);
                             mergedExtraFiles[conflictFreeFilename] = {
-                              ...fileContent,
+                              source: loadedContent.source,
                               metadata: true,
                             };
+                          } else {
+                            // Fallback if no loadSource
+                            mergedExtraFiles[conflictFreeFilename] = fileContent;
                           }
-                          existingFiles.add(conflictFreeFilename);
-                        },
-                      ),
-                    );
-                  }
+                        } else {
+                          // Object with source - mark globalsCode files with metadata: true
+                          mergedExtraFiles[conflictFreeFilename] = {
+                            ...fileContent,
+                            metadata: true,
+                          };
+                        }
+                        existingFiles.add(conflictFreeFilename);
+                      },
+                    ),
+                  );
                 }
-              } else if (typeof globalVariant === 'object' && globalVariant.extraFiles) {
-                // VariantCode object - merge extraFiles with conflict resolution
-                await Promise.all(
-                  Object.entries(globalVariant.extraFiles).map(async ([fileName, fileContent]) => {
-                    const conflictFreeFilename = generateConflictFreeFilename(fileName);
+              }
+            } else if (typeof globalVariant === 'object' && globalVariant.extraFiles) {
+              // VariantCode object - merge extraFiles with conflict resolution
+              await Promise.all(
+                Object.entries(globalVariant.extraFiles).map(async ([fileName, fileContent]) => {
+                  const conflictFreeFilename = generateConflictFreeFilename(fileName);
 
-                    if (typeof fileContent === 'string') {
-                      // String URL - call loadSource to resolve it
-                      if (loadSource && mockLoadSource.getMockImplementation()) {
-                        const loadedContent = await loadSource(fileContent);
-                        mergedExtraFiles[conflictFreeFilename] = {
-                          source: loadedContent.source,
-                          metadata: true,
-                        };
-                      } else {
-                        // Fallback if no loadSource
-                        mergedExtraFiles[conflictFreeFilename] = fileContent;
-                      }
-                    } else {
-                      // Object with source - mark globalsCode files with metadata: true
+                  if (typeof fileContent === 'string') {
+                    // String URL - call loadSource to resolve it
+                    if (loadSource && mockLoadSource.getMockImplementation()) {
+                      const loadedContent = await loadSource(fileContent);
                       mergedExtraFiles[conflictFreeFilename] = {
-                        ...fileContent,
+                        source: loadedContent.source,
                         metadata: true,
                       };
+                    } else {
+                      // Fallback if no loadSource
+                      mergedExtraFiles[conflictFreeFilename] = fileContent;
                     }
-                    existingFiles.add(conflictFreeFilename);
-                  }),
-                );
-              }
-            }),
-          );
+                  } else {
+                    // Object with source - mark globalsCode files with metadata: true
+                    mergedExtraFiles[conflictFreeFilename] = {
+                      ...fileContent,
+                      metadata: true,
+                    };
+                  }
+                  existingFiles.add(conflictFreeFilename);
+                }),
+              );
+            }
+          }),
+        );
 
-          processedVariant = {
-            ...processedVariant,
-            extraFiles: mergedExtraFiles,
-          };
-        }
-
-        return {
-          code: processedVariant,
-          dependencies: [],
-          externals: {},
+        processedVariant = {
+          ...processedVariant,
+          extraFiles: mergedExtraFiles,
         };
-      },
-    );
+      }
+
+      return {
+        code: processedVariant,
+        dependencies: [],
+        externals: {},
+      };
+    });
   });
 
   describe('Early return optimization with allFilesListed', () => {
@@ -1964,13 +1955,13 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         variantCode,
-        expect.any(Promise),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        undefined,
         expect.objectContaining({
           disableTransforms: true,
           disableParsing: true,
+          sourceParser: expect.any(Promise),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
           globalsCode: expect.arrayContaining([
             expect.objectContaining({
               fileName: 'global-theme.css',
@@ -2149,11 +2140,11 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'javascript',
         jsVariant,
-        expect.any(Promise),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        undefined,
         expect.objectContaining({
+          sourceParser: expect.any(Promise),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
           globalsCode: expectedJavascriptGlobalsCode,
         }),
       );
@@ -2162,13 +2153,13 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'typescript',
         'http://example.com/typescript', // URL string, not VariantCode object
-        expect.any(Promise),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        undefined,
         expect.objectContaining({
           disableTransforms: true,
           disableParsing: true,
+          sourceParser: expect.any(Promise),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
           globalsCode: expectedTypescriptGlobalsCode,
         }),
       );

@@ -224,6 +224,20 @@ export interface LoadFileOptions {
 }
 
 /**
+ * Options for the loadVariant function, extending LoadFileOptions with required function dependencies
+ */
+export interface LoadVariantOptions extends LoadFileOptions {
+  /** Promise resolving to a source parser for syntax highlighting */
+  sourceParser?: Promise<ParseSource>;
+  /** Function to load raw source code and dependencies */
+  loadSource?: LoadSource;
+  /** Function to load specific variant metadata */
+  loadVariantMeta?: LoadVariantMeta;
+  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  sourceTransformers?: SourceTransformers;
+}
+
+/**
  * Main props for the CodeHighlighter component.
  * Supports both build-time precomputation and runtime code loading with extensive customization options.
  * Generic type T allows for custom props to be passed to Content and ContentLoading components.
