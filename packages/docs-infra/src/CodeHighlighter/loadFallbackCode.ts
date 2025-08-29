@@ -1,12 +1,10 @@
 import type {
   Code,
   VariantExtraFiles,
-  ParseSource,
-  LoadSource,
-  LoadVariantMeta,
   VariantSource,
-  LoadCodeMeta,
   VariantCode,
+  LoadFallbackCodeOptions,
+  LoadSource,
 } from './types';
 import { loadVariant } from './loadVariant';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils';
@@ -67,17 +65,20 @@ export async function loadFallbackCode(
   url: string,
   initialVariant: string,
   loaded: Code | undefined,
-  shouldHighlight?: boolean,
-  fallbackUsesExtraFiles?: boolean,
-  fallbackUsesAllVariants?: boolean,
-  sourceParser?: Promise<ParseSource>,
-  loadSource?: LoadSource,
-  loadVariantMeta?: LoadVariantMeta,
-  loadCodeMeta?: LoadCodeMeta,
-  initialFilename?: string,
-  variants?: string[],
-  globalsCode?: Array<Code | string>,
+  options: LoadFallbackCodeOptions = {},
 ): Promise<FallbackVariants> {
+  const {
+    shouldHighlight,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    sourceParser,
+    loadSource,
+    loadVariantMeta,
+    loadCodeMeta,
+    initialFilename,
+    variants,
+    globalsCode,
+  } = options;
   loaded = { ...loaded };
 
   // Step 1: Ensure we have the initial variant loaded
@@ -310,20 +311,15 @@ export async function loadFallbackCode(
   }
 
   try {
-    const { code: loadedVariant } = await loadVariant(
-      url,
-      initialVariant,
-      initial,
+    const { code: loadedVariant } = await loadVariant(url, initialVariant, initial, {
       sourceParser,
       loadSource,
       loadVariantMeta,
-      undefined, // sourceTransformers - skip transforms for fallback
-      {
-        disableTransforms: true, // Don't apply transforms for fallback
-        disableParsing: !shouldHighlight, // Only parse if highlighting is needed
-        globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
-      },
-    );
+      sourceTransformers: undefined, // sourceTransformers - skip transforms for fallback
+      disableTransforms: true, // Don't apply transforms for fallback
+      disableParsing: !shouldHighlight, // Only parse if highlighting is needed
+      globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
+    });
 
     // Update the loaded code with the processed variant
     loaded = { ...loaded, [initialVariant]: loadedVariant };
@@ -381,34 +377,29 @@ export async function loadFallbackCode(
         }
 
         try {
-          const { code: loadedVariant } = await loadVariant(
-            url,
-            variantName,
-            variant,
+          const { code: loadedVariant } = await loadVariant(url, variantName, variant, {
             sourceParser,
             loadSource,
             loadVariantMeta,
-            undefined, // sourceTransformers
-            {
-              disableTransforms: true,
-              disableParsing: !shouldHighlight,
-              globalsCode:
-                globalsCodeObjects && globalsCodeObjects.length > 0
-                  ? (() => {
-                      // Convert globalsCodeObjects to VariantCode | string for this specific variant
-                      const variantGlobalsCode: Array<VariantCode | string> = [];
-                      for (const codeObj of globalsCodeObjects) {
-                        // Only use the variant that matches the current variantName
-                        const targetVariant = codeObj[variantName];
-                        if (targetVariant) {
-                          variantGlobalsCode.push(targetVariant);
-                        }
+            sourceTransformers: undefined, // sourceTransformers
+            disableTransforms: true,
+            disableParsing: !shouldHighlight,
+            globalsCode:
+              globalsCodeObjects && globalsCodeObjects.length > 0
+                ? (() => {
+                    // Convert globalsCodeObjects to VariantCode | string for this specific variant
+                    const variantGlobalsCode: Array<VariantCode | string> = [];
+                    for (const codeObj of globalsCodeObjects) {
+                      // Only use the variant that matches the current variantName
+                      const targetVariant = codeObj[variantName];
+                      if (targetVariant) {
+                        variantGlobalsCode.push(targetVariant);
                       }
-                      return variantGlobalsCode;
-                    })()
-                  : undefined,
-            },
-          );
+                    }
+                    return variantGlobalsCode;
+                  })()
+                : undefined,
+          });
 
           // Collect file names from this variant
           const fileNames = loadedVariant.fileName ? [loadedVariant.fileName] : [];

@@ -83,7 +83,7 @@ function createClientProps<T extends {}>(
     slug: props.slug,
     url: props.url,
     variantType: props.variantType,
-    ...(props.contentProps || {}),
+    ...props.contentProps,
   } as ContentProps<T>;
 
   const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
@@ -212,16 +212,13 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         }
       }
 
-      return loadVariant(
-        variantUrl,
-        variantName,
-        variantCode,
-        props.sourceParser,
-        props.loadSource,
-        props.loadVariantMeta,
-        props.sourceTransformers,
-        { globalsCode: resolvedGlobalsCode },
-      )
+      return loadVariant(variantUrl, variantName, variantCode, {
+        sourceParser: props.sourceParser,
+        loadSource: props.loadSource,
+        loadVariantMeta: props.loadVariantMeta,
+        sourceTransformers: props.sourceTransformers,
+        globalsCode: resolvedGlobalsCode,
+      })
         .then((variant) => ({ name: variantName, variant }))
         .catch((error) => ({ error }));
     }),
@@ -347,21 +344,18 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     return <ErrorHandler errors={[new Error('URL is required for loading initial source')]} />;
   }
 
-  const loaded = await loadFallbackCode(
-    props.url,
-    props.initialVariant,
-    props.code,
-    props.highlightAt === 'init',
-    props.fallbackUsesExtraFiles,
-    props.fallbackUsesAllVariants,
-    props.sourceParser,
-    props.loadSource,
-    props.loadVariantMeta,
-    props.loadCodeMeta,
-    props.fileName,
-    props.variants,
-    props.globalsCode,
-  ).catch((error) => ({ error }));
+  const loaded = await loadFallbackCode(props.url, props.initialVariant, props.code, {
+    shouldHighlight: props.highlightAt === 'init',
+    fallbackUsesExtraFiles: props.fallbackUsesExtraFiles,
+    fallbackUsesAllVariants: props.fallbackUsesAllVariants,
+    sourceParser: props.sourceParser,
+    loadSource: props.loadSource,
+    loadVariantMeta: props.loadVariantMeta,
+    loadCodeMeta: props.loadCodeMeta,
+    initialFilename: props.fileName,
+    variants: props.variants,
+    globalsCode: props.globalsCode,
+  }).catch((error) => ({ error }));
   if ('error' in loaded) {
     return <ErrorHandler errors={[loaded.error]} />;
   }

@@ -6,6 +6,12 @@ import { CodeContext } from './CodeContext';
 import { LoadCodeMeta, LoadSource, LoadVariantMeta, ParseSource } from '../CodeHighlighter';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
+// Import the heavy functions
+import { loadFallbackCode } from '../CodeHighlighter/loadFallbackCode';
+import { loadVariant } from '../CodeHighlighter/loadVariant';
+import { parseCode } from '../CodeHighlighter/parseCode';
+import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
+import { applyTransforms, getAvailableTransforms } from '../CodeHighlighter/transformCode';
 
 export function CodeProvider({
   children,
@@ -66,6 +72,13 @@ export function CodeProvider({
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
+      // Provide the heavy functions
+      loadFallbackCode,
+      loadVariant,
+      parseCode,
+      parseControlledCode,
+      applyTransforms,
+      getAvailableTransforms,
     }),
     [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta],
   );

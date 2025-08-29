@@ -127,11 +127,8 @@ export async function loadPrecomputedCodeHighlighterClient(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,
-            undefined, // No highlighting needs to get the externals
-            loadSource, // For loading source files and dependencies
-            undefined,
-            undefined, // No transforms for client
             {
+              loadSource, // For loading source files and dependencies
               maxDepth: 5,
               disableParsing: true,
               disableTransforms: true,
