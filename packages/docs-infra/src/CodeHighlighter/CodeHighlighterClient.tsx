@@ -6,15 +6,10 @@ import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from '.
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { CodeErrorsContext } from '../useErrors/ErrorsContext';
 import { maybeInitialData } from './maybeInitialData';
-import { loadFallbackCode } from './loadFallbackCode';
 import { hasAllVariants } from './hasAllVariants';
-import { loadVariant } from './loadVariant';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
-import { parseCode } from './parseCode';
-import { applyTransforms, getAvailableTransforms } from './transformCode';
-import { parseControlledCode } from './parseControlledCode';
 import { useOnHydrate } from '../useOnHydrate';
 import { useOnIdle } from '../useOnIdle';
 import { mergeMetadata } from './mergeMetadata';
@@ -50,7 +45,8 @@ function useInitialData({
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
   setErrors: React.Dispatch<React.SetStateAction<Error[]>>;
 }) {
-  const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
+  const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource, loadFallbackCode } =
+    useCodeContext();
 
   const { initialData, reason } = React.useMemo(
     () =>
@@ -91,6 +87,15 @@ function useInitialData({
       return;
     }
 
+    if (!loadFallbackCode) {
+      const missingError = new Error(
+        'loadFallbackCode function is required but not provided in CodeProvider',
+      );
+      console.error('CodeHighlighterClient: loadFallbackCode is required', missingError);
+      setErrors((prev) => [...prev, missingError]);
+      return;
+    }
+
     // TODO: abort controller
 
     (async () => {
@@ -110,7 +115,7 @@ function useInitialData({
         initialFilename: fileName,
         variants,
         globalsCode, // Let loadFallbackCode handle processing
-      }).catch((error) => ({ error }));
+      }).catch((error: any) => ({ error }));
 
       if ('error' in loaded) {
         setErrors((prev) => [...prev, loaded.error]);
@@ -142,6 +147,7 @@ function useInitialData({
     globalsCode,
     setProcessedGlobalsCode,
     setErrors,
+    loadFallbackCode,
   ]);
 }
 
@@ -168,7 +174,7 @@ function useAllVariants({
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
   setErrors: React.Dispatch<React.SetStateAction<Error[]>>;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource } = useCodeContext();
+  const { loadCodeMeta, loadVariantMeta, loadSource, loadVariant } = useCodeContext();
 
   React.useEffect(() => {
     if (readyForContent || isControlled) {
@@ -177,6 +183,15 @@ function useAllVariants({
 
     if (!url) {
       // URL is required for loading variants
+      return;
+    }
+
+    if (!loadVariant) {
+      const missingError = new Error(
+        'loadVariant function is required but not provided in CodeProvider',
+      );
+      console.error('CodeHighlighterClient: loadVariant is required', missingError);
+      setErrors((prev) => [...prev, missingError]);
       return;
     }
 
@@ -237,8 +252,8 @@ function useAllVariants({
               loadVariantMeta,
               globalsCode: globalsForVariant,
             })
-              .then((variant) => ({ name, variant }))
-              .catch((error) => ({ error }));
+              .then((variant: any) => ({ name, variant }))
+              .catch((error: any) => ({ error }));
           }),
         );
 
@@ -278,6 +293,7 @@ function useAllVariants({
     globalsCode,
     setProcessedGlobalsCode,
     setErrors,
+    loadVariant,
   ]);
 
   return { readyForContent };
@@ -292,7 +308,7 @@ function useCodeParsing({
   readyForContent: boolean;
   highlightAt?: 'init' | 'hydration' | 'idle';
 }) {
-  const { parseSource } = useCodeContext();
+  const { parseSource, parseCode } = useCodeContext();
 
   // Use timing hooks to determine when to highlight
   const isHydrated = useOnHydrate();
@@ -317,12 +333,12 @@ function useCodeParsing({
 
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
-    if (!code || !shouldHighlight || !parseSource) {
+    if (!code || !shouldHighlight || !parseSource || !parseCode) {
       return undefined;
     }
 
     return parseCode(code, parseSource);
-  }, [code, shouldHighlight, parseSource]);
+  }, [code, shouldHighlight, parseSource, parseCode]);
 
   const deferHighlight = !shouldHighlight;
 
@@ -336,17 +352,20 @@ function useCodeTransforms({
   parsedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser } = useCodeContext();
+  const { sourceParser, getAvailableTransforms, applyTransforms } = useCodeContext();
   const [transformedCode, setTransformedCode] = React.useState<Code | undefined>(undefined);
 
   // Get available transforms from the current variant (separate memo for efficiency)
   const availableTransforms = React.useMemo(() => {
+    if (!getAvailableTransforms) {
+      return [];
+    }
     return getAvailableTransforms(parsedCode, variantName);
-  }, [parsedCode, variantName]);
+  }, [parsedCode, variantName, getAvailableTransforms]);
 
   // Effect to compute transformations for all variants
   React.useEffect(() => {
-    if (!parsedCode || !sourceParser) {
+    if (!parsedCode || !sourceParser || !applyTransforms) {
       setTransformedCode(parsedCode);
       return;
     }
@@ -362,22 +381,22 @@ function useCodeTransforms({
         setTransformedCode(parsedCode);
       }
     })();
-  }, [parsedCode, sourceParser]);
+  }, [parsedCode, sourceParser, applyTransforms]);
 
   return { transformedCode, availableTransforms };
 }
 
 function useControlledCodeParsing({ controlledCode }: { controlledCode?: ControlledCode }) {
-  const { parseSource } = useCodeContext();
+  const { parseSource, parseControlledCode } = useCodeContext();
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
-    if (!controlledCode || !parseSource) {
+    if (!controlledCode || !parseSource || !parseControlledCode) {
       return undefined;
     }
 
     return parseControlledCode(controlledCode, parseSource);
-  }, [controlledCode, parseSource]);
+  }, [controlledCode, parseSource, parseControlledCode]);
 
   return { parsedControlledCode };
 }
@@ -397,7 +416,7 @@ function useGlobalsCodeMerging({
   readyForContent: boolean;
   variants: string[];
 }) {
-  const { loadCodeMeta, loadSource, loadVariantMeta } = useCodeContext();
+  const { loadCodeMeta, loadSource, loadVariantMeta, loadVariant } = useCodeContext();
 
   // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
   React.useEffect(() => {
@@ -417,6 +436,11 @@ function useGlobalsCodeMerging({
         return;
       }
       // If not all ready, fall through to loading logic below
+    }
+
+    if (!loadVariant) {
+      console.warn('loadVariant function is required for loading missing variants in globalsCode');
+      return;
     }
 
     // Need to load string URLs or load missing variants
@@ -492,6 +516,7 @@ function useGlobalsCodeMerging({
     loadSource,
     loadVariantMeta,
     variants,
+    loadVariant,
   ]);
 
   // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)
