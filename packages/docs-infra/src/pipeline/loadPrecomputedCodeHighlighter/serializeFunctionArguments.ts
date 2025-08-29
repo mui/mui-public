@@ -1,10 +1,10 @@
 /**
- * Utility function for serializing structured function parameters back to string format
- * This is the inverse of parseFunctionParameters - it takes structured data and creates
- * valid JavaScript/TypeScript function call parameters.
+ * Utility function for serializing structured function arguments back to string format
+ * This is the inverse of parseFunctionArguments - it takes structured data and creates
+ * valid JavaScript/TypeScript function call arguments.
  */
 
-import type { SplitParameters } from './parseFunctionParameters';
+import type { SplitArguments } from './parseFunctionArguments';
 import {
   isArray,
   isFunction,
@@ -12,103 +12,103 @@ import {
   isArrowFunction,
   isObjectLiteral,
   isTypeAssertion,
-} from './parseFunctionParameters';
+} from './parseFunctionArguments';
 
 /**
- * Serialize structured parameters back to a string representation
+ * Serialize structured arguments back to a string representation
  * Uses JSON.stringify for object values for performance and reliability
  */
-export function serializeFunctionParameters(parameters: SplitParameters): string {
-  return parameters.map((param) => serializeParameter(param)).join(', ');
+export function serializeFunctionArguments(args: SplitArguments): string {
+  return args.map((arg) => serializeArgument(arg)).join(', ');
 }
 
 /**
- * Serialize a single parameter based on its type
+ * Serialize a single argument based on its type
  */
-function serializeParameter(param: any): string {
-  if (typeof param === 'string') {
-    return param;
+function serializeArgument(arg: any): string {
+  if (typeof arg === 'string') {
+    return arg;
   }
 
-  if (typeof param === 'number' || typeof param === 'boolean' || param === null) {
-    return String(param);
+  if (typeof arg === 'number' || typeof arg === 'boolean' || arg === null) {
+    return String(arg);
   }
 
   // Check structured types using type guards
-  const arrayCheck = isArray(param);
+  const arrayCheck = isArray(arg);
   if (arrayCheck) {
-    return `[${arrayCheck.items.map((item) => serializeParameter(item)).join(', ')}]`;
+    return `[${arrayCheck.items.map((item) => serializeArgument(item)).join(', ')}]`;
   }
 
-  const functionCheck = isFunction(param);
+  const functionCheck = isFunction(arg);
   if (functionCheck) {
-    const params = functionCheck.parameters.map((p) => serializeParameter(p)).join(', ');
-    return `${functionCheck.name}(${params})`;
+    const args = functionCheck.arguments.map((p) => serializeArgument(p)).join(', ');
+    return `${functionCheck.name}(${args})`;
   }
 
-  const genericCheck = isGeneric(param);
+  const genericCheck = isGeneric(arg);
   if (genericCheck) {
-    const generics = genericCheck.generics.map((g) => serializeParameter(g)).join(', ');
-    if (genericCheck.parameters === null) {
+    const generics = genericCheck.generics.map((g) => serializeArgument(g)).join(', ');
+    if (genericCheck.arguments === null) {
       // Type generic like Theme<"dark" | "light">
       return `${genericCheck.name}<${generics}>`;
     }
-    // Function generic like Component<Props>(args) - only add () if there are actual parameters
-    if (genericCheck.parameters.length > 0) {
-      const params = genericCheck.parameters.map((p) => serializeParameter(p)).join(', ');
-      return `${genericCheck.name}<${generics}>(${params})`;
+    // Function generic like Component<Props>(args) - only add () if there are actual arguments
+    if (genericCheck.arguments.length > 0) {
+      const args = genericCheck.arguments.map((p) => serializeArgument(p)).join(', ');
+      return `${genericCheck.name}<${generics}>(${args})`;
     }
     // Generic without function call - like Component<Props>
     return `${genericCheck.name}<${generics}>`;
   }
 
-  const arrowCheck = isArrowFunction(param);
+  const arrowCheck = isArrowFunction(arg);
   if (arrowCheck) {
-    const params = arrowCheck.params.map((p) => serializeParameter(p)).join(', ');
-    const paramStr = arrowCheck.params.length === 1 ? params : `(${params})`;
+    const args = arrowCheck.args.map((p) => serializeArgument(p)).join(', ');
+    const argStr = arrowCheck.args.length === 1 ? args : `(${args})`;
 
     if (arrowCheck.types) {
       // Typed arrow function
       const [inputTypes, outputTypes] = arrowCheck.types;
       const inputTypeStr = Array.isArray(inputTypes) ? inputTypes.join(', ') : inputTypes;
-      return `(${params}: ${inputTypeStr}): ${outputTypes} => ${serializeParameter(arrowCheck.returnValue)}`;
+      return `(${args}: ${inputTypeStr}): ${outputTypes} => ${serializeArgument(arrowCheck.returnValue)}`;
     }
     // Simple arrow function
-    return `${paramStr} => ${serializeParameter(arrowCheck.returnValue)}`;
+    return `${argStr} => ${serializeArgument(arrowCheck.returnValue)}`;
   }
 
-  const typeAssertionCheck = isTypeAssertion(param);
+  const typeAssertionCheck = isTypeAssertion(arg);
   if (typeAssertionCheck) {
-    return `${serializeParameter(typeAssertionCheck.expression)} as ${typeAssertionCheck.type}`;
+    return `${serializeArgument(typeAssertionCheck.expression)} as ${typeAssertionCheck.type}`;
   }
 
-  const objectCheck = isObjectLiteral(param);
+  const objectCheck = isObjectLiteral(arg);
   if (objectCheck) {
     return serializeObject(objectCheck.properties);
   }
 
   // Array but not a structured type - serialize as array literal
-  if (Array.isArray(param)) {
+  if (Array.isArray(arg)) {
     // Check if this is a double-wrapped array literal from parseArrayLiteral
-    // parseArrayLiteral calls parseParametersRecursive which returns an array,
+    // parseArrayLiteral calls parseArgumentsRecursive which returns an array,
     // so we get [[item1, item2]] instead of [item1, item2]
-    const doubleWrappedCheck = isArray(param);
+    const doubleWrappedCheck = isArray(arg);
     if (doubleWrappedCheck) {
       // This is a double-wrapped array literal - unwrap it
-      return `[${param[0].map((item: any) => serializeParameter(item)).join(', ')}]`;
+      return `[${arg[0].map((item: any) => serializeArgument(item)).join(', ')}]`;
     }
 
     // Regular array
-    return `[${param.map((item: any) => serializeParameter(item)).join(', ')}]`;
+    return `[${arg.map((item: any) => serializeArgument(item)).join(', ')}]`;
   }
 
   // Object but not a structured type - serialize as object literal
-  if (typeof param === 'object' && param !== null) {
-    return serializeObject(param);
+  if (typeof arg === 'object' && arg !== null) {
+    return serializeObject(arg);
   }
 
   // Fallback to string representation
-  return String(param);
+  return String(arg);
 }
 
 /**
@@ -145,7 +145,7 @@ function serializeObjectValue(value: any): string {
 
   // For structured types, recursively serialize first
   if (typeof value === 'object' && value !== null && isStructuredType(value)) {
-    return serializeParameter(value);
+    return serializeArgument(value);
   }
 
   // For primitive values, just convert to string
@@ -176,7 +176,7 @@ function serializeObjectValue(value: any): string {
   }
 
   // Fallback
-  return serializeParameter(value);
+  return serializeArgument(value);
 }
 
 /**

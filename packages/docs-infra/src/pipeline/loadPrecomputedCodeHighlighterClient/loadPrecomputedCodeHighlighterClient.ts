@@ -41,7 +41,7 @@ export async function loadPrecomputedCodeHighlighterClient(
 
   try {
     // Parse the source to find a single createDemoClient call
-    // Use metadataOnly mode since client calls only have (url, options?) parameters
+    // Use metadataOnly mode since client calls only have (url, options?) arguments
     const demoCall = await parseCreateFactoryCall(source, this.resourcePath, {
       metadataOnly: true,
     });
@@ -168,7 +168,7 @@ export async function loadPrecomputedCodeHighlighterClient(
     // Generate import statements and resolved externals object
     const { imports: importLines, resolvedExternals } = generateResolvedExternals(runtimeExternals);
 
-    // Add externals parameter to the createDemoClient call using replacePrecomputeValue first
+    // Add externals argument to the createDemoClient call using replacePrecomputeValue first
     // (before injecting imports, so the original positions are still valid)
     // with passPrecomputeAsIs enabled so externals are passed as resolved objects
     const precomputeData = {

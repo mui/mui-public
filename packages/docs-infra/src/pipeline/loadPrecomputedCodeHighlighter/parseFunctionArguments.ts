@@ -1,10 +1,10 @@
 /**
- * Utility function for parsing function parameters and handling nested structures
+ * Utility function for parsing function arguments and handling nested structures
  * in JavaScript/TypeScript code with structured representations.
  */
 
 /**
- * Structured parameter types for discriminating between different code constructs:
+ * Structured argument types for discriminating between different code constructs:
  * - `[Array]`: Literal array - e.g., `['1', '2', '3']`
  * - `[String, Array]`: Function call - e.g., `['func', ['a', 'b']]`
  * - `[String, Array, Array]`: Function with generics - e.g., `['Component', [{ foo: 'string' }], []]`
@@ -15,7 +15,7 @@
  * - `Record<string, any>`: Object literal - e.g., `{ key: 'value' }`
  * - `string`: Plain string value
  */
-export type SplitParameters = Array<string | SplitParameters | Record<string, any>>;
+export type SplitArguments = Array<string | SplitArguments | Record<string, any>>;
 
 /**
  * Type guard and extractor for literal arrays
@@ -32,16 +32,16 @@ export function isArray(value: any): { items: any[] } | false {
 /**
  * Type guard and extractor for function calls
  * @param value - The value to check
- * @returns Object with name and parameters if it's a function call, false otherwise
+ * @returns Object with name and arguments if it's a function call, false otherwise
  */
-export function isFunction(value: any): { name: string; parameters: any[] } | false {
+export function isFunction(value: any): { name: string; arguments: any[] } | false {
   if (
     Array.isArray(value) &&
     value.length === 2 &&
     typeof value[0] === 'string' &&
     Array.isArray(value[1])
   ) {
-    return { name: value[0], parameters: value[1] };
+    return { name: value[0], arguments: value[1] };
   }
   return false;
 }
@@ -49,18 +49,18 @@ export function isFunction(value: any): { name: string; parameters: any[] } | fa
 /**
  * Type guard and extractor for generics (both function and type generics)
  * @param value - The value to check
- * @returns Object with name, generics, and parameters (or null for types) if it's a generic, false otherwise
+ * @returns Object with name, generics, and arguments (or null for types) if it's a generic, false otherwise
  */
 export function isGeneric(
   value: any,
-): { name: string; generics: any[]; parameters: any[] | null } | false {
+): { name: string; generics: any[]; arguments: any[] | null } | false {
   if (
     Array.isArray(value) &&
     value.length === 3 &&
     typeof value[0] === 'string' &&
     Array.isArray(value[1])
   ) {
-    return { name: value[0], generics: value[1], parameters: value[2] };
+    return { name: value[0], generics: value[1], arguments: value[2] };
   }
   return false;
 }
@@ -68,19 +68,19 @@ export function isGeneric(
 /**
  * Type guard and extractor for arrow functions
  * @param value - The value to check
- * @returns Object with params, types (if typed), and returnValue if it's an arrow function, false otherwise
+ * @returns Object with args, types (if typed), and returnValue if it's an arrow function, false otherwise
  */
 export function isArrowFunction(
   value: any,
-): { params: any[]; types?: [any, any]; returnValue: any } | false {
+): { args: any[]; types?: [any, any]; returnValue: any } | false {
   if (Array.isArray(value) && Array.isArray(value[0])) {
     if (value.length === 2) {
       // Simple arrow function: [Array, any]
-      return { params: value[0], returnValue: value[1] };
+      return { args: value[0], returnValue: value[1] };
     }
     if (value.length === 3 && Array.isArray(value[1]) && value[1].length === 2) {
       // Typed arrow function: [Array, [inputTypes, outputTypes], any]
-      return { params: value[0], types: [value[1][0], value[1][1]], returnValue: value[2] };
+      return { args: value[0], types: [value[1][0], value[1][1]], returnValue: value[2] };
     }
   }
   return false;
@@ -116,11 +116,11 @@ export function isTypeAssertion(value: any): { type: string; expression: any } |
 }
 
 /**
- * Main API: Parse parameters and return structured representation
+ * Main API: Parse arguments and return structured representation
  * This is the primary parsing function optimized for recursive data structures
  */
-export function parseFunctionParameters(str: string): SplitParameters {
-  return parseParametersRecursive(str);
+export function parseFunctionArguments(str: string): SplitArguments {
+  return parseArgumentsRecursive(str);
 }
 
 /**
@@ -131,11 +131,11 @@ export function parseFileExports(
   fileContent: string,
 ): Record<
   string,
-  { functionName: string; parameters: SplitParameters; sourceRange: [number, number] }
+  { functionName: string; arguments: SplitArguments; sourceRange: [number, number] }
 > {
   const exports: Record<
     string,
-    { functionName: string; parameters: SplitParameters; sourceRange: [number, number] }
+    { functionName: string; arguments: SplitArguments; sourceRange: [number, number] }
   > = {};
 
   // Find all export statements that assign function calls
@@ -165,15 +165,13 @@ export function parseFileExports(
     }
 
     if (callEndIndex !== -1) {
-      // Extract the parameters content between parentheses
-      const parametersContent = fileContent.substring(parenIndex + 1, callEndIndex);
-
-      // Parse the parameters using existing logic
-      const parameters = parseFunctionParameters(parametersContent);
+      // Extract the arguments content between parentheses
+      const argumentsContent = fileContent.substring(parenIndex + 1, callEndIndex);
 
       exports[exportName] = {
         functionName,
-        parameters,
+        // Parse the arguments using existing logic
+        arguments: parseFunctionArguments(argumentsContent),
         sourceRange: [callStartIndex, callEndIndex + 1],
       };
     }
@@ -187,8 +185,8 @@ export function parseFileExports(
 /**
  * Internal recursive parsing function
  */
-function parseParametersRecursive(str: string): SplitParameters {
-  const result: SplitParameters = [];
+function parseArgumentsRecursive(str: string): SplitArguments {
+  const result: SplitArguments = [];
   let current = '';
   let parenCount = 0;
   let braceCount = 0;
@@ -520,7 +518,7 @@ function parseArrayLiteral(str: string): any[] {
     return [];
   }
 
-  return parseParametersRecursive(content);
+  return parseArgumentsRecursive(content);
 }
 
 /**
@@ -531,48 +529,48 @@ function parseArrowFunction(str: string): any[] {
   const leftPart = str.substring(0, arrowIndex).trim();
   const rightPart = str.substring(arrowIndex + 2).trim();
 
-  // Parse parameters
-  let params: any[] = [];
+  // Parse arguments
+  let args: any[] = [];
   let types: [any, any] | undefined;
 
   if (leftPart.startsWith('(') && leftPart.includes(')')) {
     const parenEnd = leftPart.lastIndexOf(')');
-    const paramsPart = leftPart.substring(1, parenEnd);
+    const argsPart = leftPart.substring(1, parenEnd);
     const afterParen = leftPart.substring(parenEnd + 1).trim();
 
-    params = paramsPart ? parseParametersRecursive(paramsPart) : [];
+    args = argsPart ? parseArgumentsRecursive(argsPart) : [];
 
     // Check for return type annotation
     if (afterParen.startsWith(':')) {
       const returnType = afterParen.substring(1).trim();
-      // Extract input types from params if they have type annotations
-      const inputTypes = params.map((param) => {
-        if (typeof param === 'string' && param.includes(':')) {
-          return param.split(':')[1].trim();
+      // Extract input types from args if they have type annotations
+      const inputTypes = args.map((arg) => {
+        if (typeof arg === 'string' && arg.includes(':')) {
+          return arg.split(':')[1].trim();
         }
         return 'any';
       });
 
-      // Clean parameter names (remove type annotations)
-      params = params.map((param) => {
-        if (typeof param === 'string' && param.includes(':')) {
-          return param.split(':')[0].trim();
+      // Clean argument names (remove type annotations)
+      args = args.map((arg) => {
+        if (typeof arg === 'string' && arg.includes(':')) {
+          return arg.split(':')[0].trim();
         }
-        return param;
+        return arg;
       });
 
       types = [inputTypes.length === 1 ? inputTypes[0] : inputTypes, returnType];
     }
   } else {
-    params = [leftPart];
+    args = [leftPart];
   }
 
   const returnValue = parseElement(rightPart);
 
   if (types) {
-    return [params, types, returnValue];
+    return [args, types, returnValue];
   }
-  return [params, returnValue];
+  return [args, returnValue];
 }
 
 /**
@@ -699,14 +697,14 @@ function parseGeneric(str: string): any[] {
   // Parse generic content - don't split on commas within generics for unions and arrays
   const generics = genericContent ? parseGenericContent(genericContent) : [];
 
-  // Check if there are function parameters after the generic
+  // Check if there are function arguments after the generic
   if (afterGeneric.startsWith('(') && afterGeneric.endsWith(')')) {
-    const paramContent = afterGeneric.slice(1, -1).trim();
-    const parameters = paramContent ? parseParametersRecursive(paramContent) : [];
-    return [name, generics, parameters];
+    const argContent = afterGeneric.slice(1, -1).trim();
+    const args = argContent ? parseArgumentsRecursive(argContent) : [];
+    return [name, generics, args];
   }
 
-  // For standalone generics like Component<Props>, treat as function call with empty params
+  // For standalone generics like Component<Props>, treat as function call with empty args
   // This matches the test expectation for Component<{ foo: string }> -> ['Component', [{ foo: 'string' }], []]
   return [name, generics, []];
 }
@@ -763,19 +761,19 @@ function parseFunctionCall(str: string): any[] {
     }
   }
 
-  const paramContent = str.substring(parenStart + 1, parenEnd).trim();
-  if (!paramContent) {
+  const argContent = str.substring(parenStart + 1, parenEnd).trim();
+  if (!argContent) {
     return [name, []];
   }
 
-  const parameters = parseParametersRecursive(paramContent);
+  const args = parseArgumentsRecursive(argContent);
 
-  // Special case: if there's a single array literal parameter, flatten it
-  if (parameters.length === 1 && Array.isArray(parameters[0])) {
-    return [name, parameters[0]];
+  // Special case: if there's a single array literal argument, flatten it
+  if (args.length === 1 && Array.isArray(args[0])) {
+    return [name, args[0]];
   }
 
-  return [name, parameters];
+  return [name, args];
 }
 
 /**

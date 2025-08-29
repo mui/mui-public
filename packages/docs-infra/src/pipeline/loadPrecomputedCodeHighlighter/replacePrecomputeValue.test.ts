@@ -666,7 +666,7 @@ export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxB
     expect(result).toBe(expected);
   });
 
-  it('should handle createDemo with direct component import and no third parameter', async () => {
+  it('should handle createDemo with direct component import and no third argument', async () => {
     const source = `import { createDemo } from '@/functions/createDemo';
 import { DemoCheckboxBasic } from './demo-basic';
 
@@ -1194,7 +1194,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
   });
 
   describe('handling cases with undefined/missing structuredVariants', () => {
-    it('should handle createDemoClient with only URL parameter', async () => {
+    it('should handle createDemoClient with only URL argument', async () => {
       const source = `import { createDemoClient } from './createDemoClient';
 export const DemoClient = createDemoClient(import.meta.url);`;
 
@@ -1205,7 +1205,7 @@ export const DemoClient = createDemoClient(import.meta.url);`;
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
-      // Should add options as second parameter since we only had URL originally
+      // Should add options as second argument since we only had URL originally
       expect(result).toContain(
         'createDemoClient(import.meta.url, { precompute: { externals: { react: React } } })',
       );
@@ -1236,7 +1236,7 @@ export const demo = createDemo(import.meta.url, { Component });`;
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
-      // Should preserve variants and add options as third parameter
+      // Should preserve variants and add options as third argument
       expect(result).toContain(
         'createDemo(import.meta.url, { Component }, { precompute: { Component: { fileName: "Component.tsx" } } })',
       );
