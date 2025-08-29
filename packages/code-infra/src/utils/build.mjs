@@ -120,7 +120,7 @@ export function getVersionEnvVariables(pkgVersion) {
     'process.env.MUI_MAJOR_VERSION': JSON.stringify(major),
     'process.env.MUI_MINOR_VERSION': JSON.stringify(minor),
     'process.env.MUI_PATCH_VERSION': JSON.stringify(patch),
-    'process.env.MUI_PRERELEASE': 'undefined',
+    'process.env.MUI_PRERELEASE': prerelease ? JSON.stringify(prerelease) : 'undefined',
   };
   return res;
 }

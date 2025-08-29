@@ -3,6 +3,7 @@ import { builtinModules } from 'node:module';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { rolldown } from 'rolldown';
+// import { dts as dtsPlugin } from 'rolldown-plugin-dts';
 import { getVersionEnvVariables, processExportsToEntry } from '../utils/build.mjs';
 
 /**
@@ -64,10 +65,10 @@ function validatePkgJson(pkgJson) {
  *
  * @param {'esm' | 'cjs'} format
  * @param {string | undefined} pkgType
- * @param {{ cwd: string }} options
+ * @param {{ cwd: string; isDts?: boolean }} options
  * @returns {import('rolldown').ChunkFileNamesFunction}
  */
-function getChunkFileName(format, pkgType, { cwd }) {
+function getChunkFileName(format, pkgType, { cwd, isDts }) {
   /**
    * @type {string}
    */
@@ -76,32 +77,33 @@ function getChunkFileName(format, pkgType, { cwd }) {
   switch (format) {
     case 'cjs':
       if (pkgType === 'module') {
-        extension = '.cjs';
+        extension = isDts ? '.d.cts' : '.cjs';
       } else {
-        extension = '.js';
+        extension = isDts ? '.d.ts' : '.js';
       }
       break;
     case 'esm': {
       if (pkgType === 'module') {
-        extension = '.js';
+        extension = isDts ? '.d.ts' : '.js';
       } else {
-        extension = '.mjs';
+        extension = isDts ? '.d.mts' : '.mjs';
       }
       break;
     }
     default:
       break;
   }
-  return () => {
-    // @TODO
-    // if ((chunkInfo.isEntry || chunkInfo.isDynamicEntry) && chunkInfo.facadeModuleId) {
-    //   const relativeDir = path.relative(cwd, chunkInfo.facadeModuleId);
-    //   const fragments = relativeDir.split(path.sep);
-    //   if (fragments[0] === 'src') {
-    //     fragments.shift();
-    //   }
-    //   const relativePath = fragments.join('/');
-    //   console.log({ relativePath, chunkInfo: chunkInfo.name, path: chunkInfo.facadeModuleId });
+  return (chunkInfo) => {
+    // console.log(chunk, { extension });
+    if ((chunkInfo.isEntry || chunkInfo.isDynamicEntry) && chunkInfo.facadeModuleId) {
+      const relativeDir = path.relative(cwd, chunkInfo.facadeModuleId);
+      const fragments = relativeDir.split(path.sep);
+      if (fragments[0] === 'src') {
+        fragments.shift();
+      }
+      const relativePath = fragments.join('/');
+      console.log({ relativePath, chunkInfo: chunkInfo.name, path: chunkInfo.facadeModuleId });
+    }
     // if (!relativePath.startsWith(chunkInfo.name)) {
     //   return `${relativePath}`
     // }
@@ -333,21 +335,6 @@ export async function build(args) {
     },
   };
 
-  if (Object.keys(exportEntries).length > 0) {
-    exportBundlePromise = rolldown({
-      ...inputOptions,
-      input: exportEntries,
-      platform: 'neutral',
-    });
-  }
-  if (Object.keys(binEntries).length > 0) {
-    binBundlePromise = rolldown({
-      ...inputOptions,
-      input: binEntries,
-      platform: 'node',
-    });
-  }
-
   /**
    * @type {import('rolldown').OutputOptions}
    */
@@ -360,6 +347,46 @@ export async function build(args) {
     preserveModulesRoot: 'src',
     minifyInternalExports: true,
   };
+
+  if (Object.keys(exportEntries).length > 0) {
+    exportBundlePromise = rolldown({
+      ...inputOptions,
+      input: exportEntries,
+      platform: 'neutral',
+    });
+    // const cjsDts = await rolldown({
+    //   ...inputOptions,
+    //   plugins: [
+    //     .../** @type {any[]} */ (inputOptions.plugins ?? []),
+    //     dtsPlugin({
+    //       cwd,
+    //       tsconfig: 'tsconfig.build.json',
+    //       emitDtsOnly: true,
+    //       emitJs: false,
+    //       compilerOptions: {
+    //         paths: {},
+    //       },
+    //     }),
+    //   ],
+    //   input: exportEntries,
+    //   platform: 'neutral',
+    // });
+    // const res = await cjsDts.write({
+    //   ...outputOptions,
+    //   format: 'esm',
+    //   dir: buildDir,
+    //   entryFileNames: getChunkFileName('esm', pkgJson.type, { cwd, isDts: true }),
+    //   chunkFileNames: getChunkFileName('esm', pkgJson.type, { cwd, isDts: true }),
+    // });
+    // console.log(res);
+  }
+  if (Object.keys(binEntries).length > 0) {
+    binBundlePromise = rolldown({
+      ...inputOptions,
+      input: binEntries,
+      platform: 'node',
+    });
+  }
 
   /**
    * @type {OutChunks}
