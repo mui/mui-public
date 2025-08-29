@@ -202,7 +202,6 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
                 size="small"
                 onClick={() => setSizeType('gzip')}
                 disabled={sizeType === 'gzip'}
-                active={sizeType === 'gzip'}
               >
                 gzipped
               </ToggleSelectButton>
@@ -214,7 +213,6 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
                 size="small"
                 onClick={() => setSizeType('parsed')}
                 disabled={sizeType === 'parsed'}
-                active={sizeType === 'parsed'}
               >
                 parsed
               </ToggleSelectButton>
@@ -228,7 +226,6 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
                 size="small"
                 onClick={() => setYAxisStartAtZero(true)}
                 disabled={yAxisStartAtZero}
-                active={yAxisStartAtZero}
               >
                 start at zero
               </ToggleSelectButton>
@@ -240,7 +237,6 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
                 size="small"
                 onClick={() => setYAxisStartAtZero(false)}
                 disabled={!yAxisStartAtZero}
-                active={!yAxisStartAtZero}
               >
                 auto scale
               </ToggleSelectButton>
