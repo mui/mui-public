@@ -106,19 +106,20 @@ describe('applyTransform', () => {
       });
     });
 
-    it('should apply complex delta transformations', () => {
-      const source = 'line1\nline2\nline3';
+    it('should replace specific lines in multiline source', () => {
+      const source = 'const x = 1;\nconst y = 2;\nconst z = 3;';
       const transforms: Transforms = {
-        'modify-lines': {
+        'add-types': {
           delta: {
-            1: ['line2 modified'],
-            _t: 'a',
+            0: [undefined, 'const x: number = 1;'],
+            1: [undefined, 'const y: number = 2;'],
+            2: [undefined, 'const z: number = 3;'],
           },
         },
       };
 
-      const result = applyTransform(source, transforms, 'modify-lines');
-      expect(result).toContain('line2 modified');
+      const result = applyTransform(source, transforms, 'add-types');
+      expect(result).toBe('const x: number = 1;\nconst y: number = 2;\nconst z: number = 3;');
     });
 
     it('should throw error for non-existent transform key', () => {
