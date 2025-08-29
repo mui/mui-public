@@ -25,7 +25,7 @@ export function createDemoDataWithVariants<
 
   if (!meta || (!meta.precompute && !meta.skipPrecompute)) {
     throw new Error(
-      `createDemoData() was unable to precompute the code in ${url}. Ensure the createDemoData() function is called within a path used for demo indexes. Run \`pnpm run check:conventions:demo\``,
+      `createDemoData() was unable to precompute the code in ${url}. Ensure the createDemoData() function is called within a path used for demo indexes. This is typically app/**/demos/*/index.ts but may be overridden in next.config.js`,
     );
   }
 
