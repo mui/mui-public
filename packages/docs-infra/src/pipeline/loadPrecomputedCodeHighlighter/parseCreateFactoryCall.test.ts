@@ -174,7 +174,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
 
@@ -187,7 +187,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
 
@@ -200,7 +200,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
 
@@ -214,11 +214,11 @@ describe('parseCreateFactoryCall', () => {
 
     // Should throw error for the first missing component it encounters
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'Unknown1' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'Unknown1' is not imported. Make sure to import it first.",
     );
   });
 
-  it('should throw error for invalid variants parameter', async () => {
+  it('should throw error for invalid variants argument', async () => {
     const code = `
         import Component from './Component';
         
@@ -227,7 +227,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      'Invalid variants parameter in createDemo call in /src/demo.ts. Expected a valid component identifier, but got: ""not an object""',
+      'Invalid variants argument in createDemo call in /src/demo.ts. Expected a valid component identifier, but got: ""not an object""',
     );
   });
 
@@ -470,7 +470,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid URL parameter in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: require('url').pathToFileURL(__filename).toString()",
+      "Invalid URL argument in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: require('url').pathToFileURL(__filename).toString()",
     );
   });
 
@@ -501,7 +501,7 @@ describe('parseCreateFactoryCall', () => {
     );
   });
 
-  it('should throw error for invalid URL parameter', async () => {
+  it('should throw error for invalid URL argument', async () => {
     const code = `
         import Component from './Component';
         
@@ -510,11 +510,11 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid URL parameter in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: './file.ts'",
+      "Invalid URL argument in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: './file.ts'",
     );
   });
 
-  it('should throw error for wrong number of parameters', async () => {
+  it('should throw error for wrong number of arguments', async () => {
     const code = `
         import Component from './Component';
         
@@ -523,13 +523,13 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid createDemo call in /src/demo.ts. Expected 2-3 parameters (url, variants, options?) but got 1 parameters. Functions starting with 'create' must follow the convention: create*(url, variants, options?)",
+      "Invalid createDemo call in /src/demo.ts. Expected 2-3 arguments (url, variants, options?) but got 1 arguments. Functions starting with 'create' must follow the convention: create*(url, variants, options?)",
     );
   });
 
   // Implementation details and property validation
   it('should correctly set hasOptions property', async () => {
-    // Test with no options (2 parameters)
+    // Test with no options (2 arguments)
     const codeNoOptions = `
       import Component from './Component';
       createDemo(import.meta.url, { Component });
@@ -857,7 +857,7 @@ describe('parseCreateFactoryCall', () => {
   });
 
   describe('metadataOnly option', () => {
-    it('should handle createDemoClient with only URL parameter', async () => {
+    it('should handle createDemoClient with only URL argument', async () => {
       const code = `
         import { createDemoClient } from './createDemoClient';
         
@@ -899,7 +899,7 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.structuredVariants).toBeUndefined();
     });
 
-    it('should reject calls with too many parameters in metadataOnly mode', async () => {
+    it('should reject calls with too many arguments in metadataOnly mode', async () => {
       const code = `
         import Component from './Component';
         
@@ -908,18 +908,18 @@ describe('parseCreateFactoryCall', () => {
       const filePath = '/src/demo.ts';
 
       await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
-        'Expected 1-2 parameters (url, options?) but got 3 parameters',
+        'Expected 1-2 arguments (url, options?) but got 3 arguments',
       );
     });
 
-    it('should reject calls with no parameters in metadataOnly mode', async () => {
+    it('should reject calls with no arguments in metadataOnly mode', async () => {
       const code = `
         export const demo = createDemo();
       `;
       const filePath = '/src/demo.ts';
 
       await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
-        'Expected 1-2 parameters (url, options?) but got 0 parameters',
+        'Expected 1-2 arguments (url, options?) but got 0 arguments',
       );
     });
   });

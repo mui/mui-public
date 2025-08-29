@@ -1,4 +1,4 @@
-import { serializeFunctionParameters } from './serializeFunctionParameters';
+import { serializeFunctionArguments } from './serializeFunctionArguments';
 import type { ParsedCreateFactory } from './parseCreateFactoryCall';
 
 /**
@@ -24,8 +24,8 @@ export function replacePrecomputeValue(
 
   const {
     hasOptions,
-    parametersStartIndex,
-    parametersEndIndex,
+    argumentsStartIndex,
+    argumentsEndIndex,
     structuredUrl,
     structuredVariants,
     structuredOptions,
@@ -51,32 +51,32 @@ export function replacePrecomputeValue(
     ? precomputeData
     : JSON.stringify(precomputeData, null, 2);
 
-  // Serialize all parameters using the standard function
-  let params: any[];
+  // Serialize all arguments using the standard function
+  let args: any[];
 
-  // Build parameters array based on what's available
+  // Build arguments array based on what's available
   if (hasOptions || Object.keys(newOptions).length > 0) {
     // We need to include options
     if (structuredVariants !== undefined) {
       // Normal case: url, variants, options
-      params = [structuredUrl, structuredVariants, newOptions];
+      args = [structuredUrl, structuredVariants, newOptions];
     } else {
       // Metadata-only case: url, options (skip undefined variants)
-      params = [structuredUrl, newOptions];
+      args = [structuredUrl, newOptions];
     }
   } else if (structuredVariants !== undefined) {
     // No options needed, but we have variants
-    params = [structuredUrl, structuredVariants];
+    args = [structuredUrl, structuredVariants];
   } else {
-    // Only URL parameter
-    params = [structuredUrl];
+    // Only URL argument
+    args = [structuredUrl];
   }
 
-  const serializedParams = serializeFunctionParameters(params);
+  const serializedArgs = serializeFunctionArguments(args);
 
-  // Replace the parameters section
-  const before = source.substring(0, parametersStartIndex);
-  const after = source.substring(parametersEndIndex);
+  // Replace the arguments section
+  const before = source.substring(0, argumentsStartIndex);
+  const after = source.substring(argumentsEndIndex);
 
-  return `${before}${serializedParams}${after}`;
+  return `${before}${serializedArgs}${after}`;
 }

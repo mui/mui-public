@@ -19,7 +19,7 @@ export function createDemoDataWithVariants<
 ): DemoData<T> {
   if (!url.startsWith('file:')) {
     throw new Error(
-      'createDemoData() requires the `url` parameter to be a file URL. Use `import.meta.url` to get the current file URL.',
+      'createDemoData() requires the `url` argument to be a file URL. Use `import.meta.url` to get the current file URL.',
     );
   }
 

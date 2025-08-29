@@ -451,7 +451,7 @@ describe('loadFallbackCode', () => {
       expect(result.allFileNames).toEqual(['App.tsx', 'types.ts']);
     });
 
-    it('should infer variants from loaded code when variants parameter is not provided', async () => {
+    it('should infer variants from loaded code when variants argument is not provided', async () => {
       const variant1: VariantCode = {
         fileName: 'App.tsx',
         url: 'http://example.com/App.tsx',
@@ -1467,7 +1467,7 @@ describe('loadFallbackCode', () => {
       expect(result.allFileNames).toContain('App.tsx'); // From TS variant
       expect(result.allFileNames).toContain('shared-styles.css'); // From globalsCode
 
-      // Verify that loadVariantMeta was called with globalsCode parameter
+      // Verify that loadVariantMeta was called with globalsCode argument
       expect(mockLoadVariantMeta).toHaveBeenCalledWith(
         'typescript',
         'http://example.com/typescript',
