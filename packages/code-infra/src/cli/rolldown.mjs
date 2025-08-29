@@ -95,15 +95,15 @@ function getChunkFileName(format, pkgType, { cwd, isDts }) {
   }
   return (chunkInfo) => {
     // console.log(chunk, { extension });
-    if ((chunkInfo.isEntry || chunkInfo.isDynamicEntry) && chunkInfo.facadeModuleId) {
-      const relativeDir = path.relative(cwd, chunkInfo.facadeModuleId);
-      const fragments = relativeDir.split(path.sep);
-      if (fragments[0] === 'src') {
-        fragments.shift();
-      }
-      const relativePath = fragments.join('/');
-      console.log({ relativePath, chunkInfo: chunkInfo.name, path: chunkInfo.facadeModuleId });
-    }
+    // if ((chunkInfo.isEntry || chunkInfo.isDynamicEntry) && chunkInfo.facadeModuleId) {
+    //   const relativeDir = path.relative(cwd, chunkInfo.facadeModuleId);
+    //   const fragments = relativeDir.split(path.sep);
+    //   if (fragments[0] === 'src') {
+    //     fragments.shift();
+    //   }
+    //   const relativePath = fragments.join('/');
+    //   console.log({ relativePath, chunkInfo: chunkInfo.name, path: chunkInfo.facadeModuleId });
+    // }
     // if (!relativePath.startsWith(chunkInfo.name)) {
     //   return `${relativePath}`
     // }

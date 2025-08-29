@@ -183,7 +183,7 @@ export async function processExportsToEntry(pkgExports, pkgBin, { cwd }) {
                 const fileKey = file
                   .replace(/^(src|\.\/src)\//, '')
                   .replace(new RegExp(`\\${ext}$`), '');
-                addEntry(entries, fileKey, file);
+                addEntry(entries, `${fileKey}/index`, file);
               } else {
                 const fileKey = file
                   .replace(/^(src|\.\/src)\//, '')
@@ -192,7 +192,14 @@ export async function processExportsToEntry(pkgExports, pkgBin, { cwd }) {
               }
             });
           } else {
-            addEntry(entries, key === '.' ? 'index' : key, value);
+            const fileName = path.basename(value);
+            const ext = path.extname(value);
+            const entryKey = key === '.' ? 'index' : key;
+            if (fileName.replace(ext, '') === 'index' && key !== '.') {
+              addEntry(entries, `${entryKey}/index`, value);
+            } else {
+              addEntry(entries, entryKey, value);
+            }
           }
         } else if (value && typeof value === 'object') {
           // entries[key] = processExportsToEntry(value)[0];
