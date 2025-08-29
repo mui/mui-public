@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useDailyCommitHistory, DailyCommitData } from '../hooks/useDailyCommitHistory';
@@ -35,6 +36,8 @@ interface DailyBundleSizeChartProps {
   repo: string;
 }
 
+type SizeType = 'gzip' | 'parsed';
+
 interface ChartData {
   dates: Date[];
   series: Array<{
@@ -44,7 +47,7 @@ interface ChartData {
   }>;
 }
 
-function transformDataForChart(dailyData: DailyCommitData[]): ChartData {
+function transformDataForChart(dailyData: DailyCommitData[], sizeType: SizeType): ChartData {
   if (dailyData.length === 0) {
     return { dates: [], series: [] };
   }
@@ -67,7 +70,7 @@ function transformDataForChart(dailyData: DailyCommitData[]): ChartData {
         if (!snapshot || !snapshot[bundleName]) {
           return null; // Missing data point
         }
-        return snapshot[bundleName].gzip; // Use gzipped size
+        return snapshot[bundleName][sizeType]; // Use selected size type
       }),
       color: CHART_COLORS[index % CHART_COLORS.length],
     }));
@@ -78,6 +81,8 @@ function transformDataForChart(dailyData: DailyCommitData[]): ChartData {
 export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps) {
   const { dailyData, isLoading, error } = useDailyCommitHistory(repo);
   const [selectedBundles, setSelectedBundles] = React.useState<string[]>([]);
+  const [sizeType, setSizeType] = React.useState<SizeType>('gzip');
+  const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
 
   // Get all available bundle names from the data
   const allBundles = React.useMemo(() => {
@@ -92,11 +97,9 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
 
   // Initialize selected bundles with top-level packages when data loads
   React.useEffect(() => {
-    if (allBundles.length > 0 && selectedBundles.length === 0) {
-      const topLevelBundles = allBundles.filter(isPackageTopLevel);
-      setSelectedBundles(topLevelBundles);
-    }
-  }, [allBundles, selectedBundles.length]);
+    const topLevelBundles = allBundles.filter(isPackageTopLevel);
+    setSelectedBundles(topLevelBundles);
+  }, [allBundles]);
 
   if (isLoading) {
     return (
@@ -128,7 +131,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     );
   }
 
-  const chartData = transformDataForChart(dailyData);
+  const chartData = transformDataForChart(dailyData, sizeType);
 
   if (chartData.dates.length === 0) {
     return (
@@ -146,51 +149,14 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
   // Filter series based on selected bundles
   const validSeries = chartData.series.filter((series) => selectedBundles.includes(series.label));
 
-  if (validSeries.length === 0) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Daily Bundle Size Trends
-        </Typography>
-
-        {allBundles.length > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" gutterBottom>
-              Select bundles to display:
-            </Typography>
-            <Autocomplete
-              multiple
-              options={allBundles}
-              value={selectedBundles}
-              onChange={(event, newValue) => setSelectedBundles(newValue)}
-              filterSelectedOptions
-              renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select bundles..." size="small" />
-              )}
-              sx={{ mb: 2 }}
-            />
-          </Box>
-        )}
-
-        <Box sx={{ p: 2, color: 'text.secondary' }}>
-          <Typography>
-            {selectedBundles.length === 0
-              ? 'Please select at least one bundle to display the chart.'
-              : 'No valid bundle size data available for the selected bundles.'}
-          </Typography>
-        </Box>
-      </Paper>
-    );
-  }
-
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" component="h2" gutterBottom>
         Daily Bundle Size Trends
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Bundle sizes (gzipped) for the first commit of each day from master branch. Showing{' '}
-        {chartData.dates.length} days of data.
+        Bundle sizes ({sizeType === 'gzip' ? 'gzipped' : 'parsed'}) for the first commit of each day
+        from master branch. Showing {chartData.dates.length} days of data.
       </Typography>
 
       {allBundles.length > 0 && (
@@ -207,8 +173,82 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
             renderInput={(params) => (
               <TextField {...params} placeholder="Search and select bundles..." size="small" />
             )}
-            sx={{ mb: 2 }}
+            sx={{ mb: 1 }}
           />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                Size type:
+              </Typography>
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setSizeType('gzip')}
+                sx={{
+                  minWidth: 'auto',
+                  p: 0,
+                  fontSize: '0.75rem',
+                  textDecoration: sizeType === 'gzip' ? 'underline' : 'none',
+                  color: sizeType === 'gzip' ? 'primary.main' : 'text.secondary',
+                }}
+              >
+                gzipped
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                |
+              </Typography>
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setSizeType('parsed')}
+                sx={{
+                  minWidth: 'auto',
+                  p: 0,
+                  fontSize: '0.75rem',
+                  textDecoration: sizeType === 'parsed' ? 'underline' : 'none',
+                  color: sizeType === 'parsed' ? 'primary.main' : 'text.secondary',
+                }}
+              >
+                parsed
+              </Button>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                Y-axis:
+              </Typography>
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setYAxisStartAtZero(true)}
+                sx={{
+                  minWidth: 'auto',
+                  p: 0,
+                  fontSize: '0.75rem',
+                  textDecoration: yAxisStartAtZero ? 'underline' : 'none',
+                  color: yAxisStartAtZero ? 'primary.main' : 'text.secondary',
+                }}
+              >
+                start at zero
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                |
+              </Typography>
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setYAxisStartAtZero(false)}
+                sx={{
+                  minWidth: 'auto',
+                  p: 0,
+                  fontSize: '0.75rem',
+                  textDecoration: !yAxisStartAtZero ? 'underline' : 'none',
+                  color: !yAxisStartAtZero ? 'primary.main' : 'text.secondary',
+                }}
+              >
+                auto scale
+              </Button>
+            </Box>
+          </Box>
           <Typography variant="caption" color="text.secondary">
             Showing {selectedBundles.length} of {allBundles.length} bundles
             {selectedBundles.length > 0 && ` (${validSeries.length} with data)`}
@@ -216,13 +256,20 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
         </Box>
       )}
 
-      <Box sx={{ width: '100%', height: 400 }}>
+      <Box>
         <LineChart
           xAxis={[
             {
               data: chartData.dates,
               scaleType: 'time',
               valueFormatter: (date: Date) => date.toLocaleDateString(),
+            },
+          ]}
+          yAxis={[
+            {
+              ...(yAxisStartAtZero && { min: 0 }),
+              width: 60,
+              valueFormatter: (value: number) => byteSizeFormatter.format(value),
             },
           ]}
           series={validSeries.map(({ label, data, color }) => ({
@@ -233,8 +280,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
             valueFormatter: (value: number | null) =>
               value ? byteSizeFormatter.format(value) : 'No data',
           }))}
-          height={400}
-          margin={{ top: 20, right: 30, bottom: 60, left: 80 }}
+          height={300}
           hideLegend
           grid={{ horizontal: true, vertical: true }}
         />

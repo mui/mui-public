@@ -120,6 +120,11 @@ export default function PRList({
                       </Typography>
                     </Box>
                   }
+                  slotProps={{
+                    secondary: {
+                      component: 'div',
+                    },
+                  }}
                   secondary={
                     <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 2 }}>
                       <Chip
