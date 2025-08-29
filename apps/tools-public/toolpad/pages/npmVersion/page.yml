@@ -19,6 +19,12 @@ spec:
             `## Deprecated (Downloads in the last 7 days)
 
             Use this instead: https://frontend-public.mui.com/npm-versions?package=${page.parameters.package}`
+    - component: codeComponent.Redirect
+      name: redirect
+      props:
+        url:
+          $$jsExpression: "`https://frontend-public.mui.com/npm-versions?package=${page.p\
+            arameters.package}`"
   display: shell
   alias:
     - m023hp4
