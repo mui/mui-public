@@ -248,39 +248,6 @@ describe('renderMarkdownReport', () => {
     `);
   });
 
-  it('should include CircleCI build number in details URL', async () => {
-    const baseSnapshot = {
-      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
-    };
-
-    const prSnapshot = {
-      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
-    };
-
-    mockFetchSnapshotWithFallback.mockResolvedValueOnce({
-      snapshot: baseSnapshot,
-      actualCommit: 'abc123',
-    });
-    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
-
-    const result = await renderMarkdownReport(mockPrInfo, '12345');
-
-    expect(result).toContain('circleCIBuildNumber=12345');
-    expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
-      Files: 1 total (0 added, 0 removed, 0 changed)
-
-      <details>
-      <summary>Show details for 1 more bundle</summary>
-
-      **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
-
-      </details>
-
-      [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456&circleCIBuildNumber=12345)"
-    `);
-  });
-
   it('should handle no changes', async () => {
     const baseSnapshot = {
       '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
@@ -332,7 +299,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
@@ -367,7 +334,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
@@ -402,7 +369,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js'],
     });
 
@@ -436,7 +403,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
@@ -469,7 +436,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js'],
     });
 
@@ -500,7 +467,7 @@ describe('renderMarkdownReport', () => {
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     await expect(
-      renderMarkdownReport(mockPrInfo, undefined, {
+      renderMarkdownReport(mockPrInfo, {
         track: ['@mui/material/Button/index.js', '@mui/material/NonExistent/index.js'],
       }),
     ).rejects.toThrow(
@@ -561,9 +528,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
-      fallbackDepth: 1,
-    });
+    const result = await renderMarkdownReport(mockPrInfo, { fallbackDepth: 1 });
 
     expect(result).toContain(
       'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
@@ -609,9 +574,7 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
-      getMergeBase: customGetMergeBase,
-    });
+    const result = await renderMarkdownReport(mockPrInfo, { getMergeBase: customGetMergeBase });
 
     // Verify that custom getMergeBase was called instead of default
     expect(customGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
@@ -631,9 +594,7 @@ describe('renderMarkdownReport', () => {
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     await expect(
-      renderMarkdownReport(mockPrInfo, undefined, {
-        getMergeBase: customGetMergeBase,
-      }),
+      renderMarkdownReport(mockPrInfo, { getMergeBase: customGetMergeBase }),
     ).rejects.toThrow('Custom merge base error');
 
     // Verify that custom getMergeBase was called
