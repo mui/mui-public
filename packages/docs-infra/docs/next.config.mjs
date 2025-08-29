@@ -1,60 +1,26 @@
 import createMDX from '@next/mdx';
+import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
+
+// Create MDX with docs-infra configuration
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    additionalRemarkPlugins: [],
+    additionalRehypePlugins: [],
+  }),
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
-  output: 'export',
-  turbopack: {
-    rules: {
-      './app/**/demos/*/index.ts': {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
-      },
-      // Note: The demo-* pattern below is specific to our internal docs structure
-      // where we create "demos of demos". This is not a typical use case.
-      './app/**/demos/*/demo-*/index.ts': {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
-      },
-      // Client files for live demos - processes externals
-      './app/**/demos/*/client.ts': {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
-      },
-      './app/**/demos/*/demo-*/client.ts': {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
-      },
-    },
-  },
-  webpack: (config, { defaultLoaders }) => {
-    config.module.rules.push({
-      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/index\\.ts$'),
-      use: [
-        defaultLoaders.babel,
-        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-      ],
-    });
-
-    // Client files for live demos - processes externals
-    config.module.rules.push({
-      test: new RegExp('/demos/[^/]+(?:/demo-[^/]+)?/client\\.ts$'),
-      use: [
-        defaultLoaders.babel,
-        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-      ],
-    });
-
-    return config;
-  },
+  // Your custom configuration here
+  // The withDocsInfra plugin will add the necessary docs infrastructure setup
 };
 
-const withMDX = createMDX({
-  options: {
-    remarkPlugins: [
-      ['remark-gfm'],
-      ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
-      ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
-      ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
-    ],
-    rehypePlugins: [['@mui/internal-docs-infra/pipeline/transformHtmlCode']],
+export default withDocsInfra({
+  // Add demo-* patterns specific to this docs site
+  additionalDemoPatterns: {
+    // Note: The demo-* pattern below is specific to our internal docs structure
+    // where we create "demos of demos". This is not a typical use case.
+    index: ['./app/**/demos/*/demo-*/index.ts'],
+    client: ['./app/**/demos/*/demo-*/client.ts'],
   },
-});
-
-export default withMDX(nextConfig);
+})(withMDX(nextConfig));
