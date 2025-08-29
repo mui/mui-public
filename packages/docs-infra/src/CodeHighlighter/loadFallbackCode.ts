@@ -1,12 +1,10 @@
 import type {
   Code,
   VariantExtraFiles,
-  ParseSource,
-  LoadSource,
-  LoadVariantMeta,
   VariantSource,
-  LoadCodeMeta,
   VariantCode,
+  LoadFallbackCodeOptions,
+  LoadSource,
 } from './types';
 import { loadVariant } from './loadVariant';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils';
@@ -67,17 +65,20 @@ export async function loadFallbackCode(
   url: string,
   initialVariant: string,
   loaded: Code | undefined,
-  shouldHighlight?: boolean,
-  fallbackUsesExtraFiles?: boolean,
-  fallbackUsesAllVariants?: boolean,
-  sourceParser?: Promise<ParseSource>,
-  loadSource?: LoadSource,
-  loadVariantMeta?: LoadVariantMeta,
-  loadCodeMeta?: LoadCodeMeta,
-  initialFilename?: string,
-  variants?: string[],
-  globalsCode?: Array<Code | string>,
+  options: LoadFallbackCodeOptions = {},
 ): Promise<FallbackVariants> {
+  const {
+    shouldHighlight,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    sourceParser,
+    loadSource,
+    loadVariantMeta,
+    loadCodeMeta,
+    initialFilename,
+    variants,
+    globalsCode,
+  } = options;
   loaded = { ...loaded };
 
   // Step 1: Ensure we have the initial variant loaded

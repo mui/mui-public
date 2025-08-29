@@ -247,18 +247,15 @@ describe('loadFallbackCode', () => {
         default: variantCode,
       };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false, // shouldHighlight
-        false, // fallbackUsesExtraFiles
-        false, // fallbackUsesAllVariants
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+      });
 
       // Verify the optimization worked - we got the right results
       expect(result.allFileNames).toEqual(['App.tsx', 'utils.ts']);
@@ -279,18 +276,15 @@ describe('loadFallbackCode', () => {
       const parsedSource = { type: 'root', children: [] } as any;
       mockParseSource.mockReturnValue(parsedSource);
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        true, // shouldHighlight
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: true,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+      });
 
       expect(mockParseSource).toHaveBeenCalledWith(
         'const App = () => <div>Hello</div>;',
@@ -316,19 +310,16 @@ describe('loadFallbackCode', () => {
         extraFiles: {},
       });
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        'utils.ts', // initialFilename
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: 'utils.ts',
+      });
 
       expect(mockLoadSource).toHaveBeenCalledWith('http://example.com/utils.ts');
       expect(result.initialFilename).toBe('utils.ts');
@@ -348,18 +339,15 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variantCode);
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+      });
 
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', 'http://example.com/default');
       expect(result.allFileNames).toEqual(['App.tsx']);
@@ -378,18 +366,15 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+      });
 
       // Verify we got the expected results (loadVariant processes the variant)
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
@@ -406,18 +391,15 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        true, // fallbackUsesExtraFiles
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: true,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+      });
 
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
       expect(result.allFileNames).toEqual(['App.tsx']);
@@ -450,20 +432,17 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variant2);
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'javascript',
-        loaded,
-        false,
-        false,
-        true, // fallbackUsesAllVariants
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // fileName
-        ['javascript', 'typescript'], // variants - needed for fallbackUsesAllVariants
-      );
+      const result = await loadFallbackCode('http://example.com', 'javascript', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: true,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined,
+        variants: ['javascript', 'typescript'],
+      });
 
       expect(mockLoadVariantMeta).toHaveBeenCalledWith(
         'typescript',
@@ -513,20 +492,17 @@ describe('loadFallbackCode', () => {
         throw new Error(`Unexpected variant: ${variantName}`);
       });
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'javascript',
-        loaded,
-        false,
-        false,
-        true, // fallbackUsesAllVariants
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // fileName
-        undefined, // variants - not provided, should infer from loaded
-      );
+      const result = await loadFallbackCode('http://example.com', 'javascript', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: true,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined,
+        variants: undefined,
+      });
 
       expect(mockLoadVariantMeta).toHaveBeenCalledWith(
         'typescript',
@@ -542,18 +518,15 @@ describe('loadFallbackCode', () => {
       mockLoadCodeMeta.mockResolvedValue({ otherVariant: 'something' });
 
       await expect(
-        loadFallbackCode(
-          'http://example.com',
-          'nonexistent',
-          undefined,
-          false,
-          false,
-          false,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockLoadCodeMeta,
-        ),
+        loadFallbackCode('http://example.com', 'nonexistent', undefined, {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        }),
       ).rejects.toThrow('Initial variant "nonexistent" not found in loaded code.');
     });
 
@@ -563,13 +536,15 @@ describe('loadFallbackCode', () => {
           'http://example.com',
           'default',
           undefined, // no loaded code
-          false,
-          false,
-          false,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          undefined, // no loadCodeMeta function
+          {
+            shouldHighlight: false,
+            fallbackUsesExtraFiles: false,
+            fallbackUsesAllVariants: false,
+            sourceParser: Promise.resolve(mockParseSource),
+            loadSource: mockLoadSource,
+            loadVariantMeta: mockLoadVariantMeta,
+            loadCodeMeta: undefined,
+          },
         ),
       ).rejects.toThrow('"loadCodeMeta" function is required when initial variant is not provided');
     });
@@ -585,19 +560,16 @@ describe('loadFallbackCode', () => {
       const loaded: Code = { default: variantCode };
 
       await expect(
-        loadFallbackCode(
-          'http://example.com',
-          'default',
-          loaded,
-          false,
-          false,
-          false,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockLoadCodeMeta,
-          'nonexistent.ts', // initialFilename that doesn't exist
-        ),
+        loadFallbackCode('http://example.com', 'default', loaded, {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: 'nonexistent.ts',
+        }),
       ).rejects.toThrow('Failed to get source for file nonexistent.ts in variant default');
     });
   });
@@ -617,13 +589,15 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         undefined, // no loaded code
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        },
       );
 
       expect(mockLoadCodeMeta).toHaveBeenCalledWith('http://example.com');
@@ -652,13 +626,15 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        },
       );
 
       // Verify loadVariant processed the variant and loaded dependencies
@@ -682,14 +658,16 @@ describe('loadFallbackCode', () => {
         'https://example.com',
         'default',
         {}, // loaded
-        false, // shouldHighlight
-        false, // fallbackUsesExtraFiles
-        false, // fallbackUsesAllVariants
-        Promise.resolve(mockParseSource), // parseSource
-        mockLoadSource, // loadSource
-        undefined, // loadVariantMeta - this is the key test case
-        mockLoadCodeMeta, // loadCodeMeta
-        'Button.tsx', // initialFilename
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: undefined, // this is the key test case
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: 'Button.tsx',
+        },
       );
 
       expect(result.code.default).toBeDefined();
@@ -726,14 +704,16 @@ describe('loadFallbackCode', () => {
           'https://example.com',
           'default',
           {}, // loaded
-          false, // shouldHighlight
-          false, // fallbackUsesExtraFiles
-          false, // fallbackUsesAllVariants
-          Promise.resolve(mockParseSource), // parseSource
-          mockLoadSource, // loadSource
-          undefined, // loadVariantMeta
-          mockLoadCodeMeta, // loadCodeMeta
-          expectedFileName, // initialFilename
+          {
+            shouldHighlight: false,
+            fallbackUsesExtraFiles: false,
+            fallbackUsesAllVariants: false,
+            sourceParser: Promise.resolve(mockParseSource),
+            loadSource: mockLoadSource,
+            loadVariantMeta: undefined,
+            loadCodeMeta: mockLoadCodeMeta,
+            initialFilename: expectedFileName,
+          },
         );
 
         expect(result.code.default).toBeDefined();
@@ -762,14 +742,16 @@ describe('loadFallbackCode', () => {
         'https://example.com',
         'default',
         {}, // loaded
-        false, // shouldHighlight
-        false, // fallbackUsesExtraFiles
-        false, // fallbackUsesAllVariants
-        Promise.resolve(mockParseSource), // parseSource
-        mockLoadSource, // loadSource
-        mockLoadVariantMeta, // Provided loadVariantMeta
-        mockLoadCodeMeta, // loadCodeMeta
-        'Button.tsx', // initialFilename
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta, // Provided loadVariantMeta
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: 'Button.tsx',
+        },
       );
 
       expect(result.code.default).toBeDefined();
@@ -820,13 +802,15 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles - ensure extra files are loaded
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles - ensure extra files are loaded
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        },
       );
 
       // Verify that the processed result now passes maybeInitialData validation
@@ -885,13 +869,15 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        true, // shouldHighlight - this will parse the source
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
+        {
+          shouldHighlight: true, // this will parse the source
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        },
       );
 
       // Verify that the processed result now passes maybeInitialData validation
@@ -946,13 +932,15 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        },
       );
 
       // Verify that the processed result now passes maybeInitialData validation
@@ -1015,14 +1003,16 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        'utils.ts', // Request the same file
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: 'utils.ts', // Request the same file
+        },
       );
 
       // Check what the processed variant looks like
@@ -1095,13 +1085,15 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles - ensure extra files are loaded
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles - ensure extra files are loaded
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+        },
       );
 
       // Verify that the processed result now passes maybeInitialData validation
@@ -1142,19 +1134,16 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // undefined initialFilename
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined, // undefined initialFilename
+      });
 
       // Should default to the main file
       expect(result.initialFilename).toBe('App.tsx');
@@ -1171,19 +1160,16 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // This triggers the getFileSource(variant, undefined) code path
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined, // This triggers the getFileSource(variant, undefined) code path
+      });
 
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
       expect(result.initialFilename).toBe('App.tsx');
@@ -1199,19 +1185,16 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // undefined initialFilename
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: false,
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined, // undefined initialFilename
+      });
 
       // Should still return the source, but filename should be undefined
       expect(result.initialSource).toBe('const BareComponent = () => <div>Just source code</div>;');
@@ -1229,19 +1212,16 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode(
-        'http://example.com',
-        'default',
-        loaded,
-        true, // shouldHighlight=true
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // undefined initialFilename
-      );
+      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+        shouldHighlight: true, // shouldHighlight=true
+        fallbackUsesExtraFiles: false,
+        fallbackUsesAllVariants: false,
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined, // undefined initialFilename
+      });
 
       // Since there's no filename, parsing creates a basic HAST node to mark it passed through pipeline
       expect(result.initialSource).toEqual({
@@ -1266,19 +1246,16 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode(
-        '/demo/example',
-        'default',
-        loaded,
-        true, // shouldHighlight=true
-        false, // fallbackUsesExtraFiles=false
-        false, // fallbackUsesAllVariants=false
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined, // undefined initialFilename
-      );
+      const result = await loadFallbackCode('/demo/example', 'default', loaded, {
+        shouldHighlight: true, // shouldHighlight=true
+        fallbackUsesExtraFiles: false, // fallbackUsesExtraFiles=false
+        fallbackUsesAllVariants: false, // fallbackUsesAllVariants=false
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        loadCodeMeta: mockLoadCodeMeta,
+        initialFilename: undefined, // undefined initialFilename
+      });
 
       // Should create HAST structure in early return path too
       expect(result.initialSource).toEqual({
@@ -1328,16 +1305,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsCode], // Pass globalsCode
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsCode], // Pass globalsCode
+        },
       );
 
       // Verify the main variant's files are present
@@ -1393,16 +1372,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsCode],
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsCode],
+        },
       );
 
       // Verify conflict resolution naming
@@ -1467,16 +1448,18 @@ describe('loadFallbackCode', () => {
           javascript: jsVariant,
           typescript: 'http://example.com/typescript',
         },
-        false,
-        false,
-        true, // fallbackUsesAllVariants=true
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        ['javascript', 'typescript'],
-        [globalsCode],
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: true, // fallbackUsesAllVariants=true
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: ['javascript', 'typescript'],
+          globalsCode: [globalsCode],
+        },
       );
 
       // Verify all variants are processed and globals are included
@@ -1529,16 +1512,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsUrl], // Pass URL string
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsUrl], // Pass URL string
+        },
       );
 
       // Verify globals extraFiles are included
@@ -1590,16 +1575,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsUrl], // URL string for globalsCode
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsUrl], // URL string for globalsCode
+        },
       );
 
       // Verify loadCodeMeta is called correctly for globalsCode URL (new architecture)
@@ -1650,16 +1637,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsCode],
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsCode],
+        },
       );
 
       // Verify loadSource was called for each URL in globalsCode extraFiles
@@ -1744,16 +1733,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsUrl],
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsUrl],
+        },
       );
 
       // Verify loadCodeMeta was called for globalsCode URL (new architecture)
@@ -1823,16 +1814,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        false, // No extra processing needed
-        false, // No all variants needed
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsCode], // globalsCode provided but should be ignored in early return
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false, // No extra processing needed
+          fallbackUsesAllVariants: false, // No all variants needed
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsCode], // globalsCode provided but should be ignored in early return
+        },
       );
 
       // In early return path, globalsCode should not be processed
@@ -1875,16 +1868,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        true, // fallbackUsesExtraFiles=true
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsCode],
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: true, // fallbackUsesExtraFiles=true
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsCode],
+        },
       );
 
       // Verify all globals extraFiles are included
@@ -1937,16 +1932,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false,
-        false,
-        false,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsCodeAsCodeObject],
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: false,
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsCodeAsCodeObject],
+        },
       );
 
       // Verify that loadFallbackCode resolved the Code object and passed VariantCode to loadVariant
@@ -1998,16 +1995,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         loaded, // Provide loaded Code
-        false, // shouldHighlight
-        false, // fallbackUsesExtraFiles
-        false, // fallbackUsesAllVariants
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        'Component.tsx', // initialFilename
-        undefined, // variants
-        [globalsUrl], // globalsCode - Pass URL string directly
+        {
+          shouldHighlight: false, // shouldHighlight
+          fallbackUsesExtraFiles: false, // fallbackUsesExtraFiles
+          fallbackUsesAllVariants: false, // fallbackUsesAllVariants
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: 'Component.tsx', // initialFilename
+          variants: undefined, // variants
+          globalsCode: [globalsUrl], // globalsCode - Pass URL string directly
+        },
       );
 
       // Verify that the function completes successfully with globalsCode
@@ -2036,16 +2035,18 @@ describe('loadFallbackCode', () => {
         'http://example.com',
         'default',
         { default: variantCode },
-        false, // shouldHighlight=false
-        false, // fallbackUsesExtraFiles=false
-        false, // fallbackUsesAllVariants=false
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        undefined,
-        [globalsUrl], // globalsCode provided but should be ignored in early return
+        {
+          shouldHighlight: false, // shouldHighlight=false
+          fallbackUsesExtraFiles: false, // fallbackUsesExtraFiles=false
+          fallbackUsesAllVariants: false, // fallbackUsesAllVariants=false
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: undefined,
+          globalsCode: [globalsUrl], // globalsCode provided but should be ignored in early return
+        },
       );
 
       // Verify early return took place (loadVariant should not have been called)
@@ -2100,16 +2101,18 @@ describe('loadFallbackCode', () => {
           javascript: jsVariant,
           typescript: 'http://example.com/typescript', // String URL
         },
-        false,
-        false,
-        true, // fallbackUsesAllVariants=true
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockLoadCodeMeta,
-        undefined,
-        ['javascript', 'typescript'],
-        [sharedGlobalsCode], // Shared across variants
+        {
+          shouldHighlight: false,
+          fallbackUsesExtraFiles: false,
+          fallbackUsesAllVariants: true, // fallbackUsesAllVariants=true
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          loadCodeMeta: mockLoadCodeMeta,
+          initialFilename: undefined,
+          variants: ['javascript', 'typescript'],
+          globalsCode: [sharedGlobalsCode], // Shared across variants
+        },
       );
 
       // Verify loadVariant was called for both variants with the same resolved globalsCode

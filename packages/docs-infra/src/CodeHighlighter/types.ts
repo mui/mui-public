@@ -237,6 +237,29 @@ export interface LoadVariantOptions extends LoadFileOptions {
   sourceTransformers?: SourceTransformers;
 }
 
+export interface LoadFallbackCodeOptions extends LoadFileOptions {
+  /** Flag to indicate if syntax highlighting should be performed */
+  shouldHighlight?: boolean;
+  /** Flag to indicate if fallback should use extra files */
+  fallbackUsesExtraFiles?: boolean;
+  /** Flag to indicate if fallback should use all variants */
+  fallbackUsesAllVariants?: boolean;
+  /** Promise resolving to a source parser for syntax highlighting */
+  sourceParser?: Promise<ParseSource>;
+  /** Function to load raw source code and dependencies */
+  loadSource?: LoadSource;
+  /** Function to load specific variant metadata */
+  loadVariantMeta?: LoadVariantMeta;
+  /** Function to load code metadata from a URL */
+  loadCodeMeta?: LoadCodeMeta;
+  /** Specific filename to initially display */
+  initialFilename?: string;
+  /** Array of variant names to process */
+  variants?: string[];
+  /** Array of global code to include */
+  globalsCode?: Array<Code | string>;
+}
+
 /**
  * Main props for the CodeHighlighter component.
  * Supports both build-time precomputation and runtime code loading with extensive customization options.

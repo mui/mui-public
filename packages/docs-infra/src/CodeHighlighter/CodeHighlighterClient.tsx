@@ -99,21 +99,18 @@ function useInitialData({
         console.log('Loading initial data for CodeHighlighterClient: ', reason);
       }
 
-      const loaded = await loadFallbackCode(
-        url,
-        variantName,
-        code,
-        highlightAt === 'init',
+      const loaded = await loadFallbackCode(url, variantName, code, {
+        shouldHighlight: highlightAt === 'init',
         fallbackUsesExtraFiles,
         fallbackUsesAllVariants,
         sourceParser,
         loadSource,
         loadVariantMeta,
         loadCodeMeta,
-        fileName,
+        initialFilename: fileName,
         variants,
         globalsCode, // Let loadFallbackCode handle processing
-      ).catch((error) => ({ error }));
+      }).catch((error) => ({ error }));
 
       if ('error' in loaded) {
         setErrors((prev) => [...prev, loaded.error]);
