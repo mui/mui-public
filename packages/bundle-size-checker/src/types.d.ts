@@ -90,3 +90,8 @@ interface PrInfo {
     sha: string;
   };
 }
+
+interface SizeSnapshotEntry {
+  parsed: number;
+  gzip: number;
+}

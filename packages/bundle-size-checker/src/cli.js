@@ -42,7 +42,7 @@ const rootDir = process.cwd();
  * creates size snapshot for every bundle
  * @param {CommandLineArgs} args
  * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
- * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
+ * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
  */
 async function getBundleSizes(args, config) {
   const worker = new Piscina({
