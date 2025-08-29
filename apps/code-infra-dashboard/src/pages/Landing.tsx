@@ -21,7 +21,7 @@ const repositories: Repository[] = [
     owner: 'mui',
     name: 'material-ui',
     displayName: 'MUI Core',
-    description: 'React components implementing Google\'s Material Design',
+    description: "React components implementing Google's Material Design",
   },
   {
     owner: 'mui',
@@ -35,6 +35,12 @@ const repositories: Repository[] = [
     displayName: 'MUI X',
     description: 'Advanced components for complex use cases',
   },
+  {
+    owner: 'mui',
+    name: 'mui-public',
+    displayName: 'MUI Public',
+    description: 'Public monorepo with shared infrastructure and tooling',
+  },
 ];
 
 export default function Landing() {
@@ -43,7 +49,7 @@ export default function Landing() {
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {repositories.map((repo) => (
-          <Grid item xs={12} sm={6} md={4} key={`${repo.owner}/${repo.name}`}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${repo.owner}/${repo.name}`}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography gutterBottom variant="h5" component="h2">
@@ -52,7 +58,11 @@ export default function Landing() {
                 <Typography variant="body2" color="text.secondary">
                   {repo.description}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 1, display: 'block' }}
+                >
                   {repo.owner}/{repo.name}
                 </Typography>
               </CardContent>
