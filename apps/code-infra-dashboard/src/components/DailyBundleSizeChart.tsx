@@ -249,10 +249,6 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               </Button>
             </Box>
           </Box>
-          <Typography variant="caption" color="text.secondary">
-            Showing {selectedBundles.length} of {allBundles.length} bundles
-            {selectedBundles.length > 0 && ` (${validSeries.length} with data)`}
-          </Typography>
         </Box>
       )}
 
