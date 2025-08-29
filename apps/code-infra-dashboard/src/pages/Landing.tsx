@@ -45,7 +45,7 @@ const repositories: Repository[] = [
 
 export default function Landing() {
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {repositories.map((repo) => (
