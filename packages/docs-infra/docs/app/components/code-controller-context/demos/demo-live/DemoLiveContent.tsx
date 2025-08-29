@@ -4,12 +4,12 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
-import { LabeledSwitch } from '../../../../../components/LabeledSwitch';
-import { Tabs } from '../../../../../components/Tabs';
+import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { Tabs } from '@/components/Tabs';
 import styles from './DemoLiveContent.module.css';
 
 import '@wooorm/starry-night/style/light';
-import Select from '../../../../../components/Select/Select';
+import Select from '@/components/Select/Select';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',

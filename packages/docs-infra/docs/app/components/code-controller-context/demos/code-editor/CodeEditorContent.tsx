@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { LabeledSwitch } from '../../../../../components/LabeledSwitch';
+import { LabeledSwitch } from '@/components/LabeledSwitch';
 import styles from './CodeEditorContent.module.css';
 
 import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting

@@ -30,7 +30,7 @@ export function Checkbox({ defaultChecked, name = 'checkbox', className, style }
         style={style}
       />
       <span className={styles.checkmark}></span>
-      <span className="sr-only">Checkbox</span>
+      <span className={styles['sr-only']}>Checkbox</span>
     </label>
   );
 }

@@ -177,15 +177,15 @@ For more dynamic use cases, you can load code content from external sources or A
 
 `CodeHighlighter` can also be used on the client side, allowing you to load and parse code dynamically without server-side rendering. This is useful for applications that fetch code from APIs or databases.
 
-You can do so by using the [CodeProvider](../code-provider/page.mdx) component, which provides the necessary context for CodeHighlighter to function correctly on the client.
+You can do so by using the [`CodeProvider`](../code-provider/page.mdx) component, which provides the necessary context for CodeHighlighter to function correctly on the client.
 
 ---
 
-### Controlled Code Editor
+### Controlled Code Scenarios
 
-`CodeHighlighter` also supports controlled code editors, allowing users to edit code directly in the browser. This is useful for allowing editing code blocks or experimenting with demos.
+`CodeHighlighter` also supports controlled scenarios where you need to manage code state externally. This is useful for interactive demos where code changes affect other parts of your application or when you need to synchronize code across multiple components.
 
-You can use the [Code Controller](../code-controller/page.mdx) for this purpose, which provides a controlled environment for code editing and state management.
+You can use the [`CodeControllerContext`](../code-controller-context/page.mdx) for this purpose, which provides a controlled environment for managing code state in interactive scenarios.
 
 ---
 
@@ -283,7 +283,7 @@ Description of the advanced demo.
 ## Build-Time vs Server Rendering vs Client Rendering
 
 > [!NOTE]
-> The [CodeController](../code-controller/page.mdx) works with all three rendering methods.
+> The [`CodeControllerContext`](../code-controller-context/page.mdx) works with all three rendering methods.
 
 When rendering a code block, the user should consider the following options based on their use case:
 
@@ -320,7 +320,7 @@ Use direct `CodeHighlighter` for dynamic content:
 
 ### Client Rendering
 
-Use `CodeHighlighter` on the client with [CodeProvider](../code-provider/page.mdx):
+Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.mdx):
 
 **Advantages:**
 
