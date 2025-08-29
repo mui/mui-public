@@ -96,19 +96,15 @@ export function useUrlHashState(options: UseUrlHashStateOptions = {}): UseUrlHas
       }
 
       const formattedValue = value ? formatHash(value) : '';
-      const newUrl = formattedValue
+      let newUrl = formattedValue
         ? `${window.location.pathname}${window.location.search}#${formattedValue}`
         : `${window.location.pathname}${window.location.search}`;
-
       // Special case: if value is an empty string (not null), include the hash
       if (value === '') {
-        const newUrlWithEmptyHash = `${window.location.pathname}${window.location.search}#`;
-        if (replace) {
-          window.history.replaceState(null, '', newUrlWithEmptyHash);
-        } else {
-          window.history.pushState(null, '', newUrlWithEmptyHash);
-        }
-      } else if (replace) {
+        newUrl = `${window.location.pathname}${window.location.search}#`;
+      }
+
+      if (replace) {
         window.history.replaceState(null, '', newUrl);
       } else {
         window.history.pushState(null, '', newUrl);

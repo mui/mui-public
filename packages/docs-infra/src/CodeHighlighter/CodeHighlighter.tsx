@@ -83,7 +83,7 @@ function createClientProps<T extends {}>(
     slug: props.slug,
     url: props.url,
     variantType: props.variantType,
-    ...(props.contentProps || {}),
+    ...props.contentProps,
   } as ContentProps<T>;
 
   const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
