@@ -112,7 +112,7 @@ ${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(pathToFileURL(
     );
 
     // Convert the Map to an array of entries for the return value
-    return [[entry.id, entrySize]];
+    return Array.from(sizeMap.entries());
   } catch (error) {
     console.error(chalk.red(`Error processing bundle for ${entry.id}:`), error);
     throw error;
