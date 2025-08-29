@@ -8,7 +8,9 @@ export interface RedirectProps {
 function Redirect({ url }: RedirectProps) {
   React.useEffect(() => {
     if (url) {
-      window.location.replace(url);
+      setTimeout(() => {
+        window.location.replace(url);
+      }, 3000);
     }
   }, [url]);
 
