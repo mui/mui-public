@@ -27,6 +27,8 @@ We can use it to highlight code snippets in various languages, like JavaScript, 
 
 <DemoCodeHighlighterCode />
 
+[See Demo](./demos/code/)
+
 But `CodeHighlighter` really shines when you want to combine working React components with their source code. This creates an interactive experience where users can see both the rendered output and the implementation.
 
 import { DemoCodeHighlighterDemo } from './demos/demo';
@@ -34,6 +36,8 @@ import { DemoCodeHighlighterDemo } from './demos/demo';
 <DemoCodeHighlighterDemo.Title />
 
 <DemoCodeHighlighterDemo />
+
+[See Demo](./demos/demo/)
 
 ## Demo Factory Pattern
 
@@ -132,6 +136,8 @@ Your components can even appear differently, but we recommend keeping them as si
 
 <DemoCodeHighlighterDemoVariants />
 
+[See Demo](./demos/demo-variants/)
+
 ---
 
 import { CodeTransformations } from './demos/code-transformed';
@@ -142,6 +148,8 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 {/* <CodeTransformations /> */}
 
+[See Demo](./demos/code-transformed/)
+
 ---
 
 import { LazyHighlighting } from './demos/code-highlight-idle';
@@ -151,6 +159,8 @@ import { LazyHighlighting } from './demos/code-highlight-idle';
 For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
 
 {/* <LazyHighlighting /> */}
+
+[See Demo](./demos/code-highlight-idle/)
 
 ---
 
@@ -164,6 +174,8 @@ The fallback is also not provided any data other than the rendered content html 
 
 {/* <FallbackContent /> */}
 
+[See Demo](./demos/demo-fallback/)
+
 ---
 
 import { ServerSideLoading } from './demos/demo-server-loaded';
@@ -173,6 +185,8 @@ import { ServerSideLoading } from './demos/demo-server-loaded';
 For more dynamic use cases, you can load code content from external sources or APIs at runtime:
 
 {/* <ServerSideLoading /> */}
+
+[See Demo](./demos/demo-server-loaded/)
 
 ---
 
@@ -241,6 +255,20 @@ It is located directly in the component's docs because it can have rich contents
 Try to avoid referring directly to the demo itself as when viewing the raw markdown, users won't see the code or renderings from the demo.
 Ideally, the reader can picture the demo in their mind without needing to see it.
 
+### Link to Demo
+
+Include a "See Demo" link after each demo component to allow users to navigate directly to the demo's source directory. This is especially useful when viewing the documentation in markdown editors or GitHub, where users can click the link to browse the demo files.
+
+The link should point to the demo's directory using a relative path:
+
+```mdx
+<DemoCheckboxBasic />
+
+[See Demo](./demos/basic/)
+```
+
+This pattern makes it easy for developers to explore the demo's implementation, understand the file structure, and reference the source code when building their own components.
+
 ### Separators
 
 Use horizontal rules (`---`) to separate different sections of the demo. This allows the description of the previous demo to be visually distinct from the next demo.
@@ -254,6 +282,8 @@ Description of the basic demo.
 
 <DemoCheckboxBasic />
 
+[See Demo](./demos/basic/)
+
 ---
 
 import { DemoCheckboxAdvanced } from './demos/second-demo';
@@ -263,9 +293,11 @@ import { DemoCheckboxAdvanced } from './demos/second-demo';
 Description of the second demo.
 
 <DemoCheckboxAdvanced />
+
+[See Demo](./demos/second-demo/)
 ```
 
-Within GitHub, it will display like this without rendering the demo:
+Within GitHub, it will display like this without rendering the demo and with `See Demo` underlined:
 
 ```mdx
 import { DemoCheckboxBasic } from './demos/basic';
@@ -274,6 +306,8 @@ import { DemoCheckboxBasic } from './demos/basic';
 
 Description of the basic demo.
 
+See Demo
+
 ---
 
 import { DemoCheckboxAdvanced } from './demos/advanced';
@@ -281,7 +315,12 @@ import { DemoCheckboxAdvanced } from './demos/advanced';
 <DemoCheckboxAdvanced.Title />
 
 Description of the advanced demo.
+
+See Demo
 ```
+
+> [!TIP]
+> **For Documentation Tooling**: If you're building tooling to render these demos in a web interface, you can use a remark plugin to automatically remove the "See Demo" links and horizontal rule separators (`---`) from the rendered output, since the interactive demos provide their own navigation.
 
 ## Build-Time vs Server Rendering vs Client Rendering
 
