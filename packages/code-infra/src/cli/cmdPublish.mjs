@@ -265,6 +265,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Run in dry-run mode without publishing',
       })
+      .option('github-release', {
+        type: 'boolean',
+        default: false,
+        description: 'Create a GitHub draft release after publishing',
+      })
       .option('no-git-checks', {
         type: 'boolean',
         default: false,
