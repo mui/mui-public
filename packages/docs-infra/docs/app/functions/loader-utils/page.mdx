@@ -179,6 +179,104 @@ const url = getFileNameFromUrl('https://example.com/file.js');
 console.log(url); // { fileName: 'file.js', extension: '.js' }
 ```
 
+### extractNameAndSlugFromUrl
+
+Extracts and formats human-readable names and URL-friendly slugs from file paths.
+
+```typescript
+import { extractNameAndSlugFromUrl } from '@mui/internal-docs-infra/loaderUtils';
+
+// Handles index files (uses parent directory name)
+const demo = extractNameAndSlugFromUrl('file:///app/components/demos/advanced-keyboard/index.ts');
+console.log(demo); // { name: 'Advanced Keyboard', slug: 'advanced-keyboard' }
+
+// Handles camelCase filenames
+const camel = extractNameAndSlugFromUrl('/src/components/customButton.tsx');
+console.log(camel); // { name: 'Custom Button', slug: 'custom-button' }
+
+// Handles kebab-case filenames
+const kebab = extractNameAndSlugFromUrl('/src/components/button-group.tsx');
+console.log(kebab); // { name: 'Button Group', slug: 'button-group' }
+```
+
+**Features:**
+
+- [✓] **Index file handling** - Uses parent directory name for `index.*` files
+- [✓] **Extension stripping** - Removes all file extensions (`.js`, `.d.ts`, `.module.css`, etc.)
+- [✓] **camelCase conversion** - Converts `customButton` to `Custom Button` / `custom-button`
+- [✓] **kebab-case conversion** - Converts `button-group` to `Button Group` / `button-group`
+- [✓] **URL protocol support** - Handles `file://` URLs and regular paths
+
+### externalsToPackages
+
+Converts an array of external import paths to a packages object for dependency tracking.
+
+```typescript
+import { externalsToPackages } from '@mui/internal-docs-infra/loaderUtils';
+
+const externals = [
+  'react',
+  'react-dom',
+  '@mui/internal-docs-infra/CodeHighlighter',
+  '@mui/internal-docs-infra/parseSource',
+  'lodash/get',
+  'some-package/submodule/deep',
+  '@/components/Button', // path alias - filtered out
+];
+
+const packages = externalsToPackages(externals);
+console.log(packages);
+// {
+//   'react': true,
+//   'react-dom': true,
+//   '@mui/internal-docs-infra': true,
+//   'lodash': true,
+//   'some-package': true
+// }
+```
+
+**Features:**
+
+- [✓] **Scoped package handling** - Extracts `@scope/package` from longer paths
+- [✓] **Submodule extraction** - Converts `lodash/get` to `lodash`
+- [✓] **Path alias filtering** - Ignores imports starting with `@/`
+- [✓] **Deduplication** - Returns unique packages as object keys
+
+### mergeExternals
+
+Merges multiple externals objects, combining imports from the same module and deduplicating.
+
+```typescript
+import { mergeExternals } from '@mui/internal-docs-infra/loaderUtils';
+import type { Externals } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+const externals1: Externals = {
+  'react': [{ name: 'React', type: 'default' }],
+  'lodash': [{ name: 'map', type: 'named' }]
+};
+
+const externals2: Externals = {
+  'react': [{ name: 'useState', type: 'named' }],
+  'lodash': [{ name: 'map', type: 'named' }] // duplicate - will be removed
+};
+
+const merged = mergeExternals([externals1, externals2]);
+console.log(merged);
+// {
+//   'react': [
+//     { name: 'React', type: 'default' },
+//     { name: 'useState', type: 'named' }
+//   ],
+//   'lodash': [{ name: 'map', type: 'named' }]
+// }
+```
+
+**Features:**
+
+- [✓] **Import deduplication** - Removes duplicate imports by name, type, and isType
+- [✓] **Module merging** - Combines imports from the same module across multiple externals
+- [✓] **Type preservation** - Maintains import metadata (default, named, type imports)
+
 ### rewriteImports
 
 Rewrites import statements in source code based on a mapping.

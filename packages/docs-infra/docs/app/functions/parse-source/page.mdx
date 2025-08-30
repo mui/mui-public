@@ -1,0 +1,104 @@
+# parseSource
+
+The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night). It converts code into highlighted HTML structures for display in documentation and demos.
+
+## Features
+- Syntax highlighting using Starry Night with GitHub-style highlighting
+- Supports multiple programming languages via grammar definitions
+- Adds line gutters for code display
+- Graceful fallback for unsupported file types
+- Returns HAST nodes compatible with React rendering
+
+## Usage
+
+```ts
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+// Create an initialized parseSource function
+const parseSource = await createParseSource();
+
+// Parse and highlight code
+const highlighted = parseSource('const x = 42;', 'example.js');
+
+// Returns HAST tree like:
+// {
+//   type: 'root',
+//   children: [
+//     { type: 'element', tagName: 'span', properties: { className: ['pl-k'] }, children: [{ type: 'text', value: 'const' }] },
+//     { type: 'text', value: ' ' },
+//     { type: 'element', tagName: 'span', properties: { className: ['pl-s1'] }, children: [{ type: 'text', value: 'x' }] },
+//     // ... more highlighted nodes
+//   ]
+// }
+```
+
+## Initialization
+
+The function requires initialization before use:
+
+```ts
+import { createParseSource, parseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+// Option 1: Create initialized function
+const myParseSource = await createParseSource();
+const result = myParseSource(source, fileName);
+
+// Option 2: Use global instance (after createParseSource has been called)
+const result = parseSource(source, fileName);
+```
+
+## Supported Languages
+
+The parser supports languages based on file extensions through the grammar definitions:
+
+- **JavaScript**: `.js`, `.mjs`, `.cjs`
+- **TypeScript**: `.ts`, `.tsx`
+- **CSS**: `.css`
+- **HTML**: `.html`, `.htm`
+- **JSON**: `.json`
+- **And many more** via Starry Night grammars
+
+## Fallback Behavior
+
+For unsupported file types, returns a simple HAST structure:
+
+```ts
+const result = parseSource('Some unknown content', 'file.xyz');
+// Returns:
+// {
+//   type: 'root',
+//   children: [
+//     {
+//       type: 'text',
+//       value: 'Some unknown content'
+//     }
+//   ]
+// }
+```
+
+## Error Handling
+
+Throws an error if Starry Night is not initialized:
+
+```ts
+// This will throw an error
+parseSource('code', 'file.js'); // Error: Starry Night not initialized
+
+// Must initialize first
+await createParseSource();
+parseSource('code', 'file.js'); // Now works
+```
+
+## Line Gutters
+
+The parser automatically adds line gutters using `starryNightGutter` for better code display with line numbers.
+
+## When to Use
+- When implementing syntax highlighting for code blocks
+- When preparing code for display in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
+- When building custom code processing pipelines that need highlighted output
+
+## Related
+- [Starry Night](https://github.com/wooorm/starry-night) - The underlying syntax highlighter
+- [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this for syntax highlighting

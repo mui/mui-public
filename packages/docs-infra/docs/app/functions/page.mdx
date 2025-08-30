@@ -2,10 +2,25 @@
 
 Developer utilities and build-time tools for the documentation infrastructure.
 
+## Configuration Plugins
+
+- [`withDocsInfra`](./with-docs-infra/page.mdx) - Next.js plugin for configuring webpack loaders, Turbopack rules, and MDX processing for docs sites
+
 ## Factories
 
 - [`abstractCreateDemo`](./abstract-create-demo/page.mdx) - Factory utilities for creating structured demos that work with CodeHighlighter
 - [`abstractCreateDemoClient`](./abstract-create-demo-client/page.mdx) - Factory for creating client providers for live demo externals
+- [`createDemoData`](./create-demo-data/page.mdx) - Factory for creating demo metadata and configuration objects
+
+## Source Processing
+
+- [`parseSource`](./parse-source/page.mdx) - Parse source code into syntax-highlighted HAST using Starry Night
+- [`transformTypescriptToJavascript`](./transform-typescript-to-javascript/page.mdx) - Transform TypeScript/TSX to JavaScript/JSX with Babel and Prettier
+
+## Server Utilities
+
+- [`loadServerCodeMeta`](./load-server-code-meta/page.mdx) - Server utility for loading demo metadata and source information
+- [`loadServerSource`](./load-server-source/page.mdx) - Server utility for loading source code with recursive import resolution
 
 ## Webpack Loaders
 
@@ -24,4 +39,5 @@ Developer utilities and build-time tools for the documentation infrastructure.
 
 ## Utilities
 
+- [`hastUtils`](./hast-utils/page.mdx) - Utilities for working with HAST (Hypertext Abstract Syntax Tree) and converting to JSX
 - [`loaderUtils`](./loader-utils/page.mdx) - A collection of utilities for loading and processing code, including parsing imports and resolving module paths

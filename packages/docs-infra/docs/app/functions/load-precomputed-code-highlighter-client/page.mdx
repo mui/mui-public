@@ -24,9 +24,29 @@ The loader processes demo client files that use the `createDemoClient` factory p
 
 ## Configuration
 
-### Next.js Setup
+### Recommended: withDocsInfra Plugin
 
-Add the loader to your `next.config.mjs`:
+The easiest way to configure this loader is with the [`withDocsInfra`](../with-docs-infra/page.mdx) Next.js plugin:
+
+```javascript
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // Automatically includes:
+  // - './app/**/demos/*/client.ts'
+  // - './src/demo-data/*/client.ts' (for global client demos)
+  
+  // Add custom patterns if needed
+  additionalDemoPatterns: {
+    client: ['./app/**/snippets/*/client.ts'],
+  },
+});
+```
+
+### Manual Next.js Setup
+
+If you need manual control, add the loader directly to your `next.config.mjs`:
 
 > [!NOTE]
 > The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
@@ -39,11 +59,24 @@ const nextConfig = {
       './app/**/demos/*/client.ts': {
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
       },
+      // Add pattern for global demo data client files
+      './src/demo-data/*/client.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+      },
     },
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/demos\/[^/]+\/client\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+      ],
+    });
+
+    // Add rule for global demo data client files
+    config.module.rules.push({
+      test: /\/demo-data\/[^/]+\/client\.ts$/,
       use: [
         defaultLoaders.babel,
         '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',

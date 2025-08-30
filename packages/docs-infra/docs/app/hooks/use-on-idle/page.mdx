@@ -1,0 +1,167 @@
+# useOnIdle
+
+The `useOnIdle` hook schedules a callback to run when the browser is idle and returns a boolean flag indicating whether the idle callback has been executed. Once the browser becomes idle and the callback runs, the returned value switches to `true` and remains `true` for the component's lifetime.
+
+## Features
+
+- **Idle Detection**: Uses `requestIdleCallback` when available, falls back to `setTimeout`
+- **State Tracking**: Returns a boolean flag that switches to `true` once idle and stays `true`
+- **Configurable Timeout**: Customizable timeout for idle detection
+- **SSR Safe**: Handles server-side rendering gracefully
+- **Ref-based Callbacks**: Ensures callback updates don't cause re-execution
+- **Automatic Cleanup**: Properly cancels idle callbacks on unmount
+
+## API
+
+```tsx
+const isIdle = useOnIdle(callback?, timeout?)
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `callback` | `() => void` | `undefined` | Optional callback to execute when idle |
+| `timeout` | `number` | `1000` | Timeout in milliseconds for idle detection |
+
+### Returns
+
+| Type | Description |
+|------|-------------|
+| `boolean` | `true` once the idle callback has been executed (never resets to `false`), `false` initially |
+
+## Usage
+
+### Basic Usage
+
+```tsx
+import { useOnIdle } from '@mui/internal-docs-infra/useOnIdle';
+
+function DeferredAnalytics() {
+  const isIdle = useOnIdle(() => {
+    // Send analytics when browser is idle
+    analytics.track('page_viewed');
+  });
+
+  return (
+    <div>
+      <p>Analytics status: {isIdle ? 'Sent' : 'Waiting for idle...'}</p>
+    </div>
+  );
+}
+```
+
+### Custom Timeout
+
+```tsx
+function SlowDeferredTask() {
+  const isIdle = useOnIdle(() => {
+    // This will wait up to 5 seconds for browser to be idle
+    performExpensiveOperation();
+  }, 5000);
+
+  return <div>Task {isIdle ? 'completed' : 'waiting for idle...'}</div>;
+}
+```
+
+### State-only Usage
+
+```tsx
+function IdleIndicator() {
+  // Just track idle state without executing a callback
+  const isIdle = useOnIdle();
+
+  return (
+    <div className={isIdle ? 'idle-reached' : 'waiting-for-idle'}>
+      Idle state: {isIdle ? 'reached' : 'waiting...'}
+    </div>
+  );
+}
+```
+
+### Conditional Rendering
+
+```tsx
+function HeavyComponent() {
+  const isIdle = useOnIdle();
+
+  return (
+    <div>
+      <h1>Essential Content</h1>
+      {isIdle && <ExpensiveVisualization />}
+    </div>
+  );
+}
+```
+
+## Implementation Details
+
+The hook uses the following strategy for idle detection:
+
+1. **Modern Browsers**: Uses `requestIdleCallback` with the specified timeout
+2. **Fallback**: Uses `setTimeout` for browsers without `requestIdleCallback` support
+3. **SSR Handling**: Returns `false` and skips scheduling on the server
+4. **Cleanup**: Automatically cancels callbacks when the component unmounts or dependencies change
+
+## Common Patterns
+
+### Lazy Loading Secondary Content
+
+```tsx
+function DocumentationPage() {
+  const isIdle = useOnIdle(() => {
+    // Preload related articles when idle
+    preloadRelatedContent();
+  });
+
+  return (
+    <div>
+      <main>Essential documentation content</main>
+      {isIdle && <RelatedArticles />}
+    </div>
+  );
+}
+```
+
+### Performance Monitoring
+
+```tsx
+function PerformanceTracker() {
+  useOnIdle(() => {
+    // Report performance metrics when idle
+    reportPerformanceMetrics();
+  }, 2000);
+
+  return null;
+}
+```
+
+### Progressive Enhancement
+
+```tsx
+function EnhancedDemo() {
+  const isIdle = useOnIdle();
+
+  return (
+    <div>
+      <BasicDemo />
+      {isIdle && <AdvancedFeatures />}
+    </div>
+  );
+}
+```
+
+## When to Use
+
+- **Deferred Analytics**: Send tracking events when the browser is idle
+- **Lazy Loading**: Load non-critical content after the initial render
+- **Performance Optimization**: Delay expensive operations until idle time
+- **Progressive Enhancement**: Add enhanced features when resources are available
+- **Background Tasks**: Execute maintenance tasks during idle periods
+
+## When Not to Use
+
+- **Critical Functionality**: Don't defer essential features or content
+- **User Interactions**: Avoid delaying immediate response to user actions
+- **SEO-Critical Content**: Don't defer content needed for search indexing
+- **Accessibility Features**: Essential accessibility features should load immediately

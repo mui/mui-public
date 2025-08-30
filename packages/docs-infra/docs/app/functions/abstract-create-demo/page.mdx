@@ -37,6 +37,9 @@ import {
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 
 import { DemoContent } from './DemoContent';
+import { DemoDataTheme } from '../demo-data/theme';
+
+const demoGlobalData = [DemoDataTheme];
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -46,6 +49,7 @@ import { DemoContent } from './DemoContent';
  */
 export const createDemo = createDemoFactory({
   DemoContent,
+  demoGlobalData,
 });
 
 /**
@@ -57,6 +61,75 @@ export const createDemo = createDemoFactory({
  */
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
+  demoGlobalData,
+});
+```
+
+## Global Dependencies
+
+Global dependencies allow you to inject shared code (like providers, themes, or utilities) into all demos. These are passed through the `demoGlobalData` option:
+
+```ts
+// docs/src/demo-data/theme/index.ts
+import { createDemoGlobalWithVariants } from '@mui/internal-docs-infra/createDemoData';
+import type { DemoGlobalData } from '@mui/internal-docs-infra/createDemoData/types';
+import { DemoThemeProvider as CssModules } from './css-modules';
+
+export const DemoDataTheme: DemoGlobalData = createDemoGlobalWithVariants(import.meta.url, {
+  CssModules,
+});
+```
+
+```ts
+// docs/src/demo-data/theme/css-modules/index.ts
+import './theme.css';
+
+export function DemoThemeProvider({ children }: { children: React.ReactNode }) {
+  return children;
+}
+```
+
+```ts
+// docs/src/utils/createDemo.ts
+import { createDemoFactory } from '@mui/internal-docs-infra/abstractCreateDemo';
+import { Demo as DemoContent } from '../components/Demo/Demo';
+import { DemoDataTheme } from '../demo-data/theme';
+
+const demoGlobalData = [DemoDataTheme];
+
+export const createDemo = createDemoFactory({
+  DemoContent,
+  demoGlobalData, // Available in all demos
+});
+```
+
+The globals are automatically merged with demo code and made available through [`CodeExternalsContext`](../../components/code-externals-context/page.mdx) for live code execution.
+
+### Loader Configuration
+
+To make global demo data work properly, use [`withDocsInfra`](../with-docs-infra/page.mdx) which automatically includes the demo-data patterns:
+
+```js
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // withDocsInfra automatically includes:
+  // - './app/**/demos/*/index.ts'
+  // - './app/**/demos/*/client.ts'  
+  // - './src/demo-data/*/index.ts' (for globals)
+  // - './src/demo-data/*/client.ts' (for client-side globals)
+});
+```
+
+If you need additional patterns, you can add them via `additionalDemoPatterns`:
+
+```js
+export default withDocsInfra({
+  additionalDemoPatterns: {
+    index: ['./src/**/snippets/*/index.ts'],
+    client: ['./src/**/snippets/*/client.ts'],
+  },
 });
 ```
 
