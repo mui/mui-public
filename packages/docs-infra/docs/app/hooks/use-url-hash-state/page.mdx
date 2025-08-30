@@ -1,0 +1,314 @@
+# useUrlHashState
+
+The `useUrlHashState` hook provides a robust way to synchronize component state with the URL hash fragment, enabling deep linking, state persistence, and browser navigation support in documentation and demo pages.
+
+## Features
+
+- **URL Synchronization**: Automatically syncs state with the URL hash fragment
+- **Deep Linking**: Enables direct links to specific application states
+- **Browser Navigation**: Supports back/forward navigation with history API
+- **SSR Safe**: Handles server-side rendering gracefully
+- **Customizable Parsing**: Custom hash parsing and formatting functions
+- **User Interaction Tracking**: Tracks whether user has explicitly interacted with hash
+- **Configurable Behavior**: Options for reading on mount and watching changes
+
+## API
+
+```tsx
+const result = useUrlHashState(options?)
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `options` | `UseUrlHashStateOptions` | `{}` | Configuration options |
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `readOnMount` | `boolean` | `true` | Whether to read hash from URL on component mount |
+| `watchChanges` | `boolean` | `true` | Whether to listen for hash changes from browser navigation |
+| `parseHash` | `(hash: string) => string` | `(hash) => hash.slice(1)` | Custom function to parse hash from URL |
+| `formatHash` | `(value: string) => string` | `(value) => value` | Custom function to format value for URL |
+
+### Returns
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `hash` | `string \| null` | Current hash value (without the '#' prefix) |
+| `setHash` | `(value: string \| null, replace?: boolean) => void` | Function to update hash and URL |
+| `hasProcessedInitialHash` | `boolean` | Whether the initial hash has been read and processed |
+| `hasUserInteraction` | `boolean` | Whether user has explicitly interacted with the hash |
+| `markUserInteraction` | `() => void` | Function to mark user interaction |
+
+## Usage
+
+### Basic Usage
+
+```tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function TabNavigation() {
+  const { hash, setHash } = useUrlHashState();
+
+  return (
+    <nav>
+      <button 
+        onClick={() => setHash('overview')}
+        className={hash === 'overview' ? 'active' : ''}
+      >
+        Overview
+      </button>
+      <button 
+        onClick={() => setHash('details')}
+        className={hash === 'details' ? 'active' : ''}
+      >
+        Details
+      </button>
+      <button onClick={() => setHash(null)}>
+        Clear Hash
+      </button>
+    </nav>
+  );
+}
+```
+
+### History Management
+
+```tsx
+function NavigationExample() {
+  const { hash, setHash } = useUrlHashState();
+
+  const goToSection = (section: string, addToHistory = false) => {
+    // Use replace=false to add entry to browser history
+    // Use replace=true (default) to replace current entry
+    setHash(section, !addToHistory);
+  };
+
+  return (
+    <div>
+      <button onClick={() => goToSection('intro', true)}>
+        Go to Intro (new history entry)
+      </button>
+      <button onClick={() => goToSection('content')}>
+        Go to Content (replace current)
+      </button>
+    </div>
+  );
+}
+```
+
+### Custom Hash Parsing
+
+```tsx
+function CustomParsingExample() {
+  const { hash, setHash } = useUrlHashState({
+    // Parse hash like "#section:intro" -> "intro"
+    parseHash: (hash) => {
+      const withoutHash = hash.slice(1);
+      return withoutHash.startsWith('section:') ? withoutHash.slice(8) : withoutHash;
+    },
+    // Format value like "intro" -> "section:intro"
+    formatHash: (value) => `section:${value}`,
+  });
+
+  return (
+    <div>
+      <p>Current section: {hash || 'none'}</p>
+      <button onClick={() => setHash('intro')}>
+        Set Intro (URL will be #section:intro)
+      </button>
+    </div>
+  );
+}
+```
+
+### Conditional Reading
+
+```tsx
+function ConditionalReadingExample() {
+  const { hash, setHash, hasProcessedInitialHash } = useUrlHashState({
+    readOnMount: false, // Don't read hash automatically
+  });
+
+  const processInitialHash = () => {
+    // Manually trigger reading the hash when ready
+    if (!hasProcessedInitialHash) {
+      const currentHash = window.location.hash.slice(1);
+      if (currentHash) {
+        setHash(currentHash);
+      }
+    }
+  };
+
+  return (
+    <div>
+      <p>Hash: {hash || 'none'}</p>
+      <p>Processed: {hasProcessedInitialHash ? 'yes' : 'no'}</p>
+      <button onClick={processInitialHash}>
+        Process Initial Hash
+      </button>
+    </div>
+  );
+}
+```
+
+### User Interaction Tracking
+
+```tsx
+function InteractionTrackingExample() {
+  const { hash, setHash, hasUserInteraction, markUserInteraction } = useUrlHashState();
+
+  const handleUserClick = (section: string) => {
+    markUserInteraction(); // Mark that user explicitly interacted
+    setHash(section);
+  };
+
+  return (
+    <div>
+      <p>User has interacted: {hasUserInteraction ? 'yes' : 'no'}</p>
+      <button onClick={() => handleUserClick('section1')}>
+        Go to Section 1
+      </button>
+      {/* This could be used to differentiate programmatic vs user changes */}
+      {hasUserInteraction && <p>Hash was set by user action</p>}
+    </div>
+  );
+}
+```
+
+### Watching External Changes
+
+```tsx
+function ExternalChangesExample() {
+  const { hash } = useUrlHashState({
+    watchChanges: true, // Default: listen for browser back/forward
+  });
+
+  React.useEffect(() => {
+    if (hash) {
+      // React to hash changes from browser navigation
+      console.log('Hash changed to:', hash);
+      scrollToSection(hash);
+    }
+  }, [hash]);
+
+  return <div>Current hash: {hash}</div>;
+}
+```
+
+## Implementation Details
+
+The hook uses the following strategy:
+
+1. **Initial Reading**: On mount, reads the current hash from `window.location.hash`
+2. **State Management**: Maintains internal state synchronized with URL
+3. **URL Updates**: Uses `history.replaceState()` or `history.pushState()` to update URL
+4. **Change Detection**: Listens to `hashchange` events for browser navigation
+5. **SSR Handling**: Returns `null` and skips URL operations on the server
+
+## Common Patterns
+
+### Documentation Sections
+
+```tsx
+function DocumentationPage() {
+  const { hash, setHash } = useUrlHashState();
+  
+  const sections = ['introduction', 'api', 'examples', 'troubleshooting'];
+  const activeSection = hash || 'introduction';
+
+  return (
+    <div>
+      <nav>
+        {sections.map(section => (
+          <button 
+            key={section}
+            onClick={() => setHash(section)}
+            className={activeSection === section ? 'active' : ''}
+          >
+            {section}
+          </button>
+        ))}
+      </nav>
+      <main>
+        {activeSection === 'introduction' && <IntroductionContent />}
+        {activeSection === 'api' && <ApiContent />}
+        {activeSection === 'examples' && <ExamplesContent />}
+        {activeSection === 'troubleshooting' && <TroubleshootingContent />}
+      </main>
+    </div>
+  );
+}
+```
+
+### Demo State Persistence
+
+```tsx
+function DemoPage() {
+  const { hash, setHash } = useUrlHashState({
+    parseHash: (hash) => {
+      try {
+        return JSON.parse(decodeURIComponent(hash.slice(1)));
+      } catch {
+        return {};
+      }
+    },
+    formatHash: (value) => encodeURIComponent(JSON.stringify(value)),
+  });
+
+  const demoState = hash || { variant: 'default', size: 'medium' };
+
+  const updateDemoState = (updates: Partial<typeof demoState>) => {
+    setHash({ ...demoState, ...updates });
+  };
+
+  return (
+    <div>
+      <Demo config={demoState} />
+      <Controls state={demoState} onChange={updateDemoState} />
+    </div>
+  );
+}
+```
+
+### Modal Deep Linking
+
+```tsx
+function ModalExample() {
+  const { hash, setHash } = useUrlHashState();
+  const isModalOpen = hash === 'modal';
+
+  const openModal = () => setHash('modal');
+  const closeModal = () => setHash(null);
+
+  return (
+    <div>
+      <button onClick={openModal}>Open Modal</button>
+      {isModalOpen && (
+        <Modal onClose={closeModal}>
+          <p>Modal content - shareable URL!</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
+```
+
+## When to Use
+
+- **Deep Linking**: Enable direct links to specific states or sections
+- **State Persistence**: Preserve application state across page reloads
+- **Browser Navigation**: Support back/forward navigation for state changes
+- **Shareable URLs**: Create URLs that capture current application state
+- **Documentation Navigation**: Navigate between sections with persistent URLs
+- **Demo Configuration**: Persist demo settings in URL for sharing
+
+## When Not to Use
+
+- **Sensitive Data**: Don't store sensitive information in URL hashes
+- **Large State Objects**: Avoid storing complex state that makes URLs unwieldy
+- **Frequently Changing State**: Don't sync rapidly changing state that would spam browser history
+- **Private State**: Use for state that's appropriate to be visible in URLs

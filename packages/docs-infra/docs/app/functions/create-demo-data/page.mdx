@@ -1,0 +1,85 @@
+# createDemoData
+
+The `createDemoData` utility creates structured demo metadata and component data for use with the [`CodeHighlighter`](../components/code-highlighter/page.mdx) system. It processes demo URLs, components, and metadata to create data objects that can be consumed by demo factories and code highlighting systems.
+
+> [!IMPORTANT]
+> For creating actual demos, use [`abstractCreateDemo`](./abstract-create-demo/page.mdx) instead. The `createDemoData` functions are primarily for creating global demo data and advanced use cases where you need low-level control over demo metadata.
+
+## Features
+- Creates demo metadata from file URLs and components
+- Generates names, slugs, and display names for demos
+- Integrates with precomputed code and build systems
+- Supports both single and multi-variant demos
+
+## Usage
+
+```ts
+import { 
+  createDemoData, 
+  createDemoDataWithVariants,
+  createDemoGlobal,
+  createDemoGlobalWithVariants 
+} from '@mui/internal-docs-infra/createDemoData';
+
+// Single component demo
+const demoData = createDemoData(import.meta.url, MyComponent, {
+  name: 'Custom Demo Name',
+  precompute: precomputedCode,
+});
+
+// Multi-variant demo
+const variantDemoData = createDemoDataWithVariants(
+  import.meta.url, 
+  { Basic: BasicComponent, Advanced: AdvancedComponent },
+  { name: 'Component Variants' }
+);
+
+// Global provider demo (real-world example)
+// docs/src/demo-data/theme/index.ts
+import { DemoThemeProvider as CssModules } from './css-modules';
+
+export const DemoDataTheme: DemoGlobalData = createDemoGlobalWithVariants(import.meta.url, {
+  CssModules,
+});
+```
+
+### Global Demo Data Structure
+
+Global demo data typically follows this file structure:
+
+```
+docs/src/demo-data/
+├── theme/
+│   ├── index.ts              # Global demo data export
+│   ├── css-modules/
+│   │   ├── index.ts          # Provider component
+│   │   └── theme.css         # CSS variables/styles
+│   └── client.ts             # Client-side version (if needed)
+```
+
+#### Global Variant Matching
+
+When globals are merged with demo code, the system follows these rules:
+
+- **Exact variant match**: If a global has the same variant name as the demo (e.g., `CssModules`), it's used for that variant
+- **No matching variant**: If a global doesn't have a variant that matches the demo variant, no global is added for that variant
+- **Default fallback**: If a global only has a `Default` variant (or no variants), it's used for all demo variants
+
+```ts
+// This global will only be applied to CssModules variant demos
+export const DemoDataTheme = createDemoGlobalWithVariants(import.meta.url, {
+  CssModules, // Only available for 'CssModules' variant
+});
+
+// This global will be applied to all variants
+export const DemoDataProvider = createDemoGlobal(import.meta.url, GlobalProvider);
+```
+
+## When to Use
+- When building demo factories with [`abstractCreateDemo`](./abstract-create-demo/page.mdx)
+- When you need structured demo metadata for the docs-infra system
+- **Note**: For global dependencies in demos, use the `demoGlobalData` option in `abstractCreateDemo` instead
+
+## Related
+- [`createDemo`](./abstract-create-demo/page.mdx)
+- [`CodeHighlighter`](../components/code-highlighter/page.mdx)

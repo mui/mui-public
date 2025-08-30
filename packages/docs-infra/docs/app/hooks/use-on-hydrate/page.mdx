@@ -1,0 +1,347 @@
+# useOnHydrate
+
+The `useOnHydrate` hook provides hydration detection and callback execution for React Server Component applications. It tracks hydration state and executes client-side logic safely after the component has hydrated, preventing hydration mismatches and enabling client-only functionality.
+
+## Features
+- **Hydration detection** - Returns boolean indicating if component has hydrated
+- **Client-side callback** - Executes callback only after hydration is complete
+- **SSR-safe** - Prevents hydration mismatches by deferring client-only logic
+- **Ref-based callback** - Supports dynamic callback updates without re-triggering effects
+- **Window detection** - Uses `typeof window !== 'undefined'` for client environment detection
+
+## API
+
+```typescript
+const isHydrated = useOnHydrate(callback?);
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `callback` | `(() => void) \| undefined` | Optional callback to execute after hydration |
+
+### Returns
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isHydrated` | `boolean` | `true` if component has hydrated on client, `false` during SSR/before hydration |
+
+## Usage Examples
+
+### Basic Hydration Detection
+
+```tsx
+import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
+
+function HydrationAwareComponent() {
+  const isHydrated = useOnHydrate();
+
+  return (
+    <div>
+      <p>Rendering on: {isHydrated ? 'Client' : 'Server'}</p>
+      {isHydrated && (
+        <p>This content only appears after hydration!</p>
+      )}
+    </div>
+  );
+}
+```
+
+### Client-Only Effects
+
+```tsx
+import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
+
+function ClientOnlySetup() {
+  const isHydrated = useOnHydrate(() => {
+    // Initialize client-only libraries
+    console.log('Component hydrated, initializing client features...');
+    
+    // Example: Initialize analytics
+    if (typeof gtag !== 'undefined') {
+      gtag('config', 'GA_TRACKING_ID');
+    }
+    
+    // Example: Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  });
+
+  return (
+    <div>
+      <h1>My App</h1>
+      {isHydrated ? (
+        <p>✅ Client features initialized</p>
+      ) : (
+        <p>⏳ Loading client features...</p>
+      )}
+    </div>
+  );
+}
+```
+
+### Conditional Client Rendering
+
+```tsx
+import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
+
+function InteractiveDemo() {
+  const isHydrated = useOnHydrate(() => {
+    // Setup interactive features
+    console.log('Interactive demo ready');
+  });
+
+  return (
+    <div className="demo">
+      <h3>Interactive Code Demo</h3>
+      
+      {/* Always render static content */}
+      <pre>
+        <code>console.log('Hello World');</code>
+      </pre>
+      
+      {/* Only render interactive features after hydration */}
+      {isHydrated && (
+        <>
+          <button onClick={() => alert('Run code!')}>
+            ▶️ Run Code
+          </button>
+          <button onClick={() => navigator.clipboard.writeText('console.log("Hello World");')}>
+            📋 Copy Code
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+### Dynamic Callback Updates
+
+```tsx
+import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
+
+function DynamicHydrationCallback({ onReady }: { onReady: () => void }) {
+  // Callback can change without re-triggering hydration effect
+  const isHydrated = useOnHydrate(onReady);
+
+  return (
+    <div>
+      <p>Status: {isHydrated ? 'Ready' : 'Initializing...'}</p>
+    </div>
+  );
+}
+
+// Usage with changing callbacks
+function ParentComponent() {
+  const [message, setMessage] = React.useState('Initial');
+  
+  const handleReady = React.useCallback(() => {
+    console.log(`Ready with message: ${message}`);
+  }, [message]);
+
+  return (
+    <div>
+      <input 
+        value={message} 
+        onChange={(e) => setMessage(e.target.value)} 
+        placeholder="Enter message"
+      />
+      <DynamicHydrationCallback onReady={handleReady} />
+    </div>
+  );
+}
+```
+
+### Progressive Enhancement
+
+```tsx
+import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
+
+function ProgressiveForm() {
+  const isHydrated = useOnHydrate(() => {
+    // Enable enhanced form features
+    console.log('Enhanced form features available');
+  });
+
+  return (
+    <form>
+      {/* Basic form works without JavaScript */}
+      <input name="email" type="email" placeholder="Enter email" required />
+      <button type="submit">Subscribe</button>
+      
+      {/* Enhanced features only after hydration */}
+      {isHydrated && (
+        <>
+          <div className="form-enhancements">
+            <label>
+              <input type="checkbox" />
+              Real-time validation
+            </label>
+            <button type="button" onClick={() => console.log('Auto-fill')}>
+              Auto-fill from profile
+            </button>
+          </div>
+        </>
+      )}
+    </form>
+  );
+}
+```
+
+### Avoiding Hydration Mismatches
+
+```tsx
+import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
+
+function TimeDisplay() {
+  const isHydrated = useOnHydrate();
+  
+  // Avoid hydration mismatch by not showing time during SSR
+  const currentTime = isHydrated ? new Date().toLocaleTimeString() : null;
+
+  return (
+    <div>
+      <h2>Welcome to our site!</h2>
+      {currentTime ? (
+        <p>Current time: {currentTime}</p>
+      ) : (
+        <p>Loading current time...</p>
+      )}
+    </div>
+  );
+}
+```
+
+## How It Works
+
+### Implementation Details
+
+```typescript
+export function useOnHydrate(callback?: () => void) {
+  const [isHydrated, setIsHydrated] = React.useState(false);
+  const callbackRef = React.useRef(callback);
+  
+  // Update ref without triggering re-render
+  callbackRef.current = callback;
+  
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      callbackRef.current?.(); // Execute callback
+      setIsHydrated(true);     // Mark as hydrated
+    }
+  }, []); // Empty deps - only runs once
+
+  return isHydrated;
+}
+```
+
+### Hydration Lifecycle
+
+1. **Server-side rendering**: `isHydrated` is `false`, no callback execution
+2. **Client hydration starts**: Component mounts on client
+3. **useEffect runs**: Detects `window` exists, executes callback, sets `isHydrated` to `true`
+4. **Re-render triggered**: Component re-renders with `isHydrated: true`
+5. **Client-only content appears**: Conditional rendering based on hydration state
+
+### Ref-based Callback Management
+
+```typescript
+const callbackRef = React.useRef(callback);
+callbackRef.current = callback; // Always keep current callback
+
+// Effect doesn't depend on callback, so it won't re-run when callback changes
+React.useEffect(() => {
+  if (typeof window !== 'undefined') {
+    callbackRef.current?.(); // Always calls the latest callback
+    setIsHydrated(true);
+  }
+}, []); // Empty dependencies
+```
+
+This pattern allows the callback to change without triggering the hydration effect again.
+
+## Common Patterns
+
+### 1. Client-Only Components
+
+```tsx
+function ClientOnlyWrapper({ children }: { children: React.ReactNode }) {
+  const isHydrated = useOnHydrate();
+  
+  if (!isHydrated) {
+    return <div>Loading...</div>; // SSR placeholder
+  }
+  
+  return <>{children}</>; // Client-only content
+}
+```
+
+### 2. Feature Detection
+
+```tsx
+function FeatureAwareComponent() {
+  const isHydrated = useOnHydrate(() => {
+    // Detect browser capabilities
+    const hasClipboard = 'clipboard' in navigator;
+    const hasNotifications = 'Notification' in window;
+    console.log({ hasClipboard, hasNotifications });
+  });
+
+  return <div>Feature detection complete: {isHydrated}</div>;
+}
+```
+
+### 3. Third-party Library Initialization
+
+```tsx
+function ChartComponent() {
+  const isHydrated = useOnHydrate(() => {
+    // Initialize chart library that requires DOM
+    import('chart.js').then((Chart) => {
+      // Initialize chart
+    });
+  });
+
+  return (
+    <div>
+      <canvas id="chart" />
+      {!isHydrated && <p>Loading chart...</p>}
+    </div>
+  );
+}
+```
+
+## When to Use
+
+- **Client-only APIs** - When using browser-only APIs (localStorage, navigator, etc.)
+- **Third-party libraries** - Initializing libraries that require DOM or window
+- **Progressive enhancement** - Adding interactive features after basic content loads
+- **Hydration-sensitive content** - Avoiding mismatches with time, random values, etc.
+- **Performance optimization** - Deferring expensive client-side setup
+- **Analytics initialization** - Setting up tracking after hydration
+
+## Comparison with Alternatives
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| `useOnHydrate` | Simple API, Hydration state tracking, Ref-based callbacks | Hook-specific solution |
+| `useEffect` only | Built-in React | No hydration state, Harder to track |
+| `typeof window !== 'undefined'` | Direct check | No state management, No callback system |
+
+## TypeScript Support
+
+```typescript
+// Hook signature
+function useOnHydrate(callback?: () => void): boolean;
+
+// Usage examples
+const isHydrated: boolean = useOnHydrate();
+const isReady: boolean = useOnHydrate(() => console.log('Ready!'));
+```
+
+## Related
+- [`useOnIdle`](../use-on-idle/page.mdx) - Similar pattern for idle detection
+- [SSR Patterns](../../patterns/props-context-layering/page.mdx) - Server-side rendering patterns
