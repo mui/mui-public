@@ -15,121 +15,16 @@ spec:
       props:
         mode: markdown
         value:
-          $$jsExpression: >-
-            `## Downloads in the last 7 days
+          $$jsExpression: |-
+            `## Deprecated (Downloads in the last 7 days)
 
-
-            Same data as in
-            https://www.npmjs.com/package/${textField.value}?activeTab=versions.`
-    - component: TextField
-      name: textField
-      layout:
-        columnSize: 1
+            Use this instead: https://frontend-public.mui.com/npm-versions?package=${page.parameters.package}`
+    - component: codeComponent.Redirect
+      name: redirect
       props:
-        label: Package
-        defaultValue:
-          $$jsExpression: |
-            page.parameters.package
-    - component: PageRow
-      name: pageRow
-      props:
-        justifyContent: start
-      children:
-        - component: codeComponent.PieChart
-          name: codeComponent_PieChart
-          layout:
-            columnSize: 1
-          props:
-            data:
-              $$jsExpression: |
-                Object.entries(
-                  Object.entries(downloadsVersions.data)
-                    .filter(([version]) => version.indexOf("0.0") !== 0)
-                    .map((entry) => {
-                      const groups = entry[0].split(".")
-                      let group = `v${groups[0]}`
-
-                      if (group === "v16" && parseInt(groups[1]) >= 8) {
-                        group = "v16.8"
-                      }
-
-                      return {
-                        version: entry[0],
-                        downloads: entry[1],
-                        group,
-                      }
-                    })
-                    .reduce((acc, item) => {
-                      acc[item.group] |= 0
-                      acc[item.group] += item.downloads
-                      return acc
-                    }, {})
-                ).map((group) => ({ name: group[0], value: group[1] }))
-        - component: Text
-          name: markdown
-          props:
-            mode: markdown
-            value:
-              $$jsExpression: >-
-                `${(() => {
-
-                const list = Object.entries(
-                  Object.entries(downloadsVersions.data)
-                    .filter(([version]) => version.indexOf("0.0") !== 0)
-                    .map((entry) => {
-                      const groups = entry[0].split(".")
-                      let group = `v${groups[0]}`
-
-                      if (group === "v16" && parseInt(groups[1]) >= 8) {
-                        group = "v16.8"
-                      }
-
-                      return {
-                        version: entry[0],
-                        downloads: entry[1],
-                        group,
-                      }
-                    })
-                    .reduce((acc, item) => {
-                      acc[item.group] |= 0
-                      acc[item.group] += item.downloads
-                      return acc
-                    }, {})
-                )
-
-                .sort((groupA, groupB) => parseInt(groupA[0].replace('v', '')) -
-                parseInt(groupB[0].replace('v', '')))
-
-
-                const total = list.reduce((acc, item) => {
-                  acc += item[1];
-                  return acc;
-                }, 0);
-
-
-                return list.map((group) => ` - ${group[0]}:
-                ${Math.round(group[1]/total * 100)}%`).join('\n');
-
-                })()}`
-  queries:
-    - name: downloadsVersions
-      query:
-        kind: rest
         url:
-          $$jsExpression: |
-            `https://api.npmjs.org/versions/${encodeURIComponent(
-              parameters.package
-            )}/last-week`
-        headers: []
-        method: GET
-        transform: return data.downloads;
-        transformEnabled: true
-        searchParams: []
-      parameters:
-        - name: package
-          value:
-            $$jsExpression: |
-              textField.value
+          $$jsExpression: "`https://frontend-public.mui.com/npm-versions?package=${page.p\
+            arameters.package}`"
   display: shell
   alias:
     - m023hp4
