@@ -209,6 +209,20 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
     }
   });
 
+  // default condition should come last
+  Object.keys(newExports).forEach((key) => {
+    const exportVal = newExports[key];
+    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
+      const defaultExport = exportVal.import || exportVal.require;
+      if (exportVal.import) {
+        delete exportVal.import;
+      } else if (exportVal.require) {
+        delete exportVal.require;
+      }
+      exportVal.default = defaultExport;
+    }
+  });
+
   packageJson.exports = newExports;
 
   await fs.writeFile(
