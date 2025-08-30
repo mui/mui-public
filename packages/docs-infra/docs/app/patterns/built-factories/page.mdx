@@ -1,0 +1,209 @@
+# Built Factories Pattern
+
+At a very fundamental level a factory only needs a URL. In TypeScript, we can rely on `import.meta.url` as a starting point for any operation.
+
+```ts
+// src/objects/object.ts
+import { createObject } from '../createObject'
+
+export const object = createObject(import.meta.url)
+```
+
+From our perspective, we see `file://src/objects/object.ts` as an input to our factory.
+By using the module's URL, we can lean on Filesystem based routing.
+
+Because we defined the `createObject` factory in our codebase, we can control how it works.
+We know that to get the name of the objects it should follow a pattern of `file:///src/objects/(?<object>[^/]+)\.ts`.
+So from any layer of the render, build-time, in the server runtime, or during a client render, we are able to get the object name of `object`.
+
+We could perform any async task to return the `object` instance: read the filesystem, read from a database, or even call an external API.
+
+But the actual index file for this object is always the same. This allows you to tweak the implementation of `createObject` without effecting the possibly hundreds of index files.
+
+The index file can be easily copy and pasted multiple times, the factory only differs when it's customized.
+
+## Build
+
+During the build time, we can also fetch the `import.meta.url` in a loader and know which object is being created. It can then inject the object into an options parameter:
+
+```ts
+// src/objects/object.ts
+import { createObject } from '../createObject'
+
+export const object = createObject(import.meta.url, { precompute: {} })
+```
+
+This would be returned by the loader after creating the object instance. The `createObject` function would then be able to skip any async operations and just return the precomputed object.
+
+This is a powerful pattern when creating objects based on the filesystem, because loaders can add the files it depends on as dependencies. If the dependencies are edited, it busts the cache.
+
+So if you had a store of objects at `data/objects/object.json`, you could read that file during build time, and if it changed, the object would be re-created.
+
+Presumably these objects took a long time to create.
+
+Not all objects need to be created at build time. Some objects can't be precomputed. Should the index need to change if you decide to create objects during the client render?
+
+## Options
+
+The factories can take options to augment their behavior. For example, you might want to pass a `name` option to override the name derived from the URL.
+
+```ts
+// src/objects/object.ts
+import { createObject } from '../createObject'
+
+export const object = createObject(import.meta.url, { name: 'CustomObjectName' })
+```
+
+They can also have flags:
+```ts
+export const object = createObject(import.meta.url, { isVisible: true })
+```
+
+Or functions:
+```ts
+export const object = createObject(import.meta.url, { getName: () => 'CustomObjectName' })
+```
+
+Or more data:
+```ts
+export const object = createObject(import.meta.url, { data: { key: 'value' } })
+```
+
+Anything that might be useful for creating the object can be passed in as options.
+
+## Imported Sources
+
+Sometimes the object is created using a source that can be imported.
+
+A simple example would be a code snippet created from an external module:
+```ts
+// src/externalModule.ts
+// This is an external function
+export const externalFunction = () => {
+  // Some implementation
+}
+```
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet'
+import { externalFunction } from '../externalModule'
+
+export const snippet = createSnippet(import.meta.url, externalFunction)
+```
+
+At build time the snippet could be injected:
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet'
+import { externalFunction } from '../externalModule'
+
+export const snippet = createSnippet(import.meta.url, externalFunction, precompute: `// This is an external function
+export const externalFunction = () => {
+  // Some implementation
+}
+`)
+```
+
+Then, `createSnippet` has access to both the `externalFunction` code to execute and the source code as text.
+
+Sometimes objects have variations that some users would prefer, each imported as sources.
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet'
+import { externalFunctionA } from '../externalModuleA'
+import { externalFunctionB } from '../externalModuleB'
+
+export const snippet = createSnippet(import.meta.url, { A: externalFunctionA, B: externalFunctionB })
+```
+
+which could be precomputed as:
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet'
+import { externalFunctionA } from '../externalModuleA'
+import { externalFunctionB } from '../externalModuleB'
+
+export const snippet = createSnippet(import.meta.url, { A: externalFunctionA, B: externalFunctionB }, {
+  precompute: {
+    A: `// This is an external function A
+export const externalFunctionA = () => {
+  // Some implementation
+}
+`,
+    B: `// This is an external function B
+export const externalFunctionB = () => {
+  // Some implementation
+}
+`
+  }
+})
+```
+
+You can also add options when using imported sources:
+
+```ts
+export const snippet = createSnippet(import.meta.url, { A: externalFunctionA, B: externalFunctionB }, { stripComments: true })
+```
+
+If the snippet isn't generated at build time, we should still have all the information we need to load the code on the server, or even the client.
+
+## Strong Typing
+
+Next.js has some challenges when it comes to defining the TypeScript types of exports from `page.tsx` files.
+
+This pattern avoids these challenges because it requires the use of a factory function which will provide the types.
+
+## Centralized Configuration
+
+The actual `createObject` factory serves as a centralized place to define shared behaviors shared between all objects created with it.
+
+For example if you had a factory like this:
+
+```ts
+// src/createObject.ts
+const DEBUG = true;
+
+export const createObject = (url: string, options: any) => {
+  const { object, headers } = fetch(url.replace('file:///', 'http://example.com/'))
+  if (DEBUG) {
+    return { object, headers }
+  }
+
+  return { object }
+}
+```
+
+Changing the config within `createObject` will affect all objects created with it.
+
+This can be instrumental in a library that provides abstract factories:
+
+```ts
+// src/createObject.ts
+import abstractCreateObject from 'lib/abstractCreateObject'
+
+export const createObject = abstractCreateObject({
+  debug: true
+})
+```
+
+You can migrate between an abstract factory maintained elsewhere or a custom implementation in your own codebase without changing the location of the config.
+
+You can also pass the result of one factory into another and they can both be cached by their own dependency graph.
+
+## Aligned with Next.js App Router
+
+```
+/app/component/page.tsx <-- 'component' page
+/app/component/layout.tsx <-- 'component' layout
+/app/component/object.ts <-- 'component' object (using createObject factory)
+/app/component/snippets/simple/index.ts <-- 'component' snippet 'simple' (using createSnippet factory)
+/app/component/snippets/simple/page.tsx <-- 'component' snippet 'simple' page using ./index
+```
+
+Names come from the filesystem instead of being hardcoded a second time in factory params.
+
+This pattern can be used to extend the functionality of the Next.js Filesystem based routing.

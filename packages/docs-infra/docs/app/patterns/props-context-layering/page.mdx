@@ -1,0 +1,67 @@
+# Props Context Layering
+
+To create an isomorphic component with React Server Components:
+
+1. Components have to render before crossing the client boundary.
+
+If the user passed any components as props to the server component, those components must be rendered on the server before the boundary is crossed.
+
+This means that the component must be rendered early before the props you want to give it are available.
+
+If you want to update this component when the client receives the props it needs to render it, you can pass those props into it through React Context, allowing it to re-render.
+
+Using a custom hook that handles the props of the component, allows props to be used first, and intelligently layer context updates on top.
+
+2. Async Components have to be called optionally.
+
+Since the component might be run within a client environment, trying to render an async Component would cause an error. To avoid this, these async components should require some condition to be met before they are called, ensuring they are only rendered when the necessary data is needed.
+
+For example, if props are provided, it would not need to fetch using an async component. Or if the heavy functions aren't provided, it would assume that they would eventually be provided on the client.
+
+Providing these heavy functions can be provided as props or through context.
+
+They should be able to run in an async component or async within a useEffect hook.
+
+When using the [`Built Factories` Pattern](../built-factories/page.mdx), these heavy async functions can even be run at build-time behind a cache.
+
+3. Users should consume context after props.
+
+After being given the initial props, the component should be able to re-render with updated values through React Context.
+
+To avoid needing to inform users about this pattern, the library should provide a custom hook that merges props and context:
+```ts
+'use client';
+
+import { useContext } from 'react';
+import ObjectContext from '../ObjectContext';
+
+const useObject = (props) => {
+  const contextObject = useContext(ObjectContext);
+  return contextObject || props.object;
+};
+
+const ObjectHandler = (props) => {
+  const object = useObject(props)
+  return <SomeComponent object={object} />
+}
+```
+
+Allows a handler component to consume server or client props without changing the implementation. The user ideally should be touching the props directly.
+
+While if the handler doesn't require any client-side code it can be a server component:
+
+```ts
+const ObjectHandler = ({ object }) => {
+  return <SomeComponent object={object} />
+}
+```
+
+Without changing the required API shape or the semantics of when the handler is initially invoked.
+
+4. Heavy functions should be provided as props or through context.
+
+If a component requires heavy functions, it should be possible to avoid sending them to the client unless necessary.
+
+If these functions aren't imported, they won't be bundled by default. Then if the user needs to add client rendering, they can import the functions and pass them into a Context Provider.
+
+This way we can avoid bloating the core component logic needed on the client.
