@@ -29,6 +29,7 @@ export default defineConfig(
       '@typescript-eslint/triple-slash-reference': 'off',
       // Enforce using node: protocol for builtin modules
       'n/prefer-node-protocol': 'error',
+      'material-ui/no-empty-box': 'off',
     },
     settings: {
       'import/resolver': {

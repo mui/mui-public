@@ -3,6 +3,7 @@ import { useParams } from 'react-router';
 import Box from '@mui/material/Box';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
+import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
 import { useGitHubPRs } from '../hooks/useGitHubPRs';
 
 export default function RepositoryPRs() {
@@ -15,7 +16,10 @@ export default function RepositoryPRs() {
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
 
-  const { prs, isLoading, error } = useGitHubPRs(fullRepo, 10);
+  const { prs, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } = useGitHubPRs(
+    fullRepo,
+    5,
+  );
 
   return (
     <React.Fragment>
@@ -25,7 +29,22 @@ export default function RepositoryPRs() {
         </Box>
       </Heading>
 
-      <PRList prs={prs} isLoading={isLoading} error={error} owner={owner} repo={repo} />
+      <DailyBundleSizeChart repo={fullRepo} />
+
+      <Box sx={{ mt: 3, mb: 2 }}>
+        <Heading level={2}>Pull Requests</Heading>
+      </Box>
+
+      <PRList
+        prs={prs}
+        isLoading={isLoading}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        error={error}
+        owner={owner}
+        repo={repo}
+        onLoadMore={fetchNextPage}
+      />
     </React.Fragment>
   );
 }
