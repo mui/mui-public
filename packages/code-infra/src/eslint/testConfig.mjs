@@ -20,7 +20,7 @@ export const baseSpecRules = {
     '@typescript-eslint/no-use-before-define': 'off',
     '@typescript-eslint/ban-ts-comment': 'off',
 
-    'import/prefer-default-export': 'off',
+    'import-x/prefer-default-export': 'off',
 
     'jsx-a11y/anchor-has-content': 'off',
     'jsx-a11y/anchor-is-valid': 'off',
@@ -61,7 +61,7 @@ export function createTestConfig(options = {}) {
         },
         rules: {
           // does not work with wildcard imports. Mistakes will throw at runtime anyway
-          'import/named': 'off',
+          'import-x/named': 'off',
           'material-ui/disallow-active-element-as-key-event-target': 'error',
 
           // disable eslint-plugin-jsx-a11y
