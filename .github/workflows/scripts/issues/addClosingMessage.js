@@ -48,9 +48,9 @@ module.exports = async ({ core, context, github }) => {
 
     // Only ask for feedback if the user is not an admin or doesn't have write access (from a team membership)
     if (!['admin', 'write'].includes(userPermission.data.permission) && isPaidSupport) {
-      commentLines.push('> [!NOTE]');
+      commentLines.push('---');
       commentLines.push(
-        `> @${issue.data.user.login} How did we do? Your experience with our support team matters to us. If you have a moment, please share your thoughts in this short [Support Satisfaction survey](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}).`,
+        `@${issue.data.user.login} Thanks again for creating this issue! If you have a moment, we would love to hear your thoughts on how we handled it with this short [feedback form](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}).`,
       );
     }
 
