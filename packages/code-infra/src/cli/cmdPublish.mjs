@@ -12,12 +12,17 @@ import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import gitUrlParse from 'git-url-parse';
 import { $ } from 'execa';
+import { createActionAuth } from '@octokit/auth-action';
 import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
+
+function getOctokit() {
+  return new Octokit({ authStrategy: createActionAuth });
+}
 
 /**
  * @typedef {Object} Args
  * @property {boolean} dry-run Run in dry-run mode without publishing
- * @property {boolean} no-git-checks - Skip git checks before publishing
+ * @property {boolean} github-release Create a GitHub draft release after publishing
  */
 
 /**
@@ -92,14 +97,14 @@ async function parseChangelog(changelogPath, version) {
 
 /**
  * Check if GitHub release already exists
- * @param {Octokit} octokit - GitHub API client
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} version - Version to check
  * @returns {Promise<boolean>} True if release exists
  */
-async function checkGitHubReleaseExists(octokit, owner, repo, version) {
+async function checkGitHubReleaseExists(owner, repo, version) {
   try {
+    const octokit = getOctokit();
     await octokit.repos.getReleaseByTag({ owner, repo, tag: `v${version}` });
     return true;
   } catch (/** @type {any} */ error) {
@@ -184,18 +189,8 @@ async function validateGitHubRelease(version) {
   const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
 
-  // Check if release already exists on GitHub
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
-
   console.log(`🔍 Checking if GitHub release v${validVersion} already exists...`);
-  const releaseExists = await checkGitHubReleaseExists(
-    octokit,
-    repoInfo.owner,
-    repoInfo.repo,
-    validVersion,
-  );
+  const releaseExists = await checkGitHubReleaseExists(repoInfo.owner, repoInfo.repo, validVersion);
 
   if (releaseExists) {
     throw new Error(`GitHub release v${validVersion} already exists`);
@@ -233,12 +228,9 @@ async function publishToNpm(packages, options) {
 async function createRelease(version, changelogContent, repoInfo) {
   console.log('\n🚀 Creating GitHub draft release...');
 
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
-
   const sha = await getCurrentGitSha();
 
+  const octokit = getOctokit();
   await octokit.repos.createRelease({
     owner: repoInfo.owner,
     repo: repoInfo.repo,
@@ -265,16 +257,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Run in dry-run mode without publishing',
       })
-      .option('no-git-checks', {
+      .option('github-release', {
         type: 'boolean',
         default: false,
-        description: 'Skip git checks before publishing',
+        description: 'Create a GitHub draft release after publishing',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, noGitChecks = false } = argv;
-
-    const options = { dryRun, noGitChecks };
+    const { dryRun = false, githubRelease = false } = argv;
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
@@ -301,7 +291,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
-    await publishToNpm(allPackages, options);
+    // No git checks, we'll do our own
+    await publishToNpm(allPackages, { dryRun, noGitChecks: true });
 
     // Create GitHub release or git tag after successful npm publishing
     if (githubRelease && githubReleaseData) {
