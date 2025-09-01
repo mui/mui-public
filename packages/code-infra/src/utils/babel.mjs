@@ -14,7 +14,7 @@ const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
  * @param {string} pkgVersion
  * @returns {Record<string, string>} An object containing version-related environment variables.
  */
-export function getVersionEnvVariables(pkgVersion) {
+function getVersionEnvVariables(pkgVersion) {
   if (!pkgVersion) {
     throw new Error('No version found in package.json');
   }

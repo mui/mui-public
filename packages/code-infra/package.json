@@ -46,10 +46,11 @@
     }
   },
   "bin": {
-    "code-infra": "./bin/code-infra.mjs"
+    "code-infra": "./src/bin/code-infra.mjs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "build-tsdown": "node ./src/bin/code-infra.mjs build-new --bundle esm",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
@@ -78,6 +79,7 @@
     "@octokit/rest": "^22.0.1",
     "@pnpm/find-workspace-dir": "^1000.1.3",
     "@vitest/eslint-plugin": "^1.6.4",
+    "@vitejs/plugin-react": "^5.1.2",
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-react-compiler": "^1.0.0",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
@@ -111,6 +113,7 @@
     "semver": "^7.7.3",
     "stylelint-config-standard": "^39.0.1",
     "typescript-eslint": "^8.51.0",
+    "tsdown": "^0.18.4",
     "yargs": "^18.0.0"
   },
   "peerDependencies": {
@@ -138,13 +141,6 @@
     "serve": "14.2.5",
     "typescript-eslint": "^8.49.0"
   },
-  "files": [
-    "bin",
-    "build",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
   "publishConfig": {
     "access": "public"
   }
