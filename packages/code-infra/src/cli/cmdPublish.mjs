@@ -15,7 +15,9 @@ import { $ } from 'execa';
 import { createActionAuth } from '@octokit/auth-action';
 import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
 
-const octokit = new Octokit({ authStrategy: createActionAuth });
+function getOctokit() {
+  return new Octokit({ authStrategy: createActionAuth });
+}
 
 /**
  * @typedef {Object} Args
@@ -102,6 +104,7 @@ async function parseChangelog(changelogPath, version) {
  */
 async function checkGitHubReleaseExists(owner, repo, version) {
   try {
+    const octokit = getOctokit();
     await octokit.repos.getReleaseByTag({ owner, repo, tag: `v${version}` });
     return true;
   } catch (/** @type {any} */ error) {
@@ -227,6 +230,7 @@ async function createRelease(version, changelogContent, repoInfo) {
 
   const sha = await getCurrentGitSha();
 
+  const octokit = getOctokit();
   await octokit.repos.createRelease({
     owner: repoInfo.owner,
     repo: repoInfo.repo,
