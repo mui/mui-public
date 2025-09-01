@@ -108,7 +108,7 @@ async function createViteConfig(entry, args) {
     },
 
     define: {
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+      'process.env.NODE_ENV': JSON.stringify('production'),
     },
     logLevel: args.verbose ? 'info' : 'silent',
     // Add plugins to handle virtual entry points
