@@ -75,7 +75,7 @@ async function createViteConfig(entry, args) {
       emptyOutDir: true,
       rollupOptions: {
         input: '/index.tsx',
-        external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(ext + '/')),
+        external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(`${ext}/`)),
         plugins: [
           ...(args.analyze
             ? [
