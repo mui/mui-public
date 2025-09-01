@@ -5,11 +5,11 @@
   "compilerOptions": {
     "paths": {},
     "emitDeclarationOnly": true,
-    "outDir": "./build",
-    "rootDir": "./src",
-    "noEmit": false
+    "outDir": "build",
+    "rootDir": "src",
+    "noEmit": false,
+    "declarationDir": "build"
   },
-  "include": ["src/**/*"],
-  // removing "cli" since its going to run directly and not really imported anywhere
+  "include": ["src", "package.json"],
   "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts"]
 }
