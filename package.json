@@ -14,7 +14,7 @@
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "tsc -b --verbose",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
-    "release:build": "pnpm -r -F \"./packages/*\" run build",
+    "release:build": "pnpm -r -F \"./packages/*\" build",
     "size:snapshot": "pnpm -F ./test/bundle-size check",
     "size:why": "pnpm size:snapshot --analyze",
     "clean": "pnpm -r exec rm -rf build",
@@ -23,7 +23,7 @@
     "docs:start": "pnpm -F \"./docs\" run start",
     "docs:infra": "pnpm -F \"./docs\" run docs-infra",
     "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
-    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build"
+    "docs:lib": "pnpm -F \"./packages/docs-infra\" build"
   },
   "pnpm": {
     "packageExtensions": {
