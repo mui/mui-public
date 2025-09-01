@@ -12,7 +12,10 @@ import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import gitUrlParse from 'git-url-parse';
 import { $ } from 'execa';
+import { createActionAuth } from '@octokit/auth-action';
 import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
+
+const octokit = new Octokit({ authStrategy: createActionAuth });
 
 /**
  * @typedef {Object} Args
@@ -92,13 +95,12 @@ async function parseChangelog(changelogPath, version) {
 
 /**
  * Check if GitHub release already exists
- * @param {Octokit} octokit - GitHub API client
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} version - Version to check
  * @returns {Promise<boolean>} True if release exists
  */
-async function checkGitHubReleaseExists(octokit, owner, repo, version) {
+async function checkGitHubReleaseExists(owner, repo, version) {
   try {
     await octokit.repos.getReleaseByTag({ owner, repo, tag: `v${version}` });
     return true;
@@ -184,18 +186,8 @@ async function validateGitHubRelease(version) {
   const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
 
-  // Check if release already exists on GitHub
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
-
   console.log(`🔍 Checking if GitHub release v${validVersion} already exists...`);
-  const releaseExists = await checkGitHubReleaseExists(
-    octokit,
-    repoInfo.owner,
-    repoInfo.repo,
-    validVersion,
-  );
+  const releaseExists = await checkGitHubReleaseExists(repoInfo.owner, repoInfo.repo, validVersion);
 
   if (releaseExists) {
     throw new Error(`GitHub release v${validVersion} already exists`);
@@ -232,10 +224,6 @@ async function publishToNpm(packages, options) {
  */
 async function createRelease(version, changelogContent, repoInfo) {
   console.log('\n🚀 Creating GitHub draft release...');
-
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
 
   const sha = await getCurrentGitSha();
 
