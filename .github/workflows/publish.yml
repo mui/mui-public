@@ -78,6 +78,8 @@ jobs:
       - name: Prepare for publishing
         uses: ./.github/actions/publish-prepare
       - name: Publish packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Build common flags
           ARGS=""
