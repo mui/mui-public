@@ -116,11 +116,11 @@ export function getVersionEnvVariables(pkgVersion) {
    * @type {Record<string, string>}
    */
   const res = {
-    'process.env.MUI_VERSION': JSON.stringify(pkgVersion),
-    'process.env.MUI_MAJOR_VERSION': JSON.stringify(major),
-    'process.env.MUI_MINOR_VERSION': JSON.stringify(minor),
-    'process.env.MUI_PATCH_VERSION': JSON.stringify(patch),
-    'process.env.MUI_PRERELEASE': prerelease ? JSON.stringify(prerelease) : 'undefined',
+    MUI_VERSION: pkgVersion,
+    MUI_MAJOR_VERSION: major,
+    MUI_MINOR_VERSION: minor,
+    MUI_PATCH_VERSION: patch,
+    MUI_PRERELEASE: prerelease ?? 'undefined',
   };
   return res;
 }
@@ -183,7 +183,7 @@ export async function processExportsToEntry(pkgExports, pkgBin, { cwd }) {
                 const fileKey = file
                   .replace(/^(src|\.\/src)\//, '')
                   .replace(new RegExp(`\\${ext}$`), '');
-                addEntry(entries, `${fileKey}/index`, file);
+                addEntry(entries, fileKey, file);
               } else {
                 const fileKey = file
                   .replace(/^(src|\.\/src)\//, '')
@@ -210,4 +210,49 @@ export async function processExportsToEntry(pkgExports, pkgBin, { cwd }) {
     );
   }
   return [entries, nullEntries, binEntries];
+} /**
+ * @typedef {import('rolldown').RolldownOutput['output']} RolldownOutput
+ */
+/**
+ * @typedef {{directory?: string}} PublishConfig
+ */
+/**
+ * @typedef {Object} OutChunk
+ * @property {string} fileName
+ * @property {string} name
+ * @property {boolean} isEntry
+ */
+/**
+ * @typedef {{esm: OutChunk[], cjs: OutChunk[], bin: OutChunk[]}} OutChunks
+ */
+/**
+ * @param {Object} pkgJson
+ * @param {string} [pkgJson.name]
+ * @param {boolean} [pkgJson.private]
+ * @param {string} [pkgJson.main]
+ * @param {string} [pkgJson.module]
+ * @param {string} [pkgJson.types]
+ * @param {PublishConfig | undefined} [pkgJson.publishConfig]
+ */
+export function validatePkgJson(pkgJson) {
+  const errors = [];
+  if (pkgJson.private === false) {
+    errors.push(`Remove "private": false from ${pkgJson.name}'s package.json. It is redundant.`);
+  }
+
+  if (pkgJson.main || pkgJson.module || pkgJson.types) {
+    errors.push(
+      `Remove "main", "module", and "types" fields from ${pkgJson.name}'s package.json. Add the path to 'exports["."]' instead.`,
+    );
+  }
+
+  if (!pkgJson.publishConfig?.directory) {
+    errors.push(
+      `No build directory specified in ${pkgJson.name}'s package.json. Add it in "publishConfig.directory".`,
+    );
+  }
+
+  if (errors.length) {
+    throw new Error(errors.join('\n'));
+  }
 }

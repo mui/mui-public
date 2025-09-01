@@ -1,68 +1,21 @@
 /* eslint-disable no-console */
-import { builtinModules } from 'node:module';
 import * as fs from 'node:fs/promises';
+import { builtinModules } from 'node:module';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import { rolldown } from 'rolldown';
-// import { dts as dtsPlugin } from 'rolldown-plugin-dts';
-import { getVersionEnvVariables, processExportsToEntry } from '../utils/build.mjs';
-
-/**
- * @typedef {import('rolldown').RolldownBuild} RolldownBuild
- */
+import { build as rolldownBuild } from 'rolldown';
+import { dts } from 'rolldown-plugin-dts';
+import { getVersionEnvVariables, processExportsToEntry, validatePkgJson } from '../utils/build.mjs';
 
 /**
  * @typedef {import('./cmdBuildRolldown.mjs').Args} Args
  */
 
 /**
- * @typedef {{directory?: string}} PublishConfig
+ * @typedef {import('../utils/build.mjs').OutChunks} OutChunks
  */
 
 /**
- * @typedef {Object} OutChunk
- * @property {string} fileName
- * @property {string} name
- * @property {boolean} isEntry
- */
-
-/**
- * @typedef {{esm: OutChunk[], cjs: OutChunk[], bin: OutChunk[]}} OutChunks
- */
-
-/**
- * @param {Object} pkgJson
- * @param {string} [pkgJson.name]
- * @param {boolean} [pkgJson.private]
- * @param {string} [pkgJson.main]
- * @param {string} [pkgJson.module]
- * @param {string} [pkgJson.types]
- * @param {PublishConfig | undefined} [pkgJson.publishConfig]
- */
-function validatePkgJson(pkgJson) {
-  const errors = [];
-  if (pkgJson.private === false) {
-    errors.push(`Remove "private": false from ${pkgJson.name}'s package.json. It is redundant.`);
-  }
-
-  if (pkgJson.main || pkgJson.module || pkgJson.types) {
-    errors.push(
-      `Remove "main", "module", and "types" fields from ${pkgJson.name}'s package.json. Add the path to 'exports["."]' instead.`,
-    );
-  }
-
-  if (!pkgJson.publishConfig?.directory) {
-    errors.push(
-      `No build directory specified in ${pkgJson.name}'s package.json. Add it in "publishConfig.directory".`,
-    );
-  }
-
-  if (errors.length) {
-    throw new Error(errors.join('\n'));
-  }
-}
-
-/**
- *
  * @param {'esm' | 'cjs'} format
  * @param {string | undefined} pkgType
  * @param {{ cwd: string; isDts?: boolean }} options
@@ -138,7 +91,7 @@ async function writePackageJson(pkgJson, buildDir, outChunks) {
   pkgJson.type ??= 'commonjs';
 
   /**
-   * @type {Record<string, Record<string, string>>}
+   * @type {Record<string, Record<string, Record<string, string>>>}
    */
   let newExports = {};
 
@@ -156,39 +109,47 @@ async function writePackageJson(pkgJson, buildDir, outChunks) {
   }
 
   outChunks.esm.forEach((chunk) => {
-    const key = getKey(chunk.name);
+    const isDtsEntry = chunk.name.endsWith('.d');
+    const key = getKey(isDtsEntry ? chunk.name.substring(0, chunk.name.length - 2) : chunk.name);
     newExports[key] = newExports[key] || {};
-    newExports[key].import = `./${chunk.fileName}`;
-    if (pkgJson.type === 'module') {
-      newExports[key].default = newExports[key].import;
-    }
-  });
-
-  outChunks.cjs.forEach((chunk) => {
-    const key = getKey(chunk.name);
-    newExports[key] = newExports[key] || {};
-
-    if (pkgJson.type !== 'module') {
-      newExports[key].require = `./${chunk.fileName}`;
-      newExports[key].default = newExports[key].require;
+    newExports[key].import = newExports[key].import || {};
+    if (isDtsEntry) {
+      newExports[key].import.types = `./${chunk.fileName}`;
     } else {
-      const originalDefault = newExports[key].default;
-      delete newExports[key].default;
-      newExports[key].require = `./${chunk.fileName}`;
-      if (originalDefault) {
-        newExports[key].default = originalDefault;
-      }
+      newExports[key].import.default = `./${chunk.fileName}`;
     }
+    const defaultImport = newExports[key].import.default;
+    newExports[key].import = {
+      ...newExports[key].import,
+      default: defaultImport,
+    };
   });
+
+  // outChunks.cjs.forEach((chunk) => {
+  //   const key = getKey(chunk.name);
+  //   newExports[key] = newExports[key] || {};
+
+  //   if (pkgJson.type !== 'module') {
+  //     newExports[key].require = `./${chunk.fileName}`;
+  //     newExports[key].default = newExports[key].require;
+  //   } else {
+  //     const originalDefault = newExports[key].default;
+  //     delete newExports[key].default;
+  //     newExports[key].require = `./${chunk.fileName}`;
+  //     if (originalDefault) {
+  //       newExports[key].default = originalDefault;
+  //     }
+  //   }
+  // });
 
   if (newExports['.']) {
     const index = newExports['.'];
     delete newExports['.'];
     newExports = { '.': index, ...newExports };
-    if (index.require) {
+    if (typeof index.require === 'string') {
       pkgJson.main = index.require;
     }
-    if (index.import) {
+    if (typeof index.import === 'string') {
       pkgJson.module = index.import;
     }
   }
@@ -213,7 +174,7 @@ async function writePackageJson(pkgJson, buildDir, outChunks) {
   pkgJson.bin = newBin ?? undefined;
 
   const outputPath = path.join(buildDir, 'package.json');
-  await fs.writeFile(outputPath, `${JSON.stringify(pkgJson, null, 2)}\n`);
+  await fs.writeFile(outputPath, `${JSON.stringify(pkgJson, null, 2)}${os.EOL}`);
 }
 
 /**
@@ -259,15 +220,6 @@ export async function build(args) {
     ...Object.keys(pkgJson.peerDependencies ?? {}),
   ]);
   const externals = Array.from(externalsSet);
-
-  /**
-   * @type {Promise<RolldownBuild | null>}
-   */
-  let exportBundlePromise = Promise.resolve(null);
-  /**
-   * @type {Promise<RolldownBuild | null>}
-   */
-  let binBundlePromise = Promise.resolve(null);
 
   const licenseBanner = `/**
  * ${pkgJson.name} v${pkgJson.version}
@@ -348,48 +300,8 @@ export async function build(args) {
     minifyInternalExports: true,
   };
 
-  if (Object.keys(exportEntries).length > 0) {
-    exportBundlePromise = rolldown({
-      ...inputOptions,
-      input: exportEntries,
-      platform: 'neutral',
-    });
-    // const cjsDts = await rolldown({
-    //   ...inputOptions,
-    //   plugins: [
-    //     .../** @type {any[]} */ (inputOptions.plugins ?? []),
-    //     dtsPlugin({
-    //       cwd,
-    //       tsconfig: 'tsconfig.build.json',
-    //       emitDtsOnly: true,
-    //       emitJs: false,
-    //       compilerOptions: {
-    //         paths: {},
-    //       },
-    //     }),
-    //   ],
-    //   input: exportEntries,
-    //   platform: 'neutral',
-    // });
-    // const res = await cjsDts.write({
-    //   ...outputOptions,
-    //   format: 'esm',
-    //   dir: buildDir,
-    //   entryFileNames: getChunkFileName('esm', pkgJson.type, { cwd, isDts: true }),
-    //   chunkFileNames: getChunkFileName('esm', pkgJson.type, { cwd, isDts: true }),
-    // });
-    // console.log(res);
-  }
-  if (Object.keys(binEntries).length > 0) {
-    binBundlePromise = rolldown({
-      ...inputOptions,
-      input: binEntries,
-      platform: 'node',
-    });
-  }
-
   /**
-   * @type {OutChunks}
+   * @type {import('../utils/build.mjs').OutChunks}
    */
   const outChunks = {
     esm: [],
@@ -397,67 +309,117 @@ export async function build(args) {
     bin: [],
   };
 
-  const [exportBundle, binBundle] = await Promise.all([exportBundlePromise, binBundlePromise]);
-  if (exportBundle) {
-    const esmFileName = getChunkFileName('esm', pkgJson.type, { cwd });
-    const cjsFileName = getChunkFileName('cjs', pkgJson.type, { cwd });
-    const [esmOutput, cjsOutput] = await Promise.all([
-      exportBundle.write({
+  const [exportBundle, cjsBundle, cjsDtsBundle, binBundle] = await Promise.all([
+    rolldownBuild({
+      ...inputOptions,
+      plugins: [
+        .../** @type any[] */ (inputOptions.plugins ?? []),
+        dts({
+          tsconfig: 'tsconfig.build.json',
+          cwd,
+          compilerOptions: {
+            paths: {},
+          },
+        }),
+      ],
+      input: exportEntries,
+      output: {
         ...outputOptions,
         name: 'esm-build',
         format: 'esm',
-        entryFileNames: esmFileName,
-        chunkFileNames: esmFileName,
-      }),
-      exportBundle.write({
+        entryFileNames: getChunkFileName('esm', pkgJson.type, { cwd }),
+        chunkFileNames: getChunkFileName('esm', pkgJson.type, { cwd }),
+      },
+    }),
+    rolldownBuild({
+      ...inputOptions,
+      input: exportEntries,
+      output: {
         ...outputOptions,
         name: 'cjs-build',
         format: 'cjs',
-        entryFileNames: cjsFileName,
-        chunkFileNames: cjsFileName,
-      }),
-    ]);
-    esmOutput.output
-      .filter((out) => out.type === 'chunk' && out.isEntry)
-      .forEach((chunk) => {
-        if (chunk.type !== 'chunk') {
-          return;
-        }
-        outChunks.esm.push({
-          name: chunk.name,
-          fileName: chunk.fileName,
-          isEntry: chunk.isEntry,
-        });
+        entryFileNames: getChunkFileName('cjs', pkgJson.type, { cwd }),
+        chunkFileNames: getChunkFileName('cjs', pkgJson.type, { cwd }),
+      },
+    }),
+    rolldownBuild({
+      ...inputOptions,
+      plugins: [
+        .../** @type any[] */ (inputOptions.plugins ?? []),
+        dts({
+          tsconfig: 'tsconfig.build.json',
+          cwd,
+          compilerOptions: {
+            paths: {},
+          },
+          emitDtsOnly: true,
+          resolve: false,
+          cjsDefault: true,
+        }),
+      ],
+      input: exportEntries,
+      output: {
+        ...outputOptions,
+        name: 'cjs-dts-build',
+        format: 'esm',
+        entryFileNames: getChunkFileName('cjs', pkgJson.type, { cwd, isDts: true }),
+        chunkFileNames: getChunkFileName('cjs', pkgJson.type, { cwd, isDts: true }),
+      },
+    }),
+    Object.keys(binEntries).length > 0
+      ? rolldownBuild({
+          ...inputOptions,
+          input: binEntries,
+          output: {
+            ...outputOptions,
+            name: 'bin-build',
+            format: pkgJson.type === 'module' ? 'esm' : 'cjs',
+            entryFileNames: getChunkFileName(
+              pkgJson.type === 'module' ? 'esm' : 'cjs',
+              pkgJson.type,
+              {
+                cwd,
+              },
+            ),
+            chunkFileNames: getChunkFileName(
+              pkgJson.type === 'module' ? 'esm' : 'cjs',
+              pkgJson.type,
+              {
+                cwd,
+              },
+            ),
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+  exportBundle.output
+    .filter((out) => out.type === 'chunk' && out.isEntry)
+    .forEach((chunk) => {
+      if (chunk.type !== 'chunk') {
+        return;
+      }
+      outChunks.esm.push({
+        name: chunk.name,
+        fileName: chunk.fileName,
+        isEntry: chunk.isEntry,
       });
-    cjsOutput.output
-      .filter((out) => out.type === 'chunk' && out.isEntry)
-      .forEach((chunk) => {
-        if (chunk.type !== 'chunk') {
-          return;
-        }
-        outChunks.cjs.push({
-          name: chunk.name,
-          fileName: chunk.fileName,
-          isEntry: chunk.isEntry,
-        });
+    });
+
+  cjsBundle.output
+    .filter((out) => out.type === 'chunk' && out.isEntry)
+    .forEach((chunk) => {
+      if (chunk.type !== 'chunk') {
+        return;
+      }
+      outChunks.cjs.push({
+        name: chunk.name,
+        fileName: chunk.fileName,
+        isEntry: chunk.isEntry,
       });
-  }
+    });
 
   if (binBundle) {
-    const format = pkgJson.type === 'module' ? 'esm' : 'cjs';
-    const binFileName = getChunkFileName(format, pkgJson.type, {
-      cwd,
-    });
-    const binOutput = await binBundle.write({
-      ...outputOptions,
-      format,
-      name: `bin-${format}-build`,
-      exports: 'none',
-      entryFileNames: binFileName,
-      chunkFileNames: binFileName,
-      preserveModules: false,
-    });
-    binOutput.output
+    binBundle.output
       .filter((out) => out.type === 'chunk' && out.isEntry)
       .forEach((chunk) => {
         if (chunk.type !== 'chunk') {
@@ -469,16 +431,92 @@ export async function build(args) {
           isEntry: chunk.isEntry,
         });
       });
-    await Promise.all(
-      binOutput.output
-        .filter((out) => out.type === 'chunk' && out.isEntry)
-        .map(async (out) => {
-          if (out.type === 'chunk' && out.code.trim().startsWith('#!/usr/bin/env')) {
-            console.log(`[rolldown] Making ${out.fileName} executable`);
-            await fs.chmod(path.join(buildDir, out.fileName), 0o755);
-          }
-        }),
-    );
   }
+
+  console.log(cjsDtsBundle.output);
+
+  // const [exportBundle, binBundle] = await Promise.all([exportBundlePromise, binBundlePromise]);
+  // if (exportBundle) {
+  //   const esmFileName = getChunkFileName('esm', pkgJson.type, { cwd });
+  //   const cjsFileName = getChunkFileName('cjs', pkgJson.type, { cwd });
+  //   const [esmOutput, cjsOutput] = await Promise.all([
+  //     exportBundle.write({
+  //       ...outputOptions,
+  //       name: 'esm-build',
+  //       format: 'esm',
+  //       entryFileNames: esmFileName,
+  //       chunkFileNames: esmFileName,
+  //     }),
+  //     exportBundle.write({
+  //       ...outputOptions,
+  //       name: 'cjs-build',
+  //       format: 'cjs',
+  //       entryFileNames: cjsFileName,
+  //       chunkFileNames: cjsFileName,
+  //     }),
+  //   ]);
+  //   esmOutput.output
+  //     .filter((out) => out.type === 'chunk' && out.isEntry)
+  //     .forEach((chunk) => {
+  //       if (chunk.type !== 'chunk') {
+  //         return;
+  //       }
+  //       outChunks.esm.push({
+  //         name: chunk.name,
+  //         fileName: chunk.fileName,
+  //         isEntry: chunk.isEntry,
+  //       });
+  //     });
+  //   cjsOutput.output
+  //     .filter((out) => out.type === 'chunk' && out.isEntry)
+  //     .forEach((chunk) => {
+  //       if (chunk.type !== 'chunk') {
+  //         return;
+  //       }
+  //       outChunks.cjs.push({
+  //         name: chunk.name,
+  //         fileName: chunk.fileName,
+  //         isEntry: chunk.isEntry,
+  //       });
+  //     });
+  // }
+
+  // if (binBundle) {
+  //   const format = pkgJson.type === 'module' ? 'esm' : 'cjs';
+  //   const binFileName = getChunkFileName(format, pkgJson.type, {
+  //     cwd,
+  //   });
+  //   const binOutput = await binBundle.write({
+  //     ...outputOptions,
+  //     format,
+  //     name: `bin-${format}-build`,
+  //     exports: 'none',
+  //     entryFileNames: binFileName,
+  //     chunkFileNames: binFileName,
+  //     preserveModules: false,
+  //   });
+  //   binOutput.output
+  //     .filter((out) => out.type === 'chunk' && out.isEntry)
+  //     .forEach((chunk) => {
+  //       if (chunk.type !== 'chunk') {
+  //         return;
+  //       }
+  //       outChunks.bin.push({
+  //         name: chunk.name,
+  //         fileName: chunk.fileName,
+  //         isEntry: chunk.isEntry,
+  //       });
+  //     });
+  //   await Promise.all(
+  //     binOutput.output
+  //       .filter((out) => out.type === 'chunk' && out.isEntry)
+  //       .map(async (out) => {
+  //         if (out.type === 'chunk' && out.code.trim().startsWith('#!/usr/bin/env')) {
+  //           console.log(`[rolldown] Granting execute permission to ${out.fileName}`);
+  //           await fs.chmod(path.join(buildDir, out.fileName), 0o755);
+  //         }
+  //       }),
+  //   );
+  // }
   await writePackageJson(pkgJson, path.join(cwd, buildDir), outChunks);
 }

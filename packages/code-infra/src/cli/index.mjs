@@ -5,6 +5,7 @@ import { hideBin } from 'yargs/helpers';
 import cmdArgosPush from './cmdArgosPush.mjs';
 import cmdBuild from './cmdBuild.mjs';
 import cmdBuildRolldown from './cmdBuildRolldown.mjs';
+import cmdBuildTsdown from './cmdBuildTsdown.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdJsonLint from './cmdJsonLint.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
@@ -28,6 +29,7 @@ export default function start() {
     .command(cmdCopyFiles)
     .command(cmdBuild)
     .command(cmdBuildRolldown)
+    .command(cmdBuildTsdown)
     .demandCommand(1, 'You need at least one command before moving on')
     .strict()
     .help()

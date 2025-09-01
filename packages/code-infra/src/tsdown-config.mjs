@@ -2,6 +2,7 @@
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import browserlist from 'browserslist';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { defineConfig } from 'tsdown/config';
 import { getVersionEnvVariables, processExports, processExportsToEntry } from './utils/build.mjs';
@@ -74,7 +75,7 @@ async function writePkgJson(baseOutput, binOutput, nullEntries, { buildDirBase }
   delete originalPkgJson.main;
   delete originalPkgJson.types;
   delete originalPkgJson.module;
-  await fs.writeFile(originalPkgJsonPath, `${JSON.stringify(originalPkgJson, null, 2)}\n`);
+  await fs.writeFile(originalPkgJsonPath, `${JSON.stringify(originalPkgJson, null, 2)}${os.EOL}`);
 }
 
 export default defineConfig(async (opts) => {

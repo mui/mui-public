@@ -19,7 +19,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} param0.runtimeVersion
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
-export function getBaseConfig({
+function getBaseConfig({
   debug = false,
   optimizeClsx = false,
   removePropTypes = false,
