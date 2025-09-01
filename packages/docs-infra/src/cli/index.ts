@@ -8,7 +8,8 @@ function getVersion() {
   return createRequire(import.meta.url)('../../package.json').version;
 }
 
-yargs()
+export async function runCli() {
+await yargs()
   .scriptName('docs-infra')
   .usage('$0 <command> [args]')
   .command(runValidate)
@@ -18,4 +19,6 @@ yargs()
   .help()
   // MUI_VERSION is set through the code-infra build command.
   .version(process.env.MUI_VERSION || getVersion())
-  .parse(hideBin(process.argv));
+  .parseAsync(hideBin(process.argv));
+
+}

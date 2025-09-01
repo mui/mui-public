@@ -6,6 +6,7 @@ import { hideBin } from 'yargs/helpers';
 import cmdArgosPush from './cmdArgosPush.mjs';
 import cmdBaseline from './cmdBaseline.mjs';
 import cmdBuild from './cmdBuild.mjs';
+import cmdBuildNew from './cmdBuildNew.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdExtractErrorCodes from './cmdExtractErrorCodes.mjs';
 import cmdGenerateChangelog from './cmdGenerateChangelog.mjs';
@@ -20,7 +21,8 @@ import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
 
-const pkgJson = createRequire(import.meta.url)('../../package.json');
+export async function run() {
+const version = process.env.MUI_VERSION || createRequire(import.meta.url)('../../package.json').version;
 
 /** @type {{ verbose?: boolean }} */
 let globalArgv = {};
@@ -41,6 +43,7 @@ await yargs(hideBin(process.argv))
   .command(cmdArgosPush)
   .command(cmdBaseline)
   .command(cmdBuild)
+  .command(cmdBuildNew)
   .command(cmdCopyFiles)
   .command(cmdExtractErrorCodes)
   .command(cmdGenerateChangelog)
@@ -69,5 +72,7 @@ await yargs(hideBin(process.argv))
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
-  .version(pkgJson.version)
+  .version(version)
   .parseAsync();
+
+}
