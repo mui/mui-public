@@ -5,12 +5,14 @@
   "compilerOptions": {
     "paths": {},
     "emitDeclarationOnly": true,
-    "outDir": "./build",
-    "rootDir": "./src",
+    "outDir": "build",
     "noEmit": false,
-    "removeComments": false
+    "removeComments": false,
+    "rootDir": "src",
+    "tsBuildInfoFile": "${configDir}/node_modules/.cache/tsconfig.build.tsbuildinfo",
+    "declarationDir": "build",
+    "removeComments": true
   },
-  "include": ["src/**/*"],
-  // removing "cli" since its going to run directly and not really imported anywhere
+  "include": ["src", "package.json"],
   "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts"]
 }
