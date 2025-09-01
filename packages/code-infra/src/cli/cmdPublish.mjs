@@ -17,7 +17,7 @@ import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
 /**
  * @typedef {Object} Args
  * @property {boolean} dry-run Run in dry-run mode without publishing
- * @property {boolean} no-git-checks - Skip git checks before publishing
+ * @property {boolean} github-release Create a GitHub draft release after publishing
  */
 
 /**
@@ -269,17 +269,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Create a GitHub draft release after publishing',
-      })
-      .option('no-git-checks', {
-        type: 'boolean',
-        default: false,
-        description: 'Skip git checks before publishing',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, noGitChecks = false } = argv;
-
-    const options = { dryRun, noGitChecks };
+    const { dryRun = false, githubRelease = false } = argv;
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
@@ -306,7 +299,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
-    await publishToNpm(allPackages, options);
+    // No git checks, we'll do our own
+    await publishToNpm(allPackages, { dryRun, noGitChecks: true });
 
     // Create GitHub release or git tag after successful npm publishing
     if (githubRelease && githubReleaseData) {
