@@ -300,7 +300,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         console.log('\n🚀 Would create GitHub draft release (dry-run)');
         console.log(githubReleaseData?.changelogContent);
       } else {
-        console.log(JSON.stringify(githubReleaseData, null, 2));
         await createRelease(
           githubReleaseData.version,
           githubReleaseData.changelogContent,
