@@ -315,6 +315,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     } = args;
 
     const cwd = process.cwd();
+    performance.mark('build-start');
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
     validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck });
@@ -442,5 +443,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: buildDir,
       addTypes: buildTypes,
     });
+    performance.mark('build-end');
+    const measure = performance.measure('build', 'build-start', 'build-end');
+    console.log(`✅ Built "${packageJson.name}" in ${(measure.duration / 1000).toFixed(3)}s.`);
   },
 });
