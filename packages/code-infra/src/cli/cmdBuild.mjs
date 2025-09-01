@@ -359,6 +359,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     } = args;
 
     const cwd = process.cwd();
+    performance.mark('build-start');
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
     validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
