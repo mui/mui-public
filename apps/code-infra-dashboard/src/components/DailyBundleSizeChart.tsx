@@ -161,7 +161,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
 
   // Filter series based on selected bundles
   const validSeries = chartData.series.filter((series) => selectedBundles.includes(series.label));
-
+  console.log(dailyData);
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" component="h2" gutterBottom>
@@ -247,7 +247,18 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
             {
               data: chartData.dates,
               scaleType: 'time',
-              valueFormatter: (date: Date) => date.toLocaleDateString(),
+              valueFormatter: (date: Date, context) => {
+                if (context.location === 'tick') {
+                  return date.toLocaleDateString();
+                }
+                // For tooltip, find the corresponding commit data
+                const dateString = date.toISOString().split('T')[0];
+                const dataPoint = dailyData.find((d) => d.date === dateString);
+                const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
+                return commitSha
+                  ? `${date.toLocaleDateString()} (${commitSha})`
+                  : date.toLocaleDateString();
+              },
             },
           ]}
           yAxis={[
