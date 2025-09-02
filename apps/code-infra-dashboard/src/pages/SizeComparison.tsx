@@ -13,12 +13,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import WarningIcon from '@mui/icons-material/Warning';
 import styled from '@emotion/styled';
-import {
-  SizeSnapshot,
-  Size,
-  calculateSizeDiff,
-  fetchSnapshot,
-} from '@mui/internal-bundle-size-checker/browser';
+import { Size, calculateSizeDiff, fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
@@ -27,49 +22,13 @@ import SizeChangeDisplay, {
 } from '../components/SizeChangeDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 
-async function fetchUrl(url: string | URL): Promise<SizeSnapshot> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch "${url}", HTTP ${response.status}`);
-  }
-  return response.json();
-}
-
 /**
  * Generic hook to fetch size snapshots for the head branch
  */
-function useSizeSnapshot(repo: string, sha: string, circleCIBuildNumber: number | null) {
+function useSizeSnapshot(repo: string, sha: string) {
   return useQuery({
     queryKey: ['size-snapshot', repo, sha],
-    queryFn: async () => {
-      const fetches = [];
-
-      if (sha) {
-        fetches.push(() => fetchSnapshot(repo, sha));
-      }
-
-      if (circleCIBuildNumber) {
-        fetches.push(() => {
-          const url = new URL('/.netlify/functions/circle-ci-artifacts', window.location.origin);
-          const [org, repository] = repo.split('/');
-          url.searchParams.append('org', org);
-          url.searchParams.append('repository', repository);
-          url.searchParams.append('buildNumber', String(circleCIBuildNumber));
-          return fetchUrl(url.toString());
-        });
-      }
-
-      let lastError: Error | null = null;
-      for (const fetch of fetches) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          return await fetch();
-        } catch (error) {
-          lastError = error as Error;
-        }
-      }
-      throw lastError ?? new Error('Failed to fetch size snapshot');
-    },
+    queryFn: async () => fetchSnapshot(repo, sha),
     retry: 1,
   });
 }
@@ -177,23 +136,18 @@ function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
 }
 
 // Hook that handles data fetching and processing
-function useSizeComparisonData(
-  repo: string,
-  baseCommit: string,
-  headCommit: string,
-  circleCIBuildNumber: number | null,
-) {
+function useSizeComparisonData(repo: string, baseCommit: string, headCommit: string) {
   const {
     data: baseSnapshot = {},
     isLoading: isBaseLoading,
     error: baseError,
-  } = useSizeSnapshot(repo, baseCommit, null);
+  } = useSizeSnapshot(repo, baseCommit);
 
   const {
     data: targetSnapshot = null,
     isLoading: isTargetLoading,
     error: targetError,
-  } = useSizeSnapshot(repo, headCommit, circleCIBuildNumber);
+  } = useSizeSnapshot(repo, headCommit);
 
   // Process data to get bundle comparisons and totals using the extracted function
   const { entries, totals, fileCounts } = React.useMemo(() => {
@@ -252,7 +206,6 @@ function Comparison({
     repo,
     baseCommit,
     headCommit,
-    circleCIBuildNumber,
   );
 
   return (
@@ -368,8 +321,8 @@ export default function SizeComparison() {
   const baseCommitParam = searchParams.get('baseCommit');
   const headCommitParam = searchParams.get('headCommit');
 
-  // We can show a comparison if we have baseCommit and either headCommit or circleCIBuildNumber
-  const hasRequiredParams = baseCommitParam && (headCommitParam || circleCIBuildNumber);
+  // We can show a comparison if we have baseCommit and headCommit
+  const hasRequiredParams = baseCommitParam && headCommitParam;
 
   if (!hasRequiredParams && (error || !prInfo)) {
     return (
@@ -387,7 +340,7 @@ export default function SizeComparison() {
               <Typography variant="body2">
                 {prNumber
                   ? `Looking for PR #${prNumber} in repository ${repo}`
-                  : 'Please provide baseCommit and either headCommit or circleCIBuildNumber parameters for comparison.'}
+                  : 'Please provide baseCommit and headCommit.'}
               </Typography>
             </Box>
           </Box>
