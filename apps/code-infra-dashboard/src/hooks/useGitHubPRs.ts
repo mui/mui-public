@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { GitHubPRInfo } from './useGitHubPR';
+import { fetchJson } from '../utils/http';
 
 export interface UseGitHubPRs {
   prs: GitHubPRInfo[];
@@ -20,22 +21,11 @@ export function useGitHubPRs(repo: string, initialLimit: number = 5): UseGitHubP
     useInfiniteQuery({
       queryKey: ['github-prs', repo],
       queryFn: async ({ pageParam = 1 }): Promise<GitHubPRInfo[]> => {
-        try {
-          // First page uses the initial limit, subsequent pages use 10
-          const perPage = pageParam === 1 ? initialLimit : 10;
-          const response = await fetch(
-            `https://api.github.com/repos/${repo}/pulls?state=all&sort=updated&direction=desc&per_page=${perPage}&page=${pageParam}`,
-          );
-          if (!response.ok) {
-            throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-          }
-
-          const responseBody = await response.json();
-          return responseBody;
-        } catch (err) {
-          console.error('Error fetching PRs:', err);
-          throw err;
-        }
+        // First page uses the initial limit, subsequent pages use 10
+        const perPage = pageParam === 1 ? initialLimit : 10;
+        return await fetchJson<GitHubPRInfo[]>(
+          `https://api.github.com/repos/${repo}/pulls?state=all&sort=updated&direction=desc&per_page=${perPage}&page=${pageParam}`,
+        );
       },
       initialPageParam: 1,
       getNextPageParam: (lastPage, allPages, lastPageParam) => {

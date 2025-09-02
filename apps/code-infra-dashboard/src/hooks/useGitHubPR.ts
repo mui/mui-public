@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { fetchJson } from '../utils/http';
 
 export interface GitHubPRInfo {
   title: string;
@@ -35,19 +36,11 @@ export function useGitHubPR(repo: string, prNumber?: number): UseGitHubPR {
     error,
   } = useQuery({
     queryKey: ['github-pr', repo, prNumber],
-    queryFn: async (): Promise<GitHubPRInfo | null> => {
-      try {
-        const response = await fetch(`https://api.github.com/repos/${repo}/pulls/${prNumber}`);
-        if (!response.ok) {
-          throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-        }
-
-        const responseBody = await response.json();
-        return responseBody;
-      } catch (err) {
-        console.error('Error fetching PR info:', err);
-        throw err;
-      }
+    queryFn: async (): Promise<GitHubPRInfo> => {
+      const responseBody = await fetchJson<GitHubPRInfo>(
+        `https://api.github.com/repos/${repo}/pulls/${prNumber}`,
+      );
+      return responseBody;
     },
     retry: 1,
     enabled: Boolean(repo && prNumber),

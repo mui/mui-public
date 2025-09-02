@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
+import { fetchJson } from '../utils/http';
 
 export interface GitHubCommit {
   sha: string;
@@ -49,55 +50,41 @@ export function useDailyCommitHistory(repo: string): UseDailyCommitHistory {
   const { data, isLoading, error } = useQuery({
     queryKey: ['daily-commit-history', repo],
     queryFn: async (): Promise<DailyCommitData[]> => {
-      try {
-        // Fetch commits from master branch
-        const commitsResponse = await fetch(
-          `https://api.github.com/repos/${repo}/commits?sha=master&per_page=100`,
-        );
-        if (!commitsResponse.ok) {
-          throw new Error(
-            `GitHub API error: ${commitsResponse.status} ${commitsResponse.statusText}`,
-          );
+      // Fetch commits from master branch
+      const commits = await fetchJson<GitHubCommit[]>(
+        `https://api.github.com/repos/${repo}/commits?sha=master&per_page=100`,
+      );
+
+      // Group by day and get first commit of each day
+      const dailyCommits = groupCommitsByDay(commits);
+
+      // Limit to 30 days and sort by date (most recent first)
+      const sortedDays = Array.from(dailyCommits.entries())
+        .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
+        .slice(0, 30);
+
+      // Fetch snapshots for each daily commit
+      const dailyDataPromises = sortedDays.map(async ([date, commit]): Promise<DailyCommitData> => {
+        let snapshot: Record<string, { parsed: number; gzip: number }> | null = null;
+
+        try {
+          snapshot = await fetchSnapshot(repo, commit.sha);
+        } catch (fetchError) {
+          console.warn(`Failed to fetch snapshot for commit ${commit.sha}:`, fetchError);
+          // snapshot remains null
         }
 
-        const commits: GitHubCommit[] = await commitsResponse.json();
+        return {
+          date,
+          commit,
+          snapshot,
+        };
+      });
 
-        // Group by day and get first commit of each day
-        const dailyCommits = groupCommitsByDay(commits);
+      const dailyData = await Promise.all(dailyDataPromises);
 
-        // Limit to 30 days and sort by date (most recent first)
-        const sortedDays = Array.from(dailyCommits.entries())
-          .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
-          .slice(0, 30);
-
-        // Fetch snapshots for each daily commit
-        const dailyDataPromises = sortedDays.map(
-          async ([date, commit]): Promise<DailyCommitData> => {
-            let snapshot: Record<string, { parsed: number; gzip: number }> | null = null;
-
-            try {
-              snapshot = await fetchSnapshot(repo, commit.sha);
-            } catch (fetchError) {
-              console.warn(`Failed to fetch snapshot for commit ${commit.sha}:`, fetchError);
-              // snapshot remains null
-            }
-
-            return {
-              date,
-              commit,
-              snapshot,
-            };
-          },
-        );
-
-        const dailyData = await Promise.all(dailyDataPromises);
-
-        // Sort by date (oldest first for chart display)
-        return dailyData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      } catch (err) {
-        console.error('Error fetching daily commit history:', err);
-        throw err;
-      }
+      // Sort by date (oldest first for chart display)
+      return dailyData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     },
     retry: 1,
     enabled: Boolean(repo),
