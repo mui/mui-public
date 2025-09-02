@@ -3,7 +3,7 @@ import { $ } from 'execa';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
+import { getOutExtension, isMjsBuild, validatePkgJson } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -310,17 +310,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    const buildDirBase = packageJson.publishConfig?.directory;
-    if (!buildDirBase) {
-      throw new Error(
-        `No build directory specified in "${packageJson.name}" package.json. Specify it in the "publishConfig.directory" field.`,
-      );
-    }
-    if (packageJson.private === false) {
-      throw new Error(
-        `Remove the field "private": false from "${packageJson.name}" package.json. This is redundant.`,
-      );
-    }
+    validatePkgJson(packageJson);
+
+    const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
 
     console.log(`Selected output directory: "${buildDirBase}"`);
