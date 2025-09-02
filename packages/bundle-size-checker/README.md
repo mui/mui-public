@@ -78,6 +78,14 @@ export default defineConfig(async () => {
 });
 ```
 
+### Debugging bundle size changes
+
+Steps to check bundle sizes locally:
+
+1. Make sure to run `pnpm release:build` as the bunlde size checker operates on build output.
+2. You can generate bundle size details using the `--analyze` flag. We added the `pnpm size:why` script for convenience. When you run with this option, the checker generates treeview visualizations in the build folder. You can run this command on multiple checkouts of the repo to compare. You can also use the `-F` option to filter on specific bundles. You can use the `--debug` option to create readable bunldes. This makes analyzing changes easier.
+3. Run these steps once on the master branch to create a baseline, rename the `test/bundle-sizes/build` folder, check out the branch you want to debug and repeat. You now have two build folders with bundle data to compare.
+
 ### S3 Upload
 
 When the `upload` configuration is provided, the snapshot will be uploaded to S3 after generation.
