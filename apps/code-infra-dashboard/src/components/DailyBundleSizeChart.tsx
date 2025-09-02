@@ -161,7 +161,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
 
   // Filter series based on selected bundles
   const validSeries = chartData.series.filter((series) => selectedBundles.includes(series.label));
-  console.log(dailyData);
+
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" component="h2" gutterBottom>
