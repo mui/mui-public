@@ -19,42 +19,46 @@ module.exports = async ({ core, context, github }) => {
     });
 
     const repositoryMap = {
-      'mui-x': 'x',
-      'mui-toolpad': 'toolpad',
-      toolpad: 'toolpad',
-      'material-ui': 'material-ui',
-      'base-ui': 'base-ui',
-      'pigment-css': 'pigment-css',
-      'joy-ui': 'joy-ui',
+      "mui-x": "x",
+      "mui-toolpad": "toolpad",
+      toolpad: "toolpad",
+      "material-ui": "material-ui",
+      "base-ui": "base-ui",
+      "pigment-css": "pigment-css",
+      "joy-ui": "joy-ui",
     };
 
     const commentLines = [
       `**This issue has been closed.** If you have a similar problem but not exactly the same, please open a [new issue](https://github.com/mui/${repo}/issues/new/choose).`,
-      'Now, if you have additional information related to this issue or things that could help future readers, feel free to leave a comment.',
+      "Now, if you have additional information related to this issue or things that could help future readers, feel free to leave a comment.",
     ];
 
-    const userPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-      owner,
-      repo,
-      username: issue.data.user.login,
-    });
+    const userPermission =
+      await github.rest.repos.getCollaboratorPermissionLevel({
+        owner,
+        repo,
+        username: issue.data.user.login,
+      });
 
     core.info(`>>> Author permission level: ${userPermission.data.permission}`);
 
     // checks if the issue was created by a customer with commercial support (pro, premium, or priority plan)
     const isPaidSupport = issue.data.labels.some((label) =>
-      /\b(pro|premium|priority)\b/i.test(label.name),
+      /\b(pro|premium|priority)\b/i.test(label.name)
     );
 
     // Only ask for feedback if the user is not an admin or doesn't have write access (from a team membership)
-    if (!['admin', 'write'].includes(userPermission.data.permission) && isPaidSupport) {
-      commentLines.push('---');
+    if (
+      !["admin", "write"].includes(userPermission.data.permission) &&
+      isPaidSupport
+    ) {
+      commentLines.push("\n---\n");
       commentLines.push(
-        `@${issue.data.user.login} Thanks again for creating this issue! If you have a moment, we would love to hear your thoughts on how we handled it with this short [feedback form](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}).`,
+        `@${issue.data.user.login} Thanks again for creating this issue! If you have a moment, we would love to hear your thoughts on how we handled it with this short [feedback form](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}).`
       );
     }
 
-    const body = commentLines.join('\n');
+    const body = commentLines.join("\n");
     core.info(`>>> Prepared comment body: ${body}`);
 
     await github.rest.issues.createComment({
@@ -65,7 +69,7 @@ module.exports = async ({ core, context, github }) => {
     });
 
     try {
-      const labelName = 'status: waiting for maintainer';
+      const labelName = "status: waiting for maintainer";
       core.info(`>>> Trying to remove label: ${labelName}`);
 
       await github.rest.issues.removeLabel({
