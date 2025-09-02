@@ -15,7 +15,7 @@ export function MultiFileContent(props: ContentProps<object>) {
   const tabs = React.useMemo(() => {
     return code.files.map(({ name }) => ({
       id: name,
-      name: name,
+      name,
     }));
   }, [code.files]);
 
