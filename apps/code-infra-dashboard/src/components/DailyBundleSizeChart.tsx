@@ -99,7 +99,8 @@ function transformDataForChart(dailyData: DailyCommitData[], sizeType: SizeType)
 }
 
 export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps) {
-  const { dailyData, isLoading, error } = useDailyCommitHistory(repo);
+  const { dailyData, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useDailyCommitHistory(repo);
   const [selectedBundles, setSelectedBundles] = React.useState<string[]>([]);
   const [sizeType, setSizeType] = React.useState<SizeType>('gzip');
   const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
@@ -151,6 +152,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     );
   }
 
+  console.log(dailyData);
   const chartData = transformDataForChart(dailyData, sizeType);
 
   if (chartData.dates.length === 0) {
@@ -277,6 +279,19 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
           grid={{ horizontal: true, vertical: true }}
         />
       </Box>
+
+      {hasNextPage && (
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+          <Button
+            variant="outlined"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            startIcon={isFetchingNextPage ? <CircularProgress size={16} /> : undefined}
+          >
+            {isFetchingNextPage ? 'Loading more...' : 'Load More Historical Data'}
+          </Button>
+        </Box>
+      )}
     </Paper>
   );
 }

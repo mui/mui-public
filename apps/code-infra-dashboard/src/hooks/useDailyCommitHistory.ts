@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import * as React from 'react';
 import { fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
 import { RestEndpointMethodTypes } from '@octokit/rest';
 import { octokit, parseRepo } from '../utils/github';
@@ -15,7 +16,19 @@ export interface DailyCommitData {
 export interface UseDailyCommitHistory {
   dailyData: DailyCommitData[];
   isLoading: boolean;
+  isFetchingNextPage: boolean;
+  hasNextPage: boolean;
   error: Error | null;
+  fetchNextPage: () => void;
+}
+
+interface PageParam {
+  until?: string; // ISO date string to fetch commits before this date
+}
+
+interface PageData {
+  dailyData: DailyCommitData[];
+  nextCursor?: string; // Next date cursor for pagination
 }
 
 /**
@@ -24,13 +37,15 @@ export interface UseDailyCommitHistory {
 function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCommit> {
   const commitsByDay = new Map<string, GitHubCommit>();
 
-  for (const commit of commits) {
+  // Iterate in reverse to process oldest commits first (GitHub returns newest first)
+  for (let i = commits.length - 1; i >= 0; i -= 1) {
+    const commit = commits[i];
     if (!commit.commit.author?.date) {
       continue;
     }
     const date = new Date(commit.commit.author.date).toISOString().split('T')[0];
 
-    // Only keep the first commit of each day (commits are ordered newest first)
+    // Only keep the first commit of each day (now oldest since we iterate in reverse)
     if (!commitsByDay.has(date)) {
       commitsByDay.set(date, commit);
     }
@@ -40,60 +55,93 @@ function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCommit> {
 }
 
 /**
- * Hook to fetch daily commits from master and their bundle size snapshots
+ * Hook to fetch daily commits from master and their bundle size snapshots with infinite query support
  * @param repo Full repository name in the format "org/repo" (e.g. "mui/material-ui")
  */
 export function useDailyCommitHistory(repo: string): UseDailyCommitHistory {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['daily-commit-history', repo],
-    queryFn: async (): Promise<DailyCommitData[]> => {
-      // Fetch commits from master branch
-      const { owner, repo: repoName } = parseRepo(repo);
-      const { data: commits } = await octokit.rest.repos.listCommits({
-        owner,
-        repo: repoName,
-        sha: 'master',
-        per_page: 100,
-      });
+  const { data, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: ['daily-commit-history', repo],
+      queryFn: async ({ pageParam }: { pageParam: PageParam }): Promise<PageData> => {
+        const { owner, repo: repoName } = parseRepo(repo);
 
-      // Group by day and get first commit of each day
-      const dailyCommits = groupCommitsByDay(commits);
+        // Fetch commits from master branch
+        const commitParams: Parameters<typeof octokit.rest.repos.listCommits>[0] = {
+          owner,
+          repo: repoName,
+          sha: 'master',
 
-      // Limit to 30 days and sort by date (most recent first)
-      const sortedDays = Array.from(dailyCommits.entries())
-        .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
-        .slice(0, 30);
+          per_page: 100,
+        };
 
-      // Fetch snapshots for each daily commit
-      const dailyDataPromises = sortedDays.map(async ([date, commit]): Promise<DailyCommitData> => {
-        let snapshot: Record<string, { parsed: number; gzip: number }> | null = null;
-
-        try {
-          snapshot = await fetchSnapshot(repo, commit.sha);
-        } catch {
-          // snapshot remains null
+        // Add until parameter for pagination if we have a cursor
+        if (pageParam?.until) {
+          commitParams.until = pageParam.until;
         }
 
+        const { data: commits } = await octokit.rest.repos.listCommits(commitParams);
+
+        // Group by day and get first commit of each day
+        const dailyCommits = groupCommitsByDay(commits);
+
+        // Map entries are already in reverse chronological order (newest dates first)
+        // due to GitHub API returning commits newest first and our reverse iteration
+        const dailyCommitEntries = Array.from(dailyCommits.entries());
+
+        // Take up to 30 days for this page
+        const pageLimit = 30;
+        const currentPageDays = dailyCommitEntries.slice(0, pageLimit);
+
+        // Determine if we need to set up pagination cursor
+        let nextCursor: string | undefined;
+        if (currentPageDays.length === pageLimit || commits.length === 100) {
+          // We have exactly 30 days and fetched the full batch, so there might be more data
+          // Use the date of the 30th day as the cursor for the next page
+          const oldestDateInPage = currentPageDays[0][0];
+          const oldestDate = new Date(oldestDateInPage);
+          // Subtract one day to ensure we don't miss commits from the same day
+          oldestDate.setDate(oldestDate.getDate() - 1);
+          nextCursor = oldestDate.toISOString();
+        }
+
+        // Fetch snapshots for each daily commit
+        const dailyDataPromises = currentPageDays.map(
+          async ([date, commit]): Promise<DailyCommitData> => {
+            const snapshot = await fetchSnapshot(repo, commit.sha).catch(() => null);
+            return { date, commit, snapshot };
+          },
+        );
+
+        const dailyData = await Promise.all(dailyDataPromises);
+
         return {
-          date,
-          commit,
-          snapshot,
+          dailyData,
+          nextCursor,
         };
-      });
+      },
+      initialPageParam: {} as PageParam,
+      getNextPageParam: React.useCallback((lastPage: PageData) => {
+        if (lastPage.nextCursor) {
+          return { until: lastPage.nextCursor };
+        }
+        return undefined; // No more pages
+      }, []),
+      retry: 1,
+      enabled: Boolean(repo),
+      staleTime: 5 * 60 * 1000, // Cache commits for 5 minutes
+    });
 
-      const dailyData = await Promise.all(dailyDataPromises);
-
-      // Sort by date (oldest first for chart display)
-      return dailyData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    },
-    retry: 1,
-    enabled: Boolean(repo),
-    staleTime: 5 * 60 * 1000, // Cache commits for 5 minutes
-  });
+  // Flatten all pages into a single array with memoization to prevent re-renders
+  const allDailyData = React.useMemo(() => {
+    return data?.pages.flatMap((page) => page.dailyData) ?? [];
+  }, [data?.pages]);
 
   return {
-    dailyData: data ?? [],
+    dailyData: allDailyData,
     isLoading,
+    isFetchingNextPage,
+    hasNextPage: hasNextPage ?? false,
     error: error as Error | null,
+    fetchNextPage,
   };
 }
