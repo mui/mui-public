@@ -20,28 +20,28 @@ const result = useUrlHashState(options?)
 
 ### Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `options` | `UseUrlHashStateOptions` | `{}` | Configuration options |
+| Parameter | Type                     | Default | Description           |
+| --------- | ------------------------ | ------- | --------------------- |
+| `options` | `UseUrlHashStateOptions` | `{}`    | Configuration options |
 
 ### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `readOnMount` | `boolean` | `true` | Whether to read hash from URL on component mount |
-| `watchChanges` | `boolean` | `true` | Whether to listen for hash changes from browser navigation |
-| `parseHash` | `(hash: string) => string` | `(hash) => hash.slice(1)` | Custom function to parse hash from URL |
-| `formatHash` | `(value: string) => string` | `(value) => value` | Custom function to format value for URL |
+| Option         | Type                        | Default                   | Description                                                |
+| -------------- | --------------------------- | ------------------------- | ---------------------------------------------------------- |
+| `readOnMount`  | `boolean`                   | `true`                    | Whether to read hash from URL on component mount           |
+| `watchChanges` | `boolean`                   | `true`                    | Whether to listen for hash changes from browser navigation |
+| `parseHash`    | `(hash: string) => string`  | `(hash) => hash.slice(1)` | Custom function to parse hash from URL                     |
+| `formatHash`   | `(value: string) => string` | `(value) => value`        | Custom function to format value for URL                    |
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `hash` | `string \| null` | Current hash value (without the '#' prefix) |
-| `setHash` | `(value: string \| null, replace?: boolean) => void` | Function to update hash and URL |
-| `hasProcessedInitialHash` | `boolean` | Whether the initial hash has been read and processed |
-| `hasUserInteraction` | `boolean` | Whether user has explicitly interacted with the hash |
-| `markUserInteraction` | `() => void` | Function to mark user interaction |
+| Property                  | Type                                                 | Description                                          |
+| ------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| `hash`                    | `string \| null`                                     | Current hash value (without the '#' prefix)          |
+| `setHash`                 | `(value: string \| null, replace?: boolean) => void` | Function to update hash and URL                      |
+| `hasProcessedInitialHash` | `boolean`                                            | Whether the initial hash has been read and processed |
+| `hasUserInteraction`      | `boolean`                                            | Whether user has explicitly interacted with the hash |
+| `markUserInteraction`     | `() => void`                                         | Function to mark user interaction                    |
 
 ## Usage
 
@@ -55,21 +55,13 @@ function TabNavigation() {
 
   return (
     <nav>
-      <button 
-        onClick={() => setHash('overview')}
-        className={hash === 'overview' ? 'active' : ''}
-      >
+      <button onClick={() => setHash('overview')} className={hash === 'overview' ? 'active' : ''}>
         Overview
       </button>
-      <button 
-        onClick={() => setHash('details')}
-        className={hash === 'details' ? 'active' : ''}
-      >
+      <button onClick={() => setHash('details')} className={hash === 'details' ? 'active' : ''}>
         Details
       </button>
-      <button onClick={() => setHash(null)}>
-        Clear Hash
-      </button>
+      <button onClick={() => setHash(null)}>Clear Hash</button>
     </nav>
   );
 }
@@ -89,12 +81,8 @@ function NavigationExample() {
 
   return (
     <div>
-      <button onClick={() => goToSection('intro', true)}>
-        Go to Intro (new history entry)
-      </button>
-      <button onClick={() => goToSection('content')}>
-        Go to Content (replace current)
-      </button>
+      <button onClick={() => goToSection('intro', true)}>Go to Intro (new history entry)</button>
+      <button onClick={() => goToSection('content')}>Go to Content (replace current)</button>
     </div>
   );
 }
@@ -117,9 +105,7 @@ function CustomParsingExample() {
   return (
     <div>
       <p>Current section: {hash || 'none'}</p>
-      <button onClick={() => setHash('intro')}>
-        Set Intro (URL will be #section:intro)
-      </button>
+      <button onClick={() => setHash('intro')}>Set Intro (URL will be #section:intro)</button>
     </div>
   );
 }
@@ -147,9 +133,7 @@ function ConditionalReadingExample() {
     <div>
       <p>Hash: {hash || 'none'}</p>
       <p>Processed: {hasProcessedInitialHash ? 'yes' : 'no'}</p>
-      <button onClick={processInitialHash}>
-        Process Initial Hash
-      </button>
+      <button onClick={processInitialHash}>Process Initial Hash</button>
     </div>
   );
 }
@@ -169,9 +153,7 @@ function InteractionTrackingExample() {
   return (
     <div>
       <p>User has interacted: {hasUserInteraction ? 'yes' : 'no'}</p>
-      <button onClick={() => handleUserClick('section1')}>
-        Go to Section 1
-      </button>
+      <button onClick={() => handleUserClick('section1')}>Go to Section 1</button>
       {/* This could be used to differentiate programmatic vs user changes */}
       {hasUserInteraction && <p>Hash was set by user action</p>}
     </div>
@@ -216,15 +198,15 @@ The hook uses the following strategy:
 ```tsx
 function DocumentationPage() {
   const { hash, setHash } = useUrlHashState();
-  
+
   const sections = ['introduction', 'api', 'examples', 'troubleshooting'];
   const activeSection = hash || 'introduction';
 
   return (
     <div>
       <nav>
-        {sections.map(section => (
-          <button 
+        {sections.map((section) => (
+          <button
             key={section}
             onClick={() => setHash(section)}
             className={activeSection === section ? 'active' : ''}

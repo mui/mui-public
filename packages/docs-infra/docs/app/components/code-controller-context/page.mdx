@@ -5,7 +5,7 @@ The `CodeControllerContext` provides a React context for managing controlled cod
 ## Features
 
 - **Interactive code editing** - Edit source code with real-time updates
-- **Live component previews** - See component changes rendered instantly  
+- **Live component previews** - See component changes rendered instantly
 - **Context-based state** - Shared state across multiple components
 - **Simple integration** - Works with existing [`CodeHighlighter`](../code-highlighter/page.mdx) and demo components
 
@@ -59,11 +59,9 @@ import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 function CodeController({ children }: { children: React.ReactNode }) {
   const [code, setCode] = React.useState();
   const contextValue = React.useMemo(() => ({ code, setCode }), [code, setCode]);
-  
+
   return (
-    <CodeControllerContext.Provider value={contextValue}>
-      {children}
-    </CodeControllerContext.Provider>
+    <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
   );
 }
 
@@ -107,11 +105,11 @@ import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerCo
 
 function DemoController({ children }: { children: React.ReactNode }) {
   const [code, setCode] = React.useState();
-  
+
   // Create live component instances from code
   const components = React.useMemo(() => {
     if (!code) return undefined;
-    
+
     return Object.keys(code).reduce((acc, variant) => {
       const source = code[variant]?.source;
       if (source) {
@@ -123,13 +121,11 @@ function DemoController({ children }: { children: React.ReactNode }) {
 
   const contextValue = React.useMemo(
     () => ({ code, setCode, components }),
-    [code, setCode, components]
+    [code, setCode, components],
   );
 
   return (
-    <CodeControllerContext.Provider value={contextValue}>
-      {children}
-    </CodeControllerContext.Provider>
+    <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
   );
 }
 ```
@@ -146,13 +142,13 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 
 function EditorContent(props) {
   const code = useCode(props);
-  
+
   // code.setSource updates the controller automatically
   const onInput = React.useCallback(
     (text: string) => {
       code.setSource?.(text);
     },
-    [code]
+    [code],
   );
 
   const editorRef = React.useRef(null);
@@ -167,7 +163,7 @@ function EditorContent(props) {
 }
 ```
 
-## Working with useDemo Hook  
+## Working with useDemo Hook
 
 The [`useDemo`](../use-demo/page.mdx) hook provides additional functionality for live component demos:
 
@@ -183,29 +179,25 @@ function DemoContent(props) {
     (text: string) => {
       demo.setSource?.(text);
     },
-    [demo]
+    [demo],
   );
 
   return (
     <div>
       {/* Live component preview */}
       <div>{demo.component}</div>
-      
+
       {/* Editable source code */}
       <div>
-        <select 
-          value={demo.selectedVariant}
-          onChange={(e) => demo.selectVariant(e.target.value)}
-        >
-          {demo.variants.map(variant => (
-            <option key={variant} value={variant}>{variant}</option>
+        <select value={demo.selectedVariant} onChange={(e) => demo.selectVariant(e.target.value)}>
+          {demo.variants.map((variant) => (
+            <option key={variant} value={variant}>
+              {variant}
+            </option>
           ))}
         </select>
-        
-        <textarea
-          value={demo.selectedFile}
-          onChange={(e) => onInput(e.target.value)}
-        />
+
+        <textarea value={demo.selectedFile} onChange={(e) => onInput(e.target.value)} />
       </div>
     </div>
   );
@@ -227,11 +219,11 @@ The CodeController provides a simple state management pattern:
 
 function EditorContent(props) {
   const code = useCode(props); // Connects to controller context
-  
+
   const onEdit = (newSource) => {
     code.setSource(newSource); // This updates the controller context
   };
-  
+
   // code.selectedFile reflects the current controller state
   return <textarea value={code.selectedFile} onChange={onEdit} />;
 }
@@ -253,6 +245,7 @@ export const DemoMyComponent = createDemo(import.meta.url, MyComponent, {
 ```
 
 When used with a controller, the demo automatically:
+
 - Loads source code from the filesystem
 - Provides editing capabilities through [`useCode`](../use-code/page.mdx) or [`useDemo`](../use-demo/page.mdx)
 - Updates the controller state when code changes
@@ -263,7 +256,6 @@ When used with a controller, the demo automatically:
 For live demos that need to run code dynamically (like the Live Demo example), you must provide a `ClientProvider` to ensure dependencies are properly bundled:
 
 ### Using createDemoClient
-
 
 > [!NOTE]
 > Before you can use `createDemoClient` in your demos, you must first create this file in your repo using the abstract factory.
@@ -319,6 +311,7 @@ export const DemoMyLiveComponent = createLiveDemo(import.meta.url, MyComponent, 
 ```
 
 The `ClientProvider` ensures that:
+
 - Component dependencies are hoisted into the client bundle
 - External libraries are available for the `useRunner` hook through `CodeExternalsContext`
 - Live code execution has access to all required modules via precomputed externals
@@ -343,16 +336,16 @@ The context provides the following interface:
 interface CodeControllerContext {
   // Current controlled code state
   code?: ControlledCode;
-  
+
   // Current selection (variant, file, transform)
   selection?: Selection;
-  
+
   // Function to update code state
   setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
-  
-  // Function to update selection state  
+
+  // Function to update selection state
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
-  
+
   // Override components for live previews
   components?: Record<string, React.ReactNode>;
 }
@@ -368,12 +361,12 @@ import { useControlledCode } from '@mui/internal-docs-infra/CodeControllerContex
 function MyComponent() {
   const {
     controlledCode,
-    controlledSelection, 
+    controlledSelection,
     controlledSetCode,
     controlledSetSelection,
     controlledComponents,
   } = useControlledCode();
-  
+
   // Use the values...
 }
 ```
@@ -419,7 +412,7 @@ type ControlledVariantCode = {
 The CodeControllerContext is specifically designed for **interactive code editing scenarios** where you need:
 
 - Real-time code editing with syntax highlighting
-- Live component previews that update as code changes  
+- Live component previews that update as code changes
 - Shared state between multiple code-related components
 - TypeScript/JavaScript transformation toggle
 

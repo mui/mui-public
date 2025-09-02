@@ -3,6 +3,7 @@
 The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night). It converts code into highlighted HTML structures for display in documentation and demos.
 
 ## Features
+
 - Syntax highlighting using Starry Night with GitHub-style highlighting
 - Supports multiple programming languages via grammar definitions
 - Adds line gutters for code display
@@ -94,11 +95,13 @@ parseSource('code', 'file.js'); // Now works
 The parser automatically adds line gutters using `starryNightGutter` for better code display with line numbers.
 
 ## When to Use
+
 - When implementing syntax highlighting for code blocks
 - When preparing code for display in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
 - When building custom code processing pipelines that need highlighted output
 
 ## Related
+
 - [Starry Night](https://github.com/wooorm/starry-night) - The underlying syntax highlighter
 - [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this for syntax highlighting

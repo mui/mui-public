@@ -24,7 +24,7 @@ type Module = {}; // Can be any imported module or object
 ### Hook Interface
 
 ```typescript
-function useCodeExternals(): CodeExternalsContext | undefined
+function useCodeExternals(): CodeExternalsContext | undefined;
 ```
 
 ## Usage
@@ -39,11 +39,11 @@ import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext'
 function DemoComponent() {
   const externalsContext = useCodeExternals();
   const externals = externalsContext?.externals || {};
-  
+
   // Access specific externals
   const React = externals.react;
   const { Button } = externals['@mui/material'] || {};
-  
+
   return <Button>Demo Button</Button>;
 }
 ```
@@ -53,6 +53,7 @@ function DemoComponent() {
 Demo clients are transformed by the build system to automatically provide this context. Here's what happens:
 
 **Before (source code):**
+
 ```tsx
 // demo/client.ts
 'use client';
@@ -62,6 +63,7 @@ export const DemoExampleClient = createDemoClient(import.meta.url);
 ```
 
 **After (build system transformation):**
+
 ```tsx
 // demo/client.ts - Transformed by loader
 'use client';
@@ -90,11 +92,11 @@ The context provides a simple interface:
 ```typescript
 const context = {
   externals: {
-    'react': React,                    // Default import
-    '@mui/material': { Button },       // Named imports as object
-    '@mui/system': { styled },         // Single named import
-    './local-module': { helper },      // Local modules
-  }
+    react: React, // Default import
+    '@mui/material': { Button }, // Named imports as object
+    '@mui/system': { styled }, // Single named import
+    './local-module': { helper }, // Local modules
+  },
 };
 ```
 
@@ -105,18 +107,18 @@ const context = {
 ```tsx
 function SafeExternalDemo() {
   const externalsContext = useCodeExternals();
-  
+
   if (!externalsContext?.externals) {
     return <div>No externals available</div>;
   }
-  
+
   const { react: React, '@mui/material': MUI = {} } = externalsContext.externals;
   const { Button } = MUI;
-  
+
   if (!Button) {
     return <div>Button component not available</div>;
   }
-  
+
   return <Button>Safe Button</Button>;
 }
 ```
@@ -126,6 +128,7 @@ function SafeExternalDemo() {
 When building live demo components that execute code dynamically, externals provide the scope for code execution. Here's how the provider and consumer work together:
 
 **Provider Setup (Demo Client):**
+
 ```tsx
 // demo/client.tsx - The demo client provides externals context
 'use client';
@@ -143,9 +146,7 @@ const externals = {
 
 function DemoProvider({ children }: { children: React.ReactNode }) {
   return (
-    <CodeExternalsContext.Provider value={{ externals }}>
-      {children}
-    </CodeExternalsContext.Provider>
+    <CodeExternalsContext.Provider value={{ externals }}>{children}</CodeExternalsContext.Provider>
   );
 }
 
@@ -153,6 +154,7 @@ export { DemoProvider };
 ```
 
 **Consumer (Live Code Runner):**
+
 ```tsx
 'use client';
 
@@ -162,7 +164,7 @@ import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext'
 
 function LiveCodeRunner({ code }: { code: string }) {
   const externalsContext = useCodeExternals();
-  
+
   const scope = React.useMemo(() => {
     let externals = externalsContext?.externals;
     if (!externals) {
@@ -197,7 +199,7 @@ function CompleteLiveDemo() {
   return (
     <DemoProvider>
       <div>
-        <textarea 
+        <textarea
           value={code}
           onChange={(e) => setCode(e.target.value)}
           style={{ width: '100%', height: 200 }}
@@ -218,10 +220,10 @@ function CompleteLiveDemo() {
 function ConditionalDemo() {
   const externalsContext = useCodeExternals();
   const externals = externalsContext?.externals || {};
-  
+
   const hasButton = externals['@mui/material']?.Button;
   const hasTypography = externals['@mui/material']?.Typography;
-  
+
   return (
     <div>
       {hasButton && <externals['@mui/material'].Button>Button Available</externals['@mui/material'].Button>}
@@ -238,7 +240,7 @@ function ConditionalDemo() {
 function ExternalDebugger() {
   const externalsContext = useCodeExternals();
   const externals = externalsContext?.externals || {};
-  
+
   return (
     <details>
       <summary>Available Externals ({Object.keys(externals).length})</summary>
@@ -248,7 +250,7 @@ function ExternalDebugger() {
             <strong>{key}:</strong> {typeof value}
             {value && typeof value === 'object' && !React.isValidElement(value) && (
               <ul>
-                {Object.keys(value).map(subKey => (
+                {Object.keys(value).map((subKey) => (
                   <li key={subKey}>{subKey}</li>
                 ))}
               </ul>

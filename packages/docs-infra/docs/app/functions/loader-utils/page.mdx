@@ -251,13 +251,13 @@ import { mergeExternals } from '@mui/internal-docs-infra/loaderUtils';
 import type { Externals } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 const externals1: Externals = {
-  'react': [{ name: 'React', type: 'default' }],
-  'lodash': [{ name: 'map', type: 'named' }]
+  react: [{ name: 'React', type: 'default' }],
+  lodash: [{ name: 'map', type: 'named' }],
 };
 
 const externals2: Externals = {
-  'react': [{ name: 'useState', type: 'named' }],
-  'lodash': [{ name: 'map', type: 'named' }] // duplicate - will be removed
+  react: [{ name: 'useState', type: 'named' }],
+  lodash: [{ name: 'map', type: 'named' }], // duplicate - will be removed
 };
 
 const merged = mergeExternals([externals1, externals2]);

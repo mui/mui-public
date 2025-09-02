@@ -3,6 +3,7 @@
 The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using Babel, preserving formatting and automatically generating JavaScript variants for documentation and demos.
 
 ## Features
+
 - Removes TypeScript types and decorators while preserving React JSX
 - Handles both `.ts` → `.js` and `.tsx` → `.jsx` transformations
 - Preserves blank lines and code formatting using smart newline replacement
@@ -17,8 +18,8 @@ import { transformTypescriptToJavascript } from '@mui/internal-docs-infra/pipeli
 
 // Transform TypeScript to JavaScript
 const result = await transformTypescriptToJavascript(
-  'const x: number = 1;\ninterface Props { name: string; }', 
-  'example.ts'
+  'const x: number = 1;\ninterface Props { name: string; }',
+  'example.ts',
 );
 
 // Returns:
@@ -75,6 +76,7 @@ const unformatted = await removeTypes(code, 'file.ts', false);
 ## Supported Features
 
 ### TypeScript Constructs Removed
+
 - Type annotations (`: string`, `: number`, etc.)
 - Interface declarations
 - Type aliases
@@ -83,6 +85,7 @@ const unformatted = await removeTypes(code, 'file.ts', false);
 - Decorators (with legacy support)
 
 ### Preserved Features
+
 - All JavaScript functionality
 - React JSX (in `.tsx` files)
 - Comments (except those tied to removed TS constructs)
@@ -113,12 +116,14 @@ const Button = ({ onClick, children }) => {
 ```
 
 ## When to Use
+
 - When implementing automatic TypeScript → JavaScript code generation
 - When building documentation that shows both TS and JS versions
 - When creating demos that need to support both TypeScript and JavaScript users
 - As part of source transformers in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
 
 ## Related
+
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this transformer for variant generation
 - [Babel TypeScript Plugin](https://babeljs.io/docs/en/babel-plugin-transform-typescript) - Underlying transformation engine
 - [`SourceTransformers`](../source-transformers/page.mdx) - Framework for code transformations

@@ -3,6 +3,7 @@
 The `useCopier` hook provides robust clipboard copy functionality with success state management, error handling, and customizable callbacks. It's designed for code blocks, buttons, and interactive elements that need copy-to-clipboard functionality.
 
 ## Features
+
 - **Flexible content source** - Accepts static strings or dynamic functions
 - **Success state tracking** - Provides `recentlySuccessful` state for UI feedback
 - **Configurable timeout** - Customizable reset timer for success state
@@ -18,26 +19,26 @@ const { copy, recentlySuccessful } = useCopier(contents, options);
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter  | Type                                    | Description                                    |
+| ---------- | --------------------------------------- | ---------------------------------------------- |
 | `contents` | `string \| (() => string \| undefined)` | Static text or function returning text to copy |
-| `options` | `UseCopierOpts` | Optional configuration object |
+| `options`  | `UseCopierOpts`                         | Optional configuration object                  |
 
 ### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `onCopied` | `() => void` | - | Callback fired after successful copy |
-| `onError` | `(error: unknown) => void` | - | Callback fired when copy fails |
-| `onClick` | `(event: React.MouseEvent<HTMLButtonElement>) => void` | - | Additional click handler |
-| `timeout` | `number` | `2000` | Duration (ms) to show success state |
+| Option     | Type                                                   | Default | Description                          |
+| ---------- | ------------------------------------------------------ | ------- | ------------------------------------ |
+| `onCopied` | `() => void`                                           | -       | Callback fired after successful copy |
+| `onError`  | `(error: unknown) => void`                             | -       | Callback fired when copy fails       |
+| `onClick`  | `(event: React.MouseEvent<HTMLButtonElement>) => void` | -       | Additional click handler             |
+| `timeout`  | `number`                                               | `2000`  | Duration (ms) to show success state  |
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `copy` | `(event: React.MouseEvent<HTMLButtonElement>) => void` | Function to trigger copy operation |
-| `recentlySuccessful` | `boolean` | Whether copy was recently successful |
+| Property             | Type                                                   | Description                          |
+| -------------------- | ------------------------------------------------------ | ------------------------------------ |
+| `copy`               | `(event: React.MouseEvent<HTMLButtonElement>) => void` | Function to trigger copy operation   |
+| `recentlySuccessful` | `boolean`                                              | Whether copy was recently successful |
 
 ## Usage Examples
 
@@ -48,12 +49,8 @@ import { useCopier } from '@mui/internal-docs-infra/useCopier';
 
 function CopyButton({ text }: { text: string }) {
   const { copy, recentlySuccessful } = useCopier(text);
-  
-  return (
-    <button onClick={copy}>
-      {recentlySuccessful ? 'Copied!' : 'Copy'}
-    </button>
-  );
+
+  return <button onClick={copy}>{recentlySuccessful ? 'Copied!' : 'Copy'}</button>;
 }
 ```
 
@@ -64,7 +61,7 @@ import { useCopier } from '@mui/internal-docs-infra/useCopier';
 
 function CodeBlockCopy({ getCode }: { getCode: () => string }) {
   const { copy, recentlySuccessful } = useCopier(getCode);
-  
+
   return (
     <button onClick={copy} disabled={recentlySuccessful}>
       {recentlySuccessful ? '✓ Copied' : 'Copy Code'}
@@ -80,18 +77,16 @@ import { useCopier } from '@mui/internal-docs-infra/useCopier';
 
 function CopyWithFeedback({ content }: { content: string }) {
   const [error, setError] = React.useState<string | null>(null);
-  
+
   const { copy, recentlySuccessful } = useCopier(content, {
     onCopied: () => setError(null),
     onError: (err) => setError('Failed to copy to clipboard'),
     timeout: 3000,
   });
-  
+
   return (
     <div>
-      <button onClick={copy}>
-        {recentlySuccessful ? 'Copied!' : 'Copy'}
-      </button>
+      <button onClick={copy}>{recentlySuccessful ? 'Copied!' : 'Copy'}</button>
       {error && <span style={{ color: 'red' }}>{error}</span>}
     </div>
   );
@@ -118,7 +113,7 @@ function AnalyticsCopyButton({ text, label }: { text: string; label: string }) {
       analytics.track('Copy Attempted', { label });
     },
   });
-  
+
   return (
     <button onClick={copy} className={recentlySuccessful ? 'success' : ''}>
       {recentlySuccessful ? 'Copied!' : `Copy ${label}`}
@@ -138,17 +133,13 @@ function CodeBlockWithCopy({ code, language }: { code: string; language: string 
     // Get the current code, potentially from a transformed state
     return getCurrentCode();
   });
-  
+
   return (
     <div className="code-block">
       <div className="code-header">
         <span>{language}</span>
         <button onClick={copy} className="copy-button">
-          {recentlySuccessful ? (
-            <>✓ Copied</>
-          ) : (
-            <>📋 Copy</>
-          )}
+          {recentlySuccessful ? <>✓ Copied</> : <>📋 Copy</>}
         </button>
       </div>
       <CodeHighlighter code={code} language={language} />
@@ -199,7 +190,7 @@ export type UseCopierOpts = {
 
 export function useCopier(
   contents: (() => string | undefined) | string,
-  opts?: UseCopierOpts
+  opts?: UseCopierOpts,
 ): {
   copy: (event: React.MouseEvent<HTMLButtonElement>) => void;
   recentlySuccessful: boolean;
@@ -217,10 +208,12 @@ export function useCopier(
 ## Browser Support
 
 Uses the `clipboard-copy` library which provides:
+
 - Modern `navigator.clipboard.writeText()` API when available
 - Fallback to `document.execCommand('copy')` for older browsers
 - Works in both secure (HTTPS) and insecure contexts
 
 ## Related
+
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Often used together for code copy functionality
 - [clipboard-copy](https://www.npmjs.com/package/clipboard-copy) - Underlying clipboard library

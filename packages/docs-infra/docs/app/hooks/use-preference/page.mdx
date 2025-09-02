@@ -3,6 +3,7 @@
 The `usePreference` hook provides specialized preference management for code demo variants and transformations. It builds on `useLocalStorageState` with intelligent storage key generation, prefix support, and automatic optimization for single-option scenarios.
 
 ## Features
+
 - **Specialized for demos** - Designed for variant and transform preferences
 - **Intelligent storage** - Only persists when there are multiple options to choose from
 - **Automatic key generation** - Creates storage keys from variant/transform names
@@ -18,17 +19,17 @@ const [preference, setPreference] = usePreference(type, name, initializer);
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | `'variant' \| 'transform'` | Type of preference (affects storage prefix) |
-| `name` | `string \| string[]` | Variant/transform name(s). Array gets sorted and joined |
-| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function |
+| Parameter     | Type                                       | Description                                             |
+| ------------- | ------------------------------------------ | ------------------------------------------------------- |
+| `type`        | `'variant' \| 'transform'`                 | Type of preference (affects storage prefix)             |
+| `name`        | `string \| string[]`                       | Variant/transform name(s). Array gets sorted and joined |
+| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function                               |
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `preference` | `string \| null` | Current preference value |
+| Property        | Type                                                   | Description                   |
+| --------------- | ------------------------------------------------------ | ----------------------------- |
+| `preference`    | `string \| null`                                       | Current preference value      |
 | `setPreference` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update preference |
 
 ## Usage Examples
@@ -43,7 +44,7 @@ function ButtonVariantSelector() {
   const [variant, setVariant] = usePreference(
     'variant',
     ['contained', 'outlined', 'text'], // Multiple options
-    () => 'contained'
+    () => 'contained',
   );
 
   return (
@@ -53,8 +54,8 @@ function ButtonVariantSelector() {
         <button
           key={option}
           onClick={() => setVariant(option)}
-          style={{ 
-            fontWeight: variant === option ? 'bold' : 'normal' 
+          style={{
+            fontWeight: variant === option ? 'bold' : 'normal',
           }}
         >
           {option}
@@ -74,7 +75,7 @@ function CodeLanguageSelector() {
   const [language, setLanguage] = usePreference(
     'transform',
     ['typescript', 'javascript'], // Multiple languages available
-    () => 'typescript'
+    () => 'typescript',
   );
 
   return (
@@ -110,7 +111,7 @@ function SingleVariantDemo() {
   const [variant, setVariant] = usePreference(
     'variant',
     ['contained'], // Single option
-    () => 'contained'
+    () => 'contained',
   );
 
   // This behaves like useState since there's no choice to remember
@@ -136,7 +137,7 @@ function ComponentWithPreferences() {
   const [variant, setVariant] = usePreference(
     'variant',
     ['contained', 'outlined', 'text'],
-    () => 'contained'
+    () => 'contained',
   );
 
   return (
@@ -155,28 +156,24 @@ function ComponentWithPreferences() {
 import { usePreference } from '@mui/internal-docs-infra/usePreference';
 
 function DemoConfigPanel() {
-  const [size, setSize] = usePreference(
-    'variant',
-    ['small', 'medium', 'large'],
-    () => 'medium'
-  );
+  const [size, setSize] = usePreference('variant', ['small', 'medium', 'large'], () => 'medium');
 
   const [color, setColor] = usePreference(
-    'variant', 
+    'variant',
     ['primary', 'secondary', 'error'],
-    () => 'primary'
+    () => 'primary',
   );
 
   const [format, setFormat] = usePreference(
     'transform',
     ['typescript', 'javascript'],
-    () => 'typescript'
+    () => 'typescript',
   );
 
   return (
     <div className="demo-config">
       <h4>Demo Configuration</h4>
-      
+
       <label>
         Size:
         <select value={size || 'medium'} onChange={(e) => setSize(e.target.value)}>
@@ -216,15 +213,15 @@ The hook generates localStorage keys based on the type and name parameters:
 ```typescript
 // For variant preferences
 // Single string name
-usePreference('variant', 'contained') 
+usePreference('variant', 'contained');
 // → Storage key: "_docs_variant_pref:contained"
 
 // Array of names (sorted and joined)
-usePreference('variant', ['outlined', 'contained', 'text'])
+usePreference('variant', ['outlined', 'contained', 'text']);
 // → Storage key: "_docs_variant_pref:contained:outlined:text"
 
-// For transform preferences  
-usePreference('transform', ['typescript', 'javascript'])
+// For transform preferences
+usePreference('transform', ['typescript', 'javascript']);
 // → Storage key: "_docs_transform_pref:javascript:typescript"
 ```
 
@@ -250,7 +247,7 @@ const key = React.useMemo(() => {
 // Default prefixes
 const defaultPrefixes = {
   variant: '_docs_variant_pref',
-  transform: '_docs_transform_pref'
+  transform: '_docs_transform_pref',
 };
 
 // With custom prefix from context
@@ -268,18 +265,18 @@ export interface PreferencesContext {
 // Usage
 <PreferencesProvider value={{ prefix: 'my-docs-site' }}>
   <App />
-</PreferencesProvider>
+</PreferencesProvider>;
 ```
 
 ## Storage Key Examples
 
-| Type | Name | Generated Key |
-|------|------|---------------|
-| `variant` | `'contained'` | `_docs_variant_pref:contained` |
-| `variant` | `['text', 'outlined']` | `_docs_variant_pref:outlined:text` |
-| `variant` | `['single']` | `null` (no persistence) |
-| `transform` | `['ts', 'js']` | `_docs_transform_pref:js:ts` |
-| With prefix `'app'` | `variant`, `['a', 'b']` | `app_variant:a:b` |
+| Type                | Name                    | Generated Key                      |
+| ------------------- | ----------------------- | ---------------------------------- |
+| `variant`           | `'contained'`           | `_docs_variant_pref:contained`     |
+| `variant`           | `['text', 'outlined']`  | `_docs_variant_pref:outlined:text` |
+| `variant`           | `['single']`            | `null` (no persistence)            |
+| `transform`         | `['ts', 'js']`          | `_docs_transform_pref:js:ts`       |
+| With prefix `'app'` | `variant`, `['a', 'b']` | `app_variant:a:b`                  |
 
 ## Integration with CodeHighlighter
 
@@ -291,20 +288,20 @@ function CodeDemo({ availableVariants, availableTransforms }) {
   const [selectedVariant, setSelectedVariant] = usePreference(
     'variant',
     availableVariants,
-    () => availableVariants[0]
+    () => availableVariants[0],
   );
 
   const [selectedTransform, setSelectedTransform] = usePreference(
-    'transform', 
+    'transform',
     availableTransforms,
-    () => availableTransforms[0]
+    () => availableTransforms[0],
   );
 
   return (
     <div>
       {/* Variant selector only shows if multiple variants */}
       {availableVariants.length > 1 && (
-        <VariantSelector 
+        <VariantSelector
           variants={availableVariants}
           selected={selectedVariant}
           onChange={setSelectedVariant}
@@ -357,7 +354,7 @@ function CodeDemo({ availableVariants, availableTransforms }) {
 function usePreference(
   type: 'variant' | 'transform',
   name: string | string[],
-  initializer?: string | null | (() => string | null)
+  initializer?: string | null | (() => string | null),
 ): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
 
 // Context types
@@ -367,6 +364,7 @@ interface PreferencesContext {
 ```
 
 ## Related
+
 - [`useLocalStorageState`](../use-local-storage-state/page.mdx) - Underlying persistence mechanism
 - [`PreferencesProvider`](../../components/preferences-provider/page.mdx) - Context provider for custom prefixes
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Common use case for variant preferences

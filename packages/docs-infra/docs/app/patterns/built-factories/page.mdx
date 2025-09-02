@@ -4,9 +4,9 @@ At a very fundamental level a factory only needs a URL. In TypeScript, we can re
 
 ```ts
 // src/objects/object.ts
-import { createObject } from '../createObject'
+import { createObject } from '../createObject';
 
-export const object = createObject(import.meta.url)
+export const object = createObject(import.meta.url);
 ```
 
 From our perspective, we see `file://src/objects/object.ts` as an input to our factory.
@@ -28,9 +28,9 @@ During the build time, we can also fetch the `import.meta.url` in a loader and k
 
 ```ts
 // src/objects/object.ts
-import { createObject } from '../createObject'
+import { createObject } from '../createObject';
 
-export const object = createObject(import.meta.url, { precompute: {} })
+export const object = createObject(import.meta.url, { precompute: {} });
 ```
 
 This would be returned by the loader after creating the object instance. The `createObject` function would then be able to skip any async operations and just return the precomputed object.
@@ -49,24 +49,27 @@ The factories can take options to augment their behavior. For example, you might
 
 ```ts
 // src/objects/object.ts
-import { createObject } from '../createObject'
+import { createObject } from '../createObject';
 
-export const object = createObject(import.meta.url, { name: 'CustomObjectName' })
+export const object = createObject(import.meta.url, { name: 'CustomObjectName' });
 ```
 
 They can also have flags:
+
 ```ts
-export const object = createObject(import.meta.url, { isVisible: true })
+export const object = createObject(import.meta.url, { isVisible: true });
 ```
 
 Or functions:
+
 ```ts
-export const object = createObject(import.meta.url, { getName: () => 'CustomObjectName' })
+export const object = createObject(import.meta.url, { getName: () => 'CustomObjectName' });
 ```
 
 Or more data:
+
 ```ts
-export const object = createObject(import.meta.url, { data: { key: 'value' } })
+export const object = createObject(import.meta.url, { data: { key: 'value' } });
 ```
 
 Anything that might be useful for creating the object can be passed in as options.
@@ -76,20 +79,21 @@ Anything that might be useful for creating the object can be passed in as option
 Sometimes the object is created using a source that can be imported.
 
 A simple example would be a code snippet created from an external module:
+
 ```ts
 // src/externalModule.ts
 // This is an external function
 export const externalFunction = () => {
   // Some implementation
-}
+};
 ```
 
 ```ts
 // src/objects/object.ts
-import { createSnippet } from '../createSnippet'
-import { externalFunction } from '../externalModule'
+import { createSnippet } from '../createSnippet';
+import { externalFunction } from '../externalModule';
 
-export const snippet = createSnippet(import.meta.url, externalFunction)
+export const snippet = createSnippet(import.meta.url, externalFunction);
 ```
 
 At build time the snippet could be injected:
@@ -112,41 +116,52 @@ Sometimes objects have variations that some users would prefer, each imported as
 
 ```ts
 // src/objects/object.ts
-import { createSnippet } from '../createSnippet'
-import { externalFunctionA } from '../externalModuleA'
-import { externalFunctionB } from '../externalModuleB'
+import { createSnippet } from '../createSnippet';
+import { externalFunctionA } from '../externalModuleA';
+import { externalFunctionB } from '../externalModuleB';
 
-export const snippet = createSnippet(import.meta.url, { A: externalFunctionA, B: externalFunctionB })
+export const snippet = createSnippet(import.meta.url, {
+  A: externalFunctionA,
+  B: externalFunctionB,
+});
 ```
 
 which could be precomputed as:
 
 ```ts
 // src/objects/object.ts
-import { createSnippet } from '../createSnippet'
-import { externalFunctionA } from '../externalModuleA'
-import { externalFunctionB } from '../externalModuleB'
+import { createSnippet } from '../createSnippet';
+import { externalFunctionA } from '../externalModuleA';
+import { externalFunctionB } from '../externalModuleB';
 
-export const snippet = createSnippet(import.meta.url, { A: externalFunctionA, B: externalFunctionB }, {
-  precompute: {
-    A: `// This is an external function A
+export const snippet = createSnippet(
+  import.meta.url,
+  { A: externalFunctionA, B: externalFunctionB },
+  {
+    precompute: {
+      A: `// This is an external function A
 export const externalFunctionA = () => {
   // Some implementation
 }
 `,
-    B: `// This is an external function B
+      B: `// This is an external function B
 export const externalFunctionB = () => {
   // Some implementation
 }
-`
-  }
-})
+`,
+    },
+  },
+);
 ```
 
 You can also add options when using imported sources:
 
 ```ts
-export const snippet = createSnippet(import.meta.url, { A: externalFunctionA, B: externalFunctionB }, { stripComments: true })
+export const snippet = createSnippet(
+  import.meta.url,
+  { A: externalFunctionA, B: externalFunctionB },
+  { stripComments: true },
+);
 ```
 
 If the snippet isn't generated at build time, we should still have all the information we need to load the code on the server, or even the client.
@@ -168,13 +183,13 @@ For example if you had a factory like this:
 const DEBUG = true;
 
 export const createObject = (url: string, options: any) => {
-  const { object, headers } = fetch(url.replace('file:///', 'http://example.com/'))
+  const { object, headers } = fetch(url.replace('file:///', 'http://example.com/'));
   if (DEBUG) {
-    return { object, headers }
+    return { object, headers };
   }
 
-  return { object }
-}
+  return { object };
+};
 ```
 
 Changing the config within `createObject` will affect all objects created with it.
@@ -183,11 +198,11 @@ This can be instrumental in a library that provides abstract factories:
 
 ```ts
 // src/createObject.ts
-import abstractCreateObject from 'lib/abstractCreateObject'
+import abstractCreateObject from 'lib/abstractCreateObject';
 
 export const createObject = abstractCreateObject({
-  debug: true
-})
+  debug: true,
+});
 ```
 
 You can migrate between an abstract factory maintained elsewhere or a custom implementation in your own codebase without changing the location of the config.

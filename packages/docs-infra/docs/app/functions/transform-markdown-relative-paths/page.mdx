@@ -18,12 +18,12 @@ The plugin processes markdown links in two phases:
 
 ### URL Transformations
 
-| Original Link | Current File | Transformed Link |
-|---------------|--------------|------------------|
-| `./getting-started/page.mdx` | `/docs/page.mdx` | `/docs/getting-started` |
-| `../api-reference/page.tsx` | `/docs/guides/page.mdx` | `/docs/api-reference` |
-| `/components/page.tsx` | Any file | `/components` |
-| `../hooks/page.mdx#use-state` | `/docs/page.mdx` | `/hooks#use-state` |
+| Original Link                 | Current File            | Transformed Link        |
+| ----------------------------- | ----------------------- | ----------------------- |
+| `./getting-started/page.mdx`  | `/docs/page.mdx`        | `/docs/getting-started` |
+| `../api-reference/page.tsx`   | `/docs/guides/page.mdx` | `/docs/api-reference`   |
+| `/components/page.tsx`        | Any file                | `/components`           |
+| `../hooks/page.mdx#use-state` | `/docs/page.mdx`        | `/hooks#use-state`      |
 
 ## Best Practices for Linking
 
@@ -56,26 +56,30 @@ Always link to `page.mdx` files using relative paths for the best compatibility:
    - Example: [`validateInput`](../validate-input/page.mdx) not [Input Validator](../validate-input/page.mdx)
    - This makes it clear what API you're referencing and improves searchability
 
-```markdown
+````markdown
 ### Basic Example
 
 ```markdown
 <!-- In /docs/getting-started/page.mdx -->
+
 # Getting Started
 
-Welcome to our documentation! Check out the [API Reference](../api-reference/page.mdx) 
+Welcome to our documentation! Check out the [API Reference](../api-reference/page.mdx)
 or explore our [Components](../components/page.mdx).
 
 For more detailed guides, see:
+
 - [Installation Guide](./installation/page.mdx)
 - [Configuration](./configuration/page.mdx)
 - [Troubleshooting](./troubleshooting/page.mdx)
 ```
+````
 
 ### Advanced Example with Fragments
 
 ```markdown
 <!-- In /docs/guides/page.mdx -->
+
 # User Guides
 
 ## Quick Start
@@ -85,6 +89,7 @@ Start with our [Getting Started](../getting-started/page.mdx) guide.
 ## Advanced Topics
 
 Learn about:
+
 - [Custom Hooks](../hooks/page.mdx#custom-hooks)
 - [State Management](../state/page.mdx#management)
 - [Performance Tips](../performance/page.mdx#optimization)
@@ -93,6 +98,7 @@ Learn about:
 ### Directory Structure Examples
 
 Given this directory structure:
+
 ```
 docs/app/
 ├── components/
@@ -110,12 +116,15 @@ From `/components/input/page.mdx`:
 
 ```markdown
 <!-- Link to sibling component -->
+
 [Button](../button/page.mdx)
 
 <!-- Link to parent components index -->
+
 [Components Overview](../page.mdx)
 
 <!-- Link to guides -->
+
 [Getting Started](../../guides/getting-started/page.mdx)
 ```
 
@@ -149,8 +158,7 @@ You can also use the plugin directly with Remark:
 import { remark } from 'remark';
 import { transformMarkdownRelativePaths } from '@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths';
 
-const processor = remark()
-  .use(transformMarkdownRelativePaths);
+const processor = remark().use(transformMarkdownRelativePaths);
 
 const result = await processor.process(markdownContent);
 ```
@@ -163,9 +171,11 @@ The plugin preserves query parameters and URL fragments:
 
 ```markdown
 <!-- Input -->
+
 [API Reference](./button/page.mdx?section=props#api-table)
 
 <!-- Output (from /components/page.mdx) -->
+
 /components/button?section=props#api-table
 ```
 
@@ -177,12 +187,15 @@ The plugin correctly handles deeply nested directory structures:
 <!-- From /components/forms/inputs/text-field/page.mdx -->
 
 <!-- Up two levels to components -->
+
 [Components](../../page.mdx)
 
 <!-- To sibling form component -->
+
 [Select](../select/page.mdx)
 
 <!-- To different top-level section -->
+
 [Guides](../../../guides/page.mdx)
 ```
 
@@ -191,7 +204,7 @@ The plugin correctly handles deeply nested directory structures:
 The plugin works out of the box without configuration. It automatically:
 
 - Detects the current file's location
-- Resolves relative paths based on the `/app/` directory structure  
+- Resolves relative paths based on the `/app/` directory structure
 - Preserves absolute paths and external URLs unchanged
 - Maintains query parameters and URL fragments
 
@@ -201,7 +214,8 @@ The plugin works out of the box without configuration. It automatically:
 
 ```markdown
 <!-- In a component documentation file -->
-This component works with [`FormProvider`](../form-provider/page.mdx) 
+
+This component works with [`FormProvider`](../form-provider/page.mdx)
 and [`useValidation`](../use-validation/page.mdx) hook.
 
 For advanced usage, see the [Integration Guide](../../guides/integration/page.mdx).
@@ -211,7 +225,8 @@ For advanced usage, see the [Integration Guide](../../guides/integration/page.md
 
 ```markdown
 <!-- In a function documentation file -->
-This function is used by [`validateForm`](../validate-form/page.mdx) 
+
+This function is used by [`validateForm`](../validate-form/page.mdx)
 and [`submitForm`](../submit-form/page.mdx).
 
 See the [Component examples](../../components/page.mdx) for usage.
@@ -221,10 +236,11 @@ See the [Component examples](../../components/page.mdx) for usage.
 
 ```markdown
 <!-- In an index/overview page -->
+
 ## Available Components
 
 - [`Button`](./button/page.mdx) - Interactive button component
-- [`Input`](./input/page.mdx) - Text input with validation  
+- [`Input`](./input/page.mdx) - Text input with validation
 - [`Form`](./form/page.mdx) - Form container with state management
 
 ## Related Utilities

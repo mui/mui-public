@@ -3,6 +3,7 @@
 The `withDocsInfra` function is a Next.js configuration plugin that sets up webpack loaders, Turbopack rules, and page extensions required for MUI docs infrastructure. It automatically configures code highlighting loaders for demo files and provides sensible defaults for documentation sites.
 
 ## Features
+
 - Configures webpack and Turbopack loaders for demo files (`index.ts` and `client.ts`)
 - Sets up page extensions to support `.md`, `.mdx`, `.ts`, `.tsx`, `.js`, `.jsx` files
 - Enables export output mode by default for static site generation
@@ -34,16 +35,16 @@ const withMDX = createMDX(getDocsInfraMdxOptions());
 const nextConfig = withDocsInfra({
   // Add support for additional file extensions
   additionalPageExtensions: ['vue', 'svelte'],
-  
+
   // Disable export output if using server features
   enableExportOutput: false,
-  
+
   // Add custom demo patterns beyond the defaults
   additionalDemoPatterns: {
     index: ['./app/**/demos/*/demo-*/index.ts'],
     client: ['./app/**/demos/*/demo-*/client.ts'],
   },
-  
+
   // Add custom Turbopack rules
   additionalTurbopackRules: {
     './custom/**/*.ts': {
@@ -60,15 +61,19 @@ export default withMDX(nextConfig);
 ## Default Configurations
 
 ### Page Extensions
+
 By default, `withDocsInfra` enables these page extensions:
+
 - `js`, `jsx` - JavaScript files
 - `md`, `mdx` - Markdown files
 - `ts`, `tsx` - TypeScript files
 
 ### Demo File Patterns
+
 The plugin automatically configures loaders for these patterns:
 
 **Turbopack Rules:**
+
 ```js
 {
   './app/**/demos/*/index.ts': {
@@ -81,6 +86,7 @@ The plugin automatically configures loaders for these patterns:
 ```
 
 **Webpack Rules:**
+
 ```js
 {
   test: /\/demos\/[^\/]+\/index\.ts$/,
@@ -103,50 +109,56 @@ import createMDX from '@next/mdx';
 const withMDX = createMDX(getDocsInfraMdxOptions());
 
 // With additional plugins
-const withMDX = createMDX(getDocsInfraMdxOptions({
-  additionalRemarkPlugins: [['remark-emoji']],
-  additionalRehypePlugins: [['rehype-highlight']],
-}));
+const withMDX = createMDX(
+  getDocsInfraMdxOptions({
+    additionalRemarkPlugins: [['remark-emoji']],
+    additionalRehypePlugins: [['rehype-highlight']],
+  }),
+);
 
 // With custom plugin overrides
-const withMDX = createMDX(getDocsInfraMdxOptions({
-  remarkPlugins: [['remark-gfm'], ['custom-plugin']],
-  rehypePlugins: [['custom-rehype-plugin']],
-}));
+const withMDX = createMDX(
+  getDocsInfraMdxOptions({
+    remarkPlugins: [['remark-gfm'], ['custom-plugin']],
+    rehypePlugins: [['custom-rehype-plugin']],
+  }),
+);
 ```
 
 ## Default MDX Plugins
 
 ### Remark Plugins (Markdown processing)
+
 - `remark-gfm` - GitHub Flavored Markdown support
 - `transformMarkdownRelativePaths` - Convert relative paths for docs
 - `transformMarkdownBlockquoteCallouts` - Convert blockquotes to callouts
 - `transformMarkdownCode` - Process code blocks
 
 ### Rehype Plugins (HTML processing)
+
 - `transformHtmlCode` - Transform HTML code elements
 
 ## Configuration Options
 
 ### WithDocsInfraOptions
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `additionalPageExtensions` | `string[]` | `[]` | Additional file extensions to treat as pages |
-| `enableExportOutput` | `boolean` | `true` | Enable Next.js export output mode |
-| `demoPathPattern` | `string` | `'./app/**/demos/*/index.ts'` | Pattern for demo index files |
-| `clientDemoPathPattern` | `string` | `'./app/**/demos/*/client.ts'` | Pattern for demo client files |
-| `additionalDemoPatterns` | `object` | `{}` | Additional demo patterns for custom structures |
-| `additionalTurbopackRules` | `object` | `{}` | Custom Turbopack loader rules |
+| Option                     | Type       | Default                        | Description                                    |
+| -------------------------- | ---------- | ------------------------------ | ---------------------------------------------- |
+| `additionalPageExtensions` | `string[]` | `[]`                           | Additional file extensions to treat as pages   |
+| `enableExportOutput`       | `boolean`  | `true`                         | Enable Next.js export output mode              |
+| `demoPathPattern`          | `string`   | `'./app/**/demos/*/index.ts'`  | Pattern for demo index files                   |
+| `clientDemoPathPattern`    | `string`   | `'./app/**/demos/*/client.ts'` | Pattern for demo client files                  |
+| `additionalDemoPatterns`   | `object`   | `{}`                           | Additional demo patterns for custom structures |
+| `additionalTurbopackRules` | `object`   | `{}`                           | Custom Turbopack loader rules                  |
 
 ### DocsInfraMdxOptions
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `remarkPlugins` | `Array` | Override default remark plugins completely |
-| `rehypePlugins` | `Array` | Override default rehype plugins completely |
-| `additionalRemarkPlugins` | `Array` | Add plugins to default remark plugins |
-| `additionalRehypePlugins` | `Array` | Add plugins to default rehype plugins |
+| Option                    | Type    | Description                                |
+| ------------------------- | ------- | ------------------------------------------ |
+| `remarkPlugins`           | `Array` | Override default remark plugins completely |
+| `rehypePlugins`           | `Array` | Override default rehype plugins completely |
+| `additionalRemarkPlugins` | `Array` | Add plugins to default remark plugins      |
+| `additionalRehypePlugins` | `Array` | Add plugins to default rehype plugins      |
 
 ## Example: Custom Demo Structure
 
@@ -162,6 +174,7 @@ const nextConfig = withDocsInfra({
 ```
 
 This will configure loaders for paths like:
+
 - `./app/components/demos/Button/demo-variant/index.ts`
 - `./app/components/demos/Button/demo-basic/client.ts`
 
@@ -182,9 +195,11 @@ Complete Next.js configuration for a docs site:
 import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
 import createMDX from '@next/mdx';
 
-const withMDX = createMDX(getDocsInfraMdxOptions({
-  additionalRemarkPlugins: [['remark-emoji']],
-}));
+const withMDX = createMDX(
+  getDocsInfraMdxOptions({
+    additionalRemarkPlugins: [['remark-emoji']],
+  }),
+);
 
 const nextConfig = withDocsInfra({
   additionalDemoPatterns: {
@@ -202,12 +217,14 @@ export default withMDX(nextConfig);
 ```
 
 ## When to Use
+
 - **Required** for any Next.js app using MUI docs-infra components
 - When building documentation sites with live demos
 - When you need automatic code highlighting for demo files
 - When using MDX with docs-infra markdown transformations
 
 ## Related
+
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Loader for demo index files
 - [`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx) - Loader for demo client files
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Component that renders highlighted demos

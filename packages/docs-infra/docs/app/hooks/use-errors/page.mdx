@@ -3,6 +3,7 @@
 The `useErrors` hook provides access to error state in an isomorphic error handling system. It implements the [Props Context Layering pattern](../../patterns/props-context-layering/page.mdx) to work seamlessly across server and client boundaries, making it ideal for code highlighting and interactive demos that need robust error handling.
 
 ## Features
+
 - **Props Context Layering** - Implements the isomorphic pattern for React Server Components
 - **Context integration** - Accesses errors from `CodeErrorsContext`
 - **Graceful fallbacks** - Handles cases where context is unavailable
@@ -17,14 +18,14 @@ const { errors } = useErrors(props?);
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `props` | `{ errors?: Error[] }` | Optional props containing fallback errors (typically from SSR) |
+| Parameter | Type                   | Description                                                    |
+| --------- | ---------------------- | -------------------------------------------------------------- |
+| `props`   | `{ errors?: Error[] }` | Optional props containing fallback errors (typically from SSR) |
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property | Type                   | Description                                                         |
+| -------- | ---------------------- | ------------------------------------------------------------------- |
 | `errors` | `Error[] \| undefined` | Array of current errors (context errors take precedence over props) |
 
 ## Usage Examples
@@ -89,9 +90,13 @@ function CodeErrorHandler({ errors }: ErrorHandlerProps) {
 import { useErrors } from '@mui/internal-docs-infra/useErrors';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 
-function SafeCodeDemo({ code, language, errors: propErrors }: { 
-  code: string; 
-  language: string; 
+function SafeCodeDemo({
+  code,
+  language,
+  errors: propErrors,
+}: {
+  code: string;
+  language: string;
   errors?: Error[];
 }) {
   const { errors } = useErrors({ errors: propErrors });
@@ -134,7 +139,7 @@ function FormattedErrorDisplay({ errors: propErrors }: { errors?: Error[] }) {
   const formatError = (error: Error) => {
     // Extract useful information from error
     const { message, name, stack } = error;
-    
+
     return {
       title: name || 'Error',
       description: message || 'An unknown error occurred',
@@ -209,9 +214,9 @@ function BadErrorHandler({ errors }: { errors?: Error[] }) {
 // ✅ Props Context Layering - works server and client
 function GoodErrorHandler({ errors }: { errors?: Error[] }) {
   const { errors: resolvedErrors } = useErrors({ errors });
-  
+
   // Hook implements: contextErrors || props.errors
-  // Server: uses props.errors (context undefined)  
+  // Server: uses props.errors (context undefined)
   // Client: uses context.errors (takes precedence)
   return resolvedErrors ? <ErrorDisplay errors={resolvedErrors} /> : null;
 }
@@ -251,6 +256,7 @@ const ErrorHandler = (props: { errors?: Error[] }) => {
 4. **`useErrors({ errors })` provides latest state**: Context errors override props automatically, ensuring users see the most relevant error
 
 This pattern ensures that users get detailed error information regardless of whether the error occurred during:
+
 - Initial server-side code parsing
 - Client-side syntax highlighting
 - Live demo compilation
@@ -264,17 +270,19 @@ The hook handles the precedence logic internally, so error handler components si
 The Props Context Layering pattern solves critical React Server Component challenges:
 
 1. **Server Component Constraints**: Components must render before crossing client boundaries
-2. **Early Rendering**: Error handlers render before client-side processing provides updated errors  
+2. **Early Rendering**: Error handlers render before client-side processing provides updated errors
 3. **Async Component Isolation**: Heavy error processing can be client-side only when needed
 4. **Seamless Updates**: Context layers client updates over server-rendered props
 
 Without this pattern, you'd need separate components for:
+
 - Server-side rendering errors
-- Client-side hydration errors  
+- Client-side hydration errors
 - Runtime processing errors
 - Live demo execution errors
 
 Instead, `useErrors({ errors })` provides a unified interface that automatically handles:
+
 - **Server rendering**: Uses props.errors when context is unavailable
 - **Client updates**: Context errors override props when processing occurs
 - **Error boundaries**: Consistent error display regardless of error source
@@ -293,9 +301,7 @@ function ErrorProvider({ children, errors }: { children: React.ReactNode; errors
   const errorsContextValue = React.useMemo(() => ({ errors }), [errors]);
 
   return (
-    <CodeErrorsContext.Provider value={errorsContextValue}>
-      {children}
-    </CodeErrorsContext.Provider>
+    <CodeErrorsContext.Provider value={errorsContextValue}>{children}</CodeErrorsContext.Provider>
   );
 }
 ```
@@ -318,7 +324,7 @@ import { CodeHighlighterClient } from '@mui/internal-docs-infra/CodeHighlighter'
 function CodeDemo() {
   return (
     <CodeHighlighterClient
-      /* ... props ... */
+    /* ... props ... */
     >
       <CodeDemoContent />
     </CodeHighlighterClient>
@@ -327,7 +333,7 @@ function CodeDemo() {
 
 function CodeDemoContent() {
   const { errors } = useErrors();
-  
+
   // Component has access to errors from CodeHighlighterClient context
   return errors ? <ErrorDisplay /> : <LiveDemo />;
 }
@@ -342,10 +348,10 @@ export interface CodeErrorsContext {
 
 export function useErrors(props?: { errors?: Error[] }): { errors?: Error[] } {
   const context = useErrorsContext();
-  
+
   // Context errors take precedence over prop errors
   const errors = context?.errors || props?.errors;
-  
+
   return { errors };
 }
 ```
@@ -413,6 +419,7 @@ class CodeErrorBoundary extends React.Component {
 - **Error boundaries** - Provide context for error display components
 
 ## Related
+
 - [**Props Context Layering**](../../patterns/props-context-layering/page.mdx) - The architectural pattern this hook implements
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this hook for error display
 - [`CodeErrorHandler`](../../components/code-error-handler/page.mdx) - Built-in error handler component

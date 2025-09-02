@@ -3,6 +3,7 @@
 The `useLocalStorageState` hook provides persistent state management using localStorage with cross-tab synchronization, server-side rendering support, and a useState-like API. It's designed for user preferences, demo state, and any data that should persist across browser sessions.
 
 ## Features
+
 - **localStorage persistence** - Automatically saves and loads state from localStorage
 - **Cross-tab synchronization** - State updates sync across browser tabs and windows
 - **SSR-safe** - Works with server-side rendering and hydration
@@ -20,17 +21,17 @@ const [value, setValue] = useLocalStorageState(key, initializer);
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `key` | `string \| null` | localStorage key. If null, persistence is disabled |
-| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function returning initial value |
+| Parameter     | Type                                       | Description                                        |
+| ------------- | ------------------------------------------ | -------------------------------------------------- |
+| `key`         | `string \| null`                           | localStorage key. If null, persistence is disabled |
+| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function returning initial value  |
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `value` | `string \| null` | Current value from localStorage or initial value |
-| `setValue` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update the value |
+| Property   | Type                                                   | Description                                      |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------ |
+| `value`    | `string \| null`                                       | Current value from localStorage or initial value |
+| `setValue` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update the value                     |
 
 ## Usage Examples
 
@@ -41,16 +42,12 @@ import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState'
 
 function ThemeToggle() {
   const [theme, setTheme] = useLocalStorageState('theme', () => 'light');
-  
+
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  return (
-    <button onClick={toggleTheme}>
-      Current theme: {theme} (Click to toggle)
-    </button>
-  );
+  return <button onClick={toggleTheme}>Current theme: {theme} (Click to toggle)</button>;
 }
 ```
 
@@ -61,13 +58,13 @@ import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState'
 
 function Counter() {
   const [count, setCount] = useLocalStorageState('counter', () => '0');
-  
+
   const increment = () => {
-    setCount(prev => String(Number(prev || '0') + 1));
+    setCount((prev) => String(Number(prev || '0') + 1));
   };
-  
+
   const decrement = () => {
-    setCount(prev => String(Number(prev || '0') - 1));
+    setCount((prev) => String(Number(prev || '0') - 1));
   };
 
   return (
@@ -89,16 +86,14 @@ function UserSettings({ enablePersistence }: { enablePersistence: boolean }) {
   // When enablePersistence is false, key is null and state isn't persisted
   const [settings, setSettings] = useLocalStorageState(
     enablePersistence ? 'user-settings' : null,
-    () => 'default-settings'
+    () => 'default-settings',
   );
 
   return (
     <div>
       <p>Settings: {settings}</p>
       <p>Persistence: {enablePersistence ? 'enabled' : 'disabled'}</p>
-      <button onClick={() => setSettings('custom-settings')}>
-        Update Settings
-      </button>
+      <button onClick={() => setSettings('custom-settings')}>Update Settings</button>
     </div>
   );
 }
@@ -112,7 +107,7 @@ import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState'
 function CodeEditor({ demoId }: { demoId: string }) {
   const [code, setCode] = useLocalStorageState(
     `demo-code-${demoId}`,
-    () => `// Default code for ${demoId}\nconsole.log('Hello World');`
+    () => `// Default code for ${demoId}\nconsole.log('Hello World');`,
   );
 
   return (
@@ -146,7 +141,7 @@ function PreferencesPanel() {
   return (
     <div>
       <h3>User Preferences</h3>
-      
+
       <label>
         Language:
         <select value={language || 'en'} onChange={(e) => setLanguage(e.target.value)}>
@@ -183,6 +178,7 @@ function PreferencesPanel() {
 ### Server-Side Rendering
 
 The hook handles SSR by:
+
 1. **Server**: Returns `[null, () => {}]` - no localStorage access
 2. **Client hydration**: Uses `useSyncExternalStore` with server snapshot returning `null`
 3. **Post-hydration**: Switches to actual localStorage values
@@ -213,16 +209,18 @@ function subscribe(area: Storage, key: string | null, callback: () => void) {
 ### Value Management
 
 **Setting Values:**
+
 ```typescript
 // Supports both direct values and function updates
 setValue('new-value');
-setValue(prev => `${prev}-updated`);
+setValue((prev) => `${prev}-updated`);
 
 // null removes the item and falls back to initial value
 setValue(null);
 ```
 
 **Storage Operations:**
+
 - `setValue(value)` → `localStorage.setItem(key, value)`
 - `setValue(null)` → `localStorage.removeItem(key)` + fallback to initial
 - Error handling for storage quota/permissions issues
@@ -230,15 +228,13 @@ setValue(null);
 ### Null Key Behavior
 
 When `key` is `null`:
+
 - No localStorage operations occur
 - Hook behaves like regular `useState`
 - Useful for conditional persistence
 
 ```tsx
-const [value, setValue] = useLocalStorageState(
-  shouldPersist ? 'my-key' : null,
-  () => 'default'
-);
+const [value, setValue] = useLocalStorageState(shouldPersist ? 'my-key' : null, () => 'default');
 ```
 
 ## Error Handling
@@ -258,7 +254,7 @@ All errors are caught and ignored, falling back to non-persistent behavior.
 // Hook signature
 function useLocalStorageState(
   key: string | null,
-  initializer?: string | null | (() => string | null)
+  initializer?: string | null | (() => string | null),
 ): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
 
 // Example usage
@@ -296,5 +292,6 @@ const [value, setValue] = useLocalStorageState('key', () => 'initial');
 - **Client-side only** - No server-side persistence
 
 ## Related
+
 - [`usePreference`](../use-preference/page.mdx) - Higher-level preference management
 - [Web Storage API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API) - Underlying browser API

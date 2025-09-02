@@ -3,6 +3,7 @@
 The `loadServerCodeMeta` utility parses demo files to extract variant information and resolves file paths for code metadata. It reads demo index files, finds `createDemo` factory calls, and builds a `Code` object mapping variant names to their file URLs.
 
 ## Features
+
 - Parses demo files to find `createDemo` calls with variants
 - Resolves variant file paths using filesystem operations
 - Returns a `Code` object mapping variant names to file URLs
@@ -20,7 +21,7 @@ const code = await loadServerCodeMeta('file:///app/components/button/demos/basic
 // Returns a Code object like:
 // {
 //   Default: 'file:///app/components/button/demos/basic/Component.tsx',
-//   TypeScript: { 
+//   TypeScript: {
 //     url: 'file:///app/components/button/demos/basic/TypeScript.tsx',
 //     fileName: 'TypeScript.tsx',
 //     namedExport: 'ButtonExample'
@@ -50,11 +51,13 @@ const code = await customLoadCodeMeta('file:///path/to/demo/index.ts');
 ```
 
 ## When to Use
+
 - When implementing server-side code loading for [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
 - When building custom demo processing pipelines
 - When you need to resolve demo variant paths at build time
 
 ## Related
+
 - [`loadVariant`](../load-variant/page.mdx) - For loading and processing individual variants
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this for server-side code loading
 - [`resolveVariantPathsWithFs`](../resolve-variant-paths/page.mdx) - Filesystem path resolution

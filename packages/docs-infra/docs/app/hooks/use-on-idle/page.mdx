@@ -19,15 +19,15 @@ const isIdle = useOnIdle(callback?, timeout?)
 
 ### Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `callback` | `() => void` | `undefined` | Optional callback to execute when idle |
-| `timeout` | `number` | `1000` | Timeout in milliseconds for idle detection |
+| Parameter  | Type         | Default     | Description                                |
+| ---------- | ------------ | ----------- | ------------------------------------------ |
+| `callback` | `() => void` | `undefined` | Optional callback to execute when idle     |
+| `timeout`  | `number`     | `1000`      | Timeout in milliseconds for idle detection |
 
 ### Returns
 
-| Type | Description |
-|------|-------------|
+| Type      | Description                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------- |
 | `boolean` | `true` once the idle callback has been executed (never resets to `false`), `false` initially |
 
 ## Usage

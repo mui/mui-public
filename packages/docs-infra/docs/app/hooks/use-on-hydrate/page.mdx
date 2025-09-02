@@ -3,6 +3,7 @@
 The `useOnHydrate` hook provides hydration detection and callback execution for React Server Component applications. It tracks hydration state and executes client-side logic safely after the component has hydrated, preventing hydration mismatches and enabling client-only functionality.
 
 ## Features
+
 - **Hydration detection** - Returns boolean indicating if component has hydrated
 - **Client-side callback** - Executes callback only after hydration is complete
 - **SSR-safe** - Prevents hydration mismatches by deferring client-only logic
@@ -17,14 +18,14 @@ const isHydrated = useOnHydrate(callback?);
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter  | Type                        | Description                                  |
+| ---------- | --------------------------- | -------------------------------------------- |
 | `callback` | `(() => void) \| undefined` | Optional callback to execute after hydration |
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property     | Type      | Description                                                                     |
+| ------------ | --------- | ------------------------------------------------------------------------------- |
 | `isHydrated` | `boolean` | `true` if component has hydrated on client, `false` during SSR/before hydration |
 
 ## Usage Examples
@@ -40,9 +41,7 @@ function HydrationAwareComponent() {
   return (
     <div>
       <p>Rendering on: {isHydrated ? 'Client' : 'Server'}</p>
-      {isHydrated && (
-        <p>This content only appears after hydration!</p>
-      )}
+      {isHydrated && <p>This content only appears after hydration!</p>}
     </div>
   );
 }
@@ -57,12 +56,12 @@ function ClientOnlySetup() {
   const isHydrated = useOnHydrate(() => {
     // Initialize client-only libraries
     console.log('Component hydrated, initializing client features...');
-    
+
     // Example: Initialize analytics
     if (typeof gtag !== 'undefined') {
       gtag('config', 'GA_TRACKING_ID');
     }
-    
+
     // Example: Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
@@ -72,11 +71,7 @@ function ClientOnlySetup() {
   return (
     <div>
       <h1>My App</h1>
-      {isHydrated ? (
-        <p>✅ Client features initialized</p>
-      ) : (
-        <p>⏳ Loading client features...</p>
-      )}
+      {isHydrated ? <p>✅ Client features initialized</p> : <p>⏳ Loading client features...</p>}
     </div>
   );
 }
@@ -96,18 +91,16 @@ function InteractiveDemo() {
   return (
     <div className="demo">
       <h3>Interactive Code Demo</h3>
-      
+
       {/* Always render static content */}
       <pre>
         <code>console.log('Hello World');</code>
       </pre>
-      
+
       {/* Only render interactive features after hydration */}
       {isHydrated && (
         <>
-          <button onClick={() => alert('Run code!')}>
-            ▶️ Run Code
-          </button>
+          <button onClick={() => alert('Run code!')}>▶️ Run Code</button>
           <button onClick={() => navigator.clipboard.writeText('console.log("Hello World");')}>
             📋 Copy Code
           </button>
@@ -137,16 +130,16 @@ function DynamicHydrationCallback({ onReady }: { onReady: () => void }) {
 // Usage with changing callbacks
 function ParentComponent() {
   const [message, setMessage] = React.useState('Initial');
-  
+
   const handleReady = React.useCallback(() => {
     console.log(`Ready with message: ${message}`);
   }, [message]);
 
   return (
     <div>
-      <input 
-        value={message} 
-        onChange={(e) => setMessage(e.target.value)} 
+      <input
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
         placeholder="Enter message"
       />
       <DynamicHydrationCallback onReady={handleReady} />
@@ -171,7 +164,7 @@ function ProgressiveForm() {
       {/* Basic form works without JavaScript */}
       <input name="email" type="email" placeholder="Enter email" required />
       <button type="submit">Subscribe</button>
-      
+
       {/* Enhanced features only after hydration */}
       {isHydrated && (
         <>
@@ -198,18 +191,14 @@ import { useOnHydrate } from '@mui/internal-docs-infra/useOnHydrate';
 
 function TimeDisplay() {
   const isHydrated = useOnHydrate();
-  
+
   // Avoid hydration mismatch by not showing time during SSR
   const currentTime = isHydrated ? new Date().toLocaleTimeString() : null;
 
   return (
     <div>
       <h2>Welcome to our site!</h2>
-      {currentTime ? (
-        <p>Current time: {currentTime}</p>
-      ) : (
-        <p>Loading current time...</p>
-      )}
+      {currentTime ? <p>Current time: {currentTime}</p> : <p>Loading current time...</p>}
     </div>
   );
 }
@@ -223,14 +212,14 @@ function TimeDisplay() {
 export function useOnHydrate(callback?: () => void) {
   const [isHydrated, setIsHydrated] = React.useState(false);
   const callbackRef = React.useRef(callback);
-  
+
   // Update ref without triggering re-render
   callbackRef.current = callback;
-  
+
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       callbackRef.current?.(); // Execute callback
-      setIsHydrated(true);     // Mark as hydrated
+      setIsHydrated(true); // Mark as hydrated
     }
   }, []); // Empty deps - only runs once
 
@@ -270,11 +259,11 @@ This pattern allows the callback to change without triggering the hydration effe
 ```tsx
 function ClientOnlyWrapper({ children }: { children: React.ReactNode }) {
   const isHydrated = useOnHydrate();
-  
+
   if (!isHydrated) {
     return <div>Loading...</div>; // SSR placeholder
   }
-  
+
   return <>{children}</>; // Client-only content
 }
 ```
@@ -325,11 +314,11 @@ function ChartComponent() {
 
 ## Comparison with Alternatives
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| `useOnHydrate` | Simple API, Hydration state tracking, Ref-based callbacks | Hook-specific solution |
-| `useEffect` only | Built-in React | No hydration state, Harder to track |
-| `typeof window !== 'undefined'` | Direct check | No state management, No callback system |
+| Approach                        | Pros                                                      | Cons                                    |
+| ------------------------------- | --------------------------------------------------------- | --------------------------------------- |
+| `useOnHydrate`                  | Simple API, Hydration state tracking, Ref-based callbacks | Hook-specific solution                  |
+| `useEffect` only                | Built-in React                                            | No hydration state, Harder to track     |
+| `typeof window !== 'undefined'` | Direct check                                              | No state management, No callback system |
 
 ## TypeScript Support
 
@@ -343,5 +332,6 @@ const isReady: boolean = useOnHydrate(() => console.log('Ready!'));
 ```
 
 ## Related
+
 - [`useOnIdle`](../use-on-idle/page.mdx) - Similar pattern for idle detection
 - [SSR Patterns](../../patterns/props-context-layering/page.mdx) - Server-side rendering patterns

@@ -30,7 +30,7 @@ The `abstractCreateDemoClient` creates provider components that wrap demo conten
 // Client provider factory
 export const createDemoClient = (url: string, meta?: CreateDemoClientMeta) => {
   return ClientProvider; // React.ComponentType<{ children: React.ReactNode }>
-}
+};
 ```
 
 ## Implementation
@@ -91,8 +91,8 @@ The generated client provider component:
 
 ```ts
 type AbstractCreateDemoClientOptions = {
-  live?: boolean;           // Enable live demo functionality
-  [key: string]: any;      // Additional client configuration
+  live?: boolean; // Enable live demo functionality
+  [key: string]: any; // Additional client configuration
 };
 ```
 
@@ -100,16 +100,17 @@ type AbstractCreateDemoClientOptions = {
 
 ```ts
 type CreateDemoClientMeta = {
-  name?: string;           // Display name for the demo
-  slug?: string;           // URL-friendly identifier
-  displayName?: string;    // Component display name
-  variantType?: string;    // Type of variant implementation
+  name?: string; // Display name for the demo
+  slug?: string; // URL-friendly identifier
+  displayName?: string; // Component display name
+  variantType?: string; // Type of variant implementation
   skipPrecompute?: boolean; // Skip build-time precomputation
-  precompute?: {           // Precomputed data
+  precompute?: {
+    // Precomputed data
     externals?: Externals; // External dependencies
     [key: string]: any;
   };
-  [key: string]: any;      // Additional metadata
+  [key: string]: any; // Additional metadata
 };
 ```
 
@@ -123,7 +124,7 @@ const context = {
   externals: {
     // External dependencies like React, Material-UI components, etc.
     // These are injected at build time or supplied at runtime
-  }
+  },
 };
 ```
 
@@ -164,7 +165,7 @@ import { DemoButtonExample, DemoButtonExampleClient } from './demos/button-examp
 
 <DemoButtonExampleClient>
   <DemoButtonExample />
-</DemoButtonExampleClient>
+</DemoButtonExampleClient>;
 ```
 
 ## Related

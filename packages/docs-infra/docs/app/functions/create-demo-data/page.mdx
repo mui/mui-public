@@ -6,6 +6,7 @@ The `createDemoData` utility creates structured demo metadata and component data
 > For creating actual demos, use [`abstractCreateDemo`](./abstract-create-demo/page.mdx) instead. The `createDemoData` functions are primarily for creating global demo data and advanced use cases where you need low-level control over demo metadata.
 
 ## Features
+
 - Creates demo metadata from file URLs and components
 - Generates names, slugs, and display names for demos
 - Integrates with precomputed code and build systems
@@ -14,11 +15,11 @@ The `createDemoData` utility creates structured demo metadata and component data
 ## Usage
 
 ```ts
-import { 
-  createDemoData, 
+import {
+  createDemoData,
   createDemoDataWithVariants,
   createDemoGlobal,
-  createDemoGlobalWithVariants 
+  createDemoGlobalWithVariants,
 } from '@mui/internal-docs-infra/createDemoData';
 
 // Single component demo
@@ -29,9 +30,9 @@ const demoData = createDemoData(import.meta.url, MyComponent, {
 
 // Multi-variant demo
 const variantDemoData = createDemoDataWithVariants(
-  import.meta.url, 
+  import.meta.url,
   { Basic: BasicComponent, Advanced: AdvancedComponent },
-  { name: 'Component Variants' }
+  { name: 'Component Variants' },
 );
 
 // Global provider demo (real-world example)
@@ -76,10 +77,12 @@ export const DemoDataProvider = createDemoGlobal(import.meta.url, GlobalProvider
 ```
 
 ## When to Use
+
 - When building demo factories with [`abstractCreateDemo`](./abstract-create-demo/page.mdx)
 - When you need structured demo metadata for the docs-infra system
 - **Note**: For global dependencies in demos, use the `demoGlobalData` option in `abstractCreateDemo` instead
 
 ## Related
+
 - [`createDemo`](./abstract-create-demo/page.mdx)
 - [`CodeHighlighter`](../components/code-highlighter/page.mdx)

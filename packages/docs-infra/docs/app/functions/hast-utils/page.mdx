@@ -3,6 +3,7 @@
 The `hastUtils` module provides utilities for converting between HAST (Hypertext Abstract Syntax Tree) nodes, strings, and React JSX elements. These utilities are essential for processing syntax-highlighted code and converting markdown/HTML structures to React components.
 
 ## Features
+
 - Converts HAST nodes to React JSX elements
 - Extracts plain text from HAST trees
 - Handles serialized HAST JSON format
@@ -11,11 +12,11 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
 ## Usage
 
 ```ts
-import { 
-  hastToJsx, 
-  hastOrJsonToJsx, 
-  stringOrHastToString, 
-  stringOrHastToJsx 
+import {
+  hastToJsx,
+  hastOrJsonToJsx,
+  stringOrHastToString,
+  stringOrHastToJsx,
 } from '@mui/internal-docs-infra/pipeline/hastUtils';
 
 // Convert HAST to React JSX
@@ -34,18 +35,23 @@ const jsx = stringOrHastToJsx(hastNodeOrString, true);
 ## API
 
 ### `hastToJsx(hast: HastNodes): React.ReactNode`
+
 Converts a HAST node directly to React JSX using `hast-util-to-jsx-runtime`.
 
 ### `hastOrJsonToJsx(hastOrJson: HastNodes | { hastJson: string }): React.ReactNode`
+
 Converts either a HAST node or serialized JSON representation to React JSX.
 
 ### `stringOrHastToString(source: string | HastNodes | { hastJson: string }): string`
+
 Extracts plain text from strings, HAST nodes, or serialized HAST JSON using `hast-util-to-text`.
 
 ### `stringOrHastToJsx(source: string | HastNodes | { hastJson: string }, highlighted?: boolean): React.ReactNode`
+
 Converts strings or HAST to JSX. If `highlighted` is true and source is HAST, returns JSX; otherwise returns plain text.
 
 ## When to Use
+
 - When processing syntax-highlighted code in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
 - When writing custom remark/rehype plugins that need to convert HAST to React
 - When handling serialized HAST data from build-time processing
