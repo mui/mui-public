@@ -107,12 +107,9 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
 
   // Get all available bundle names from the data
   const allBundles = React.useMemo(() => {
-    const bundleNames = new Set<string>();
-    dailyData.forEach(({ snapshot }) => {
-      if (snapshot) {
-        Object.keys(snapshot).forEach((name) => bundleNames.add(name));
-      }
-    });
+    const bundleNames = new Set<string>(
+      dailyData.flatMap(({ snapshot }) => (snapshot ? Object.keys(snapshot) : [])),
+    );
     return Array.from(bundleNames).sort();
   }, [dailyData]);
 
@@ -152,7 +149,6 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     );
   }
 
-  console.log(dailyData);
   const chartData = transformDataForChart(dailyData, sizeType);
 
   if (chartData.dates.length === 0) {

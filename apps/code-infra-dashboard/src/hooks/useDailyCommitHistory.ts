@@ -32,20 +32,19 @@ interface PageData {
 }
 
 /**
- * Groups commits by day and returns the first commit of each day
+ * Groups commits by day and returns the latest commit of each day
  */
 function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCommit> {
   const commitsByDay = new Map<string, GitHubCommit>();
 
-  // Iterate in reverse to process oldest commits first (GitHub returns newest first)
-  for (let i = commits.length - 1; i >= 0; i -= 1) {
-    const commit = commits[i];
+  // Process commits in natural order (newest first from GitHub API)
+  for (const commit of commits) {
     if (!commit.commit.author?.date) {
       continue;
     }
     const date = new Date(commit.commit.author.date).toISOString().split('T')[0];
 
-    // Only keep the first commit of each day (now oldest since we iterate in reverse)
+    // Only keep the first commit we encounter for each day (latest commit of that day)
     if (!commitsByDay.has(date)) {
       commitsByDay.set(date, commit);
     }
@@ -94,10 +93,8 @@ export function useDailyCommitHistory(repo: string): UseDailyCommitHistory {
 
         // Determine if we need to set up pagination cursor
         let nextCursor: string | undefined;
-        if (currentPageDays.length === pageLimit || commits.length === 100) {
-          // We have exactly 30 days and fetched the full batch, so there might be more data
-          // Use the date of the 30th day as the cursor for the next page
-          const oldestDateInPage = currentPageDays[0][0];
+        if (commits.length > 0) {
+          const oldestDateInPage = currentPageDays[currentPageDays.length - 1][0];
           const oldestDate = new Date(oldestDateInPage);
           // Subtract one day to ensure we don't miss commits from the same day
           oldestDate.setDate(oldestDate.getDate() - 1);
