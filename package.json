@@ -1,6 +1,6 @@
 {
   "name": "mui-public",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
@@ -43,7 +43,6 @@
     "@types/semver": "^7.7.0",
     "@typescript-eslint/eslint-plugin": "8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
-    "danger": "^13.0.4",
     "eslint": "^9.34.0",
     "execa": "^9.6.0",
     "lerna": "^8.2.3",

@@ -196,12 +196,11 @@ export function renderMarkdownReportContent(
  *
  * @param {PrInfo} prInfo
  * @param {Object} [options] - Optional parameters
- * @param {string | null} [options.circleciBuildNumber] - The CircleCI build number
  * @param {string | null} [options.actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
  */
 function getDetailsUrl(prInfo, options = {}) {
-  const { circleciBuildNumber, actualBaseCommit } = options;
+  const { actualBaseCommit } = options;
   const detailedComparisonUrl = new URL(
     `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
@@ -209,16 +208,12 @@ function getDetailsUrl(prInfo, options = {}) {
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
   detailedComparisonUrl.searchParams.set('baseCommit', actualBaseCommit || prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
-  if (circleciBuildNumber) {
-    detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
-  }
   return detailedComparisonUrl;
 }
 
 /**
  *
  * @param {PrInfo} prInfo
- * @param {string} [circleciBuildNumber] - The CircleCI build number
  * @param {Object} [options] - Additional options
  * @param {string[]} [options.track] - Array of bundle IDs to track
  * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
@@ -226,7 +221,7 @@ function getDetailsUrl(prInfo, options = {}) {
  * @param {(base: string, head: string) => Promise<string>} [options.getMergeBase] - Custom function to get merge base commit
  * @returns {Promise<string>} Markdown report
  */
-export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
+export async function renderMarkdownReport(prInfo, options = {}) {
   let markdownContent = '';
 
   const prCommit = prInfo.head.sha;
@@ -255,7 +250,7 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
 
   markdownContent += report;
 
-  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { circleciBuildNumber, actualBaseCommit })})`;
+  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { actualBaseCommit })})`;
 
   return markdownContent;
 }

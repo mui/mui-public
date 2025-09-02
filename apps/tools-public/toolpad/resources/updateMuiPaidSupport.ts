@@ -1,17 +1,6 @@
 import dayjs from 'dayjs';
-import { sheets } from '@googleapis/sheets';
-import { JWT } from 'google-auth-library';
 import { Octokit } from '@octokit/core';
 import { queryStoreDatabase } from './queryStoreDatabase';
-
-function findRowIndexByValue(sheet, value) {
-  for (let i = 0; i < sheet.length; i += 1) {
-    if (sheet[i][0] === value) {
-      return i;
-    }
-  }
-  return -1;
-}
 
 async function updateGitHubIssueLabels(repo, issueId) {
   if (!process.env.GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN) {
@@ -40,14 +29,14 @@ async function updateGitHubIssueLabels(repo, issueId) {
   if (labels.includes('support: priority')) {
     return {
       status: 'success',
-      message: 'GitHub issue already validated. You can now close this page.',
+      message: 'This GitHub issue was already validated. You can close this page.',
     };
   }
 
   if (!labels.includes('support: unknown')) {
     return {
       status: 'error',
-      message: `We can't validate the ownership of this GitHub issue.`,
+      message: `Your ownership of this GitHub issue can't be validated.`,
     };
   }
 
@@ -63,80 +52,58 @@ async function updateGitHubIssueLabels(repo, issueId) {
 
   return {
     status: 'success',
-    message: 'GitHub issue validated. You can now close this page.',
+    message: `Your GitHub issue #${issueId} was validated. You can now close this page.`,
   };
 }
 
 async function queryPurchasedSupportKey(supportKey: string) {
   return queryStoreDatabase(async (connection) => {
     const [rows] = await connection.execute(
-      'select count(*) as found from wp3u_x_addons where license_key = ? and expire_at > now()',
+      'select count(*) as found, expire_at, expire_at > now() as active from wp3u_x_addons where license_key = ?',
       [supportKey],
     );
-    const totalFound = rows?.[0]?.found ?? 0;
-    return totalFound >= 1;
+    const hit = rows?.[0] ?? { found: 0 };
+    return hit;
   }).catch(() => false);
 }
 
 export async function updateMuiPaidSupport(issueId: string, repo: string, supportKey: string) {
-  if (!process.env.GOOGLE_SHEET_TOKEN) {
-    throw new Error('Env variable GOOGLE_SHEET_TOKEN not configured');
-  }
-
   if (supportKey === '') {
     return {
-      message: 'Provide your support key above',
+      status: 'error',
+      message: 'Provide your support key above.',
     };
   }
 
   if (issueId === '') {
     return {
-      message: 'Missing issue id',
+      status: 'error',
+      message: 'Missing issue id.',
     };
   }
 
   if (repo === '') {
     return {
-      message: 'Missing repo',
+      status: 'error',
+      message: 'Missing repository.',
     };
   }
 
-  const isPurchasedSupportKey = await queryPurchasedSupportKey(supportKey);
-  if (isPurchasedSupportKey) {
-    return updateGitHubIssueLabels(repo, issueId);
-  }
+  const purchasedSupportKey = await queryPurchasedSupportKey(supportKey);
 
-  const googleAuth = new JWT({
-    email: 'service-account-804@docs-feedbacks.iam.gserviceaccount.com',
-    key: process.env.GOOGLE_SHEET_TOKEN.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  const service = sheets({ version: 'v4', auth: googleAuth });
-  const spreadsheetId = '1RNYabJOzAs4pzMN6WI0yAfeGXOqDiMU1t8TpqA1EPjE';
-
-  const res = await service.spreadsheets.values.get({
-    spreadsheetId,
-    range: 'Sheet1!A2:B50',
-  });
-
-  const rows = res.data.values;
-  const rowIndex = findRowIndexByValue(rows, supportKey);
-
-  if (rowIndex === -1) {
+  if (purchasedSupportKey.found !== 1) {
     return {
-      message: 'Invalid support key',
+      status: 'error',
+      message: 'Your support key is invalid.',
     };
   }
 
-  const targetSupportKeyExpirationDate = new Date(rows![rowIndex][1]);
-  const today = new Date();
-
-  if (targetSupportKeyExpirationDate < today) {
+  if (purchasedSupportKey.active === 0) {
     return {
-      message: `You support key expired on ${dayjs(targetSupportKeyExpirationDate).format(
-        'MMMM D, YYYY',
-      )}.`,
+      status: 'error',
+      message: `Your support key is invalid. It expired on ${dayjs(
+        purchasedSupportKey.expire_at,
+      ).format('MMMM D, YYYY')}.`,
     };
   }
 
