@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-code-infra",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Infra scripts and configs to be used across MUI repos.",
   "type": "module",
   "license": "MIT",
@@ -39,6 +39,7 @@
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
     "@next/eslint-plugin-next": "^15.5.0",
+    "@octokit/auth-action": "^6.0.1",
     "@octokit/rest": "^22.0.0",
     "@pnpm/find-workspace-dir": "^1000.1.2",
     "babel-plugin-optimize-clsx": "^2.6.2",

@@ -10,5 +10,5 @@ Bugfixes and feature suggestions are greatly appreciated. Though this project is
 
 ```bash
 pnpm install
-pnpm -F @app/code-infra-dashboard dev
+pnpm -F @apps/code-infra-dashboard dev
 ```

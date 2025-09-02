@@ -1,6 +1,6 @@
 {
   "name": "mui-public",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
@@ -8,7 +8,7 @@
     "eslint:ci": "eslint . --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .lintignore --branch master",
     "prettier:all": "prettier --write . --ignore-path .lintignore",
-    "update-netlify-ignore": "node ./update-netlify-ignore.mjs @app/code-infra-dashboard",
+    "update-netlify-ignore": "node ./update-netlify-ignore.mjs @apps/code-infra-dashboard",
     "test": "vitest",
     "typescript": "tsc --build --verbose",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",

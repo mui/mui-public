@@ -8,7 +8,6 @@ You need to create a `.env` file in the same folder as this README file and fill
 ```bash
 GITHUB_MUI_BOT2_PUBLIC_REPO_TOKEN=
 GITHUB_TOKEN= # https://github.com/settings/tokens with no scopes
-GOOGLE_SHEET_TOKEN=
 HIBOB_TOKEN_READ_STANDARD=
 STORE_PRODUCTION_READ_DATABASE=
 STORE_PRODUCTION_READ_HOST=
