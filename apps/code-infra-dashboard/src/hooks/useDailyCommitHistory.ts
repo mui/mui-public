@@ -130,7 +130,7 @@ export function useDailyCommitHistory(repo: string): UseDailyCommitHistory {
 
   // Flatten all pages into a single array with memoization to prevent re-renders
   const allDailyData = React.useMemo(() => {
-    return data?.pages.flatMap((page) => page.dailyData) ?? [];
+    return data?.pages.flatMap((page) => page.dailyData).reverse() ?? [];
   }, [data?.pages]);
 
   return {

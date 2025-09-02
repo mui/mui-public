@@ -67,33 +67,27 @@ interface ChartData {
   }>;
 }
 
-function transformDataForChart(dailyData: DailyCommitData[], sizeType: SizeType): ChartData {
+function transformDataForChart(
+  dailyData: DailyCommitData[],
+  sizeType: SizeType,
+  allBundles: string[],
+): ChartData {
   if (dailyData.length === 0) {
     return { dates: [], series: [] };
   }
 
-  // Get all unique bundle names from all snapshots
-  const bundleNames = new Set<string>();
-  dailyData.forEach(({ snapshot }) => {
-    if (snapshot) {
-      Object.keys(snapshot).forEach((name) => bundleNames.add(name));
-    }
-  });
-
   const dates = dailyData.map(({ date }) => new Date(date));
 
-  const series = Array.from(bundleNames)
-    .sort() // Sort bundle names for consistent ordering
-    .map((bundleName, index) => ({
-      label: bundleName,
-      data: dailyData.map(({ snapshot }) => {
-        if (!snapshot || !snapshot[bundleName]) {
-          return null; // Missing data point
-        }
-        return snapshot[bundleName][sizeType]; // Use selected size type
-      }),
-      color: CHART_COLORS[index % CHART_COLORS.length],
-    }));
+  const series = allBundles.map((bundleName, index) => ({
+    label: bundleName,
+    data: dailyData.map(({ snapshot }) => {
+      if (!snapshot || !snapshot[bundleName]) {
+        return null; // Missing data point
+      }
+      return snapshot[bundleName][sizeType]; // Use selected size type
+    }),
+    color: CHART_COLORS[index % CHART_COLORS.length],
+  }));
 
   return { dates, series };
 }
@@ -101,6 +95,7 @@ function transformDataForChart(dailyData: DailyCommitData[], sizeType: SizeType)
 export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps) {
   const { dailyData, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useDailyCommitHistory(repo);
+
   const [selectedBundles, setSelectedBundles] = React.useState<string[]>([]);
   const [sizeType, setSizeType] = React.useState<SizeType>('gzip');
   const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
@@ -149,7 +144,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     );
   }
 
-  const chartData = transformDataForChart(dailyData, sizeType);
+  const chartData = transformDataForChart(dailyData, sizeType, allBundles);
 
   if (chartData.dates.length === 0) {
     return (
