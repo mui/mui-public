@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchJson } from '../utils/http';
+import { octokit, parseRepo } from '../utils/github';
 
 export interface GitHubPRInfo {
   title: string;
@@ -36,11 +36,17 @@ export function useGitHubPR(repo: string, prNumber?: number): UseGitHubPR {
     error,
   } = useQuery({
     queryKey: ['github-pr', repo, prNumber],
-    queryFn: async (): Promise<GitHubPRInfo> => {
-      const responseBody = await fetchJson<GitHubPRInfo>(
-        `https://api.github.com/repos/${repo}/pulls/${prNumber}`,
-      );
-      return responseBody;
+    queryFn: async () => {
+      if (!prNumber) {
+        return null;
+      }
+      const { owner, repo: repoName } = parseRepo(repo);
+      const { data: prInfo } = await octokit.rest.pulls.get({
+        owner,
+        repo: repoName,
+        pull_number: prNumber,
+      });
+      return prInfo;
     },
     retry: 1,
     enabled: Boolean(repo && prNumber),

@@ -1,16 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
-import { fetchJson } from '../utils/http';
+import { RestEndpointMethodTypes } from '@octokit/rest';
+import { octokit, parseRepo } from '../utils/github';
 
-export interface GitHubCommit {
-  sha: string;
-  commit: {
-    author: {
-      date: string;
-    };
-    message: string;
-  };
-}
+export type GitHubCommit =
+  RestEndpointMethodTypes['repos']['listCommits']['response']['data'][number];
 
 export interface DailyCommitData {
   date: string;
@@ -31,6 +25,9 @@ function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCommit> {
   const commitsByDay = new Map<string, GitHubCommit>();
 
   for (const commit of commits) {
+    if (!commit.commit.author?.date) {
+      continue;
+    }
     const date = new Date(commit.commit.author.date).toISOString().split('T')[0];
 
     // Only keep the first commit of each day (commits are ordered newest first)
@@ -51,9 +48,13 @@ export function useDailyCommitHistory(repo: string): UseDailyCommitHistory {
     queryKey: ['daily-commit-history', repo],
     queryFn: async (): Promise<DailyCommitData[]> => {
       // Fetch commits from master branch
-      const commits = await fetchJson<GitHubCommit[]>(
-        `https://api.github.com/repos/${repo}/commits?sha=master&per_page=100`,
-      );
+      const { owner, repo: repoName } = parseRepo(repo);
+      const { data: commits } = await octokit.rest.repos.listCommits({
+        owner,
+        repo: repoName,
+        sha: 'master',
+        per_page: 100,
+      });
 
       // Group by day and get first commit of each day
       const dailyCommits = groupCommitsByDay(commits);
@@ -69,8 +70,7 @@ export function useDailyCommitHistory(repo: string): UseDailyCommitHistory {
 
         try {
           snapshot = await fetchSnapshot(repo, commit.sha);
-        } catch (fetchError) {
-          console.warn(`Failed to fetch snapshot for commit ${commit.sha}:`, fetchError);
+        } catch {
           // snapshot remains null
         }
 
