@@ -10,25 +10,25 @@ This pattern solves a fundamental challenge: components need to render before th
 
 A key driver for this pattern is React Server Components' serialization limitations:
 
-**❌ Cannot pass across server-client boundary:**
+**Cannot pass across server-client boundary:**
 - Functions (event handlers, utilities, transformers)
 - Class instances (complex objects, parsed data structures)
 - Non-serializable values (Date objects, Map/Set, symbols)
 
-**✅ Can pass across server-client boundary:**
+**Can pass across server-client boundary:**
 - Primitive values (strings, numbers, booleans)
 - Plain objects and arrays
 - **React Nodes** (pre-rendered JSX elements)
 
 **Example of the constraint:**
 ```tsx
-// ❌ This won't work - functions can't serialize
+// This won't work - functions can't serialize
 <ClientComponent 
   onSubmit={(data) => console.log(data)}
   parser={parseComplexData}
 />
 
-// ✅ This works - React Nodes can serialize
+// This works - React Nodes can serialize
 <ClientComponent>
   <PreRenderedButton onClick={...} />
   <ParsedDataDisplay data={processedData} />
@@ -65,7 +65,7 @@ Components must render on the server before crossing the client boundary. When u
 
 **Example scenarios**:
 ```tsx
-// ✅ Conditional async component with explicit control
+// Conditional async component with explicit control
 async function MaybeLoadData({ data, url, forceClient = false }) {
   // Only fetch if data is missing, we have a URL, and we're not forced to client-side
   if (!data && url && !forceClient) {
@@ -75,7 +75,7 @@ async function MaybeLoadData({ data, url, forceClient = false }) {
   return data; // Use provided data or defer to client
 }
 
-// ✅ Client-side equivalent for when forceClient=true
+// Client-side equivalent for when forceClient=true
 function LoadDataOnClient({ data, url, forceClient = false }) {
   const [loadedData, setLoadedData] = useState(data);
   
@@ -150,12 +150,12 @@ function useCode(contentProps, opts) {
 **Component flexibility**: The same component can perform their async task as either a server or client component:
 
 ```ts
-// ✅ Server component version (no client code needed)
+// Server component version (no client code needed)
 function ObjectHandler({ object }: { object: any }) {
   return <SomeComponent object={object} />;
 }
 
-// ✅ Client component version (with context enhancement)
+// Client component version (with context enhancement)
 'use client';
 function ObjectHandler({ object }: { object: any }) {
   const { object: effectiveObject } = useObject({ object });
@@ -176,10 +176,10 @@ Both preserve the same API shape and timing semantics.
 
 **Example**:
 ```tsx
-// ❌ Heavy functions always bundled
+// Heavy functions always bundled
 import { expensiveParser, complexTransformer } from './heavyUtils';
 
-// ✅ Heavy functions conditionally imported
+// Heavy functions conditionally imported
 function MyProvider({ children }: { children: React.ReactNode }) {
   const [heavyFunctions, setHeavyFunctions] = useState();
   
@@ -206,13 +206,13 @@ function MyProvider({ children }: { children: React.ReactNode }) {
 
 When implementing Props → Context Layering:
 
-- **✅ Create a merging hook** that accepts props and checks context
-- **✅ Context values override props** (latest data wins)
-- **✅ Handle undefined context gracefully** (server/client compatibility) 
-- **✅ Guard async operations** behind conditions
-- **✅ Heavy functions via dynamic imports** + context providers
-- **✅ Same component API** works in server and client environments
-- **✅ Progressive enhancement** without breaking changes
+- **Create a merging hook** that accepts props and checks context
+- **Context values override props** (latest data wins)
+- **Handle undefined context gracefully** (server/client compatibility) 
+- **Guard async operations** behind conditions
+- **Heavy functions via dynamic imports** + context providers
+- **Same component API** works in server and client environments
+- **Progressive enhancement** without breaking changes
 
 ## Real-World Usage
 
