@@ -2,6 +2,8 @@
 
 The `useDemo` hook extends `useCode` functionality to provide a complete demo rendering solution that combines component previews with code display. It's specifically designed for creating interactive demonstrations where users can see both working React components and their source code.
 
+Like `useCode`, it implements the [Props Context Layering pattern](../../patterns/props-context-layering/page.mdx) for seamless server-client compatibility.
+
 ## Overview
 
 Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality like name and slug management while inheriting all code management capabilities. This makes it the go-to choice for creating rich interactive demos within the `CodeHighlighter` ecosystem.

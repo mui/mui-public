@@ -1,68 +1,224 @@
 # Props Context Layering
 
-To create an isomorphic component with React Server Components:
+**Purpose**: Enable isomorphic components to work seamlessly with React Server Components while maintaining a single, ergonomic API.
 
-1. Components have to render before crossing the client boundary.
+**Core Strategy**: Render early with initial props, then progressively enhance via context when additional data/functions become available on the client.
 
-If the user passed any components as props to the server component, those components must be rendered on the server before the boundary is crossed.
+This pattern solves a fundamental challenge: components need to render before the server-client boundary is crossed, but the complete data they need might only be available after client-side processing.
 
-This means that the component must be rendered early before the props you want to give it are available.
+## Server-Client Boundary Constraints
 
-If you want to update this component when the client receives the props it needs to render it, you can pass those props into it through React Context, allowing it to re-render.
+A key driver for this pattern is React Server Components' serialization limitations:
 
-Using a custom hook that handles the props of the component, allows props to be used first, and intelligently layer context updates on top.
+**❌ Cannot pass across server-client boundary:**
+- Functions (event handlers, utilities, transformers)
+- Class instances (complex objects, parsed data structures)
+- Non-serializable values (Date objects, Map/Set, symbols)
 
-2. Async Components have to be called optionally.
+**✅ Can pass across server-client boundary:**
+- Primitive values (strings, numbers, booleans)
+- Plain objects and arrays
+- **React Nodes** (pre-rendered JSX elements)
 
-Since the component might be run within a client environment, trying to render an async Component would cause an error. To avoid this, these async components should require some condition to be met before they are called, ensuring they are only rendered when the necessary data is needed.
+**Example of the constraint:**
+```tsx
+// ❌ This won't work - functions can't serialize
+<ClientComponent 
+  onSubmit={(data) => console.log(data)}
+  parser={parseComplexData}
+/>
 
-For example, if props are provided, it would not need to fetch using an async component. Or if the heavy functions aren't provided, it would assume that they would eventually be provided on the client.
+// ✅ This works - React Nodes can serialize
+<ClientComponent>
+  <PreRenderedButton onClick={...} />
+  <ParsedDataDisplay data={processedData} />
+</ClientComponent>
+```
 
-Providing these heavy functions can be provided as props or through context.
+**Why Props Context Layering helps:**
+- **Props**: Carry serializable data and pre-rendered React Nodes from server
+- **Context**: Provide functions and complex objects on the client side
+- **Result**: Same API works in both environments without serialization issues
 
-They should be able to run in an async component or async within a useEffect hook.
+---
 
-When using the [`Built Factories` Pattern](../built-factories/page.mdx), these heavy async functions can even be run at build-time behind a cache.
+## 1. Early rendering with fallback values
 
-3. Users should consume context after props.
+Components must render on the server before crossing the client boundary. When users pass components as props to server components, those child components are immediately rendered—often before all ideal props are available.
 
-After being given the initial props, the component should be able to re-render with updated values through React Context.
+**The challenge**: You need to display something useful immediately while waiting for enhanced data.
 
-To avoid needing to inform users about this pattern, the library should provide a custom hook that merges props and context:
+**The solution**: Accept whatever props are available initially, then seamlessly upgrade via context without changing the component's API.
+
+**Implementation pattern**: Create a custom hook that merges props (immediate) with context (enhanced) values.
+
+## 2. Conditional async operations
+
+**The problem**: The same component may run in either server or client environments. Async server components will throw errors when executed on the client.
+
+**The solution**: Guard async operations behind conditions: only execute them when the data is actually needed and the environment supports it.
+
+**When to defer async work**:
+- Props already contain the required data → skip async fetching
+- Heavy functions are missing → assume they'll be provided later via context
+- `forceClient` flag is set → defer to `useEffect` instead of server async
+
+**Example scenarios**:
+```tsx
+// ✅ Conditional async component with explicit control
+async function MaybeLoadData({ data, url, forceClient = false }) {
+  // Only fetch if data is missing, we have a URL, and we're not forced to client-side
+  if (!data && url && !forceClient) {
+    const response = await fetch(url);
+    return response.json();
+  }
+  return data; // Use provided data or defer to client
+}
+
+// ✅ Client-side equivalent for when forceClient=true
+function LoadDataOnClient({ data, url, forceClient = false }) {
+  const [loadedData, setLoadedData] = useState(data);
+  
+  useEffect(() => {
+    // Only load if we're in client mode and missing data
+    if (!data && url && forceClient) {
+      fetch(url).then(r => r.json()).then(setLoadedData);
+    }
+  }, [data, url, forceClient]);
+  
+  return loadedData;
+}
+
+// Usage allows explicit control over async behavior
+<DataComponent 
+  data={serverData} 
+  url="/api/fallback"
+  forceClient={isClientOnlyContext} 
+/>
+```
+
+Heavy functions can be provided either as props (server-side) or context (client-side). When using the [Built Factories pattern](../built-factories/page.mdx), expensive operations can even run at build time with caching.
+
+## 3. Props-first, context-enhanced hooks
+
+**The pattern**: Create hooks that accept props and automatically layer context updates on top. This hides the complexity from consumers while enabling progressive enhancement.
+
+**Real-world example** from this codebase:
 
 ```ts
+// useErrors hook - implements Props → Context Layering
+function useErrors(props?: { errors?: Error[] }) {
+  const context = useErrorsContext();
+  
+  // Context errors override props errors (latest wins)
+  const errors = context?.errors || props?.errors;
+  
+  return { errors };
+}
+
+// Usage in components
+function ErrorHandler({ errors }: { errors?: Error[] }) {
+  const { errors: effectiveErrors } = useErrors({ errors });
+  
+  if (!effectiveErrors?.length) return null;
+  return <ErrorDisplay errors={effectiveErrors} />;
+}
+```
+
+**Another example** - the `useCode` hook:
+
+```ts
+function useCode(contentProps, opts) {
+  const context = useCodeHighlighterContextOptional();
+  
+  // Context code overrides contentProps code when available
+  const effectiveCode = context?.code || contentProps.code || {};
+  
+  // Context URL overrides contentProps URL
+  const effectiveUrl = context?.url || contentProps.url;
+  
+  // ... rest of implementation
+}
+```
+
+**Benefits**:
+- **Server components** can pass data via props normally
+- **Client components** get enhanced data via context automatically  
+- **Same API** works in both environments
+- **No mental overhead** for consumers—they just pass props
+
+**Component flexibility**: The same component can perform their async task as either a server or client component:
+
+```ts
+// ✅ Server component version (no client code needed)
+function ObjectHandler({ object }: { object: any }) {
+  return <SomeComponent object={object} />;
+}
+
+// ✅ Client component version (with context enhancement)
 'use client';
-
-import { useContext } from 'react';
-import ObjectContext from '../ObjectContext';
-
-const useObject = (props) => {
-  const contextObject = useContext(ObjectContext);
-  return contextObject || props.object;
-};
-
-const ObjectHandler = (props) => {
-  const object = useObject(props)
-  return <SomeComponent object={object} />
+function ObjectHandler({ object }: { object: any }) {
+  const { object: effectiveObject } = useObject({ object });
+  return <SomeComponent object={effectiveObject} />;
 }
 ```
 
-Allows a handler component to consume server or client props without changing the implementation. The user ideally should be touching the props directly.
+Both preserve the same API shape and timing semantics.
 
-While if the handler doesn't require any client-side code it can be a server component:
+## 4. Lazy-load heavy functions
 
-```ts
-const ObjectHandler = ({ object }) => {
-  return <SomeComponent object={object} />
+**The goal**: Avoid shipping expensive functions to the client unless actually needed.
+
+**The strategy**: 
+- Heavy functions are **imported conditionally**—if not imported, they're not bundled
+- Provide them via props (server-side) or context (client-side) only when needed
+- Keep the core component logic lightweight
+
+**Example**:
+```tsx
+// ❌ Heavy functions always bundled
+import { expensiveParser, complexTransformer } from './heavyUtils';
+
+// ✅ Heavy functions conditionally imported
+function MyProvider({ children }: { children: React.ReactNode }) {
+  const [heavyFunctions, setHeavyFunctions] = useState();
+  
+  const loadHeavyFunctions = useCallback(async () => {
+    if (!heavyFunctions) {
+      const { expensiveParser, complexTransformer } = await import('./heavyUtils');
+      setHeavyFunctions({ expensiveParser, complexTransformer });
+    }
+  }, [heavyFunctions]);
+  
+  return (
+    <HeavyFunctionsContext.Provider value={heavyFunctions}>
+      {children}
+    </HeavyFunctionsContext.Provider>
+  );
 }
 ```
 
-Without changing the required API shape or the semantics of when the handler is initially invoked.
+**Outcome**: Minimal initial bundle, rich functionality loads on-demand.
 
-4. Heavy functions should be provided as props or through context.
+---
 
-If a component requires heavy functions, it should be possible to avoid sending them to the client unless necessary.
+## Implementation Checklist
 
-If these functions aren't imported, they won't be bundled by default. Then if the user needs to add client rendering, they can import the functions and pass them into a Context Provider.
+When implementing Props → Context Layering:
 
-This way we can avoid bloating the core component logic needed on the client.
+- **✅ Create a merging hook** that accepts props and checks context
+- **✅ Context values override props** (latest data wins)
+- **✅ Handle undefined context gracefully** (server/client compatibility) 
+- **✅ Guard async operations** behind conditions
+- **✅ Heavy functions via dynamic imports** + context providers
+- **✅ Same component API** works in server and client environments
+- **✅ Progressive enhancement** without breaking changes
+
+## Real-World Usage
+
+This pattern is used throughout the docs-infra system:
+
+- **[`useErrors`](../../hooks/use-errors/page.mdx)**: Server-side syntax errors → client-side runtime errors
+- **[`useCode`](../../hooks/use-code/page.mdx)**: Static code props → dynamic context code  
+- **[`useDemo`](../../hooks/use-demo/page.mdx)**: Build-time demos → interactive client demos
+- **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Server highlighting → client enhancement

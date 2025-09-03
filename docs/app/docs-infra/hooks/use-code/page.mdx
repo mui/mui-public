@@ -2,6 +2,8 @@
 
 The `useCode` hook provides programmatic access to code display, editing, and transformation functionality within `CodeHighlighter` components. It's designed for scenarios where you need fine-grained control over code behavior or want to build custom code interfaces that focus purely on code management, without component rendering.
 
+The hook implements the [Props Context Layering pattern](../../patterns/props-context-layering/page.mdx) to work seamlessly across server and client boundaries, automatically merging initial props with enhanced context values.
+
 ## Overview
 
 The `useCode` hook orchestrates multiple specialized sub-hooks to provide a complete code management solution. It automatically integrates with `CodeHighlighterContext` when available, making it perfect for custom code interfaces that need to interact with the broader code highlighting system.
