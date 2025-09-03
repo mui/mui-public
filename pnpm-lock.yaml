@@ -293,9 +293,6 @@ importers:
       '@aws-sdk/credential-providers':
         specifier: ^3.873.0
         version: 3.873.0
-      '@octokit/auth-action':
-        specifier: ^6.0.1
-        version: 6.0.1
       '@octokit/rest':
         specifier: ^22.0.0
         version: 22.0.0
