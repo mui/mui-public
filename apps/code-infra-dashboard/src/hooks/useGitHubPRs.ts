@@ -21,6 +21,9 @@ export function useGitHubPRs(repo: string, initialLimit: number = 5): UseGitHubP
     useInfiniteQuery({
       queryKey: ['github-prs', repo],
       queryFn: async ({ pageParam = 1 }): Promise<GitHubPRInfo[]> => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 1000);
+        }); // Simulate network delay
         const { owner, repo: repoName } = parseRepo(repo);
         // First page uses the initial limit, subsequent pages use 10
         const perPage = pageParam === 1 ? initialLimit : 10;

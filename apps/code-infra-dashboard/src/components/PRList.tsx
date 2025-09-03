@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -10,6 +9,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
+import Skeleton from '@mui/material/Skeleton';
 import GitPullRequestIcon from '@mui/icons-material/Commit';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import { styled } from '@mui/material/styles';
@@ -31,13 +31,53 @@ const PRNumber = styled(Typography)(({ theme }) => ({
   marginRight: theme.spacing(1),
 }));
 
-interface PRRowProps {
-  pr: GitHubPRInfo;
+interface PrRowProps {
+  pr: GitHubPRInfo | null;
   owner: string;
   repo: string;
+  loading?: boolean;
 }
 
-function PRRow({ pr, owner, repo }: PRRowProps) {
+function PrRow({ pr, owner, repo, loading = false }: PrRowProps) {
+  if (loading || !pr) {
+    return (
+      <StyledListItem
+        sx={{
+          py: 1.5,
+          cursor: 'default',
+          '&:hover': {
+            backgroundColor: 'transparent',
+            borderLeft: '2px solid transparent',
+          },
+        }}
+      >
+        <Box sx={{ mr: 1, color: 'text.secondary', display: 'flex' }}>
+          <GitPullRequestIcon fontSize="small" />
+        </Box>
+        <ListItemText
+          primary={
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Skeleton width={60} height={20} sx={{ mr: 1 }} />
+              <Skeleton width={300} height={20} />
+            </Box>
+          }
+          slotProps={{
+            secondary: {
+              component: 'div',
+            },
+          }}
+          secondary={
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 2 }}>
+              <Skeleton width={80} height={20} />
+              <Skeleton width={120} height={16} />
+              <Skeleton width={100} height={16} />
+            </Box>
+          }
+        />
+      </StyledListItem>
+    );
+  }
+
   return (
     <StyledListItem
       // @ts-expect-error https://github.com/mui/material-ui/issues/29875
@@ -128,15 +168,6 @@ export default function PRList({
   repo,
   onLoadMore,
 }: PRListProps) {
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
-        <CircularProgress size={16} />
-        <Typography>Loading pull requests...</Typography>
-      </Box>
-    );
-  }
-
   if (error) {
     return (
       <Box sx={{ p: 2, color: 'error.main' }}>
@@ -148,40 +179,35 @@ export default function PRList({
     );
   }
 
-  if (prs.length === 0) {
-    return (
-      <Box sx={{ p: 2, color: 'text.secondary' }}>
-        <Typography>No pull requests found.</Typography>
-      </Box>
-    );
-  }
+  const displayItems = isLoading
+    ? Array.from({ length: 5 }, (_, index) => ({ id: `skeleton-${index}`, pr: null }))
+    : prs.map((pr) => ({ id: pr.number, pr }));
 
   return (
     <Box>
       <Paper elevation={2} sx={{ overflow: 'hidden' }}>
         <List disablePadding>
-          {prs.map((pr, index) => (
-            <React.Fragment key={pr.number}>
+          {displayItems.map((item, index) => (
+            <React.Fragment key={item.id}>
               {index > 0 && <Divider />}
-              <PRRow pr={pr} owner={owner} repo={repo} />
+              <PrRow pr={item.pr} owner={owner} repo={repo} loading={isLoading} />
             </React.Fragment>
           ))}
         </List>
-      </Paper>
 
-      {/* Load More Button */}
-      {hasNextPage && onLoadMore && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={onLoadMore}
-            disabled={isFetchingNextPage}
-            startIcon={isFetchingNextPage ? <CircularProgress size={16} /> : undefined}
-          >
-            {isFetchingNextPage ? 'Loading...' : 'Load More'}
-          </Button>
-        </Box>
-      )}
+        {onLoadMore && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', m: 3 }}>
+            <Button
+              variant="outlined"
+              onClick={onLoadMore}
+              disabled={isFetchingNextPage || !hasNextPage}
+              loading={isFetchingNextPage}
+            >
+              Load More
+            </Button>
+          </Box>
+        )}
+      </Paper>
     </Box>
   );
 }
