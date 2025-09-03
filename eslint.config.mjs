@@ -32,7 +32,7 @@ export default defineConfig(
       'material-ui/no-empty-box': 'off',
     },
     settings: {
-      'import/resolver': {
+      'import-x/resolver': {
         typescript: {
           project: ['tsconfig.json'],
         },
@@ -62,7 +62,7 @@ export default defineConfig(
     files: ['packages/bundle-size-checker/**/*'],
     rules: {
       // Allow .js file extensions in import statements for ESM compatibility
-      'import/extensions': [
+      'import-x/extensions': [
         'error',
         'ignorePackages',
         {
