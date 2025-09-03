@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
 import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
@@ -24,9 +25,14 @@ export default function RepositoryPRs() {
   return (
     <React.Fragment>
       <Heading level={1}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          Bundle Size Comparisons for {owner}/{repo}
-        </Box>
+        Bundle Size Comparisons for{' '}
+        <Link
+          href={`https://github.com/${owner}/${repo}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {owner}/{repo}
+        </Link>
       </Heading>
 
       <DailyBundleSizeChart repo={fullRepo} />

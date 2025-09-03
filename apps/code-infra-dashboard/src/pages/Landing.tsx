@@ -8,6 +8,9 @@ import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import { Link as RouterLink } from 'react-router';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import BuildIcon from '@mui/icons-material/Build';
+import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
 
@@ -90,7 +93,25 @@ export default function Landing() {
                   component={RouterLink}
                   to={`/size-comparison/${repo.owner}/${repo.name}`}
                 >
-                  View Size Comparison
+                  Bundle Size
+                </Button>
+                <Button
+                  size="small"
+                  component={Link}
+                  href={`https://github.com/${repo.owner}/${repo.name}`}
+                  rel="noopener noreferrer"
+                  startIcon={<GitHubIcon />}
+                >
+                  GitHub
+                </Button>
+                <Button
+                  size="small"
+                  component={Link}
+                  href={`https://app.circleci.com/pipelines/github/${repo.owner}/${repo.name}`}
+                  rel="noopener noreferrer"
+                  startIcon={<BuildIcon />}
+                >
+                  CircleCI
                 </Button>
               </CardActions>
             </Card>
