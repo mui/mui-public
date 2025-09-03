@@ -2,7 +2,6 @@ import * as React from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -254,9 +253,9 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               variant="outlined"
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage || !hasNextPage}
-              startIcon={isFetchingNextPage ? <CircularProgress size={16} /> : undefined}
+              loading={isFetchingNextPage}
             >
-              {isFetchingNextPage ? 'Loading more...' : 'Load More Historical Data'}
+              Load More Historical Data
             </Button>
           </Box>
         </React.Fragment>
