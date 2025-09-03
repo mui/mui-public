@@ -458,12 +458,14 @@ The `CodeHighlighter` component accepts the following props:
 The fallback content always receives certain data for navigation and UX consistency, while other content depends on the configuration:
 
 **Always Provided:**
+
 - `fileNames` - Complete list of all available files for navigation
 - `name`, `slug`, `url` - Basic demo metadata
 - `component` - The selected variant's React component
 - `components` - Full components object (only when `fallbackUsesAllVariants: true`)
 
 **Conditionally Provided:**
+
 - `source` - Main file content (always for selected variant)
 - `extraSource` - Extra files content (only when `fallbackUsesExtraFiles: true`)
 - `extraVariants` - All variants data (only when `fallbackUsesAllVariants: true`)

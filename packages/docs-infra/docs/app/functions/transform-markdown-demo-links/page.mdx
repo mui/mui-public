@@ -112,11 +112,13 @@ Continue reading...
 The plugin detects Demo components in various formats:
 
 **Standalone HTML:**
+
 ```markdown
 <Demo src="ButtonDemo" />
 ```
 
 **Opening/Closing Tags:**
+
 ```markdown
 <Demo src="ButtonDemo">
   Content here
@@ -124,6 +126,7 @@ The plugin detects Demo components in various formats:
 ```
 
 **Multiline with Properties:**
+
 ```markdown
 <Demo 
   src="advanced/ButtonDemo" 
@@ -161,17 +164,20 @@ This pattern remains unchanged because `Demo.Title` components serve a different
 ### Element Matching
 
 **"[See Demo]" Links:**
+
 - Must be in a paragraph element
 - Must contain text that starts with "[See Demo]"
 - Must be the immediate next element after a Demo component
 
 **Horizontal Rules:**
+
 - Standard markdown horizontal rules (`---`)
 - Must immediately follow a Demo component or "[See Demo]" link
 
 ### Content Preservation
 
 The plugin preserves:
+
 - All non-Demo HTML components
 - Demo components with `.Title`
 - "[See Demo]" links not following Demo components
@@ -205,6 +211,7 @@ For more information about Demo components and how they work with the CodeHighli
 **Problem**: "[See Demo]" links remain in the output.
 
 **Solutions**:
+
 - Ensure the link immediately follows a Demo component
 - Verify the link text starts with "[See Demo]"
 - Check that the Demo component doesn't have `.Title`
@@ -214,6 +221,7 @@ For more information about Demo components and how they work with the CodeHighli
 **Problem**: The plugin doesn't recognize Demo components.
 
 **Solutions**:
+
 - Verify the HTML element contains "Demo" in the tag name
 - Check that it's not `Demo.Title` (which is excluded)
 - Ensure proper HTML syntax in the markdown
@@ -223,6 +231,7 @@ For more information about Demo components and how they work with the CodeHighli
 **Problem**: Content is being removed that shouldn't be.
 
 **Solutions**:
+
 - Verify that removed content immediately follows a Demo component
 - Check for "[See Demo]" text in unexpected places
 - Ensure proper markdown structure

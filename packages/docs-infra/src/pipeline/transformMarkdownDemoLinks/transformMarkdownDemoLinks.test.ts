@@ -331,7 +331,9 @@ Final content.`;
       const result = e2eProcessor.processSync(markdown).toString();
 
       // Demo components preserved as raw HTML, links and HR removed
-      expect(result).toEqual('<DemoFirst />\n<p>Some content between demos.</p>\n<DemoSecond />\n<p>Final content.</p>');
+      expect(result).toEqual(
+        '<DemoFirst />\n<p>Some content between demos.</p>\n<DemoSecond />\n<p>Final content.</p>',
+      );
     });
 
     it('should preserve Demo components with .Title in HTML output', () => {
@@ -368,7 +370,9 @@ Final content.`;
 
       // Complex JSX syntax in multiline Demo components sometimes gets escaped by remark-rehype
       // When this happens, the plugin doesn't process it (since it's text, not HTML), so everything is preserved
-      expect(result).toEqual('<p>&#x3C;DemoAdvanced\nvariant="complex"\ndata={{"key": "value"}}\nonEvent={() => console.log(\'test\')}\n/></p>\n<p><a href="./demos/advanced/">See Demo</a></p>\n<hr>\n<h2>Next Section</h2>');
+      expect(result).toEqual(
+        '<p>&#x3C;DemoAdvanced\nvariant="complex"\ndata={{"key": "value"}}\nonEvent={() => console.log(\'test\')}\n/></p>\n<p><a href="./demos/advanced/">See Demo</a></p>\n<hr>\n<h2>Next Section</h2>',
+      );
     });
 
     it('should preserve other links that are not "See Demo"', () => {
@@ -384,7 +388,9 @@ Final content.`;
 
       // Link should be preserved since it's not "See Demo", but HR is now removed after Demo components
       // With allowDangerousHtml, Demo component appears as raw HTML even when not processed
-      expect(result).toEqual('<DemoCodeHighlighter />\n<p><a href="./demos/code/">Different Link</a></p>\n<h2>Next Section</h2>');
+      expect(result).toEqual(
+        '<DemoCodeHighlighter />\n<p><a href="./demos/code/">Different Link</a></p>\n<h2>Next Section</h2>',
+      );
     });
 
     it('should remove "[See Demo]" link even without horizontal rule in HTML output', () => {
@@ -428,7 +434,9 @@ Final thoughts.`;
       const result = e2eProcessor.processSync(markdown).toString();
 
       // Demo components preserved as raw HTML, See Demo links and HR removed
-      expect(result).toEqual('<h1>Documentation</h1>\n<p>Some introduction text.</p>\n<DemoBasic />\n<h2>Features</h2>\n<p>More documentation content.</p>\n<DemoAdvanced />\n<h2>Conclusion</h2>\n<p>Final thoughts.</p>');
+      expect(result).toEqual(
+        '<h1>Documentation</h1>\n<p>Some introduction text.</p>\n<DemoBasic />\n<h2>Features</h2>\n<p>More documentation content.</p>\n<DemoAdvanced />\n<h2>Conclusion</h2>\n<p>Final thoughts.</p>',
+      );
     });
 
     it('should handle edge case with empty See Demo link', () => {
@@ -609,7 +617,7 @@ Final thoughts.`;
             type: 'mdxJsxFlowElement',
             name: 'DemoCodeHighlighter',
             attributes: [],
-            children: []
+            children: [],
           },
           {
             type: 'paragraph',
@@ -617,19 +625,19 @@ Final thoughts.`;
               {
                 type: 'link',
                 url: './demos/code/',
-                children: [{ type: 'text', value: 'See Demo' }]
-              }
-            ]
+                children: [{ type: 'text', value: 'See Demo' }],
+              },
+            ],
           },
           {
-            type: 'thematicBreak'
+            type: 'thematicBreak',
           },
           {
             type: 'heading',
             depth: 2,
-            children: [{ type: 'text', value: 'Next Section' }]
-          }
-        ]
+            children: [{ type: 'text', value: 'Next Section' }],
+          },
+        ],
       };
 
       // Create processor with our plugin and apply it

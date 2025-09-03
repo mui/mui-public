@@ -9,18 +9,11 @@ interface MdxJsxFlowElement {
   children: Array<any>;
 }
 
-interface MdxJsxTextElement {
-  type: 'mdxJsxTextElement';
-  name: string | null;
-  attributes: Array<any>;
-  children: Array<any>;
-}
-
 /**
  * Remark plugin that cleans up demo patterns in markdown.
  *
  * Looks for patterns where a Demo component is followed by a "[See Demo]" link
- * and optionally a horizontal rule (---). When found, removes the link and 
+ * and optionally a horizontal rule (---). When found, removes the link and
  * any following horizontal rule.
  *
  * This is useful for markdown that will be converted to HTML where the link
@@ -65,10 +58,7 @@ export const transformMarkdownDemoLinks: Plugin = () => {
       } else if (current?.type === 'paragraph') {
         // Check if paragraph contains only a single HTML node with a Demo component
         const paragraphNode = current as Paragraph;
-        if (
-          paragraphNode.children.length === 1 &&
-          paragraphNode.children[0].type === 'html'
-        ) {
+        if (paragraphNode.children.length === 1 && paragraphNode.children[0].type === 'html') {
           const htmlNode = paragraphNode.children[0] as Html;
           hasDemo = htmlNode.value.includes('<Demo') && !htmlNode.value.includes('.Title');
         } else if (
@@ -79,9 +69,9 @@ export const transformMarkdownDemoLinks: Plugin = () => {
           // Check if this looks like a Demo component with opening and closing tags
           const openingTag = paragraphNode.children[0] as Html;
           const closingTag = paragraphNode.children[paragraphNode.children.length - 1] as Html;
-          
+
           if (
-            openingTag.value.includes('<Demo') && 
+            openingTag.value.includes('<Demo') &&
             !openingTag.value.includes('.Title') &&
             closingTag.value.includes('</Demo')
           ) {
