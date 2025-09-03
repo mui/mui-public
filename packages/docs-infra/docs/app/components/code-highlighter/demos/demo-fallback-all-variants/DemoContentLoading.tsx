@@ -32,8 +32,6 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
     [props.components],
   );
 
-  console.log(variants);
-
   const onTabSelect = React.useCallback((tabId: string) => {
     // Handle tab selection
   }, []);

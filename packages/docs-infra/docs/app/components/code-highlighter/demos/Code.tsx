@@ -1,18 +1,11 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
-import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
 
 import { CodeContent } from './CodeContent';
 
 export function Code({ children, fileName }: { children: string; fileName?: string }) {
   return (
-    <CodeHighlighter
-      fileName={fileName}
-      Content={CodeContent}
-      sourceParser={createParseSource()}
-      sourceTransformers={[TypescriptToJavascriptTransformer]}
-    >
+    <CodeHighlighter fileName={fileName} Content={CodeContent}>
       {children}
     </CodeHighlighter>
   );

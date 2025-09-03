@@ -2,10 +2,10 @@ import * as React from 'react';
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import { Code } from '../../../code-highlighter/demos/Code';
 
-export default function HighlightProvider() {
+export function BasicCode() {
   return (
     <CodeProvider>
-      <Code>{`console.log('Hello, world!');`}</Code>
+      <Code fileName="example.js">{`console.log('Hello, world!');`}</Code>
     </CodeProvider>
   );
 }
