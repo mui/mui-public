@@ -84,6 +84,7 @@ export function getDocsInfraMdxOptions(
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
