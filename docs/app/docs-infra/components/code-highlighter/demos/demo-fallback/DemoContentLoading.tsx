@@ -7,10 +7,6 @@ import styles from '../DemoContent.module.css';
 
 import '@wooorm/starry-night/style/light';
 
-const variantNames: Record<string, string | undefined> = {
-  CssModules: 'CSS Modules',
-};
-
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   const tabs = React.useMemo(
     () =>
@@ -22,7 +18,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
     [props.fileNames],
   );
 
-  const onTabSelect = React.useCallback((tabId: string) => {
+  const onTabSelect = React.useCallback(() => {
     // No-op
   }, []);
 
