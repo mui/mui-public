@@ -7,6 +7,8 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import { Link as RouterLink } from 'react-router';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
 
 interface Repository {
@@ -43,6 +45,22 @@ const repositories: Repository[] = [
   },
 ];
 
+interface Tool {
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  path: string;
+}
+
+const tools: Tool[] = [
+  {
+    name: 'NPM Package Stats',
+    description: 'Analyze NPM package downloads, version breakdown, and historical trends',
+    icon: <TrendingUpIcon />,
+    path: '/npm-versions',
+  },
+];
+
 export default function Landing() {
   return (
     <Box>
@@ -75,6 +93,31 @@ export default function Landing() {
                   View Size Comparison
                 </Button>
               </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      <Heading level={1} sx={{ mt: 6 }}>
+        Tools
+      </Heading>
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        {tools.map((tool) => (
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
+            <Card>
+              <CardActionArea component={RouterLink} to={tool.path} sx={{ height: '100%' }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    {tool.icon}
+                    <Typography gutterBottom variant="h5" component="h2" sx={{ ml: 1, mb: 0 }}>
+                      {tool.name}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {tool.description}
+                  </Typography>
+                </CardContent>
+              </CardActionArea>
             </Card>
           </Grid>
         ))}
