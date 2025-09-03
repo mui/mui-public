@@ -13,12 +13,12 @@ import type {
 
 import { loadVariant } from './loadVariant';
 import { loadFallbackCode } from './loadFallbackCode';
-import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { CodeErrorHandler } from './CodeErrorHandler';
+import { codeToFallbackProps } from './codeToFallbackProps';
 
 // Common props shared across helper functions
 type BaseHelperProps<T extends {}> = Pick<
@@ -48,6 +48,8 @@ type BaseHelperProps<T extends {}> = Pick<
   | 'forceClient'
   | 'children'
   | 'globalsCode'
+  | 'fallbackUsesExtraFiles'
+  | 'fallbackUsesAllVariants'
 >;
 
 interface CodeSourceLoaderProps<T extends {}> extends BaseHelperProps<T> {
@@ -300,18 +302,28 @@ function renderWithInitialSource<T extends {}>(
     processedGlobalsCode?: Array<Code>;
   },
 ) {
-  const fileNames = [
-    ...(props.initialFilename ? [props.initialFilename] : []),
-    ...Object.keys(props.initialExtraFiles || {}),
-  ];
-  const source = stringOrHastToJsx(props.initialSource, props.highlightAt === 'init');
+  const fallbackProps = codeToFallbackProps(
+    props.initialVariant,
+    props.code,
+    props.initialFilename,
+    props.fallbackUsesExtraFiles,
+    props.fallbackUsesAllVariants,
+  );
+
+  // Get the component for the selected variant
+  const component = props.components?.[props.initialVariant];
+
+  // Only include components (plural) if we're also including extraVariants
+  const components = fallbackProps.extraVariants ? props.components : undefined;
 
   const contentProps = {
     name: props.name,
     slug: props.slug,
     url: props.url,
-    fileNames,
-    source,
+    initialFilename: props.initialFilename,
+    component,
+    components,
+    ...fallbackProps,
     ...props.contentProps,
   } as ContentLoadingProps<T>;
 

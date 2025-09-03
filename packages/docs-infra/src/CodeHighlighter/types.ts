@@ -114,12 +114,17 @@ export type ContentLoadingVariant = {
   extraSource?: { [fileName: string]: React.ReactNode };
 };
 export type BaseContentLoadingProps = ContentLoadingVariant & {
-  extraVariants?: Record<string, ContentLoadingVariant>;
   name?: string;
   slug?: string;
   url?: string;
+  extraVariants?: Record<string, ContentLoadingVariant>;
 };
-export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps & T;
+export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
+  T & {
+    component: React.ReactNode;
+    components?: Record<string, React.ReactNode>;
+    initialFilename?: string;
+  };
 
 export type ErrorHandlerProps = {
   errors?: Error[];

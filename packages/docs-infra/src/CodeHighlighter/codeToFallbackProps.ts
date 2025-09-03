@@ -30,7 +30,7 @@ export function codeToFallbackProps(
   );
   let source;
 
-  if (fileName) {
+  if (fileName && fileName !== variantCode.fileName) {
     const fileData = variantCode.extraFiles?.[fileName];
     if (fileData && typeof fileData === 'object' && 'source' in fileData && fileData.source) {
       source = stringOrHastToJsx(fileData.source);
