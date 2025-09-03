@@ -114,50 +114,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     setSelectedBundles(topLevelBundles);
   }, [allBundles]);
 
-  if (isLoading) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Daily Bundle Size Trends
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 4 }}>
-          <CircularProgress size={20} />
-          <Typography>Loading bundle size history...</Typography>
-        </Box>
-      </Paper>
-    );
-  }
-
-  if (error) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Daily Bundle Size Trends
-        </Typography>
-        <Box sx={{ p: 2, color: 'error.main' }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Error loading bundle size history
-          </Typography>
-          <Typography variant="body2">{error.message || 'Unknown error occurred'}</Typography>
-        </Box>
-      </Paper>
-    );
-  }
-
   const chartData = transformDataForChart(dailyData, sizeType, allBundles);
-
-  if (chartData.dates.length === 0) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Daily Bundle Size Trends
-        </Typography>
-        <Box sx={{ p: 2, color: 'text.secondary' }}>
-          <Typography>No bundle size data available for recent commits.</Typography>
-        </Box>
-      </Paper>
-    );
-  }
 
   // Filter series based on selected bundles
   const validSeries = chartData.series.filter((series) => selectedBundles.includes(series.label));
@@ -167,132 +124,142 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
       <Typography variant="h6" component="h2" gutterBottom>
         Daily Bundle Size Trends
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Bundle sizes ({sizeType === 'gzip' ? 'gzipped' : 'parsed'}) for the first commit of each day
-        from master branch. Showing {chartData.dates.length} days of data.
-      </Typography>
 
-      {allBundles.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" gutterBottom>
-            Select bundles to display:
+      {error ? (
+        <Box sx={{ color: 'error.main' }}>
+          <Typography variant="subtitle1" gutterBottom>
+            Error loading bundle size history
           </Typography>
-          <Autocomplete
-            multiple
-            options={allBundles}
-            value={selectedBundles}
-            onChange={(event, newValue) => setSelectedBundles(newValue)}
-            filterSelectedOptions
-            renderInput={(params) => (
-              <TextField {...params} placeholder="Search and select bundles..." size="small" />
-            )}
-            sx={{ mb: 1 }}
-          />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">
-                Size type:
-              </Typography>
-              <ToggleSelectButton
-                variant="text"
-                size="small"
-                onClick={() => setSizeType('gzip')}
-                disabled={sizeType === 'gzip'}
-              >
-                gzipped
-              </ToggleSelectButton>
-              <Typography variant="caption" color="text.secondary">
-                |
-              </Typography>
-              <ToggleSelectButton
-                variant="text"
-                size="small"
-                onClick={() => setSizeType('parsed')}
-                disabled={sizeType === 'parsed'}
-              >
-                parsed
-              </ToggleSelectButton>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">
-                Y-axis:
-              </Typography>
-              <ToggleSelectButton
-                variant="text"
-                size="small"
-                onClick={() => setYAxisStartAtZero(true)}
-                disabled={yAxisStartAtZero}
-              >
-                start at zero
-              </ToggleSelectButton>
-              <Typography variant="caption" color="text.secondary">
-                |
-              </Typography>
-              <ToggleSelectButton
-                variant="text"
-                size="small"
-                onClick={() => setYAxisStartAtZero(false)}
-                disabled={!yAxisStartAtZero}
-              >
-                auto scale
-              </ToggleSelectButton>
+          <Typography variant="body2">{error.message || 'Unknown error occurred'}</Typography>
+        </Box>
+      ) : (
+        <React.Fragment>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Bundle sizes ({sizeType === 'gzip' ? 'gzipped' : 'parsed'}) for the first commit of each
+            day from master branch.
+          </Typography>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" gutterBottom>
+              Select bundles to display:
+            </Typography>
+            <Autocomplete
+              multiple
+              options={allBundles}
+              value={selectedBundles}
+              onChange={(event, newValue) => setSelectedBundles(newValue)}
+              filterSelectedOptions
+              size="small"
+              renderInput={(params) => (
+                <TextField {...params} placeholder="Search and select bundles..." />
+              )}
+              sx={{ mb: 1 }}
+            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Size type:
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => setSizeType('gzip')}
+                  disabled={sizeType === 'gzip'}
+                >
+                  gzipped
+                </ToggleSelectButton>
+                <Typography variant="caption" color="text.secondary">
+                  |
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => setSizeType('parsed')}
+                  disabled={sizeType === 'parsed'}
+                >
+                  parsed
+                </ToggleSelectButton>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Y-axis:
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => setYAxisStartAtZero(true)}
+                  disabled={yAxisStartAtZero}
+                >
+                  start at zero
+                </ToggleSelectButton>
+                <Typography variant="caption" color="text.secondary">
+                  |
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => setYAxisStartAtZero(false)}
+                  disabled={!yAxisStartAtZero}
+                >
+                  auto scale
+                </ToggleSelectButton>
+              </Box>
             </Box>
           </Box>
-        </Box>
-      )}
 
-      <Box>
-        <LineChart
-          xAxis={[
-            {
-              data: chartData.dates,
-              scaleType: 'time',
-              valueFormatter: (date: Date, context) => {
-                if (context.location === 'tick') {
-                  return date.toLocaleDateString();
-                }
-                // For tooltip, find the corresponding commit data
-                const dateString = date.toISOString().split('T')[0];
-                const dataPoint = dailyData.find((d) => d.date === dateString);
-                const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
-                return commitSha
-                  ? `${date.toLocaleDateString()} (${commitSha})`
-                  : date.toLocaleDateString();
-              },
-            },
-          ]}
-          yAxis={[
-            {
-              ...(yAxisStartAtZero && { min: 0 }),
-              width: 60,
-              valueFormatter: (value: number) => byteSizeFormatter.format(value),
-            },
-          ]}
-          series={validSeries.map(({ label, data, color }) => ({
-            label,
-            data,
-            color,
-            connectNulls: false, // Don't connect across missing data points
-            valueFormatter: (value: number | null) =>
-              value ? byteSizeFormatter.format(value) : 'No data',
-          }))}
-          height={300}
-          hideLegend
-          grid={{ horizontal: true, vertical: true }}
-        />
-      </Box>
+          <Box>
+            <LineChart
+              xAxis={[
+                {
+                  data: chartData.dates,
+                  scaleType: 'time',
+                  valueFormatter: (date: Date, context) => {
+                    if (context.location === 'tick') {
+                      return date.toLocaleDateString();
+                    }
+                    // For tooltip, find the corresponding commit data
+                    const dateString = date.toISOString().split('T')[0];
+                    const dataPoint = dailyData.find((d) => d.date === dateString);
+                    const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
+                    return commitSha
+                      ? `${date.toLocaleDateString()} (${commitSha})`
+                      : date.toLocaleDateString();
+                  },
+                },
+              ]}
+              yAxis={[
+                {
+                  ...(yAxisStartAtZero && { min: 0 }),
+                  width: 60,
+                  valueFormatter: (value: number) => byteSizeFormatter.format(value),
+                },
+              ]}
+              series={validSeries.map(({ label, data, color }) => ({
+                label,
+                data,
+                color,
+                connectNulls: false, // Don't connect across missing data points
+                valueFormatter: (value: number | null) =>
+                  value ? byteSizeFormatter.format(value) : 'No data',
+              }))}
+              loading={isLoading}
+              height={300}
+              hideLegend
+              grid={{ horizontal: true, vertical: true }}
+            />
+          </Box>
 
-      {hasNextPage && (
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-          <Button
-            variant="outlined"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            startIcon={isFetchingNextPage ? <CircularProgress size={16} /> : undefined}
-          >
-            {isFetchingNextPage ? 'Loading more...' : 'Load More Historical Data'}
-          </Button>
-        </Box>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="outlined"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage || !hasNextPage}
+              startIcon={isFetchingNextPage ? <CircularProgress size={16} /> : undefined}
+            >
+              {isFetchingNextPage ? 'Loading more...' : 'Load More Historical Data'}
+            </Button>
+          </Box>
+        </React.Fragment>
       )}
     </Paper>
   );
