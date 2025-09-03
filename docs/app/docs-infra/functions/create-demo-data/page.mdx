@@ -2,6 +2,9 @@
 
 The `createDemoData` utility creates structured demo metadata and component data for use with the [`CodeHighlighter`](../components/code-highlighter/page.mdx) system. It processes demo URLs, components, and metadata to create data objects that can be consumed by demo factories and code highlighting systems.
 
+> [!TIP]
+> See the [Built Factories Pattern](../../patterns/built-factories/) for how factories derive identity from `import.meta.url` and how precomputed data flows into demos.
+
 > [!IMPORTANT]
 > For creating actual demos, use [`abstractCreateDemo`](./abstract-create-demo/page.mdx) instead. The `createDemoData` functions are primarily for creating global demo data and advanced use cases where you need low-level control over demo metadata.
 

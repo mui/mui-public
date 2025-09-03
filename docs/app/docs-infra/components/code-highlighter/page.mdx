@@ -41,13 +41,16 @@ import { DemoCodeHighlighterDemo } from './demos/demo';
 
 ## Demo Factory Pattern
 
+> [!TIP]
+> New to the overall approach? See the broader [Built Factories Pattern](../../patterns/built-factories/) for why factories use `import.meta.url`, how variants are derived, and the server vs client split.
+
 > [!NOTE]
 > Before you can use `createDemo()` in your demos, you must first create this factory function in your repo (see the [`abstractCreateDemo`](../../functions/abstract-create-demo/page.mdx#implementation) docs for details).
 
 To unlock `CodeHighlighter`'s full potential—especially build-time optimization—you'll need to use the factory pattern. This isn't just a convention; it's **required** for precomputation to work.
 
 The factory pattern uses `createDemo()` to structure your demos in a way that the webpack loader can process and cache at build time.
-You implement `createDemo` within your app using [`abstractCreateDemo`](../../functions/abstract-create-demo/page.tsx) to define the structure and behavior of your demos.
+You implement `createDemo` within your app using [`abstractCreateDemo`](../../functions/abstract-create-demo/page.mdx#implementation) to define the structure and behavior of your demos.
 
 ### Factory Structure
 

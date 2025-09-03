@@ -2,6 +2,9 @@
 
 The `abstractCreateDemoClient` function helps you create client-side demo providers that manage external dependencies for live component demos. It creates provider components that supply externals context to child components, enabling dynamic code execution in the browser.
 
+> [!TIP]
+> This builds on the [Built Factories Pattern](../../patterns/built-factories/): the client factory never enumerates variants; it pairs with the server demo file (`index.ts`).
+
 ## Overview
 
 Demo clients created with `abstractCreateDemoClient` automatically integrate with:
@@ -57,6 +60,8 @@ Demo clients work in conjunction with demos to provide the complete live demo ex
 
 > [!NOTE]
 > `createDemoClient` must be called in a file with `'use client';` because it creates a client component. `createDemo` should **not** be called in a client file, as it may interfere with server-side loading and parsing.
+
+> Keep the server (`createDemo*`) and client (`createDemoClient*`) factories separate—one per file—to avoid accidental boundary crossings.
 
 ```ts
 // demos/example/index.ts (server file)

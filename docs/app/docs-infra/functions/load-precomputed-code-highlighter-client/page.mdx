@@ -9,6 +9,9 @@ The precompute client loader is a Webpack/Turbopack loader that enables build-ti
 
 The loader processes demo client files that use the `createDemoClient` factory pattern, automatically resolving and injecting all external dependencies at build time. This enables efficient live editing by having all required imports available without runtime resolution.
 
+> [!TIP]
+> For the overall factory concept (including server vs client separation) see the [Built Factories Pattern](../../patterns/built-factories/).
+
 > [!NOTE]
 > The loader works with any `create*Client` function, not just `createDemoClient`. You could have custom demo client factories that follow the same pattern.
 

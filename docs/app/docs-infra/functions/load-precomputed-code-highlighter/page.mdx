@@ -8,6 +8,9 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
 
 The loader processes demo files that use the `createDemo` factory pattern, automatically resolving and processing all code variants at build time rather than runtime.
 
+> [!TIP]
+> For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
+
 > [!NOTE]
 > The loader works with any `create*` function, not just `createDemo`. You could have `app/components/my-component/snippets/example/index.ts` with `createSnippet()`, or any other factory function that follows the same pattern.
 
