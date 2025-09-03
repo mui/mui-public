@@ -14,6 +14,7 @@ import GitPullRequestIcon from '@mui/icons-material/Commit';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import { styled } from '@mui/material/styles';
 import { GitHubPRInfo } from '../hooks/useGitHubPR';
+import ErrorDisplay from './ErrorDisplay';
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
   borderLeft: '2px solid transparent',
@@ -168,17 +169,6 @@ export default function PRList({
   repo,
   onLoadMore,
 }: PRListProps) {
-  if (error) {
-    return (
-      <Box sx={{ p: 2, color: 'error.main' }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Error loading pull requests
-        </Typography>
-        <Typography variant="body2">{error.message || 'Unknown error occurred'}</Typography>
-      </Box>
-    );
-  }
-
   const displayItems = isLoading
     ? Array.from({ length: 5 }, (_, index) => ({ id: `skeleton-${index}`, pr: null }))
     : prs.map((pr) => ({ id: pr.number, pr }));
@@ -186,26 +176,37 @@ export default function PRList({
   return (
     <Box>
       <Paper elevation={2} sx={{ overflow: 'hidden' }}>
-        <List disablePadding>
-          {displayItems.map((item, index) => (
-            <React.Fragment key={item.id}>
-              {index > 0 && <Divider />}
-              <PrRow pr={item.pr} owner={owner} repo={repo} loading={isLoading} />
-            </React.Fragment>
-          ))}
-        </List>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Recent pull requests
+          </Typography>
+          {error ? <ErrorDisplay title="Error loading pull requests" error={error} /> : null}
+        </Box>
 
-        {onLoadMore && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', m: 3 }}>
-            <Button
-              variant="outlined"
-              onClick={onLoadMore}
-              disabled={isFetchingNextPage || !hasNextPage}
-              loading={isFetchingNextPage}
-            >
-              Load More
-            </Button>
-          </Box>
+        {error ? null : (
+          <React.Fragment>
+            <List disablePadding>
+              {displayItems.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  {index > 0 && <Divider />}
+                  <PrRow pr={item.pr} owner={owner} repo={repo} loading={isLoading} />
+                </React.Fragment>
+              ))}
+            </List>
+
+            {onLoadMore && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', m: 3 }}>
+                <Button
+                  variant="outlined"
+                  onClick={onLoadMore}
+                  disabled={isFetchingNextPage || !hasNextPage}
+                  loading={isFetchingNextPage}
+                >
+                  Load More
+                </Button>
+              </Box>
+            )}
+          </React.Fragment>
         )}
       </Paper>
     </Box>

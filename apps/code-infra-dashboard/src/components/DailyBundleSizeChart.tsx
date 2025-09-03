@@ -9,6 +9,7 @@ import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useDailyCommitHistory, DailyCommitData } from '../hooks/useDailyCommitHistory';
+import ErrorDisplay from './ErrorDisplay';
 
 // Color palette for different bundle series
 const CHART_COLORS = [
@@ -119,18 +120,13 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
   const validSeries = chartData.series.filter((series) => selectedBundles.includes(series.label));
 
   return (
-    <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+    <Paper elevation={2} sx={{ p: 3 }}>
       <Typography variant="h6" component="h2" gutterBottom>
-        Daily Bundle Size Trends
+        Daily bundle size trends
       </Typography>
 
       {error ? (
-        <Box sx={{ color: 'error.main' }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Error loading bundle size history
-          </Typography>
-          <Typography variant="body2">{error.message || 'Unknown error occurred'}</Typography>
-        </Box>
+        <ErrorDisplay title="Error loading bundle size history" error={error} />
       ) : (
         <React.Fragment>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -248,14 +244,14 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
             />
           </Box>
 
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ m: 3, display: 'flex', justifyContent: 'center' }}>
             <Button
               variant="outlined"
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage || !hasNextPage}
               loading={isFetchingNextPage}
             >
-              Load More Historical Data
+              Load More
             </Button>
           </Box>
         </React.Fragment>
