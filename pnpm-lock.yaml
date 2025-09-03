@@ -104,6 +104,9 @@ importers:
       '@netlify/functions':
         specifier: ^4.2.2
         version: 4.2.2(encoding@0.1.13)(rollup@4.46.2)
+      '@octokit/rest':
+        specifier: ^22.0.0
+        version: 22.0.0
       '@tanstack/react-query':
         specifier: ^5.85.5
         version: 5.85.5(react@19.1.1)
