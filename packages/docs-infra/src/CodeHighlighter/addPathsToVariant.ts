@@ -6,6 +6,7 @@
 import type { VariantCode, VariantSource } from './types';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { createPathContext, type PathContext } from './examineVariant';
+import { resolveRelativePath, countConsecutiveBackNavigation } from './pathUtils';
 
 export interface FileWithPath {
   source?: VariantSource;
@@ -113,11 +114,11 @@ function calculateMainFilePath(
             const fileObj = typeof file === 'string' ? { source: file } : file;
 
             if (fileObj.metadata) {
-              // Calculate how much to trim from metadata file paths
-              const backNavCount = (filePath.match(/\.\.\//g) || []).length;
-              const trimCount = Math.min(backNavCount, expectedMetadataBackNav);
+              // Calculate consecutive back navigation at the start (for trimming)
+              const consecutiveBackSteps = countConsecutiveBackNavigation(filePath);
+              const trimCount = Math.min(consecutiveBackSteps, expectedMetadataBackNav);
 
-              // Trim the expected back navigation
+              // Trim the expected back navigation using consecutive pattern matching
               const trimmedPath = filePath.replace(new RegExp(`^(\\.\\./){${trimCount}}`), '');
               normalizedExtraFiles[trimmedPath] = { ...fileObj, metadata: false }; // Treat as non-metadata for calculation
             } else {
@@ -271,53 +272,45 @@ function calculateExtraFilePath(
   context: PathContext,
   path?: string,
 ): string {
-  // Handle current directory references
-  if (relativePath.startsWith('./')) {
-    return relativePath.substring(2);
-  }
+  // Always resolve the relative path first to handle .. patterns properly
+  const { resolvedPath, backSteps } = resolveRelativePath(relativePath);
 
   // Handle metadata files
   if (file.metadata) {
     // For unbalanced cases or complex scenarios, use main file path as reference
     if (path && path.includes('/')) {
-      const backSteps = (relativePath.match(/\.\.\//g) || []).length;
-      const remainingPath = relativePath.replace(/^(\.\.\/)+/, '');
-
       // Split main file path to understand the structure
       const mainPathParts = path.split('/');
       const targetDirParts = mainPathParts.slice(0, -(backSteps + 1)); // Go back from main file location
 
       if (targetDirParts.length > 0) {
-        return [...targetDirParts, remainingPath].join('/');
+        return [...targetDirParts, resolvedPath].join('/');
       }
-      return remainingPath;
+      return resolvedPath;
     }
-    // Simple case: just remove back navigation
-    return relativePath.replace(/^(\.\.\/)+/, '');
+    // Simple case: just return resolved path
+    return resolvedPath;
   }
 
   // Handle back navigation for non-metadata files
-  if (relativePath.startsWith('../')) {
-    const backSteps = (relativePath.match(/\.\.\//g) || []).length;
-    const remainingPath = relativePath.replace(/^(\.\.\/)+/, '');
-
+  if (backSteps > 0) {
     // For non-metadata files with metadataPrefix, include the prefix
     if (variant.metadataPrefix) {
-      // If main file path has extra directories (like 'src/app/components/...'), use main file as reference
+      // If main file path has extra directories, use main file as reference
       if (path && path.includes('/')) {
         const mainPathParts = path.split('/');
         const targetDirParts = mainPathParts.slice(0, -(backSteps + 1));
-        return [...targetDirParts, remainingPath].join('/');
+        return [...targetDirParts, resolvedPath].filter(Boolean).join('/');
       }
 
-      return [variant.metadataPrefix.replace(/\/$/, ''), remainingPath].join('/');
+      return [variant.metadataPrefix.replace(/\/$/, ''), resolvedPath].filter(Boolean).join('/');
     }
 
     // Handle path resolution based on main file context
     if (path && path.includes('/')) {
       const mainPathParts = path.split('/');
       const targetDirParts = mainPathParts.slice(0, -(backSteps + 1));
-      return [...targetDirParts, remainingPath].join('/');
+      return [...targetDirParts, resolvedPath].filter(Boolean).join('/');
     }
 
     // For cases without sufficient context, create synthetic structure
@@ -326,10 +319,10 @@ function calculateExtraFilePath(
         String.fromCharCode(97 + i),
       );
       const targetDirParts = syntheticDirs.slice(0, -backSteps);
-      return [...targetDirParts, remainingPath].join('/');
+      return [...targetDirParts, resolvedPath].filter(Boolean).join('/');
     }
 
-    return remainingPath;
+    return resolvedPath;
   }
 
   // Handle non-metadata files without back navigation
@@ -346,14 +339,29 @@ function calculateExtraFilePath(
       if (metadataPrefixIndex > 0) {
         // Include extra directories before metadataPrefix
         const extraDirParts = mainPathParts.slice(0, metadataPrefixIndex);
-        return [...extraDirParts, variant.metadataPrefix.replace(/\/$/, ''), relativePath].join(
+        return [...extraDirParts, variant.metadataPrefix.replace(/\/$/, ''), resolvedPath].join(
           '/',
         );
       }
     }
 
-    return [variant.metadataPrefix.replace(/\/$/, ''), relativePath].join('/');
+    return [variant.metadataPrefix.replace(/\/$/, ''), resolvedPath].join('/');
   }
 
-  return relativePath;
+  // Handle non-metadata files with canceled-out path resolution
+  // If the original path had .. patterns that were canceled by forward dirs, inherit base path
+  // Only applies when there's a real URL structure (not synthetic)
+  if (
+    relativePath.includes('../') &&
+    backSteps === 0 &&
+    path &&
+    path.includes('/') &&
+    context.hasUrl
+  ) {
+    const mainPathParts = path.split('/');
+    const baseDirParts = mainPathParts.slice(0, -1); // All directories except filename
+    return [...baseDirParts, resolvedPath].join('/');
+  }
+
+  return resolvedPath;
 }

@@ -132,6 +132,43 @@ describe('examineVariant', () => {
 
         expect(result.maxBackNavigation).toBe(0);
       });
+
+      it('should only count consecutive back navigation at the start of paths', () => {
+        const variant: VariantCode = {
+          source: 'console.log("test");',
+          extraFiles: {
+            '../foo/../bar/utils.js': 'export const helper = () => {};',
+            '../../baz/../qux.js': 'export const config = {};',
+            '../simple.js': 'export const simple = {};',
+          },
+        };
+
+        const result = createPathContext(variant);
+
+        // Should be 2 (from ../../baz/../qux.js - only consecutive ../ at start)
+        // ../foo/../bar/utils.js counts as 1 (only the first ../)
+        // ../../baz/../qux.js counts as 2 (two consecutive ../ at start)
+        expect(result.maxBackNavigation).toBe(2);
+      });
+
+      it('should handle complex mixed forward/backward navigation patterns', () => {
+        const variant: VariantCode = {
+          source: 'console.log("test");',
+          extraFiles: {
+            '../foo/../../bar/utils.js': 'export const helper = () => {};',
+            '../../forward/../back/config.js': 'export const config = {};',
+            '../../../start/forward/../../../back.js': 'export const complex = {};',
+          },
+        };
+
+        const result = createPathContext(variant);
+
+        // Should be 4 (from ../../../start/forward/../../../back.js - actual resolved back steps)
+        // ../foo/../../bar/utils.js resolves to 2 back steps (../foo/../../ = back 2, forward bar)
+        // ../../forward/../back/config.js resolves to 2 back steps (../../forward/../ = back 2, forward back)
+        // ../../../start/forward/../../../back.js resolves to 4 back steps (../../../start/forward/../../../ = back 4, forward back)
+        expect(result.maxBackNavigation).toBe(4);
+      });
     });
 
     describe('hasMetadata detection', () => {

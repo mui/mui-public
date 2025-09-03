@@ -3,6 +3,7 @@
  */
 
 import type { VariantCode, VariantExtraFiles } from './types';
+import { resolveRelativePath } from './pathUtils';
 
 interface PathContextBase {
   hasMetadata: boolean;
@@ -39,10 +40,9 @@ function calculateMaxBackNavigation(extraFiles: VariantExtraFiles): number {
       continue;
     }
 
-    if (relativePath.startsWith('.')) {
-      const backCount = (relativePath.match(/\.\.\//g) || []).length;
-      maxBackNavigation = Math.max(maxBackNavigation, backCount);
-    }
+    // Use proper path resolution to determine actual back steps for any path
+    const { backSteps } = resolveRelativePath(relativePath);
+    maxBackNavigation = Math.max(maxBackNavigation, backSteps);
   }
 
   return maxBackNavigation;
