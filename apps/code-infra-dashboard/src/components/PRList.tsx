@@ -31,6 +31,82 @@ const PRNumber = styled(Typography)(({ theme }) => ({
   marginRight: theme.spacing(1),
 }));
 
+interface PRRowProps {
+  pr: GitHubPRInfo;
+  owner: string;
+  repo: string;
+}
+
+function PRRow({ pr, owner, repo }: PRRowProps) {
+  return (
+    <StyledListItem
+      // @ts-expect-error https://github.com/mui/material-ui/issues/29875
+      component={RouterLink}
+      to={`/size-comparison/${owner}/${repo}/diff?prNumber=${pr.number}`}
+      sx={{
+        py: 1.5,
+        color: 'text.primary',
+        textDecoration: 'none',
+        '&:hover': {
+          textDecoration: 'none',
+        },
+      }}
+    >
+      <Box sx={{ mr: 1, color: 'text.secondary', display: 'flex' }}>
+        <GitPullRequestIcon fontSize="small" />
+      </Box>
+      <ListItemText
+        primary={
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <PRNumber variant="body2">#{pr.number}</PRNumber>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {pr.title}
+            </Typography>
+          </Box>
+        }
+        slotProps={{
+          secondary: {
+            component: 'div',
+          },
+        }}
+        secondary={
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 2 }}>
+            <Chip
+              label={pr.base.ref}
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{ fontSize: '0.7rem', height: 20 }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              SHA: <code>{pr.head.sha.substring(0, 7)}</code>
+            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'secondary.main',
+                gap: 0.5,
+              }}
+            >
+              <BarChartIcon fontSize="inherit" />
+              <Typography variant="caption">View Bundle Size</Typography>
+            </Box>
+          </Box>
+        }
+      />
+    </StyledListItem>
+  );
+}
+
 interface PRListProps {
   prs: GitHubPRInfo[];
   isLoading: boolean;
@@ -87,71 +163,7 @@ export default function PRList({
           {prs.map((pr, index) => (
             <React.Fragment key={pr.number}>
               {index > 0 && <Divider />}
-              <StyledListItem
-                // @ts-expect-error https://github.com/mui/material-ui/issues/29875
-                component={RouterLink}
-                to={`/size-comparison/${owner}/${repo}/diff?prNumber=${pr.number}`}
-                sx={{
-                  py: 1.5,
-                  color: 'text.primary',
-                  textDecoration: 'none',
-                  '&:hover': {
-                    textDecoration: 'none',
-                  },
-                }}
-              >
-                <Box sx={{ mr: 1, color: 'text.secondary', display: 'flex' }}>
-                  <GitPullRequestIcon fontSize="small" />
-                </Box>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <PRNumber variant="body2">#{pr.number}</PRNumber>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 500,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {pr.title}
-                      </Typography>
-                    </Box>
-                  }
-                  slotProps={{
-                    secondary: {
-                      component: 'div',
-                    },
-                  }}
-                  secondary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 2 }}>
-                      <Chip
-                        label={pr.base.ref}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                        sx={{ fontSize: '0.7rem', height: 20 }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        SHA: <code>{pr.head.sha.substring(0, 7)}</code>
-                      </Typography>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          color: 'secondary.main',
-                          gap: 0.5,
-                        }}
-                      >
-                        <BarChartIcon fontSize="inherit" />
-                        <Typography variant="caption">View Bundle Size</Typography>
-                      </Box>
-                    </Box>
-                  }
-                />
-              </StyledListItem>
+              <PRRow pr={pr} owner={owner} repo={repo} />
             </React.Fragment>
           ))}
         </List>
