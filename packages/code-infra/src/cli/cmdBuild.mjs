@@ -16,6 +16,7 @@ import { getOutExtension, isMjsBuild, validatePkgJson } from '../utils/build.mjs
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
+ * @property {boolean} skipMainCheck - Whether to skip checking for main field in package.json.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
 
@@ -291,6 +292,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
+      })
+      .option('skipMainCheck', {
+        // Currently added only to support @mui/icons-material. To be removed separately.
+        type: 'boolean',
+        default: false,
+        description: 'Skip checking for main field in package.json.',
       });
   },
   async handler(args) {
@@ -310,7 +317,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    validatePkgJson(packageJson);
+    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck });
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);

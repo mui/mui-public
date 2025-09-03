@@ -22,8 +22,11 @@ export function getOutExtension(bundle, isType = false) {
 /**
  * Validates the package.json before building.
  * @param {Record<string, any>} packageJson
+ * @param {Object} [options]
+ * @param {boolean} [options.skipMainCheck=false] - Whether to skip checking for main field in package.json.
  */
-export function validatePkgJson(packageJson) {
+export function validatePkgJson(packageJson, options = {}) {
+  const { skipMainCheck = false } = options;
   /**
    * @type {string[]}
    */
@@ -40,22 +43,24 @@ export function validatePkgJson(packageJson) {
     );
   }
 
-  if (packageJson.main) {
-    errors.push(
-      `Remove the field "main" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
-    );
-  }
+  if (!skipMainCheck) {
+    if (packageJson.main) {
+      errors.push(
+        `Remove the field "main" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
+      );
+    }
 
-  if (packageJson.module) {
-    errors.push(
-      `Remove the field "module" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
-    );
-  }
+    if (packageJson.module) {
+      errors.push(
+        `Remove the field "module" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
+      );
+    }
 
-  if (packageJson.types || packageJson.typings) {
-    errors.push(
-      `Remove the field "types/typings" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
-    );
+    if (packageJson.types || packageJson.typings) {
+      errors.push(
+        `Remove the field "types/typings" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
+      );
+    }
   }
 
   if (errors.length > 0) {
