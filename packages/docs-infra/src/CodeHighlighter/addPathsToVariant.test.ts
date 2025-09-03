@@ -456,4 +456,97 @@ describe('addPathsToVariant', () => {
     expect(result.extraFiles!['../utils.ts'].path).toBe('a/b/utils.ts');
     expect(result.extraFiles!['../../../utils.ts'].path).toBe('utils.ts');
   });
+
+  // Tests for path resolution behavior
+  describe('path resolution', () => {
+    it('should resolve .. patterns in extra file paths', () => {
+      const variant: VariantCode = {
+        fileName: 'index.ts',
+        source: 'export default function Component() {}',
+        extraFiles: {
+          'foo/../bar.ts': { source: 'export const bar = 1;' }, // resolves to bar.ts
+          'baz/../qux/../deep.ts': { source: 'export const deep = 2;' }, // resolves to deep.ts
+          '../simple.ts': { source: 'export const simple = 3;' }, // 1 back step, resolves to simple.ts
+          '../dir/../complex.ts': { source: 'export const complex = 4;' }, // 1 back step, resolves to complex.ts
+        },
+      };
+
+      const result = addPathsToVariant(variant);
+
+      // Main path gets synthetic structure due to back navigation in extra files
+      expect(result.path).toBe('a/index.ts');
+      // All paths should be properly resolved
+      expect(result.extraFiles!['foo/../bar.ts'].path).toBe('bar.ts');
+      expect(result.extraFiles!['baz/../qux/../deep.ts'].path).toBe('deep.ts');
+      expect(result.extraFiles!['../simple.ts'].path).toBe('simple.ts');
+      expect(result.extraFiles!['../dir/../complex.ts'].path).toBe('complex.ts');
+    });
+
+    it('should handle metadata files with path resolution', () => {
+      const variant: VariantCode = {
+        url: 'file:///lib/components/Button/index.tsx',
+        fileName: 'index.tsx',
+        source: 'export default function Button() {}',
+        metadataPrefix: 'src/',
+        extraFiles: {
+          '../foo/../config.json': { source: '{"config": true}', metadata: true },
+          '../../package.json': { source: '{"name": "test"}', metadata: true },
+          '../util.ts': { source: 'export const util = 1;' }, // non-metadata
+        },
+      };
+
+      const result = addPathsToVariant(variant);
+
+      // Main path uses metadataPrefix + URL structure for non-metadata back navigation
+      expect(result.path).toBe('src/Button/index.tsx');
+      // Metadata files resolve and use main file context when applicable
+      expect(result.extraFiles!['../foo/../config.json'].path).toBe('src/config.json');
+      expect(result.extraFiles!['../../package.json'].path).toBe('package.json');
+      // Non-metadata files resolve and apply context
+      expect(result.extraFiles!['../util.ts'].path).toBe('src/util.ts');
+    });
+
+    it('should handle complex path resolution scenarios', () => {
+      const variant: VariantCode = {
+        url: 'file:///lib/components/deep/nested/Demo.tsx',
+        fileName: 'Demo.tsx',
+        source: 'export default function Demo() {}',
+        extraFiles: {
+          '../helper.tsx': { source: 'export const helper = 1;' },
+          '../../utils/../shared.ts': { source: 'export const shared = 2;' }, // resolves to ../shared.ts -> 1 back step
+          '../../../config.json': { source: '{"config": true}', metadata: true },
+        },
+      };
+
+      const result = addPathsToVariant(variant);
+
+      expect(result.path).toBe('components/deep/nested/Demo.tsx');
+      expect(result.extraFiles!['../helper.tsx'].path).toBe('components/deep/helper.tsx');
+      expect(result.extraFiles!['../../utils/../shared.ts'].path).toBe('components/shared.ts'); // resolves to shared.ts with 2 back steps
+      expect(result.extraFiles!['../../../config.json'].path).toBe('config.json'); // metadata, just resolve
+    });
+
+    it('should handle paths with back navigation that do not start with ../)', () => {
+      const variant: VariantCode = {
+        url: 'file:///lib/components/button/Demo.tsx',
+        fileName: 'Demo.tsx',
+        source: 'export default function Demo() {}',
+        extraFiles: {
+          'foo/../../bar/page.tsx': { source: 'export const page = 1;' }, // resolves to bar/page.tsx with 1 back step
+          'utils/../helper.ts': { source: 'export const helper = 2;' }, // resolves to helper.ts with 0 back steps
+          'deep/nested/../../config.js': { source: 'export const config = 3;' }, // resolves to config.js with 0 back steps
+        },
+      };
+
+      const result = addPathsToVariant(variant);
+
+      expect(result.path).toBe('button/Demo.tsx');
+      // foo/../../bar/page.tsx has backSteps = 1, should be handled as back navigation
+      expect(result.extraFiles!['foo/../../bar/page.tsx'].path).toBe('bar/page.tsx');
+      // utils/../helper.ts has backSteps = 0, should be treated as regular forward path
+      expect(result.extraFiles!['utils/../helper.ts'].path).toBe('button/helper.ts');
+      // deep/nested/../../config.js has backSteps = 0, should be treated as regular forward path
+      expect(result.extraFiles!['deep/nested/../../config.js'].path).toBe('button/config.js');
+    });
+  });
 });
