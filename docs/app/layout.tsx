@@ -1,7 +1,6 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import Link from 'next/link';
 import styles from './layout.module.css';
 
 const geistSans = Geist({
@@ -15,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'MUI Docs Infra Documentation',
-  description: 'How to use the MUI Docs-Infra package',
+  title: 'MUI Infra Documentation',
+  description: 'How to use the MUI Infra packages',
 };
 
 export default function RootLayout({
@@ -27,9 +26,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${styles.body}`}>
-        <div className={styles.header}>
-          <Link href="/">MUI Docs Infra</Link>
-        </div>
         <div className={styles.container}>{children}</div>
       </body>
     </html>

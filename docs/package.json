@@ -1,5 +1,5 @@
 {
-  "name": "@mui/internal-docs-infra-docs",
+  "name": "@mui/internal-infra-docs",
   "version": "0.1.0",
   "private": true,
   "scripts": {
