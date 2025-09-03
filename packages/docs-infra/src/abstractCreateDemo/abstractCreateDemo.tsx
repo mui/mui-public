@@ -1,6 +1,16 @@
 import * as React from 'react';
 import { CodeHighlighter } from '../CodeHighlighter';
-import type { Code, Components, ContentLoadingProps, ContentProps } from '../CodeHighlighter/types';
+import type {
+  Code,
+  CodeHighlighterProps,
+  Components,
+  ContentLoadingProps,
+  ContentProps,
+  LoadCodeMeta,
+  LoadSource,
+  LoadVariantMeta,
+  ParseSource,
+} from '../CodeHighlighter/types';
 import { createDemoDataWithVariants } from '../createDemoData';
 import { DemoGlobalData } from '../createDemoData/types';
 
@@ -10,6 +20,7 @@ type CreateDemoMeta = {
   displayName?: string;
   variantType?: string;
   skipPrecompute?: boolean;
+  highlightAt?: CodeHighlighterProps<{}>['highlightAt'];
   precompute?: Code;
   ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
 };
@@ -21,7 +32,14 @@ type AbstractCreateDemoOptions<T extends {}> = {
   controlled?: boolean;
   demoGlobalData?: DemoGlobalData[];
   variantTypes?: Record<string, string>;
-}; // TODO: allow passing any CodeHighlighter prop
+  highlightAt?: CodeHighlighterProps<{}>['highlightAt'];
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
+  sourceParser?: Promise<ParseSource>;
+};
 
 export function abstractCreateDemo<T extends {}>(
   options: AbstractCreateDemoOptions<T>,
@@ -61,7 +79,14 @@ export function abstractCreateDemo<T extends {}>(
         contentProps={props}
         Content={options.DemoContent}
         ContentLoading={options.DemoContentLoading}
+        loadCodeMeta={options.loadCodeMeta}
+        loadVariantMeta={options.loadVariantMeta}
+        loadSource={options.loadSource}
+        sourceParser={options.sourceParser}
+        highlightAt={meta?.highlightAt || options.highlightAt}
         controlled={options.controlled}
+        fallbackUsesExtraFiles={options.fallbackUsesExtraFiles}
+        fallbackUsesAllVariants={options.fallbackUsesAllVariants}
       />
     );
 
