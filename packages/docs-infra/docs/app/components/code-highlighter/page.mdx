@@ -140,55 +140,80 @@ Your components can even appear differently, but we recommend keeping them as si
 
 ---
 
-import { CodeTransformations } from './demos/code-transformed';
+import { DemoCodeHighlighterCodeTransformed } from './demos/code-transformed';
 
-<CodeTransformations.Title />
+<DemoCodeHighlighterCodeTransformed.Title />
 
 One of CodeHighlighter's most powerful features is automatic code transformation. Write your examples in TypeScript, and users can instantly see the JavaScript equivalent:
 
-{/* <CodeTransformations /> */}
+<DemoCodeHighlighterCodeTransformed />
 
 [See Demo](./demos/code-transformed/)
 
 ---
 
-import { LazyHighlighting } from './demos/code-highlight-idle';
+import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
 
-<LazyHighlighting.Title />
+<DemoCodeHighlighterCodeHighlightIdle.Title />
 
 For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
 
-{/* <LazyHighlighting /> */}
+<DemoCodeHighlighterCodeHighlightIdle />
 
 [See Demo](./demos/code-highlight-idle/)
 
 ---
 
-import { FallbackContent } from './demos/demo-fallback';
+import { DemoCodeHighlighterDemoFallback } from './demos/demo-fallback';
 
-<FallbackContent.Title />
+<DemoCodeHighlighterDemoFallback.Title />
 
 Good user experience means showing meaningful feedback during loading.
-The fallback is also not provided any data other than the rendered content html and a list of fileNames.
+The fallback content is also what search engines and AI bots see in the initial HTML, making it crucial for SEO and content discovery.
 `CodeHighlighter` supports custom loading components and skeleton loaders:
 
-{/* <FallbackContent /> */}
+<DemoCodeHighlighterDemoFallback />
 
 [See Demo](./demos/demo-fallback/)
 
 ---
 
-import { ServerSideLoading } from './demos/demo-server-loaded';
+import { DemoCodeHighlighterDemoFallbackAllFiles } from './demos/demo-fallback-all-files';
 
-<ServerSideLoading.Title />
+<DemoCodeHighlighterDemoFallbackAllFiles.Title />
+
+When `fallbackUsesExtraFiles` is enabled, the fallback content receives all extra files from the selected variant. This means search engines and AI bots will see all the component's related files (CSS, utilities, etc.) in the initial HTML, improving content discoverability. Note that the complete list of filenames is always available for navigation, regardless of this setting:
+
+<DemoCodeHighlighterDemoFallbackAllFiles />
+
+[See Demo](./demos/demo-fallback-all-files/)
+
+---
+
+import { DemoCodeHighlighterFallbackAllVariants } from './demos/demo-fallback-all-variants';
+
+<DemoCodeHighlighterFallbackAllVariants.Title />
+
+When `fallbackUsesAllVariants` is enabled, the fallback content receives data for all available variants. This ensures that search engines and AI bots can see all implementation approaches (CSS Modules, Tailwind, etc.) in the initial HTML, making your documentation more comprehensive for automated indexing. Note that the complete list of filenames is always available for navigation, regardless of this setting:
+
+<DemoCodeHighlighterFallbackAllVariants />
+
+[See Demo](./demos/demo-fallback-all-variants/)
+
+---
+
+import { DemoCodeHighlighterDemoServerLoaded } from './demos/demo-server-loaded';
+
+<DemoCodeHighlighterDemoServerLoaded.Title />
 
 For more dynamic use cases, you can load code content from external sources or APIs at runtime:
 
-{/* <ServerSideLoading /> */}
+> [!NOTE]
+> This example uses React Server Components (RSC) to load and parse files at request time instead of relying on the webpack loader for build-time precomputation. This approach is recommended when rendering based on dynamic routes (like `app/components/[component].tsx`) where the content isn't known at build time. In these scenarios, you'd typically use the `<CodeHighlighter>` component directly rather than the factory pattern with `createDemo()`.
+
+<DemoCodeHighlighterDemoServerLoaded />
 
 [See Demo](./demos/demo-server-loaded/)
-
----
 
 ### Client-Side Rendering
 
@@ -196,15 +221,11 @@ For more dynamic use cases, you can load code content from external sources or A
 
 You can do so by using the [`CodeProvider`](../code-provider/page.mdx) component, which provides the necessary context for CodeHighlighter to function correctly on the client.
 
----
-
 ### Controlled Code Scenarios
 
 `CodeHighlighter` also supports controlled scenarios where you need to manage code state externally. This is useful for interactive demos where code changes affect other parts of your application or when you need to synchronize code across multiple components.
 
 You can use the [`CodeControllerContext`](../code-controller-context/page.mdx) for this purpose, which provides a controlled environment for managing code state in interactive scenarios.
-
----
 
 ## Authoring Recommendations
 
@@ -320,7 +341,7 @@ See Demo
 ```
 
 > [!TIP]
-> **For Documentation Tooling**: If you're building tooling to render these demos in a web interface, you can use a remark plugin to automatically remove the "See Demo" links and horizontal rule separators (`---`) from the rendered output, since the interactive demos provide their own navigation.
+> **For Documentation Tooling**: If you're building tooling to render these demos in a web interface, you can use a remark plugin to automatically remove the "See Demo" links and horizontal rule separators (`---`) from the rendered output, since the interactive demos provide their own navigation. See the [`transformMarkdownDemoLinks`](../../functions/transform-markdown-demo-links/) plugin documentation for implementation details.
 
 ## Build-Time vs Server Rendering vs Client Rendering
 
@@ -425,8 +446,27 @@ The `CodeHighlighter` component accepts the following props:
 
 - `ContentLoading` (React.ComponentType): Loading state component
 - `ErrorHandler` (React.ComponentType): Error display component
-- `fallbackUsesExtraFiles` (boolean): Include extra files in fallback
-- `fallbackUsesAllVariants` (boolean): Include all variants in fallback
+- `fallbackUsesExtraFiles` (boolean): Include extra files content in fallback
+- `fallbackUsesAllVariants` (boolean): Include all variants content in fallback
+
+> **SEO & AI Indexing Note**: The `fallbackUsesExtraFiles` and `fallbackUsesAllVariants` options determine what content is included in the initial HTML that search engines and AI bots see. Enabling these options ensures better content discoverability and more comprehensive automated indexing of your code examples.
+
+> **File Navigation**: Regardless of these settings, the complete list of filenames (`fileNames`) is always provided in the fallback content, ensuring users can see the file structure and navigate between files even during loading states.
+
+### Fallback Content Behavior
+
+The fallback content always receives certain data for navigation and UX consistency, while other content depends on the configuration:
+
+**Always Provided:**
+- `fileNames` - Complete list of all available files for navigation
+- `name`, `slug`, `url` - Basic demo metadata
+- `component` - The selected variant's React component
+- `components` - Full components object (only when `fallbackUsesAllVariants: true`)
+
+**Conditionally Provided:**
+- `source` - Main file content (always for selected variant)
+- `extraSource` - Extra files content (only when `fallbackUsesExtraFiles: true`)
+- `extraVariants` - All variants data (only when `fallbackUsesAllVariants: true`)
 
 ## Best Practices
 

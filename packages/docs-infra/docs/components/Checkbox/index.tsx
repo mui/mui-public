@@ -26,10 +26,9 @@ export function Checkbox({ defaultChecked, name = 'checkbox', className, style }
         name={name}
         checked={checked}
         onChange={onChange}
-        className={className}
         style={style}
       />
-      <span className={styles.checkmark}></span>
+      <span className={[styles.checkmark, className].join(' ')}></span>
       <span className={styles['sr-only']}>Checkbox</span>
     </label>
   );

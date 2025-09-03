@@ -1,7 +1,4 @@
-import { createDemo } from '../createDemo';
-import Default from './IdleHighlightCode';
+import { createDemo } from '@/functions/createDemo';
+import { BasicCode } from './BasicCode';
 
-export const LazyHighlighting = createDemo(import.meta.url, Default, {
-  name: 'Lazy Highlighting',
-  slug: 'lazy-highlighting',
-});
+export const DemoCodeHighlighterCodeHighlightIdle = createDemo(import.meta.url, BasicCode);

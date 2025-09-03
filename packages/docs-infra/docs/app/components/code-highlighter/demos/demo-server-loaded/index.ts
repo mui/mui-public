@@ -1,7 +1,4 @@
-import { createDemo } from '../createDemo';
-import Default from './ServerLoadedDemo';
+import { createDemo } from '@/functions/createDemo';
+import { DemoCheckboxBasic } from './demo-basic';
 
-export const ServerSideLoading = createDemo(import.meta.url, Default, {
-  name: 'Server-Side Loading',
-  slug: 'server-side-loading',
-});
+export const DemoCodeHighlighterDemoServerLoaded = createDemo(import.meta.url, DemoCheckboxBasic);

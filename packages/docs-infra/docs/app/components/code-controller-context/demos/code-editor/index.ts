@@ -1,4 +1,4 @@
-import { createDemo } from '../../../../../functions/createDemo';
+import { createDemo } from '@/functions/createDemo';
 import { CodeEditor } from './CodeEditor';
 
 export const DemoCodeControllerCodeEditor = createDemo(import.meta.url, CodeEditor, {

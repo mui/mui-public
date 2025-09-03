@@ -1,7 +1,4 @@
 import { createDemo } from '../createDemo';
-import Default from './FallbackDemo';
+import { DemoCheckboxRed } from './demo-red';
 
-export const FallbackContent = createDemo(import.meta.url, Default, {
-  name: 'Fallback Content',
-  slug: 'fallback-content',
-});
+export const DemoCodeHighlighterDemoFallback = createDemo(import.meta.url, DemoCheckboxRed);

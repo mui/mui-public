@@ -1,4 +1,4 @@
-import { createDemo } from '../../../../../functions/createDemo';
+import { createDemo } from '@/functions/createDemo';
 import { DemoCheckboxRed } from './demo-default';
 
 import './mock-tailwind.css';

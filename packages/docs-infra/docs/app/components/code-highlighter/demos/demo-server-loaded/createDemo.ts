@@ -2,9 +2,13 @@ import {
   createDemoFactory,
   createDemoWithVariantsFactory,
 } from '@mui/internal-docs-infra/abstractCreateDemo';
+import { loadServerCodeMeta } from '@mui/internal-docs-infra/pipeline/loadServerCodeMeta';
+import { loadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 
-import { DemoContent } from './DemoContent';
-import { DemoTitle } from './DemoTitle';
+import { DemoContent } from '../DemoContent';
+
+const sourceParser = createParseSource();
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -14,7 +18,9 @@ import { DemoTitle } from './DemoTitle';
  */
 export const createDemo = createDemoFactory({
   DemoContent,
-  DemoTitle,
+  loadCodeMeta: loadServerCodeMeta,
+  loadSource: loadServerSource,
+  sourceParser,
 });
 
 /**
@@ -26,5 +32,7 @@ export const createDemo = createDemoFactory({
  */
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
-  DemoTitle,
+  loadCodeMeta: loadServerCodeMeta,
+  loadSource: loadServerSource,
+  sourceParser,
 });

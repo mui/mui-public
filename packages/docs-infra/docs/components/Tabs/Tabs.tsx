@@ -11,9 +11,10 @@ export interface TabsProps {
   tabs: Tab[];
   selectedTabId?: string;
   onTabSelect: (tabId: string) => void;
+  disabled?: boolean;
 }
 
-export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
+export function Tabs({ tabs, selectedTabId, onTabSelect, disabled }: TabsProps) {
   const clickName = React.useCallback(() => {
     onTabSelect(tabs[0].id);
   }, [onTabSelect, tabs]);
@@ -47,6 +48,7 @@ export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
       className={styles.tabsRoot}
       value={selectedTabId || tabs[0]?.id}
       onValueChange={onTabSelect}
+      aria-disabled={disabled}
     >
       <TabsParts.List className={styles.tabsList}>
         {tabs.map((tab, index) => {
@@ -70,7 +72,7 @@ export function Tabs({ tabs, selectedTabId, onTabSelect }: TabsProps) {
             .join(' ');
 
           return (
-            <TabsParts.Tab key={index} className={tabClasses} value={tab.id}>
+            <TabsParts.Tab key={index} className={tabClasses} disabled={disabled} value={tab.id}>
               {tab.name}
             </TabsParts.Tab>
           );

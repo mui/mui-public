@@ -6,11 +6,12 @@ export interface Props {
   items: { label: string; value: string }[];
   value?: string;
   onValueChange?: (value: string) => void;
+  disabled?: boolean;
 }
 
-export default function Select({ items, value, onValueChange }: Props) {
+export default function Select({ items, value, onValueChange, disabled }: Props) {
   return (
-    <SelectParts.Root items={items} value={value} onValueChange={onValueChange}>
+    <SelectParts.Root items={items} value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectParts.Trigger className={styles.Select}>
         <SelectParts.Value />
         <SelectParts.Icon className={styles.SelectIcon}>

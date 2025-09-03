@@ -3,8 +3,8 @@ import {
   createDemoWithVariantsFactory,
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 
-import { DemoContent } from './DemoContent';
-import { DemoTitle } from './DemoTitle';
+import { DemoContentLoading } from './DemoContentLoading';
+import { DemoContent } from '../DemoContent';
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -13,8 +13,9 @@ import { DemoTitle } from './DemoTitle';
  * @param meta Additional meta for the demo.
  */
 export const createDemo = createDemoFactory({
+  DemoContentLoading,
   DemoContent,
-  DemoTitle,
+  fallbackUsesExtraFiles: true,
 });
 
 /**
@@ -25,6 +26,7 @@ export const createDemo = createDemoFactory({
  * @param meta Additional meta for the demo.
  */
 export const createDemoWithVariants = createDemoWithVariantsFactory({
+  DemoContentLoading,
   DemoContent,
-  DemoTitle,
+  fallbackUsesExtraFiles: true,
 });
