@@ -414,7 +414,6 @@ describe('getDocsInfraMdxOptions', () => {
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
-      ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
     ]);
 
     expect(result.rehypePlugins).toEqual([['@mui/internal-docs-infra/pipeline/transformHtmlCode']]);
@@ -431,7 +430,6 @@ describe('getDocsInfraMdxOptions', () => {
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
-      ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
       ['remark-emoji'],
     ]);
 
