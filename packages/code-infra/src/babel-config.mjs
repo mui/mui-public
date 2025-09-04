@@ -23,10 +23,10 @@ export function getBaseConfig({
   debug = false,
   optimizeClsx = false,
   removePropTypes = false,
+  noResolveImports = false,
   bundle,
   runtimeVersion,
   outExtension,
-  noResolveImports,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
