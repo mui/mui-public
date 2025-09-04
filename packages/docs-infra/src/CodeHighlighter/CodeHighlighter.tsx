@@ -248,8 +248,6 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   });
 
   return <CodeHighlighterClient {...clientProps} />;
-
-  // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no setCode() or setSelection()
 }
 
 function renderCodeHighlighter<T extends {}>(
