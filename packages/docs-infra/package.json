@@ -18,8 +18,6 @@
     "./useDemo": "./src/useDemo/index.ts",
     "./useErrors": "./src/useErrors/index.ts",
     "./useLocalStorageState": "./src/useLocalStorageState/index.ts",
-    "./useOnHydrate": "./src/useOnHydrate/index.ts",
-    "./useOnIdle": "./src/useOnIdle/index.ts",
     "./usePreference": "./src/usePreference/index.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
