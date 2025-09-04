@@ -1,3 +1,5 @@
+import 'server-only';
+
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
