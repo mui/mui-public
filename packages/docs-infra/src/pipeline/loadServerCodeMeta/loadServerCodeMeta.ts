@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { readFile } from 'node:fs/promises';
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';

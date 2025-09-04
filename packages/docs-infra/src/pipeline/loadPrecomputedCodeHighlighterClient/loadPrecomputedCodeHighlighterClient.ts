@@ -1,3 +1,5 @@
+import 'server-only';
+
 import type { LoaderContext } from 'webpack';
 
 // webpack does not like node: imports

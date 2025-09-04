@@ -1,3 +1,5 @@
+import 'server-only';
+
 import type { LoaderContext } from 'webpack';
 import { loadVariant } from '../../CodeHighlighter/loadVariant';
 import { createParseSource } from '../parseSource';

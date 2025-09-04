@@ -1,3 +1,5 @@
+import 'server-only';
+
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import { readFile } from 'fs/promises';
