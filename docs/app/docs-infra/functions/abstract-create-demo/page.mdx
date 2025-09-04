@@ -34,6 +34,8 @@ export const createDemoWithVariants = (url: string, variants: Record<string, Rea
 To quickly implement these factory functions, use the `abstractCreateDemo` utilities:
 
 ```ts
+import 'server-only'; // this should be omitted if using the <CodeProvider> or the pages router
+
 import {
   createDemoFactory,
   createDemoWithVariantsFactory,
@@ -94,6 +96,9 @@ export function DemoThemeProvider({ children }: { children: React.ReactNode }) {
 
 ```ts
 // docs/src/utils/createDemo.ts
+
+import 'server-only'; // this should be omitted if using the <CodeProvider> or the pages router
+
 import { createDemoFactory } from '@mui/internal-docs-infra/abstractCreateDemo';
 import { Demo as DemoContent } from '../components/Demo/Demo';
 import { DemoDataTheme } from '../demo-data/theme';

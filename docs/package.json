@@ -21,6 +21,7 @@
     "react-dom": "^19.0.0",
     "react-runner": "^1.0.5",
     "remark-gfm": "^4.0.1",
+    "server-only": "^0.0.1",
     "use-editable": "^2.3.3"
   },
   "devDependencies": {
