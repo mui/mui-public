@@ -70,23 +70,52 @@ export function useUrlHashState(options: UseUrlHashStateOptions = {}): UseUrlHas
     formatHash = defaultFormatHash,
   } = options;
 
-  const [hash, setHashState] = React.useState<string | null>(null);
-  const [hasProcessedInitialHash, setHasProcessedInitialHash] = React.useState(false);
   const [hasUserInteraction, setHasUserInteraction] = React.useState(false);
 
-  // Read hash from URL
-  const readHash = React.useCallback((): string | null => {
+  // Store the subscriber callback so we can trigger it manually
+  const subscriberRef = React.useRef<(() => void) | null>(null);
+
+  // Subscribe to hash changes
+  const subscribe = React.useCallback(
+    (callback: () => void) => {
+      subscriberRef.current = callback;
+      if (!watchChanges || typeof window === 'undefined') {
+        return () => {
+          subscriberRef.current = null;
+        };
+      }
+      window.addEventListener('hashchange', callback);
+      return () => {
+        window.removeEventListener('hashchange', callback);
+        subscriberRef.current = null;
+      };
+    },
+    [watchChanges],
+  );
+
+  // Get current hash value (client-side)
+  const getSnapshot = React.useCallback((): string | null => {
     if (typeof window === 'undefined') {
       return null;
     }
-
     const currentHash = window.location.hash;
     if (!currentHash) {
       return null;
     }
-
     return parseHash(currentHash);
   }, [parseHash]);
+
+  // Get server snapshot (always null for SSR)
+  const getServerSnapshot = React.useCallback((): null => null, []);
+
+  // Use useSyncExternalStore for hash synchronization
+  const urlHashState = React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  // Track if initial hash has been processed (true when readOnMount is true, false when readOnMount is false)
+  const hasProcessedInitialHash = readOnMount;
+
+  // Determine the hash value based on readOnMount option
+  const hash = readOnMount ? urlHashState : null;
 
   // Set hash in URL and state
   const setHash = React.useCallback(
@@ -110,7 +139,10 @@ export function useUrlHashState(options: UseUrlHashStateOptions = {}): UseUrlHas
         window.history.pushState(null, '', newUrl);
       }
 
-      setHashState(value);
+      // Trigger the subscriber to update useSyncExternalStore
+      if (subscriberRef.current) {
+        subscriberRef.current();
+      }
     },
     [formatHash],
   );
@@ -119,35 +151,6 @@ export function useUrlHashState(options: UseUrlHashStateOptions = {}): UseUrlHas
   const markUserInteraction = React.useCallback(() => {
     setHasUserInteraction(true);
   }, []);
-
-  // Handle hash changes from browser navigation
-  const handleHashChange = React.useCallback(() => {
-    const newHash = readHash();
-    setHashState(newHash);
-  }, [readHash]);
-
-  // Read initial hash on mount
-  React.useEffect(() => {
-    if (!readOnMount || hasProcessedInitialHash) {
-      return;
-    }
-
-    const initialHash = readHash();
-    setHashState(initialHash);
-    setHasProcessedInitialHash(true);
-  }, [readOnMount, readHash, hasProcessedInitialHash]);
-
-  // Watch for hash changes
-  React.useEffect(() => {
-    if (!watchChanges || typeof window === 'undefined') {
-      return undefined;
-    }
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, [watchChanges, handleHashChange]);
 
   return {
     hash,
