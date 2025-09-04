@@ -140,7 +140,7 @@ export default function getBabelConfig(api) {
     bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
     noResolveImports = api.env('test') || process.env.NODE_ENV === 'test';
   } else {
-    bundle = api.bundle || 'cjs';
+    bundle = api.bundle || 'esm';
     noResolveImports = api.noResolveImports || false;
   }
 
