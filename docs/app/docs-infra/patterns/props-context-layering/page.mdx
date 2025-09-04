@@ -11,19 +11,22 @@ This pattern solves a fundamental challenge: components need to render before th
 A key driver for this pattern is React Server Components' serialization limitations:
 
 **Cannot pass across server-client boundary:**
+
 - Functions (event handlers, utilities, transformers)
 - Class instances (complex objects, parsed data structures)
 - Non-serializable values (Date objects, Map/Set, symbols)
 
 **Can pass across server-client boundary:**
+
 - Primitive values (strings, numbers, booleans)
 - Plain objects and arrays
 - **React Nodes** (pre-rendered JSX elements)
 
 **Example of the constraint:**
+
 ```tsx
 // This won't work - functions can't serialize
-<ClientComponent 
+<ClientComponent
   onSubmit={(data) => console.log(data)}
   parser={parseComplexData}
 />
@@ -36,6 +39,7 @@ A key driver for this pattern is React Server Components' serialization limitati
 ```
 
 **Why Props Context Layering helps:**
+
 - **Props**: Carry serializable data and pre-rendered React Nodes from server
 - **Context**: Provide functions and complex objects on the client side
 - **Result**: Same API works in both environments without serialization issues
@@ -59,11 +63,13 @@ Components must render on the server before crossing the client boundary. When u
 **The solution**: Guard async operations behind conditions: only execute them when the data is actually needed and the environment supports it.
 
 **When to defer async work**:
+
 - Props already contain the required data → skip async fetching
 - Heavy functions are missing → assume they'll be provided later via context
 - `forceClient` flag is set → defer to `useEffect` instead of server async
 
 **Example scenarios**:
+
 ```tsx
 // Conditional async component with explicit control
 async function MaybeLoadData({ data, url, forceClient = false }) {
@@ -78,23 +84,21 @@ async function MaybeLoadData({ data, url, forceClient = false }) {
 // Client-side equivalent for when forceClient=true
 function LoadDataOnClient({ data, url, forceClient = false }) {
   const [loadedData, setLoadedData] = useState(data);
-  
+
   useEffect(() => {
     // Only load if we're in client mode and missing data
     if (!data && url && forceClient) {
-      fetch(url).then(r => r.json()).then(setLoadedData);
+      fetch(url)
+        .then((r) => r.json())
+        .then(setLoadedData);
     }
   }, [data, url, forceClient]);
-  
+
   return loadedData;
 }
 
 // Usage allows explicit control over async behavior
-<DataComponent 
-  data={serverData} 
-  url="/api/fallback"
-  forceClient={isClientOnlyContext} 
-/>
+<DataComponent data={serverData} url="/api/fallback" forceClient={isClientOnlyContext} />;
 ```
 
 Heavy functions can be provided either as props (server-side) or context (client-side). When using the [Built Factories pattern](../built-factories/page.mdx), expensive operations can even run at build time with caching.
@@ -109,17 +113,17 @@ Heavy functions can be provided either as props (server-side) or context (client
 // useErrors hook - implements Props → Context Layering
 function useErrors(props?: { errors?: Error[] }) {
   const context = useErrorsContext();
-  
+
   // Context errors override props errors (latest wins)
   const errors = context?.errors || props?.errors;
-  
+
   return { errors };
 }
 
 // Usage in components
 function ErrorHandler({ errors }: { errors?: Error[] }) {
   const { errors: effectiveErrors } = useErrors({ errors });
-  
+
   if (!effectiveErrors?.length) return null;
   return <ErrorDisplay errors={effectiveErrors} />;
 }
@@ -130,20 +134,21 @@ function ErrorHandler({ errors }: { errors?: Error[] }) {
 ```ts
 function useCode(contentProps, opts) {
   const context = useCodeHighlighterContextOptional();
-  
+
   // Context code overrides contentProps code when available
   const effectiveCode = context?.code || contentProps.code || {};
-  
+
   // Context URL overrides contentProps URL
   const effectiveUrl = context?.url || contentProps.url;
-  
+
   // ... rest of implementation
 }
 ```
 
 **Benefits**:
+
 - **Server components** can pass data via props normally
-- **Client components** get enhanced data via context automatically  
+- **Client components** get enhanced data via context automatically
 - **Same API** works in both environments
 - **No mental overhead** for consumers—they just pass props
 
@@ -169,12 +174,14 @@ Both preserve the same API shape and timing semantics.
 
 **The goal**: Avoid shipping expensive functions to the client unless actually needed.
 
-**The strategy**: 
+**The strategy**:
+
 - Heavy functions are **imported conditionally**—if not imported, they're not bundled
 - Provide them via props (server-side) or context (client-side) only when needed
 - Keep the core component logic lightweight
 
 **Example**:
+
 ```tsx
 // Heavy functions always bundled
 import { expensiveParser, complexTransformer } from './heavyUtils';
@@ -182,14 +189,14 @@ import { expensiveParser, complexTransformer } from './heavyUtils';
 // Heavy functions conditionally imported
 function MyProvider({ children }: { children: React.ReactNode }) {
   const [heavyFunctions, setHeavyFunctions] = useState();
-  
+
   const loadHeavyFunctions = useCallback(async () => {
     if (!heavyFunctions) {
       const { expensiveParser, complexTransformer } = await import('./heavyUtils');
       setHeavyFunctions({ expensiveParser, complexTransformer });
     }
   }, [heavyFunctions]);
-  
+
   return (
     <HeavyFunctionsContext.Provider value={heavyFunctions}>
       {children}
@@ -208,7 +215,7 @@ When implementing Props → Context Layering:
 
 - **Create a merging hook** that accepts props and checks context
 - **Context values override props** (latest data wins)
-- **Handle undefined context gracefully** (server/client compatibility) 
+- **Handle undefined context gracefully** (server/client compatibility)
 - **Guard async operations** behind conditions
 - **Heavy functions via dynamic imports** + context providers
 - **Same component API** works in server and client environments
@@ -219,6 +226,6 @@ When implementing Props → Context Layering:
 This pattern is used throughout the docs-infra system:
 
 - **[`useErrors`](../../hooks/use-errors/page.mdx)**: Server-side syntax errors → client-side runtime errors
-- **[`useCode`](../../hooks/use-code/page.mdx)**: Static code props → dynamic context code  
+- **[`useCode`](../../hooks/use-code/page.mdx)**: Static code props → dynamic context code
 - **[`useDemo`](../../hooks/use-demo/page.mdx)**: Build-time demos → interactive client demos
 - **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Server highlighting → client enhancement
