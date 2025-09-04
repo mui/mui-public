@@ -10,8 +10,6 @@ import { hasAllVariants } from './hasAllVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
-import { useOnHydrate } from '../useOnHydrate';
-import { useOnIdle } from '../useOnIdle';
 import { mergeMetadata } from './mergeMetadata';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -310,9 +308,33 @@ function useCodeParsing({
 }) {
   const { parseSource, parseCode } = useCodeContext();
 
-  // Use timing hooks to determine when to highlight
-  const isHydrated = useOnHydrate();
-  const isIdle = useOnIdle();
+  // Use useSyncExternalStore to detect hydration
+  const subscribe = React.useCallback(() => () => {}, []);
+  const getSnapshot = React.useCallback(() => true, []);
+  const getServerSnapshot = React.useCallback(() => false, []);
+  const useIsHydrated = () => React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  const isHydrated = useIsHydrated();
+  const [isHighlightAllowed, setIsHighlightAllowed] = React.useState(
+    highlightAt === 'init' || (highlightAt === 'hydration' && isHydrated),
+  );
+
+  React.useEffect(() => {
+    if (highlightAt === 'idle') {
+      const idleRequest = window.requestIdleCallback(() => {
+        setIsHighlightAllowed(true);
+      });
+      return () => window.cancelIdleCallback(idleRequest);
+    }
+    return undefined;
+  }, [highlightAt]);
+
+  // Update highlight allowed state when hydration completes
+  React.useEffect(() => {
+    if (highlightAt === 'hydration' && isHydrated) {
+      setIsHighlightAllowed(true);
+    }
+  }, [highlightAt, isHydrated]);
 
   // Determine if we should highlight based on the highlightAt setting
   const shouldHighlight = React.useMemo(() => {
@@ -320,16 +342,8 @@ function useCodeParsing({
       return false;
     }
 
-    switch (highlightAt) {
-      case 'hydration':
-        return isHydrated;
-      case 'idle':
-        return isIdle;
-      case 'init':
-      default:
-        return true;
-    }
-  }, [readyForContent, highlightAt, isHydrated, isIdle]);
+    return isHighlightAllowed;
+  }, [readyForContent, isHighlightAllowed]);
 
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
