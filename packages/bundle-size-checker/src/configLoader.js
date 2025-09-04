@@ -88,6 +88,10 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
 function findExports(exportsObj) {
   const paths = [];
   for (const [key, value] of Object.entries(exportsObj)) {
+    // ignore null values
+    if (!value) {
+      continue;
+    }
     if (key.startsWith('.')) {
       paths.push(key);
     } else {
