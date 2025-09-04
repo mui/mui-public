@@ -14,8 +14,20 @@ describe('useUrlHashState', () => {
   };
 
   const mockHistory = {
-    pushState: vi.fn(),
-    replaceState: vi.fn(),
+    pushState: vi.fn((state, title, url) => {
+      // Update the mock location when history changes
+      if (url) {
+        const hashIndex = url.indexOf('#');
+        mockLocation.hash = hashIndex >= 0 ? url.substring(hashIndex) : '';
+      }
+    }),
+    replaceState: vi.fn((state, title, url) => {
+      // Update the mock location when history changes
+      if (url) {
+        const hashIndex = url.indexOf('#');
+        mockLocation.hash = hashIndex >= 0 ? url.substring(hashIndex) : '';
+      }
+    }),
   };
 
   beforeEach(() => {
@@ -157,6 +169,29 @@ describe('useUrlHashState', () => {
         result.current.setHash('test-hash');
       });
 
+      // When using formatHash without corresponding parseHash, the hash value will be the formatted version
+      expect(result.current.hash).toBe('custom:test-hash');
+      expect(mockHistory.replaceState).toHaveBeenCalledWith(
+        null,
+        '',
+        '/test?param=value#custom:test-hash',
+      );
+    });
+
+    it('should use custom formatHash and parseHash functions together', () => {
+      const formatHash = (value: string) => `custom:${value}`;
+      const parseHash = (hash: string) => {
+        const withoutHash = hash.slice(1); // Remove '#'
+        return withoutHash.startsWith('custom:') ? withoutHash.slice(7) : withoutHash;
+      };
+
+      const { result } = renderHook(() => useUrlHashState({ formatHash, parseHash }));
+
+      act(() => {
+        result.current.setHash('test-hash');
+      });
+
+      // When using both formatHash and parseHash, the hash value should be the logical value
       expect(result.current.hash).toBe('test-hash');
       expect(mockHistory.replaceState).toHaveBeenCalledWith(
         null,
