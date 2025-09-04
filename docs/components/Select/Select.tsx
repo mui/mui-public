@@ -9,7 +9,7 @@ export interface Props {
   disabled?: boolean;
 }
 
-export default function Select({ items, value, onValueChange, disabled }: Props) {
+export function Select({ items, value, onValueChange, disabled }: Props) {
   return (
     <SelectParts.Root items={items} value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectParts.Trigger className={styles.Select}>

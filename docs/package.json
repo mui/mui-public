@@ -6,8 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build-exp": "next build --turbopack",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-beta.1",
@@ -25,14 +24,11 @@
     "use-editable": "^2.3.3"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@next/bundle-analyzer": "^15.5.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@wooorm/starry-night": "^3.8.0",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.4",
     "typescript": "^5"
   }
 }

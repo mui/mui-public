@@ -3,11 +3,11 @@
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter';
 import { Tabs } from '@/components/Tabs';
+import { Select } from '@/components/Select';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
 
 import '@wooorm/starry-night/style/light';
-import Select from '@/components/Select/Select';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
