@@ -1,6 +1,6 @@
 previews:
   generation: automatic
-  expireAfterDays: 7
+  expireAfterDays: 6
 
 services:
   - type: web

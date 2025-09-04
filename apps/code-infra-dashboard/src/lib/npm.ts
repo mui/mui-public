@@ -1,3 +1,5 @@
+import { fetchJson } from '../utils/http';
+
 const HISTORIC_DATA_BASE_URL =
   'https://raw.githubusercontent.com/Janpot/npm-versions-tracker/refs/heads/master';
 
@@ -42,21 +44,6 @@ export interface TimeSeriesDataPoint {
   timestamp: string;
   value: number;
   version: string;
-}
-
-interface FetchJsonOptions {
-  ignoreHttpErrors?: boolean;
-}
-
-async function fetchJson<T = unknown>(
-  url: string,
-  { ignoreHttpErrors = false }: FetchJsonOptions = {},
-): Promise<T> {
-  const response = await fetch(url);
-  if (!ignoreHttpErrors && !response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText} while fetching ${url}`);
-  }
-  return response.json();
 }
 
 export const fetchNpmPackageSearch = async (query: string): Promise<SearchResult[]> => {
