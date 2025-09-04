@@ -1,20 +1,25 @@
-import * as helperModuleImports from '@babel/helper-module-imports';
-import * as babel from '@babel/core';
-import * as fs from 'node:fs';
-import * as nodePath from 'node:path';
-import finder from 'find-package-json';
+// @ts-check
+
+const helperModuleImports = require('@babel/helper-module-imports');
+const fs = require('fs');
+const nodePath = require('path');
+const finder = require('find-package-json');
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
+ * @param {string} importPath
+ * @returns {string}
  */
-function toPosixPath(importPath: string): string {
+function toPosixPath(importPath) {
   return nodePath.normalize(importPath).split(nodePath.sep).join(nodePath.posix.sep);
 }
 
 /**
  * Converts a file path to a node import specifier.
+ * @param {string} importPath
+ * @returns {string}
  */
-function pathToNodeImportSpecifier(importPath: string): string {
+function pathToNodeImportSpecifier(importPath) {
   const normalized = toPosixPath(importPath);
   return normalized.startsWith('/') || normalized.startsWith('.') ? normalized : `./${normalized}`;
 }
@@ -22,30 +27,29 @@ function pathToNodeImportSpecifier(importPath: string): string {
 const COMMENT_OPT_IN_MARKER = 'minify-error';
 const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
 
-export interface PluginState extends babel.PluginPass {
-  updatedErrorCodes?: boolean;
-  formatErrorMessageIdentifier?: babel.types.Identifier;
-}
+/**
+ * @typedef {import('@babel/core')} babel
+ */
 
-export type MissingError = 'annotate' | 'throw' | 'write';
-
-export interface Options {
-  errorCodesPath: string;
-  missingError?: MissingError;
-  runtimeModule?: string;
-  detection?: 'opt-in' | 'opt-out';
-  outExtension?: string;
-}
-
-interface ExtractedMessage {
-  message: string;
-  expressions: babel.types.Expression[];
-}
+/**
+ * @typedef {babel.PluginPass & {updatedErrorCodes?: boolean, formatErrorMessageIdentifier?: babel.types.Identifier}} PluginState
+ * @typedef {'annotate' | 'throw' | 'write'} MissingError
+ * @typedef {{
+ *   errorCodesPath: string,
+ *   missingError: MissingError,
+ *   runtimeModule?: string,
+ *   detection?: 'opt-in' | 'opt-out',
+ *   outExtension?: string
+ * }} Options
+ */
 
 /**
  * Extracts the message and expressions from a node.
+ * @param {babel.types} t
+ * @param {babel.types.Node} node
+ * @returns {{ message: string, expressions: babel.types.Expression[] } | null}
  */
-function extractMessage(t: typeof babel.types, node: babel.types.Node): ExtractedMessage | null {
+function extractMessage(t, node) {
   if (t.isTemplateLiteral(node)) {
     return {
       message: node.quasis.map((quasi) => quasi.value.cooked).join('%s'),
@@ -76,8 +80,10 @@ function extractMessage(t: typeof babel.types, node: babel.types.Node): Extracte
 
 /**
  * Handles unminifyable errors based on the missingError option.
+ * @param {MissingError} missingError
+ * @param {babel.NodePath} path
  */
-function handleUnminifyableError(missingError: MissingError, path: babel.NodePath): void {
+function handleUnminifyableError(missingError, path) {
   switch (missingError) {
     case 'annotate':
       path.addComment(
@@ -98,17 +104,26 @@ function handleUnminifyableError(missingError: MissingError, path: babel.NodePat
 
 /**
  * Transforms the error message node.
+ * @param {babel.types} t
+ * @param {babel.NodePath} path
+ * @param {babel.types.Expression} messageNode
+ * @param {PluginState} state
+ * @param {Map<string, number>} errorCodesLookup
+ * @param {MissingError} missingError
+ * @param {string} runtimeModule
+ * @param {string} outExtension
+ * @returns {babel.types.Expression | null}
  */
 function transformMessage(
-  t: typeof babel.types,
-  path: babel.NodePath,
-  messageNode: babel.types.Expression,
-  state: PluginState,
-  errorCodesLookup: Map<string, number>,
-  missingError: MissingError,
-  runtimeModule: string,
-  outExtension: string,
-): babel.types.Expression | null {
+  t,
+  path,
+  messageNode,
+  state,
+  errorCodesLookup,
+  missingError,
+  runtimeModule,
+  outExtension,
+) {
   const message = extractMessage(t, messageNode);
   if (!message) {
     handleUnminifyableError(missingError, path);
@@ -165,12 +180,12 @@ function transformMessage(
 
 /**
  * Resolves the runtime module path recursively.
+ * @param {string} runtimeModule
+ * @param {PluginState} state
+ * @param {Set<string>} [visitedModules]
+ * @returns {string}
  */
-function resolveRuntimeModule(
-  runtimeModule: string,
-  state: PluginState,
-  visitedModules = new Set<string>(),
-): string {
+function resolveRuntimeModule(runtimeModule, state, visitedModules = new Set()) {
   if (!runtimeModule.startsWith('#')) {
     return runtimeModule;
   }
@@ -207,31 +222,36 @@ function resolveRuntimeModule(
 }
 
 /**
- * Transform file extension of import specifier.
+ *
+ * @param {string} importSpecifier
+ * @param {string} outExtension
+ * @returns
  */
-function transformExtension(importSpecifier: string, outExtension = '.js'): string {
+function transformExtension(importSpecifier, outExtension = '.js') {
   return importSpecifier.replace(/\.[a-zA-Z0-9]+$/, outExtension);
 }
 
 /**
- * Babel plugin for minifying error messages.
+ * @param {babel} file
+ * @param {Options} options
+ * @returns {babel.PluginObj<PluginState>}
  */
-export default function plugin(
-  { types: t }: typeof babel,
+module.exports = function plugin(
+  { types: t },
   {
     errorCodesPath,
     missingError = 'annotate',
     runtimeModule = '#formatErrorMessage',
     detection = 'opt-in',
     outExtension = '.js',
-  }: Options,
-): babel.PluginObj<PluginState> {
+  },
+) {
   if (!errorCodesPath) {
     throw new Error('errorCodesPath is required.');
   }
 
   const errorCodesContent = fs.readFileSync(errorCodesPath, 'utf8');
-  const errorCodes = JSON.parse(errorCodesContent) as Record<string, string>;
+  const errorCodes = JSON.parse(errorCodesContent);
 
   const errorCodesLookup = new Map(
     Object.entries(errorCodes).map(([key, value]) => [value, Number(key)]),
@@ -240,10 +260,7 @@ export default function plugin(
   return {
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
-      NewExpression(
-        newExpressionPath: babel.NodePath<babel.types.NewExpression>,
-        state: PluginState,
-      ) {
+      NewExpression(newExpressionPath, state) {
         if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
           return;
         }
@@ -318,4 +335,4 @@ export default function plugin(
       }
     },
   };
-}
+};

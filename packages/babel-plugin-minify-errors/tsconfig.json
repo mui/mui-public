@@ -1,13 +1,19 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "es2020",
-    "lib": ["es2020"],
-    "skipLibCheck": true,
-    "module": "es2020",
+    "target": "ES2022",
+    "module": "ESNext",
     "moduleResolution": "node",
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["node"]
+    "isolatedModules": true,
+    "outDir": "./build",
+    "noEmit": true,
+    "composite": true
   },
-  "include": ["src/**/*", "__fixtures__/**/*"]
+  "include": ["."],
+  "exclude": ["node_modules", "build", "__fixtures__"]
 }
