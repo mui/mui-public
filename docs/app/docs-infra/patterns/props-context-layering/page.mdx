@@ -71,34 +71,47 @@ Components must render on the server before crossing the client boundary. When u
 **Example scenarios**:
 
 ```tsx
-// Conditional async component with explicit control
-async function MaybeLoadData({ data, url, forceClient = false }) {
-  // Only fetch if data is missing, we have a URL, and we're not forced to client-side
-  if (!data && url && !forceClient) {
-    const response = await fetch(url);
-    return response.json();
-  }
-  return data; // Use provided data or defer to client
+// IsomorphicData decides whether to fetch on the server or defer to the client.
+// 1. If data already provided -> render immediately.
+// 2. If data missing & we can run async on the server (not forceClient) -> render an async loader.
+// 3. Otherwise -> return a client component that will load data after hydration.
+
+// Synchronous decision component (never async itself)
+function IsomorphicData({ data, url, forceClient = false }) {
+  if (data) return <DataComponent data={data} />; // Already have data
+  if (!forceClient && url) return <ServerDataLoader url={url} />; // Let server do async
+  return <ClientDataLoader initialData={data} url={url} />; // Defer to client
 }
 
-// Client-side equivalent for when forceClient=true
-function LoadDataOnClient({ data, url, forceClient = false }) {
-  const [loadedData, setLoadedData] = useState(data);
+// Async server-capable loader (can be an RSC async component)
+async function ServerDataLoader({ url }) {
+  const res = await fetch(url);
+  const fetched = await res.json();
+  return <DataComponent data={fetched} />;
+}
+
+// Client-only loader (separate module/file marked with 'use client')
+// File: ClientDataLoader.tsx
+// 'use client';
+import React, { useEffect, useState } from 'react';
+
+function ClientDataLoader({ initialData, url }) {
+  const [loaded, setLoaded] = useState(initialData);
 
   useEffect(() => {
-    // Only load if we're in client mode and missing data
-    if (!data && url && forceClient) {
+    if (!loaded && url) {
       fetch(url)
         .then((r) => r.json())
-        .then(setLoadedData);
+        .then(setLoaded)
+        .catch(() => {}); // swallow / handle errors as desired
     }
-  }, [data, url, forceClient]);
+  }, [loaded, url]);
 
-  return loadedData;
+  return <DataComponent data={loaded} />;
 }
 
-// Usage allows explicit control over async behavior
-<DataComponent data={serverData} url="/api/fallback" forceClient={isClientOnlyContext} />;
+// Usage - the same props API; behavior chosen automatically
+<IsomorphicData data={maybePrefetched} url="/api/fallback" forceClient={isClientOnlyContext} />;
 ```
 
 Heavy functions can be provided either as props (server-side) or context (client-side). When using the [Built Factories pattern](../built-factories/page.mdx), expensive operations can even run at build time with caching.
@@ -183,27 +196,90 @@ Both preserve the same API shape and timing semantics.
 **Example**:
 
 ```tsx
-// Heavy functions always bundled
+// Three deployment modes for heavy functions (parsers, transformers, etc.)
+
+// 1. SERVER RENDERING: Import and pass directly as props (never reaches client bundle).
+// File: ServerPage.tsx (React Server Component)
+import 'server-only';
+
 import { expensiveParser, complexTransformer } from './heavyUtils';
 
-// Heavy functions conditionally imported
-function MyProvider({ children }: { children: React.ReactNode }) {
-  const [heavyFunctions, setHeavyFunctions] = useState();
+export function ServerRenderedFeature({ source }) {
+  return (
+    <DataFeature
+      source={source}
+      parser={expensiveParser}
+      transform={complexTransformer}
+    />
+  );
+}
 
-  const loadHeavyFunctions = useCallback(async () => {
-    if (!heavyFunctions) {
-      const { expensiveParser, complexTransformer } = await import('./heavyUtils');
-      setHeavyFunctions({ expensiveParser, complexTransformer });
+// 2. CLIENT RENDERING: Provide lazily through a Provider that only loads after hydration.
+// File: HeavyFunctionsProvider.tsx
+'use client';
+import React, { useCallback, useState, useEffect } from 'react';
+
+const HeavyFunctionsContext = React.createContext(null);
+export function useHeavyFunctions() {
+  return React.useContext(HeavyFunctionsContext);
+}
+
+export function HeavyFunctionsProvider({ children, preload = false }) {
+  const [fns, setFns] = useState(null);
+
+  const ensureLoaded = useCallback(async () => {
+    if (!fns) {
+      const mod = await import('./heavyUtils'); // code-split boundary
+      setFns({ parser: mod.expensiveParser, transform: mod.complexTransformer });
     }
-  }, [heavyFunctions]);
+  }, [fns]);
+
+  // Optional eager load (e.g., user interacted or heuristic)
+  useEffect(() => {
+    if (preload) ensureLoaded();
+  }, [preload, ensureLoaded]);
 
   return (
-    <HeavyFunctionsContext.Provider value={heavyFunctions}>
+    <HeavyFunctionsContext.Provider value={{ ...fns, ensureLoaded }}>
       {children}
     </HeavyFunctionsContext.Provider>
   );
 }
+
+// Usage inside a client component
+function ClientFeature({ source }) {
+  const heavy = useHeavyFunctions();
+  // Trigger load only if user expands advanced panel, etc.
+  const onDemand = () => heavy?.ensureLoaded();
+  const parsed = heavy?.parser ? heavy.parser(source) : null; // fallback UI until ready
+  return <DataFeature source={source} parsed={parsed} onExpand={onDemand} />;
+}
+
+// 3. BUILD-TIME RENDERING (no runtime import):
+// In a build script or static generation step you run heavy logic once and serialize results.
+// File: build/generate-data.ts (executed at build time, not bundled for runtime)
+import { expensiveParser, complexTransformer } from '../src/heavyUtils';
+import fs from 'node:fs';
+const raw = fs.readFileSync('content.txt', 'utf8');
+const parsed = complexTransformer(expensiveParser(raw));
+fs.writeFileSync('dist/precomputed.json', JSON.stringify(parsed));
+
+// File: PrecomputedFeature.tsx (RSC or client) - ONLY loads JSON, not heavy functions.
+import precomputed from '../../dist/precomputed.json';
+export function PrecomputedFeature() {
+  return <DataFeature parsed={precomputed} />; // heavy functions never shipped
+}
 ```
+
+**Tip - Works with Built Factories**: This build-time path composes directly with the [Built Factories pattern](../built-factories/page.mdx). Instead of hand‑writing a separate script you can let a factory call (`createX(import.meta.url, variants?, options?)`) produce and cache the heavy result via a `precompute` injection. Tooling (loader / build step) replaces the original call with one that includes `precompute: { ... }`, so runtime code:
+
+- Keeps the one-line factory contract (identity = `import.meta.url`)
+- Ships only the precomputed data object (no parser / transformer code)
+- Lets a server factory precompute rich metadata while a sibling client factory only receives the minimal externals map
+- Still supports progressive enhancement: props carry precomputed output early, context can re-load heavy functions later (client provider with dynamic `import()`) for live editing or re-parsing
+- Avoids dynamic `import()` entirely when live mutation isn't needed; add it back only in the client enhancement path
+
+If requirements change (need variants, extra metadata, live editing), you update the shared factory implementation—call sites and component APIs stay stable, and Props Context layering continues to deliver the upgraded client experience without breaking server renders.
 
 **Outcome**: Minimal initial bundle, rich functionality loads on-demand.
 
