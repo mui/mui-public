@@ -236,9 +236,6 @@ importers:
 
   packages/babel-plugin-minify-errors:
     dependencies:
-      '@babel/core':
-        specifier: '7'
-        version: 7.28.3
       '@babel/helper-module-imports':
         specifier: ^7.27.1
         version: 7.27.1
@@ -246,6 +243,9 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
     devDependencies:
+      '@babel/core':
+        specifier: ^7.28.3
+        version: 7.28.3
       '@types/babel__core':
         specifier: ^7.20.5
         version: 7.20.5
@@ -258,7 +258,6 @@ importers:
       babel-plugin-tester:
         specifier: ^12.0.0
         version: 12.0.0(@babel/core@7.28.3)
-    publishDirectory: build
 
   packages/babel-plugin-resolve-imports:
     dependencies:
@@ -377,7 +376,7 @@ importers:
         version: link:../babel-plugin-display-name
       '@mui/internal-babel-plugin-minify-errors':
         specifier: workspace:*
-        version: link:../babel-plugin-minify-errors/build
+        version: link:../babel-plugin-minify-errors
       '@mui/internal-babel-plugin-resolve-imports':
         specifier: workspace:*
         version: link:../babel-plugin-resolve-imports
