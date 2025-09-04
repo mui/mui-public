@@ -136,7 +136,7 @@ export default function getBabelConfig(api) {
   let noResolveImports;
 
   if (api.env) {
-    // legacy, remove relyance on knowledge of user env
+    // legacy
     bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
     noResolveImports = api.env('test') || process.env.NODE_ENV === 'test';
   } else {
