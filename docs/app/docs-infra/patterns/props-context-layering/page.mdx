@@ -205,18 +205,12 @@ import 'server-only';
 import { expensiveParser, complexTransformer } from './heavyUtils';
 
 export function ServerRenderedFeature({ source }) {
-  return (
-    <DataFeature
-      source={source}
-      parser={expensiveParser}
-      transform={complexTransformer}
-    />
-  );
+  return <DataFeature source={source} parser={expensiveParser} transform={complexTransformer} />;
 }
 
 // 2. CLIENT RENDERING: Provide lazily through a Provider that only loads after hydration.
 // File: HeavyFunctionsProvider.tsx
-'use client';
+('use client');
 import React, { useCallback, useState, useEffect } from 'react';
 
 const HeavyFunctionsContext = React.createContext(null);
