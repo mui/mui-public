@@ -75,7 +75,6 @@
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
     "prettier": "^3.5.3",
-    "server-only": "^0.0.1",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
   },
