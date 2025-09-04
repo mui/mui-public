@@ -14,7 +14,8 @@
     "./package.json": "./package.json",
     "./prettier": "./src/prettier.mjs",
     "./eslint": "./src/eslint/index.mjs",
-    "./babel-config": "./src/babel-config.mjs"
+    "./babel-config": "./src/babel-config.mjs",
+    "./markdownlint": "./src/markdownlint/index.mjs"
   },
   "bin": {
     "code-infra": "./bin/code-infra.mjs"
