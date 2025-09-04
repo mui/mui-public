@@ -13,7 +13,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {boolean} [param0.debug]
  * @param {boolean} [param0.optimizeClsx]
  * @param {boolean} [param0.removePropTypes]
- * @param {boolean} [param0.isTest]
+ * @param {boolean} [param0.noResolveImports]
  * @param {'cjs' | 'esm'} param0.bundle
  * @param {string | null} param0.outExtension - Specify the output file extension.
  * @param {string} param0.runtimeVersion
@@ -23,10 +23,10 @@ export function getBaseConfig({
   debug = false,
   optimizeClsx = false,
   removePropTypes = false,
-  isTest = false,
   bundle,
   runtimeVersion,
   outExtension,
+  noResolveImports,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -81,7 +81,7 @@ export function getBaseConfig({
     plugins.push([pluginOptimizeClsx, {}, 'babel-plugin-optimize-clsx']);
   }
 
-  if (bundle === 'esm' && !isTest) {
+  if (bundle === 'esm' || noResolveImports) {
     plugins.push([
       pluginResolveImports,
       { outExtension },
@@ -119,20 +119,39 @@ export function getBaseConfig({
 }
 
 /**
- * @type {import('@babel/core').ConfigFunction}
+ * @typedef {Object} Options
+ * @prop {'esm' | 'cjs'} [Options.bundle]
+ * @prop {boolean} [Options.noResolveImports]
+ * @prop {undefined} [options.env]
+ */
+
+/**
+ * @param {import('@babel/core').ConfigAPI | Options} api
+ * @returns {import('@babel/core').TransformOptions}
  */
 export default function getBabelConfig(api) {
-  const isStable = api.env(['regressions', 'stable']);
-  const isTest = api.env('test') || process.env.NODE_ENV === 'test';
+  /** @type {'esm' | 'cjs'} */
+  let bundle;
+  /** @type {boolean} */
+  let noResolveImports;
+
+  if (api.env) {
+    // legacy, remove relyance on knowledge of user env
+    bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
+    noResolveImports = api.env('test') || process.env.NODE_ENV === 'test';
+  } else {
+    bundle = api.bundle || 'cjs';
+    noResolveImports = api.noResolveImports || false;
+  }
 
   return getBaseConfig({
     debug: process.env.MUI_BUILD_VERBOSE === 'true',
-    bundle: isStable ? 'esm' : 'cjs',
+    bundle,
     outExtension: process.env.MUI_OUT_FILE_EXTENSION || null,
     // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
     runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
     optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
-    isTest,
+    noResolveImports,
   });
 }
