@@ -243,7 +243,13 @@ function renderCodeHighlighter<T extends {}>(props: RenderCodeHighlighterProps<T
   const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
 
   // Check if any loader functions are available before trying async loading
-  const hasAnyLoaderFunction = !!(props.loadCodeMeta || props.loadVariantMeta || props.loadSource);
+  const hasAnyLoaderFunction = !!(
+    props.loadCodeMeta ||
+    props.loadVariantMeta ||
+    props.loadSource ||
+    props.sourceParser ||
+    props.sourceTransformers
+  );
 
   if (!allCodeVariantsLoaded && hasAnyLoaderFunction && !props.forceClient) {
     return <CodeSourceLoader {...props} />;
@@ -442,7 +448,13 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   }
 
   // Check if any loader functions are available
-  const hasAnyLoaderFunction = !!(props.loadCodeMeta || props.loadVariantMeta || props.loadSource);
+  const hasAnyLoaderFunction = !!(
+    props.loadCodeMeta ||
+    props.loadVariantMeta ||
+    props.loadSource ||
+    props.sourceParser ||
+    props.sourceTransformers
+  );
 
   // If no loader functions are available, skip async loading and go directly to client
   if (!hasAnyLoaderFunction) {

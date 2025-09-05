@@ -89,7 +89,10 @@ function useInitialData({
       const missingError = new Error(
         'loadFallbackCode function is required but not provided in CodeProvider',
       );
-      console.error('CodeHighlighterClient: loadFallbackCode is required', missingError);
+      console.error(
+        `CodeHighlighterClient: loadFallbackCode is required (${url || 'No URL'})`,
+        missingError,
+      );
       setErrors((prev) => [...prev, missingError]);
       return;
     }
@@ -188,7 +191,10 @@ function useAllVariants({
       const missingError = new Error(
         'loadVariant function is required but not provided in CodeProvider',
       );
-      console.error('CodeHighlighterClient: loadVariant is required', missingError);
+      console.error(
+        `CodeHighlighterClient: loadVariant is required (${url || 'No URL'})`,
+        missingError,
+      );
       setErrors((prev) => [...prev, missingError]);
       return;
     }
@@ -266,14 +272,20 @@ function useAllVariants({
         }
 
         if (errors.length > 0) {
-          console.error('CodeHighlighterClient: Failed to load variants', errors);
+          console.error(
+            `CodeHighlighterClient: Failed to load variants (${url || 'No URL'})`,
+            errors,
+          );
           // Add individual errors for specific error reporting
           setErrors((prev) => [...prev, ...errors]);
         } else {
           setCode(resultCode);
         }
       } catch (error) {
-        console.error('CodeHighlighterClient: Failed to load all variants', error);
+        console.error(
+          `CodeHighlighterClient: Failed to load all variants (${url || 'No URL'})`,
+          error,
+        );
         setErrors((prev) => [...prev, error instanceof Error ? error : new Error(String(error))]);
       }
     })();
@@ -301,10 +313,14 @@ function useCodeParsing({
   code,
   readyForContent,
   highlightAt,
+  forceClient,
+  url,
 }: {
   code?: Code;
   readyForContent: boolean;
   highlightAt?: 'init' | 'hydration' | 'idle';
+  forceClient?: boolean;
+  url?: string;
 }) {
   const { parseSource, parseCode } = useCodeContext();
 
@@ -347,12 +363,37 @@ function useCodeParsing({
 
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
-    if (!code || !shouldHighlight || !parseSource || !parseCode) {
+    if (!code || !shouldHighlight || hasAllVariants(Object.keys(code), code, true)) {
+      return undefined;
+    }
+
+    if (!parseSource) {
+      if (forceClient) {
+        console.error(
+          `CodeHighlighterClient: parseSource function is not available. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
+        );
+      } else {
+        console.error(
+          `CodeHighlighter: parseSource function is not available. Code highlighting requires either server-side sourceParser or a CodeProvider for client-side parsing. (${url})`,
+        );
+      }
+      return undefined;
+    }
+    if (!parseCode) {
+      if (forceClient) {
+        console.error(
+          `CodeHighlighterClient: parseCode function is not available. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
+        );
+      } else {
+        console.error(
+          `CodeHighlighter: parseCode function is not available. Code highlighting requires either server-side sourceParser or a CodeProvider for client-side parsing. (${url})`,
+        );
+      }
       return undefined;
     }
 
     return parseCode(code, parseSource);
-  }, [code, shouldHighlight, parseSource, parseCode]);
+  }, [code, shouldHighlight, parseSource, parseCode, forceClient, url]);
 
   const deferHighlight = !shouldHighlight;
 
@@ -391,7 +432,7 @@ function useCodeTransforms({
         const enhanced = await applyTransforms(parsedCode, parseSource);
         setTransformedCode(enhanced);
       } catch (error) {
-        console.error('Failed to process transforms:', error);
+        console.error('CodeHighlighterClient: Failed to process transforms', error);
         setTransformedCode(parsedCode);
       }
     })();
@@ -400,17 +441,52 @@ function useCodeTransforms({
   return { transformedCode, availableTransforms };
 }
 
-function useControlledCodeParsing({ code }: { code?: ControlledCode }) {
+function useControlledCodeParsing({
+  code,
+  forceClient,
+  url,
+}: {
+  code?: ControlledCode;
+  forceClient?: boolean;
+  url?: string;
+}) {
   const { parseSource, parseControlledCode } = useCodeContext();
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
-    if (!code || !parseSource || !parseControlledCode) {
+    if (!code) {
+      return undefined;
+    }
+
+    if (!parseSource || !parseControlledCode) {
+      // Log when provider functions are missing to help with debugging
+      if (!parseSource) {
+        if (forceClient) {
+          console.error(
+            `CodeHighlighterClient: parseSource function is not available for controlled code. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
+          );
+        } else {
+          console.error(
+            `CodeHighlighter: parseSource function is not available for controlled code. Code highlighting requires either server-side precomputed source or a CodeProvider for client-side parsing. (${url})`,
+          );
+        }
+      }
+      if (!parseControlledCode) {
+        if (forceClient) {
+          console.error(
+            `CodeHighlighterClient: parseControlledCode function is not available. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
+          );
+        } else {
+          console.error(
+            `CodeHighlighter: parseControlledCode function is not available. Code highlighting requires either server-side precomputed source or a CodeProvider for client-side parsing. (${url})`,
+          );
+        }
+      }
       return undefined;
     }
 
     return parseControlledCode(code, parseSource);
-  }, [code, parseSource, parseControlledCode]);
+  }, [code, parseSource, parseControlledCode, forceClient, url]);
 
   return { parsedControlledCode };
 }
@@ -453,7 +529,9 @@ function useGlobalsCodeMerging({
     }
 
     if (!loadVariant) {
-      console.warn('loadVariant function is required for loading missing variants in globalsCode');
+      console.error(
+        'CodeHighlighterClient: loadVariant function is required for loading missing variants in globalsCode',
+      );
       return;
     }
 
@@ -507,7 +585,10 @@ function useGlobalsCodeMerging({
                   );
                   loadedVariants[variantName] = result.code;
                 } catch (error) {
-                  console.warn(`Failed to load variant ${variantName} for globalsCode:`, error);
+                  console.error(
+                    `CodeHighlighterClient: Failed to load variant ${variantName} for globalsCode`,
+                    error,
+                  );
                   // Keep the original variant data (may be undefined)
                 }
               }),
@@ -519,7 +600,7 @@ function useGlobalsCodeMerging({
 
         setProcessedGlobalsCode(fullyLoadedCodeObjects);
       } catch (error) {
-        console.warn('Failed to load globalsCode:', error);
+        console.error('CodeHighlighterClient: Failed to load globalsCode', error);
       }
     })();
   }, [
@@ -821,6 +902,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     code: codeWithGlobals,
     readyForContent: readyForContent || Boolean(props.code),
     highlightAt,
+    forceClient: props.forceClient,
+    url: props.url,
   });
 
   const { transformedCode, availableTransforms } = useCodeTransforms({
@@ -830,6 +913,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
+    forceClient: props.forceClient,
+    url: props.url,
   });
 
   // Determine the final overlaid code (controlled takes precedence)
