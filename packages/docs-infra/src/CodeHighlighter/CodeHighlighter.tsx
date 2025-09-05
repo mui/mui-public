@@ -4,6 +4,7 @@ import type {
   Code,
   CodeHighlighterClientProps,
   CodeHighlighterProps,
+  CodeHighlighterBaseProps,
   ContentLoadingProps,
   ContentProps,
   VariantCode,
@@ -20,61 +21,47 @@ import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { CodeErrorHandler } from './CodeErrorHandler';
 import { codeToFallbackProps } from './codeToFallbackProps';
 
-// Common props shared across helper functions
-type BaseHelperProps<T extends {}> = Pick<
-  CodeHighlighterProps<T>,
-  | 'url'
-  | 'code'
-  | 'components'
-  | 'variants'
-  | 'variantType'
-  | 'highlightAt'
-  | 'Content'
-  | 'contentProps'
-  | 'ErrorHandler'
-  | 'name'
-  | 'slug'
-  | 'loadCodeMeta'
-  | 'loadVariantMeta'
-  | 'loadSource'
-  | 'sourceParser'
-  | 'sourceTransformers'
-  | 'precompute'
-  | 'controlled'
-  | 'variant'
-  | 'fileName'
-  | 'initialVariant'
-  | 'defaultVariant'
-  | 'forceClient'
-  | 'children'
-  | 'globalsCode'
-  | 'fallbackUsesExtraFiles'
-  | 'fallbackUsesAllVariants'
->;
-
-interface CodeSourceLoaderProps<T extends {}> extends BaseHelperProps<T> {
-  fallback?: React.ReactNode;
-  skipFallback?: boolean;
-  processedGlobalsCode?: Array<Code>;
-}
-
-interface CodeInitialSourceLoaderProps<T extends {}> extends BaseHelperProps<T> {
+interface CodeInitialSourceLoaderProps<T extends {}> extends CodeHighlighterBaseProps<T> {
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   initialVariant: string;
   ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
 }
 
+interface CodeSourceLoaderProps<T extends {}> extends CodeHighlighterBaseProps<T> {
+  fallback?: React.ReactNode;
+  skipFallback?: boolean;
+  processedGlobalsCode?: Array<Code>;
+}
+
+interface RenderWithInitialSourceProps<T extends {}> extends CodeHighlighterBaseProps<T> {
+  code: Code;
+  initialVariant: string;
+  initialFilename: string | undefined;
+  initialSource: VariantSource;
+  initialExtraFiles?: VariantExtraFiles;
+  ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
+  processedGlobalsCode?: Array<Code>;
+}
+
+interface RenderCodeHighlighterProps<T extends {}> extends CodeHighlighterBaseProps<T> {
+  fallback?: React.ReactNode;
+  skipFallback?: boolean;
+  processedGlobalsCode?: Array<Code>;
+}
+
+interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
+  code?: Code;
+  fallback?: React.ReactNode;
+  skipFallback?: boolean;
+  processedGlobalsCode?: Array<Code>;
+}
+
 const DEFAULT_HIGHLIGHT_AT = 'stream';
 const DEBUG = false; // Set to true for debugging purposes
 
 function createClientProps<T extends {}>(
-  props: BaseHelperProps<T> & {
-    code?: Code;
-    fallback?: React.ReactNode;
-    skipFallback?: boolean;
-    processedGlobalsCode?: Array<Code>;
-  },
+  props: CreateClientPropsOptions<T>,
 ): CodeHighlighterClientProps {
   const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
 
@@ -250,13 +237,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   return <CodeHighlighterClient {...clientProps} />;
 }
 
-function renderCodeHighlighter<T extends {}>(
-  props: BaseHelperProps<T> & {
-    fallback?: React.ReactNode;
-    skipFallback?: boolean;
-    processedGlobalsCode?: Array<Code>;
-  },
-) {
+function renderCodeHighlighter<T extends {}>(props: RenderCodeHighlighterProps<T>) {
   const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
 
   const code = props.code || props.precompute;
@@ -289,17 +270,7 @@ async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
   return props.children;
 }
 
-function renderWithInitialSource<T extends {}>(
-  props: BaseHelperProps<T> & {
-    code: Code;
-    initialVariant: string;
-    initialFilename: string | undefined;
-    initialSource: VariantSource;
-    initialExtraFiles?: VariantExtraFiles;
-    ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
-    processedGlobalsCode?: Array<Code>;
-  },
-) {
+function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourceProps<T>) {
   const fallbackProps = codeToFallbackProps(
     props.initialVariant,
     props.code,
