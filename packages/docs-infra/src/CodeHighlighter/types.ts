@@ -92,20 +92,8 @@ export type ControlledCode = { [key: string]: undefined | null | ControlledVaria
  * Base props passed to Content components for rendering code examples.
  * These props provide the necessary data for displaying code, previews, and metadata.
  */
-type BaseContentProps = {
-  /** Display name for the code example, used for identification and titles */
-  name?: string;
-  /** URL-friendly identifier for deep linking and navigation */
-  slug?: string;
-  /** Code content with variants and metadata */
-  code?: Code;
-  /** Rendered React components for live preview alongside code */
-  components?: Components;
-  /** Source URL where the code content originates from */
-  url?: string;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
-  variantType?: string;
-};
+type BaseContentProps = CodeIdentityProps &
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'>;
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
 export type ContentLoadingVariant = {
@@ -113,12 +101,10 @@ export type ContentLoadingVariant = {
   source?: React.ReactNode;
   extraSource?: { [fileName: string]: React.ReactNode };
 };
-export type BaseContentLoadingProps = ContentLoadingVariant & {
-  name?: string;
-  slug?: string;
-  url?: string;
-  extraVariants?: Record<string, ContentLoadingVariant>;
-};
+export type BaseContentLoadingProps = ContentLoadingVariant &
+  CodeIdentityProps & {
+    extraVariants?: Record<string, ContentLoadingVariant>;
+  };
 export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
   T & {
     component: React.ReactNode;
@@ -150,6 +136,48 @@ export type SourceTransformer = {
   transformer: TransformSource;
 };
 export type SourceTransformers = Array<SourceTransformer>;
+
+/**
+ * Options for controlling file loading behavior
+ */
+export interface LoadFileOptions {
+  /** Disable applying source transformers */
+  disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
+  disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
+  maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
+  loadedFiles?: Set<string>;
+  /** Side effects code to inject into extraFiles */
+  globalsCode?: Array<VariantCode | string>;
+}
+
+/**
+ * Options for the loadVariant function, extending LoadFileOptions with required function dependencies
+ */
+export interface LoadVariantOptions
+  extends LoadFileOptions,
+    Pick<
+      CodeFunctionProps,
+      'sourceParser' | 'loadSource' | 'loadVariantMeta' | 'sourceTransformers'
+    > {}
+
+/**
+ * Options for loading fallback code with various configuration flags
+ */
+export interface LoadFallbackCodeOptions
+  extends LoadFileOptions,
+    CodeFunctionProps,
+    Pick<CodeContentProps, 'variants'>,
+    Pick<CodeLoadingProps, 'fallbackUsesExtraFiles' | 'fallbackUsesAllVariants'> {
+  /** Flag to indicate if syntax highlighting should be performed */
+  shouldHighlight?: boolean;
+  /** Specific filename to initially display */
+  initialFilename?: string;
+  /** Array of global code to include (overrides LoadFileOptions.globalsCode with different type) */
+  globalsCode?: Array<Code | string>;
+}
 
 /**
  * Basic identification and metadata props for code examples
