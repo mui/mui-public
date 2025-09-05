@@ -61,19 +61,13 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
  * controlling selection in typical cases.
  *
  * @returns An object containing:
- *   - controlledCode: The current code being controlled
- *   - controlledSelection: The current selection state
- *   - controlledSetCode: Function to update the controlled code
- *   - controlledSetSelection: Function to update the selection
- *   - controlledComponents: Override components for the preview
+ *   - code: The current code being controlled
+ *   - selection: The current selection state
+ *   - setCode: Function to update the controlled code
+ *   - setSelection: Function to update the selection
+ *   - components: Override components for the preview
  */
 export function useControlledCode() {
   const context = React.useContext(CodeControllerContext);
-  return {
-    controlledCode: context?.code,
-    controlledSelection: context?.selection,
-    controlledSetCode: context?.setCode,
-    controlledSetSelection: context?.setSelection,
-    controlledComponents: context?.components,
-  };
+  return context;
 }
