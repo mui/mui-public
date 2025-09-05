@@ -400,17 +400,17 @@ function useCodeTransforms({
   return { transformedCode, availableTransforms };
 }
 
-function useControlledCodeParsing({ controlledCode }: { controlledCode?: ControlledCode }) {
+function useControlledCodeParsing({ code }: { code?: ControlledCode }) {
   const { parseSource, parseControlledCode } = useCodeContext();
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
-    if (!controlledCode || !parseSource || !parseControlledCode) {
+    if (!code || !parseSource || !parseControlledCode) {
       return undefined;
     }
 
-    return parseControlledCode(controlledCode, parseSource);
-  }, [controlledCode, parseSource, parseControlledCode]);
+    return parseControlledCode(code, parseSource);
+  }, [code, parseSource, parseControlledCode]);
 
   return { parsedControlledCode };
 }
@@ -687,15 +687,9 @@ function usePropsCodeGlobalsMerging({
 }
 
 export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
-  const {
-    controlledCode,
-    controlledSelection,
-    controlledSetCode,
-    controlledSetSelection,
-    controlledComponents,
-  } = useControlledCode();
+  const controlled = useControlledCode();
 
-  const isControlled = Boolean(props.code || controlledCode);
+  const isControlled = Boolean(props.code || controlled?.code);
 
   // TODO: props.code is for controlled components, props.precompute is for precomputed code
   // props.code should only be highlighted, but no additional fetching should be done
@@ -726,7 +720,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Error state for handling various loading and processing errors
   const [errors, setErrors] = React.useState<Error[]>([]);
 
-  const activeCode = controlledCode || props.code || code;
+  const activeCode = controlled?.code || props.code || code;
   const variants = React.useMemo(
     () => props.variants || Object.keys(props.components || activeCode || {}),
     [props.variants, props.components, activeCode],
@@ -738,14 +732,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     variant: props.initialVariant || props.defaultVariant || variants[0],
   });
 
-  const variantName = controlledSelection?.variant || props.variant || selection.variant;
+  const variantName = controlled?.selection?.variant || props.variant || selection.variant;
 
   let initialFilename: string | undefined;
   if (typeof activeCode?.[variantName] === 'object') {
     const variant = activeCode[variantName];
     initialFilename = variant?.filesOrder ? variant.filesOrder[0] : variant?.fileName;
   }
-  const fileName = controlledSelection?.fileName || props.fileName || initialFilename;
+  const fileName = controlled?.selection?.fileName || props.fileName || initialFilename;
 
   const { url, highlightAt, fallbackUsesExtraFiles, fallbackUsesAllVariants } = props;
 
@@ -780,14 +774,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }
 
     // Controlled code is always ready since it comes from editing already-ready code
-    if (controlledCode) {
+    if (controlled?.code) {
       return true;
     }
 
     // For regular code, use the existing hasAllVariants function
     const regularCode = props.code || code;
     return regularCode ? hasAllVariants(variants, regularCode) : false;
-  }, [activeCode, controlledCode, variants, props.code, code]);
+  }, [activeCode, controlled?.code, variants, props.code, code]);
 
   useAllVariants({
     readyForContent,
@@ -835,14 +829,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   });
 
   const { parsedControlledCode } = useControlledCodeParsing({
-    controlledCode,
+    code: controlled?.code,
   });
 
   // Determine the final overlaid code (controlled takes precedence)
   const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
-  const codeForFallback = overlaidCode || (controlledCode ? undefined : props.code || code);
+  const codeForFallback = overlaidCode || (controlled?.code ? undefined : props.code || code);
 
   const fallbackContext = React.useMemo(
     () =>
@@ -865,10 +859,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
-      setCode: controlledSetCode,
-      selection: controlledSelection || selection,
-      setSelection: controlledSetSelection || setSelection,
-      components: controlledComponents || props.components,
+      setCode: controlled?.setCode,
+      selection: controlled?.selection || selection,
+      setSelection: controlled?.setSelection || setSelection,
+      components: controlled?.components || props.components,
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
@@ -876,11 +870,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
-      controlledSetCode,
+      controlled?.setCode,
       selection,
-      controlledSelection,
-      controlledSetSelection,
-      controlledComponents,
+      controlled?.selection,
+      controlled?.setSelection,
+      controlled?.components,
       props.components,
       isControlled,
       availableTransforms,
