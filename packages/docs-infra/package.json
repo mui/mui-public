@@ -68,6 +68,7 @@
     "jsondiffpatch": "^0.7.3",
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
+    "path-module": "^0.1.2",
     "prettier": "^3.5.3",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
@@ -82,10 +83,10 @@
     "@types/react": "^19.1.11",
     "@types/webpack": "^5.28.5",
     "react": "^19.1.1",
-    "rehype-stringify": "^10.0.1",
     "rehype-parse": "^9.0.1",
-    "remark-rehype": "^11.1.2",
+    "rehype-stringify": "^10.0.1",
     "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "unified": "^11.0.5"
   },
   "peerDependencies": {
