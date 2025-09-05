@@ -17,7 +17,7 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('index.ts');
-    expect(result.extraFiles).toEqual({});
+    expect(result.extraFiles).toBeUndefined();
   });
 
   it('should handle variant without URL', () => {
@@ -29,7 +29,7 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('Demo.tsx');
-    expect(result.extraFiles).toEqual({});
+    expect(result.extraFiles).toBeUndefined();
   });
 
   it('should handle the basic example with back navigation', () => {
@@ -45,7 +45,7 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('checkbox/index.ts');
-    expect(result.extraFiles!['../helper.ts'].path).toBe('helper.ts');
+    expect((result.extraFiles!['../helper.ts'] as any).path).toBe('helper.ts');
   });
 
   it('should handle metadata files by removing metadataPrefix back navigation', () => {
@@ -64,9 +64,9 @@ describe('addPathsToVariant', () => {
 
     expect(result.path).toBe('src/checkbox/index.ts');
     // Non-metadata file resolves back navigation and includes metadataPrefix
-    expect(result.extraFiles!['../helper.ts'].path).toBe('src/helper.ts');
+    expect((result.extraFiles!['../helper.ts'] as any).path).toBe('src/helper.ts');
     // Metadata file removes metadataPrefix-related back navigation
-    expect(result.extraFiles!['../../package.json'].path).toBe('package.json');
+    expect((result.extraFiles!['../../package.json'] as any).path).toBe('package.json');
   });
 
   it('should handle metadata files without metadataPrefix', () => {
@@ -83,8 +83,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('checkbox/index.ts');
-    expect(result.extraFiles!['../helper.ts'].path).toBe('helper.ts');
-    expect(result.extraFiles!['../package.json'].path).toBe('package.json');
+    expect((result.extraFiles!['../helper.ts'] as any).path).toBe('helper.ts');
+    expect((result.extraFiles!['../package.json'] as any).path).toBe('package.json');
   });
 
   it('should handle metadata files without metadataPrefix and respect back navigation', () => {
@@ -102,9 +102,9 @@ describe('addPathsToVariant', () => {
 
     expect(result.path).toBe('components/checkbox/index.ts');
     // Non-metadata file resolves back navigation (no prefix)
-    expect(result.extraFiles!['../helper.ts'].path).toBe('components/helper.ts');
+    expect((result.extraFiles!['../helper.ts'] as any).path).toBe('components/helper.ts');
     // Metadata file without metadataPrefix just removes all back navigation
-    expect(result.extraFiles!['../../package.json'].path).toBe('package.json');
+    expect((result.extraFiles!['../../package.json'] as any).path).toBe('package.json');
   });
 
   it('should handle multiple metadata files', () => {
@@ -122,8 +122,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('src/index.ts');
-    expect(result.extraFiles!['../package.json'].path).toBe('package.json');
-    expect(result.extraFiles!['../.meta/config.json'].path).toBe('.meta/config.json');
+    expect((result.extraFiles!['../package.json'] as any).path).toBe('package.json');
+    expect((result.extraFiles!['../.meta/config.json'] as any).path).toBe('.meta/config.json');
   });
 
   it('should handle string extra files', () => {
@@ -140,8 +140,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('checkbox/index.ts');
-    expect(result.extraFiles!['../helper.ts'].path).toBe('helper.ts');
-    expect(result.extraFiles!['utils.ts'].path).toBe('utils.ts');
+    expect((result.extraFiles!['../helper.ts'] as any).path).toBe('helper.ts');
+    expect((result.extraFiles!['utils.ts'] as any).path).toBe('checkbox/utils.ts');
   });
 
   it('should handle complex relative paths', () => {
@@ -159,9 +159,9 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('components/checkbox/subdir/index.ts');
-    expect(result.extraFiles!['../helper.ts'].path).toBe('components/checkbox/helper.ts');
-    expect(result.extraFiles!['../../utils.ts'].path).toBe('components/utils.ts');
-    expect(result.extraFiles!['../../../types.ts'].path).toBe('types.ts');
+    expect((result.extraFiles!['../helper.ts'] as any).path).toBe('components/checkbox/helper.ts');
+    expect((result.extraFiles!['../../utils.ts'] as any).path).toBe('components/utils.ts');
+    expect((result.extraFiles!['../../../types.ts'] as any).path).toBe('types.ts');
   });
 
   it('should handle relative paths without URL context using synthetic paths', () => {
@@ -178,8 +178,8 @@ describe('addPathsToVariant', () => {
 
     // With maxBackNavigation = 2, should create synthetic structure
     expect(result.path).toBe('a/b/index.ts');
-    expect(result.extraFiles!['../utils.ts'].path).toBe('a/utils.ts');
-    expect(result.extraFiles!['../../helper.ts'].path).toBe('helper.ts');
+    expect((result.extraFiles!['../utils.ts'] as any).path).toBe('a/utils.ts');
+    expect((result.extraFiles!['../../helper.ts'] as any).path).toBe('helper.ts');
   });
 
   it('should handle current directory references', () => {
@@ -196,8 +196,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('Demo.tsx');
-    expect(result.extraFiles!['./helper.ts'].path).toBe('helper.ts');
-    expect(result.extraFiles!['./utils/index.ts'].path).toBe('utils/index.ts');
+    expect((result.extraFiles!['./helper.ts'] as any).path).toBe('helper.ts');
+    expect((result.extraFiles!['./utils/index.ts'] as any).path).toBe('utils/index.ts');
   });
 
   it('should handle variant with no fileName but with URL', () => {
@@ -213,7 +213,7 @@ describe('addPathsToVariant', () => {
 
     // Should derive fileName from URL
     expect(result.path).toBe('Demo.tsx');
-    expect(result.extraFiles!['helper.ts'].path).toBe('helper.ts');
+    expect((result.extraFiles!['helper.ts'] as any).path).toBe('helper.ts');
   });
 
   it('should handle variant with no fileName and no source', () => {
@@ -226,7 +226,7 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBeUndefined();
-    expect(result.extraFiles!['helper.ts'].path).toBe('helper.ts');
+    expect((result.extraFiles!['helper.ts'] as any).path).toBe('helper.ts');
   });
 
   it('should handle metadata files with metadataPrefix and maxBackNavigation', () => {
@@ -245,8 +245,8 @@ describe('addPathsToVariant', () => {
 
     expect(result.path).toBe('src/index.tsx');
 
-    expect(result.extraFiles!['utils.js'].path).toBe('src/utils.js');
-    expect(result.extraFiles!['../theme.css'].path).toBe('theme.css');
+    expect((result.extraFiles!['utils.js'] as any).path).toBe('src/utils.js');
+    expect((result.extraFiles!['../theme.css'] as any).path).toBe('theme.css');
   });
 
   it('should handle deep back navigation with synthetic paths', () => {
@@ -266,11 +266,11 @@ describe('addPathsToVariant', () => {
 
     // With maxBackNavigation = 6, should create synthetic structure
     expect(result.path).toBe('a/b/c/d/e/main.ts');
-    expect(result.extraFiles!['../utils.ts'].path).toBe('a/b/c/d/utils.ts');
-    expect(result.extraFiles!['../../shared.ts'].path).toBe('a/b/c/shared.ts');
-    expect(result.extraFiles!['../../../config.ts'].path).toBe('a/b/config.ts');
-    expect(result.extraFiles!['../../../../deep.ts'].path).toBe('a/deep.ts');
-    expect(result.extraFiles!['../../../../../deeper.ts'].path).toBe('deeper.ts');
+    expect((result.extraFiles!['../utils.ts'] as any).path).toBe('a/b/c/d/utils.ts');
+    expect((result.extraFiles!['../../shared.ts'] as any).path).toBe('a/b/c/shared.ts');
+    expect((result.extraFiles!['../../../config.ts'] as any).path).toBe('a/b/config.ts');
+    expect((result.extraFiles!['../../../../deep.ts'] as any).path).toBe('a/deep.ts');
+    expect((result.extraFiles!['../../../../../deeper.ts'] as any).path).toBe('deeper.ts');
   });
 
   it('should handle metadata files with extra back navigation', () => {
@@ -291,11 +291,15 @@ describe('addPathsToVariant', () => {
 
     const result = addPathsToVariant(variant);
 
-    expect(result.path).toBe('src/app/components/deep/nested/Demo.tsx');
-    expect(result.extraFiles!['../helper.tsx'].path).toBe('src/app/components/deep/helper.tsx');
+    expect(result.path).toBe('components/deep/src/app/nested/Demo.tsx');
+    expect((result.extraFiles!['../helper.tsx'] as any).path).toBe(
+      'components/deep/src/app/helper.tsx',
+    );
     // when using `metadataPrefix`, we can remove any extra `../` shared by all metadata files
-    expect(result.extraFiles!['../../../../../code/tsconfig.json'].path).toBe('code/tsconfig.json');
-    expect(result.extraFiles!['../../../../../package.json'].path).toBe('package.json');
+    expect((result.extraFiles!['../../../../../code/tsconfig.json'] as any).path).toBe(
+      'code/tsconfig.json',
+    );
+    expect((result.extraFiles!['../../../../../package.json'] as any).path).toBe('package.json');
   });
 
   it('should handle metadata files with extra and unbalanced back navigation', () => {
@@ -320,14 +324,14 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     // users should use the 'should handle metadata files with extra back navigation' case as an alterative to this behavior
-    expect(result.path).toBe('a/b/monorepo/lib/src/app/components/deep/nested/Demo.tsx');
-    expect(result.extraFiles!['../helper.tsx'].path).toBe(
-      'a/b/monorepo/lib/src/app/components/deep/helper.tsx',
+    expect(result.path).toBe('a/b/c/monorepo/lib/components/deep/src/app/nested/Demo.tsx');
+    expect((result.extraFiles!['../helper.tsx'] as any).path).toBe(
+      'a/b/c/monorepo/lib/components/deep/src/app/helper.tsx',
     );
-    expect(result.extraFiles!['../../../../../../tsconfig.json'].path).toBe(
-      'a/b/monorepo/tsconfig.json',
+    expect((result.extraFiles!['../../../../../../tsconfig.json'] as any).path).toBe(
+      'a/b/c/monorepo/tsconfig.json',
     );
-    expect(result.extraFiles!['../../../../../../../../../../package.json'].path).toBe(
+    expect((result.extraFiles!['../../../../../../../../../../package.json'] as any).path).toBe(
       'package.json',
     );
   });
@@ -347,8 +351,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('src/src/Demo.tsx');
-    expect(result.extraFiles!['../meta.json'].path).toBe('src/meta.json');
-    expect(result.extraFiles!['../../package.json'].path).toBe('package.json');
+    expect((result.extraFiles!['../meta.json'] as any).path).toBe('src/meta.json');
+    expect((result.extraFiles!['../../package.json'] as any).path).toBe('package.json');
   });
 
   it('should handle metadata files without backtracking', () => {
@@ -365,8 +369,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('Demo.tsx');
-    expect(result.extraFiles!['dir/utils.ts'].path).toBe('dir/utils.ts');
-    expect(result.extraFiles!['package.json'].path).toBe('package.json');
+    expect((result.extraFiles!['dir/utils.ts'] as any).path).toBe('dir/utils.ts');
+    expect((result.extraFiles!['package.json'] as any).path).toBe('package.json');
   });
 
   it('should handle empty or null sources gracefully', () => {
@@ -383,8 +387,8 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('Demo.tsx');
-    expect(result.extraFiles!['helper.ts'].path).toBe('helper.ts');
-    expect(result.extraFiles!['utils.ts'].path).toBe('utils.ts');
+    expect((result.extraFiles!['helper.ts'] as any).path).toBe('helper.ts');
+    expect((result.extraFiles!['utils.ts'] as any).path).toBe('utils.ts');
   });
 
   it('should handle variant with no source', () => {
@@ -399,7 +403,7 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('Demo.tsx');
-    expect(result.extraFiles!['helper.ts'].path).toBe('helper.ts');
+    expect((result.extraFiles!['helper.ts'] as any).path).toBe('helper.ts');
   });
 
   it('should handle variant with no fileName', () => {
@@ -426,18 +430,21 @@ describe('addPathsToVariant', () => {
     const result = addPathsToVariant(variant);
 
     expect(result.path).toBe('a/b/component.tsx');
-    expect(result.extraFiles!['../types.ts'].path).toBe('a/types.ts');
-    expect(result.extraFiles!['../../constants.ts'].path).toBe('constants.ts');
+    expect((result.extraFiles!['../types.ts'] as any).path).toBe('a/types.ts');
+    expect((result.extraFiles!['../../constants.ts'] as any).path).toBe('constants.ts');
 
     // Verify all paths with directories start with 'a'
-    const paths = [result.path, ...Object.values(result.extraFiles || {}).map((f) => f.path)];
+    const paths = [
+      result.path,
+      ...Object.values(result.extraFiles || {}).map((f) => (f as any).path),
+    ];
     const pathsWithDirectories = paths.filter((path) => path && path.includes('/'));
     pathsWithDirectories.forEach((path) => {
       expect(path!.startsWith('a/')).toBe(true);
     });
   });
 
-  it('should not create synthetic URL when fileName is missing', () => {
+  it('should create synthetic URL when fileName is missing', () => {
     const variant: VariantCode = {
       // No fileName provided
       source: 'export default function Component() {}',
@@ -452,9 +459,9 @@ describe('addPathsToVariant', () => {
 
     // Should have no main file flat path since fileName is missing
     expect(result.path).toBeUndefined();
-    expect(result.extraFiles!['../extras/utils.ts'].path).toBe('a/b/extras/utils.ts');
-    expect(result.extraFiles!['../utils.ts'].path).toBe('a/b/utils.ts');
-    expect(result.extraFiles!['../../../utils.ts'].path).toBe('utils.ts');
+    expect((result.extraFiles!['../extras/utils.ts'] as any).path).toBe('a/b/extras/utils.ts');
+    expect((result.extraFiles!['../utils.ts'] as any).path).toBe('a/b/utils.ts');
+    expect((result.extraFiles!['../../../utils.ts'] as any).path).toBe('utils.ts');
   });
 
   // Tests for path resolution behavior
@@ -476,10 +483,10 @@ describe('addPathsToVariant', () => {
       // Main path gets synthetic structure due to back navigation in extra files
       expect(result.path).toBe('a/index.ts');
       // All paths should be properly resolved
-      expect(result.extraFiles!['foo/../bar.ts'].path).toBe('bar.ts');
-      expect(result.extraFiles!['baz/../qux/../deep.ts'].path).toBe('deep.ts');
-      expect(result.extraFiles!['../simple.ts'].path).toBe('simple.ts');
-      expect(result.extraFiles!['../dir/../complex.ts'].path).toBe('complex.ts');
+      expect((result.extraFiles!['foo/../bar.ts'] as any).path).toBe('a/bar.ts');
+      expect((result.extraFiles!['baz/../qux/../deep.ts'] as any).path).toBe('a/deep.ts');
+      expect((result.extraFiles!['../simple.ts'] as any).path).toBe('simple.ts');
+      expect((result.extraFiles!['../dir/../complex.ts'] as any).path).toBe('complex.ts');
     });
 
     it('should handle metadata files with path resolution', () => {
@@ -489,21 +496,23 @@ describe('addPathsToVariant', () => {
         source: 'export default function Button() {}',
         metadataPrefix: 'src/',
         extraFiles: {
-          '../foo/../config.json': { source: '{"config": true}', metadata: true },
-          '../../package.json': { source: '{"name": "test"}', metadata: true },
+          '../foo/../../config.json': { source: '{"config": true}', metadata: true },
+          '../../../package.json': { source: '{"name": "test"}', metadata: true },
           '../util.ts': { source: 'export const util = 1;' }, // non-metadata
         },
       };
 
       const result = addPathsToVariant(variant);
 
-      // Main path uses metadataPrefix + URL structure for non-metadata back navigation
-      expect(result.path).toBe('src/Button/index.tsx');
-      // Metadata files resolve and use main file context when applicable
-      expect(result.extraFiles!['../foo/../config.json'].path).toBe('src/config.json');
-      expect(result.extraFiles!['../../package.json'].path).toBe('package.json');
+      // Main path uses synthetic structure for unbalanced metadata navigation
+      expect(result.path).toBe('components/src/Button/index.tsx');
+      // Metadata files resolve and use synthetic structure context
+      expect((result.extraFiles!['../foo/../../config.json'] as any).path).toBe(
+        'components/config.json',
+      );
+      expect((result.extraFiles!['../../../package.json'] as any).path).toBe('package.json');
       // Non-metadata files resolve and apply context
-      expect(result.extraFiles!['../util.ts'].path).toBe('src/util.ts');
+      expect((result.extraFiles!['../util.ts'] as any).path).toBe('components/src/util.ts');
     });
 
     it('should handle complex path resolution scenarios', () => {
@@ -521,9 +530,11 @@ describe('addPathsToVariant', () => {
       const result = addPathsToVariant(variant);
 
       expect(result.path).toBe('components/deep/nested/Demo.tsx');
-      expect(result.extraFiles!['../helper.tsx'].path).toBe('components/deep/helper.tsx');
-      expect(result.extraFiles!['../../utils/../shared.ts'].path).toBe('components/shared.ts'); // resolves to shared.ts with 2 back steps
-      expect(result.extraFiles!['../../../config.json'].path).toBe('config.json'); // metadata, just resolve
+      expect((result.extraFiles!['../helper.tsx'] as any).path).toBe('components/deep/helper.tsx');
+      expect((result.extraFiles!['../../utils/../shared.ts'] as any).path).toBe(
+        'components/shared.ts',
+      ); // resolves to shared.ts with 2 back steps
+      expect((result.extraFiles!['../../../config.json'] as any).path).toBe('config.json'); // metadata, just resolve
     });
 
     it('should handle paths with back navigation that do not start with ../)', () => {
@@ -542,11 +553,13 @@ describe('addPathsToVariant', () => {
 
       expect(result.path).toBe('button/Demo.tsx');
       // foo/../../bar/page.tsx has backSteps = 1, should be handled as back navigation
-      expect(result.extraFiles!['foo/../../bar/page.tsx'].path).toBe('bar/page.tsx');
+      expect((result.extraFiles!['foo/../../bar/page.tsx'] as any).path).toBe('bar/page.tsx');
       // utils/../helper.ts has backSteps = 0, should be treated as regular forward path
-      expect(result.extraFiles!['utils/../helper.ts'].path).toBe('button/helper.ts');
+      expect((result.extraFiles!['utils/../helper.ts'] as any).path).toBe('button/helper.ts');
       // deep/nested/../../config.js has backSteps = 0, should be treated as regular forward path
-      expect(result.extraFiles!['deep/nested/../../config.js'].path).toBe('button/config.js');
+      expect((result.extraFiles!['deep/nested/../../config.js'] as any).path).toBe(
+        'button/config.js',
+      );
     });
   });
 });

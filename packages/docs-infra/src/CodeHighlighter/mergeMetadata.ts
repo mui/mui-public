@@ -3,7 +3,13 @@
  */
 
 import type { VariantCode, VariantExtraFiles } from './types';
-import { createPathContext } from './examineVariant';
+import {
+  calculateMaxSourceBackNavigation,
+  removeBackNavigationPrefix,
+  buildPath,
+  calculateMetadataBackNavigation,
+  splitPath,
+} from './pathUtils';
 
 /**
  * Options for merging metadata files
@@ -12,31 +18,14 @@ interface MergeMetadataOptions {
   /**
    * Optional prefix indicating where source files will be placed.
    * When provided, metadata files will be positioned relative to this prefix
-   * PLUS the existing maxBackNavigation from the variant structure.
+   * PLUS the existing maxSourceBackNavigation from the variant structure.
    *
-   * Examples (assuming maxBackNavigation = 2):
-   * - 'src/' -> metadata goes to '../../../' (maxBackNavigation + 1 for src/)
-   * - 'src/app/' -> metadata goes to '../../../../' (maxBackNavigation + 2 for src/app/)
-   * - undefined -> uses only maxBackNavigation (for client merging)
+   * Examples (assuming maxSourceBackNavigation = 2):
+   * - 'src/' -> metadata goes to '../../../' (maxSourceBackNavigation + 1 for src/)
+   * - 'src/app/' -> metadata goes to '../../../../' (maxSourceBackNavigation + 2 for src/app/)
+   * - undefined -> uses only maxSourceBackNavigation (for client merging)
    */
   metadataPrefix?: string;
-}
-
-/**
- * Calculate the required back navigation level for metadata files
- */
-function calculateMetadataBackNavigation(variant: VariantCode, metadataPrefix?: string): string {
-  // Get the maxBackNavigation from the variant's file structure
-  const pathContext = createPathContext(variant);
-  let backLevels = pathContext.maxBackNavigation;
-
-  if (metadataPrefix) {
-    // When a prefix is provided, add additional back navigation based on prefix depth
-    const prefixSegments = metadataPrefix.split('/').filter(Boolean);
-    backLevels += prefixSegments.length;
-  }
-
-  return '../'.repeat(backLevels);
 }
 
 /**
@@ -68,29 +57,20 @@ export function extractMetadata(variant: VariantCode): {
     };
   }
 
+  // Calculate how much back navigation to remove using pathUtils
+  let backLevelsToRemove = calculateMaxSourceBackNavigation(variant.extraFiles || {});
+
+  if (metadataPrefix) {
+    // Add metadataPrefix levels if present
+    backLevelsToRemove += splitPath(metadataPrefix).length;
+  }
+
   // Process all extraFiles
   for (const [relativePath, fileContent] of Object.entries(variant.extraFiles)) {
     const file = typeof fileContent === 'string' ? { source: fileContent } : fileContent;
 
     if (file.metadata) {
-      let scopedPath = relativePath;
-
-      // Calculate how much back navigation to remove
-      const pathContext = createPathContext(variant);
-      let backLevelsToRemove = pathContext.maxBackNavigation;
-
-      if (metadataPrefix) {
-        // Add metadataPrefix levels if present
-        backLevelsToRemove += metadataPrefix.split('/').filter(Boolean).length;
-      }
-
-      // Remove the back navigation prefix to scope metadata correctly
-      if (backLevelsToRemove > 0) {
-        const backNavigationToRemove = '../'.repeat(backLevelsToRemove);
-        if (scopedPath.startsWith(backNavigationToRemove)) {
-          scopedPath = scopedPath.slice(backNavigationToRemove.length);
-        }
-      }
+      const scopedPath = removeBackNavigationPrefix(relativePath, backLevelsToRemove);
 
       // Remove metadata flag when extracting
       const { metadata: metadataFlag, ...cleanFile } = file;
@@ -134,7 +114,7 @@ export function mergeMetadata(
 
   // Calculate the positioning level for metadata files
   const metadataBackNavigation = calculateMetadataBackNavigation(
-    workingVariant,
+    workingVariant.extraFiles,
     targetMetadataPrefix,
   );
 
@@ -178,9 +158,9 @@ export function mergeMetadata(
     };
   }
 
-  // Position new metadata files at the calculated level
+  // Position new metadata files at the calculated level using buildPath
   for (const [originalPath, file] of Object.entries(allMetadataFiles)) {
-    const metadataPath = `${metadataBackNavigation}${originalPath}`;
+    const metadataPath = buildPath(metadataBackNavigation, originalPath);
     positionedMetadataFiles[metadataPath] = file;
   }
 

@@ -38,6 +38,11 @@ export function flattenVariant(variant: VariantCode): FlattenedFiles {
   // Add extra files if they exist
   if (variantWithPaths.extraFiles) {
     for (const fileWithPath of Object.values(variantWithPaths.extraFiles)) {
+      // Skip files that are just URLs or missing a path
+      if (typeof fileWithPath === 'string' || !fileWithPath.path) {
+        continue;
+      }
+
       // Skip files with no source content
       if (!fileWithPath.source && fileWithPath.source !== '') {
         continue;
