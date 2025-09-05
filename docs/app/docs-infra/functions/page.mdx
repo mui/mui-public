@@ -1,0 +1,43 @@
+# Functions
+
+Developer utilities and build-time tools for the documentation infrastructure.
+
+## Configuration Plugins
+
+- [`withDocsInfra`](./with-docs-infra/page.mdx) - Next.js plugin for configuring webpack loaders, Turbopack rules, and MDX processing for docs sites
+
+## Factories
+
+- [`abstractCreateDemo`](./abstract-create-demo/page.mdx) - Factory utilities for creating structured demos that work with CodeHighlighter
+- [`abstractCreateDemoClient`](./abstract-create-demo-client/page.mdx) - Factory for creating client providers for live demo externals
+- [`createDemoData`](./create-demo-data/page.mdx) - Factory for creating demo metadata and configuration objects
+
+## Source Processing
+
+- [`parseSource`](./parse-source/page.mdx) - Parse source code into syntax-highlighted HAST using Starry Night
+- [`transformTypescriptToJavascript`](./transform-typescript-to-javascript/page.mdx) - Transform TypeScript/TSX to JavaScript/JSX with Babel and Prettier
+
+## Server Utilities
+
+- [`loadServerCodeMeta`](./load-server-code-meta/page.mdx) - Server utility for loading demo metadata and source information
+- [`loadServerSource`](./load-server-source/page.mdx) - Server utility for loading source code with recursive import resolution
+
+## Webpack Loaders
+
+- [`loadPrecomputedCodeHighlighter`](./load-precomputed-code-highlighter/page.mdx) - Webpack loader for build-time demo optimization
+- [`loadPrecomputedCodeHighlighterClient`](./load-precomputed-code-highlighter-client/page.mdx) - Webpack loader for client-side externals bundling in live demos
+
+## Rehype Plugins
+
+- [`transformHtmlCode`](./transform-html-code/page.mdx) - Plugin for transforming HTML code blocks into precomputed data structures
+
+## Remark Plugins
+
+- [`transformMarkdownCode`](./transform-markdown-code/page.mdx) - Remark plugin for transforming markdown code blocks with variants into HTML structures
+- [`transformMarkdownRelativePaths`](./transform-markdown-relative-paths/page.mdx) - Remark plugin for transforming relative markdown links to absolute paths
+- [`transformMarkdownBlockquoteCallouts`](./transform-markdown-blockquote-callouts/page.mdx) - Remark plugin for GitHub-style callout blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION)
+
+## Utilities
+
+- [`hastUtils`](./hast-utils/page.mdx) - Utilities for working with HAST (Hypertext Abstract Syntax Tree) and converting to JSX
+- [`loaderUtils`](./loader-utils/page.mdx) - A collection of utilities for loading and processing code, including parsing imports and resolving module paths

@@ -4,9 +4,8 @@ import * as React from 'react';
 import { useErrors } from '../useErrors';
 import { ErrorHandlerProps } from './types';
 
-export function CodeErrorHandler({ errors }: ErrorHandlerProps) {
-  const context = useErrors();
-  errors = context.errors || errors;
+export function CodeErrorHandler(props: ErrorHandlerProps) {
+  const { errors } = useErrors(props);
 
   if (!errors || errors.length === 0) {
     return <div>An error occurred, but details were not provided.</div>;

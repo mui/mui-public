@@ -17,7 +17,8 @@
     { "path": "packages/code-infra" },
     { "path": "packages/docs-infra" },
     { "path": "tsconfig.node.json" },
-    { "path": "scripts" }
+    { "path": "scripts" },
+    { "path": "docs" }
   ],
   "files": []
 }
