@@ -254,13 +254,9 @@ function renderCodeHighlighter<T extends {}>(props: RenderCodeHighlighterProps<T
     return <CodeSourceLoader {...props} />;
   }
 
-  const clientProps = createClientProps({
-    ...props,
-  });
+  const clientProps = createClientProps(props);
 
   return <CodeHighlighterClient {...clientProps} />;
-
-  // TODO: we might not need the client if hydrateAt is 'init' or 'stream' and there is no props.controlled
 }
 
 /**
@@ -271,32 +267,43 @@ async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
 }
 
 function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourceProps<T>) {
+  const ContentLoading = props.ContentLoading;
+  const {
+    url,
+    slug,
+    name,
+    initialVariant,
+    code,
+    initialFilename,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+  } = props;
+
   const fallbackProps = codeToFallbackProps(
-    props.initialVariant,
-    props.code,
-    props.initialFilename,
-    props.fallbackUsesExtraFiles,
-    props.fallbackUsesAllVariants,
+    initialVariant,
+    code,
+    initialFilename,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
   );
 
   // Get the component for the selected variant
-  const component = props.components?.[props.initialVariant];
+  const component = props.components?.[initialVariant];
 
   // Only include components (plural) if we're also including extraVariants
   const components = fallbackProps.extraVariants ? props.components : undefined;
 
   const contentProps = {
-    name: props.name,
-    slug: props.slug,
-    url: props.url,
-    initialFilename: props.initialFilename,
+    name,
+    slug,
+    url,
+    initialFilename,
     component,
     components,
     ...fallbackProps,
     ...props.contentProps,
   } as ContentLoadingProps<T>;
 
-  const ContentLoading = props.ContentLoading;
   const fallback = <ContentLoading {...contentProps} />;
 
   if (props.forceClient) {
@@ -321,38 +328,50 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
 
 async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoaderProps<T>) {
   const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
+  const {
+    url,
+    initialVariant,
+    highlightAt,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    sourceParser,
+    loadSource,
+    loadVariantMeta,
+    loadCodeMeta,
+    fileName,
+    variants,
+    globalsCode,
+    ContentLoading,
+  } = props;
 
-  if (!props.url) {
+  if (!url) {
     return <ErrorHandler errors={[new Error('URL is required for loading initial source')]} />;
   }
 
-  const loaded = await loadFallbackCode(props.url, props.initialVariant, props.code, {
-    shouldHighlight: props.highlightAt === 'init',
-    fallbackUsesExtraFiles: props.fallbackUsesExtraFiles,
-    fallbackUsesAllVariants: props.fallbackUsesAllVariants,
-    sourceParser: props.sourceParser,
-    loadSource: props.loadSource,
-    loadVariantMeta: props.loadVariantMeta,
-    loadCodeMeta: props.loadCodeMeta,
-    initialFilename: props.fileName,
-    variants: props.variants,
-    globalsCode: props.globalsCode,
-  }).catch((error) => ({ error }));
-  if ('error' in loaded) {
-    return <ErrorHandler errors={[loaded.error]} />;
-  }
-
-  const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } = loaded;
-
-  return renderWithInitialSource({
-    ...props,
-    code,
-    initialFilename,
-    initialSource,
-    initialExtraFiles,
-    ContentLoading: props.ContentLoading,
-    processedGlobalsCode,
-  });
+  return loadFallbackCode(url, initialVariant, props.code, {
+    shouldHighlight: highlightAt === 'init',
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    sourceParser,
+    loadSource,
+    loadVariantMeta,
+    loadCodeMeta,
+    initialFilename: fileName,
+    variants,
+    globalsCode,
+  }).then(
+    ({ code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode }) =>
+      renderWithInitialSource({
+        ...props,
+        ContentLoading,
+        code,
+        initialFilename,
+        initialSource,
+        initialExtraFiles,
+        processedGlobalsCode,
+      }),
+    (error) => <ErrorHandler errors={[error]} />,
+  );
 }
 
 export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
