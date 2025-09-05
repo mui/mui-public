@@ -342,7 +342,7 @@ export function exportVariant(
   // Determine if we need to rename the source file
   const ext = useTypescript ? 'tsx' : 'jsx';
   const isSourceFileIndex = sourceFilename === `index.${ext}`;
-  const hasBackNavigation = pathContext.maxBackNavigation > 0;
+  const hasBackNavigation = pathContext.maxSourceBackNavigation > 0;
 
   let actualSourceFilename = sourceFilename;
 

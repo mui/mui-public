@@ -15,7 +15,7 @@ describe('examineVariant', () => {
         expect(result).toEqual({
           hasUrl: false,
           hasMetadata: false,
-          maxBackNavigation: 0,
+          maxSourceBackNavigation: 0,
           urlDirectory: [],
           rootLevel: '',
           pathInwardFromRoot: '',
@@ -34,7 +34,7 @@ describe('examineVariant', () => {
         expect(result).toEqual({
           hasUrl: false,
           hasMetadata: false,
-          maxBackNavigation: 0,
+          maxSourceBackNavigation: 0,
           urlDirectory: [],
           rootLevel: '',
           pathInwardFromRoot: '',
@@ -53,7 +53,7 @@ describe('examineVariant', () => {
         expect(result).toEqual({
           hasUrl: true,
           hasMetadata: false,
-          maxBackNavigation: 0,
+          maxSourceBackNavigation: 0,
           urlDirectory: ['docs', 'components', 'button'],
           rootLevel: 'docs',
           pathInwardFromRoot: '',
@@ -62,8 +62,8 @@ describe('examineVariant', () => {
       });
     });
 
-    describe('maxBackNavigation calculation', () => {
-      it('should calculate maxBackNavigation from extraFiles with relative paths', () => {
+    describe('maxSourceBackNavigation calculation', () => {
+      it('should calculate maxSourceBackNavigation from extraFiles with relative paths', () => {
         const variant: VariantCode = {
           source: 'console.log("test");',
           extraFiles: {
@@ -75,11 +75,11 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(2);
+        expect(result.maxSourceBackNavigation).toBe(2);
         expect(result.pathInwardFromRoot).toBe('');
       });
 
-      it('should ignore metadata files when calculating maxBackNavigation', () => {
+      it('should ignore metadata files when calculating maxSourceBackNavigation', () => {
         const variant: VariantCode = {
           source: 'console.log("test");',
           extraFiles: {
@@ -95,7 +95,7 @@ describe('examineVariant', () => {
         const result = createPathContext(variant);
 
         // Should be 2 (from ../../config.js), not 3 (ignoring ../../../metadata.json)
-        expect(result.maxBackNavigation).toBe(2);
+        expect(result.maxSourceBackNavigation).toBe(2);
         expect(result.pathInwardFromRoot).toBe('');
       });
 
@@ -114,7 +114,7 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(1);
+        expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.pathInwardFromRoot).toBe('');
       });
 
@@ -130,7 +130,7 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(0);
+        expect(result.maxSourceBackNavigation).toBe(0);
       });
 
       it('should only count consecutive back navigation at the start of paths', () => {
@@ -148,7 +148,7 @@ describe('examineVariant', () => {
         // Should be 2 (from ../../baz/../qux.js - only consecutive ../ at start)
         // ../foo/../bar/utils.js counts as 1 (only the first ../)
         // ../../baz/../qux.js counts as 2 (two consecutive ../ at start)
-        expect(result.maxBackNavigation).toBe(2);
+        expect(result.maxSourceBackNavigation).toBe(2);
       });
 
       it('should handle complex mixed forward/backward navigation patterns', () => {
@@ -167,7 +167,7 @@ describe('examineVariant', () => {
         // ../foo/../../bar/utils.js resolves to 2 back steps (../foo/../../ = back 2, forward bar)
         // ../../forward/../back/config.js resolves to 2 back steps (../../forward/../ = back 2, forward back)
         // ../../../start/forward/../../../back.js resolves to 4 back steps (../../../start/forward/../../../ = back 4, forward back)
-        expect(result.maxBackNavigation).toBe(4);
+        expect(result.maxSourceBackNavigation).toBe(4);
       });
     });
 
@@ -286,7 +286,7 @@ describe('examineVariant', () => {
         expect(result).toEqual({
           hasUrl: true,
           hasMetadata: true,
-          maxBackNavigation: 2,
+          maxSourceBackNavigation: 2,
           urlDirectory: ['docs', 'components', 'button'],
           rootLevel: 'docs',
           pathInwardFromRoot: 'components/button',
@@ -294,7 +294,7 @@ describe('examineVariant', () => {
         });
       });
 
-      it('should calculate pathInwardFromRoot with maxBackNavigation of 1', () => {
+      it('should calculate pathInwardFromRoot with maxSourceBackNavigation of 1', () => {
         const variant: VariantCode = {
           source: 'console.log("test");',
           url: 'file:///docs/components/button',
@@ -305,13 +305,13 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(1);
+        expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.pathInwardFromRoot).toBe('button');
         expect(result.urlDirectory).toEqual(['docs', 'components', 'button']);
         expect(result.rootLevel).toBe('docs');
       });
 
-      it('should calculate pathInwardFromRoot with maxBackNavigation of 3', () => {
+      it('should calculate pathInwardFromRoot with maxSourceBackNavigation of 3', () => {
         const variant: VariantCode = {
           source: 'console.log("test");',
           url: 'file:///docs/system/getting-started/installation',
@@ -322,7 +322,7 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(3);
+        expect(result.maxSourceBackNavigation).toBe(3);
         expect(result.pathInwardFromRoot).toBe('system/getting-started/installation');
         expect(result.urlDirectory).toEqual(['docs', 'system', 'getting-started', 'installation']);
         expect(result.rootLevel).toBe('docs');
@@ -345,8 +345,8 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        // maxBackNavigation should be 0 because only metadata files exist
-        expect(result.maxBackNavigation).toBe(0);
+        // maxSourceBackNavigation should be 0 because only metadata files exist
+        expect(result.maxSourceBackNavigation).toBe(0);
         expect(result.hasMetadata).toBe(true);
       });
 
@@ -364,7 +364,7 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(5);
+        expect(result.maxSourceBackNavigation).toBe(5);
         expect(result.pathInwardFromRoot).toBe('');
       });
     });
@@ -405,7 +405,7 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(1);
+        expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.hasMetadata).toBe(false);
       });
 
@@ -424,7 +424,7 @@ describe('examineVariant', () => {
 
         const result = createPathContext(variant);
 
-        expect(result.maxBackNavigation).toBe(1);
+        expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.hasMetadata).toBe(false);
       });
     });
