@@ -6,6 +6,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { $ } from 'execa';
+import { BASE_IGNORES } from '../utils/build.mjs';
 
 const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
 
@@ -63,18 +64,6 @@ export async function cjsCopy({ from, to }) {
  * @property {'annotate' | 'throw' | 'write'} [missingError] - How to handle missing error codes.
  * @property {string} [runtimeModule] - The runtime module to replace the errors with.
  */
-
-const BASE_IGNORES = [
-  '**/*.test.js',
-  '**/*.test.ts',
-  '**/*.test.tsx',
-  '**/*.spec.js',
-  '**/*.spec.ts',
-  '**/*.spec.tsx',
-  '**/*.d.ts',
-  '**/*.test/*.*',
-  '**/test-cases/*.*',
-];
 
 /**
  * @param {Object} options

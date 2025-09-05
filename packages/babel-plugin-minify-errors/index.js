@@ -103,6 +103,68 @@ function handleUnminifyableError(missingError, path) {
 }
 
 /**
+ * @param {babel.types} t
+ * @param {babel.NodePath<babel.types.NewExpression>} newExpressionPath
+ * @param {{ detection: Options['detection']; missingError: MissingError}} param2
+ * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
+ */
+function findMessageNode(t, newExpressionPath, { detection, missingError }) {
+  if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
+    return null;
+  }
+
+  switch (detection) {
+    case 'opt-in': {
+      if (
+        !newExpressionPath.node.leadingComments?.some((comment) =>
+          comment.value.includes(COMMENT_OPT_IN_MARKER),
+        )
+      ) {
+        return null;
+      }
+      newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
+        (comment) => !comment.value.includes(COMMENT_OPT_IN_MARKER),
+      );
+      break;
+    }
+    case 'opt-out': {
+      if (
+        newExpressionPath.node.leadingComments?.some((comment) =>
+          comment.value.includes(COMMENT_OPT_OUT_MARKER),
+        )
+      ) {
+        newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
+          (comment) => !comment.value.includes(COMMENT_OPT_OUT_MARKER),
+        );
+        return null;
+      }
+
+      break;
+    }
+    default: {
+      throw new Error(`Unknown detection option: ${detection}`);
+    }
+  }
+
+  const messagePath = newExpressionPath.get('arguments')[0];
+  if (!messagePath) {
+    return null;
+  }
+
+  const messageNode = messagePath.node;
+  if (t.isSpreadElement(messageNode) || t.isArgumentPlaceholder(messageNode)) {
+    handleUnminifyableError(missingError, newExpressionPath);
+    return null;
+  }
+  const message = extractMessage(t, messageNode);
+  if (!message) {
+    handleUnminifyableError(missingError, newExpressionPath);
+    return null;
+  }
+  return { messagePath, messageNode, message };
+}
+
+/**
  * Transforms the error message node.
  * @param {babel.types} t
  * @param {babel.NodePath} path
@@ -261,59 +323,15 @@ module.exports = function plugin(
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
-        if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
-          return;
-        }
-
-        switch (detection) {
-          case 'opt-in': {
-            if (
-              !newExpressionPath.node.leadingComments?.some((comment) =>
-                comment.value.includes(COMMENT_OPT_IN_MARKER),
-              )
-            ) {
-              return;
-            }
-            newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
-              (comment) => !comment.value.includes(COMMENT_OPT_IN_MARKER),
-            );
-            break;
-          }
-          case 'opt-out': {
-            if (
-              newExpressionPath.node.leadingComments?.some((comment) =>
-                comment.value.includes(COMMENT_OPT_OUT_MARKER),
-              )
-            ) {
-              newExpressionPath.node.leadingComments =
-                newExpressionPath.node.leadingComments.filter(
-                  (comment) => !comment.value.includes(COMMENT_OPT_OUT_MARKER),
-                );
-              return;
-            }
-
-            break;
-          }
-          default: {
-            throw new Error(`Unknown detection option: ${detection}`);
-          }
-        }
-
-        const messagePath = newExpressionPath.get('arguments')[0];
-        if (!messagePath) {
-          return;
-        }
-
-        const messageNode = messagePath.node;
-        if (t.isSpreadElement(messageNode) || t.isArgumentPlaceholder(messageNode)) {
-          handleUnminifyableError(missingError, newExpressionPath);
+        const message = findMessageNode(t, newExpressionPath, { detection, missingError });
+        if (!message) {
           return;
         }
 
         const transformedMessage = transformMessage(
           t,
           newExpressionPath,
-          messageNode,
+          message.messageNode,
           state,
           errorCodesLookup,
           missingError,
@@ -322,7 +340,7 @@ module.exports = function plugin(
         );
 
         if (transformedMessage) {
-          messagePath.replaceWith(transformedMessage);
+          message.messagePath.replaceWith(transformedMessage);
         }
       },
     },
@@ -336,3 +354,7 @@ module.exports = function plugin(
     },
   };
 };
+
+module.exports.findMessageNode = findMessageNode;
+
+exports.findMessageNode = findMessageNode;

@@ -102,6 +102,13 @@ declare module '@babel/plugin-transform-runtime' {
   export default plugin;
 }
 
+declare module '@babel/plugin-syntax-jsx' {
+  import type { PluginItem } from '@babel/core';
+
+  declare const plugin: PluginItem;
+  export default plugin;
+}
+
 declare module '@babel/plugin-syntax-typescript' {
   import type { PluginItem } from '@babel/core';
 
