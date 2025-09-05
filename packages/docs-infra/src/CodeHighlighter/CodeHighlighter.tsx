@@ -238,19 +238,14 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
 }
 
 function renderCodeHighlighter<T extends {}>(props: RenderCodeHighlighterProps<T>) {
-  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
-
   const code = props.code || props.precompute;
   const variants = props.variants || Object.keys(props.components || code || {});
   const allCodeVariantsLoaded = code && hasAllVariants(variants, code, true);
 
-  if (!allCodeVariantsLoaded) {
-    if (props.forceClient) {
-      return (
-        <ErrorHandler errors={[new Error('Client only mode requires precomputed source code')]} />
-      );
-    }
+  // Check if any loader functions are available before trying async loading
+  const hasAnyLoaderFunction = !!(props.loadCodeMeta || props.loadVariantMeta || props.loadSource);
 
+  if (!allCodeVariantsLoaded && hasAnyLoaderFunction && !props.forceClient) {
     return <CodeSourceLoader {...props} />;
   }
 
@@ -440,6 +435,17 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
       );
     }
 
+    return renderCodeHighlighter({
+      ...props,
+      code,
+    });
+  }
+
+  // Check if any loader functions are available
+  const hasAnyLoaderFunction = !!(props.loadCodeMeta || props.loadVariantMeta || props.loadSource);
+
+  // If no loader functions are available, skip async loading and go directly to client
+  if (!hasAnyLoaderFunction) {
     return renderCodeHighlighter({
       ...props,
       code,
