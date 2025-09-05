@@ -54,8 +54,9 @@
     },
     {
       "groupName": "node",
-      "matchDatasources": ["docker", "node-version"],
-      "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
+      "description": "Disables Node.js version bumps. Hint from the release notes of https://github.com/mui/base-ui/pull/2644",
+      "matchDatasources": ["node-version"],
+      "matchPackageNames": ["@types/node", "node", "cimg/node", "@actions/node-versions"],
       "enabled": false
     },
     {
@@ -69,7 +70,8 @@
     },
     {
       "groupName": "Vite & Vitest",
-      "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
+      "extends": ["packages:vite", "monorepo:vitest"],
+      "matchPackageNames": ["esbuild"]
     },
     {
       "matchPackageNames": ["eslint-config-prettier"],
