@@ -302,7 +302,9 @@ function useAllVariants({
           setCode(resultCode);
         }
       } catch (error) {
-        console.error(new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url!, error as Error));
+        console.error(
+          new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url!, error as Error),
+        );
       }
     })();
   }, [
@@ -438,7 +440,9 @@ function useCodeTransforms({
         const enhanced = await applyTransforms(parsedCode, parseSource);
         setTransformedCode(enhanced);
       } catch (error) {
-        console.error(new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error));
+        console.error(
+          new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error),
+        );
         setTransformedCode(parsedCode);
       }
     })();
@@ -477,7 +481,9 @@ function useControlledCodeParsing({
         if (forceClient) {
           console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, true));
         } else {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false));
+          console.error(
+            new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false),
+          );
         }
       }
       return undefined;
@@ -581,7 +587,13 @@ function useGlobalsCodeMerging({
                   );
                   loadedVariants[variantName] = result.code;
                 } catch (error) {
-                  console.error(new Errors.ErrorCodeHighlighterClientLoadVariantFailureForGlobals(variantName, originalUrl, error as Error));
+                  console.error(
+                    new Errors.ErrorCodeHighlighterClientLoadVariantFailureForGlobals(
+                      variantName,
+                      originalUrl,
+                      error as Error,
+                    ),
+                  );
                   // Keep the original variant data (may be undefined)
                 }
               }),
@@ -593,7 +605,12 @@ function useGlobalsCodeMerging({
 
         setProcessedGlobalsCode(fullyLoadedCodeObjects);
       } catch (error) {
-        console.error(new Errors.ErrorCodeHighlighterClientLoadGlobalsCodeFailure(url || 'No URL', error as Error));
+        console.error(
+          new Errors.ErrorCodeHighlighterClientLoadGlobalsCodeFailure(
+            url || 'No URL',
+            error as Error,
+          ),
+        );
       }
     })();
   }, [

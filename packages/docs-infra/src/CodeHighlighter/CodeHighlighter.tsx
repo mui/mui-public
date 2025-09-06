@@ -184,7 +184,9 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   const errors: Error[] = [];
   for (const item of variantCodes) {
     if ('error' in item) {
-      console.error(new Errors.ErrorCodeHighlighterServerLoadVariantFailure(props.url!, item.error));
+      console.error(
+        new Errors.ErrorCodeHighlighterServerLoadVariantFailure(props.url!, item.error),
+      );
       errors.push(item.error);
     } else {
       processedCode[item.name] = item.variant.code;
