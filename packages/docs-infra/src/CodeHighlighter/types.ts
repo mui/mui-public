@@ -112,11 +112,6 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
     initialFilename?: string;
   };
 
-export type ErrorHandlerProps = {
-  errors?: Error[];
-};
-export type ErrorHandler = React.ComponentType<ErrorHandlerProps>;
-
 export type LoadCodeMeta = (url: string) => Promise<Code>;
 export type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
 export type LoadSource = (url: string) => Promise<{
@@ -262,8 +257,6 @@ export interface CodeRenderingProps<T extends {}> {
   Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
   contentProps?: T;
-  /** Component to handle and display errors during code loading or processing */
-  ErrorHandler?: ErrorHandler;
 }
 
 /**
@@ -272,8 +265,6 @@ export interface CodeRenderingProps<T extends {}> {
 export interface CodeClientRenderingProps {
   /** The CodeContent component that renders the code display and syntax highlighting */
   children: React.ReactNode;
-  /** Custom error display component for handling loading or parsing failures */
-  errorHandler?: React.ReactNode;
   /** Loading placeholder shown while code is being processed */
   fallback?: React.ReactNode;
   /** Skip showing fallback content entirely */

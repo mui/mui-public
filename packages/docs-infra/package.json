@@ -10,6 +10,7 @@
     "./CodeExternalsContext": "./src/CodeExternalsContext/index.ts",
     "./CodeHighlighter": "./src/CodeHighlighter/index.ts",
     "./CodeHighlighter/types": "./src/CodeHighlighter/types.ts",
+    "./CodeHighlighter/errors": "./src/CodeHighlighter/errors.ts",
     "./CodeProvider": "./src/CodeProvider/index.ts",
     "./createDemoData": "./src/createDemoData/index.ts",
     "./createDemoData/types": "./src/createDemoData/types.ts",

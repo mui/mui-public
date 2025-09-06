@@ -18,8 +18,8 @@ import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
-import { CodeErrorHandler } from './CodeErrorHandler';
 import { codeToFallbackProps } from './codeToFallbackProps';
+import * as Errors from './errors';
 
 interface CodeInitialSourceLoaderProps<T extends {}> extends CodeHighlighterBaseProps<T> {
   fallbackUsesExtraFiles?: boolean;
@@ -75,8 +75,6 @@ function createClientProps<T extends {}>(
     ...props.contentProps,
   } as ContentProps<T>;
 
-  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
-
   return {
     url: props.url,
     code: props.code,
@@ -99,45 +97,26 @@ function createClientProps<T extends {}>(
     // otherwise we will get an error because functions can't be serialized
     // On the client, in order to send data to these components, we have to set context
     fallback: props.fallback,
-    errorHandler: <ErrorHandler />,
     children: <props.Content {...contentProps} />,
   };
 }
 
 async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
-  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
-
   // Start with the loaded code from precompute, or load it if needed
   let loadedCode = props.code || props.precompute;
   if (!loadedCode) {
     if (!props.loadCodeMeta) {
-      return (
-        <ErrorHandler
-          errors={[new Error('No code provided and "loadCodeMeta" function is not defined')]}
-        />
-      );
+      throw new Errors.ErrorCodeHighlighterServerMissingLoadCodeMeta();
     }
 
     if (!props.url) {
-      return (
-        <ErrorHandler
-          errors={[new Error('URL is required when loading code with "loadCodeMeta"')]}
-        />
-      );
+      throw new Errors.ErrorCodeHighlighterServerMissingUrlForLoadCodeMeta();
     }
 
     try {
       loadedCode = await props.loadCodeMeta(props.url);
     } catch (error) {
-      return (
-        <ErrorHandler
-          errors={[
-            new Error(
-              `Failed to load code from URL: ${props.url}. Error: ${JSON.stringify(error)}`,
-            ),
-          ]}
-        />
-      );
+      throw new Errors.ErrorCodeHighlighterServerLoadCodeFailure(props.url, error);
     }
   }
 
@@ -148,13 +127,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   if (!processedGlobalsCode && props.globalsCode && props.globalsCode.length > 0) {
     const hasStringUrls = props.globalsCode.some((item) => typeof item === 'string');
     if (hasStringUrls && !props.loadCodeMeta) {
-      return (
-        <ErrorHandler
-          errors={[
-            new Error('loadCodeMeta function is required when globalsCode contains string URLs'),
-          ]}
-        />
-      );
+      throw new Errors.ErrorCodeHighlighterServerMissingLoadCodeMetaForGlobals();
     }
 
     // Load all string URLs in parallel, keep Code objects as-is
@@ -164,9 +137,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         try {
           return await props.loadCodeMeta!(globalItem);
         } catch (error) {
-          throw new Error(
-            `Failed to load globalsCode from URL: ${globalItem}. Error: ${JSON.stringify(error)}`,
-          );
+          throw new Errors.ErrorCodeHighlighterServerLoadGlobalsFailure(globalItem, error);
         }
       } else {
         // Code object - return as-is
@@ -174,11 +145,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
       }
     });
 
-    try {
-      processedGlobalsCode = await Promise.all(globalsPromises);
-    } catch (error) {
-      return <ErrorHandler errors={[error as Error]} />;
-    }
+    processedGlobalsCode = await Promise.all(globalsPromises);
   }
 
   const variantNames = Object.keys(props.components || loadedCode || {});
@@ -217,7 +184,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   const errors: Error[] = [];
   for (const item of variantCodes) {
     if ('error' in item) {
-      console.error(`[docs-infra] Error loading variant of ${props.url}: ${item.error}`);
+      console.error(new Errors.ErrorCodeHighlighterServerLoadVariantFailure(props.url!, item.error));
       errors.push(item.error);
     } else {
       processedCode[item.name] = item.variant.code;
@@ -225,7 +192,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
   }
 
   if (errors.length > 0) {
-    return <ErrorHandler errors={errors} />;
+    throw new Errors.ErrorCodeHighlighterServerLoadVariantsFailure(props.url!, errors);
   }
 
   const clientProps = createClientProps({
@@ -328,7 +295,6 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
 }
 
 async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoaderProps<T>) {
-  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
   const {
     url,
     initialVariant,
@@ -346,45 +312,38 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
   } = props;
 
   if (!url) {
-    return <ErrorHandler errors={[new Error('URL is required for loading initial source')]} />;
+    throw new Errors.ErrorCodeHighlighterServerMissingUrl();
   }
 
-  return loadFallbackCode(url, initialVariant, props.code, {
-    shouldHighlight: highlightAt === 'init',
-    fallbackUsesExtraFiles,
-    fallbackUsesAllVariants,
-    sourceParser,
-    loadSource,
-    loadVariantMeta,
-    loadCodeMeta,
-    initialFilename: fileName,
-    variants,
-    globalsCode,
-  }).then(
-    ({ code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode }) =>
-      renderWithInitialSource({
-        ...props,
-        ContentLoading,
-        code,
-        initialFilename,
-        initialSource,
-        initialExtraFiles,
-        processedGlobalsCode,
-      }),
-    (error) => <ErrorHandler errors={[error]} />,
-  );
+  const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } =
+    await loadFallbackCode(url, initialVariant, props.code, {
+      shouldHighlight: highlightAt === 'init',
+      fallbackUsesExtraFiles,
+      fallbackUsesAllVariants,
+      sourceParser,
+      loadSource,
+      loadVariantMeta,
+      loadCodeMeta,
+      initialFilename: fileName,
+      variants,
+      globalsCode,
+    });
+
+  return renderWithInitialSource({
+    ...props,
+    ContentLoading,
+    code,
+    initialFilename,
+    initialSource,
+    initialExtraFiles,
+    processedGlobalsCode,
+  });
 }
 
 export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
-  const ErrorHandler = props.ErrorHandler || CodeErrorHandler;
-
   // Validate mutually exclusive props
   if (props.children && (props.code || props.precompute)) {
-    return (
-      <ErrorHandler
-        errors={[new Error('Cannot provide both "children" and "code" or "precompute" props')]}
-      />
-    );
+    throw new Errors.ErrorCodeHighlighterServerInvalidProps();
   }
 
   // Handle children as string -> Default variant
@@ -404,7 +363,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   const variants =
     props.variants || Object.keys(props.components || code || props.precompute || {});
   if (variants.length === 0) {
-    return <ErrorHandler errors={[new Error('No code or components provided')]} />;
+    throw new Errors.ErrorCodeHighlighterServerMissingData();
   }
 
   // Validate fileName is provided when extraFiles are present
@@ -417,15 +376,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
         !variantCode.fileName &&
         !variantCode.url
       ) {
-        return (
-          <ErrorHandler
-            errors={[
-              new Error(
-                `fileName or url is required for variant "${variantName}" when extraFiles are provided`,
-              ),
-            ]}
-          />
-        );
+        throw new Errors.ErrorCodeHighlighterServerMissingFileName(variantName);
       }
     }
   }
@@ -434,11 +385,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   if (!ContentLoading) {
     if (props.highlightAt === 'stream') {
       // if the user explicitly sets highlightAt to 'stream', we need a ContentLoading component
-      return (
-        <ErrorHandler
-          errors={[new Error('ContentLoading component is required for stream highlighting')]}
-        />
-      );
+      throw new Errors.ErrorCodeHighlighterServerMissingContentLoading();
     }
 
     return renderCodeHighlighter({
@@ -467,9 +414,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   const initialKey = props.initialVariant || props.variant || props.defaultVariant || variants[0];
   const initial = code?.[initialKey];
   if (!initial && !props.components?.[initialKey]) {
-    return (
-      <ErrorHandler errors={[new Error(`No code or component for variant "${initialKey}"`)]} />
-    );
+    throw new Errors.ErrorCodeHighlighterServerMissingVariant(initialKey);
   }
 
   // TODO: use initial.filesOrder to determing which source to use
@@ -493,21 +438,13 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
 
     if (props.forceClient) {
       if (highlightAt === 'init') {
-        return (
-          <ErrorHandler
-            errors={[
-              new Error(
-                'Client only mode with highlightAt: init requires precomputed and parsed source code',
-              ),
-            ]}
-          />
-        );
+        throw new Errors.ErrorCodeHighlighterServerInvalidClientMode();
       }
 
-      // TODO: send directly to client component?
-      return (
-        <ErrorHandler errors={[new Error('Client only mode requires precomputed source code')]} />
-      );
+      return renderCodeHighlighter({
+        ...props,
+        code,
+      });
     }
 
     return (
