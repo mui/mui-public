@@ -40,7 +40,7 @@
     "@babel/core": "^7.28.4",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.28.3",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.3.1",
     "@types/react": "^19.1.11",
     "babel-plugin-istanbul": "^7.0.1",
     "babel-plugin-module-resolver": "^5.0.2",
