@@ -9,7 +9,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
-        node-version: 22.18.0
+        node-version: 22.19.0
         # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
         cache: 'pnpm'
         registry-url: 'https://registry.npmjs.org'
