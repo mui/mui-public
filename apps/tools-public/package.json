@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@googleapis/sheets": "^9.8.0",
-    "@mui/system": "^7.3.1",
-    "@mui/x-charts": "^8.10.2",
+    "@mui/system": "^7.3.2",
+    "@mui/x-charts": "^8.11.1",
     "@octokit/core": "^7.0.3",
     "@toolpad/studio": "^0.13.0",
     "dayjs": "^1.11.18",
