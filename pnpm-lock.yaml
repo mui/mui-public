@@ -299,7 +299,7 @@ importers:
         specifier: ^5.6.0
         version: 5.6.0
       env-ci:
-        specifier: ^11.1.1
+        specifier: ^11.2.0
         version: 11.2.0
       execa:
         specifier: ^9.6.0
