@@ -28,7 +28,7 @@
   "dependencies": {
     "@argos-ci/core": "^4.1.0",
     "@babel/cli": "^7.28.3",
-    "@babel/core": "^7.28.3",
+    "@babel/core": "^7.28.4",
     "@babel/plugin-syntax-typescript": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.28.3",
     "@babel/preset-env": "^7.28.3",

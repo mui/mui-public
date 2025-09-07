@@ -27,7 +27,7 @@
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/runtime": "^7.28.3",
+    "@babel/runtime": "^7.28.4",
     "@types/hast": "^3.0.4",
     "clipboard-copy": "^4.0.1",
     "hast": "^1.0.0",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@babel/cli": "^7.28.3",
-    "@babel/core": "^7.28.3",
+    "@babel/core": "^7.28.4",
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "@babel/plugin-transform-runtime": "^7.28.3",
     "@types/node": "^24.3.0",
