@@ -145,7 +145,7 @@ importers:
         specifier: ^5.0.1
         version: 5.0.2(vite@7.1.4(@types/node@24.3.0)(jiti@2.5.1)(terser@5.44.0)(tsx@4.20.5)(yaml@2.8.1))
       netlify-cli:
-        specifier: ^23.3.1
+        specifier: ^23.5.0
         version: 23.5.0(@types/node@24.3.0)(encoding@0.1.13)(picomatch@4.0.3)(rollup@4.50.0)
       typescript:
         specifier: ^5.9.2
@@ -539,8 +539,8 @@ importers:
         specifier: ^19.1.11
         version: 19.1.12
       babel-plugin-istanbul:
-        specifier: ^7.0.0
-        version: 7.0.0
+        specifier: ^7.0.1
+        version: 7.0.1
       babel-plugin-module-resolver:
         specifier: ^5.0.2
         version: 5.0.2
@@ -5802,8 +5802,8 @@ packages:
   b4a@1.6.7:
     resolution: {integrity: sha512-OnAYlL5b7LEkALw87fUVafQw5rVR9RjwGd4KUwNQ6DrrNmaVaUCgLipfVlzrPQ4tWOR9P0IXGNOx50jYCCdSJg==}
 
-  babel-plugin-istanbul@7.0.0:
-    resolution: {integrity: sha512-C5OzENSx/A+gt7t4VH1I2XsflxyPUmXRFPKBxt33xncdOmq7oROVM3bZv9Ysjjkv8OJYDMa+tKuKMvqU/H3xdw==}
+  babel-plugin-istanbul@7.0.1:
+    resolution: {integrity: sha512-D8Z6Qm8jCvVXtIRkBnqNHX0zJ37rQcFJ9u8WOS6tkYOsRdHBzypCstaxWiu5ZIlqQtviRYbgnRLSoCEvjqcqbA==}
     engines: {node: '>=12'}
 
   babel-plugin-macros@3.1.0:
@@ -18939,7 +18939,7 @@ snapshots:
 
   b4a@1.6.7: {}
 
-  babel-plugin-istanbul@7.0.0:
+  babel-plugin-istanbul@7.0.1:
     dependencies:
       '@babel/helper-plugin-utils': 7.27.1
       '@istanbuljs/load-nyc-config': 1.1.0
