@@ -1,14 +1,5 @@
 {
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noEmit": true
-  },
+  "extends": "./tsconfig.options.json",
   "references": [
     { "path": "apps/code-infra-dashboard" },
     { "path": "packages/babel-plugin-minify-errors" },
