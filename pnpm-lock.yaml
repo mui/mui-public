@@ -344,6 +344,9 @@ importers:
       '@babel/core':
         specifier: ^7.28.4
         version: 7.28.4
+      '@babel/plugin-syntax-jsx':
+        specifier: ^7.27.1
+        version: 7.27.1(@babel/core@7.28.4)
       '@babel/plugin-syntax-typescript':
         specifier: ^7.27.1
         version: 7.27.1(@babel/core@7.28.4)
