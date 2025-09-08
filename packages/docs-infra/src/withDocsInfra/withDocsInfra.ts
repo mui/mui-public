@@ -81,6 +81,8 @@ export function getDocsInfraMdxOptions(
 ): DocsInfraMdxOptions {
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
     ['remark-gfm'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
   ];
