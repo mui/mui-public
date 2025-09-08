@@ -3,41 +3,39 @@
   "version": "0.2.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
-  "main": "./index.js",
-  "types": "./index.d.ts",
   "exports": {
-    ".": {
-      "types": "./index.d.ts",
-      "default": "./index.js"
-    },
-    "./*": {
-      "types": "./*/index.d.ts",
-      "default": "./*/index.js"
-    },
-    "./*/types": {
-      "types": "./*/types.d.ts",
-      "default": "./*/types.js"
-    },
-    "./*/errors": {
-      "types": "./*/errors.d.ts",
-      "default": "./*/errors.js"
-    },
-    "./pipeline": {
-      "types": "./pipeline/index.d.ts",
-      "default": "./pipeline/index.js"
-    },
-    "./pipeline/*": {
-      "types": "./pipeline/*/index.d.ts",
-      "default": "./pipeline/*/index.js"
-    },
-    "./pipeline/*/types": {
-      "types": "./pipeline/*/types.d.ts",
-      "default": "./pipeline/*/types.js"
-    },
-    "./pipeline/*/errors": {
-      "types": "./pipeline/*/errors.d.ts",
-      "default": "./pipeline/*/errors.js"
-    }
+    "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
+    "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
+    "./CodeControllerContext": "./src/CodeControllerContext/index.ts",
+    "./CodeExternalsContext": "./src/CodeExternalsContext/index.ts",
+    "./CodeHighlighter": "./src/CodeHighlighter/index.ts",
+    "./CodeHighlighter/types": "./src/CodeHighlighter/types.ts",
+    "./CodeHighlighter/errors": "./src/CodeHighlighter/errors.ts",
+    "./CodeProvider": "./src/CodeProvider/index.ts",
+    "./createDemoData": "./src/createDemoData/index.ts",
+    "./createDemoData/types": "./src/createDemoData/types.ts",
+    "./useCode": "./src/useCode/index.ts",
+    "./useCopier": "./src/useCopier/index.ts",
+    "./useDemo": "./src/useDemo/index.ts",
+    "./useErrors": "./src/useErrors/index.ts",
+    "./useLocalStorageState": "./src/useLocalStorageState/index.ts",
+    "./usePreference": "./src/usePreference/index.ts",
+    "./useUrlHashState": "./src/useUrlHashState/index.ts",
+    "./withDocsInfra": "./src/withDocsInfra/index.ts",
+    "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
+    "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
+    "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
+    "./pipeline/transformMarkdownRelativePaths": "./src/pipeline/transformMarkdownRelativePaths/index.ts",
+    "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
+    "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
+    "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
+    "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
+    "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
+    "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
+    "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
+    "./pipeline/transformHtmlCode": "./src/pipeline/transformHtmlCode/index.ts",
+    "./pipeline/transformMarkdownCode": "./src/pipeline/transformMarkdownCode/index.ts",
+    "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts"
   },
   "keywords": [
     "react",
@@ -66,55 +64,36 @@
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/runtime": "^7.28.3",
-    "@babel/standalone": "^7.28.1",
+    "@babel/runtime": "^7.28.4",
+    "@babel/standalone": "^7.28.4",
     "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
     "hast-util-to-jsx-runtime": "^2.3.6",
-    "hast-util-to-mdast": "^10.1.2",
     "hast-util-to-text": "^4.0.2",
-    "js-sha256": "^0.11.1",
     "jsondiffpatch": "^0.7.3",
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
+    "path-module": "^0.1.2",
     "prettier": "^3.5.3",
-    "rehype-parse": "^9.0.1",
-    "rehype-remark": "^10.0.1",
-    "rehype-sanitize": "^6.0.0",
-    "remark-parse": "^11.0.0",
-    "remark-stringify": "^11.0.0",
     "typescript-api-extractor": "1.0.0-alpha.8",
-    "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
   },
   "devDependencies": {
-    "@babel/cli": "^7.28.3",
-    "@babel/core": "^7.28.3",
-    "@babel/plugin-transform-react-constant-elements": "^7.27.1",
-    "@babel/plugin-transform-runtime": "^7.28.3",
     "@testing-library/react": "^16.3.0",
     "@types/babel__standalone": "^7.1.9",
     "@types/babel__traverse": "^7.20.7",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^24.3.0",
-    "@types/react": "^19.1.11",
-    "babel-plugin-istanbul": "^7.0.0",
-    "babel-plugin-module-resolver": "^5.0.2",
-    "babel-plugin-optimize-clsx": "^2.6.2",
-    "babel-plugin-react-remove-properties": "^0.3.0",
-    "babel-plugin-transform-inline-environment-variables": "^0.4.4",
-    "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
-    "csstype": "^3.1.3",
-    "execa": "^9.6.0",
-    "jsonc-parser": "^3.3.1",
-    "next": "^15.5.0",
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.1.12",
+    "@types/webpack": "^5.28.5",
     "react": "^19.1.1",
+    "rehype-parse": "^9.0.1",
     "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
-    "rimraf": "^6.0.1",
-    "yargs": "^18.0.0"
+    "unified": "^11.0.5"
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
@@ -132,6 +111,6 @@
     "directory": "build"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.12.0"
   }
 }

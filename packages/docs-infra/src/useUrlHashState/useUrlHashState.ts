@@ -1,163 +1,71 @@
 'use client';
 import * as React from 'react';
 
-export interface UseUrlHashStateOptions {
-  /**
-   * Whether to automatically read the hash on mount
-   * @default true
-   */
-  readOnMount?: boolean;
-
-  /**
-   * Whether to automatically watch for hash changes
-   * @default true
-   */
-  watchChanges?: boolean;
-
-  /**
-   * Custom hash parser function
-   * @default (hash) => hash.slice(1) // Remove the '#'
-   */
-  parseHash?: (hash: string) => string;
-
-  /**
-   * Custom hash formatter function
-   * @default (value) => value
-   */
-  formatHash?: (value: string) => string;
-}
-
-export interface UseUrlHashStateResult {
-  /**
-   * Current hash value (without the '#')
-   */
-  hash: string | null;
-
-  /**
-   * Set a new hash value (will update the URL)
-   * @param value - New hash value
-   * @param replace - Whether to use replaceState instead of pushState
-   */
-  setHash: (value: string | null, replace?: boolean) => void;
-
-  /**
-   * Whether the initial hash has been processed
-   */
-  hasProcessedInitialHash: boolean;
-
-  /**
-   * Whether the user has explicitly interacted with the hash
-   */
-  hasUserInteraction: boolean;
-
-  /**
-   * Mark that user has interacted with the hash
-   */
-  markUserInteraction: () => void;
-}
-
-const defaultParseHash = (hash: string): string => hash.slice(1); // Remove the '#'
-const defaultFormatHash = (value: string): string => value;
-
 /**
  * Hook for managing URL hash state with SSR support
+ * @returns A tuple of [hash, setHash] where hash is the current URL hash (without '#') and setHash updates it
  */
-export function useUrlHashState(options: UseUrlHashStateOptions = {}): UseUrlHashStateResult {
-  const {
-    readOnMount = true,
-    watchChanges = true,
-    parseHash = defaultParseHash,
-    formatHash = defaultFormatHash,
-  } = options;
+export function useUrlHashState(): [
+  string | null,
+  (value: string | null, replace?: boolean) => void,
+] {
+  // Store the subscriber callback so we can trigger it manually
+  const subscriberRef = React.useRef<(() => void) | null>(null);
 
-  const [hash, setHashState] = React.useState<string | null>(null);
-  const [hasProcessedInitialHash, setHasProcessedInitialHash] = React.useState(false);
-  const [hasUserInteraction, setHasUserInteraction] = React.useState(false);
+  // Subscribe to hash changes
+  const subscribe = React.useCallback((callback: () => void) => {
+    subscriberRef.current = callback;
+    if (typeof window === 'undefined') {
+      return () => {
+        subscriberRef.current = null;
+      };
+    }
+    window.addEventListener('hashchange', callback);
+    return () => {
+      window.removeEventListener('hashchange', callback);
+      subscriberRef.current = null;
+    };
+  }, []);
 
-  // Read hash from URL
-  const readHash = React.useCallback((): string | null => {
+  // Get current hash value (client-side)
+  const getSnapshot = React.useCallback((): string | null => {
     if (typeof window === 'undefined') {
       return null;
     }
-
     const currentHash = window.location.hash;
     if (!currentHash) {
       return null;
     }
-
-    return parseHash(currentHash);
-  }, [parseHash]);
-
-  // Set hash in URL and state
-  const setHash = React.useCallback(
-    (value: string | null, replace: boolean = true) => {
-      if (typeof window === 'undefined') {
-        return;
-      }
-
-      const formattedValue = value ? formatHash(value) : '';
-      const newUrl = formattedValue
-        ? `${window.location.pathname}${window.location.search}#${formattedValue}`
-        : `${window.location.pathname}${window.location.search}`;
-
-      // Special case: if value is an empty string (not null), include the hash
-      if (value === '') {
-        const newUrlWithEmptyHash = `${window.location.pathname}${window.location.search}#`;
-        if (replace) {
-          window.history.replaceState(null, '', newUrlWithEmptyHash);
-        } else {
-          window.history.pushState(null, '', newUrlWithEmptyHash);
-        }
-      } else if (replace) {
-        window.history.replaceState(null, '', newUrl);
-      } else {
-        window.history.pushState(null, '', newUrl);
-      }
-
-      setHashState(value);
-    },
-    [formatHash],
-  );
-
-  // Mark user interaction
-  const markUserInteraction = React.useCallback(() => {
-    setHasUserInteraction(true);
+    return currentHash.slice(1); // Remove the '#'
   }, []);
 
-  // Handle hash changes from browser navigation
-  const handleHashChange = React.useCallback(() => {
-    const newHash = readHash();
-    setHashState(newHash);
-  }, [readHash]);
+  // Get server snapshot (always null for SSR)
+  const getServerSnapshot = React.useCallback((): null => null, []);
 
-  // Read initial hash on mount
-  React.useEffect(() => {
-    if (!readOnMount || hasProcessedInitialHash) {
-      return;
+  // Use useSyncExternalStore for hash synchronization
+  const hash = React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  // Set hash in URL and state
+  const setHash = React.useCallback((value: string | null, replace: boolean = true) => {
+    let newUrl = value
+      ? `${window.location.pathname}${window.location.search}#${value}`
+      : `${window.location.pathname}${window.location.search}`;
+    // Special case: if value is an empty string (not null), include the hash
+    if (value === '') {
+      newUrl = `${window.location.pathname}${window.location.search}#`;
     }
 
-    const initialHash = readHash();
-    setHashState(initialHash);
-    setHasProcessedInitialHash(true);
-  }, [readOnMount, readHash, hasProcessedInitialHash]);
-
-  // Watch for hash changes
-  React.useEffect(() => {
-    if (!watchChanges || typeof window === 'undefined') {
-      return undefined;
+    if (replace) {
+      window.history.replaceState(null, '', newUrl);
+    } else {
+      window.history.pushState(null, '', newUrl);
     }
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, [watchChanges, handleHashChange]);
+    // Trigger the subscriber to update useSyncExternalStore
+    if (subscriberRef.current) {
+      subscriberRef.current();
+    }
+  }, []);
 
-  return {
-    hash,
-    setHash,
-    hasProcessedInitialHash,
-    hasUserInteraction,
-    markUserInteraction,
-  };
+  return [hash, setHash];
 }

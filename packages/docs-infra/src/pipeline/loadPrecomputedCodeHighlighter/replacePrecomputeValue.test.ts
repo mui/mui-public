@@ -62,10 +62,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx",
     "source": {
@@ -73,8 +70,7 @@ export const demo = createDemo(
       "children": []
     }
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -102,13 +98,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "test": "value"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -136,13 +128,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "test": "value"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -170,13 +158,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "test": "value"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -186,11 +170,7 @@ export const demo = createDemo(
     const source = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: { old: 'data', nested: { value: 123 } } }
-);
+export const demo = createDemo(import.meta.url, { Component }, { precompute: { old: 'data', nested: { value: 123 } } });
 `;
 
     const data = { new: 'data' };
@@ -204,13 +184,9 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "new": "data"
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -220,12 +196,7 @@ export const demo = createDemo(
     const source = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { 
-    name: 'test',
-    precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
       complex: 'object',
       with: {
         nested: 'values',
@@ -245,19 +216,10 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { 
-    name: 'test',
-    precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "replacement": "data"
-},
-    slug: 'demo'
-  }
-);
+} });
 `;
-
     expect(result).toBe(expected);
   });
 
@@ -270,10 +232,9 @@ createDemo(import.meta.url,{Component},{name:'test'});`;
     const result1 = replacePrecomputeValue(source1, { data: 'test' }, demoCall1!);
 
     const expected1 = `import Component from './Component';
-createDemo(import.meta.url,{Component},{name:'test',
-  precompute: {
+createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "data": "test"
-}});`;
+} });`;
     expect(result1).toBe(expected1);
 
     // Test with extra spaces
@@ -284,10 +245,9 @@ createDemo( import.meta.url , { Component } , {  name : 'test'  } );`;
     const result2 = replacePrecomputeValue(source2, { data: 'test' }, demoCall2!);
 
     const expected2 = `import Component from './Component';
-createDemo( import.meta.url , { Component } , {  name : 'test',
-  precompute: {
+createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "data": "test"
-}  } );`;
+} });`;
     expect(result2).toBe(expected2);
   });
 
@@ -300,7 +260,7 @@ createDemo(import.meta.url,{Component});`;
     const result1 = replacePrecomputeValue(source1, { data: 'test' }, demoCall1!);
 
     const expected1 = `import Component from './Component';
-createDemo(import.meta.url,{Component}, { precompute: {
+createDemo(import.meta.url, { Component }, { precompute: {
   "data": "test"
 } });`;
     expect(result1).toBe(expected1);
@@ -316,10 +276,7 @@ createDemo(
     const result2 = replacePrecomputeValue(source2, { data: 'test' }, demoCall2!);
 
     const expected2 = `import Component from './Component';
-createDemo(
-      import.meta.url,
-      { Component }
-    , { precompute: {
+createDemo(import.meta.url, { Component }, { precompute: {
   "data": "test"
 } });`;
     expect(result2).toBe(expected2);
@@ -350,19 +307,10 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { 
-    precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { someOtherFlag: true, enabled: true, precompute: {
   "test": "value"
-},
-    someOtherFlag: true,
-    enabled: true
-  }
-);
+} });
 `;
-
     expect(result).toBe(expected);
   });
 
@@ -407,10 +355,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx",
     "source": {
@@ -441,8 +386,7 @@ export const demo = createDemo(
       }
     }
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -469,11 +413,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {} }
-);
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {} });
 `;
 
     expect(result).toBe(expected);
@@ -508,10 +448,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "nested": {
       "deeply": {
@@ -519,10 +456,8 @@ export const demo = createDemo(
       }
     }
   }
-} }
-);
+} });
 `;
-
     expect(result).toBe(expected);
   });
 
@@ -535,10 +470,10 @@ export const CodeDemo = createDemo(
   import.meta.url,
   { Component },
   {
-    name: 'Basic Code Block',
+    name: "Basic Code Block",
     slug: 'code',
     precompute: true,
-    description: 'A simple demo'
+    description: "A simple demo"
   },
 );
 
@@ -556,20 +491,11 @@ export default CodeDemo;`;
 import Component from './Component';
 
 // This is a comment
-export const CodeDemo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'Basic Code Block',
-    slug: 'code',
-    precompute: {
+export const CodeDemo = createDemo(import.meta.url, { Component }, { name: "Basic Code Block", slug: 'code', description: "A simple demo", precompute: {
   "Component": {
     "test": "value"
   }
-},
-    description: 'A simple demo'
-  },
-);
+} });
 
 // Another comment
 export default CodeDemo;`;
@@ -613,16 +539,11 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'test', slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -647,10 +568,7 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component }
-, { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -680,16 +598,11 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}}
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -716,15 +629,11 @@ export const demo = createDemo(
     const expected = `
 import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'test', precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-} }
-);
+} });
 `;
 
     expect(result).toBe(expected);
@@ -735,8 +644,8 @@ export const demo = createDemo(
 import { DemoCheckboxBasic } from './demo-basic';
 
 export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic, {
-  name: 'Interactive Demo',
-  slug: 'interactive-demo',
+  name: "Interactive Demo",
+  slug: "interactive-demo",
 });`;
 
     const data = { DemoCheckboxBasic: { fileName: 'demo-basic.tsx' } };
@@ -748,20 +657,16 @@ export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxB
     const expected = `import { createDemo } from '@/functions/createDemo';
 import { DemoCheckboxBasic } from './demo-basic';
 
-export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic, {
-  name: 'Interactive Demo',
-  slug: 'interactive-demo',
-  precompute: {
+export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic, { name: "Interactive Demo", slug: "interactive-demo", precompute: {
   "DemoCheckboxBasic": {
     "fileName": "demo-basic.tsx"
   }
-}
-});`;
+} });`;
 
     expect(result).toBe(expected);
   });
 
-  it('should handle createDemo with direct component import and no third parameter', async () => {
+  it('should handle createDemo with direct component import and no third argument', async () => {
     const source = `import { createDemo } from '@/functions/createDemo';
 import { DemoCheckboxBasic } from './demo-basic';
 
@@ -805,19 +710,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'test',
-    slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}
-  }
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -841,18 +738,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'test',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}
-  },
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -877,19 +767,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'test',
-    slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-}
-  }
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -911,16 +793,11 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'test',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
-} }
-);`;
+} });`;
 
     expect(result).toBe(expected);
   });
@@ -941,10 +818,7 @@ export const demo = createDemo(
 
     const expected = `import Component from './Component';
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-, { precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -982,8 +856,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
-export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -1019,8 +892,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', }
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
-export const demo = createDemo(import.meta.url, { Component }, { name: 'test',
-  precompute: {
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
   "Component": {
     "fileName": "Component.tsx"
   }
@@ -1107,275 +979,267 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
     });
   });
 
-  // Externals provider tests
-  describe('externals provider functionality', () => {
-    it('should add import statement and CodeExternalsProvider property when externalsProviderPath is provided', async () => {
-      const source = `
-import Component from './Component';
-
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: true }
-);
-`;
+  describe('passPrecomputeAsIs option', () => {
+    it('should JSON stringify precompute data by default', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
       const data = { Component: { fileName: 'Component.tsx' } };
       const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
 
-      // Should add import statement
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
+      const result = replacePrecomputeValue(source, data, demoCall!);
 
-      // Should add CodeExternalsProvider property
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('}, CodeExternalsProvider');
-    });
-
-    it('should add CodeExternalsProvider when adding precompute to existing options', async () => {
-      const source = `
-import Component from './Component';
-
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'Test Demo', slug: 'test' }
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
-
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain("slug: 'test',");
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('}, CodeExternalsProvider');
-    });
-
-    it('should add CodeExternalsProvider when creating new options object', async () => {
-      const source = `
-import Component from './Component';
-
-export const demo = createDemo(
-  import.meta.url,
-  { Component }
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
-
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain(', { precompute: {');
-      expect(result).toContain('}, CodeExternalsProvider }');
-    });
-
-    it('should work without externalsProviderPath (no additional properties)', async () => {
-      const source = `
-import Component from './Component';
-
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: true }
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const result = replacePrecomputeValue(source, data, demoCall!); // No externalsProviderPath
-
-      // Should not add import statement
-      expect(result).not.toContain('import { CodeExternalsProvider }');
-
-      // Should not add CodeExternalsProvider property
-      expect(result).not.toContain('CodeExternalsProvider');
-
-      // Should still add precompute data
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('"fileName": "Component.tsx"');
-    });
-
-    it('should handle complex externals provider path with relative imports', async () => {
-      const source = `
-import { createDemo } from '@/functions/createDemo';
-import Component from './Component';
-
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'Advanced Demo',
-    skipPrecompute: false
-  }
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = '../generated/externals/demo.externals.tsx';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
-
+      // Should contain JSON stringified data
       expect(result).toContain(
-        "import { CodeExternalsProvider } from '../generated/externals/demo.externals.tsx';",
-      );
-      expect(result).toContain('skipPrecompute: false,');
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('}, CodeExternalsProvider');
-    });
-
-    it('should place import at the very beginning of the file', async () => {
-      const source = `// File comment
-import { createDemo } from '@/functions/createDemo';
-import Component from './Component';
-
-// Demo comment
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: true }
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
-
-      // Import should be at the very beginning
-      expect(result).toMatch(
-        /^import { CodeExternalsProvider } from '\.\/demo\.externals';\n\/\/ File comment/,
+        'precompute: {\n  "Component": {\n    "fileName": "Component.tsx"\n  }\n}',
       );
     });
 
-    it('should handle multiple existing properties with externals provider', async () => {
-      const source = `
-import Component from './Component';
-
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {
-    name: 'Multi-Property Demo',
-    slug: 'multi-prop',
-    description: 'A demo with many properties',
-    precompute: { old: 'data' },
-    metadata: { version: '1.0' }
-  }
-);
-`;
+    it('should JSON stringify precompute data when passPrecomputeAsIs is explicitly false', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
       const data = { Component: { fileName: 'Component.tsx' } };
       const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
 
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain("name: 'Multi-Property Demo',");
-      expect(result).toContain("slug: 'multi-prop',");
-      expect(result).toContain("description: 'A demo with many properties',");
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('"fileName": "Component.tsx"');
-      expect(result).toContain('}, CodeExternalsProvider,');
-      expect(result).toContain("metadata: { version: '1.0' }");
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: false });
+
+      // Should contain JSON stringified data with quotes
+      expect(result).toContain(
+        'precompute: {\n  "Component": {\n    "fileName": "Component.tsx"\n  }\n}',
+      );
     });
 
-    it('should maintain proper JSON formatting with externals provider', async () => {
-      const source = `
-import Component from './Component';
+    it('should not JSON stringify precompute data when passPrecomputeAsIs is true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { precompute: true }
-);
-`;
-
+      // Realistic case: externals with variable names (unquoted) and string literals (quoted)
       const data = {
         Component: {
-          fileName: 'Component.tsx',
-          source: { type: 'root', children: [] },
-          nested: { deeply: { value: 'test' } },
+          fileName: '"Component.tsx"', // String literal - user provides quotes
+          externals: { react: 'React' }, // Variable name - no quotes
         },
       };
       const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
 
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('  "Component": {');
-      expect(result).toContain('    "fileName": "Component.tsx",');
-      expect(result).toContain('    "source": {');
-      expect(result).toContain('      "type": "root",');
-      expect(result).toContain('      "children": []');
-      expect(result).toContain('    },');
-      expect(result).toContain('    "nested": {');
-      expect(result).toContain('      "deeply": {');
-      expect(result).toContain('        "value": "test"');
-      expect(result).toContain('      }');
-      expect(result).toContain('    }');
-      expect(result).toContain('  }');
-      expect(result).toContain('}, CodeExternalsProvider');
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should contain object data without JSON stringification
+      expect(result).toContain(
+        'precompute: { Component: { fileName: "Component.tsx", externals: { react: React } } }',
+      );
+      // Should not contain the JSON formatted structure
+      expect(result).not.toContain('precompute: {\n  "Component"');
     });
 
-    it('should validate output syntax with externals provider', async () => {
-      const source = `
-import Component from './Component';
+    it('should handle complex nested objects with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  { name: 'Syntax Test', precompute: true }
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
+      // Realistic case: mix of string literals (quoted) and variable names (unquoted)
+      const data = {
+        Component: {
+          fileName: '"Component.tsx"', // String literal
+          externals: { react: 'React', lodash: '_' }, // Variable names
+          metadata: { type: '"component"', version: '1' }, // Mix of string and number
+        },
+      };
       const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
 
-      const issues = checkSyntaxIssues(result);
-      expect(issues).toEqual([]);
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
-      // Additional checks for externals provider syntax
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain('}, CodeExternalsProvider');
-
-      // Ensure no syntax errors in property placement
-      expect(result).not.toContain(',,');
-      expect(result).not.toContain('CodeExternalsProvider,}');
+      // Should serialize with proper quoting for string literals and unquoted variable names
+      expect(result).toContain(
+        'precompute: { Component: { fileName: "Component.tsx", externals: { react: React, lodash: _ }, metadata: { type: "component", version: 1 } } }',
+      );
     });
 
-    it('should handle edge case with empty options and externals provider', async () => {
-      const source = `
-import Component from './Component';
+    it('should handle arrays correctly with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
-export const demo = createDemo(
-  import.meta.url,
-  { Component },
-  {}
-);
-`;
-
-      const data = { Component: { fileName: 'Component.tsx' } };
+      // Realistic case: externals with proper quoting for package names and variable names
+      const data = {
+        externals: {
+          dependencies: ['"react"', '"lodash"'], // Package names as string literals
+          imports: [
+            { name: 'React', from: '"react"' },
+            { name: '_', from: '"lodash"' },
+          ], // Variable names unquoted, packages quoted
+        },
+      };
       const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
-      const externalsProviderPath = './demo.externals';
-      const result = replacePrecomputeValue(source, data, demoCall!, externalsProviderPath);
 
-      expect(result).toContain("import { CodeExternalsProvider } from './demo.externals';");
-      expect(result).toContain('{');
-      expect(result).toContain('precompute: {');
-      expect(result).toContain('}, CodeExternalsProvider');
-      expect(result).toContain('}');
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
-      const issues = checkSyntaxIssues(result);
-      expect(issues).toEqual([]);
+      // Should serialize arrays with proper quoting
+      expect(result).toContain('dependencies: ["react", "lodash"]');
+      expect(result).toContain(
+        'imports: [{ name: React, from: "react" }, { name: _, from: "lodash" }]',
+      );
+    });
+
+    it('should handle primitive values with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Realistic case: proper quoting for string literals, unquoted for other primitives and variables
+      const data = {
+        externals: {
+          count: 42,
+          enabled: true,
+          packageName: '"@mui/material"', // String literal - user provides quotes
+          globalVar: 'window', // Variable name - no quotes
+          value: null,
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should handle different primitive types correctly with proper quoting
+      expect(result).toContain('count: 42');
+      expect(result).toContain('enabled: true');
+      expect(result).toContain('packageName: "@mui/material"'); // String literal
+      expect(result).toContain('globalVar: window'); // Variable name
+      expect(result).toContain('value: null');
+    });
+
+    it('should handle empty objects and arrays with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      const data = {
+        externals: {},
+        dependencies: [],
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should handle empty structures correctly
+      expect(result).toContain('externals: {  }'); // Note: serializeObject adds spaces for empty objects
+      expect(result).toContain('dependencies: []');
+    });
+
+    it('should preserve existing options when using passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo', precompute: true });`;
+
+      // Realistic case: externals with variable names
+      const data = { externals: { react: 'React', mui: 'MaterialUI' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve existing options and add precompute with variable names
+      expect(result).toContain("name: 'test'"); // From parser, already quoted
+      expect(result).toContain("slug: 'demo'"); // From parser, already quoted
+      expect(result).toContain('precompute: { externals: { react: React, mui: MaterialUI } }'); // Variable names, unquoted
+    });
+
+    it('should handle quoted strings when user explicitly provides them', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      const data = {
+        externals: {
+          // User explicitly provides quoted strings
+          react: '"React"',
+          lodash: "'_'",
+          // User provides unquoted identifiers
+          unquoted: 'someVariable',
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve user's choice of quoting
+      expect(result).toContain('react: "React"');
+      expect(result).toContain("lodash: '_'");
+      expect(result).toContain('unquoted: someVariable');
+    });
+
+    it('should produce valid JavaScript syntax with passPrecomputeAsIs: true', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
+
+      // Test with realistic data: variable names and proper string literals
+      const data = {
+        externals: {
+          React: 'React', // Valid identifier pointing to React global
+          ReactDOM: 'ReactDOM', // Valid identifier pointing to ReactDOM global
+          muiPackage: '"@mui/material"', // User provides quoted string for scoped package name
+          numericValue: 123,
+          version: '"5.0.0"', // String literal for version
+        },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should handle identifiers and quoted strings properly
+      expect(result).toContain('React: React'); // Variable name -> variable name
+      expect(result).toContain('ReactDOM: ReactDOM'); // Variable name -> variable name
+      expect(result).toContain('muiPackage: "@mui/material"'); // String literal
+      expect(result).toContain('numericValue: 123');
+      expect(result).toContain('version: "5.0.0"'); // String literal
+
+      // Should produce valid syntax without syntax errors
+      expect(result).toContain('precompute: { externals: {');
+      expect(result).toContain('} }');
+    });
+  });
+
+  describe('handling cases with undefined/missing structuredVariants', () => {
+    it('should handle createDemoClient with only URL argument', async () => {
+      const source = `import { createDemoClient } from './createDemoClient';
+export const DemoClient = createDemoClient(import.meta.url);`;
+
+      const data = { externals: { react: 'React' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', {
+        metadataOnly: true,
+      });
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should add options as second argument since we only had URL originally
+      expect(result).toContain(
+        'createDemoClient(import.meta.url, { precompute: { externals: { react: React } } })',
+      );
+    });
+
+    it('should handle createDemoClient with URL and options (no variants)', async () => {
+      const source = `import { createDemoClient } from './createDemoClient';
+export const DemoClient = createDemoClient(import.meta.url, { name: 'test' });`;
+
+      const data = { externals: { react: 'React' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', {
+        metadataOnly: true,
+      });
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve existing options and add precompute
+      expect(result).toContain("name: 'test'");
+      expect(result).toContain('precompute: { externals: { react: React } }');
+    });
+
+    it('should handle createDemo with URL and variants but no options', async () => {
+      const source = `import Component from './Component';
+export const demo = createDemo(import.meta.url, { Component });`;
+
+      const data = { Component: { fileName: '"Component.tsx"' } };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+
+      const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
+
+      // Should preserve variants and add options as third argument
+      expect(result).toContain(
+        'createDemo(import.meta.url, { Component }, { precompute: { Component: { fileName: "Component.tsx" } } })',
+      );
     });
   });
 });

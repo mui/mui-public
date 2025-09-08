@@ -1,0 +1,290 @@
+# useUrlHashState
+
+The `useUrlHashState` hook provides a simple way to synchronize component state with the URL hash fragment, enabling deep linking, state persistence, and browser navigation support in documentation and demo pages.
+
+## Features
+
+- **URL Synchronization**: Automatically syncs state with the URL hash fragment
+- **Deep Linking**: Enables direct links to specific application states
+- **Browser Navigation**: Supports back/forward navigation with history API
+- **SSR Safe**: Handles server-side rendering gracefully
+- **Simple API**: Returns `[hash, setHash]` tuple similar to `useState`
+
+## API
+
+```tsx
+const [hash, setHash] = useUrlHashState();
+```
+
+### Returns
+
+A tuple containing:
+
+| Index | Type                                                 | Description                                 |
+| ----- | ---------------------------------------------------- | ------------------------------------------- |
+| `0`   | `string \| null`                                     | Current hash value (without the '#' prefix) |
+| `1`   | `(value: string \| null, replace?: boolean) => void` | Function to update hash and URL             |
+
+### setHash Parameters
+
+| Parameter | Type             | Default | Description                                                 |
+| --------- | ---------------- | ------- | ----------------------------------------------------------- |
+| `value`   | `string \| null` | -       | New hash value to set, or `null` to clear the hash          |
+| `replace` | `boolean`        | `true`  | Whether to use `replaceState` (true) or `pushState` (false) |
+
+## Usage
+
+### Basic Usage
+
+```tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function TabNavigation() {
+  const [hash, setHash] = useUrlHashState();
+
+  return (
+    <nav>
+      <button onClick={() => setHash('overview')} className={hash === 'overview' ? 'active' : ''}>
+        Overview
+      </button>
+      <button onClick={() => setHash('details')} className={hash === 'details' ? 'active' : ''}>
+        Details
+      </button>
+      <button onClick={() => setHash(null)}>Clear Hash</button>
+    </nav>
+  );
+}
+```
+
+### History Management
+
+```tsx
+function NavigationExample() {
+  const [hash, setHash] = useUrlHashState();
+
+  const goToSection = (section: string, addToHistory = false) => {
+    // Use replace=false to add entry to browser history
+    // Use replace=true (default) to replace current entry
+    setHash(section, !addToHistory);
+  };
+
+  return (
+    <div>
+      <button onClick={() => goToSection('intro', true)}>Go to Intro (new history entry)</button>
+      <button onClick={() => goToSection('content')}>Go to Content (replace current)</button>
+    </div>
+  );
+}
+```
+
+### Responding to Hash Changes
+
+```tsx
+function SectionNavigator() {
+  const [hash, setHash] = useUrlHashState();
+
+  // React to hash changes (including browser back/forward)
+  React.useEffect(() => {
+    if (hash) {
+      const element = document.getElementById(hash);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [hash]);
+
+  return (
+    <div>
+      <p>Current section: {hash || 'none'}</p>
+      <button onClick={() => setHash('section1')}>Go to Section 1</button>
+      <button onClick={() => setHash('section2')}>Go to Section 2</button>
+    </div>
+  );
+}
+```
+
+## Implementation Details
+
+The hook uses the following strategy:
+
+1. **Initial Reading**: On mount, reads the current hash from `window.location.hash`
+2. **State Management**: Uses `useSyncExternalStore` to synchronize with URL changes
+3. **URL Updates**: Uses `history.replaceState()` or `history.pushState()` to update URL
+4. **Change Detection**: Listens to `hashchange` events for browser navigation
+5. **SSR Handling**: Returns `null` and skips URL operations on the server
+6. **Hash Parsing**: Automatically removes the '#' prefix from hash values
+
+## Common Patterns
+
+### Documentation Sections
+
+```tsx
+function DocumentationPage() {
+  const [hash, setHash] = useUrlHashState();
+
+  const sections = ['introduction', 'api', 'examples', 'troubleshooting'];
+  const activeSection = hash || 'introduction';
+
+  return (
+    <div>
+      <nav>
+        {sections.map((section) => (
+          <button
+            key={section}
+            onClick={() => setHash(section)}
+            className={activeSection === section ? 'active' : ''}
+          >
+            {section}
+          </button>
+        ))}
+      </nav>
+      <main>
+        {activeSection === 'introduction' && <IntroductionContent />}
+        {activeSection === 'api' && <ApiContent />}
+        {activeSection === 'examples' && <ExamplesContent />}
+        {activeSection === 'troubleshooting' && <TroubleshootingContent />}
+      </main>
+    </div>
+  );
+}
+```
+
+### Demo State Persistence
+
+```tsx
+function DemoPage() {
+  const [hash, setHash] = useUrlHashState();
+
+  // Parse hash as JSON for complex state
+  const demoState = React.useMemo(() => {
+    if (!hash) return { variant: 'default', size: 'medium' };
+    try {
+      return JSON.parse(decodeURIComponent(hash));
+    } catch {
+      return { variant: 'default', size: 'medium' };
+    }
+  }, [hash]);
+
+  const updateDemoState = (updates: Partial<typeof demoState>) => {
+    const newState = { ...demoState, ...updates };
+    setHash(encodeURIComponent(JSON.stringify(newState)));
+  };
+
+  return (
+    <div>
+      <Demo config={demoState} />
+      <Controls state={demoState} onChange={updateDemoState} />
+    </div>
+  );
+}
+```
+
+### Modal Deep Linking
+
+```tsx
+function ModalExample() {
+  const [hash, setHash] = useUrlHashState();
+  const isModalOpen = hash === 'modal';
+
+  const openModal = () => setHash('modal');
+  const closeModal = () => setHash(null);
+
+  return (
+    <div>
+      <button onClick={openModal}>Open Modal</button>
+      {isModalOpen && (
+        <Modal onClose={closeModal}>
+          <p>Modal content - shareable URL!</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
+```
+
+## When to Use
+
+- **Deep Linking**: Enable direct links to specific states or sections
+- **State Persistence**: Preserve application state across page reloads
+- **Browser Navigation**: Support back/forward navigation for state changes
+- **Shareable URLs**: Create URLs that capture current application state
+- **Documentation Navigation**: Navigate between sections with persistent URLs
+- **Demo Configuration**: Persist demo settings in URL for sharing
+
+## Fragment Structure and Delimiters
+
+This hook works with any hash format, but for consistency across MUI documentation, consider using the [fragment delimiter convention](../../conventions/fragment-delimeters/page.mdx). This convention uses `:` to express hierarchy in URL fragments:
+
+```tsx
+function HierarchicalNavigation() {
+  const [hash, setHash] = useUrlHashState();
+
+  // Parse hierarchical fragments like "api:props" or "demos:button:outlined"
+  const segments = hash?.split(':') || [];
+  const [section, subsection, variant] = segments;
+
+  return (
+    <div>
+      {/* Primary navigation */}
+      <nav>
+        <button onClick={() => setHash('api')} className={section === 'api' ? 'active' : ''}>
+          API
+        </button>
+        <button onClick={() => setHash('demos')} className={section === 'demos' ? 'active' : ''}>
+          Demos
+        </button>
+      </nav>
+
+      {/* Secondary navigation within API section */}
+      {section === 'api' && (
+        <nav>
+          <button
+            onClick={() => setHash('api:props')}
+            className={subsection === 'props' ? 'active' : ''}
+          >
+            Props
+          </button>
+          <button
+            onClick={() => setHash('api:methods')}
+            className={subsection === 'methods' ? 'active' : ''}
+          >
+            Methods
+          </button>
+        </nav>
+      )}
+
+      {/* Demo variants */}
+      {section === 'demos' && subsection === 'button' && (
+        <nav>
+          <button
+            onClick={() => setHash('demos:button:outlined')}
+            className={variant === 'outlined' ? 'active' : ''}
+          >
+            Outlined
+          </button>
+          <button
+            onClick={() => setHash('demos:button:contained')}
+            className={variant === 'contained' ? 'active' : ''}
+          >
+            Contained
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+}
+```
+
+Benefits of using structured fragments:
+
+- **Consistent navigation**: Follows established patterns across MUI docs
+- **Deep linking**: Users can link directly to specific sections and variants
+- **History behavior**: Back button navigates between major sections, not every variant change
+- **Accessibility**: Screen readers can better understand content structure
+
+## When Not to Use
+
+- **Sensitive Data**: Don't store sensitive information in URL hashes
+- **Large State Objects**: Avoid storing complex state that makes URLs unwieldy
+- **Frequently Changing State**: Don't sync rapidly changing state that would spam browser history
+- **Private State**: Use for state that's appropriate to be visible in URLs

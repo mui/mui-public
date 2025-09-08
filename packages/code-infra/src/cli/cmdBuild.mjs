@@ -3,7 +3,7 @@ import { $ } from 'execa';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
+import { getOutExtension, isMjsBuild, validatePkgJson } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -16,6 +16,7 @@ import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
+ * @property {boolean} skipMainCheck - Whether to skip checking for main field in package.json.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  */
 
@@ -209,6 +210,20 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
     }
   });
 
+  // default condition should come last
+  Object.keys(newExports).forEach((key) => {
+    const exportVal = newExports[key];
+    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
+      const defaultExport = exportVal.import || exportVal.require;
+      if (exportVal.import) {
+        delete exportVal.import;
+      } else if (exportVal.require) {
+        delete exportVal.require;
+      }
+      exportVal.default = defaultExport;
+    }
+  });
+
   packageJson.exports = newExports;
 
   await fs.writeFile(
@@ -277,6 +292,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
+      })
+      .option('skipMainCheck', {
+        // Currently added only to support @mui/icons-material. To be removed separately.
+        type: 'boolean',
+        default: false,
+        description: 'Skip checking for main field in package.json.',
       });
   },
   async handler(args) {
@@ -296,12 +317,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    const buildDirBase = packageJson.publishConfig?.directory;
-    if (!buildDirBase) {
-      throw new Error(
-        'No build directory specified in package.json. Specify it in the "publishConfig.directory" field.',
-      );
-    }
+    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck });
+
+    const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
 
     console.log(`Selected output directory: "${buildDirBase}"`);

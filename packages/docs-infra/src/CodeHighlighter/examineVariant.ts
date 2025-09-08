@@ -2,11 +2,12 @@
  * Variant examination utility for analyzing variant structure and paths
  */
 
-import type { VariantCode, VariantExtraFiles } from './types';
+import type { VariantCode } from './types';
+import { getUrlParts, calculateMaxSourceBackNavigation } from './pathUtils';
 
 interface PathContextBase {
   hasMetadata: boolean;
-  maxBackNavigation: number;
+  maxSourceBackNavigation: number;
   urlDirectory: string[];
   rootLevel: string;
   pathInwardFromRoot: string;
@@ -25,30 +26,6 @@ interface PathContextWithoutUrl extends PathContextBase {
 export type PathContext = PathContextWithUrl | PathContextWithoutUrl;
 
 /**
- * Calculate the maximum back navigation level from extra files
- * Only considers non-metadata files to determine the common back navigation
- */
-function calculateMaxBackNavigation(extraFiles: VariantExtraFiles): number {
-  let maxBackNavigation = 0;
-
-  for (const [relativePath, fileContent] of Object.entries(extraFiles)) {
-    const file = typeof fileContent === 'string' ? { source: fileContent } : fileContent;
-
-    // Skip metadata files - only consider non-metadata files for maxBackNavigation
-    if (file.metadata) {
-      continue;
-    }
-
-    if (relativePath.startsWith('.')) {
-      const backCount = (relativePath.match(/\.\.\//g) || []).length;
-      maxBackNavigation = Math.max(maxBackNavigation, backCount);
-    }
-  }
-
-  return maxBackNavigation;
-}
-
-/**
  * Create path context for processing files with extended information
  */
 export function createPathContext(variant: VariantCode): PathContext {
@@ -56,8 +33,10 @@ export function createPathContext(variant: VariantCode): PathContext {
     ? Object.values(variant.extraFiles).some((file) => typeof file === 'object' && file.metadata)
     : false;
 
-  // Calculate maxBackNavigation based only on extraFiles structure
-  const maxBackNavigation = variant.extraFiles ? calculateMaxBackNavigation(variant.extraFiles) : 0;
+  // Calculate maxSourceBackNavigation based only on extraFiles structure
+  const maxSourceBackNavigation = variant.extraFiles
+    ? calculateMaxSourceBackNavigation(variant.extraFiles)
+    : 0;
 
   // Parse URL to determine path structure
   let urlDirectory: string[] = [];
@@ -66,11 +45,7 @@ export function createPathContext(variant: VariantCode): PathContext {
 
   if (variant.url && variant.url.includes('://')) {
     try {
-      const url = new URL(variant.url);
-      const pathname = url.pathname;
-
-      // Split path into components, removing empty strings
-      const pathComponents = pathname.split('/').filter(Boolean);
+      const pathComponents = getUrlParts(variant.url);
 
       if (pathComponents.length > 0) {
         // Check if the last component looks like a filename (has an extension)
@@ -85,9 +60,9 @@ export function createPathContext(variant: VariantCode): PathContext {
         rootLevel = directoryComponents[0] || '';
 
         // Only calculate pathInwardFromRoot if there's actual back navigation
-        if (maxBackNavigation > 0 && directoryComponents.length >= maxBackNavigation) {
-          // Take the last maxBackNavigation components as the pathInwardFromRoot
-          const relevantComponents = directoryComponents.slice(-maxBackNavigation);
+        if (maxSourceBackNavigation > 0 && directoryComponents.length >= maxSourceBackNavigation) {
+          // Take the last maxSourceBackNavigation components as the pathInwardFromRoot
+          const relevantComponents = directoryComponents.slice(-maxSourceBackNavigation);
           pathInwardFromRoot = relevantComponents.join('/');
         }
       }
@@ -107,7 +82,7 @@ export function createPathContext(variant: VariantCode): PathContext {
     return {
       hasUrl: true,
       hasMetadata,
-      maxBackNavigation,
+      maxSourceBackNavigation,
       urlDirectory,
       rootLevel,
       pathInwardFromRoot,
@@ -118,7 +93,7 @@ export function createPathContext(variant: VariantCode): PathContext {
   return {
     hasUrl: false,
     hasMetadata,
-    maxBackNavigation,
+    maxSourceBackNavigation,
     urlDirectory,
     rootLevel,
     pathInwardFromRoot,

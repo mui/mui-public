@@ -98,8 +98,16 @@ export function useFileNavigation({
     string | undefined
   >(selectedVariant?.fileName);
 
-  // Use the new URL hash hook
-  const { hash, setHash, hasUserInteraction, markUserInteraction } = useUrlHashState();
+  // Track user interaction locally
+  const [hasUserInteraction, setHasUserInteraction] = React.useState(false);
+
+  // Helper to mark user interaction
+  const markUserInteraction = React.useCallback(() => {
+    setHasUserInteraction(true);
+  }, []);
+
+  // Use the simplified URL hash hook
+  const [hash, setHash] = useUrlHashState();
 
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
@@ -229,8 +237,8 @@ export function useFileNavigation({
       );
     }
 
-    // Update the URL hash without adding to history (replaceState)
-    if (fileSlug) {
+    // Only update the URL hash if it's different from current hash
+    if (fileSlug && hash !== fileSlug) {
       setHash(fileSlug); // Use the new URL hash hook
     }
   }, [
@@ -243,6 +251,7 @@ export function useFileNavigation({
     initialVariant,
     hasUserInteraction,
     setHash,
+    hash,
   ]);
 
   // Compute the displayed filename (transformed if applicable)
@@ -503,7 +512,7 @@ export function useFileNavigation({
       }
 
       // Update the URL hash without adding to history (replaceState)
-      if (typeof window !== 'undefined' && fileSlug) {
+      if (typeof window !== 'undefined' && fileSlug && hash !== fileSlug) {
         setHash(fileSlug); // Use the new URL hash hook
       }
 
@@ -519,6 +528,7 @@ export function useFileNavigation({
       initialVariant,
       setHash,
       markUserInteraction,
+      hash,
     ],
   );
 

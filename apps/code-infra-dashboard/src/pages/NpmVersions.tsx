@@ -101,6 +101,7 @@ export default function NpmVersions() {
           noOptionsText="Type to search for packages"
           freeSolo
           filterOptions={(x) => x} // Disable client-side filtering since we use server search
+          size="small"
           renderInput={(params) => (
             <TextField
               {...params}

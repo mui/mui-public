@@ -6,7 +6,6 @@ import type {
   LoadSource,
   LoadVariantMeta,
   SourceTransformers,
-  LoadFileOptions,
 } from './types';
 
 describe('loadVariant', () => {
@@ -37,16 +36,13 @@ describe('loadVariant', () => {
         source: 'const x = 1;',
       };
 
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep source as string
-      );
+      const result = await loadVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true, // Disable parsing to keep source as string
+      });
 
       expect(result.code.source).toBe('const x = 1;');
       expect(result.code.fileName).toBe('test.ts');
@@ -66,16 +62,13 @@ describe('loadVariant', () => {
         source: 'const loaded = true;',
       });
 
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep source as string
-      );
+      const result = await loadVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true, // Disable parsing to keep source as string
+      });
 
       expect(mockLoadSource).toHaveBeenCalledWith('file:///test.ts');
       expect(result.code.source).toBe('const loaded = true;');
@@ -92,16 +85,13 @@ describe('loadVariant', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variantCode);
 
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variantUrl,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep source as string
-      );
+      const result = await loadVariant('file:///test.ts', 'default', variantUrl, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true, // Disable parsing to keep source as string
+      });
 
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
       expect(result.code.source).toBe('const variant = true;');
@@ -118,16 +108,13 @@ describe('loadVariant', () => {
       const mockParsedSource = { type: 'root', children: [] };
       mockParseSource.mockReturnValue(mockParsedSource as any);
 
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
+      const result = await loadVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
         // Don't disable parsing here
-      );
+      });
 
       expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
       expect(result.code.source).toEqual(mockParsedSource);
@@ -149,10 +136,12 @@ describe('loadVariant', () => {
         undefined, // No URL provided
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        },
       );
 
       expect(result.code.fileName).toBe('test.ts');
@@ -186,11 +175,13 @@ describe('loadVariant', () => {
         undefined, // No URL provided
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep sources as strings
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true, // Disable parsing to keep sources as strings
+        },
       );
 
       expect(result.code.fileName).toBe('test.ts');
@@ -227,10 +218,12 @@ describe('loadVariant', () => {
         undefined, // No URL provided
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        },
       );
 
       expect(result.code.fileName).toBe('test.ts');
@@ -259,10 +252,12 @@ describe('loadVariant', () => {
         undefined, // No URL provided
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        },
       );
 
       expect(result.code.source).toEqual({
@@ -305,11 +300,13 @@ describe('loadVariant', () => {
         undefined, // No URL provided
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true }, // Keep as string to see transforms
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: sourceTransformersWithSpy,
+          disableParsing: true, // Keep as string to see transforms
+        },
       );
 
       expect(result.code.fileName).toBe('test.ts');
@@ -340,16 +337,13 @@ describe('loadVariant', () => {
         source: 'const helper = true;',
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep sources as strings
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true, // Disable parsing to keep sources as strings
+      });
 
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['helper.ts'] as any).source).toBe('const helper = true;');
@@ -380,16 +374,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep sources as strings
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true, // Disable parsing to keep sources as strings
+      });
 
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['dependency.ts'] as any).source).toBe(
@@ -425,16 +416,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true }, // Disable parsing to keep sources as strings
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true, // Disable parsing to keep sources as strings
+      });
 
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['level1.ts'] as any).source).toBe('const level1 = true;');
@@ -473,16 +461,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///a/b/entry.js',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///a/b/entry.js', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.extraFiles).toBeDefined();
 
@@ -547,16 +532,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///a/b/index.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///a/b/index.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       // Verify that all extraFiles keys remain relative to the entrypoint
       expect(result.code.extraFiles).toBeDefined();
@@ -628,16 +610,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///src/main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///src/main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.extraFiles).toBeDefined();
 
@@ -689,15 +668,12 @@ describe('loadVariant', () => {
       });
 
       await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockSourceTransformers,
-        ),
+        loadVariant('file:///main.ts', 'default', variant, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        }),
       ).rejects.toThrow('Circular dependency detected: file:///main.ts');
     });
   });
@@ -724,20 +700,13 @@ describe('loadVariant', () => {
         },
       ];
 
-      const options: LoadFileOptions = {
+      const result = await loadVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: sourceTransformersWithSpy,
         disableTransforms: true,
-      };
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        options,
-      );
+      });
 
       // Transformer should not be called due to disableTransforms
       expect(transformerSpy).not.toHaveBeenCalled();
@@ -752,20 +721,13 @@ describe('loadVariant', () => {
         source: 'const x = 1;',
       };
 
-      const options: LoadFileOptions = {
+      const result = await loadVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
         disableParsing: true,
-      };
-
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        options,
-      );
+      });
 
       expect(mockParseSource).not.toHaveBeenCalled();
       expect(result.code.source).toBe('const x = 1;'); // Should remain as string
@@ -795,16 +757,13 @@ describe('loadVariant', () => {
         },
       ];
 
-      const result = await loadVariant(
-        'file:///test.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        sourceTransformersWithSpy,
-        { disableParsing: true }, // Disable parsing to keep source as string
-      );
+      const result = await loadVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: sourceTransformersWithSpy,
+        disableParsing: true, // Disable parsing to keep source as string
+      });
 
       expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
       expect(result.code.transforms).toBeDefined();
@@ -833,21 +792,14 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const options: LoadFileOptions = {
-        maxDepth: 1,
-      };
-
       await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockSourceTransformers,
-          options,
-        ),
+        loadVariant('file:///main.ts', 'default', variant, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          maxDepth: 1,
+        }),
       ).rejects.toThrow('Maximum recursion depth reached while loading extra files');
     });
   });
@@ -858,7 +810,7 @@ describe('loadVariant', () => {
       {
         name: 'variant is missing',
         variant: undefined,
-        parseSource: Promise.resolve(mockParseSource),
+        sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
         expectedError: 'Variant is missing from code: default',
@@ -866,7 +818,7 @@ describe('loadVariant', () => {
       {
         name: 'loadSource is required but not provided',
         variant: { fileName: 'test.ts', url: 'file:///test.ts' } as VariantCode,
-        parseSource: Promise.resolve(mockParseSource),
+        sourceParser: Promise.resolve(mockParseSource),
         loadSource: undefined,
         loadVariantMeta: mockLoadVariantMeta,
         expectedError: '"loadSource" function is required when source is not provided',
@@ -878,7 +830,7 @@ describe('loadVariant', () => {
           url: 'file:///test.ts',
           source: 'const x = 1;',
         } as VariantCode,
-        parseSource: undefined,
+        sourceParser: undefined,
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
         expectedError:
@@ -886,17 +838,14 @@ describe('loadVariant', () => {
       },
     ])(
       'should throw error when $name',
-      async ({ variant, parseSource, loadSource, loadVariantMeta, expectedError }) => {
+      async ({ variant, sourceParser, loadSource, loadVariantMeta, expectedError }) => {
         await expect(
-          loadVariant(
-            'file:///test.ts',
-            'default',
-            variant,
-            parseSource ? Promise.resolve(parseSource) : undefined,
+          loadVariant('file:///test.ts', 'default', variant, {
+            sourceParser: sourceParser ? Promise.resolve(sourceParser) : undefined,
             loadSource,
             loadVariantMeta,
-            mockSourceTransformers,
-          ),
+            sourceTransformers: mockSourceTransformers,
+          }),
         ).rejects.toThrow(expectedError);
       },
     );
@@ -926,15 +875,12 @@ describe('loadVariant', () => {
       setupMock();
 
       await expect(
-        loadVariant(
-          'file:///test.ts',
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockSourceTransformers,
-        ),
+        loadVariant('file:///test.ts', 'default', variant, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        }),
       ).rejects.toThrow(expectedError);
     });
 
@@ -1004,15 +950,12 @@ describe('loadVariant', () => {
       setupMock(mockLoadSource);
 
       await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockSourceTransformers,
-        ),
+        loadVariant('file:///main.ts', 'default', variant, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        }),
       ).rejects.toThrow(expectedError);
     });
 
@@ -1042,15 +985,12 @@ describe('loadVariant', () => {
       },
     ])('should throw error when $name', async ({ variantData, expectedError }) => {
       await expect(
-        loadVariant(
-          'file:///main.ts',
-          'default',
-          variantData,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          mockLoadVariantMeta,
-          mockSourceTransformers,
-        ),
+        loadVariant('file:///main.ts', 'default', variantData, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        }),
       ).rejects.toThrow(expectedError);
     });
 
@@ -1068,16 +1008,13 @@ describe('loadVariant', () => {
         source: 'const helper = true;',
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(mockLoadSource).toHaveBeenCalledWith('file:///helper.ts');
       expect((result.code.extraFiles!['../helper.ts'] as any).source).toBe('const helper = true;');
@@ -1094,16 +1031,13 @@ describe('loadVariant', () => {
         extraDependencies: ['file:///bundled-dep.ts', 'https://example.com/external.js'], // Valid: absolute URLs, different from input
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.dependencies).toEqual([
         'file:///main.ts',
@@ -1124,16 +1058,13 @@ describe('loadVariant', () => {
         extraDependencies: [''], // Edge case: empty string
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       // Empty string should be allowed (might represent base URL)
       expect(result.dependencies).toEqual(['file:///main.ts', '']);
@@ -1164,16 +1095,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.extraFiles).toBeDefined();
       expect((result.code.extraFiles!['../helper.ts'] as any).source).toBe('const helper = true;');
@@ -1198,16 +1126,13 @@ describe('loadVariant', () => {
         extraDependencies: ['file:///bundled-dep1.ts', 'file:///bundled-dep2.ts'],
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.source).toBe('const main = true;');
       expect(result.dependencies).toEqual([
@@ -1234,16 +1159,13 @@ describe('loadVariant', () => {
         },
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.source).toBe('const main = true;');
       expect(result.externals).toEqual({
@@ -1287,16 +1209,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.source).toBe('const main = true;');
       expect(result.externals).toEqual({
@@ -1349,16 +1268,13 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.source).toBe('const main = true;');
       // Should merge externals properly, combining all imports from each module:
@@ -1419,11 +1335,13 @@ export default function CheckboxBasic() {
         variantUrl,
         'default',
         variantUrl, // URL passed as variant (string)
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
       );
 
       // Should call loadVariantMeta to convert URL to VariantCode
@@ -1470,11 +1388,13 @@ export default function Button(props: ButtonProps) {
         variantUrl,
         'default',
         variantUrl, // URL passed as variant (string)
-        undefined, // No parseSource
-        mockLoadSource,
-        undefined, // No loadVariantMeta - should use fallback
-        mockSourceTransformers,
-        { disableParsing: true },
+        {
+          sourceParser: undefined, // No parseSource
+          loadSource: mockLoadSource,
+          loadVariantMeta: undefined, // No loadVariantMeta - should use fallback
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
       );
 
       // Should NOT call loadVariantMeta since it's undefined
@@ -1546,16 +1466,13 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.source).toBe('const main = true;');
       // Should properly merge externals by combining all imports from each module:
@@ -1638,16 +1555,13 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code.source).toBe('const main = true;');
 
@@ -1721,16 +1635,13 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       // Verify that loadSource was called for each unique URL exactly once (main.ts not called because source provided)
       expect(mockLoadSource).toHaveBeenCalledTimes(3); // component1.ts, component2.ts, shared.ts
@@ -1811,16 +1722,13 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant(
-        'file:///main.ts',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       // Verify that the shared utility was only loaded once despite concurrent requests
       expect(sharedCallCount).toBe(1);
@@ -1850,11 +1758,13 @@ export default function Button(props: ButtonProps) {
         variantUrl,
         'default',
         variantUrl, // String variant
-        undefined, // parseSource
-        mockLoadSource,
-        undefined, // loadVariantMeta - this is the key test case
-        mockSourceTransformers,
-        { disableParsing: true },
+        {
+          sourceParser: undefined, // parseSource
+          loadSource: mockLoadSource,
+          loadVariantMeta: undefined, // loadVariantMeta - this is the key test case
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
       );
 
       expect(result.code.url).toBe(variantUrl);
@@ -1874,16 +1784,13 @@ export default function Button(props: ButtonProps) {
 
       mockLoadVariantMeta.mockResolvedValue(customVariant);
 
-      const result = await loadVariant(
-        variantUrl,
-        'default',
-        variantUrl,
-        undefined,
-        mockLoadSource,
-        mockLoadVariantMeta, // Provided loadVariantMeta
-        mockSourceTransformers,
-        { disableParsing: true },
-      );
+      const result = await loadVariant(variantUrl, 'default', variantUrl, {
+        sourceParser: undefined,
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta, // Provided loadVariantMeta
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
 
       expect(result.code).toEqual(customVariant);
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
@@ -1903,11 +1810,13 @@ export default function Button(props: ButtonProps) {
         undefined, // undefined URL
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
       );
 
       // Should return the code with basic HAST node since no processing can be done
@@ -1941,11 +1850,13 @@ export default function Button(props: ButtonProps) {
         undefined, // undefined URL
         'default',
         variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true },
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
       );
 
       // Should still transform even without URL since fileName is available
@@ -1969,16 +1880,14 @@ export default function Button(props: ButtonProps) {
         source: 'const global = true;',
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       expect(result.code.fileName).toBe('main.ts');
       expect(result.code.source).toBe('const main = true;');
@@ -2007,16 +1916,14 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       });
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsUrl] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsUrl],
+      });
 
       expect(result.code.fileName).toBe('main.ts');
       expect(result.code.source).toBe('const main = true;');
@@ -2047,16 +1954,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       expect(result.code.fileName).toBe('main.ts');
       expect(result.code.source).toBe('const main = true;');
@@ -2081,16 +1986,14 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       expect(result.code.allFilesListed).toBe(true);
       // When globalsCode has no extraFiles, the main variant may not have extraFiles either
@@ -2123,16 +2026,14 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsUrl] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsUrl],
+      });
 
       expect(result.externals).toEqual({
         react: [{ name: 'React', type: 'default' }],
@@ -2154,16 +2055,14 @@ export default function Button(props: ButtonProps) {
       // Mock loadVariant to be called recursively
       const originalLoadVariant = loadVariant;
 
-      const result = await originalLoadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await originalLoadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       // When globalsCode has no extraFiles, extraFiles may be undefined
       if (result.code.extraFiles) {
@@ -2186,16 +2085,14 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       });
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        undefined, // No loadVariantMeta
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsUrl] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: undefined, // No loadVariantMeta
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsUrl],
+      });
 
       // When globalsCode has no extraFiles, the main variant may not have extraFiles either
       if (result.code.extraFiles) {
@@ -2216,16 +2113,14 @@ export default function Button(props: ButtonProps) {
       const invalidUrl = 'file:///invalid';
 
       await expect(
-        loadVariant(
-          undefined,
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          undefined, // No loadVariantMeta
-          mockSourceTransformers,
-          { disableParsing: true, globalsCode: [invalidUrl] },
-        ),
+        loadVariant(undefined, 'default', variant, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: undefined, // No loadVariantMeta
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+          globalsCode: [invalidUrl],
+        }),
       ).rejects.toThrow('Failed to load globalsCode');
     });
 
@@ -2239,16 +2134,14 @@ export default function Button(props: ButtonProps) {
       const invalidUrl = 'file:///some-directory/';
 
       await expect(
-        loadVariant(
-          undefined,
-          'default',
-          variant,
-          Promise.resolve(mockParseSource),
-          mockLoadSource,
-          undefined, // No loadVariantMeta
-          mockSourceTransformers,
-          { disableParsing: true, globalsCode: [invalidUrl] },
-        ),
+        loadVariant(undefined, 'default', variant, {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: undefined, // No loadVariantMeta
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+          globalsCode: [invalidUrl],
+        }),
       ).rejects.toThrow('Cannot determine fileName from globalsCode URL');
     });
 
@@ -2269,16 +2162,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       expect(result.code.fileName).toBe('Component.tsx');
       expect(result.code.source).toBe('const Component = () => <div>Hello</div>;');
@@ -2313,16 +2204,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       expect(result.code.fileName).toBe('main.ts');
       expect(result.code.source).toBe('const main = true;');
@@ -2365,16 +2254,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode],
+      });
 
       expect(result.code.fileName).toBe('main.ts');
       expect(result.code.source).toBe('const main = true;');
@@ -2417,16 +2304,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsCode1, globalsCode2] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsCode1, globalsCode2],
+      });
 
       expect(result.code.fileName).toBe('main.ts');
       expect(result.code.source).toBe('const main = true;');
@@ -2461,16 +2346,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [preResolvedGlobalsCode] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [preResolvedGlobalsCode],
+      });
 
       // Should not call loadVariantMeta or loadSource since globalsCode is already resolved
       expect(mockLoadVariantMeta).not.toHaveBeenCalled();
@@ -2513,16 +2396,14 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant(
-        undefined,
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [preResolvedGlobalsCode, unresolvedGlobalsUrl] },
-      );
+      const result = await loadVariant(undefined, 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [preResolvedGlobalsCode, unresolvedGlobalsUrl],
+      });
 
       // Should only call loadVariantMeta for the unresolved URL
       expect(mockLoadVariantMeta).toHaveBeenCalledTimes(1);
@@ -2559,16 +2440,14 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(
-        'file:///Component.tsx',
-        'typescript',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [sharedGlobalsCode] },
-      );
+      const result = await loadVariant('file:///Component.tsx', 'typescript', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [sharedGlobalsCode],
+      });
 
       // Should include all shared global files
       expect(result.code.extraFiles).toBeDefined();
@@ -2610,16 +2489,14 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant(
-        'file:///QuickComponent.tsx',
-        'default',
-        variant,
-        Promise.resolve(mockParseSource),
-        mockLoadSource,
-        mockLoadVariantMeta,
-        mockSourceTransformers,
-        { disableParsing: true, globalsCode: [globalsUrl] },
-      );
+      const result = await loadVariant('file:///QuickComponent.tsx', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+        globalsCode: [globalsUrl],
+      });
 
       // Should call loadVariantMeta to resolve the globalsCode URL
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', globalsUrl);
@@ -2676,16 +2553,13 @@ describe('loadVariant - helper functions', () => {
         });
 
         await expect(
-          loadVariant(
-            'file:///Button.tsx',
-            'default',
-            'file:///Button.tsx',
-            undefined,
-            mockLoadSource,
-            mockLoadVariantMeta,
-            undefined,
-            { disableParsing: true },
-          ),
+          loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+            sourceParser: undefined,
+            loadSource: mockLoadSource,
+            loadVariantMeta: mockLoadVariantMeta,
+            sourceTransformers: undefined,
+            disableParsing: true,
+          }),
         ).rejects.toThrow(
           'Unexpected files discovered via loadSource when allFilesListed=true (variant: default, file: Button.tsx). ' +
             'New files: helper.js. ' +
@@ -2727,16 +2601,13 @@ describe('loadVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadVariant(
-          'file:///Button.tsx',
-          'default',
-          'file:///Button.tsx',
-          undefined,
-          mockLoadSource,
-          mockLoadVariantMeta,
-          undefined,
-          { disableParsing: true },
-        );
+        const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+          sourceParser: undefined,
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
+          disableParsing: true,
+        });
 
         // Should not throw, but should warn
         expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -2783,16 +2654,13 @@ describe('loadVariant - helper functions', () => {
         },
       });
 
-      const result = await loadVariant(
-        'file:///Button.tsx',
-        'default',
-        'file:///Button.tsx',
-        undefined,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        undefined,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+        sourceParser: undefined,
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: undefined,
+        disableParsing: true,
+      });
 
       // Should work normally and include the known files
       expect(result.code.extraFiles).toBeDefined();
@@ -2825,16 +2693,13 @@ describe('loadVariant - helper functions', () => {
         allFilesListed: false, // This allows discovery of new files
       });
 
-      const result = await loadVariant(
-        'file:///Button.tsx',
-        'default',
-        'file:///Button.tsx',
-        undefined,
-        mockLoadSource,
-        mockLoadVariantMeta,
-        undefined,
-        { disableParsing: true },
-      );
+      const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+        sourceParser: undefined,
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: undefined,
+        disableParsing: true,
+      });
 
       // Should work normally and include the discovered files
       expect(result.code.extraFiles).toBeDefined();
@@ -2862,16 +2727,13 @@ describe('loadVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadVariant(
-          'file:///Button.tsx',
-          'default',
-          'file:///Button.tsx',
-          undefined,
-          mockLoadSource,
-          mockLoadVariantMeta,
-          undefined,
-          { disableParsing: true },
-        );
+        const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+          sourceParser: undefined,
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
+          disableParsing: true,
+        });
 
         // extraDependencies should not cause errors since they're internal/webpack dependencies
         expect(result.code.source).toBe('const Button = () => <button>Click</button>;');

@@ -1,0 +1,63 @@
+# loadServerCodeMeta
+
+The `loadServerCodeMeta` utility parses demo files to extract variant information and resolves file paths for code metadata. It reads demo index files, finds `createDemo` factory calls, and builds a `Code` object mapping variant names to their file URLs.
+
+## Features
+
+- Parses demo files to find `createDemo` calls with variants
+- Resolves variant file paths using filesystem operations
+- Returns a `Code` object mapping variant names to file URLs
+- Handles named exports from variant files
+- Used by [`CodeHighlighter`](../../components/code-highlighter/page.mdx) for server-side code loading
+
+## Usage
+
+```ts
+import { loadServerCodeMeta } from '@mui/internal-docs-infra/pipeline/loadServerCodeMeta';
+
+// Load metadata from a demo index file
+const code = await loadServerCodeMeta('file:///app/components/button/demos/basic/index.ts');
+
+// Returns a Code object like:
+// {
+//   Default: 'file:///app/components/button/demos/basic/Component.tsx',
+//   TypeScript: {
+//     url: 'file:///app/components/button/demos/basic/TypeScript.tsx',
+//     fileName: 'TypeScript.tsx',
+//     namedExport: 'ButtonExample'
+//   }
+// }
+```
+
+## How It Works
+
+1. **Parse Demo File**: Reads the demo index file and parses it to find `createDemo()` or `createDemoWithVariants()` calls
+2. **Extract Variants**: Extracts the variants object from the factory call
+3. **Resolve Paths**: Uses `resolveVariantPathsWithFs` to resolve relative imports to absolute file URLs
+4. **Build Code Object**: Creates a `Code` object mapping variant names to file URLs or metadata objects
+
+## Custom Implementation
+
+You can create a custom `loadCodeMeta` function using the factory:
+
+```ts
+import { createLoadServerCodeMeta } from '@mui/internal-docs-infra/pipeline/loadServerCodeMeta';
+
+const customLoadCodeMeta = createLoadServerCodeMeta({
+  // Configuration options (currently none available)
+});
+
+const code = await customLoadCodeMeta('file:///path/to/demo/index.ts');
+```
+
+## When to Use
+
+- When implementing server-side code loading for [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
+- When building custom demo processing pipelines
+- When you need to resolve demo variant paths at build time
+
+## Related
+
+- [`loadVariant`](../load-variant/page.mdx) - For loading and processing individual variants
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this for server-side code loading
+- [`resolveVariantPathsWithFs`](../resolve-variant-paths/page.mdx) - Filesystem path resolution

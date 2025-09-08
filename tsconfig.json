@@ -16,9 +16,9 @@
     { "path": "packages/bundle-size-checker" },
     { "path": "packages/code-infra" },
     { "path": "packages/docs-infra" },
-    { "path": "packages/docs-infra/docs" },
     { "path": "tsconfig.node.json" },
-    { "path": "scripts" }
+    { "path": "scripts" },
+    { "path": "docs" }
   ],
   "files": []
 }

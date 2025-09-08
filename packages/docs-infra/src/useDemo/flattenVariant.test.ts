@@ -148,9 +148,11 @@ describe('flattenVariant', () => {
 
       if (variantWithPaths.extraFiles) {
         for (const fileWithPath of Object.values(variantWithPaths.extraFiles)) {
-          expect(result[fileWithPath.path]).toEqual({
-            source: "console.log('helper.ts')",
-          });
+          if (typeof fileWithPath !== 'string' && fileWithPath.path) {
+            expect(result[fileWithPath.path]).toEqual({
+              source: "console.log('helper.ts')",
+            });
+          }
         }
       }
     });

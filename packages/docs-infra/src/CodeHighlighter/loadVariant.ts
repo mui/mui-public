@@ -1,3 +1,4 @@
+import * as path from 'path-module';
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils';
@@ -9,11 +10,18 @@ import type {
   Transforms,
   ParseSource,
   LoadSource,
-  LoadVariantMeta,
   SourceTransformers,
   LoadFileOptions,
+  LoadVariantOptions,
   Externals,
 } from './types';
+
+/**
+ * Check if a path is absolute (either filesystem absolute or URL)
+ */
+function isAbsolutePath(filePath: string): boolean {
+  return path.isAbsolute(filePath) || filePath.includes('://');
+}
 
 /**
  * Generate a conflict-free filename for globalsCode files.
@@ -37,19 +45,10 @@ function generateConflictFreeFilename(
     return globalFilename;
   }
 
-  // Split filename into name and extension for proper numbering
-  const lastDotIndex = originalFilename.lastIndexOf('.');
-  let nameWithoutExt: string;
-  let extension: string;
-
-  if (lastDotIndex === -1 || lastDotIndex === 0) {
-    // No extension or starts with dot (hidden file)
-    nameWithoutExt = originalFilename;
-    extension = '';
-  } else {
-    nameWithoutExt = originalFilename.substring(0, lastDotIndex);
-    extension = originalFilename.substring(lastDotIndex); // includes the dot
-  }
+  // Use path.parse to cleanly split filename into name and extension
+  const parsed = path.parse(originalFilename);
+  const nameWithoutExt = parsed.name;
+  const extension = parsed.ext;
 
   // Add numbers until we find a free name, preserving extension
   let counter = 1;
@@ -70,7 +69,7 @@ function isProduction(): boolean {
 // Helper function to convert a nested key based on the directory of the source file key
 function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): string {
   // If it's an absolute path (starts with / or contains ://), keep as-is
-  if (nestedKey.startsWith('/') || nestedKey.includes('://')) {
+  if (isAbsolutePath(nestedKey)) {
     return nestedKey;
   }
 
@@ -80,64 +79,34 @@ function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): s
     processedNestedKey = `./${nestedKey}`;
   }
 
-  // Manual path resolution: resolve processedNestedKey relative to the directory of sourceFileKey
-  // Both paths are relative to the entry directory (which is always './') - ignore file:// URLs completely
+  // Use path module for clean path resolution
+  const sourceDir = path.dirname(sourceFileKey);
+  const resolvedPath = path.resolve(sourceDir, processedNestedKey);
 
-  // Get the directory of the source file key (not URL)
-  const sourceDir = sourceFileKey.includes('/')
-    ? sourceFileKey.substring(0, sourceFileKey.lastIndexOf('/'))
-    : '.';
+  // Convert back to relative path from current directory
+  const result = path.relative('.', resolvedPath);
 
-  // Parse both paths into components
-  const parsePathComponents = (path: string): string[] => {
-    if (path === '.' || path === '') {
-      return [];
-    }
-    return path.split('/').filter((part) => part !== '');
-  };
-
-  const sourceDirComponents = parsePathComponents(sourceDir);
-  const nestedComponents = parsePathComponents(processedNestedKey);
-
-  // Start from the source directory and apply the nested path
-  const resultComponents: string[] = [...sourceDirComponents];
-
-  // Apply each component of the nested path
-  for (const component of nestedComponents) {
-    if (component === '..') {
-      if (resultComponents.length > 0 && resultComponents[resultComponents.length - 1] !== '..') {
-        // Normal case: pop a regular directory component
-        resultComponents.pop();
-      } else {
-        // Either resultComponents is empty OR the last component is already '..'
-        // In both cases, we need to go up one more level
-        resultComponents.push('..');
-      }
-    } else if (component === '.') {
-      // Current directory, skip
-      continue;
-    } else {
-      resultComponents.push(component);
-    }
-  }
-
-  // Build the final result
-  if (resultComponents.length === 0) {
-    return '';
-  }
-
-  const result = resultComponents.join('/');
-  return result;
+  // Return empty string if result is '.' (current directory)
+  return result === '.' ? '' : result;
 }
 
 /**
- * Normalize a relative path key by removing unnecessary ./ prefix
+ * Normalize a relative path key by removing unnecessary ./ prefix and cleaning up the path
  */
 function normalizePathKey(key: string): string {
-  if (key.startsWith('./')) {
-    return key.substring(2);
+  // Handle edge cases
+  if (key === '.' || key === '') {
+    return '';
   }
-  return key;
+
+  // Use path.normalize to clean up the path, then remove leading './' if present
+  const normalized = path.normalize(key);
+
+  // Convert './filename' to 'filename' using path.relative
+  if (normalized.startsWith('./')) {
+    return path.relative('.', normalized);
+  }
+  return normalized === '.' ? '' : normalized;
 }
 
 /**
@@ -208,7 +177,7 @@ async function loadSingleFile(
       if (extraFilesFromSource) {
         for (const [extraFileName, fileData] of Object.entries(extraFilesFromSource)) {
           // Validate that keys are relative paths (not absolute)
-          if (extraFileName.includes('://') || extraFileName.startsWith('/')) {
+          if (isAbsolutePath(extraFileName)) {
             throw new Error(
               `Invalid extraFiles from loadSource: key "${extraFileName}" appears to be an absolute path. ` +
                 `extraFiles keys should be relative paths from the current file.`,
@@ -265,7 +234,7 @@ async function loadSingleFile(
           if (isProduction()) {
             console.warn(message);
           } else {
-            throw new Error(message); // TODO: maybe this could use a visual warning instead
+            throw new Error(message);
           }
         }
       }
@@ -545,17 +514,13 @@ export async function loadVariant(
   url: string | undefined,
   variantName: string,
   variant: VariantCode | string | undefined,
-  sourceParser?: Promise<ParseSource>,
-  loadSource?: LoadSource,
-  loadVariantMeta?: LoadVariantMeta,
-  sourceTransformers?: SourceTransformers,
-  options: LoadFileOptions = {},
+  options: LoadVariantOptions = {},
 ): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }> {
   if (!variant) {
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
 
-  const { globalsCode } = options;
+  const { sourceParser, loadSource, loadVariantMeta, sourceTransformers, globalsCode } = options;
 
   // Create a cache for loadSource calls scoped to this loadVariant call
   const loadSourceCache = new Map<
@@ -675,7 +640,7 @@ export async function loadVariant(
   if (variant.extraFiles) {
     for (const extraFileName of Object.keys(variant.extraFiles)) {
       // Check if key is an absolute URL (should be relative)
-      if (extraFileName.includes('://') || extraFileName.startsWith('/')) {
+      if (isAbsolutePath(extraFileName)) {
         throw new Error(
           `Invalid extraFiles key in variant: "${extraFileName}" appears to be an absolute path. ` +
             `extraFiles keys in variant definition should be relative paths from the main file.`,
@@ -746,13 +711,8 @@ export async function loadVariant(
           globalsVariant.url,
           variantName,
           globalsVariant,
-          sourceParser,
-          loadSource,
-          loadVariantMeta,
-          sourceTransformers,
           { ...options, globalsCode: undefined }, // Prevent infinite recursion
         );
-
         return globalsResult;
       } catch (error) {
         throw new Error(
@@ -805,7 +765,7 @@ export async function loadVariant(
         if (typeof value !== 'string' && value.source !== undefined) {
           // Inline source - can always load
           loadableFiles[key] = value;
-        } else if (typeof value === 'string' && (value.includes('://') || value.startsWith('/'))) {
+        } else if (typeof value === 'string' && isAbsolutePath(value)) {
           // Absolute URL - can load without base URL
           loadableFiles[key] = value;
         } else {

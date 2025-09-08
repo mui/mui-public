@@ -4,7 +4,6 @@
 /**
  * Integration tests for useDemo functionality
  */
-/* eslint-disable testing-library/no-node-access */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';

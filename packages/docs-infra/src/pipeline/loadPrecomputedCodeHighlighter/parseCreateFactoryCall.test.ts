@@ -174,7 +174,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
 
@@ -187,7 +187,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
 
@@ -200,7 +200,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
 
@@ -214,11 +214,11 @@ describe('parseCreateFactoryCall', () => {
 
     // Should throw error for the first missing component it encounters
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid variants parameter in createDemo call in /src/demo.ts. Component 'Unknown1' is not imported. Make sure to import it first.",
+      "Invalid variants argument in createDemo call in /src/demo.ts. Component 'Unknown1' is not imported. Make sure to import it first.",
     );
   });
 
-  it('should throw error for invalid variants parameter', async () => {
+  it('should throw error for invalid variants argument', async () => {
     const code = `
         import Component from './Component';
         
@@ -227,7 +227,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      'Invalid variants parameter in createDemo call in /src/demo.ts. Expected an object mapping variant names to imports or a single component identifier, but got: "not an object"',
+      'Invalid variants argument in createDemo call in /src/demo.ts. Expected a valid component identifier, but got: ""not an object""',
     );
   });
 
@@ -247,6 +247,7 @@ describe('parseCreateFactoryCall', () => {
     expect(result!.options).toEqual({
       name: 'Double quotes',
       slug: 'single quotes',
+      description: 'template literal',
       skipPrecompute: false,
       extra: {
         description: 'template literal',
@@ -295,11 +296,12 @@ describe('parseCreateFactoryCall', () => {
       },
     });
 
-    // The full options object string should contain all the original options
-    expect(result!.optionsObjectStr).toContain('customOption');
-    expect(result!.optionsObjectStr).toContain('anotherCustom');
-    expect(result!.optionsObjectStr).toContain('booleanCustom');
-    expect(result!.optionsObjectStr).toContain('objectCustom');
+    // The structured options should contain all the original options with their original formatting
+    const structuredOptionsStr = JSON.stringify(result!.structuredOptions);
+    expect(structuredOptionsStr).toContain('customOption');
+    expect(structuredOptionsStr).toContain('anotherCustom');
+    expect(structuredOptionsStr).toContain('booleanCustom');
+    expect(structuredOptionsStr).toContain('objectCustom');
   });
 
   it('should preserve unrecognized options with various formats', async () => {
@@ -332,13 +334,14 @@ describe('parseCreateFactoryCall', () => {
       },
     });
 
-    // But the raw options string should preserve everything
-    expect(result!.optionsObjectStr).toContain('customString');
-    expect(result!.optionsObjectStr).toContain('customTemplate');
-    expect(result!.optionsObjectStr).toContain('customNumber');
-    expect(result!.optionsObjectStr).toContain('customArray');
-    expect(result!.optionsObjectStr).toContain('customFunction');
-    expect(result!.optionsObjectStr).toContain('customRegex');
+    // But the structured options should preserve everything
+    const structuredOptionsStr = JSON.stringify(result!.structuredOptions);
+    expect(structuredOptionsStr).toContain('customString');
+    expect(structuredOptionsStr).toContain('customTemplate');
+    expect(structuredOptionsStr).toContain('customNumber');
+    expect(structuredOptionsStr).toContain('customArray');
+    expect(structuredOptionsStr).toContain('customFunction');
+    expect(structuredOptionsStr).toContain('customRegex');
   });
 
   it('should preserve unrecognized options alongside precompute values', async () => {
@@ -369,16 +372,17 @@ describe('parseCreateFactoryCall', () => {
       },
     });
 
-    // Custom options should be preserved in the raw string
-    expect(result!.optionsObjectStr).toContain('customBefore');
-    expect(result!.optionsObjectStr).toContain('customAfter');
-    expect(result!.optionsObjectStr).toContain('metadata');
-    expect(result!.optionsObjectStr).toContain('version');
-    expect(result!.optionsObjectStr).toContain('tags');
+    // Custom options should be preserved in the structured options
+    const structuredOptionsStr = JSON.stringify(result!.structuredOptions);
+    expect(structuredOptionsStr).toContain('customBefore');
+    expect(structuredOptionsStr).toContain('customAfter');
+    expect(structuredOptionsStr).toContain('metadata');
+    expect(structuredOptionsStr).toContain('version');
+    expect(structuredOptionsStr).toContain('tags');
 
     // Precompute parsing should work correctly
-    expect(result!.hasPrecompute).toBe(true);
-    expect(result!.precomputeValue).toBe("{ some: 'data' }"); // precomputeValue is also stored as string
+    expect(result!.options.precompute).toBeDefined();
+    expect(result!.options.precompute).toEqual({ some: 'data' });
   });
 
   // Advanced import scenarios
@@ -450,33 +454,33 @@ describe('parseCreateFactoryCall', () => {
     expect(result!.options).toEqual({ name: 'Code Example' });
   });
 
-  it('should work with createLiveDemo function', async () => {
+  it('should work with createDemo function', async () => {
     const code = `
         import Component from './Component';
         
-        createLiveDemo(import.meta.url, { Example: Component });
+        createDemo(import.meta.url, { Example: Component });
       `;
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
     expect(result).not.toBeNull();
-    expect(result!.functionName).toBe('createLiveDemo');
+    expect(result!.functionName).toBe('createDemo');
     expect(result!.variants).toEqual({ Example: '/src/Component' });
     expect(result!.options).toEqual({});
   });
 
   // URL format variations
-  it('should accept CJS URL format', async () => {
+  it('should only accept import.meta.url', async () => {
     const code = `
         import Component from './Component';
         
         createDemo(require('url').pathToFileURL(__filename).toString(), { Default: Component }, { name: 'CJS Example' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
 
-    expect(result).not.toBeNull();
-    expect(result!.url).toBe("require('url').pathToFileURL(__filename).toString()");
+    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+      "Invalid URL argument in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: require('url').pathToFileURL(__filename).toString()",
+    );
   });
 
   // Edge cases and validation
@@ -506,7 +510,7 @@ describe('parseCreateFactoryCall', () => {
     );
   });
 
-  it('should throw error for invalid URL parameter', async () => {
+  it('should throw error for invalid URL argument', async () => {
     const code = `
         import Component from './Component';
         
@@ -515,11 +519,11 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid URL parameter in createDemo call in /src/demo.ts. Expected 'import.meta.url' or 'require('url').pathToFileURL(__filename).toString()' but got: './file.ts'",
+      "Invalid URL argument in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: './file.ts'",
     );
   });
 
-  it('should throw error for wrong number of parameters', async () => {
+  it('should throw error for wrong number of arguments', async () => {
     const code = `
         import Component from './Component';
         
@@ -528,20 +532,20 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
-      "Invalid createDemo call in /src/demo.ts. Expected 2-3 parameters (url, variants, options?) but got 1 parameters. Functions starting with 'create' must follow the convention: create*(url, variants, options?)",
+      "Invalid createDemo call in /src/demo.ts. Expected 2-3 arguments (url, variants, options?) but got 1 arguments. Functions starting with 'create' must follow the convention: create*(url, variants, options?)",
     );
   });
 
   // Implementation details and property validation
   it('should correctly set hasOptions property', async () => {
-    // Test with no options (2 parameters)
+    // Test with no options (2 arguments)
     const codeNoOptions = `
       import Component from './Component';
       createDemo(import.meta.url, { Component });
     `;
     const resultNoOptions = await parseCreateFactoryCall(codeNoOptions, '/src/demo.ts');
     expect(resultNoOptions!.hasOptions).toBe(false);
-    expect(resultNoOptions!.optionsObjectStr).toBe('{}');
+    expect(resultNoOptions!.structuredOptions).toBeUndefined();
 
     // Test with empty options
     const codeEmptyOptions = `
@@ -550,7 +554,7 @@ describe('parseCreateFactoryCall', () => {
     `;
     const resultEmptyOptions = await parseCreateFactoryCall(codeEmptyOptions, '/src/demo.ts');
     expect(resultEmptyOptions!.hasOptions).toBe(true);
-    expect(resultEmptyOptions!.optionsObjectStr).toBe('{}');
+    expect(resultEmptyOptions!.structuredOptions).toEqual({});
 
     // Test with actual options
     const codeWithOptions = `
@@ -559,7 +563,7 @@ describe('parseCreateFactoryCall', () => {
     `;
     const resultWithOptions = await parseCreateFactoryCall(codeWithOptions, '/src/demo.ts');
     expect(resultWithOptions!.hasOptions).toBe(true);
-    expect(resultWithOptions!.optionsObjectStr).toBe("{ name: 'Test' }");
+    expect(resultWithOptions!.structuredOptions).toEqual({ name: "'Test'" }); // Structured format preserves quotes
   });
 
   // Externals tests
@@ -718,372 +722,6 @@ describe('parseCreateFactoryCall', () => {
     });
   });
 
-  describe('live property detection', () => {
-    it('should detect live demos with createLiveDemo function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createLiveDemo(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createLiveDemo');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should detect live demos with createDemoLive function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createDemoLive(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createDemoLive');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should detect live demos with different Live positions', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createAdvancedLiveEditor(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createAdvancedLiveEditor');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should detect live demos with live anywhere in function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createInteractiveLiveComponent(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createInteractiveLiveComponent');
-      expect(result!.live).toBe(true);
-    });
-
-    it('should not detect live for regular createDemo function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createDemo(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createDemo');
-      expect(result!.live).toBe(false);
-    });
-
-    it('should not detect live for createDelivery function name', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createDelivery(
-          import.meta.url,
-          Component
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createDelivery');
-      expect(result!.live).toBe(false);
-    });
-
-    it('should work with live detection and complex options', async () => {
-      const code = `
-        import Component from './Component';
-        
-        export const demo = createLiveDemo(
-          import.meta.url,
-          { Default: Component },
-          { 
-            name: 'Live Demo',
-            slug: 'live-demo',
-            skipPrecompute: true,
-            precompute: {
-              enabled: true
-            }
-          }
-        );
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createLiveDemo');
-      expect(result!.live).toBe(true);
-      expect(result!.options.name).toBe('Live Demo');
-      expect(result!.options.slug).toBe('live-demo');
-      expect(result!.options.skipPrecompute).toBe(true);
-      expect(result!.hasPrecompute).toBe(true);
-    });
-  });
-
-  describe('extra property functionality', () => {
-    it('should parse globalTypes in extra property', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Test Demo',
-          globalTypes: ['React', 'Node'],
-          customOption: 'value'
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Test Demo',
-        extra: {
-          globalTypes: ['React', 'Node'], // Parsed as array
-          customOption: 'value',
-        },
-      });
-    });
-
-    it('should parse multiple extra options with different types', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Test Demo',
-          slug: 'test-slug',
-          globalTypes: ['React', 'DOM'],
-          debug: true,
-          timeout: 5000,
-          mode: 'development',
-          features: ['experimental', 'beta']
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Test Demo',
-        slug: 'test-slug',
-        extra: {
-          globalTypes: ['React', 'DOM'], // Parsed as array
-          debug: true, // Parsed as boolean
-          timeout: 5000, // Parsed as number
-          mode: 'development', // Parsed as string
-          features: ['experimental', 'beta'], // Parsed as array
-        },
-      });
-    });
-
-    it('should handle extra options without known properties', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          globalTypes: ['React'],
-          customSetting: 'enabled',
-          experimental: true
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        extra: {
-          globalTypes: ['React'], // Parsed as array
-          customSetting: 'enabled', // Parsed as string
-          experimental: true, // Parsed as boolean
-        },
-      });
-    });
-
-    it('should handle quoted string values in extra options', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Test',
-          globalTypes: ['React', 'Node'],
-          description: "A test component",
-          template: 'basic',
-          config: \`advanced settings\`
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Test',
-        extra: {
-          globalTypes: ['React', 'Node'], // Parsed as array
-          description: 'A test component', // Parsed as string (quotes removed)
-          template: 'basic', // Parsed as string (quotes removed)
-          config: 'advanced settings', // Parsed as string (quotes removed)
-        },
-      });
-    });
-
-    it('should not include known properties in extra', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Test Demo',
-          slug: 'test-slug',
-          skipPrecompute: true,
-          precompute: { data: 'value' },
-          globalTypes: ['React'],
-          customOption: 'value'
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Test Demo',
-        slug: 'test-slug',
-        skipPrecompute: true,
-        precompute: "{ data: 'value' }",
-        extra: {
-          globalTypes: ['React'], // Parsed as array
-          customOption: 'value', // Parsed as string
-        },
-      });
-    });
-
-    it('should handle empty extra options', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Test Demo',
-          slug: 'test-slug'
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Test Demo',
-        slug: 'test-slug',
-      });
-      // Should not have extra property when no extra options exist
-      expect(result!.options.extra).toBeUndefined();
-    });
-
-    it('should handle complex nested values in extra options', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Complex Demo',
-          globalTypes: ['React', 'Node', 'DOM'],
-          metadata: { "version": "1.0", "author": "test" },
-          features: [1, 2, 3],
-          enabled: false
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Complex Demo',
-        extra: {
-          globalTypes: ['React', 'Node', 'DOM'], // Parsed as array
-          metadata: { version: '1.0', author: 'test' }, // Parsed as object
-          features: [1, 2, 3], // Parsed as array
-          enabled: false, // Parsed as boolean
-        },
-      });
-    });
-
-    it('should handle single globalTypes value as string', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Single Global',
-          globalTypes: 'React'
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Single Global',
-        extra: {
-          globalTypes: 'React', // Single value as string
-        },
-      });
-    });
-
-    it('should handle mixed value types', async () => {
-      const code = `
-        import Component from './Component';
-        
-        createDemo(import.meta.url, Component, {
-          name: 'Mixed Types',
-          stringValue: 'hello',
-          numberValue: 42,
-          booleanValue: true,
-          arrayValue: ['a', 'b', 'c'],
-          objectValue: { "key": "value" }
-        });
-      `;
-      const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
-
-      expect(result).not.toBeNull();
-      expect(result!.options).toEqual({
-        name: 'Mixed Types',
-        extra: {
-          stringValue: 'hello',
-          numberValue: 42,
-          booleanValue: true,
-          arrayValue: ['a', 'b', 'c'],
-          objectValue: { key: 'value' },
-        },
-      });
-    });
-  });
-
   describe('namedExports functionality', () => {
     it('should extract named exports from aliased imports', async () => {
       const code = `
@@ -1162,6 +800,136 @@ describe('parseCreateFactoryCall', () => {
         Aliased: 'NamedComp', // Named import with alias
         Direct: 'DirectNamed', // Direct named import
       });
+    });
+  });
+
+  // TypeScript generic types in createDemo calls
+  describe('TypeScript generic types support', () => {
+    it('should handle TypeScript generic types in createDemo variants', async () => {
+      const code = `
+          import { BasicDemo } from './BasicDemo';
+          import { WithProps } from './WithProps';
+          
+          export const demo = createDemo(
+            import.meta.url,
+            { Default: BasicDemo as React.ComponentType<{ prop: boolean }>, WithProps },
+            { name: "My Demo" }
+          );
+        `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.variants).toEqual({
+        Default: '/src/BasicDemo',
+        WithProps: '/src/WithProps',
+      });
+      expect(result!.options).toEqual({
+        name: 'My Demo',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: 'BasicDemo',
+        WithProps: 'WithProps',
+      });
+    });
+
+    it('should handle complex TypeScript generic types with nested generics', async () => {
+      const code = `
+          import { ComplexComponent } from './ComplexComponent';
+          import { SimpleComponent } from './SimpleComponent';
+          
+          export const demo = createDemo(
+            import.meta.url,
+            { 
+              Complex: ComplexComponent as React.ComponentType<{ data: Array<{ id: string; value: Record<string, any> }>; onSelect: (item: { id: string }) => void; }>,
+              Simple: SimpleComponent
+            },
+            { name: "Complex Types Demo" }
+          );
+        `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.variants).toEqual({
+        Complex: '/src/ComplexComponent',
+        Simple: '/src/SimpleComponent',
+      });
+      expect(result!.options).toEqual({
+        name: 'Complex Types Demo',
+      });
+      expect(result!.namedExports).toEqual({
+        Complex: 'ComplexComponent',
+        Simple: 'SimpleComponent',
+      });
+    });
+  });
+
+  describe('metadataOnly option', () => {
+    it('should handle createDemoClient with only URL argument', async () => {
+      const code = `
+        import { createDemoClient } from './createDemoClient';
+        
+        export const DemoClient = createDemoClient(import.meta.url);
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemoClient');
+      expect(result!.url).toBe('import.meta.url');
+      expect(result!.variants).toBeUndefined();
+      expect(result!.namedExports).toBeUndefined();
+      expect(result!.options).toEqual({});
+      expect(result!.hasOptions).toBe(false);
+      expect(result!.structuredVariants).toBeUndefined();
+    });
+
+    it('should handle createDemoClient with URL and options', async () => {
+      const code = `
+        import { createDemoClient } from './createDemoClient';
+        
+        export const DemoClient = createDemoClient(import.meta.url, {
+          name: 'Test Client'
+        });
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemoClient');
+      expect(result!.url).toBe('import.meta.url');
+      expect(result!.variants).toBeUndefined();
+      expect(result!.namedExports).toBeUndefined();
+      expect(result!.options).toEqual({
+        name: 'Test Client',
+      });
+      expect(result!.hasOptions).toBe(true);
+      expect(result!.structuredVariants).toBeUndefined();
+    });
+
+    it('should reject calls with too many arguments in metadataOnly mode', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createDemo(import.meta.url, Component, { name: 'test' });
+      `;
+      const filePath = '/src/demo.ts';
+
+      await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
+        'Expected 1-2 arguments (url, options?) but got 3 arguments',
+      );
+    });
+
+    it('should reject calls with no arguments in metadataOnly mode', async () => {
+      const code = `
+        export const demo = createDemo();
+      `;
+      const filePath = '/src/demo.ts';
+
+      await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
+        'Expected 1-2 arguments (url, options?) but got 0 arguments',
+      );
     });
   });
 });

@@ -3,6 +3,10 @@
 Mono-repository for the MUI organization with code that can be public.
 See https://github.com/mui/mui-private for code that needs to be private.
 
+## Documentation
+
+You can [read the Infra documentation here](./docs/README.md).
+
 ## Applications
 
 ### [tools-public.mui.com](https://tools-public.mui.com/)
@@ -13,8 +17,9 @@ See https://github.com/mui/mui-private for code that needs to be private.
 
 Internal public Toolpad apps that run the operations of MUI, built using https://github.com/mui/toolpad.
 
-### [frontend-public.mui.com](https://frontend-public.mui.com/)
+### [Code infra dashboard](https://frontend-public.mui.com/)
 
+- URL: [frontend-public.mui.com](https://frontend-public.mui.com/)
 - Folder: `/apps/code-infra-dashboard/`
 - Hosting: https://app.netlify.com/sites/mui-frontend-public/overview
 - [Docs](./apps/code-infra-dashboard/#readme)
@@ -25,6 +30,11 @@ Internal public Toolpad apps that run the operations of MUI, built using https:/
 
 - Folder: `/packages/docs-infra/`
 - [Docs](./packages/docs-infra/README.md)
+
+### [code-infra](./packages/code-infra/)
+
+- Folder: `/packages/code-infra/`
+- [Docs](./packages/code-infra/README.md)
 
 ## Versioning
 

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-type Module = {};
+type Module = NonNullable<unknown>;
 export interface CodeExternalsContext {
   externals?: Record<string, Module>;
 }

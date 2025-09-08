@@ -9,17 +9,9 @@ import { VariantCode } from '../CodeHighlighter';
 // Mock the useUrlHashState hook to prevent browser API issues
 let mockHashValue = '';
 let mockSetHash = vi.fn();
-let mockHasUserInteraction = false;
-let mockMarkUserInteraction = vi.fn();
 
 vi.mock('../useUrlHashState', () => ({
-  useUrlHashState: () => ({
-    hash: mockHashValue,
-    setHash: mockSetHash,
-    hasProcessedInitialHash: true,
-    hasUserInteraction: mockHasUserInteraction,
-    markUserInteraction: mockMarkUserInteraction,
-  }),
+  useUrlHashState: () => [mockHashValue, mockSetHash],
 }));
 
 describe('useFileNavigation', () => {
@@ -29,9 +21,7 @@ describe('useFileNavigation', () => {
 
     // Reset mock hash state
     mockHashValue = '';
-    mockHasUserInteraction = false;
     mockSetHash = vi.fn();
-    mockMarkUserInteraction = vi.fn();
 
     // Mock window.location and window.history
     Object.defineProperty(window, 'location', {
@@ -436,9 +426,8 @@ describe('useFileNavigation', () => {
         },
       };
 
-      // Ensure no initial hash and no user interaction
+      // Ensure no initial hash
       mockHashValue = '';
-      mockHasUserInteraction = false;
 
       const { result } = renderHook(() =>
         useFileNavigation({
@@ -477,7 +466,6 @@ describe('useFileNavigation', () => {
 
       // Start with user having already selected a file (simulated by initial hash)
       mockHashValue = 'basic:styles.css';
-      mockHasUserInteraction = true;
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
@@ -498,12 +486,9 @@ describe('useFileNavigation', () => {
       // Should have loaded the file from the initial hash
       expect(result.current.selectedFileName).toBe('styles.css');
 
-      // During initialization, the hook normalizes the hash format:
-      // 1. First sets to main file based on current variant ('basic:checkbox-basic.tsx')
-      // 2. Then updates to the file specified in initial hash ('basic:styles.css')
-      expect(mockSetHash).toHaveBeenCalledTimes(2);
-      expect(mockSetHash).toHaveBeenNthCalledWith(1, 'basic:checkbox-basic.tsx');
-      expect(mockSetHash).toHaveBeenNthCalledWith(2, 'basic:styles.css');
+      // Since the initial hash already matches the expected format for the current variant,
+      // no additional setHash calls should be made during initialization
+      expect(mockSetHash).not.toHaveBeenCalled();
 
       // Clear the setHash mock to track new calls from variant change
       mockSetHash.mockClear();

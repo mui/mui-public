@@ -1,6 +1,6 @@
 previews:
   generation: automatic
-  expireAfterDays: 7
+  expireAfterDays: 6
 
 services:
   - type: web
@@ -23,9 +23,12 @@ services:
     domains:
       - tools-public.mui.com
     healthCheckPath: /health-check
+    buildFilter:
+      paths:
+        - pnpm-lock.yaml
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: 22
       - key: NODE_OPTIONS
         value: --enable-source-maps
       - fromGroup: MUI Store database

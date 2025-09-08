@@ -1,0 +1,182 @@
+# Abstract Create Demo Client
+
+The `abstractCreateDemoClient` function helps you create client-side demo providers that manage external dependencies for live component demos. It creates provider components that supply externals context to child components, enabling dynamic code execution in the browser.
+
+> [!TIP]
+> This builds on the [Built Factories Pattern](../../patterns/built-factories/): the client factory never enumerates variants; it pairs with the server demo file (`index.ts`).
+
+## Overview
+
+Demo clients created with `abstractCreateDemoClient` automatically integrate with:
+
+- **[`CodeExternalsContext`](../../components/code-externals-context/page.mdx)**: For managing external dependencies
+- **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: For live component demos
+- **[react-runner](https://github.com/oku-ui/react-runner)**: For executing code with externals
+- **[`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx)**: For optimized loading with precomputed externals
+
+## When to Use Demo Clients
+
+Demo clients are specifically needed for **live demos** where:
+
+- Code executes dynamically in the browser
+- Components need access to external dependencies (React, Material-UI, etc.)
+- Users can interact with or edit the demo code
+- The demo requires runtime dependency injection
+
+For static code examples without live execution, use [`abstractCreateDemo`](../abstract-create-demo/page.mdx) instead.
+
+## Factory Function Requirements
+
+The `abstractCreateDemoClient` creates provider components that wrap demo content and supply externals:
+
+```ts
+// Client provider factory
+export const createDemoClient = (url: string, meta?: CreateDemoClientMeta) => {
+  return ClientProvider; // React.ComponentType<{ children: React.ReactNode }>
+};
+```
+
+## Implementation
+
+To implement a demo client factory, use the `abstractCreateDemoClient` utilities:
+
+```ts
+import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+
+/**
+ * Creates a demo client provider for live editing with precomputed externals.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param meta Additional meta and configuration for the demo client.
+ */
+export const createDemoClient = createDemoClientFactory({
+  live: true,
+  // Additional client options
+});
+```
+
+## Usage Pattern
+
+Demo clients work in conjunction with demos to provide the complete live demo experience. **You must define your client provider in a separate file with `'use client';` at the top.**
+
+> [!NOTE]
+> `createDemoClient` must be called in a file with `'use client';` because it creates a client component. `createDemo` should **not** be called in a client file, as it may interfere with server-side loading and parsing.
+
+> Keep the server (`createDemo*`) and client (`createDemoClient*`) factories separate—one per file—to avoid accidental boundary crossings.
+
+```ts
+// demos/example/index.ts (server file)
+import { createDemo } from '../createDemo';
+import { Component } from './Component';
+
+export const DemoExample = createDemo(import.meta.url, Component);
+```
+
+```ts
+// demos/example/client.tsx (client file)
+'use client';
+import { createDemoClient } from '../createDemoClient';
+
+export const DemoExampleClient = createDemoClient(import.meta.url, {
+  name: 'Example',
+  skipPrecompute: false,
+});
+```
+
+## Client Provider Features
+
+The generated client provider component:
+
+1. **Externals Management**: Supplies external dependencies via [`CodeExternalsContext`](../../components/code-externals-context/page.mdx)
+2. **Precomputed Integration**: Uses externals from precomputed build data
+3. **Development Support**: Includes displayName and debugging metadata
+4. **Runtime Injection**: Makes dependencies available to child components
+
+## Configuration Options
+
+### AbstractCreateDemoClientOptions
+
+```ts
+type AbstractCreateDemoClientOptions = {
+  live?: boolean; // Enable live demo functionality
+  [key: string]: any; // Additional client configuration
+};
+```
+
+### CreateDemoClientMeta
+
+```ts
+type CreateDemoClientMeta = {
+  name?: string; // Display name for the demo
+  slug?: string; // URL-friendly identifier
+  displayName?: string; // Component display name
+  variantType?: string; // Type of variant implementation
+  skipPrecompute?: boolean; // Skip build-time precomputation
+  precompute?: {
+    // Precomputed data
+    externals?: Externals; // External dependencies
+    [key: string]: any;
+  };
+  [key: string]: any; // Additional metadata
+};
+```
+
+## Externals Context
+
+The client provider supplies externals through [`CodeExternalsContext`](../../components/code-externals-context/page.mdx):
+
+```ts
+// Context value structure
+const context = {
+  externals: {
+    // External dependencies like React, Material-UI components, etc.
+    // These are injected at build time or supplied at runtime
+  },
+};
+```
+
+## Best Practices
+
+1. **Use with Live Demos**: Only create demo clients for interactive demos that execute code
+2. **Leverage Precomputation**: Let the build system inject externals automatically
+3. **Consistent Naming**: Follow the pattern `DemoExampleClient` for client providers
+4. **Provider Wrapping**: Wrap your demo content with the client provider for live functionality
+
+## Example: Complete Live Demo Setup
+
+```ts
+// createDemoClient.ts - Define your client factory
+import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+
+export const createDemoClient = createDemoClientFactory({
+  live: true,
+});
+```
+
+```ts
+// demos/button-example/index.ts - Create both demo and client
+import { createDemo } from '../createDemo';
+import { createDemoClient } from '../createDemoClient';
+import { ButtonExample } from './ButtonExample';
+
+export const DemoButtonExample = createDemo(import.meta.url, ButtonExample);
+export const DemoButtonExampleClient = createDemoClient(import.meta.url, {
+  name: 'ButtonExample',
+  displayName: 'Button Example Demo',
+});
+```
+
+```tsx
+// Usage in MDX - Wrap demo with client for live functionality
+import { DemoButtonExample, DemoButtonExampleClient } from './demos/button-example';
+
+<DemoButtonExampleClient>
+  <DemoButtonExample />
+</DemoButtonExampleClient>;
+```
+
+## Related
+
+- **[`abstractCreateDemo`](../abstract-create-demo/page.mdx)**: Factory for static code demos
+- **[`CodeExternalsContext`](../../components/code-externals-context/page.mdx)**: Context for managing externals
+- **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Main component for code highlighting
+- **[`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx)**: Loader for optimized demos

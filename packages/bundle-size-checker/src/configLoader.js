@@ -2,9 +2,11 @@
  * Utility to load the bundle-size-checker configuration
  */
 
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import envCi from 'env-ci';
+import * as module from 'node:module';
+import * as url from 'node:url';
 
 /**
  * Attempts to load and parse a single config file
@@ -14,10 +16,6 @@ import envCi from 'env-ci';
  */
 async function loadConfigFile(configPath) {
   try {
-    if (!fs.existsSync(configPath)) {
-      return null;
-    }
-
     // Dynamic import for ESM
     const configUrl = new URL(`file://${configPath}`);
     const { default: config } = await import(configUrl.href);
@@ -35,9 +33,12 @@ async function loadConfigFile(configPath) {
     }
 
     return resolvedConfig;
-  } catch (error) {
-    console.error(`Error loading config from ${configPath}:`, error);
-    throw error; // Re-throw to indicate failure
+  } catch (/** @type {any} */ error) {
+    if (error.code === 'ERR_MODULE_NOT_FOUND') {
+      return null;
+    }
+
+    throw error;
   }
 }
 
@@ -81,58 +82,131 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
 }
 
 /**
+ * @param {{ [s: string]: any; } | ArrayLike<any>} exportsObj
+ * @returns {string[]} Array of export paths
+ */
+function findExports(exportsObj) {
+  const paths = [];
+  for (const [key, value] of Object.entries(exportsObj)) {
+    // ignore null values
+    if (!value) {
+      continue;
+    }
+    if (key.startsWith('.')) {
+      paths.push(key);
+    } else {
+      paths.push(...findExports(value));
+    }
+  }
+  return paths;
+}
+
+/**
+ * @param {import("fs").PathLike | fs.FileHandle} pkgJson
+ * @returns {Promise<string[]>}
+ */
+async function findExportedPaths(pkgJson) {
+  const pkgContent = await fs.readFile(pkgJson, 'utf8');
+  const { exports = {} } = JSON.parse(pkgContent);
+  return findExports(exports);
+}
+
+/**
+ * Checks if the given import source is a top-level package
+ * @param {string} importSrc - The import source string
+ * @returns {boolean} - True if it's a top-level package, false otherwise
+ */
+function isPackageTopLevel(importSrc) {
+  const parts = importSrc.split('/');
+  return parts.length === 1 || (parts.length === 2 && parts[0].startsWith('@'));
+}
+
+/**
  * Normalizes entries to ensure they have a consistent format and ids are unique
  * @param {EntryPoint[]} entries - The array of entries from the config
- * @returns {ObjectEntry[]} - Normalized entries with uniqueness enforced
+ * @param {string} configPath - The path to the configuration file
+ * @returns {Promise<ObjectEntry[]>} - Normalized entries with uniqueness enforced
  */
-function normalizeEntries(entries) {
+async function normalizeEntries(entries, configPath) {
   const usedIds = new Set();
 
-  return entries.map((entry) => {
-    if (typeof entry === 'string') {
-      // Transform string entries into object entries
-      const [importSrc, importName] = entry.split('#');
-      if (importName) {
-        // For entries like '@mui/material#Button', create an object with import and importedNames
-        entry = {
-          id: entry,
-          import: importSrc,
-          importedNames: [importName],
-        };
-      } else {
-        // For entries like '@mui/material', create an object with import only
-        entry = {
-          id: entry,
-          import: importSrc,
-        };
-      }
-    }
+  const result = (
+    await Promise.all(
+      entries.map(async (entry) => {
+        if (typeof entry === 'string') {
+          entry = { id: entry };
+        }
 
-    if (!entry.id) {
-      throw new Error('Object entries must have an id property');
-    }
+        entry = { ...entry };
 
-    if (!entry.code && !entry.import) {
-      throw new Error(`Entry "${entry.id}" must have either code or import property defined`);
-    }
+        if (!entry.id) {
+          throw new Error('Object entries must have an id property');
+        }
 
+        if (!entry.code && !entry.import) {
+          // Transform string entries into object entries
+          const [importSrc, importName] = entry.id.split('#');
+          entry.import = importSrc;
+          if (importName) {
+            entry.importedNames = [importName];
+          }
+          if (isPackageTopLevel(entry.import) && !entry.importedNames) {
+            entry.track = true;
+          }
+        }
+
+        if (entry.expand) {
+          if (!entry.import || !isPackageTopLevel(entry.import)) {
+            throw new Error(
+              `Entry "${entry.id}": expand can only be used with top-level package imports`,
+            );
+          }
+          if (!module.findPackageJSON) {
+            throw new Error(
+              "Your Node.js version doesn't support `module.findPackageJSON`, which is required to expand entries.",
+            );
+          }
+          const pkgJson = module.findPackageJSON(entry.import, url.pathToFileURL(configPath));
+          if (!pkgJson) {
+            throw new Error(`Can't find package.json for entry "${entry.id}".`);
+          }
+          const exportedPaths = await findExportedPaths(pkgJson);
+
+          const expandedEntries = [];
+          for (const exportPath of exportedPaths) {
+            const importSrc = entry.import + exportPath.slice(1);
+            expandedEntries.push({
+              id: importSrc,
+              import: importSrc,
+              track: isPackageTopLevel(importSrc),
+            });
+          }
+          return expandedEntries;
+        }
+
+        return [entry];
+      }),
+    )
+  ).flat();
+
+  for (const entry of result) {
     if (usedIds.has(entry.id)) {
       throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
     }
-
     usedIds.add(entry.id);
+  }
 
-    return entry;
-  });
+  return result;
 }
 
 /**
  * Apply default values to the configuration using CI environment
  * @param {BundleSizeCheckerConfigObject} config - The loaded configuration
- * @returns {NormalizedBundleSizeCheckerConfig} Configuration with defaults applied
+ * @param {string} configPath - The path to the configuration file
+ * @returns {Promise<NormalizedBundleSizeCheckerConfig>} Configuration with defaults applied
  * @throws {Error} If required fields are missing
  */
-function applyConfigDefaults(config) {
+async function applyConfigDefaults(config, configPath) {
   // Get environment CI information
   /** @type {{ branch?: string, isPr?: boolean, prBranch?: string, slug?: string}} */
   const ciInfo = envCi();
@@ -148,8 +222,9 @@ function applyConfigDefaults(config) {
   // Clone the config to avoid mutating the original
   /** @type {NormalizedBundleSizeCheckerConfig} */
   const result = {
-    entrypoints: normalizeEntries(config.entrypoints),
+    entrypoints: await normalizeEntries(config.entrypoints, configPath),
     upload: null, // Default to disabled
+    comment: config.comment !== undefined ? config.comment : true, // Default to enabled
   };
 
   // Handle different types of upload value
@@ -198,7 +273,7 @@ export async function loadConfig(rootDir) {
     const config = await loadConfigFile(configPath);
     if (config) {
       // Apply defaults and return the config
-      return applyConfigDefaults(config);
+      return applyConfigDefaults(config, configPath);
     }
   }
 
