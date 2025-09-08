@@ -130,13 +130,13 @@ const withMDX = createMDX(
 ### Remark Plugins (Markdown processing)
 
 - `remark-gfm` - GitHub Flavored Markdown support
-- `transformMarkdownRelativePaths` - Convert relative paths for docs
-- `transformMarkdownBlockquoteCallouts` - Convert blockquotes to callouts
-- `transformMarkdownCode` - Process code blocks
+- [`transformMarkdownRelativePaths`](../transform-markdown-relative-paths/page.mdx) - Convert relative paths for docs
+- [`transformMarkdownBlockquoteCallouts`](../transform-markdown-blockquote-callouts/page.mdx) - Convert blockquotes to callouts
+- [`transformMarkdownCode`](../transform-markdown-code/page.mdx) - Process code blocks
 
 ### Rehype Plugins (HTML processing)
 
-- `transformHtmlCode` - Transform HTML code elements
+- [`transformHtmlCode`](../transform-html-code/page.mdx) - Transform HTML code elements
 
 ## Configuration Options
 
@@ -228,4 +228,3 @@ export default withMDX(nextConfig);
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Loader for demo index files
 - [`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx) - Loader for demo client files
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Component that renders highlighted demos
-- [`transformMarkdownRelativePaths`](../transform-markdown-relative-paths/page.mdx) - Individual markdown transformation plugins
