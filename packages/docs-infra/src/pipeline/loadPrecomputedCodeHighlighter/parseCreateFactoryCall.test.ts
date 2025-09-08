@@ -249,9 +249,6 @@ describe('parseCreateFactoryCall', () => {
       slug: 'single quotes',
       description: 'template literal',
       skipPrecompute: false,
-      extra: {
-        description: 'template literal',
-      },
     });
   });
 
@@ -288,12 +285,10 @@ describe('parseCreateFactoryCall', () => {
       name: 'Test Demo',
       slug: 'test-slug',
       skipPrecompute: true,
-      extra: {
-        customOption: 'custom value',
-        anotherCustom: 42,
-        booleanCustom: false,
-        objectCustom: "{ nested: 'value' }",
-      },
+      customOption: 'custom value',
+      anotherCustom: 42,
+      booleanCustom: false,
+      objectCustom: { nested: 'value' },
     });
 
     // The structured options should contain all the original options with their original formatting
@@ -321,17 +316,15 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
-    // Known options and extra options should be parsed
+    // Only known options should be parsed
     expect(result!.options).toEqual({
       name: 'Test',
-      extra: {
-        customString: 'double quotes',
-        customTemplate: 'template literal',
-        customNumber: 123.45,
-        customArray: [1, 2, 3],
-        customFunction: "() => console.log('test')",
-        customRegex: '/pattern/gi',
-      },
+      customString: 'double quotes',
+      customTemplate: 'template literal',
+      customNumber: 123.45,
+      customArray: [1, 2, 3],
+      customFunction: "() => console.log('test')",
+      customRegex: '/pattern/gi',
     });
 
     // But the structured options should preserve everything
@@ -360,16 +353,14 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
     const result = await parseCreateFactoryCall(code, filePath);
 
-    // Known options and extra options should be parsed
+    // All options should be parsed including custom ones
     expect(result!.options).toEqual({
       name: 'Test Demo',
       skipPrecompute: false,
-      precompute: "{ some: 'data' }", // precompute is stored as string
-      extra: {
-        customBefore: 'before precompute',
-        customAfter: 'after precompute',
-        metadata: "{ version: '1.0', tags: ['demo', 'test'] }",
-      },
+      precompute: { some: 'data' },
+      customBefore: 'before precompute',
+      customAfter: 'after precompute',
+      metadata: { version: '1.0', tags: ['demo', 'test'] },
     });
 
     // Custom options should be preserved in the structured options

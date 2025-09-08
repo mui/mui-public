@@ -1,6 +1,10 @@
-import { parseFromProgram } from 'typescript-api-extractor';
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
+// eslint-disable-next-line n/prefer-node-protocol
 import fs from 'fs';
+
+import { parseFromProgram } from 'typescript-api-extractor';
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
@@ -54,7 +58,9 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     const allDependencies: string[] = [];
 
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
-    const resolvedVariantMap = await resolveVariantPathsWithFs(typesMetaCall.variants);
+    const resolvedVariantMap = typesMetaCall.variants
+      ? await resolveVariantPathsWithFs(typesMetaCall.variants)
+      : new Map<string, string>();
 
     // Resolve tsconfig.json relative to the webpack project root (rootContext),
     // with graceful fallbacks to process.cwd().
@@ -83,9 +89,14 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     try {
       program = createOptimizedProgram(tsconfigPath, allEntrypoints, {
         // globalTypes is already parsed as string[] in parseCreateFactoryCall
-        globalTypes: typesMetaCall.options.extra?.globalTypes,
+        globalTypes: typesMetaCall?.structuredOptions?.globalTypes,
         // Pass through any other additional options
-        ...typesMetaCall.options.extra,
+        ...Object.keys(typesMetaCall?.structuredOptions || {})
+          .filter((o) => o in typesMetaCall.options)
+          .map((k) => ({
+            [k]: typesMetaCall?.structuredOptions?.[k],
+          }))
+          .reduce((a, b) => ({ ...a, ...b }), {}),
       });
     } catch (error) {
       if (error instanceof MissingGlobalTypesError) {
@@ -109,7 +120,7 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
-        const namedExport = typesMetaCall.namedExports[variantName];
+        const namedExport = typesMetaCall.namedExports?.[variantName];
         const variant: VariantCode | string = fileUrl;
         if (namedExport) {
           const { fileName } = getFileNameFromUrl(variant);
