@@ -234,7 +234,7 @@ async function loadSingleFile(
           if (isProduction()) {
             console.warn(message);
           } else {
-            throw new Error(message); // TODO: maybe this could use a visual warning instead
+            throw new Error(message);
           }
         }
       }

@@ -4,13 +4,13 @@ import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
-import { CodeErrorsContext } from '../useErrors/ErrorsContext';
 import { maybeInitialData } from './maybeInitialData';
 import { hasAllVariants } from './hasAllVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import { mergeMetadata } from './mergeMetadata';
+import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -27,7 +27,6 @@ function useInitialData({
   isControlled,
   globalsCode,
   setProcessedGlobalsCode,
-  setErrors,
 }: {
   variants: string[];
   variantName: string;
@@ -41,7 +40,6 @@ function useInitialData({
   isControlled: boolean;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
-  setErrors: React.Dispatch<React.SetStateAction<Error[]>>;
 }) {
   const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource, loadFallbackCode } =
     useCodeContext();
@@ -68,32 +66,22 @@ function useInitialData({
     ],
   );
 
-  // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
-  // Load initial data if not provided
-  React.useEffect(() => {
-    if (initialData || isControlled) {
-      return;
-    }
-
+  const needsFallback = !initialData && !isControlled;
+  if (needsFallback) {
     if (!url) {
       // URL is required for loading fallback data
-      const urlError = new Error(
-        'URL is required for loading fallback data when no initial code is provided',
-      );
-      console.error('CodeHighlighterClient: URL is required for loading fallback data', urlError);
-      setErrors((prev) => [...prev, urlError]);
-      return;
+      throw new Errors.ErrorCodeHighlighterClientMissingUrlForFallback();
     }
 
     if (!loadFallbackCode) {
-      const missingError = new Error(
-        'loadFallbackCode function is required but not provided in CodeProvider',
-      );
-      console.error(
-        `CodeHighlighterClient: loadFallbackCode is required (${url || 'No URL'})`,
-        missingError,
-      );
-      setErrors((prev) => [...prev, missingError]);
+      throw new Errors.ErrorCodeHighlighterClientMissingLoadFallbackCode(url);
+    }
+  }
+
+  // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
+  // Load initial data if not provided
+  React.useEffect(() => {
+    if (!needsFallback || !url || !loadFallbackCode) {
       return;
     }
 
@@ -119,7 +107,7 @@ function useInitialData({
       }).catch((error: any) => ({ error }));
 
       if ('error' in loaded) {
-        setErrors((prev) => [...prev, loaded.error]);
+        console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
       } else {
         setCode(loaded.code);
         // Store processed globalsCode from loadFallbackCode result
@@ -131,7 +119,7 @@ function useInitialData({
   }, [
     initialData,
     reason,
-    isControlled,
+    needsFallback,
     variantName,
     code,
     setCode,
@@ -147,7 +135,6 @@ function useInitialData({
     variants,
     globalsCode,
     setProcessedGlobalsCode,
-    setErrors,
     loadFallbackCode,
   ]);
 }
@@ -162,7 +149,6 @@ function useAllVariants({
   processedGlobalsCode,
   globalsCode,
   setProcessedGlobalsCode,
-  setErrors,
 }: {
   readyForContent: boolean;
   variants: string[];
@@ -173,29 +159,70 @@ function useAllVariants({
   processedGlobalsCode?: Array<Code>;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
-  setErrors: React.Dispatch<React.SetStateAction<Error[]>>;
 }) {
   const { loadCodeMeta, loadVariantMeta, loadSource, loadVariant } = useCodeContext();
 
+  const needsData = !readyForContent && !isControlled;
+
+  // validation
+  React.useMemo(() => {
+    if (needsData) {
+      if (!url) {
+        throw new Errors.ErrorCodeHighlighterClientMissingUrlForVariants();
+      }
+
+      if (!loadVariant) {
+        throw new Errors.ErrorCodeHighlighterClientMissingLoadVariant(url);
+      }
+
+      if (!code && !loadCodeMeta) {
+        throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMetaForNoCode(url);
+      }
+
+      if (
+        globalsCode &&
+        globalsCode.length > 0 &&
+        globalsCode.some((item) => typeof item === 'string') &&
+        !loadCodeMeta
+      ) {
+        throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMetaForGlobals();
+      }
+
+      if (!code && !loadSource) {
+        throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForNoCode();
+      }
+
+      if (
+        code &&
+        Object.keys(code).some((variantName) => {
+          const variant = code[variantName];
+          if (!variant || typeof variant === 'string' || !variant.source) {
+            return true;
+          }
+
+          const extraFiles = variant.extraFiles;
+          if (
+            extraFiles &&
+            Object.keys(extraFiles).some(
+              (fileName) =>
+                !extraFiles[fileName] ||
+                typeof extraFiles[fileName] === 'string' ||
+                !extraFiles[fileName].source,
+            )
+          ) {
+            return true;
+          }
+          return false;
+        }) &&
+        !loadSource
+      ) {
+        throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForUnloadedUrls();
+      }
+    }
+  }, [code, globalsCode, loadCodeMeta, loadVariant, loadSource, needsData, url]);
+
   React.useEffect(() => {
-    if (readyForContent || isControlled) {
-      return;
-    }
-
-    if (!url) {
-      // URL is required for loading variants
-      return;
-    }
-
-    if (!loadVariant) {
-      const missingError = new Error(
-        'loadVariant function is required but not provided in CodeProvider',
-      );
-      console.error(
-        `CodeHighlighterClient: loadVariant is required (${url || 'No URL'})`,
-        missingError,
-      );
-      setErrors((prev) => [...prev, missingError]);
+    if (!needsData || !url || !loadVariant) {
       return;
     }
 
@@ -206,7 +233,7 @@ function useAllVariants({
         let loadedCode = code;
         if (!loadedCode) {
           if (!loadCodeMeta) {
-            throw new Error('"loadCodeMeta" function is required when no code is provided');
+            throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
           }
 
           loadedCode = await loadCodeMeta(url);
@@ -224,9 +251,7 @@ function useAllVariants({
               if (typeof item === 'string') {
                 // Load Code object from URL string
                 if (!loadCodeMeta) {
-                  throw new Error(
-                    '"loadCodeMeta" function is required for string URLs in globalsCode',
-                  );
+                  throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
                 }
                 return loadCodeMeta(item);
               }
@@ -272,26 +297,18 @@ function useAllVariants({
         }
 
         if (errors.length > 0) {
-          console.error(
-            `CodeHighlighterClient: Failed to load variants (${url || 'No URL'})`,
-            errors,
-          );
-          // Add individual errors for specific error reporting
-          setErrors((prev) => [...prev, ...errors]);
+          console.error(new Errors.ErrorCodeHighlighterClientLoadVariantsFailure(url!, errors));
         } else {
           setCode(resultCode);
         }
       } catch (error) {
         console.error(
-          `CodeHighlighterClient: Failed to load all variants (${url || 'No URL'})`,
-          error,
+          new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url!, error as Error),
         );
-        setErrors((prev) => [...prev, error instanceof Error ? error : new Error(String(error))]);
       }
     })();
   }, [
-    readyForContent,
-    isControlled,
+    needsData,
     variants,
     url,
     code,
@@ -302,7 +319,6 @@ function useAllVariants({
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
-    setErrors,
     loadVariant,
   ]);
 
@@ -369,25 +385,17 @@ function useCodeParsing({
 
     if (!parseSource) {
       if (forceClient) {
-        console.error(
-          `CodeHighlighterClient: parseSource function is not available. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
-        );
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
       } else {
-        console.error(
-          `CodeHighlighter: parseSource function is not available. Code highlighting requires either server-side sourceParser or a CodeProvider for client-side parsing. (${url})`,
-        );
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, false));
       }
       return undefined;
     }
     if (!parseCode) {
       if (forceClient) {
-        console.error(
-          `CodeHighlighterClient: parseCode function is not available. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
-        );
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseCode(url, true));
       } else {
-        console.error(
-          `CodeHighlighter: parseCode function is not available. Code highlighting requires either server-side sourceParser or a CodeProvider for client-side parsing. (${url})`,
-        );
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseCode(url, false));
       }
       return undefined;
     }
@@ -432,7 +440,9 @@ function useCodeTransforms({
         const enhanced = await applyTransforms(parsedCode, parseSource);
         setTransformedCode(enhanced);
       } catch (error) {
-        console.error('CodeHighlighterClient: Failed to process transforms', error);
+        console.error(
+          new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error),
+        );
         setTransformedCode(parsedCode);
       }
     })();
@@ -462,23 +472,17 @@ function useControlledCodeParsing({
       // Log when provider functions are missing to help with debugging
       if (!parseSource) {
         if (forceClient) {
-          console.error(
-            `CodeHighlighterClient: parseSource function is not available for controlled code. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
-          );
+          console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
         } else {
-          console.error(
-            `CodeHighlighter: parseSource function is not available for controlled code. Code highlighting requires either server-side precomputed source or a CodeProvider for client-side parsing. (${url})`,
-          );
+          console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, false));
         }
       }
       if (!parseControlledCode) {
         if (forceClient) {
-          console.error(
-            `CodeHighlighterClient: parseControlledCode function is not available. Make sure CodeProvider is set up correctly for client-side parsing. (${url})`,
-          );
+          console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, true));
         } else {
           console.error(
-            `CodeHighlighter: parseControlledCode function is not available. Code highlighting requires either server-side precomputed source or a CodeProvider for client-side parsing. (${url})`,
+            new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false),
           );
         }
       }
@@ -492,6 +496,7 @@ function useControlledCodeParsing({
 }
 
 function useGlobalsCodeMerging({
+  url,
   code,
   globalsCode,
   processedGlobalsCode,
@@ -499,6 +504,7 @@ function useGlobalsCodeMerging({
   readyForContent,
   variants,
 }: {
+  url?: string;
   code?: Code;
   globalsCode?: Array<Code | string>;
   processedGlobalsCode?: Array<Code>;
@@ -529,9 +535,7 @@ function useGlobalsCodeMerging({
     }
 
     if (!loadVariant) {
-      console.error(
-        'CodeHighlighterClient: loadVariant function is required for loading missing variants in globalsCode',
-      );
+      console.error(new Errors.ErrorCodeHighlighterClientMissingLoadVariantForGlobals());
       return;
     }
 
@@ -543,9 +547,7 @@ function useGlobalsCodeMerging({
           globalsCode.map(async (item) => {
             if (typeof item === 'string') {
               if (!loadCodeMeta) {
-                throw new Error(
-                  '"loadCodeMeta" function is required for string URLs in globalsCode',
-                );
+                throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMetaForStringUrls();
               }
               return { codeObj: await loadCodeMeta(item), originalUrl: item };
             }
@@ -586,8 +588,11 @@ function useGlobalsCodeMerging({
                   loadedVariants[variantName] = result.code;
                 } catch (error) {
                   console.error(
-                    `CodeHighlighterClient: Failed to load variant ${variantName} for globalsCode`,
-                    error,
+                    new Errors.ErrorCodeHighlighterClientLoadVariantFailureForGlobals(
+                      variantName,
+                      originalUrl,
+                      error as Error,
+                    ),
                   );
                   // Keep the original variant data (may be undefined)
                 }
@@ -600,10 +605,16 @@ function useGlobalsCodeMerging({
 
         setProcessedGlobalsCode(fullyLoadedCodeObjects);
       } catch (error) {
-        console.error('CodeHighlighterClient: Failed to load globalsCode', error);
+        console.error(
+          new Errors.ErrorCodeHighlighterClientLoadGlobalsCodeFailure(
+            url || 'No URL',
+            error as Error,
+          ),
+        );
       }
     })();
   }, [
+    url,
     globalsCode,
     processedGlobalsCode,
     setProcessedGlobalsCode,
@@ -772,13 +783,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const isControlled = Boolean(props.code || controlled?.code);
 
-  // TODO: props.code is for controlled components, props.precompute is for precomputed code
-  // props.code should only be highlighted, but no additional fetching should be done
-  // this is the case with live demos where the code can be edited by the user
-  // then maybe props.code shouldn't allow highlighted code, only strings?
-  // this is a code highlighter afterall, why would they want to control the highlighting aspect?
-
-  // TODO: should we empty this state if controlled?
   const [code, setCode] = React.useState(
     typeof props.precompute === 'object' ? props.precompute : undefined,
   );
@@ -797,9 +801,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const [processedGlobalsCode, setProcessedGlobalsCode] = React.useState<Array<Code> | undefined>(
     undefined,
   );
-
-  // Error state for handling various loading and processing errors
-  const [errors, setErrors] = React.useState<Error[]>([]);
 
   const activeCode = controlled?.code || props.code || code;
   const variants = React.useMemo(
@@ -837,7 +838,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     isControlled,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
-    setErrors,
   });
 
   const readyForContent = React.useMemo(() => {
@@ -874,11 +874,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     processedGlobalsCode,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
-    setErrors,
   });
 
   // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
   const stateCodeWithGlobals = useGlobalsCodeMerging({
+    url,
     code, // Only use internal state, not props.code
     globalsCode: props.globalsCode,
     processedGlobalsCode,
@@ -951,7 +951,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
-      setErrors,
     }),
     [
       overlaidCode,
@@ -965,25 +964,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
-      setErrors,
     ],
   );
 
   if (!props.variants && !props.components && !activeCode) {
-    throw new Error(
-      'CodeHighlighterClient requires either `variants`, `components`, or `code` to be provided.',
-    );
-  }
-
-  const errorsContextValue = React.useMemo(() => ({ errors }), [errors]);
-
-  // If there are errors and an errorHandler, show the errorHandler
-  if (errors.length > 0 && props.errorHandler) {
-    return (
-      <CodeErrorsContext.Provider value={errorsContextValue}>
-        {props.errorHandler}
-      </CodeErrorsContext.Provider>
-    );
+    throw new Errors.ErrorCodeHighlighterClientMissingData();
   }
 
   const fallback = props.fallback;
