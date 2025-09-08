@@ -2,14 +2,13 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import fs from 'fs';
+import fs from 'fs/promises';
 
 import { parseFromProgram } from 'typescript-api-extractor';
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { getFileNameFromUrl, JAVASCRIPT_MODULE_EXTENSIONS } from '../loaderUtils';
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
 
 interface LoaderContext {
@@ -39,7 +38,9 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
   try {
     // Parse the source to find a single createTypesMeta call
     // TODO: our create factory parser doesn't appear to support external imports
-    const typesMetaCall = await parseCreateFactoryCall(source, this.resourcePath);
+    const typesMetaCall = await parseCreateFactoryCall(source, this.resourcePath, {
+      allowExternalVariants: true,
+    });
 
     // If no createTypesMeta call found, return the source unchanged
     if (!typesMetaCall) {
@@ -57,10 +58,40 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     const variantData: Record<string, any> = {};
     const allDependencies: string[] = [];
 
-    // Resolve all variant entry point paths using resolveVariantPathsWithFs
-    const resolvedVariantMap = typesMetaCall.variants
-      ? await resolveVariantPathsWithFs(typesMetaCall.variants)
-      : new Map<string, string>();
+    // Resolve all variant entry point paths using import.meta.resolve
+    const resolvedVariantMap = new Map<string, string>();
+    if (typesMetaCall.variants) {
+      const variantPromises = Object.entries(typesMetaCall.variants).map(
+        async ([variantName, variantPath]) => {
+          const resolvedPath = import.meta.resolve(variantPath);
+
+          // Check all extensions in parallel
+          const extensionResults = await Promise.all(
+            JAVASCRIPT_MODULE_EXTENSIONS.map(async (ext) => {
+              const fullPath = `${resolvedPath.replace('file://', '')}${ext}`;
+              const exists = await fs
+                .access(fullPath)
+                .then(() => true)
+                .catch(() => false);
+              return exists ? fullPath : null;
+            }),
+          );
+
+          // Find the first existing file
+          const foundPath = extensionResults.find(Boolean);
+          return foundPath ? ([variantName, foundPath] as const) : null;
+        },
+      );
+
+      const variantResults = await Promise.all(variantPromises);
+
+      // Add successful results to the map
+      variantResults.forEach((result) => {
+        if (result) {
+          resolvedVariantMap.set(result[0], result[1]);
+        }
+      });
+    }
 
     // Resolve tsconfig.json relative to the webpack project root (rootContext),
     // with graceful fallbacks to process.cwd().
@@ -70,7 +101,16 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
       // TODO: what if we need to load the tsconfig.json from an external project?
     ].filter(Boolean) as string[];
 
-    const tsconfigPath = tsconfigCandidates.find((p) => p && fs.existsSync(p));
+    const existsResults = await Promise.all(
+      tsconfigCandidates.map(async (candidate) => {
+        const exists = await fs
+          .access(candidate)
+          .then(() => true)
+          .catch(() => false);
+        return exists ? candidate : null;
+      }),
+    );
+    const tsconfigPath = existsResults.find(Boolean);
     if (!tsconfigPath) {
       throw new Error(
         `Unable to locate tsconfig.json. Looked in: ${tsconfigCandidates.join(', ')}`,
@@ -78,8 +118,10 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     }
 
     // Collect all entrypoints for optimized program creation
-    const allEntrypoints = Array.from(resolvedVariantMap.values()).map((fileUrl) =>
-      fileUrl.replace('file://', ''),
+    const allEntrypoints = Array.from(resolvedVariantMap.values());
+
+    const globalTypes = typesMetaCall?.structuredOptions?.globalTypes[0].map((s: any) =>
+      s.replace(/['"]/g, ''),
     );
 
     // Create optimized TypeScript program
@@ -88,15 +130,7 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     let program;
     try {
       program = createOptimizedProgram(tsconfigPath, allEntrypoints, {
-        // globalTypes is already parsed as string[] in parseCreateFactoryCall
-        globalTypes: typesMetaCall?.structuredOptions?.globalTypes,
-        // Pass through any other additional options
-        ...Object.keys(typesMetaCall?.structuredOptions || {})
-          .filter((o) => o in typesMetaCall.options)
-          .map((k) => ({
-            [k]: typesMetaCall?.structuredOptions?.[k],
-          }))
-          .reduce((a, b) => ({ ...a, ...b }), {}),
+        globalTypes,
       });
     } catch (error) {
       if (error instanceof MissingGlobalTypesError) {
