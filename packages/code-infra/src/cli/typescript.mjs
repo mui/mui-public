@@ -27,7 +27,8 @@ export async function emitDeclarations(tsconfig, outDir) {
     --emitDeclarationOnly
     --noEmit false
     --composite false
-    --incremental false`;
+    --incremental false
+    --declarationMap false`;
 }
 
 /**
