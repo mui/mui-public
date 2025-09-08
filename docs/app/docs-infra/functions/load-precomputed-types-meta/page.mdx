@@ -107,6 +107,7 @@ export default function ComponentPage() {
 ```
 
 The `createTypesMeta` factory processes your component and returns a new React component that:
+
 - Renders your original component
 - Displays comprehensive type information (props, methods, exports)
 - Shows interactive documentation generated from TypeScript analysis
@@ -177,10 +178,10 @@ Global types ensure the TypeScript compiler has access to necessary type definit
 ```typescript
 export const TypesComponent = createTypesMeta(import.meta.url, Component, {
   globalTypes: [
-    'react',         // React types (React, JSX, etc.)
-    'react-dom',     // React DOM types
-    'node',          // Node.js globals (process, Buffer, etc.)
-    'dom',           // Browser/DOM globals (window, document, etc.)
+    'react', // React types (React, JSX, etc.)
+    'react-dom', // React DOM types
+    'node', // Node.js globals (process, Buffer, etc.)
+    'dom', // Browser/DOM globals (window, document, etc.)
   ],
 });
 ```
@@ -227,6 +228,7 @@ Finds your `createTypesMeta` function call and extracts the components and optio
 ### 2. Create Optimized Program
 
 Creates an optimized TypeScript program that:
+
 - Loads only necessary files (70%+ performance improvement)
 - Includes specified global types
 - Respects your project's `tsconfig.json` settings
@@ -234,6 +236,7 @@ Creates an optimized TypeScript program that:
 ### 3. Extract Type Information
 
 For each component variant:
+
 - Analyzes the TypeScript AST
 - Extracts props, methods, and type signatures
 - Resolves complex type relationships
@@ -248,23 +251,23 @@ Replaces the factory function call with extracted type metadata and returns a Re
 export const TypesComponent = createTypesMeta(import.meta.url, Component);
 
 // After processing (simplified)
-export const TypesComponent = createTypesMeta(
-  import.meta.url,
-  Component,
-  {
-    precompute: {
-      Default: {
-        types: {
-          default: {
-            props: { /* detailed prop types */ },
-            exports: { /* component exports */ },
-            // ... comprehensive type metadata
-          }
-        }
-      }
-    }
-  }
-);
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  precompute: {
+    Default: {
+      types: {
+        default: {
+          props: {
+            /* detailed prop types */
+          },
+          exports: {
+            /* component exports */
+          },
+          // ... comprehensive type metadata
+        },
+      },
+    },
+  },
+});
 
 // The factory function returns a React component that:
 // 1. Renders your original Component
@@ -280,23 +283,23 @@ export const TypesComponent = createTypesMeta(
 
 ```typescript
 interface FactoryOptions {
-  name?: string;                    // Display name for the types meta
-  slug?: string;                    // URL slug override
-  skipPrecompute?: boolean;         // Skip build-time processing
-  globalTypes?: string[];           // Global type packages to include
-  [customOption: string]: any;      // Additional custom options
+  name?: string; // Display name for the types meta
+  slug?: string; // URL slug override
+  skipPrecompute?: boolean; // Skip build-time processing
+  globalTypes?: string[]; // Global type packages to include
+  [customOption: string]: any; // Additional custom options
 }
 ```
 
 ### Global Types
 
-| Type | Description | Use Cases |
-|------|-------------|-----------|
-| `'react'` | React core types | React components, hooks, JSX |
-| `'react-dom'` | React DOM types | DOM rendering, events |
-| `'node'` | Node.js globals | Server-side code, utilities |
-| `'dom'` | Browser/DOM globals | Window, document, web APIs |
-| `'@types/package'` | Custom type packages | Third-party library types |
+| Type               | Description          | Use Cases                    |
+| ------------------ | -------------------- | ---------------------------- |
+| `'react'`          | React core types     | React components, hooks, JSX |
+| `'react-dom'`      | React DOM types      | DOM rendering, events        |
+| `'node'`           | Node.js globals      | Server-side code, utilities  |
+| `'dom'`            | Browser/DOM globals  | Window, document, web APIs   |
+| `'@types/package'` | Custom type packages | Third-party library types    |
 
 ---
 
@@ -345,13 +348,23 @@ interface TypeNode {
   typeName: TypeName | undefined;
 }
 
-type AnyType = ArrayNode | ComponentNode | EnumNode | ExternalTypeNode | 
-               FunctionNode | IntersectionNode | IntrinsicNode | LiteralNode | 
-               ObjectNode | TupleNode | TypeParameterNode | UnionNode;
+type AnyType =
+  | ArrayNode
+  | ComponentNode
+  | EnumNode
+  | ExternalTypeNode
+  | FunctionNode
+  | IntersectionNode
+  | IntrinsicNode
+  | LiteralNode
+  | ObjectNode
+  | TupleNode
+  | TypeParameterNode
+  | UnionNode;
 
 // Key type nodes
 declare class ComponentNode implements TypeNode {
-  readonly kind: "component";
+  readonly kind: 'component';
   typeName: TypeName | undefined;
   props: PropertyNode[];
 }
@@ -364,13 +377,23 @@ declare class PropertyNode {
 }
 
 declare class IntrinsicNode implements TypeNode {
-  readonly kind: "intrinsic";
+  readonly kind: 'intrinsic';
   typeName: TypeName | undefined;
-  intrinsic: 'string' | 'number' | 'boolean' | 'bigint' | 'null' | 'undefined' | 'void' | 'any' | 'unknown' | 'function';
+  intrinsic:
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'bigint'
+    | 'null'
+    | 'undefined'
+    | 'void'
+    | 'any'
+    | 'unknown'
+    | 'function';
 }
 
 declare class ObjectNode implements TypeNode {
-  readonly kind: "object";
+  readonly kind: 'object';
   typeName: TypeName | undefined;
   properties: PropertyNode[];
   documentation: Documentation | undefined;
@@ -479,8 +502,8 @@ Your `createTypesMeta` function must follow this pattern:
 
 ```typescript
 createTypesMeta(
-  import.meta.url,        // Required: file URL
-  component,              // Required: component or variant object
-  { options },            // Optional: options object
+  import.meta.url, // Required: file URL
+  component, // Required: component or variant object
+  { options }, // Optional: options object
 );
 ```

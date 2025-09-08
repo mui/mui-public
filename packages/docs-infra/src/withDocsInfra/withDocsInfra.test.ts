@@ -66,6 +66,9 @@ describe('withDocsInfra', () => {
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
         },
+        './app/**/types.ts': {
+          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+        },
       });
     });
 
@@ -84,6 +87,9 @@ describe('withDocsInfra', () => {
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+        },
+        './app/**/types.ts': {
+          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
         },
         './app/**/demos/*/demo-*/index.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
@@ -110,6 +116,9 @@ describe('withDocsInfra', () => {
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+        },
+        './app/**/types.ts': {
+          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
         },
         './custom/**/*.ts': {
           loaders: ['custom-loader'],
@@ -139,6 +148,9 @@ describe('withDocsInfra', () => {
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+        },
+        './app/**/types.ts': {
+          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
         },
       });
     });
@@ -172,7 +184,7 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      expect(webpackResult.module?.rules).toHaveLength(2);
+      expect(webpackResult.module?.rules).toHaveLength(3);
       expect(webpackResult.module?.rules).toContainEqual({
         test: new RegExp('/demos/[^/]+/index\\.ts$'),
         use: [
@@ -185,6 +197,13 @@ describe('withDocsInfra', () => {
         use: [
           mockDefaultLoaders.babel,
           '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+        ],
+      });
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('/types\\.ts$'),
+        use: [
+          mockDefaultLoaders.babel,
+          '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
         ],
       });
     });
@@ -206,8 +225,8 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 2 default rules + 2 additional rules = 4 total
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      // Should have 2 default rules + 1 types rule + 2 additional rules = 5 total
+      expect(webpackResult.module?.rules).toHaveLength(5);
 
       // Check for demo-* patterns - look for converted regex patterns
       const demoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
@@ -233,7 +252,7 @@ describe('withDocsInfra', () => {
 
       expect(webpackResult.module).toBeDefined();
       expect(webpackResult.module?.rules).toBeDefined();
-      expect(webpackResult.module?.rules).toHaveLength(2);
+      expect(webpackResult.module?.rules).toHaveLength(3);
     });
 
     it('should call existing webpack function if provided', () => {
@@ -273,7 +292,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContain(existingRule);
-      expect(webpackResult.module?.rules).toHaveLength(3); // 1 existing + 2 new
+      expect(webpackResult.module?.rules).toHaveLength(4); // 1 existing + 3 new
     });
   });
 
@@ -356,6 +375,9 @@ describe('withDocsInfra', () => {
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
         },
+        './app/**/types.ts': {
+          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+        },
         './app/**/demos/*/demo-*/index.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
         },
@@ -386,8 +408,8 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 4 rules total: 2 default + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      // Should have 5 rules total: 2 default + 1 types + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(5);
 
       // Check for the original patterns
       const originalDemoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
