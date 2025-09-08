@@ -1,4 +1,4 @@
-import { parseImports } from '../loaderUtils';
+import { parseImports, type ParseImportsResult } from '../loaderUtils';
 import {
   parseFunctionArguments,
   type SplitArguments,
@@ -10,6 +10,15 @@ import {
   isObjectLiteral,
 } from './parseFunctionArguments';
 import type { Externals } from '../../CodeHighlighter/types';
+
+/**
+ * Parse options for create* factory call parsing
+ */
+export interface ParseOptions {
+  metadataOnly?: boolean;
+  allowExternalVariants?: boolean;
+  allowMultipleFactories?: boolean;
+}
 
 /**
  * Helper function to extract string value from parser output, removing quotes if present
@@ -259,13 +268,10 @@ function parseVariantsObjectFromObject(
  * Helper function to convert the new parseImports format to a Map
  * that maps import names to their resolved paths
  */
-function buildImportMap(importResult: {
-  relative: Record<
-    string,
-    { path: string; names: { name: string; alias?: string; type: string }[] }
-  >;
-  externals: any;
-}): Map<string, string> {
+function buildImportMap(
+  importResult: ParseImportsResult,
+  allowExternalVariants?: boolean,
+): Map<string, string> {
   const importMap = new Map<string, string>();
 
   Object.values(importResult.relative).forEach(({ path, names }) => {
@@ -276,19 +282,33 @@ function buildImportMap(importResult: {
     });
   });
 
+  // Include external imports if allowExternalVariants is enabled
+  if (allowExternalVariants) {
+    Object.entries(importResult.externals).forEach(
+      ([modulePath, externalImport]: [string, any]) => {
+        if (externalImport && externalImport.names) {
+          externalImport.names.forEach(
+            ({ name, alias }: { name: string; alias?: string; type: string }) => {
+              // Use alias if available, otherwise use the original name
+              const nameToUse = alias || name;
+              importMap.set(nameToUse, modulePath);
+            },
+          );
+        }
+      },
+    );
+  }
+
   return importMap;
 }
 
 /**
  * Helper function to build a mapping from import aliases to their original named exports
  */
-function buildNamedExportsMap(importResult: {
-  relative: Record<
-    string,
-    { path: string; names: { name: string; alias?: string; type: string }[] }
-  >;
-  externals: any;
-}): Map<string, string | undefined> {
+function buildNamedExportsMap(
+  importResult: ParseImportsResult,
+  allowExternalVariants?: boolean,
+): Map<string, string | undefined> {
   const namedExportsMap = new Map<string, string | undefined>();
 
   Object.values(importResult.relative).forEach(({ names }) => {
@@ -305,6 +325,28 @@ function buildNamedExportsMap(importResult: {
       }
     });
   });
+
+  // Include external imports if allowExternalVariants is enabled
+  if (allowExternalVariants) {
+    Object.entries(importResult.externals).forEach(([, externalImport]: [string, any]) => {
+      if (externalImport && externalImport.names) {
+        externalImport.names.forEach(
+          ({ name, alias, type }: { name: string; alias?: string; type: string }) => {
+            // Use alias if available, otherwise use the original name as key
+            const nameToUse = alias || name;
+
+            // Only map to the original export name for named imports
+            // Default imports should map to undefined since they don't have a specific named export
+            if (type === 'named') {
+              namedExportsMap.set(nameToUse, name);
+            } else {
+              namedExportsMap.set(nameToUse, undefined); // undefined for default/namespace imports
+            }
+          },
+        );
+      }
+    });
+  }
 
   return namedExportsMap;
 }
@@ -333,7 +375,8 @@ export interface ParsedCreateFactory {
   structuredVariants: string | SplitArguments | Record<string, string> | undefined;
   structuredOptions?: Record<string, any>;
   // Remaining content after the function call
-  remaining: string;
+  remaining?: string;
+  parseImportsResult?: ParseImportsResult;
 }
 
 /**
@@ -530,18 +573,14 @@ function validateVariantsArgument(
 export async function parseCreateFactoryCall(
   code: string,
   filePath: string,
-  parseOptions: { metadataOnly?: boolean } = {},
-): Promise<ParsedCreateFactory | null> {
-  // Get import mappings once for the entire file
-  const { relative: importResult, externals } = await parseImports(code, filePath);
-  const importMap = buildImportMap({ relative: importResult, externals });
-  const namedExportsMap = buildNamedExportsMap({ relative: importResult, externals });
-
+  parseOptions: ParseOptions = {},
+  parseImportsResult?: ParseImportsResult,
+): Promise<(ParsedCreateFactory & { parseImportsResult?: ParseImportsResult }) | null> {
   // Find all create* calls in the code
   const createFactoryMatches = findCreateFactoryCalls(code, filePath, parseOptions);
 
-  // Enforce single create* call per file
-  if (createFactoryMatches.length > 1) {
+  // Enforce single create* call per file unless allowMultipleFactories is true
+  if (!parseOptions.allowMultipleFactories && createFactoryMatches.length > 1) {
     throw new Error(
       `Multiple create* factory calls found in ${filePath}. Only one create* call per file is supported. Found ${createFactoryMatches.length} calls.`,
     );
@@ -563,6 +602,14 @@ export async function parseCreateFactoryCall(
     argumentsStartIndex,
     argumentsEndIndex,
   } = match;
+
+  // Get import mappings from precomputed imports or parse them
+  parseImportsResult = parseImportsResult || (await parseImports(code, filePath));
+
+  const allowExternalVariants = parseOptions.allowExternalVariants || false;
+  const importMap = buildImportMap(parseImportsResult, allowExternalVariants);
+  const namedExportsMap = buildNamedExportsMap(parseImportsResult, allowExternalVariants);
+  const externals = parseImportsResult.externals;
 
   // Validate URL argument
   validateUrlArgument(urlArg, functionName, filePath);
@@ -653,6 +700,7 @@ export async function parseCreateFactoryCall(
     structuredVariants,
     structuredOptions: optionsStructured, // Use original structured data, not cleaned options
     remaining,
+    parseImportsResult, // Include import data for reuse
   };
 
   return parsed;
@@ -665,54 +713,51 @@ export async function parseCreateFactoryCall(
 export async function parseAllCreateFactoryCalls(
   code: string,
   filePath: string,
-  parseOptions: { metadataOnly?: boolean } = {},
+  parseOptions: Omit<ParseOptions, 'allowMultipleFactories'> = {},
 ): Promise<Record<string, ParsedCreateFactory>> {
   const results: Record<string, ParsedCreateFactory> = {};
 
-  // Find all export statements first
-  const exportStatements: Array<{ name: string; startIndex: number }> = [];
-  const exportRegex = /export\s+const\s+(\w+)\s*=/g;
+  // Process the code sequentially, reusing import data from the first call
+  let currentCode = code;
+  let parseImportsResult: ParseImportsResult | undefined;
 
-  // Use Array.from with matchAll to avoid assignment in while loop
-  const matches = Array.from(code.matchAll(exportRegex));
-  for (const match of matches) {
-    if (match.index !== undefined) {
-      exportStatements.push({
-        name: match[1],
-        startIndex: match.index,
-      });
+  // Keep processing while there's code remaining
+  while (currentCode.trim()) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await parseCreateFactoryCall(
+      currentCode,
+      filePath,
+      { ...parseOptions, allowMultipleFactories: true }, // Allow multiple factories for this function
+      parseImportsResult, // undefined for first call, reused for subsequent calls
+    );
+
+    if (!result) {
+      // No create* call found in remaining code
+      break;
     }
-  }
 
-  // Process each export statement in parallel
-  const parsePromises = exportStatements.map(async (exportStatement, index) => {
-    const nextStatement = exportStatements[index + 1];
+    // Extract export name from the function call context
+    const exportMatch = currentCode.match(/export\s+const\s+(\w+)\s*=/);
+    const exportName = exportMatch?.[1] || 'unknown';
 
-    // Extract the code for this export (from this export to the next one, or to end of file)
-    const startIndex = exportStatement.startIndex;
-    const endIndex = nextStatement ? nextStatement.startIndex : code.length;
-    const exportCode = code.substring(startIndex, endIndex);
+    // Capture import data from the first successful call for reuse
+    parseImportsResult = result.parseImportsResult || parseImportsResult;
 
-    try {
-      const result = await parseCreateFactoryCall(exportCode, filePath, parseOptions);
-      if (result) {
-        return { name: exportStatement.name, parsed: result };
-      }
-      return null;
-    } catch (error) {
-      // If parsing fails for this export, return null
-      return null;
+    // Remove the parseImportsResult before storing (we don't need it in the final result)
+    const {
+      parseImportsResult: unusedResult,
+      remaining: unusedRemaining,
+      ...parsedFactory
+    } = result;
+    results[exportName] = parsedFactory;
+
+    // Move to the remaining code after this export
+    if (!result.remaining) {
+      currentCode = '';
+      break; // No remaining code
     }
-  });
 
-  // Wait for all parsing to complete
-  const parseResults = await Promise.all(parsePromises);
-
-  // Collect the successful results
-  for (const result of parseResults) {
-    if (result) {
-      results[result.name] = result.parsed;
-    }
+    currentCode = result.remaining;
   }
 
   return results;
@@ -724,7 +769,7 @@ export async function parseAllCreateFactoryCalls(
 function findCreateFactoryCalls(
   code: string,
   filePath: string,
-  parseOptions: { metadataOnly?: boolean } = {},
+  parseOptions: ParseOptions = {},
 ): Array<{
   functionName: string;
   fullMatch: string;

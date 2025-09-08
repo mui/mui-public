@@ -2,24 +2,24 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 
-interface ImportName {
+export interface ImportName {
   name: string;
   alias?: string;
   type: 'default' | 'named' | 'namespace';
   isType?: boolean;
 }
 
-interface RelativeImport {
+export interface RelativeImport {
   path: string;
   names: ImportName[];
   includeTypeDefs?: true;
 }
 
-interface ExternalImport {
+export interface ExternalImport {
   names: ImportName[];
 }
 
-interface ParseImportsResult {
+export interface ParseImportsResult {
   relative: Record<string, RelativeImport>;
   externals: Record<string, ExternalImport>;
 }
