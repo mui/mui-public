@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import { globby } from 'globby';
 import path from 'node:path';
-import { wrapInWorker } from '../utils/build.mjs';
+import { mapConcurrently } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -45,7 +45,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     let passed = true;
 
-    await wrapInWorker(
+    await mapConcurrently(
+      filenames,
       async (filename) => {
         const content = await fs.readFile(path.join(cwd, filename), { encoding: 'utf8' });
         try {
@@ -59,7 +60,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           console.error(failMessage(`Error parsing ${filename}:\n\n${String(error)}`));
         }
       },
-      { items: filenames, defaultConcurrency: 20, promiseMethod: 'allSettled' },
+      20,
     );
     if (!passed) {
       throw new Error('❌ At least one file did not pass. Check the console output');

@@ -2,7 +2,7 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { globby } from 'globby';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { wrapInWorker } from '../utils/build.mjs';
+import { mapConcurrently } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -106,11 +106,12 @@ async function processGlobs({ globs, cwd, silent = true, buildDir }) {
     });
   });
 
-  await wrapInWorker(
+  await mapConcurrently(
+    filesToProcess,
     async (file) => {
       await recursiveCopy({ source: file.sourcePath, target: file.targetPath, silent });
     },
-    { items: filesToProcess },
+    50,
   );
   return filesToProcess.length;
 }

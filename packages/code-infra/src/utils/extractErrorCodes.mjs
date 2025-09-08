@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { getWorkspacePackages } from '../cli/pnpm.mjs';
-import { BASE_IGNORES, wrapInWorker } from './build.mjs';
+import { BASE_IGNORES, mapConcurrently } from './build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -18,12 +18,12 @@ import { BASE_IGNORES, wrapInWorker } from './build.mjs';
  */
 
 /**
- * Extracts error codes from all files in a directory.
+ * Gets all relevant files for a package to parse.
+ *
  * @param {import('../cli/pnpm.mjs').PublicPackage} pkg
- * @param {Set<string>} errors
- * @param {import('@mui/internal-babel-plugin-minify-errors').Options['detection']} [detection='opt-in']
+ * @returns {Promise<string[]>} An array of file paths.
  */
-async function extractErrorCodesForPackage(pkg, errors, detection = 'opt-in') {
+async function getFilesForPackage(pkg) {
   const srcPath = path.join(pkg.path, 'src');
   const srcPathExists = await fs
     .stat(srcPath)
@@ -42,11 +42,19 @@ async function extractErrorCodesForPackage(pkg, errors, detection = 'opt-in') {
     ],
     cwd,
   });
-  const workerCount = Math.min(40, files.length);
-  console.log(`🔍 ${pkg.name}: Processing ${files.length} file${files.length > 1 ? 's' : ''}...`);
-  await wrapInWorker(
-    async (file) => {
-      const fullPath = path.join(cwd, file);
+  return files.map((file) => path.join(cwd, file));
+}
+
+/**
+ * Extracts error codes from all files in a directory.
+ * @param {string[]} files
+ * @param {Set<string>} errors
+ * @param {import('@mui/internal-babel-plugin-minify-errors').Options['detection']} [detection='opt-in']
+ */
+async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in') {
+  await mapConcurrently(
+    files,
+    async (fullPath) => {
       const code = await fs.readFile(fullPath, 'utf8');
       const ast = await parseAsync(code, {
         filename: fullPath,
@@ -73,7 +81,7 @@ async function extractErrorCodesForPackage(pkg, errors, detection = 'opt-in') {
         },
       });
     },
-    { defaultConcurrency: workerCount, items: files },
+    30,
   );
 }
 
@@ -86,6 +94,9 @@ export default async function extractErrorCodes(args) {
    * @type {Set<string>}
    */
   const errors = new Set();
+
+  // Find relevant files
+
   const basePackages = await getWorkspacePackages({
     publicOnly: true,
   });
@@ -97,7 +108,19 @@ export default async function extractErrorCodes(args) {
       !pkg.name.startsWith('@mui-internal/') &&
       !skipPackages.includes(pkg.name),
   );
-  await Promise.all(packages.map((pkg) => extractErrorCodesForPackage(pkg, errors, detection)));
+  const files = await Promise.all(packages.map((pkg) => getFilesForPackage(pkg)));
+  packages.forEach((pkg, index) => {
+    console.log(
+      `🔍 ${pkg.name}: Found ${files[index].length} file${files[index].length > 1 ? 's' : ''}`,
+    );
+  });
+
+  // Extract error codes from said files.
+  const filesToProcess = files.flat();
+  console.log(`🔍 Extracting error codes from ${filesToProcess.length} files...`);
+  await extractErrorCodesForWorkspace(filesToProcess, errors, detection);
+
+  // Write error codes to the specified file.
   const errorCodeFilePath = path.resolve(errorCodesPath);
   const fileExists = await fs
     .stat(errorCodeFilePath)
@@ -133,7 +156,6 @@ export default async function extractErrorCodes(args) {
   if (!fileExists) {
     await fs.mkdir(path.dirname(errorCodeFilePath), { recursive: true });
   }
-  await fs.writeFile(errorCodeFilePath, `${JSON.stringify(finalErrorCodes, null, 2)}\n`);
   const newErrorCount = inverseLookupCode.size - originalErrorCount;
   if (newErrorCount === 0) {
     console.log(`✅ No new error codes found.`);
@@ -141,5 +163,6 @@ export default async function extractErrorCodes(args) {
     console.log(
       `📝 Wrote ${newErrorCount} new error code${newErrorCount > 1 ? 's' : ''} to "${errorCodesPath}"`,
     );
+    await fs.writeFile(errorCodeFilePath, `${JSON.stringify(finalErrorCodes, null, 2)}\n`);
   }
 }

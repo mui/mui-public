@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { measurePerf } from '../utils/build.mjs';
+import { markFn, measureFn } from '../utils/build.mjs';
 
 /**
  * @typedef {import('../utils/extractErrorCodes.mjs').Args} Args
@@ -29,11 +29,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   async handler(args) {
-    console.log(`🔨 Extracting error codes`);
-    const duration = await measurePerf(/** @type {string} */ (args._[0]), async () => {
+    const commandName = /** @type {string} */ (args._[0]);
+    await markFn(commandName, async () => {
       const module = await import('../utils/extractErrorCodes.mjs');
       await module.default(args);
     });
-    console.log(`✅ Extracted error codes in ${(duration / 1000.0).toFixed(3)}s`);
+    console.log(
+      `✅ Extracted error codes in ${(measureFn(commandName).duration / 1000.0).toFixed(3)}s`,
+    );
   },
 });

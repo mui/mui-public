@@ -70,17 +70,31 @@ export function validatePkgJson(packageJson, options = {}) {
 }
 
 /**
- * Measures the performance of a function.
- * @param {string} label - The label for the performance measurement.
- * @param {Function} fn - The function to measure.
- * @returns {Promise<number>} - The duration of the function execution in milliseconds.
+ * Marks the start and end of a function execution for performance measurement.
+ * Uses the Performance API to create marks and measure the duration.
+ * @function
+ * @template {() => Promise<any>} F
+ * @param {string} label
+ * @param {() => ReturnType<F>} fn
+ * @returns {Promise<ReturnType<F>>}
  */
-export async function measurePerf(label, fn) {
-  performance.mark(`${label}-start`);
-  await Promise.resolve(fn());
-  performance.mark(`${label}-end`);
-  const measurement = performance.measure(label, `${label}-start`, `${label}-end`);
-  return measurement.duration;
+export async function markFn(label, fn) {
+  const startMark = `${label}-start`;
+  const endMark = `${label}-end`;
+  performance.mark(startMark);
+  const result = await fn();
+  performance.mark(endMark);
+  performance.measure(label, startMark, endMark);
+  return result;
+}
+
+/**
+ * @param {string} label
+ */
+export function measureFn(label) {
+  const startMark = `${label}-start`;
+  const endMark = `${label}-end`;
+  return performance.measure(label, startMark, endMark);
 }
 
 export const BASE_IGNORES = [
@@ -96,35 +110,40 @@ export const BASE_IGNORES = [
 ];
 
 /**
- * A utility to wrap a function in a worker pool.
+ * A utility to map a function over an array of items in a worker pool.
  *
  * This function will create a pool of workers and distribute the items to be processed among them.
  * Each worker will process items sequentially, but multiple workers will run in parallel.
+ *
  * @function
  * @template T
- * @param {(item: T) => Promise<void>} fn
- * @param {Object} options
- * @param {T[]} options.items
- * @param {number} [options.defaultConcurrency=50]
- * @param {'all' | 'allSettled'} [options.promiseMethod='all']
- * @returns {Promise<void>}
+ * @template R
+ * @param {T[]} items
+ * @param {(item: T) => Promise<R>} mapper
+ * @param {number} concurrency
+ * @returns {Promise<(R|Error)[]>}
  */
-export async function wrapInWorker(fn, options) {
-  const { defaultConcurrency = 50, items = [], promiseMethod = 'all' } = options ?? {};
-  if (items.length === 0) {
-    return;
+export async function mapConcurrently(items, mapper, concurrency) {
+  if (!items.length) {
+    return Promise.resolve([]); // nothing to do
   }
-  const itemIterator = items[Symbol.iterator]();
-  const concurrency = Math.min(defaultConcurrency, items.length);
+  const itemIterator = items.entries();
+  const count = Math.min(concurrency, items.length);
   const workers = [];
-  for (let i = 0; i < concurrency; i += 1) {
+  /**
+   * @type {(R|Error)[]}
+   */
+  const results = new Array(items.length);
+  for (let i = 0; i < count; i += 1) {
     const worker = Promise.resolve().then(async () => {
-      for (const item of itemIterator) {
+      for (const [index, item] of itemIterator) {
         // eslint-disable-next-line no-await-in-loop
-        await fn(item);
+        const res = await mapper(item);
+        results[index] = res;
       }
     });
     workers.push(worker);
   }
-  await (promiseMethod === 'all' ? Promise.all(workers) : Promise.allSettled(workers));
+  await Promise.all(workers);
+  return results;
 }
