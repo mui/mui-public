@@ -5,7 +5,10 @@ import * as React from 'react';
  * Hook for managing URL hash state with SSR support
  * @returns A tuple of [hash, setHash] where hash is the current URL hash (without '#') and setHash updates it
  */
-export function useUrlHashState(): [string | null, (value: string | null, replace?: boolean) => void] {
+export function useUrlHashState(): [
+  string | null,
+  (value: string | null, replace?: boolean) => void,
+] {
   // Store the subscriber callback so we can trigger it manually
   const subscriberRef = React.useRef<(() => void) | null>(null);
 
