@@ -1,18 +1,4 @@
 {
-  "compilerOptions": {
-    "composite": true,
-    "target": "ES2022",
-    "module": "es2020",
-    "moduleResolution": "bundler",
-    "allowJs": true,
-    "checkJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true
-  },
-  "include": ["src"],
-  "exclude": ["node_modules", "build"]
+  "extends": "../../tsconfig.node.json",
+  "include": ["src", "bin", "package.json", "vite.config.mts"]
 }

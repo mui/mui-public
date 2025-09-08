@@ -1,18 +1,7 @@
 {
+  "extends": "../../tsconfig.node.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "allowJs": true,
-    "checkJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "outDir": "./build",
-    "noEmit": true,
-    "composite": true
+    "outDir": "build"
   },
   "include": ["src"],
   "exclude": ["node_modules", "build"]

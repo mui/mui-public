@@ -1,8 +1,7 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.options.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "skipLibCheck": true,
     "module": "es2020",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,

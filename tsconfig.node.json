@@ -1,18 +1,7 @@
 {
+  "extends": "./tsconfig.js.json",
   "compilerOptions": {
-    "composite": true,
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "checkJs": true,
-    "allowJs": true,
-    "noEmit": true
+    "types": ["node"]
   },
-  "include": ["eslint.config.*", "prettier.config.*"]
+  "include": ["eslint.config.*", "prettier.config.*", "babel.config.*"]
 }
