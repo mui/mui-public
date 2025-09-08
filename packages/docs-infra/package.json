@@ -60,8 +60,8 @@
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/runtime": "^7.28.3",
-    "@babel/standalone": "^7.28.1",
+    "@babel/runtime": "^7.28.4",
+    "@babel/standalone": "^7.28.4",
     "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
     "hast-util-to-jsx-runtime": "^2.3.6",
@@ -80,8 +80,8 @@
     "@types/babel__traverse": "^7.20.7",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^24.3.0",
-    "@types/react": "^19.1.11",
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.1.12",
     "@types/webpack": "^5.28.5",
     "react": "^19.1.1",
     "rehype-parse": "^9.0.1",

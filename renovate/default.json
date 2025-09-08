@@ -36,7 +36,8 @@
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
-      "schedule": null
+      "schedule": null,
+      "additionalReviewers": ["@mui/infra"]
     },
     {
       "groupName": "GitHub Actions",
