@@ -1,14 +1,6 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router';
-import {
-  Container,
-  Typography,
-  CircularProgress,
-  Alert,
-  Box,
-  TextField,
-  Button,
-} from '@mui/material';
+import { Container, Typography, Alert, Box, TextField, Button } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import * as diff from 'diff';
 import * as pako from 'pako';
@@ -130,54 +122,49 @@ async function resolvePackageDownloadUrl(packageSpec: string): Promise<ResolvedP
 }
 
 async function extractTarGz(buffer: ArrayBuffer): Promise<FileContent[]> {
-  try {
-    const uint8Array = new Uint8Array(buffer);
-    const decompressed = pako.ungzip(uint8Array);
+  const uint8Array = new Uint8Array(buffer);
+  const decompressed = pako.ungzip(uint8Array);
 
-    const files: FileContent[] = [];
-    let offset = 0;
+  const files: FileContent[] = [];
+  let offset = 0;
 
-    while (offset < decompressed.length) {
-      if (offset + 512 > decompressed.length) {
-        break;
-      }
-
-      const header = decompressed.slice(offset, offset + 512);
-      const nameBytes = header.slice(0, 100);
-      const sizeBytes = header.slice(124, 136);
-
-      const name = new TextDecoder().decode(nameBytes).split('\0')[0];
-      const sizeStr = new TextDecoder().decode(sizeBytes).split('\0')[0];
-      const size = parseInt(sizeStr.trim(), 8);
-
-      if (!name || Number.isNaN(size)) {
-        offset += 512;
-        continue;
-      }
-
-      offset += 512;
-
-      if (size > 0) {
-        const content = decompressed.slice(offset, offset + size);
-        const contentStr = new TextDecoder().decode(content);
-
-        const cleanPath = name.replace(/^[^/]*\//, '');
-        if (cleanPath && !cleanPath.endsWith('/')) {
-          files.push({
-            path: cleanPath,
-            content: contentStr,
-          });
-        }
-
-        offset += Math.ceil(size / 512) * 512;
-      }
+  while (offset < decompressed.length) {
+    if (offset + 512 > decompressed.length) {
+      break;
     }
 
-    return files;
-  } catch (error) {
-    console.error('Error extracting tar.gz:', error);
-    throw new Error('Failed to extract package contents');
+    const header = decompressed.slice(offset, offset + 512);
+    const nameBytes = header.slice(0, 100);
+    const sizeBytes = header.slice(124, 136);
+
+    const name = new TextDecoder().decode(nameBytes).split('\0')[0];
+    const sizeStr = new TextDecoder().decode(sizeBytes).split('\0')[0];
+    const size = parseInt(sizeStr.trim(), 8);
+
+    if (!name || Number.isNaN(size)) {
+      offset += 512;
+      continue;
+    }
+
+    offset += 512;
+
+    if (size > 0) {
+      const content = decompressed.slice(offset, offset + size);
+      const contentStr = new TextDecoder().decode(content);
+
+      const cleanPath = name.replace(/^[^/]*\//, '');
+      if (cleanPath && !cleanPath.endsWith('/')) {
+        files.push({
+          path: cleanPath,
+          content: contentStr,
+        });
+      }
+
+      offset += Math.ceil(size / 512) * 512;
+    }
   }
+
+  return files;
 }
 
 async function downloadAndExtractPackage(spec: string): Promise<PackageContents> {
@@ -196,14 +183,16 @@ async function downloadAndExtractPackage(spec: string): Promise<PackageContents>
   let packageName = resolvedPackage.name;
   let packageVersion = resolvedPackage.version;
 
-  if (packageJsonFile) {
-    try {
-      const packageJson = JSON.parse(packageJsonFile.content);
-      packageName = packageJson.name || packageName;
-      packageVersion = resolvedPackage.resolvedVersion || packageJson.version || packageVersion;
-    } catch (error) {
-      console.warn('Failed to parse package.json from tarball, using resolved metadata:', error);
-    }
+  if (!packageJsonFile) {
+    throw new Error(`package.json not found in the tarball`);
+  }
+
+  try {
+    const packageJson = JSON.parse(packageJsonFile.content);
+    packageName = packageJson.name || packageName;
+    packageVersion = resolvedPackage.resolvedVersion || packageJson.version || packageVersion;
+  } catch {
+    throw new Error(`Failed to parse package.json from tarball`);
   }
 
   return {
@@ -286,12 +275,11 @@ export default function DiffPackage() {
 
   return (
     <Container maxWidth="xl">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Package Diff Tool
-        </Typography>
-
-        <Box sx={{ mb: 4 }}>
+      <Box sx={{ my: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Package Diff Tool
+          </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <TextField
               label="From"
@@ -317,27 +305,18 @@ export default function DiffPackage() {
               variant="contained"
               onClick={comparePackages}
               disabled={loading || !package1Input.trim() || !package2Input.trim()}
+              loading={loading}
               sx={{ minWidth: 'auto' }}
             >
-              {loading ? 'Comparing...' : 'Compare'}
+              Compare
             </Button>
           </Box>
         </Box>
 
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
-          </Box>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 4 }}>
-            {error}
-          </Alert>
-        )}
+        {error && <Alert severity="error">{error}</Alert>}
 
         {resolvedPackages.pkg1 && resolvedPackages.pkg2 && (
-          <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
             <Typography variant="h6" gutterBottom>
               Resolved Packages:
             </Typography>
@@ -363,7 +342,7 @@ export default function DiffPackage() {
         )}
 
         {diffResult && (
-          <Box sx={{ mt: 4 }}>
+          <Box>
             <Typography variant="h6" gutterBottom>
               Diff Results:
             </Typography>
@@ -378,15 +357,13 @@ export default function DiffPackage() {
                 lineHeight: '1.4',
               }}
             >
-              {diffResult || 'No differences found between the packages.'}
+              {diffResult}
             </pre>
           </Box>
         )}
 
-        {diffResult === '' && !loading && !error && (
-          <Alert severity="info" sx={{ mt: 4 }}>
-            No differences found between the packages.
-          </Alert>
+        {!diffResult && !loading && !error && (
+          <Alert severity="info">No differences found between the packages.</Alert>
         )}
       </Box>
     </Container>
