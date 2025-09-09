@@ -211,16 +211,19 @@ interface PackageInfoProps {
   label: string;
   color: 'primary' | 'secondary';
   resolvedSpec: string | null;
+  error: Error | null;
 }
 
-function PackageInfo({ label, color, resolvedSpec }: PackageInfoProps) {
+function PackageInfo({ label, color, resolvedSpec, error }: PackageInfoProps) {
   return (
     <Box>
       <Typography variant="subtitle2" color={color}>
         {label}:
       </Typography>
-      <Typography variant="body2" fontFamily="monospace">
-        {resolvedSpec || <Skeleton variant="text" width={300} />}
+      <Typography variant="body2" color={error ? 'error' : undefined} fontFamily="monospace">
+        {error
+          ? `Error: ${error.message}`
+          : resolvedSpec || <Skeleton variant="text" width={300} />}
       </Typography>
     </Box>
   );
@@ -422,8 +425,6 @@ export default function DiffPackage() {
           </Box>
         </Box>
 
-        {error && <Alert severity="error">{error.message}</Alert>}
-
         {(package1Spec || package2Spec) && (
           <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
             <Typography variant="h6" gutterBottom>
@@ -434,61 +435,67 @@ export default function DiffPackage() {
                 label="From"
                 color="primary"
                 resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
+                error={pkg1Query.error}
               />
               <PackageInfo
                 label="To"
                 color="secondary"
                 resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
+                error={pkg2Query.error}
               />
             </Box>
           </Box>
         )}
 
-        <Box>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 2,
-            }}
-          >
-            <Typography variant="h6">
-              Diff Results {loading || error ? '' : `(${filesToDiff.length} files changed):`}
-            </Typography>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={ignoreWhitespace}
-                  onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                  size="small"
-                />
-              }
-              label="Ignore whitespace"
-            />
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {loading && <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />}
-            {filesToDiff.length > 0 && (
-              <React.Fragment>
-                {filesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                  <FileDiff
-                    key={filePath}
-                    filePath={filePath}
-                    old={old}
-                    new={newContent}
-                    oldHeader={oldHeader}
-                    newHeader={newHeader}
-                    ignoreWhitespace={ignoreWhitespace}
+        {!error && (
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
+              }}
+            >
+              <Typography variant="h6">
+                Diff Results {loading ? '' : `(${filesToDiff.length} files changed):`}
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={ignoreWhitespace}
+                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                    size="small"
                   />
-                ))}
-              </React.Fragment>
-            )}
-            {filesToDiff.length === 0 && !loading && !error && pkg1 && pkg2 && (
-              <Alert severity="info">No differences found between the packages.</Alert>
-            )}
+                }
+                label="Ignore whitespace"
+              />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {loading ? (
+                <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
+              ) : (
+                <React.Fragment>
+                  {filesToDiff.length > 0 ? (
+                    filesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                      <FileDiff
+                        key={filePath}
+                        filePath={filePath}
+                        old={old}
+                        new={newContent}
+                        oldHeader={oldHeader}
+                        newHeader={newHeader}
+                        ignoreWhitespace={ignoreWhitespace}
+                      />
+                    ))
+                  ) : (
+                    <Alert severity="info">No differences found between the packages.</Alert>
+                  )}
+                </React.Fragment>
+              )}
+            </Box>
           </Box>
-        </Box>
+        )}
       </Box>
     </Container>
   );
