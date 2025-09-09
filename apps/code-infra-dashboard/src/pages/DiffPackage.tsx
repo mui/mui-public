@@ -10,6 +10,7 @@ import {
   useEventCallback,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import * as diff from 'diff';
 import * as pako from 'pako';
 import * as semver from 'semver';
@@ -285,17 +286,39 @@ export default function DiffPackage() {
           <Typography variant="h4" component="h1" gutterBottom>
             Package Diff Tool
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2, 
+            flexDirection: { xs: 'column', sm: 'row' },
+            width: '100%'
+          }}>
             <TextField
               label="From"
               size="small"
               placeholder="e.g., react@18.0.0, @mui/material@~5.0.0"
               value={package1Input}
               onChange={(event) => setPackage1Input(event.target.value)}
-              sx={{ flex: 1, minWidth: '200px' }}
+              sx={{ 
+                flex: { sm: 1 }, 
+                width: { xs: '100%', sm: 'auto' },
+                minWidth: '200px' 
+              }}
             />
 
-            <ArrowForwardIcon color="action" />
+            <Box sx={{ 
+              display: { xs: 'block', sm: 'block' }, 
+              alignSelf: 'center' 
+            }}>
+              <ArrowForwardIcon 
+                color="action" 
+                sx={{ display: { xs: 'none', sm: 'block' } }} 
+              />
+              <ArrowDownwardIcon 
+                color="action" 
+                sx={{ display: { xs: 'block', sm: 'none' } }} 
+              />
+            </Box>
 
             <TextField
               label="To"
@@ -303,7 +326,11 @@ export default function DiffPackage() {
               placeholder="e.g., react@19.0.0, @mui/material@6.x"
               value={package2Input}
               onChange={(event) => setPackage2Input(event.target.value)}
-              sx={{ flex: 1, minWidth: '200px' }}
+              sx={{ 
+                flex: { sm: 1 }, 
+                width: { xs: '100%', sm: 'auto' },
+                minWidth: '200px' 
+              }}
             />
 
             <Button
@@ -311,7 +338,11 @@ export default function DiffPackage() {
               onClick={comparePackages}
               disabled={loading || !package1Input.trim() || !package2Input.trim()}
               loading={loading}
-              sx={{ minWidth: 'auto' }}
+              sx={{ 
+                minWidth: 'auto',
+                width: { xs: '100%', sm: 'auto' },
+                mt: { xs: 1, sm: 0 }
+              }}
             >
               Compare
             </Button>
