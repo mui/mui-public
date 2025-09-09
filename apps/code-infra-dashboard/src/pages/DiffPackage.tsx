@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import {
   Container,
   Typography,
@@ -8,6 +9,9 @@ import {
   TextField,
   Button,
   useEventCallback,
+  Checkbox,
+  FormControlLabel,
+  Skeleton,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -201,20 +205,92 @@ async function downloadAndExtractPackage(spec: string): Promise<PackageContents>
   };
 }
 
+// Component for displaying individual package info
+interface PackageInfoProps {
+  label: string;
+  color: 'primary' | 'secondary';
+  resolvedSpec: string | null;
+}
+
+function PackageInfo({ label, color, resolvedSpec }: PackageInfoProps) {
+  return (
+    <Box>
+      <Typography variant="subtitle2" color={color}>
+        {label}:
+      </Typography>
+      <Typography variant="body2" fontFamily="monospace">
+        {resolvedSpec || <Skeleton variant="text" width={200} />}
+      </Typography>
+    </Box>
+  );
+}
+
+// Custom hook for downloading a package using React Query
+function usePackageDownload(packageSpec: string | null) {
+  return useQuery({
+    queryKey: ['package-download', packageSpec],
+    queryFn: () => downloadAndExtractPackage(packageSpec!),
+    enabled: Boolean(packageSpec?.trim()),
+    retry: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 export default function DiffPackage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
+  const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
 
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [diffResult, setDiffResult] = React.useState<string | null>(null);
-  const [resolvedPackages, setResolvedPackages] = React.useState<{
-    pkg1: { name: string; version: string } | null;
-    pkg2: { name: string; version: string } | null;
-  }>({ pkg1: null, pkg2: null });
+  // Get package specs from URL parameters
+  const package1Spec = searchParams.get('package1');
+  const package2Spec = searchParams.get('package2');
 
-  const comparePackages = useEventCallback(async () => {
+  // Download packages using React Query
+  const pkg1Query = usePackageDownload(package1Spec);
+  const pkg2Query = usePackageDownload(package2Spec);
+
+  // Assign query data to variables for cleaner usage
+  const pkg1 = pkg1Query.data;
+  const pkg2 = pkg2Query.data;
+
+  // Derived state for diff computation
+  const diffResult = React.useMemo(() => {
+    if (!pkg1 || !pkg2) {
+      return null;
+    }
+
+    const allFiles = new Set([...pkg1.files.map((f) => f.path), ...pkg2.files.map((f) => f.path)]);
+
+    const diffs: string[] = [];
+
+    for (const filePath of Array.from(allFiles).sort()) {
+      const file1 = pkg1.files.find((f) => f.path === filePath);
+      const file2 = pkg2.files.find((f) => f.path === filePath);
+
+      const content1 = file1?.content || '';
+      const content2 = file2?.content || '';
+
+      if (content1 !== content2) {
+        const fileDiff = diff.createPatch(
+          filePath,
+          content1,
+          content2,
+          `${pkg1.name}@${pkg1.version}`,
+          `${pkg2.name}@${pkg2.version}`,
+          { ignoreWhitespace },
+        );
+        diffs.push(fileDiff);
+      }
+    }
+
+    return diffs.join('\n\n');
+  }, [pkg1, pkg2, ignoreWhitespace]);
+
+  const loading = pkg1Query.isLoading || pkg2Query.isLoading;
+  const error = pkg1Query.error || pkg2Query.error;
+
+  const comparePackages = useEventCallback(() => {
     const pkg1Spec = package1Input.trim();
     const pkg2Spec = package2Input.trim();
 
@@ -227,52 +303,6 @@ export default function DiffPackage() {
       params.set('package2', pkg2Spec);
       return params;
     });
-
-    setLoading(true);
-    setError(null);
-    setDiffResult(null);
-    setResolvedPackages({ pkg1: null, pkg2: null });
-
-    try {
-      const [pkg1, pkg2] = await Promise.all([
-        downloadAndExtractPackage(pkg1Spec),
-        downloadAndExtractPackage(pkg2Spec),
-      ]);
-
-      setResolvedPackages({ pkg1, pkg2 });
-
-      const allFiles = new Set([
-        ...pkg1.files.map((f) => f.path),
-        ...pkg2.files.map((f) => f.path),
-      ]);
-
-      const diffs: string[] = [];
-
-      for (const filePath of Array.from(allFiles).sort()) {
-        const file1 = pkg1.files.find((f) => f.path === filePath);
-        const file2 = pkg2.files.find((f) => f.path === filePath);
-
-        const content1 = file1?.content || '';
-        const content2 = file2?.content || '';
-
-        if (content1 !== content2) {
-          const fileDiff = diff.createPatch(
-            filePath,
-            content1,
-            content2,
-            `${pkg1.name}@${pkg1.version}`,
-            `${pkg2.name}@${pkg2.version}`,
-          );
-          diffs.push(fileDiff);
-        }
-      }
-
-      setDiffResult(diffs.join('\n\n'));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while comparing packages');
-    } finally {
-      setLoading(false);
-    }
   });
 
   React.useEffect(() => {
@@ -349,37 +379,43 @@ export default function DiffPackage() {
 
         {error && <Alert severity="error">{error}</Alert>}
 
-        {resolvedPackages.pkg1 && resolvedPackages.pkg2 && (
+        {(package1Spec || package2Spec) && (
           <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
             <Typography variant="h6" gutterBottom>
               Resolved Packages:
             </Typography>
             <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <Box>
-                <Typography variant="subtitle2" color="primary">
-                  From:
-                </Typography>
-                <Typography variant="body2" fontFamily="monospace">
-                  {resolvedPackages.pkg1.name}@{resolvedPackages.pkg1.version}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" color="secondary">
-                  To:
-                </Typography>
-                <Typography variant="body2" fontFamily="monospace">
-                  {resolvedPackages.pkg2.name}@{resolvedPackages.pkg2.version}
-                </Typography>
-              </Box>
+              <PackageInfo
+                label="From"
+                color="primary"
+                resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
+              />
+              <PackageInfo
+                label="To"
+                color="secondary"
+                resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
+              />
             </Box>
           </Box>
         )}
 
         {diffResult && (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Diff Results:
-            </Typography>
+            <Box
+              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
+            >
+              <Typography variant="h6">Diff Results:</Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={ignoreWhitespace}
+                    onChange={(e) => setIgnoreWhitespace(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Ignore whitespace"
+              />
+            </Box>
             <pre
               style={{
                 background: '#1e1e1e',
