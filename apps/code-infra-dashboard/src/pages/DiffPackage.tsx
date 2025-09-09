@@ -29,17 +29,23 @@ interface ResolvedPackage {
   downloadUrl: string;
   name: string;
   version: string;
-  resolvedVersion?: string;
+}
+
+function isUrl(str: string): boolean {
+  try {
+    return !!new URL(str);
+  } catch {
+    return false;
+  }
 }
 
 async function resolvePackageDownloadUrl(packageSpec: string): Promise<ResolvedPackage> {
   // Case 1: Direct URL
-  if (packageSpec.startsWith('http://') || packageSpec.startsWith('https://')) {
+  if (isUrl(packageSpec)) {
     return {
       downloadUrl: packageSpec,
       name: packageSpec,
       version: packageSpec,
-      resolvedVersion: packageSpec,
     };
   }
 
@@ -47,29 +53,13 @@ async function resolvePackageDownloadUrl(packageSpec: string): Promise<ResolvedP
   let packageName: string;
   let versionSpec: string | undefined;
 
-  if (packageSpec.startsWith('@')) {
-    // Scoped package: @scope/name@version
-    const parts = packageSpec.split('@');
-    if (parts.length === 2) {
-      // @scope/name
-      packageName = packageSpec;
-    } else if (parts.length === 3) {
-      // @scope/name@version
-      packageName = `${parts[0]}@${parts[1]}`;
-      versionSpec = parts[2];
-    } else {
-      throw new Error(`Invalid scoped package specification: ${packageSpec}`);
-    }
+  const atIndex = packageSpec.indexOf('@', 1);
+
+  if (atIndex === -1) {
+    packageName = packageSpec;
   } else {
-    // Regular package: name@version
-    const atIndex = packageSpec.lastIndexOf('@');
-    if (atIndex === -1) {
-      // No version specified
-      packageName = packageSpec;
-    } else {
-      packageName = packageSpec.substring(0, atIndex);
-      versionSpec = packageSpec.substring(atIndex + 1);
-    }
+    packageName = packageSpec.substring(0, atIndex);
+    versionSpec = packageSpec.substring(atIndex + 1);
   }
 
   // Case 2: No version specified - use latest
@@ -188,24 +178,24 @@ async function downloadAndExtractPackage(spec: string): Promise<PackageContents>
 
   // Extract name and version from package.json in the tarball
   const packageJsonFile = files.find((f) => f.path === 'package.json');
-  let packageName = resolvedPackage.name;
-  let packageVersion = resolvedPackage.version;
 
   if (!packageJsonFile) {
     throw new Error(`package.json not found in the tarball`);
   }
 
+  let packageJson: { name?: string; version?: string };
   try {
-    const packageJson = JSON.parse(packageJsonFile.content);
-    packageName = packageJson.name || packageName;
-    packageVersion = resolvedPackage.resolvedVersion || packageJson.version || packageVersion;
+    packageJson = JSON.parse(packageJsonFile.content);
   } catch {
     throw new Error(`Failed to parse package.json from tarball`);
   }
 
+  const packageName = packageJson.name || resolvedPackage.name;
+  const packageVersion = packageJson.version || resolvedPackage.version;
+
   return {
     name: packageName,
-    version: packageVersion,
+    version: isUrl(resolvedPackage.version) ? resolvedPackage.version : packageVersion,
     files,
   };
 }
