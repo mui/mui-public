@@ -12,6 +12,7 @@ import {
   Checkbox,
   FormControlLabel,
   Skeleton,
+  Paper,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -248,20 +249,19 @@ function FileDiff({
   }, [old, newContent, filePath, oldHeader, newHeader, ignoreWhitespace]);
 
   return (
-    <pre
-      style={{
-        background: '#1e1e1e',
-        color: '#d4d4d4',
-        padding: '16px',
-        margin: 0,
-        borderRadius: '4px',
-        overflow: 'auto',
-        fontSize: '12px',
-        lineHeight: '1.4',
-      }}
-    >
-      {fileDiff}
-    </pre>
+    <Paper>
+      <pre
+        style={{
+          padding: '16px',
+          margin: 0,
+          overflow: 'auto',
+          fontSize: '12px',
+          lineHeight: '1.4',
+        }}
+      >
+        {fileDiff}
+      </pre>
+    </Paper>
   );
 }
 
@@ -444,49 +444,51 @@ export default function DiffPackage() {
           </Box>
         )}
 
-        {filesToDiff.length > 0 && (
-          <Box>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 2,
-              }}
-            >
-              <Typography variant="h6">
-                Diff Results ({filesToDiff.length} files changed):
-              </Typography>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={ignoreWhitespace}
-                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                    size="small"
-                  />
-                }
-                label="Ignore whitespace"
-              />
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {filesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                <FileDiff
-                  key={filePath}
-                  filePath={filePath}
-                  old={old}
-                  new={newContent}
-                  oldHeader={oldHeader}
-                  newHeader={newHeader}
-                  ignoreWhitespace={ignoreWhitespace}
+        <Box>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6">
+              Diff Results {loading || error ? '' : `(${filesToDiff.length} files changed):`}
+            </Typography>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={ignoreWhitespace}
+                  onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                  size="small"
                 />
-              ))}
-            </Box>
+              }
+              label="Ignore whitespace"
+            />
           </Box>
-        )}
-
-        {filesToDiff.length === 0 && !loading && !error && pkg1 && pkg2 && (
-          <Alert severity="info">No differences found between the packages.</Alert>
-        )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {loading && <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />}
+            {filesToDiff.length > 0 && (
+              <React.Fragment>
+                {filesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                  <FileDiff
+                    key={filePath}
+                    filePath={filePath}
+                    old={old}
+                    new={newContent}
+                    oldHeader={oldHeader}
+                    newHeader={newHeader}
+                    ignoreWhitespace={ignoreWhitespace}
+                  />
+                ))}
+              </React.Fragment>
+            )}
+            {filesToDiff.length === 0 && !loading && !error && pkg1 && pkg2 && (
+              <Alert severity="info">No differences found between the packages.</Alert>
+            )}
+          </Box>
+        </Box>
       </Box>
     </Container>
   );
