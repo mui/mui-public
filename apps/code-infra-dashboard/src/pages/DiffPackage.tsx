@@ -284,7 +284,7 @@ export default function DiffPackage() {
       }
     }
 
-    return diffs.join('\n\n');
+    return diffs;
   }, [pkg1, pkg2, ignoreWhitespace]);
 
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
@@ -404,7 +404,11 @@ export default function DiffPackage() {
         {diffResult && (
           <Box>
             <Box
-              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
             >
               <Typography variant="h6">Diff Results:</Typography>
               <FormControlLabel
@@ -418,23 +422,28 @@ export default function DiffPackage() {
                 label="Ignore whitespace"
               />
             </Box>
-            <pre
-              style={{
-                background: '#1e1e1e',
-                color: '#d4d4d4',
-                padding: '16px',
-                borderRadius: '4px',
-                overflow: 'auto',
-                fontSize: '12px',
-                lineHeight: '1.4',
-              }}
-            >
-              {diffResult}
-            </pre>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {diffResult.map((fileDiff) => (
+                <pre
+                  style={{
+                    background: '#1e1e1e',
+                    color: '#d4d4d4',
+                    padding: '16px',
+                    margin: 0,
+                    borderRadius: '4px',
+                    overflow: 'auto',
+                    fontSize: '12px',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {fileDiff}
+                </pre>
+              ))}
+            </Box>
           </Box>
         )}
 
-        {diffResult === '' && !loading && !error && (
+        {diffResult && diffResult.length === 0 && !loading && !error && (
           <Alert severity="info">No differences found between the packages.</Alert>
         )}
       </Box>
