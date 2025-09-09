@@ -290,7 +290,7 @@ export default function DiffPackage() {
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
 
-  const comparePackages = useEventCallback(() => {
+  const onCompareClick = useEventCallback(() => {
     const pkg1Spec = package1Input.trim();
     const pkg2Spec = package2Input.trim();
 
@@ -305,9 +305,11 @@ export default function DiffPackage() {
     });
   });
 
+  // Sync input fields with URL parameters when they change
   React.useEffect(() => {
-    comparePackages();
-  }, [comparePackages]);
+    setPackage1Input(searchParams.get('package1') || '');
+    setPackage2Input(searchParams.get('package2') || '');
+  }, [searchParams]);
 
   return (
     <Container maxWidth="xl">
@@ -363,7 +365,7 @@ export default function DiffPackage() {
 
             <Button
               variant="contained"
-              onClick={comparePackages}
+              onClick={onCompareClick}
               disabled={loading || !package1Input.trim() || !package2Input.trim()}
               loading={loading}
               sx={{
@@ -377,7 +379,7 @@ export default function DiffPackage() {
           </Box>
         </Box>
 
-        {error && <Alert severity="error">{error}</Alert>}
+        {error && <Alert severity="error">{error.message}</Alert>}
 
         {(package1Spec || package2Spec) && (
           <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
@@ -409,7 +411,7 @@ export default function DiffPackage() {
                 control={
                   <Checkbox
                     checked={ignoreWhitespace}
-                    onChange={(e) => setIgnoreWhitespace(e.target.checked)}
+                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
                     size="small"
                   />
                 }
