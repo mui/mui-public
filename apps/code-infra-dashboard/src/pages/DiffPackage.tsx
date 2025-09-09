@@ -219,9 +219,49 @@ function PackageInfo({ label, color, resolvedSpec }: PackageInfoProps) {
         {label}:
       </Typography>
       <Typography variant="body2" fontFamily="monospace">
-        {resolvedSpec || <Skeleton variant="text" width={200} />}
+        {resolvedSpec || <Skeleton variant="text" width={300} />}
       </Typography>
     </Box>
+  );
+}
+
+// Component for displaying individual file diff
+interface FileDiffProps {
+  old: string;
+  new: string;
+  filePath: string;
+  oldHeader: string;
+  newHeader: string;
+  ignoreWhitespace: boolean;
+}
+
+function FileDiff({
+  old,
+  new: newContent,
+  filePath,
+  oldHeader,
+  newHeader,
+  ignoreWhitespace,
+}: FileDiffProps) {
+  const fileDiff = React.useMemo(() => {
+    return diff.createPatch(filePath, old, newContent, oldHeader, newHeader, { ignoreWhitespace });
+  }, [old, newContent, filePath, oldHeader, newHeader, ignoreWhitespace]);
+
+  return (
+    <pre
+      style={{
+        background: '#1e1e1e',
+        color: '#d4d4d4',
+        padding: '16px',
+        margin: 0,
+        borderRadius: '4px',
+        overflow: 'auto',
+        fontSize: '12px',
+        lineHeight: '1.4',
+      }}
+    >
+      {fileDiff}
+    </pre>
   );
 }
 
@@ -242,50 +282,53 @@ export default function DiffPackage() {
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
 
-  // Get package specs from URL parameters
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
 
-  // Download packages using React Query
   const pkg1Query = usePackageDownload(package1Spec);
   const pkg2Query = usePackageDownload(package2Spec);
 
-  // Assign query data to variables for cleaner usage
   const pkg1 = pkg1Query.data;
   const pkg2 = pkg2Query.data;
 
-  // Derived state for diff computation
-  const diffResult = React.useMemo(() => {
+  const filesToDiff = React.useMemo(() => {
     if (!pkg1 || !pkg2) {
-      return null;
+      return [];
     }
 
-    const allFiles = new Set([...pkg1.files.map((f) => f.path), ...pkg2.files.map((f) => f.path)]);
+    const pkg1FileMap = new Map(pkg1.files.map((file) => [file.path, file]));
+    const pkg2FileMap = new Map(pkg2.files.map((file) => [file.path, file]));
 
-    const diffs: string[] = [];
+    const allFiles = new Set([...pkg1FileMap.keys(), ...pkg2FileMap.keys()]);
+
+    const files: {
+      filePath: string;
+      old: string;
+      new: string;
+      oldHeader: string;
+      newHeader: string;
+    }[] = [];
 
     for (const filePath of Array.from(allFiles).sort()) {
-      const file1 = pkg1.files.find((f) => f.path === filePath);
-      const file2 = pkg2.files.find((f) => f.path === filePath);
+      const file1 = pkg1FileMap.get(filePath);
+      const file2 = pkg2FileMap.get(filePath);
 
       const content1 = file1?.content || '';
       const content2 = file2?.content || '';
 
       if (content1 !== content2) {
-        const fileDiff = diff.createPatch(
+        files.push({
           filePath,
-          content1,
-          content2,
-          `${pkg1.name}@${pkg1.version}`,
-          `${pkg2.name}@${pkg2.version}`,
-          { ignoreWhitespace },
-        );
-        diffs.push(fileDiff);
+          old: content1,
+          new: content2,
+          oldHeader: `${pkg1.name}@${pkg1.version}`,
+          newHeader: `${pkg2.name}@${pkg2.version}`,
+        });
       }
     }
 
-    return diffs;
-  }, [pkg1, pkg2, ignoreWhitespace]);
+    return files;
+  }, [pkg1, pkg2]);
 
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
@@ -386,7 +429,7 @@ export default function DiffPackage() {
             <Typography variant="h6" gutterBottom>
               Resolved Packages:
             </Typography>
-            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flexWrap: 'wrap' }}>
               <PackageInfo
                 label="From"
                 color="primary"
@@ -401,16 +444,19 @@ export default function DiffPackage() {
           </Box>
         )}
 
-        {diffResult && (
+        {filesToDiff.length > 0 && (
           <Box>
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                mb: 2,
               }}
             >
-              <Typography variant="h6">Diff Results:</Typography>
+              <Typography variant="h6">
+                Diff Results ({filesToDiff.length} files changed):
+              </Typography>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -423,27 +469,22 @@ export default function DiffPackage() {
               />
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {diffResult.map((fileDiff) => (
-                <pre
-                  style={{
-                    background: '#1e1e1e',
-                    color: '#d4d4d4',
-                    padding: '16px',
-                    margin: 0,
-                    borderRadius: '4px',
-                    overflow: 'auto',
-                    fontSize: '12px',
-                    lineHeight: '1.4',
-                  }}
-                >
-                  {fileDiff}
-                </pre>
+              {filesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                <FileDiff
+                  key={filePath}
+                  filePath={filePath}
+                  old={old}
+                  new={newContent}
+                  oldHeader={oldHeader}
+                  newHeader={newHeader}
+                  ignoreWhitespace={ignoreWhitespace}
+                />
               ))}
             </Box>
           </Box>
         )}
 
-        {diffResult && diffResult.length === 0 && !loading && !error && (
+        {filesToDiff.length === 0 && !loading && !error && pkg1 && pkg2 && (
           <Alert severity="info">No differences found between the packages.</Alert>
         )}
       </Box>
