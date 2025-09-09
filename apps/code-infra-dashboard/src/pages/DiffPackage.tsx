@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router';
-import { Container, Typography, Alert, Box, TextField, Button } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Alert,
+  Box,
+  TextField,
+  Button,
+  useEventCallback,
+} from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import * as diff from 'diff';
 import * as pako from 'pako';
@@ -215,16 +223,19 @@ export default function DiffPackage() {
     pkg2: { name: string; version: string } | null;
   }>({ pkg1: null, pkg2: null });
 
-  const comparePackages = async () => {
-    if (!package1Input.trim() || !package2Input.trim()) {
-      setError('Please provide both package specifications');
+  const comparePackages = useEventCallback(async () => {
+    const pkg1Spec = package1Input.trim();
+    const pkg2Spec = package2Input.trim();
+
+    if (!pkg1Spec || !pkg2Spec) {
       return;
     }
 
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('package1', package1Input.trim());
-    newParams.set('package2', package2Input.trim());
-    setSearchParams(newParams);
+    setSearchParams((params) => {
+      params.set('package1', pkg1Spec);
+      params.set('package2', pkg2Spec);
+      return params;
+    });
 
     setLoading(true);
     setError(null);
@@ -233,8 +244,8 @@ export default function DiffPackage() {
 
     try {
       const [pkg1, pkg2] = await Promise.all([
-        downloadAndExtractPackage(package1Input.trim()),
-        downloadAndExtractPackage(package2Input.trim()),
+        downloadAndExtractPackage(pkg1Spec),
+        downloadAndExtractPackage(pkg2Spec),
       ]);
 
       setResolvedPackages({ pkg1, pkg2 });
@@ -271,7 +282,11 @@ export default function DiffPackage() {
     } finally {
       setLoading(false);
     }
-  };
+  });
+
+  React.useEffect(() => {
+    comparePackages();
+  }, [comparePackages]);
 
   return (
     <Container maxWidth="xl">
@@ -362,7 +377,7 @@ export default function DiffPackage() {
           </Box>
         )}
 
-        {!diffResult && !loading && !error && (
+        {diffResult === '' && !loading && !error && (
           <Alert severity="info">No differences found between the packages.</Alert>
         )}
       </Box>
