@@ -225,10 +225,14 @@ export async function build(args, pkgJson) {
   }
   await Promise.all(promises);
   if (exportEntrySet.size) {
-    console.log(`+ Added "${exportEntrySet.size}" exports to package.json.`);
+    console.log(
+      `+ Added ${exportEntrySet.size} export${exportEntrySet.size > 1 ? 's' : ''} to package.json.`,
+    );
   }
   if (binEntrySet.size) {
-    console.log(`+ Added "${binEntrySet.size}" bin entries to package.json.`);
+    console.log(
+      `+ Added ${binEntrySet.size} bin ${binEntrySet.size > 1 ? 'entries' : 'entry'} to package.json.`,
+    );
   }
   await writePkgJson(pkgJson, outChunks, nullEntries, {
     usePkgType: true,

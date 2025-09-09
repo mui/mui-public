@@ -1,14 +1,14 @@
 /* eslint-disable no-console */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { validatePkgJson } from '../utils/build.mjs';
+import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
 
 /**
  * @typedef {import('./cmdBuild.mjs').Args & {watch?: boolean}} BaseArgs
  */
 
 /**
- * @typedef {BaseArgs & { bundler: 'tsdown' }} Args
+ * @typedef {BaseArgs & { bundler: 'tsdown' | 'rslib'}} Args
  */
 
 /**
@@ -23,7 +23,7 @@ const validBundles = ['esm', 'cjs'];
 /**
  * @type {Args['bundler'][]}
  */
-const validBundlers = ['tsdown'];
+const validBundlers = ['tsdown', 'rslib'];
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build-new',
@@ -99,24 +99,30 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   async handler({ bundler, ...args }) {
-    const cwd = process.cwd();
-    performance.mark('build-start');
-    const pkgJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
+    let pkgName = '';
+    await markFn('build-new', async () => {
+      const cwd = process.cwd();
+      const pkgJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
 
-    if (!bundler) {
-      throw new Error('No bundler specified');
-    }
-    console.log(`⚒️ Building ${pkgJson.name} using 📦 "${bundler}"`);
-    validatePkgJson(pkgJson);
+      if (!bundler) {
+        throw new Error('No bundler specified');
+      }
+      pkgName = pkgJson.name;
+      console.log(`⚒️ Building ${pkgJson.name} with 📦 "${bundler}"`);
+      validatePkgJson(pkgJson);
 
-    switch (bundler) {
-      case 'tsdown':
-      default:
-        await import('../bundlers/tsdown.mjs').then(({ build }) => build(args, pkgJson));
-        break;
-    }
-    performance.mark('build-end');
-    const measure = performance.measure('build', 'build-start', 'build-end');
-    console.log(`✅ Built "${pkgJson.name}" in ${(measure.duration / 1000).toFixed(3)}s.`);
+      switch (bundler) {
+        case 'rslib':
+          await import('../bundlers/rslib.mjs').then(({ build }) => build(args, pkgJson));
+          break;
+        case 'tsdown':
+        default:
+          await import('../bundlers/tsdown.mjs').then(({ build }) => build(args, pkgJson));
+          break;
+      }
+    });
+    console.log(
+      `✅ Built "${pkgName}" in ${(measureFn('build-new').duration / 1000).toFixed(3)}s.`,
+    );
   },
 });
