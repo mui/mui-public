@@ -286,38 +286,36 @@ export default function DiffPackage() {
           <Typography variant="h4" component="h1" gutterBottom>
             Package Diff Tool
           </Typography>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2, 
-            flexDirection: { xs: 'column', sm: 'row' },
-            width: '100%'
-          }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+              width: '100%',
+            }}
+          >
             <TextField
               label="From"
               size="small"
               placeholder="e.g., react@18.0.0, @mui/material@~5.0.0"
               value={package1Input}
               onChange={(event) => setPackage1Input(event.target.value)}
-              sx={{ 
-                flex: { sm: 1 }, 
+              sx={{
+                flex: { sm: 1 },
                 width: { xs: '100%', sm: 'auto' },
-                minWidth: '200px' 
+                minWidth: '200px',
               }}
             />
 
-            <Box sx={{ 
-              display: { xs: 'block', sm: 'block' }, 
-              alignSelf: 'center' 
-            }}>
-              <ArrowForwardIcon 
-                color="action" 
-                sx={{ display: { xs: 'none', sm: 'block' } }} 
-              />
-              <ArrowDownwardIcon 
-                color="action" 
-                sx={{ display: { xs: 'block', sm: 'none' } }} 
-              />
+            <Box
+              sx={{
+                display: { xs: 'block', sm: 'block' },
+                alignSelf: 'center',
+              }}
+            >
+              <ArrowForwardIcon color="action" sx={{ display: { xs: 'none', sm: 'block' } }} />
+              <ArrowDownwardIcon color="action" sx={{ display: { xs: 'block', sm: 'none' } }} />
             </Box>
 
             <TextField
@@ -326,10 +324,10 @@ export default function DiffPackage() {
               placeholder="e.g., react@19.0.0, @mui/material@6.x"
               value={package2Input}
               onChange={(event) => setPackage2Input(event.target.value)}
-              sx={{ 
-                flex: { sm: 1 }, 
+              sx={{
+                flex: { sm: 1 },
                 width: { xs: '100%', sm: 'auto' },
-                minWidth: '200px' 
+                minWidth: '200px',
               }}
             />
 
@@ -338,10 +336,10 @@ export default function DiffPackage() {
               onClick={comparePackages}
               disabled={loading || !package1Input.trim() || !package2Input.trim()}
               loading={loading}
-              sx={{ 
+              sx={{
                 minWidth: 'auto',
                 width: { xs: '100%', sm: 'auto' },
-                mt: { xs: 1, sm: 0 }
+                mt: { xs: 1, sm: 0 },
               }}
             >
               Compare
