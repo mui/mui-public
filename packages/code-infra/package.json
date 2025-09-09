@@ -18,12 +18,13 @@
     "./markdownlint": "./src/markdownlint/index.mjs"
   },
   "bin": {
-    "code-infra": "./bin/code-infra.mjs"
+    "code-infra": "./src/bin/code-infra.mjs"
   },
   "scripts": {
+    "build-test": "node src/bin/code-infra.mjs build --flag=bundle-extension --skipBabelRuntimeCheck --ignore=\"**/setupVitest.ts\"",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
-    "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
+    "test:copy": "rm -rf build && node src/bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
   "dependencies": {
     "@argos-ci/core": "^4.1.2",

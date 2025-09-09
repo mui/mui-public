@@ -1,22 +1,21 @@
 /**
  * @typedef {'esm' | 'cjs'} BundleType
  */
-export const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
 
 /**
  * @param {BundleType} bundle
  */
-export function getOutExtension(bundle, isType = false) {
+export function getOutExtension(bundle, isType = false, useBundleExtension = false) {
   if (isType) {
-    if (!isMjsBuild) {
+    if (!useBundleExtension) {
       return '.d.ts';
     }
-    return bundle === 'esm' ? '.d.mts' : '.d.ts';
+    return bundle === 'esm' ? '.d.mts' : '.d.cts';
   }
-  if (!isMjsBuild) {
+  if (!useBundleExtension) {
     return '.js';
   }
-  return bundle === 'esm' ? '.mjs' : '.js';
+  return bundle === 'esm' ? '.mjs' : '.cjs';
 }
 
 /**
