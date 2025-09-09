@@ -10,6 +10,7 @@ import { Link as RouterLink } from 'react-router';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
+import CompareIcon from '@mui/icons-material/Compare';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -61,6 +62,12 @@ const tools: Tool[] = [
     description: 'Analyze NPM package downloads, version breakdown, and historical trends',
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
+  },
+  {
+    name: 'Package Diff Tool',
+    description: 'Compare two npm packages side-by-side to see file-level differences and changes',
+    icon: <CompareIcon />,
+    path: '/diff-package',
   },
 ];
 
