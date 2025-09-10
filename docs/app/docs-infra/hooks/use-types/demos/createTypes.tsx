@@ -1,5 +1,6 @@
-import { TypesTable, TypesTableProps } from './TypesTable';
+import * as React from 'react';
 import type { ModuleNode } from 'typescript-api-extractor';
+import { TypesTable, TypesTableProps } from './TypesTable';
 
 export type TypesTableMeta = {
   precompute?: {
@@ -33,7 +34,7 @@ export function createTypes(
   const types = meta?.precompute?.Default?.types;
 
   function Component(props: TypesTableProps) {
-    return <TypesTable {...props} types={types} name={meta?.name} />;
+    return <TypesTable {...props} types={types} />;
   }
 
   if (process.env.NODE_ENV !== 'production') {

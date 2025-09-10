@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 
 interface Props {
   /** The title to display */
@@ -14,13 +14,13 @@ interface Props {
  */
 export function MyComponent(props: Props) {
   const handleClick = (event: React.MouseEvent) => {
-    console.log('Clicked', event);
+    console.warn('Clicked', event);
   };
 
   return (
-    <div onClick={handleClick}>
+    <button type="button" onClick={handleClick}>
       {props.title}
-      {props.children}
-    </div>
+      {!props.disabled ? props.children : null}
+    </button>
   );
 }
