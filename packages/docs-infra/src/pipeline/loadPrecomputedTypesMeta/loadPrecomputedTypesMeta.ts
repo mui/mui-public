@@ -17,6 +17,7 @@ import {
   logPerformance,
   nameMark,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 
 export type LoaderOptions = {
   performance?: {
@@ -100,9 +101,23 @@ export async function loadPrecomputedTypesMeta(
       s.replace(/['"]/g, ''),
     );
 
-    const resolvedVariantMap = new Map<string, string>();
+    let resolvedVariantMap = new Map<string, string>();
     if (typesMetaCall.variants) {
-      const variantPromises = Object.entries(typesMetaCall.variants).map(
+      const relativeVariants: Record<string, string> = {};
+      const externalVariants: Record<string, string> = {};
+
+      const projectRoot = this.rootContext || process.cwd();
+      Object.entries(typesMetaCall.variants).forEach(([variantName, variantPath]) => {
+        if (variantPath.startsWith(projectRoot)) {
+          relativeVariants[variantName] = variantPath;
+        } else {
+          externalVariants[variantName] = variantPath;
+        }
+      });
+
+      resolvedVariantMap = await resolveVariantPathsWithFs(relativeVariants);
+
+      const externalVariantPromises = Object.entries(externalVariants).map(
         async ([variantName, variantPath]) => {
           // We can use this ponyfill behaves strangely when using native import.meta.resolve(path, parentUrl)
           const resolvedPath = resolve(variantPath, `file://${this.resourcePath}`);
@@ -142,10 +157,8 @@ export async function loadPrecomputedTypesMeta(
         },
       );
 
-      const variantResults = await Promise.all(variantPromises);
-
-      // Add successful results to the map
-      variantResults.forEach((result) => {
+      const externalVariantResults = await Promise.all(externalVariantPromises);
+      externalVariantResults.forEach((result) => {
         if (result) {
           resolvedVariantMap.set(result[0], result[1]);
         }
