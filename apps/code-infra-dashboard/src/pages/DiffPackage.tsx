@@ -19,6 +19,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import * as diff from 'diff';
 import * as pako from 'pako';
 import * as semver from 'semver';
+import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
 
 interface FileContent {
   path: string;
@@ -286,6 +287,8 @@ export default function DiffPackage() {
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
+  const [fileFilter, setFileFilter] = React.useState('');
+  const deferredFileFilter = React.useDeferredValue(fileFilter);
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
@@ -295,6 +298,8 @@ export default function DiffPackage() {
 
   const pkg1 = pkg1Query.data;
   const pkg2 = pkg2Query.data;
+
+  const fileFilterFn = useFileFilter(deferredFileFilter);
 
   const filesToDiff = React.useMemo(() => {
     if (!pkg1 || !pkg2) {
@@ -334,6 +339,10 @@ export default function DiffPackage() {
 
     return files;
   }, [pkg1, pkg2]);
+
+  const filteredFilesToDiff = React.useMemo(() => {
+    return filesToDiff.filter(fileFilterFn);
+  }, [filesToDiff, fileFilterFn]);
 
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
@@ -457,29 +466,43 @@ export default function DiffPackage() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 mb: 2,
+                gap: 2,
+                flexWrap: 'wrap',
               }}
             >
               <Typography variant="h6">
-                Diff Results {loading ? '' : `(${filesToDiff.length} files changed):`}
+                Diff Results{' '}
+                {loading
+                  ? ''
+                  : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
               </Typography>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={ignoreWhitespace}
-                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                    size="small"
-                  />
-                }
-                label="Ignore whitespace"
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  size="small"
+                  placeholder={PLACEHOLDER}
+                  value={fileFilter}
+                  onChange={(event) => setFileFilter(event.target.value)}
+                  sx={{ minWidth: '300px' }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={ignoreWhitespace}
+                      onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Ignore whitespace"
+                />
+              </Box>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {loading ? (
                 <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
               ) : (
                 <React.Fragment>
-                  {filesToDiff.length > 0 ? (
-                    filesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                  {filteredFilesToDiff.length > 0 ? (
+                    filteredFilesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
                       <FileDiff
                         key={filePath}
                         filePath={filePath}
@@ -491,7 +514,11 @@ export default function DiffPackage() {
                       />
                     ))
                   ) : (
-                    <Alert severity="info">No differences found between the packages.</Alert>
+                    <Alert severity="info">
+                      {filesToDiff.length === 0
+                        ? 'No differences found between the packages.'
+                        : 'No files match the current filter.'}
+                    </Alert>
                   )}
                 </React.Fragment>
               )}
