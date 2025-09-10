@@ -20,7 +20,6 @@ const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
 const NpmVersions = React.lazy(() => import('./pages/NpmVersions'));
-const DiffPackage = React.lazy(() => import('./pages/DiffPackage'));
 
 // Redirect component for size comparison with query params
 function SizeComparisonRedirect() {
