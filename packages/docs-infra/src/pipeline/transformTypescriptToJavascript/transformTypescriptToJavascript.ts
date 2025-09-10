@@ -1,5 +1,5 @@
 import { removeTypes } from './removeTypes';
-import type { SourceTransformer, TransformSource } from '../../CodeHighlighter';
+import type { SourceTransformer, TransformSource } from '../../CodeHighlighter/types';
 
 export const transformTypescriptToJavascript: TransformSource = async (source, fileName) => {
   const transformed = await removeTypes(source, fileName);
