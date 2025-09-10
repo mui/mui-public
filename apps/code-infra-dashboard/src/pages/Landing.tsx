@@ -10,6 +10,7 @@ import { Link as RouterLink } from 'react-router';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
+import CompareIcon from '@mui/icons-material/Compare';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -62,11 +63,17 @@ const tools: Tool[] = [
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
   },
+  {
+    name: 'Package Diff Tool',
+    description: 'Compare two npm packages side-by-side to see file-level differences and changes',
+    icon: <CompareIcon />,
+    path: '/diff-package',
+  },
 ];
 
 export default function Landing() {
   return (
-    <Box>
+    <Box sx={{ mt: 4 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {repositories.map((repo) => (
@@ -125,8 +132,12 @@ export default function Landing() {
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {tools.map((tool) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
-            <Card>
-              <CardActionArea component={RouterLink} to={tool.path} sx={{ height: '100%' }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardActionArea
+                component={RouterLink}
+                to={tool.path}
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     {tool.icon}

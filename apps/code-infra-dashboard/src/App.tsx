@@ -20,6 +20,7 @@ const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
 const NpmVersions = React.lazy(() => import('./pages/NpmVersions'));
+const DiffPackage = React.lazy(() => import('./pages/DiffPackage'));
 
 // Redirect component for size comparison with query params
 function SizeComparisonRedirect() {
@@ -218,6 +219,14 @@ function App() {
                   element={
                     <React.Suspense fallback={<div>Loading...</div>}>
                       <NpmVersions />
+                    </React.Suspense>
+                  }
+                />
+                <Route
+                  path="/diff-package"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <DiffPackage />
                     </React.Suspense>
                   }
                 />
