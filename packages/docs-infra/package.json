@@ -55,8 +55,7 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --bundle esm && pnpm build:copy-files",
-    "build:copy-files": "code-infra copy-files",
+    "build": "code-infra build --bundle esm",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
