@@ -1,0 +1,382 @@
+# Precompute Client Loader
+
+The precompute client loader is a Webpack/Turbopack loader that enables build-time optimization of client-side demo components by processing demo client files and precomputing external dependencies for live editing environments.
+
+---
+
+## Overview
+
+The loader processes demo client files that use the `createDemoClient` factory pattern, automatically resolving and injecting all external dependencies at build time. This enables efficient live editing by having all required imports available without runtime resolution.
+
+> [!TIP]
+> For the overall factory concept (including server vs client separation) see the [Built Factories Pattern](../../patterns/built-factories/).
+
+> [!NOTE]
+> The loader works with any `create*Client` function, not just `createDemoClient`. You could have custom demo client factories that follow the same pattern.
+
+### Key Features
+
+- **Build-time externals injection**: Automatically imports all required external dependencies
+- **Provider pattern support**: Creates React provider components that supply externals to child components
+- **Live editing optimization**: Pre-resolves dependencies for client-side editing environments
+- **Dependency tracking**: Resolves and tracks all file dependencies for hot reloading
+- **Factory pattern support**: Works with `createDemoClient()` or any `create*Client()` calls in client.ts files
+
+---
+
+## Configuration
+
+### Recommended: withDocsInfra Plugin
+
+The easiest way to configure this loader is with the [`withDocsInfra`](../with-docs-infra/page.mdx) Next.js plugin:
+
+```javascript
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // Automatically includes:
+  // - './app/**/demos/*/client.ts'
+  // - './src/demo-data/*/client.ts' (for global client demos)
+
+  // Add custom patterns if needed
+  additionalDemoPatterns: {
+    client: ['./app/**/snippets/*/client.ts'],
+  },
+});
+```
+
+### Manual Next.js Setup
+
+If you need manual control, add the loader directly to your `next.config.mjs`:
+
+> [!NOTE]
+> The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      './app/**/demos/*/client.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+      },
+      // Add pattern for global demo data client files
+      './src/demo-data/*/client.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+      },
+    },
+  },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    config.module.rules.push({
+      test: /\/demos\/[^/]+\/client\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+      ],
+    });
+
+    // Add rule for global demo data client files
+    config.module.rules.push({
+      test: /\/demo-data\/[^/]+\/client\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+      ],
+    });
+
+    return config;
+  },
+};
+```
+
+### File Structure
+
+The loader expects client files with `create*Client` factory functions following this pattern:
+
+> [!IMPORTANT]
+> Client files must include the `'use client';` directive at the top since they are designed for client-side live editing environments.
+
+> [!NOTE]
+> The client loader reads the corresponding `index.ts` file in the same directory to discover variants, demo name, and slug information. The `client.ts` and `index.ts` files work as a pair.
+
+```
+app/
+├── components/
+│   └── my-component/
+│       └── demos/
+│           ├── basic-demo/
+│           │   ├── index.ts      # ← Main demo with createDemo()
+│           │   ├── client.ts     # ← createDemoClient() processed here
+│           │   ├── React.tsx
+│           │   └── Vue.vue
+│           └── advanced-demo/
+│               ├── index.ts      # ← Main demo
+│               ├── client.ts     # ← Client bundle processed here
+│               ├── TypeScript.ts
+│               └── JavaScript.js
+```
+
+---
+
+## Usage
+
+### Basic Demo Client File
+
+Create a `client.ts` file with the factory pattern:
+
+```typescript
+'use client';
+
+import { createDemoClient } from '../createDemoClient';
+
+export const BasicDemoClient = createDemoClient(import.meta.url);
+```
+
+### With Options
+
+You can pass options to the client factory function:
+
+```typescript
+'use client';
+
+import { createDemoClient } from '../createDemoClient';
+
+export const BasicDemoClient = createDemoClient(import.meta.url, {
+  name: 'Basic Demo Client',
+});
+```
+
+### Multiple Variants
+
+The loader handles multiple code variants and collects externals from all variants:
+
+```typescript
+'use client';
+
+import { createDemoClientWithVariants } from '../createDemoClient';
+
+export const MultiVariantDemoClient = createDemoClientWithVariants(import.meta.url, {
+  name: 'Multi-variant Client Example',
+});
+```
+
+### Custom Client Factory Functions
+
+The loader works with any `create*Client` function. You can create custom demo client factories as needed:
+
+```typescript
+'use client';
+
+import { createCustomDemoClient } from '../createCustomDemoClient';
+
+export const CustomDemoClient = createCustomDemoClient(import.meta.url, {
+  theme: 'dark',
+  interactive: true,
+});
+```
+
+---
+
+## Processing Pipeline
+
+The loader follows these steps to precompute externals for your client components:
+
+### 1. Parse Factory Call
+
+Finds your `create*Client` function call and extracts any options.
+
+### 2. Resolve Variant Paths
+
+Discovers related variant files by reading the corresponding main demo file (`index.ts` in the same directory) to extract variant information. The client loader uses the variants defined in the main demo file since client files typically don't define their own variants.
+
+### 3. Collect Externals
+
+- Loads each variant file and its dependencies
+- Extracts all external imports (modules not part of the demo files)
+- Filters out type-only imports that don't exist at runtime
+- Merges externals from all variants
+
+### 4. Inject Externals
+
+Adds all external imports to the top of the client file and passes them as `precompute.externals`.
+
+```typescript
+// Your source before processing
+'use client';
+
+export const DemoClient = createDemoClient(import.meta.url);
+
+// After processing (simplified)
+('use client');
+
+import React from 'react';
+import { Button } from '@mui/material';
+import { styled } from '@mui/system';
+
+export const DemoClient = createDemoClient(import.meta.url, {
+  precompute: {
+    externals: {
+      react: React,
+      '@mui/material': { Button },
+      '@mui/system': { styled },
+    },
+  },
+});
+```
+
+---
+
+## Output Structure
+
+The loader replaces the client factory function call with externals injected as imports and a data structure containing:
+
+```typescript
+// Externals are injected as imports at the top
+'use client';
+
+import React from 'react';
+import { Button, TextField } from '@mui/material';
+import { styled } from '@mui/system';
+
+// Function call gets externals in precompute.externals
+export const DemoClient = createDemoClient(import.meta.url, {
+  precompute: {
+    externals: {
+      react: React,
+      '@mui/material': { Button, TextField },
+      '@mui/system': { styled },
+    },
+  },
+});
+```
+
+### Externals Format
+
+Each external module contains the actual imported values resolved at build time:
+
+```typescript
+interface Externals {
+  [modulePath: string]: any; // The actual imported module or object with named exports
+}
+
+// Examples:
+const externals = {
+  react: React, // Default import
+  '@mui/material': { Button, TextField }, // Named imports as object
+  '@mui/system': { styled }, // Single named import as object
+  lodash: lodash, // Namespace import
+};
+```
+
+The externals are the actual resolved import values, not descriptors. This allows the live editing environment to directly access the imported modules without additional resolution.
+
+```
+
+```
+
+---
+
+## Error Handling
+
+### Single Client Factory Function per File
+
+Only one `create*Client` function call is allowed per file:
+
+```typescript
+// [x] Multiple calls will cause a build error
+'use client';
+
+export const DemoClient1 = createDemoClient(/* ... */);
+export const DemoClient2 = createDemoClient(/* ... */); // Error!
+
+// [✓] Use separate files instead
+// demo-1/client.ts
+('use client');
+
+export const DemoClient1 = createDemoClient(/* ... */);
+
+// demo-2/client.ts
+('use client');
+
+export const DemoClient2 = createDemoClient(/* ... */);
+```
+
+### Missing Variant Files
+
+If variant files cannot be found for collecting externals, the loader will log a warning and continue with an empty externals object.
+
+### Invalid Function Signature
+
+Your `create*Client` function must follow this pattern:
+
+```typescript
+createDemoClient(
+  import.meta.url, // Required: file URL
+  { options }, // Optional: options object
+);
+```
+
+### Skip Precompute
+
+You can skip processing by adding `skipPrecompute: true`:
+
+```typescript
+'use client';
+
+export const DemoClient = createDemoClient(import.meta.url, {
+  skipPrecompute: true, // Will skip loader processing
+});
+```
+
+---
+
+## Benefits
+
+### Build-time Externals Resolution
+
+- All external dependencies collected and injected during build
+- No runtime resolution of external modules for live editing
+- Smaller client bundles with pre-resolved dependencies
+
+### Live Editing Support
+
+- External imports are available immediately in client environments
+- Provider pattern makes externals accessible to child components
+- Optimized for interactive code editors and live preview systems
+
+### Performance
+
+- Pre-computed externals ready for client-side usage
+- Reduced startup time for live editing environments
+- Efficient caching through webpack dependency system
+
+---
+
+## Best Practices
+
+### File Organization
+
+- Keep client files separate from main demo files (`client.ts` vs `index.ts`)
+- Use descriptive client names for better debugging
+- Organize related clients in subdirectories
+
+### Client Factory Design
+
+- Design client factories to return provider components
+- Keep externals minimal and focused on demo requirements
+- Use meaningful options for configuration
+
+### Configuration
+
+- Use specific file patterns in Turbopack rules (`client.ts` not `*.ts`)
+- Test builds with various demo complexity levels
+- Monitor bundle sizes when adding new externals
+
+---
+
+## Related Documentation
+
+- [loadPrecomputedCodeHighlighter](../load-precomputed-code-highlighter/) - Main demo loader for syntax highlighting
+- [abstractCreateDemoClient](../../components/abstract-create-demo-client/) - Client factory implementation
+- [CodeHighlighter](../../components/code-highlighter/) - Code highlighting component system

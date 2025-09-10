@@ -1,0 +1,37 @@
+.container {
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid #d0cdd7;
+}
+
+.name {
+  color: #65636d;
+  font-size: 13px;
+  font-family: var(--font-geist-mono);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switchContainer {
+  display: flex;
+}
+.code {
+  padding: 6px;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 6px;
+  overflow-x: auto;
+}
