@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { stringOrHastToString } from '../pipeline/hastUtils';
 import { useCopier, UseCopierOpts } from '../useCopier';
-import { VariantSource } from '../CodeHighlighter';
+import type { VariantSource } from '../CodeHighlighter/types';
 
 interface UseCopyFunctionalityProps {
   selectedFile: VariantSource | null;

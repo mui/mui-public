@@ -13,7 +13,7 @@ import type {
   LoadVariantOptions,
   Externals,
   VariantCode,
-} from '../CodeHighlighter';
+} from '../CodeHighlighter/types';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
