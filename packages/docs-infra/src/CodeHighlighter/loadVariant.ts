@@ -15,6 +15,7 @@ import type {
   LoadVariantOptions,
   Externals,
 } from './types';
+import { nameMark } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
@@ -149,6 +150,11 @@ async function loadSingleFile(
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
 
+  const functionName = 'Load Variant File';
+  const startMark = nameMark(functionName, 'Start Loading', [url || fileName]);
+  performance.mark(startMark);
+  let currentMark = startMark;
+
   // Load source if not provided
   if (!finalSource) {
     if (!loadSource) {
@@ -172,6 +178,15 @@ async function loadSingleFile(
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
       externalsFromSource = loadResult.externals;
+
+      const loadedFileMark = nameMark(functionName, 'Loaded File', [url]);
+      performance.mark(loadedFileMark);
+      performance.measure(
+        nameMark(functionName, 'File Loading', [url]),
+        currentMark,
+        loadedFileMark,
+      );
+      currentMark = loadedFileMark;
 
       // Validate that extraFiles from loadSource contain only absolute URLs as values
       if (extraFilesFromSource) {
@@ -264,6 +279,15 @@ async function loadSingleFile(
       normalizePathKey(fileName),
       sourceTransformers,
     );
+
+    const transformedFileMark = nameMark(functionName, 'Transformed File', [url || fileName]);
+    performance.mark(transformedFileMark);
+    performance.measure(
+      nameMark(functionName, 'File Transforming', [url || fileName]),
+      currentMark,
+      transformedFileMark,
+    );
+    currentMark = transformedFileMark;
   }
 
   // Parse source if it's a string and parsing is not disabled
@@ -279,6 +303,15 @@ async function loadSingleFile(
       const parseSource = await sourceParser;
       finalSource = parseSource(finalSource, fileName);
 
+      const parsedFileMark = nameMark(functionName, 'Parsed File', [url || fileName]);
+      performance.mark(parsedFileMark);
+      performance.measure(
+        nameMark(functionName, 'File Parsing', [url || fileName]),
+        currentMark,
+        parsedFileMark,
+      );
+      currentMark = parsedFileMark;
+
       if (finalTransforms && !disableTransforms) {
         finalTransforms = await transformParsedSource(
           sourceString,
@@ -287,6 +320,17 @@ async function loadSingleFile(
           finalTransforms,
           parseSource,
         );
+
+        const transformParsedFileMark = nameMark(functionName, 'Transform Parsed File', [
+          url || fileName,
+        ]);
+        performance.mark(transformParsedFileMark);
+        performance.measure(
+          nameMark(functionName, 'Parsed File Transforming', [url || fileName]),
+          currentMark,
+          transformParsedFileMark,
+        );
+        currentMark = transformParsedFileMark;
       }
     } catch (error) {
       throw new Error(
@@ -533,6 +577,11 @@ export async function loadVariant(
     }>
   >();
 
+  const functionName = 'Load Variant';
+  const startMark = nameMark(functionName, 'Start Loading', [url || variantName]);
+  performance.mark(startMark);
+  let currentMark = startMark;
+
   if (typeof variant === 'string') {
     if (!loadVariantMeta) {
       // Create a basic loadVariantMeta function as fallback
@@ -555,6 +604,17 @@ export async function loadVariant(
           `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,
         );
       }
+
+      const loadedVariantMetaMark = nameMark(functionName, 'Loaded Variant Meta', [
+        url || variantName,
+      ]);
+      performance.mark(loadedVariantMetaMark);
+      performance.measure(
+        nameMark(functionName, 'Variant Meta Loading', [url || variantName]),
+        currentMark,
+        loadedVariantMetaMark,
+      );
+      currentMark = loadedVariantMetaMark;
     }
   }
 
@@ -629,12 +689,14 @@ export async function loadVariant(
     allFilesUsed.push(...mainFileResult.extraDependencies);
   }
 
-  // Add externals from main file loading
-  if (mainFileResult.externals) {
-    allExternals = mergeExternals([allExternals, mainFileResult.externals]);
-  }
-
-  let allExtraFiles: VariantExtraFiles = {};
+  const loadedMainFileMark = nameMark(functionName, 'Loaded Main File', [url || fileName], true);
+  performance.mark(loadedMainFileMark);
+  performance.measure(
+    nameMark(functionName, 'Main File Loading', [url || fileName], true),
+    currentMark,
+    loadedMainFileMark,
+  );
+  currentMark = loadedMainFileMark;
 
   // Validate extraFiles keys from variant definition
   if (variant.extraFiles) {
@@ -654,6 +716,20 @@ export async function loadVariant(
     ...(variant.extraFiles || {}),
     ...(mainFileResult.extraFiles || {}),
   };
+
+  // Add externals from main file loading
+  if (mainFileResult.externals) {
+    allExternals = mergeExternals([allExternals, mainFileResult.externals]);
+  }
+
+  const externalsMergedMark = nameMark(functionName, 'Externals Merged', [url || fileName]);
+  performance.mark(externalsMergedMark);
+  performance.measure(
+    nameMark(functionName, 'Merging Externals', [url || fileName]),
+    currentMark,
+    externalsMergedMark,
+  );
+  currentMark = externalsMergedMark;
 
   // Track which files come from globals for metadata marking
   const globalsFileKeys = new Set<string>(); // Track globals file keys for loadExtraFiles
@@ -695,6 +771,22 @@ export async function loadVariant(
         } else {
           try {
             globalsVariant = await loadVariantMeta(variantName, globalsItem);
+
+            const globalsVariantMetaLoadedMark = nameMark(
+              functionName,
+              'Globals Variant Meta Loaded',
+              [globalsItem, url || fileName],
+            );
+            performance.mark(globalsVariantMetaLoadedMark);
+            performance.measure(
+              nameMark(functionName, 'Globals Variant Meta Loading', [
+                globalsItem,
+                url || fileName,
+              ]),
+              currentMark,
+              globalsVariantMetaLoadedMark,
+            );
+            currentMark = globalsVariantMetaLoadedMark;
           } catch (error) {
             throw new Error(
               `Failed to load globalsCode variant metadata (variant: ${variantName}, url: ${globalsItem}): ${JSON.stringify(error)}`,
@@ -713,6 +805,22 @@ export async function loadVariant(
           globalsVariant,
           { ...options, globalsCode: undefined }, // Prevent infinite recursion
         );
+
+        const globalsVariantLoadedMark = nameMark(functionName, 'Globals Variant Loaded', [
+          globalsVariant.url || variantName,
+          url || fileName,
+        ]);
+        performance.mark(globalsVariantLoadedMark);
+        performance.measure(
+          nameMark(functionName, 'Globals Variant Loading', [
+            globalsVariant.url || variantName,
+            url || fileName,
+          ]),
+          currentMark,
+          globalsVariantLoadedMark,
+        );
+        currentMark = globalsVariantLoadedMark;
+
         return globalsResult;
       } catch (error) {
         throw new Error(
@@ -755,6 +863,17 @@ export async function loadVariant(
       allExternals = mergeExternals([allExternals, globalsResult.externals]);
     }
   }
+
+  const globalsLoadedMark = nameMark(functionName, 'Globals Loaded', [url || fileName], true);
+  performance.mark(globalsLoadedMark);
+  performance.measure(
+    nameMark(functionName, 'Globals Loading', [url || fileName], true),
+    externalsMergedMark,
+    globalsLoadedMark,
+  );
+  currentMark = globalsLoadedMark;
+
+  let allExtraFiles: VariantExtraFiles = {};
 
   // Load all extra files if any exist and we have a URL
   if (Object.keys(extraFilesToLoad).length > 0) {
@@ -837,6 +956,20 @@ export async function loadVariant(
       allFilesUsed.push(...extraFilesResult.allFilesUsed);
       allExternals = mergeExternals([allExternals, extraFilesResult.allExternals]);
     }
+
+    const extraFilesLoadedMark = nameMark(
+      functionName,
+      'Extra Files Loaded',
+      [url || fileName],
+      true,
+    );
+    performance.mark(extraFilesLoadedMark);
+    performance.measure(
+      nameMark(functionName, 'Extra Files Loading', [url || fileName], true),
+      currentMark,
+      extraFilesLoadedMark,
+    );
+    currentMark = extraFilesLoadedMark;
   }
 
   // Note: metadata marking is now handled during loadExtraFiles processing
