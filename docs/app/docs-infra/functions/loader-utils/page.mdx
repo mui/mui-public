@@ -376,40 +376,9 @@ console.log(result.extraFiles);
 
 ## Type Definitions
 
-### Core Types
+import { TypesLoaderUtils } from './types'
 
-```typescript
-interface DirectoryEntry {
-  name: string;
-  isFile: boolean;
-  isDirectory: boolean;
-}
-
-type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
-
-interface ResolveModulePathOptions {
-  extensions?: string[];
-}
-
-interface TypeAwareResolveResult {
-  import: string;
-  typeImport?: string;
-}
-
-type ImportResult = Record<
-  string,
-  {
-    path: string;
-    names: string[];
-    includeTypeDefs?: true;
-  }
->;
-
-interface ProcessedImportResult {
-  processedSource: string;
-  extraFiles: Record<string, string>;
-}
-```
+<TypesLoaderUtils />
 
 ### Extension Constants
 

@@ -373,25 +373,9 @@ function MyComponent() {
 
 ### Types
 
-```typescript
-type Selection = {
-  variant: string;
-  fileName?: string;
-  transformKey?: string;
-};
+import { TypesCodeControllerContext } from './types';
 
-type ControlledCode = {
-  [variantName: string]: ControlledVariantCode | undefined | null;
-};
-
-type ControlledVariantCode = {
-  url: string;
-  fileName: string;
-  source?: string | null;
-  extraFiles?: Record<string, { source: string | null }>;
-  filesOrder?: string[];
-};
-```
+<TypesCodeControllerContext />
 
 ## Requirements
 
