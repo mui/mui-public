@@ -36,7 +36,8 @@
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
-      "schedule": null
+      "schedule": null,
+      "additionalReviewers": ["@mui/infra"]
     },
     {
       "groupName": "GitHub Actions",
@@ -44,7 +45,6 @@
     },
     {
       "matchDepTypes": ["action"],
-      "automerge": true,
       "matchCurrentVersion": "!/^0/",
       "matchUpdateTypes": ["minor", "patch", "digest"]
     },
@@ -54,9 +54,15 @@
     },
     {
       "groupName": "node",
-      "matchDatasources": ["docker", "node-version"],
-      "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
-      "enabled": false
+      "matchDatasources": ["node-version"],
+      "matchPackageNames": ["@types/node", "node", "cimg/node"],
+      "allowedVersions": "<=22.18"
+    },
+    {
+      "groupName": "node-version",
+      "description": "Restricts Node.js version bumps in Github Actions workflows.",
+      "matchDepTypes": ["uses-with"],
+      "allowedVersions": "<=22.18"
     },
     {
       "groupName": "eslint",
@@ -69,7 +75,8 @@
     },
     {
       "groupName": "Vite & Vitest",
-      "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
+      "extends": ["packages:vite", "monorepo:vitest"],
+      "matchPackageNames": ["esbuild"]
     },
     {
       "matchPackageNames": ["eslint-config-prettier"],
