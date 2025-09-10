@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { LabeledSwitch } from '@/components/LabeledSwitch';
 import { Tabs } from '@/components/Tabs';

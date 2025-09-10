@@ -4,7 +4,7 @@ import type {
   LoadCodeMeta,
   LoadSource,
   LoadVariantMeta,
-} from '@mui/internal-docs-infra/CodeHighlighter';
+} from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 const loadCodeMeta: LoadCodeMeta = async (url) => {
   // Extract the part after 'app/' from the URL
