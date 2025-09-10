@@ -3,6 +3,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
+import Container from '@mui/material/Container';
 import * as colors from '@mui/material/colors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -19,6 +20,7 @@ const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
 const NpmVersions = React.lazy(() => import('./pages/NpmVersions'));
+const DiffPackage = React.lazy(() => import('./pages/DiffPackage'));
 
 // Redirect component for size comparison with query params
 function SizeComparisonRedirect() {
@@ -180,46 +182,48 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <div>
           <BrowserRouter>
-            <Link component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
-              <Typography variant="h6" component="h1">
-                Code infra dashboard
-              </Typography>
-            </Link>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <Landing />
-                  </React.Suspense>
-                }
-              />
-              <Route path="/size-comparison" element={<SizeComparisonRedirect />} />
-              <Route
-                path="/size-comparison/:owner/:repo/diff"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <SizeComparison />
-                  </React.Suspense>
-                }
-              />
-              <Route
-                path="/size-comparison/:owner/:repo"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <RepositoryPRs />
-                  </React.Suspense>
-                }
-              />
-              <Route
-                path="/npm-versions"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <NpmVersions />
-                  </React.Suspense>
-                }
-              />
-            </Routes>
+            <Container maxWidth="xl" sx={{ py: 2 }}>
+              <Link component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+                <Typography variant="h6" component="h1" sx={{ mb: 4 }}>
+                  Code infra dashboard
+                </Typography>
+              </Link>
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <Landing />
+                    </React.Suspense>
+                  }
+                />
+                <Route path="/size-comparison" element={<SizeComparisonRedirect />} />
+                <Route
+                  path="/size-comparison/:owner/:repo/diff"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <SizeComparison />
+                    </React.Suspense>
+                  }
+                />
+                <Route
+                  path="/size-comparison/:owner/:repo"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <RepositoryPRs />
+                    </React.Suspense>
+                  }
+                />
+                <Route
+                  path="/npm-versions"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <NpmVersions />
+                    </React.Suspense>
+                  }
+                />
+              </Routes>
+            </Container>
           </BrowserRouter>
         </div>
       </QueryClientProvider>
