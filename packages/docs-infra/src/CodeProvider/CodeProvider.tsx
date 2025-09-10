@@ -3,7 +3,12 @@
 import * as React from 'react';
 import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
-import { LoadCodeMeta, LoadSource, LoadVariantMeta, ParseSource } from '../CodeHighlighter';
+import type {
+  LoadCodeMeta,
+  LoadSource,
+  LoadVariantMeta,
+  ParseSource,
+} from '../CodeHighlighter/types';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 // Import the heavy functions

@@ -1,5 +1,5 @@
 import { createStarryNight } from '@wooorm/starry-night';
-import { ParseSource } from '../../CodeHighlighter';
+import type { ParseSource } from '../../CodeHighlighter/types';
 import { grammars, extensionMap } from './grammars';
 import { starryNightGutter } from './addLineGutters';
 
