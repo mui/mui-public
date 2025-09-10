@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
-import { VariantCode } from '../CodeHighlighter';
+import type { VariantCode } from '../CodeHighlighter/types';
 
 // Mock the useUrlHashState hook to prevent browser API issues
 let mockHashValue = '';
