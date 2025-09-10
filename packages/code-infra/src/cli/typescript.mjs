@@ -8,6 +8,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { mapConcurrently } from '../utils/build.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -27,7 +28,8 @@ export async function emitDeclarations(tsconfig, outDir) {
     --emitDeclarationOnly
     --noEmit false
     --composite false
-    --incremental false`;
+    --incremental false
+    --declarationMap false`;
 }
 
 /**
@@ -80,8 +82,9 @@ async function postProcessDeclarations({ directory }) {
     [pluginRemoveImports, { test: /\.css$/ }],
   ];
 
-  await Promise.all(
-    dtsFiles.map(async (dtsFile) => {
+  await mapConcurrently(
+    dtsFiles,
+    async (dtsFile) => {
       const result = await babel.transformFileAsync(dtsFile, {
         configFile: false,
         plugins: babelPlugins,
@@ -92,7 +95,8 @@ async function postProcessDeclarations({ directory }) {
       } else {
         console.error('failed to transform', dtsFile);
       }
-    }),
+    },
+    20,
   );
 }
 
@@ -107,11 +111,13 @@ async function renameDeclarations({ directory }) {
     return;
   }
   console.log(`Renaming d.ts files to d.mts in ${directory}`);
-  await Promise.all(
-    dtsFiles.map(async (dtsFile) => {
+  await mapConcurrently(
+    dtsFiles,
+    async (dtsFile) => {
       const newFileName = dtsFile.replace(/\.d\.ts$/, '.d.mts');
       await fs.rename(dtsFile, newFileName);
-    }),
+    },
+    20,
   );
 }
 
