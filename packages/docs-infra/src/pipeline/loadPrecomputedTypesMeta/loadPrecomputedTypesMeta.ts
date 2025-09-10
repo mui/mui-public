@@ -4,21 +4,29 @@ import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
 import fs from 'fs/promises';
 
+import { resolve } from 'import-meta-resolve';
+import type { LoaderContext } from 'webpack';
 import { parseFromProgram } from 'typescript-api-extractor';
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { getFileNameFromUrl, JAVASCRIPT_MODULE_EXTENSIONS } from '../loaderUtils';
+import { getFileNameFromUrl } from '../loaderUtils';
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
+import {
+  createPerformanceLogger,
+  logPerformance,
+  nameMark,
+} from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
-interface LoaderContext {
-  resourcePath: string;
-  addDependency(dependency: string): void;
-  async(): (err?: Error | null, content?: string) => void;
-  cacheable(): void;
-  emitFile?(name: string, content: string): void;
-  rootContext?: string;
-}
+export type LoaderOptions = {
+  performance?: {
+    logging: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+  };
+};
+
+const functionName = 'Load Precomputed Types Meta';
 
 /**
  * Webpack loader that processes types and precomputes meta.
@@ -31,9 +39,29 @@ interface LoaderContext {
  *
  * Automatically skips processing if skipPrecompute: true is set.
  */
-export async function loadPrecomputedTypesMeta(this: LoaderContext, source: string): Promise<void> {
+export async function loadPrecomputedTypesMeta(
+  this: LoaderContext<LoaderOptions>,
+  source: string,
+): Promise<void> {
   const callback = this.async();
   this.cacheable();
+
+  const options = this.getOptions();
+  const performanceNotableMs = options.performance?.notableMs ?? 100;
+  const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
+
+  let observer: PerformanceObserver | undefined = undefined;
+  if (options.performance?.logging) {
+    observer = new PerformanceObserver(
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures),
+    );
+    observer.observe({ entryTypes: ['measure'] });
+  }
+
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+  const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
+  performance.mark(startMark);
+  let currentMark = startMark;
 
   try {
     // Parse the source to find a single createTypesMeta call
@@ -41,6 +69,15 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     const typesMetaCall = await parseCreateFactoryCall(source, this.resourcePath, {
       allowExternalVariants: true,
     });
+
+    const parsedFactoryMark = nameMark(functionName, 'Parsed Factory', [relativePath]);
+    performance.mark(parsedFactoryMark);
+    performance.measure(
+      nameMark(functionName, 'Factory Parsing', [relativePath]),
+      currentMark,
+      parsedFactoryMark,
+    );
+    currentMark = parsedFactoryMark;
 
     // If no createTypesMeta call found, return the source unchanged
     if (!typesMetaCall) {
@@ -59,27 +96,49 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     const allDependencies: string[] = [];
 
     // Resolve all variant entry point paths using import.meta.resolve
+    let globalTypes = typesMetaCall?.structuredOptions?.globalTypes[0].map((s: any) =>
+      s.replace(/['"]/g, ''),
+    );
+
     const resolvedVariantMap = new Map<string, string>();
     if (typesMetaCall.variants) {
       const variantPromises = Object.entries(typesMetaCall.variants).map(
         async ([variantName, variantPath]) => {
-          const resolvedPath = import.meta.resolve(variantPath);
+          // We can use this ponyfill behaves strangely when using native import.meta.resolve(path, parentUrl)
+          const resolvedPath = resolve(variantPath, `file://${this.resourcePath}`);
 
-          // Check all extensions in parallel
-          const extensionResults = await Promise.all(
-            JAVASCRIPT_MODULE_EXTENSIONS.map(async (ext) => {
-              const fullPath = `${resolvedPath.replace('file://', '')}${ext}`;
-              const exists = await fs
-                .access(fullPath)
-                .then(() => true)
-                .catch(() => false);
-              return exists ? fullPath : null;
-            }),
-          );
+          if (!typesMetaCall.structuredOptions?.watchSourceDirectly) {
+            globalTypes = []; // if we are reading d.ts files directly, we shouldn't need to add any global types
+            return [variantName, resolvedPath] as const;
+          }
 
-          // Find the first existing file
-          const foundPath = extensionResults.find(Boolean);
-          return foundPath ? ([variantName, foundPath] as const) : null;
+          // Lookup the source map to find the original .ts/.tsx source file
+          const resolvedSourceMap = resolvedPath.replace('file://', '').replace('.js', '.d.ts.map');
+          const sourceMap = await fs.readFile(resolvedSourceMap, 'utf-8').catch(() => null);
+          if (!sourceMap) {
+            throw new Error(
+              `Missing source map for variant "${variantName}" at ${resolvedSourceMap}.`,
+            );
+          }
+
+          const parsedSourceMap = JSON.parse(sourceMap);
+
+          if (
+            !('sources' in parsedSourceMap) ||
+            !Array.isArray(parsedSourceMap.sources) ||
+            parsedSourceMap.sources.length === 0
+          ) {
+            throw new Error(
+              `Invalid source map for variant "${variantName}" at ${resolvedSourceMap}. Missing "sources" field.`,
+            );
+          }
+
+          const basePath = parsedSourceMap.sourceRoot
+            ? new URL(parsedSourceMap.sourceRoot, resolvedPath)
+            : resolvedPath;
+          const sourceUrl = new URL(parsedSourceMap.sources[0], basePath).toString();
+
+          return [variantName, sourceUrl] as const;
         },
       );
 
@@ -91,6 +150,15 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
           resolvedVariantMap.set(result[0], result[1]);
         }
       });
+
+      const pathsResolvedMark = nameMark(functionName, 'Paths Resolved', [relativePath]);
+      performance.mark(pathsResolvedMark);
+      performance.measure(
+        nameMark(functionName, 'Path Resolution', [relativePath]),
+        currentMark,
+        pathsResolvedMark,
+      );
+      currentMark = pathsResolvedMark;
     }
 
     // Resolve tsconfig.json relative to the webpack project root (rootContext),
@@ -110,6 +178,16 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
         return exists ? candidate : null;
       }),
     );
+
+    const tsconfigResolvedMark = nameMark(functionName, 'tsconfig.json resolved', [relativePath]);
+    performance.mark(tsconfigResolvedMark);
+    performance.measure(
+      nameMark(functionName, 'tsconfig.json resolution', [relativePath]),
+      currentMark,
+      tsconfigResolvedMark,
+    );
+    currentMark = tsconfigResolvedMark;
+
     const tsconfigPath = existsResults.find(Boolean);
     if (!tsconfigPath) {
       throw new Error(
@@ -118,10 +196,8 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     }
 
     // Collect all entrypoints for optimized program creation
-    const allEntrypoints = Array.from(resolvedVariantMap.values());
-
-    const globalTypes = typesMetaCall?.structuredOptions?.globalTypes[0].map((s: any) =>
-      s.replace(/['"]/g, ''),
+    const allEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
+      url.replace('file://', ''),
     );
 
     // Create optimized TypeScript program
@@ -130,7 +206,7 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
     let program;
     try {
       program = createOptimizedProgram(tsconfigPath, allEntrypoints, {
-        globalTypes,
+        globalTypes: globalTypes || [],
       });
     } catch (error) {
       if (error instanceof MissingGlobalTypesError) {
@@ -150,6 +226,15 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
       }
       throw error;
     }
+
+    const programCreatedMark = nameMark(functionName, 'program created', [relativePath]);
+    performance.mark(programCreatedMark);
+    performance.measure(
+      nameMark(functionName, 'program creation', [relativePath]),
+      currentMark,
+      programCreatedMark,
+    );
+    currentMark = programCreatedMark;
 
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
@@ -204,6 +289,19 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
             dependencies.push(...projectFiles);
           }
 
+          const relativeEntrypoint = path.relative(this.rootContext || process.cwd(), entrypoint);
+          const parsedFromProgramMark = nameMark(functionName, 'parsed from program', [
+            relativeEntrypoint,
+            relativePath,
+          ]);
+          performance.mark(parsedFromProgramMark);
+          performance.measure(
+            nameMark(functionName, 'program parsing', [relativeEntrypoint, relativePath]),
+            currentMark,
+            parsedFromProgramMark,
+          );
+          currentMark = parsedFromProgramMark;
+
           return {
             variantName,
             variantData: {
@@ -232,8 +330,31 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
       }
     }
 
+    const parsedFromProgramMark = nameMark(
+      functionName,
+      'parsed all entrypoints',
+      [relativePath],
+      true,
+    );
+    performance.mark(parsedFromProgramMark);
+    performance.measure(
+      nameMark(functionName, 'entrypoint parsing', [relativePath], true),
+      programCreatedMark,
+      parsedFromProgramMark,
+    );
+    currentMark = parsedFromProgramMark;
+
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);
+
+    const replacedPrecomputeMark = nameMark(functionName, 'replaced precompute', [relativePath]);
+    performance.mark(replacedPrecomputeMark);
+    performance.measure(
+      nameMark(functionName, 'precompute replacement', [relativePath]),
+      currentMark,
+      replacedPrecomputeMark,
+    );
+    currentMark = replacedPrecomputeMark;
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
@@ -241,8 +362,22 @@ export async function loadPrecomputedTypesMeta(this: LoaderContext, source: stri
       this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
     });
 
+    // log any pending performance entries before completing
+    observer
+      ?.takeRecords()
+      ?.forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+      );
+    observer?.disconnect();
     callback(null, modifiedSource);
   } catch (error) {
+    // log any pending performance entries before completing
+    observer
+      ?.takeRecords()
+      ?.forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+      );
+    observer?.disconnect();
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }

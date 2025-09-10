@@ -1,6 +1,4 @@
 import { createTypes } from '@/functions/createTypes';
-import { CodeHighlighter } from '../../../../../packages/docs-infra/src/CodeHighlighter/CodeHighlighter';
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 
-export const TypesCodeHighlighter = createTypes(import.meta.url, CodeHighlighter, {
-  globalTypes: ['node'],
-});
+export const TypesCodeHighlighter = createTypes(import.meta.url, CodeHighlighter);

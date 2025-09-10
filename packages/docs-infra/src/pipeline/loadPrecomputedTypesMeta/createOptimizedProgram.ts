@@ -1,6 +1,8 @@
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
 import ts from 'typescript';
 import { loadConfig } from 'typescript-api-extractor';
-import path from 'path';
 
 export interface TypesMetaOptions {
   /**
@@ -136,7 +138,7 @@ export function createOptimizedProgram(
   const config = loadConfig(tsconfigPath);
 
   // Calculate build info file path
-  const buildInfoPath = path.resolve(path.dirname(tsconfigPath), 'tsconfig.tsbuildinfo');
+  const buildInfoPath = path.resolve(path.dirname(tsconfigPath), 'tsconfig.types.tsbuildinfo');
 
   // Create optimized compiler options
   const optimizedOptions: ts.CompilerOptions = {

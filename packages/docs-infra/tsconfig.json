@@ -6,7 +6,9 @@
     "module": "es2020",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "types": ["react", "node"]
+    "types": ["react", "node"],
+    "sourceMap": true,
+    "sourceRoot": "../../../src/" // This is a workaround so that source maps work, we can remove this when code-infra outputs declaration maps with the right path
   },
   "include": ["src"]
 }

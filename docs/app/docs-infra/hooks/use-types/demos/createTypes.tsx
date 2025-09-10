@@ -11,7 +11,8 @@ export type TypesTableMeta = {
   name?: string;
   displayName?: string;
   disableOptimization?: boolean;
-  globalTypes: string[];
+  globalTypes?: string[];
+  watchSourceDirectly?: boolean;
 };
 
 export function createTypes(
