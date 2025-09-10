@@ -1,5 +1,4 @@
 body {
   /* avoid layout shift when revealing content */
   overflow-y: scroll;
-  padding: 16px;
 }
