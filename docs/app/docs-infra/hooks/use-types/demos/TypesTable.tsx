@@ -5,9 +5,14 @@ import styles from './TypesTable.module.css';
 
 export type TypesTableProps = TypesMeta;
 
-export function TypeDoc(props: { type: AnyType; depth?: number }) {
-  const { type, depth = 0 } = props;
-  const maxDepth = 5; // Prevent infinite recursion
+export function TypeDoc(props: {
+  type: AnyType;
+  depth?: number;
+  showName?: boolean;
+  isOptionalProperty?: boolean;
+}) {
+  const { type, depth = 0, showName = true, isOptionalProperty = false } = props;
+  const maxDepth = 7; // Prevent infinite recursion
 
   if (depth > maxDepth) {
     return <div className={styles.typeDoc}>...</div>;
@@ -29,10 +34,23 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
           </div>
         );
 
-      case 'union':
+      case 'union': {
+        // Filter out 'undefined' from union types when we're in an optional property context
+        const filteredTypes = isOptionalProperty
+          ? t.types.filter(
+              (memberType) =>
+                !(memberType.kind === 'intrinsic' && memberType.intrinsic === 'undefined'),
+            )
+          : t.types;
+
+        // If filtering left us with only one type, render it directly without union wrapper
+        if (filteredTypes.length === 1) {
+          return renderType(filteredTypes[0]);
+        }
+
         return (
           <div className={styles.unionType}>
-            {t.types.map((memberType, index) => (
+            {filteredTypes.map((memberType, index) => (
               <React.Fragment key={index}>
                 {index > 0 && <span className={styles.unionSeparator}> | </span>}
                 <TypeDoc type={memberType} depth={depth + 1} />
@@ -40,6 +58,7 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
             ))}
           </div>
         );
+      }
 
       case 'intersection':
         return (
@@ -63,13 +82,17 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
             <div className={styles.objectProperties}>
               {t.properties.map((prop) => (
                 <div key={prop.name} className={styles.property}>
-                  <div>
+                  <div className={styles.propertyBody}>
                     <span className={styles.propertyName}>
                       {prop.name}
                       {prop.optional ? '?' : ''}:
                     </span>
                     <span className={styles.propertyType}>
-                      <TypeDoc type={prop.type} depth={depth + 1} />
+                      <TypeDoc
+                        type={prop.type}
+                        depth={depth + 1}
+                        isOptionalProperty={prop.optional}
+                      />
                     </span>
                   </div>
                   {prop.documentation?.description && (
@@ -90,13 +113,17 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
               <div className={styles.componentProps}>
                 {t.props.map((prop) => (
                   <div key={prop.name} className={styles.property}>
-                    <div>
+                    <div className={styles.propertyBody}>
                       <span className={styles.propertyName}>
                         {prop.name}
                         {prop.optional ? '?' : ''}:
                       </span>
                       <span className={styles.propertyType}>
-                        <TypeDoc type={prop.type} depth={depth + 1} />
+                        <TypeDoc
+                          type={prop.type}
+                          depth={depth + 1}
+                          isOptionalProperty={prop.optional}
+                        />
                       </span>
                     </div>
                     {prop.documentation?.description && (
@@ -117,8 +144,7 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
                 <span className={styles.functionParams}>
                   (
                   {signature.parameters.map((param, paramIndex) => (
-                    <React.Fragment key={param.name}>
-                      {paramIndex > 0 && ', '}
+                    <span key={param.name} className={styles.functionParam}>
                       <span className={styles.paramName}>
                         {param.name}
                         {param.optional ? '?' : ''}:
@@ -126,7 +152,10 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
                       <span className={styles.paramType}>
                         <TypeDoc type={param.type} depth={depth + 1} />
                       </span>
-                    </React.Fragment>
+                      {paramIndex < signature.parameters.length - 1 && (
+                        <span className={styles.paramComma}>, </span>
+                      )}
+                    </span>
                   ))}
                   )
                 </span>
@@ -199,7 +228,25 @@ export function TypeDoc(props: { type: AnyType; depth?: number }) {
     }
   };
 
+  if (!showName) {
+    // For function and component types, return directly without wrapper since they have their own styling
+    if (type.kind === 'function' || type.kind === 'component' || type.kind === 'union') {
+      return renderType(type);
+    }
+    return <div className={styles.typeDocWithoutName}>{renderType(type)}</div>;
+  }
+
   const typeName = 'typeName' in type ? type.typeName?.name : undefined;
+
+  // For function and component types, return directly without wrapper since they have their own styling
+  if (type.kind === 'function' || type.kind === 'component' || type.kind === 'union') {
+    return (
+      <React.Fragment>
+        {typeName && <div className={styles.typeName}>{typeName}</div>}
+        {renderType(type)}
+      </React.Fragment>
+    );
+  }
 
   return (
     <div className={styles.typeDoc}>
@@ -221,7 +268,7 @@ export function TypesTable(props: TypesTableProps) {
             {documentation && documentation.description && (
               <div className={styles.documentation}>{documentation.description}</div>
             )}
-            <TypeDoc type={type} />
+            <TypeDoc type={type} showName={false} />
           </div>
         ))}
     </div>

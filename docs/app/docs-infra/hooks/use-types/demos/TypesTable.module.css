@@ -1,21 +1,14 @@
 .root {
-  color: #211f26;
-  border: 1px solid #d0cdd7;
-  border-radius: 8px;
-  padding: 12px;
-  background-color: #fafafa;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1.25em;
   margin-bottom: 8px;
-  color: #0d74ce;
-  border-bottom: 2px solid #0090ff;
+  color: #8145b5;
   padding-bottom: 4px;
 }
 
@@ -27,13 +20,16 @@
   padding: 6px 12px;
   background-color: #f5f5f5;
   border-left: 4px solid #0090ff;
-  border-radius: 4px;
+}
+
+.typeDocWithoutName {
+  background-color: #ffffff;
 }
 
 .typeDoc {
   border: 1px solid #d0cdd7;
   border-radius: 6px;
-  padding: 8px;
+  padding: 6px;
   margin-bottom: 0;
   background-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -51,8 +47,8 @@
 }
 
 .typeContent {
-  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
-  font-size: 0.9em;
+  font-family: var(--font-geist-mono);
+  font-size: 0.9375em;
   line-height: 1.5;
 }
 
@@ -154,15 +150,19 @@
 .property {
   margin: 4px 0;
   padding: 4px;
-  background-color: #fafafa;
-  border-radius: 4px;
   border-left: 4px solid #0090ff;
+}
+
+.propertyBody {
+  display: flex;
+  align-items: center;
 }
 
 .propertyName {
   color: #0d74ce;
   font-weight: 600;
-  margin-right: 8px;
+  margin: 0 8px;
+  text-wrap-mode: nowrap;
 }
 
 .propertyType {
@@ -226,11 +226,22 @@
 .functionParams {
   color: #8145b5;
   font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.functionParam {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
 }
 
 .paramName {
   color: #8145b5;
   font-weight: 600;
+  text-wrap-mode: nowrap;
 }
 
 .paramType {
