@@ -80,7 +80,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -117,7 +117,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -171,7 +171,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -218,7 +218,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -281,7 +281,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-            options: { performance: undefined },
+            options: { performance: {} },
           },
         ],
       });
@@ -468,7 +468,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
