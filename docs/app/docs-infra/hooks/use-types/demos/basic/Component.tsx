@@ -10,7 +10,7 @@ interface Props {
 }
 
 /**
- * My Component - A simple component that displays a title and optional children.
+ * A simple component that displays a title and optional children.
  */
 export function MyComponent(props: Props) {
   const handleClick = (event: React.MouseEvent) => {
