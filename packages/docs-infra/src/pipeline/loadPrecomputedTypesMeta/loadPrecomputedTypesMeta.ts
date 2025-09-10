@@ -119,7 +119,7 @@ export async function loadPrecomputedTypesMeta(
 
       const externalVariantPromises = Object.entries(externalVariants).map(
         async ([variantName, variantPath]) => {
-          // We can use this ponyfill behaves strangely when using native import.meta.resolve(path, parentUrl)
+          // We can use this ponyfill because it behaves strangely when using native import.meta.resolve(path, parentUrl)
           const resolvedPath = resolve(variantPath, `file://${this.resourcePath}`);
 
           if (!typesMetaCall.structuredOptions?.watchSourceDirectly) {
