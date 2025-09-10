@@ -17,7 +17,7 @@ import { createPerformanceLogger, logPerformance, nameMark } from './performance
 
 export type LoaderOptions = {
   performance?: {
-    logging: boolean;
+    logging?: boolean;
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
