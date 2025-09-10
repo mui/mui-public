@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Container,
   Typography,
   Alert,
   Box,
@@ -20,6 +19,7 @@ import * as diff from 'diff';
 import * as pako from 'pako';
 import * as semver from 'semver';
 import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
+import Heading from '../components/Heading';
 
 interface FileContent {
   path: string;
@@ -369,140 +369,136 @@ export default function DiffPackage() {
   }, [searchParams]);
 
   return (
-    <Container maxWidth="xl">
-      <Box sx={{ my: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Package Diff Tool
+    <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <Box>
+        <Heading level={1}>Package Diff Tool</Heading>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexDirection: { xs: 'column', sm: 'row' },
+            width: '100%',
+          }}
+        >
+          <TextField
+            label="From"
+            size="small"
+            placeholder="e.g., react@18.0.0, @mui/material@~5.0.0"
+            value={package1Input}
+            onChange={(event) => setPackage1Input(event.target.value)}
+            sx={{
+              flex: { sm: 1 },
+              width: { xs: '100%', sm: 'auto' },
+              minWidth: '200px',
+            }}
+          />
+
+          <Box
+            sx={{
+              display: { xs: 'block', sm: 'block' },
+              alignSelf: 'center',
+            }}
+          >
+            <ArrowForwardIcon color="action" sx={{ display: { xs: 'none', sm: 'block' } }} />
+            <ArrowDownwardIcon color="action" sx={{ display: { xs: 'block', sm: 'none' } }} />
+          </Box>
+
+          <TextField
+            label="To"
+            size="small"
+            placeholder="e.g., react@19.0.0, @mui/material@6.x"
+            value={package2Input}
+            onChange={(event) => setPackage2Input(event.target.value)}
+            sx={{
+              flex: { sm: 1 },
+              width: { xs: '100%', sm: 'auto' },
+              minWidth: '200px',
+            }}
+          />
+
+          <Button
+            variant="contained"
+            onClick={onCompareClick}
+            disabled={loading || !package1Input.trim() || !package2Input.trim()}
+            loading={loading}
+            sx={{
+              minWidth: 'auto',
+              width: { xs: '100%', sm: 'auto' },
+              mt: { xs: 1, sm: 0 },
+            }}
+          >
+            Compare
+          </Button>
+        </Box>
+      </Box>
+
+      {(package1Spec || package2Spec) && (
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
+          <Typography variant="h6" gutterBottom>
+            Resolved Packages:
           </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flexWrap: 'wrap' }}>
+            <PackageInfo
+              label="From"
+              color="primary"
+              resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
+              error={pkg1Query.error}
+            />
+            <PackageInfo
+              label="To"
+              color="secondary"
+              resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
+              error={pkg2Query.error}
+            />
+          </Box>
+        </Box>
+      )}
+
+      {!error && (
+        <Box>
           <Box
             sx={{
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
+              mb: 2,
               gap: 2,
-              flexDirection: { xs: 'column', sm: 'row' },
-              width: '100%',
+              flexWrap: 'wrap',
             }}
           >
-            <TextField
-              label="From"
-              size="small"
-              placeholder="e.g., react@18.0.0, @mui/material@~5.0.0"
-              value={package1Input}
-              onChange={(event) => setPackage1Input(event.target.value)}
-              sx={{
-                flex: { sm: 1 },
-                width: { xs: '100%', sm: 'auto' },
-                minWidth: '200px',
-              }}
-            />
-
-            <Box
-              sx={{
-                display: { xs: 'block', sm: 'block' },
-                alignSelf: 'center',
-              }}
-            >
-              <ArrowForwardIcon color="action" sx={{ display: { xs: 'none', sm: 'block' } }} />
-              <ArrowDownwardIcon color="action" sx={{ display: { xs: 'block', sm: 'none' } }} />
-            </Box>
-
-            <TextField
-              label="To"
-              size="small"
-              placeholder="e.g., react@19.0.0, @mui/material@6.x"
-              value={package2Input}
-              onChange={(event) => setPackage2Input(event.target.value)}
-              sx={{
-                flex: { sm: 1 },
-                width: { xs: '100%', sm: 'auto' },
-                minWidth: '200px',
-              }}
-            />
-
-            <Button
-              variant="contained"
-              onClick={onCompareClick}
-              disabled={loading || !package1Input.trim() || !package2Input.trim()}
-              loading={loading}
-              sx={{
-                minWidth: 'auto',
-                width: { xs: '100%', sm: 'auto' },
-                mt: { xs: 1, sm: 0 },
-              }}
-            >
-              Compare
-            </Button>
-          </Box>
-        </Box>
-
-        {(package1Spec || package2Spec) && (
-          <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
-            <Typography variant="h6" gutterBottom>
-              Resolved Packages:
+            <Typography variant="h6">
+              Diff Results{' '}
+              {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flexWrap: 'wrap' }}>
-              <PackageInfo
-                label="From"
-                color="primary"
-                resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
-                error={pkg1Query.error}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <TextField
+                size="small"
+                placeholder={PLACEHOLDER}
+                value={fileFilter}
+                onChange={(event) => setFileFilter(event.target.value)}
+                sx={{ minWidth: '300px' }}
               />
-              <PackageInfo
-                label="To"
-                color="secondary"
-                resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
-                error={pkg2Query.error}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={ignoreWhitespace}
+                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Ignore whitespace"
               />
             </Box>
           </Box>
-        )}
-
-        {!error && (
-          <Box>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 2,
-                gap: 2,
-                flexWrap: 'wrap',
-              }}
-            >
-              <Typography variant="h6">
-                Diff Results{' '}
-                {loading
-                  ? ''
-                  : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  size="small"
-                  placeholder={PLACEHOLDER}
-                  value={fileFilter}
-                  onChange={(event) => setFileFilter(event.target.value)}
-                  sx={{ minWidth: '300px' }}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={ignoreWhitespace}
-                      onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                      size="small"
-                    />
-                  }
-                  label="Ignore whitespace"
-                />
-              </Box>
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {loading ? (
-                <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
-              ) : (
-                <React.Fragment>
-                  {filteredFilesToDiff.length > 0 ? (
-                    filteredFilesToDiff.map(({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {loading ? (
+              <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
+            ) : (
+              <React.Fragment>
+                {filteredFilesToDiff.length > 0 ? (
+                  filteredFilesToDiff.map(
+                    ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
                       <FileDiff
                         key={filePath}
                         filePath={filePath}
@@ -512,20 +508,20 @@ export default function DiffPackage() {
                         newHeader={newHeader}
                         ignoreWhitespace={ignoreWhitespace}
                       />
-                    ))
-                  ) : (
-                    <Alert severity="info">
-                      {filesToDiff.length === 0
-                        ? 'No differences found between the packages.'
-                        : 'No files match the current filter.'}
-                    </Alert>
-                  )}
-                </React.Fragment>
-              )}
-            </Box>
+                    ),
+                  )
+                ) : (
+                  <Alert severity="info">
+                    {filesToDiff.length === 0
+                      ? 'No differences found between the packages.'
+                      : 'No files match the current filter.'}
+                  </Alert>
+                )}
+              </React.Fragment>
+            )}
           </Box>
-        )}
-      </Box>
-    </Container>
+        </Box>
+      )}
+    </Box>
   );
 }

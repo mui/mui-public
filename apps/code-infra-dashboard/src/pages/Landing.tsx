@@ -73,7 +73,7 @@ const tools: Tool[] = [
 
 export default function Landing() {
   return (
-    <Box>
+    <Box sx={{ mt: 4 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {repositories.map((repo) => (
@@ -132,8 +132,12 @@ export default function Landing() {
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {tools.map((tool) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
-            <Card>
-              <CardActionArea component={RouterLink} to={tool.path} sx={{ height: '100%' }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardActionArea
+                component={RouterLink}
+                to={tool.path}
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     {tool.icon}
