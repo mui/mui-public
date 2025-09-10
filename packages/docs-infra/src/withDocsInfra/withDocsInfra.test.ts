@@ -77,7 +77,12 @@ describe('withDocsInfra', () => {
           ],
         },
         './app/**/types.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: { performance: undefined },
+            },
+          ],
         },
       });
     });
@@ -109,7 +114,12 @@ describe('withDocsInfra', () => {
           ],
         },
         './app/**/types.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: { performance: undefined },
+            },
+          ],
         },
         './app/**/demos/*/demo-*/index.ts': {
           loaders: [
@@ -158,7 +168,12 @@ describe('withDocsInfra', () => {
           ],
         },
         './app/**/types.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: { performance: undefined },
+            },
+          ],
         },
         './custom/**/*.ts': {
           loaders: ['custom-loader'],
@@ -200,7 +215,12 @@ describe('withDocsInfra', () => {
           ],
         },
         './app/**/types.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: { performance: undefined },
+            },
+          ],
         },
       });
     });
@@ -259,7 +279,10 @@ describe('withDocsInfra', () => {
         test: new RegExp('/types\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
-          '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+            options: { performance: undefined },
+          },
         ],
       });
     });
@@ -442,7 +465,12 @@ describe('withDocsInfra', () => {
           ],
         },
         './app/**/types.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: { performance: undefined },
+            },
+          ],
         },
         './app/**/demos/*/demo-*/index.ts': {
           loaders: [
@@ -530,6 +558,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './app/**/types.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: { performance: performanceOptions },
+            },
+          ],
+        },
       });
     });
 
@@ -581,6 +617,17 @@ describe('withDocsInfra', () => {
           mockWebpackOptions.defaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            options: { performance: performanceOptions },
+          },
+        ],
+      });
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('/types\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
             options: { performance: performanceOptions },
           },
         ],
@@ -643,8 +690,8 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 4 rules total: 2 default + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      // Should have 5 rules total: 2 default + 1 types + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(5);
 
       // Check that additional patterns have performance options
       const additionalIndexRule = webpackResult.module?.rules?.find((rule: any) => {
