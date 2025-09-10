@@ -20,7 +20,7 @@ import {
 
 export type LoaderOptions = {
   performance?: {
-    logging: boolean;
+    logging?: boolean;
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
