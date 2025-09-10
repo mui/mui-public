@@ -9,6 +9,7 @@ import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -46,50 +47,52 @@ interface CompareTableProps {
 
 const CompareTable = React.memo(function CompareTable({ entries }: CompareTableProps) {
   return (
-    <Table>
-      <TableHead>
-        <TableRow>
-          <BundleCell>Bundle</BundleCell>
-          <TableCell align="right">Size change</TableCell>
-          <TableCell align="right">Size</TableCell>
-          <TableCell align="right">Gzip change</TableCell>
-          <TableCell align="right">Gzip</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {entries.map(({ id, parsed, gzip }) => (
-          <TableRow key={id}>
-            <BundleCell>{id}</BundleCell>
-            <TableCell align="right">
-              {parsed.absoluteDiff === 0 ? (
-                '--'
-              ) : (
-                <SizeChangeDisplay
-                  absoluteChange={parsed.absoluteDiff}
-                  relativeChange={parsed.relativeDiff}
-                />
-              )}
-            </TableCell>
-            <TableCell align="right" title={exactBytesFormatter.format(parsed.current)}>
-              {byteSizeFormatter.format(parsed.current)}
-            </TableCell>
-            <TableCell align="right">
-              {gzip.absoluteDiff === 0 ? (
-                '--'
-              ) : (
-                <SizeChangeDisplay
-                  absoluteChange={gzip.absoluteDiff}
-                  relativeChange={gzip.relativeDiff}
-                />
-              )}
-            </TableCell>
-            <TableCell align="right" title={exactBytesFormatter.format(gzip.current)}>
-              {byteSizeFormatter.format(gzip.current)}
-            </TableCell>
+    <TableContainer>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <BundleCell>Bundle</BundleCell>
+            <TableCell align="right">Size change</TableCell>
+            <TableCell align="right">Size</TableCell>
+            <TableCell align="right">Gzip change</TableCell>
+            <TableCell align="right">Gzip</TableCell>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHead>
+        <TableBody>
+          {entries.map(({ id, parsed, gzip }) => (
+            <TableRow key={id}>
+              <BundleCell>{id}</BundleCell>
+              <TableCell align="right">
+                {parsed.absoluteDiff === 0 ? (
+                  '--'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={parsed.absoluteDiff}
+                    relativeChange={parsed.relativeDiff}
+                  />
+                )}
+              </TableCell>
+              <TableCell align="right" title={exactBytesFormatter.format(parsed.current)}>
+                {byteSizeFormatter.format(parsed.current)}
+              </TableCell>
+              <TableCell align="right">
+                {gzip.absoluteDiff === 0 ? (
+                  '--'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={gzip.absoluteDiff}
+                    relativeChange={gzip.relativeDiff}
+                  />
+                )}
+              </TableCell>
+              <TableCell align="right" title={exactBytesFormatter.format(gzip.current)}>
+                {byteSizeFormatter.format(gzip.current)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 });
 
