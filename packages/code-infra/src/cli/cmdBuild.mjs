@@ -3,7 +3,7 @@ import { $ } from 'execa';
 import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getOutExtension, isMjsBuild, validatePkgJson } from '../utils/build.mjs';
+import { getOutExtension, validatePkgJson } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -18,6 +18,7 @@ import { getOutExtension, isMjsBuild, validatePkgJson } from '../utils/build.mjs
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
  * @property {boolean} skipMainCheck - Whether to skip checking for main field in package.json.
  * @property {string[]} ignore - Globs to be ignored by Babel.
+ * @property {string[]} [flag] - Flags to alter the build behavior.
  */
 
 const validBundles = [
@@ -34,9 +35,17 @@ const validBundles = [
  * @param {string} options.license - The license of the package.
  * @param {import('../utils/build.mjs').BundleType} options.bundle
  * @param {string} options.outputDir
+ * @param {boolean} [options.useBundleExtension]
  */
-async function addLicense({ name, version, license, bundle, outputDir }) {
-  const outExtension = getOutExtension(bundle);
+async function addLicense({
+  name,
+  version,
+  license,
+  bundle,
+  outputDir,
+  useBundleExtension = false,
+}) {
+  const outExtension = getOutExtension(bundle, false, useBundleExtension);
   const file = path.join(outputDir, `index${outExtension}`);
   if (
     !(await fs.stat(file).then(
@@ -128,8 +137,16 @@ async function createExportsFor({
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
  * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
+ * @param {boolean} [param0.useBundleExtension] - Whether the build is using bundled extensions.
  */
-async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes = false }) {
+async function writePackageJson({
+  packageJson,
+  bundles,
+  outputDir,
+  cwd,
+  addTypes = false,
+  useBundleExtension = false,
+}) {
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
@@ -151,8 +168,8 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
 
   await Promise.all(
     bundles.map(async ({ type, dir }) => {
-      const outExtension = getOutExtension(type);
-      const typeOutExtension = getOutExtension(type, true);
+      const outExtension = getOutExtension(type, false, useBundleExtension);
+      const typeOutExtension = getOutExtension(type, true, useBundleExtension);
       const indexFileExists = await fs.stat(path.join(outputDir, dir, `index${outExtension}`)).then(
         (stats) => stats.isFile(),
         () => false,
@@ -293,11 +310,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
       })
-      .option('skipMainCheck', {
-        // Currently added only to support @mui/icons-material. To be removed separately.
-        type: 'boolean',
-        default: false,
-        description: 'Skip checking for main field in package.json.',
+      .option('flag', {
+        type: 'string',
+        array: true,
+        description: 'Flags to alter the build behavior.',
+        choices: ['bundle-extension'],
+        default: [],
       });
   },
   async handler(args) {
@@ -312,7 +330,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipTsc,
       skipBabelRuntimeCheck = false,
       skipPackageJson = false,
+      flag: flags = [],
     } = args;
+    const useBundleExtension = flags.includes('bundle-extension');
 
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
@@ -356,9 +376,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // js build start
     await Promise.all(
       bundles.map(async (bundle) => {
-        const outExtension = getOutExtension(bundle);
+        const outExtension = getOutExtension(bundle, false, useBundleExtension);
         const relativeOutDir = relativeOutDirs[bundle];
-        const outputDir = path.join(buildDir, relativeOutDir);
+        const outputDir = useBundleExtension ? buildDir : path.join(buildDir, relativeOutDir);
         await fs.mkdir(outputDir, { recursive: true });
 
         const promises = [];
@@ -382,7 +402,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           }),
         );
 
-        if (buildDir !== outputDir && !skipBundlePackageJson && !isMjsBuild) {
+        if (buildDir !== outputDir && !skipBundlePackageJson && !useBundleExtension) {
           // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
           promises.push(
             fs.writeFile(
@@ -402,6 +422,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           name: packageJson.name,
           version: packageJson.version,
           outputDir,
+          useBundleExtension,
         });
       }),
     );
@@ -422,7 +443,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         srcDir: sourceDir,
         cwd,
         skipTsc,
-        isMjsBuild,
+        useBundleExtension,
         buildDir,
       });
     }
@@ -441,6 +462,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })),
       outputDir: buildDir,
       addTypes: buildTypes,
+      useBundleExtension,
     });
   },
 });

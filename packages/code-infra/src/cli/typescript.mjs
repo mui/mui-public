@@ -8,6 +8,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { getOutExtension } from '../utils/build.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -24,6 +25,7 @@ export async function emitDeclarations(tsconfig, outDir) {
     --rootDir ${rootDir}
     --outDir ${outDir}
     --declaration
+    --declarationMap false
     --emitDeclarationOnly
     --noEmit false
     --composite false
@@ -60,8 +62,9 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
  * Post-processes TypeScript declaration files.
  * @param {Object} param0
  * @param {string} param0.directory - The directory containing the declaration files.
+ * @param {string} [param0.outExtension] - The output file extension for the processed files.
  */
-async function postProcessDeclarations({ directory }) {
+async function postProcessDeclarations({ directory, outExtension }) {
   const dtsFiles = await globby('**/*.d.ts', {
     absolute: true,
     cwd: directory,
@@ -76,7 +79,7 @@ async function postProcessDeclarations({ directory }) {
    */
   const babelPlugins = [
     [pluginTypescriptSyntax, { dts: true }],
-    [pluginResolveImports],
+    [pluginResolveImports, outExtension ? { outExtension } : {}],
     [pluginRemoveImports, { test: /\.css$/ }],
   ];
 
@@ -86,31 +89,26 @@ async function postProcessDeclarations({ directory }) {
         configFile: false,
         plugins: babelPlugins,
       });
+      let dtsOutExtension = '.ts';
 
+      if (outExtension === '.mjs') {
+        dtsOutExtension = '.mts';
+      } else if (outExtension === '.cjs') {
+        dtsOutExtension = '.cts';
+      }
+
+      console.log({
+        dtsOutExtension,
+        dtsFile,
+        out: dtsFile.replace(/\.ts$/, dtsOutExtension),
+        outExtension,
+      });
       if (typeof result?.code === 'string') {
-        await fs.writeFile(dtsFile, result.code);
+        await fs.rm(dtsFile, { force: true });
+        await fs.writeFile(dtsFile.replace(/\.ts$/, dtsOutExtension), result.code);
       } else {
         console.error('failed to transform', dtsFile);
       }
-    }),
-  );
-}
-
-/**
- * Renames TypeScript declaration files.
- * @param {Object} param0
- * @param {string} param0.directory - The directory containing the declaration files.
- */
-async function renameDeclarations({ directory }) {
-  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: directory });
-  if (dtsFiles.length === 0) {
-    return;
-  }
-  console.log(`Renaming d.ts files to d.mts in ${directory}`);
-  await Promise.all(
-    dtsFiles.map(async (dtsFile) => {
-      const newFileName = dtsFile.replace(/\.d\.ts$/, '.d.mts');
-      await fs.rename(dtsFile, newFileName);
     }),
   );
 }
@@ -121,14 +119,21 @@ async function renameDeclarations({ directory }) {
  * After copying, babel transformations are applied to the copied files because they need to be alongside the actual js files for proper resolution.
  *
  * @param {Object} param0
- * @param {boolean} [param0.isMjsBuild] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.useBundleExtension=false] - Whether the build is using bundled extensions.
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
  */
-export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isMjsBuild }) {
+export async function createTypes({
+  bundles,
+  srcDir,
+  buildDir,
+  cwd,
+  skipTsc,
+  useBundleExtension = false,
+}) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
 
   try {
@@ -152,22 +157,18 @@ export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isM
 
     for (const bundle of bundles) {
       const { type: bundleType, dir: bundleOutDir } = bundle;
-      const fullOutDir = path.join(buildDir, bundleOutDir);
+      const fullOutDir = useBundleExtension ? buildDir : path.join(buildDir, bundleOutDir);
       // eslint-disable-next-line no-await-in-loop
       await fs.cp(tmpDir, fullOutDir, {
         recursive: true,
         force: false,
       });
+      const outExtension = getOutExtension(bundleType, false, useBundleExtension);
       // eslint-disable-next-line no-await-in-loop
       await postProcessDeclarations({
         directory: fullOutDir,
+        outExtension,
       });
-      if (bundleType === 'esm' && isMjsBuild) {
-        // eslint-disable-next-line no-await-in-loop
-        await renameDeclarations({
-          directory: fullOutDir,
-        });
-      }
     }
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });

@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --bundle esm && pnpm build:copy-files",
+    "build": "code-infra build --bundle esm --flag=bundle-extension && pnpm build:copy-files",
     "build:copy-files": "code-infra copy-files",
     "test": "exit 0",
     "typescript": "tsc -p tsconfig.json"

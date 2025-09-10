@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { $ } from 'execa';
 import { BASE_IGNORES } from '../utils/build.mjs';
 
-const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
+const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts'];
 
 /**
  * @param {string} pkgVersion
@@ -129,7 +129,14 @@ export async function babelBuild({
       ...process.env,
       ...env,
     },
-  })`babel --config-file ${configFile} --extensions ${TO_TRANSFORM_EXTENSIONS.join(',')} ${sourceDir} --out-dir ${outDir} --ignore ${BASE_IGNORES.concat(ignores).join(',')} --out-file-extension ${outExtension !== '.js' ? outExtension : '.js'} --compact ${hasLargeFiles ? 'false' : 'auto'}`;
+  })`babel
+  --config-file ${configFile}
+  --extensions ${TO_TRANSFORM_EXTENSIONS.join(',')}
+  ${sourceDir}
+  --out-dir ${outDir}
+  --ignore ${BASE_IGNORES.concat(ignores).join(',')}
+  --out-file-extension ${outExtension !== '.js' ? outExtension : '.js'}
+  --compact ${hasLargeFiles ? 'false' : 'auto'}`;
 
   if (res.stderr) {
     throw new Error(`Command: '${res.escapedCommand}' failed with \n${res.stderr}`);
@@ -141,5 +148,7 @@ export async function babelBuild({
   // cjs for reexporting from commons only modules.
   // If we need to rely more on this we can think about setting up a separate commonjs => commonjs build for .cjs files to .cjs
   // `--extensions-.cjs --out-file-extension .cjs`
-  await cjsCopy({ from: sourceDir, to: outDir });
+  if (outExtension === '.js') {
+    await cjsCopy({ from: sourceDir, to: outDir });
+  }
 }

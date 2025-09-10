@@ -40,7 +40,7 @@ function pathToNodeImportSpecifier(importPath) {
 module.exports = function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
   const cache = new Map();
-  const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
+  const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.cjs', '.cts'];
   const extensionsSet = new Set(extensions);
 
   /**
@@ -53,7 +53,7 @@ module.exports = function plugin({ types: t }, { outExtension }) {
 
     const importExt = nodePath.extname(importedPath);
     // ignore if the import already has a desired extension or if it is a css import.
-    if (extensionsSet.has(importExt) || importExt === '.css') {
+    if ((extensionsSet.has(importExt) || importExt === '.css') && outExtension !== '.cjs') {
       return;
     }
 
