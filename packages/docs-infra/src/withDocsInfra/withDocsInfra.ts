@@ -132,7 +132,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
-    performance,
+    performance = {},
   } = options;
 
   return (nextConfig: NextConfig = {}): NextConfig => {

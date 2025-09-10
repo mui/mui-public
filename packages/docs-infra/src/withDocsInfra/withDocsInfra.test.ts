@@ -64,7 +64,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -72,7 +72,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -101,7 +101,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -109,7 +109,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -125,7 +125,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -133,7 +133,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -155,7 +155,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -163,7 +163,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -202,7 +202,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -210,7 +210,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -261,7 +261,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: undefined },
+            options: { performance: {} },
           },
         ],
       });
@@ -271,7 +271,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-            options: { performance: undefined },
+            options: { performance: {} },
           },
         ],
       });
@@ -452,7 +452,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -460,7 +460,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -476,7 +476,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -484,7 +484,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
-              options: { performance: undefined },
+              options: { performance: {} },
             },
           ],
         },
@@ -716,7 +716,7 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: undefined },
+            options: { performance: {} },
           },
         ],
       });
