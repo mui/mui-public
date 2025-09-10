@@ -5,7 +5,10 @@ export interface NextConfig {
   pageExtensions?: string[];
   output?: 'export' | 'standalone' | undefined;
   turbopack?: {
-    rules?: Record<string, { loaders: string[] }>;
+    rules?: Record<
+      string,
+      { loaders: Array<string | { loader: string; options: Record<string, unknown> }> }
+    >;
   };
   webpack?: (config: WebpackConfig, options: WebpackOptions) => WebpackConfig;
   [key: string]: any;
@@ -58,6 +61,14 @@ export interface WithDocsInfraOptions {
    * Additional Turbopack rules to merge with the default docs-infra rules.
    */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
+  /**
+   * Performance logging options
+   */
+  performance?: {
+    logging: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+  };
 }
 
 export interface DocsInfraMdxOptions {
@@ -121,6 +132,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
+    performance,
   } = options;
 
   return (nextConfig: NextConfig = {}): NextConfig => {
@@ -128,12 +140,25 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     const pageExtensions = [...basePageExtensions, ...additionalPageExtensions];
 
     // Build Turbopack rules
-    const turbopackRules: Record<string, { loaders: string[] }> = {
+    const turbopackRules: Record<
+      string,
+      { loaders: { loader: string; options: Record<string, unknown> }[] }
+    > = {
       [demoPathPattern]: {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: { performance },
+          },
+        ],
       },
       [clientDemoPathPattern]: {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            options: { performance },
+          },
+        ],
       },
     };
 
@@ -141,7 +166,12 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     if (additionalDemoPatterns.index) {
       additionalDemoPatterns.index.forEach((pattern) => {
         turbopackRules[pattern] = {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance },
+            },
+          ],
         };
       });
     }
@@ -149,7 +179,12 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     if (additionalDemoPatterns.client) {
       additionalDemoPatterns.client.forEach((pattern) => {
         turbopackRules[pattern] = {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
+          ],
         };
       });
     }
@@ -189,7 +224,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           test: new RegExp('/demos/[^/]+/index\\.ts$'),
           use: [
             defaultLoaders.babel,
-            '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance },
+            },
           ],
         });
 
@@ -198,7 +236,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           test: new RegExp('/demos/[^/]+/client\\.ts$'),
           use: [
             defaultLoaders.babel,
-            '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
           ],
         });
 
@@ -217,7 +258,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               test: new RegExp(`${regexPattern}$`),
               use: [
                 defaultLoaders.babel,
-                '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+                {
+                  loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+                  options: { performance },
+                },
               ],
             });
           });
@@ -237,7 +281,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               test: new RegExp(`${regexPattern}$`),
               use: [
                 defaultLoaders.babel,
-                '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+                {
+                  loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+                  options: { performance },
+                },
               ],
             });
           });

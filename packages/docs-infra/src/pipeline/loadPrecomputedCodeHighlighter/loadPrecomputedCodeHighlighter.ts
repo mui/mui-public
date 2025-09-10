@@ -1,3 +1,7 @@
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
+
 import type { LoaderContext } from 'webpack';
 import { loadVariant } from '../../CodeHighlighter/loadVariant';
 import { createParseSource } from '../parseSource';
@@ -9,8 +13,17 @@ import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithF
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
+import { createPerformanceLogger, logPerformance, nameMark } from './performanceLogger';
 
-export type LoaderOptions = {};
+export type LoaderOptions = {
+  performance?: {
+    logging: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+  };
+};
+
+const functionName = 'Load Precomputed Code Highlighter';
 
 /**
  * Webpack loader that processes demo files and precomputes variant data.
@@ -30,9 +43,35 @@ export async function loadPrecomputedCodeHighlighter(
   const callback = this.async();
   this.cacheable();
 
+  const options = this.getOptions();
+  const performanceNotableMs = options.performance?.notableMs ?? 100;
+  const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
+
+  let observer: PerformanceObserver | undefined = undefined;
+  if (options.performance?.logging) {
+    observer = new PerformanceObserver(
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures),
+    );
+    observer.observe({ entryTypes: ['measure'] });
+  }
+
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+  const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
+  performance.mark(startMark);
+  let currentMark = startMark;
+
   try {
     // Parse the source to find a single createDemo call
     const demoCall = await parseCreateFactoryCall(source, this.resourcePath);
+
+    const parsedFactoryMark = nameMark(functionName, 'Parsed Factory', [relativePath]);
+    performance.mark(parsedFactoryMark);
+    performance.measure(
+      nameMark(functionName, 'Factory Parsing', [relativePath]),
+      currentMark,
+      parsedFactoryMark,
+    );
+    currentMark = parsedFactoryMark;
 
     // If no createDemo call found, return the source unchanged
     if (!demoCall) {
@@ -53,6 +92,15 @@ export async function loadPrecomputedCodeHighlighter(
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
     const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants || {});
 
+    const pathsResolvedMark = nameMark(functionName, 'Paths Resolved', [relativePath]);
+    performance.mark(pathsResolvedMark);
+    performance.measure(
+      nameMark(functionName, 'Path Resolution', [relativePath]),
+      currentMark,
+      pathsResolvedMark,
+    );
+    currentMark = pathsResolvedMark;
+
     // Create loader functions
     const loadSource = createLoadServerSource({
       includeDependencies: true,
@@ -66,6 +114,15 @@ export async function loadPrecomputedCodeHighlighter(
 
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();
+
+    const functionsInitMark = nameMark(functionName, 'Functions Init', [relativePath]);
+    performance.mark(functionsInitMark);
+    performance.measure(
+      nameMark(functionName, 'Functions Init', [relativePath]),
+      currentMark,
+      functionsInitMark,
+    );
+    currentMark = functionsInitMark;
 
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
@@ -100,6 +157,20 @@ export async function loadPrecomputedCodeHighlighter(
             },
           );
 
+          const variantLoadedMark = nameMark(
+            functionName,
+            'Variant Loaded',
+            [variantName, relativePath],
+            true,
+          );
+          performance.mark(variantLoadedMark);
+          performance.measure(
+            nameMark(functionName, 'Variant Loading', [variantName, relativePath], true),
+            currentMark,
+            variantLoadedMark,
+          );
+          currentMark = variantLoadedMark;
+
           return {
             variantName,
             variantData: processedVariant, // processedVariant is a complete VariantCode
@@ -123,8 +194,26 @@ export async function loadPrecomputedCodeHighlighter(
       }
     }
 
+    const variantsLoadedMark = nameMark(functionName, 'All Variants Loaded', [relativePath], true);
+    performance.mark(variantsLoadedMark);
+    performance.measure(
+      nameMark(functionName, 'Complete Variants Loading', [relativePath], true),
+      functionsInitMark,
+      variantsLoadedMark,
+    );
+    currentMark = variantsLoadedMark;
+
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
+
+    const replacedPrecomputeMark = nameMark(functionName, 'Replaced Precompute', [relativePath]);
+    performance.mark(replacedPrecomputeMark);
+    performance.measure(
+      nameMark(functionName, 'Precompute Replacement', [relativePath]),
+      currentMark,
+      replacedPrecomputeMark,
+    );
+    currentMark = replacedPrecomputeMark;
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
@@ -132,8 +221,22 @@ export async function loadPrecomputedCodeHighlighter(
       this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
     });
 
+    // log any pending performance entries before completing
+    observer
+      ?.takeRecords()
+      ?.forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+      );
+    observer?.disconnect();
     callback(null, modifiedSource);
   } catch (error) {
+    // log any pending performance entries before completing
+    observer
+      ?.takeRecords()
+      ?.forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+      );
+    observer?.disconnect();
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }
