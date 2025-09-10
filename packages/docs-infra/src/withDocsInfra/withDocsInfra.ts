@@ -5,7 +5,10 @@ export interface NextConfig {
   pageExtensions?: string[];
   output?: 'export' | 'standalone' | undefined;
   turbopack?: {
-    rules?: Record<string, { loaders: { loader: string; options: Record<string, unknown> }[] }>;
+    rules?: Record<
+      string,
+      { loaders: Array<string | { loader: string; options: Record<string, unknown> }> }
+    >;
   };
   webpack?: (config: WebpackConfig, options: WebpackOptions) => WebpackConfig;
   [key: string]: any;
