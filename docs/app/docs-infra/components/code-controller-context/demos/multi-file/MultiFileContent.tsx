@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEditable } from 'use-editable';
-import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { Tabs } from '@/components/Tabs';
 import styles from '../code-editor/CodeEditorContent.module.css';

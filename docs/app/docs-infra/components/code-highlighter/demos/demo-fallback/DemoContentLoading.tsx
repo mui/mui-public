@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { Tabs } from '@/components/Tabs';
 import styles from '../DemoContent.module.css';
 

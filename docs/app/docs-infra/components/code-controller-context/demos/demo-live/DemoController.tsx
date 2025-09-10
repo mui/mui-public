@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRunner } from 'react-runner';
 import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
-import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
 
 function Runner({ code }: { code: string }) {
