@@ -231,8 +231,8 @@ function PackageInfo({ label, color, resolvedSpec, error }: PackageInfoProps) {
 
 // Component for displaying individual file diff
 interface FileDiffProps {
-  old: string;
-  new: string;
+  oldValue: string;
+  newValue: string;
   filePath: string;
   oldHeader: string;
   newHeader: string;
@@ -240,16 +240,18 @@ interface FileDiffProps {
 }
 
 function FileDiff({
-  old,
-  new: newContent,
+  oldValue,
+  newValue,
   filePath,
   oldHeader,
   newHeader,
   ignoreWhitespace,
 }: FileDiffProps) {
   const fileDiff = React.useMemo(() => {
-    return diff.createPatch(filePath, old, newContent, oldHeader, newHeader, { ignoreWhitespace });
-  }, [old, newContent, filePath, oldHeader, newHeader, ignoreWhitespace]);
+    return diff.createPatch(filePath, oldValue, newValue, oldHeader, newHeader, {
+      ignoreWhitespace,
+    });
+  }, [oldValue, newValue, filePath, oldHeader, newHeader, ignoreWhitespace]);
 
   return (
     <Paper>
@@ -481,8 +483,8 @@ export default function DiffPackage() {
                       <FileDiff
                         key={filePath}
                         filePath={filePath}
-                        old={old}
-                        new={newContent}
+                        oldValue={old}
+                        newValue={newContent}
                         oldHeader={oldHeader}
                         newHeader={newHeader}
                         ignoreWhitespace={ignoreWhitespace}
