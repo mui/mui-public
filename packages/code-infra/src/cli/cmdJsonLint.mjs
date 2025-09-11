@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import { globby } from 'globby';
 import path from 'node:path';
-import { mapConcurrently } from '../utils/build.mjs';
+import { mapConcurrently, withPerformanceMeasurement } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -22,7 +22,7 @@ const passMessage = (message) => `✓ ${chalk.gray(message)}`;
  */
 const failMessage = (message) => `❌ ${chalk.whiteBright(message)}`;
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+const command = /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'jsonlint',
   describe: 'Lint JSON files',
   builder: (yargs) => {
@@ -67,3 +67,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
   },
 });
+
+command.handler = withPerformanceMeasurement(
+  /** @type {string} */ (command.command),
+  command.handler,
+  { shouldLog: true },
+);
+
+export default command;

@@ -7,7 +7,13 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
 
-import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '../utils/build.mjs';
+import {
+  getOutExtension,
+  isMjsBuild,
+  mapConcurrently,
+  validatePkgJson,
+  withPerformanceMeasurement,
+} from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -238,7 +244,7 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   );
 }
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+const command = /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build',
   describe: 'Builds the package for publishing.',
   builder(yargs) {
@@ -375,24 +381,29 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
         const promises = [];
 
-        promises.push(
-          babelMod.babelBuild({
-            cwd,
-            sourceDir,
-            outDir: outputDir,
-            babelRuntimeVersion,
-            hasLargeFiles,
-            bundle,
-            verbose,
-            optimizeClsx:
-              packageJson.dependencies.clsx !== undefined ||
-              packageJson.dependencies.classnames !== undefined,
-            removePropTypes: packageJson.dependencies['prop-types'] !== undefined,
-            pkgVersion: packageJson.version,
-            ignores: extraIgnores,
-            outExtension,
-          }),
+        const markLabel = `build:babel:${bundle}`;
+        const runBabel = withPerformanceMeasurement(
+          markLabel,
+          async () =>
+            babelMod.babelBuild({
+              cwd,
+              sourceDir,
+              outDir: outputDir,
+              babelRuntimeVersion,
+              hasLargeFiles,
+              bundle,
+              verbose,
+              optimizeClsx:
+                packageJson.dependencies.clsx !== undefined ||
+                packageJson.dependencies.classnames !== undefined,
+              removePropTypes: packageJson.dependencies['prop-types'] !== undefined,
+              pkgVersion: packageJson.version,
+              ignores: extraIgnores,
+              outExtension,
+            }),
+          { shouldLog: true },
         );
+        promises.push(runBabel());
 
         if (buildDir !== outputDir && !skipBundlePackageJson && !isMjsBuild) {
           // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
@@ -420,23 +431,31 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // js build end
 
     if (buildTypes) {
-      const tsMod = await import('./typescript.mjs');
-      /**
-       * @type {{type: import('../utils/build.mjs').BundleType, dir: string}[]};
-       */
-      const bundleMap = bundles.map((type) => ({
-        type,
-        dir: relativeOutDirs[type],
-      }));
+      const tsMarkLabel = 'build:typescript';
+      const runTsc = withPerformanceMeasurement(
+        tsMarkLabel,
+        async () => {
+          const tsMod = await import('./typescript.mjs');
+          /**
+           * @type {{type: import('../utils/build.mjs').BundleType, dir: string}[]};
+           */
+          const bundleMap = bundles.map((type) => ({
+            type,
+            dir: relativeOutDirs[type],
+          }));
 
-      await tsMod.createTypes({
-        bundles: bundleMap,
-        srcDir: sourceDir,
-        cwd,
-        skipTsc,
-        isMjsBuild,
-        buildDir,
-      });
+          await tsMod.createTypes({
+            bundles: bundleMap,
+            srcDir: sourceDir,
+            cwd,
+            skipTsc,
+            isMjsBuild,
+            buildDir,
+          });
+        },
+        { shouldLog: true },
+      );
+      await runTsc();
     }
     if (skipPackageJson) {
       console.log('Skipping package.json generation in the output directory.');
@@ -463,6 +482,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     });
   },
 });
+
+command.handler = withPerformanceMeasurement(
+  /** @type {string} */ (command.command),
+  command.handler,
+  { shouldLog: true },
+);
+
+export default command;
 
 /**
  * @param {Object} param0
