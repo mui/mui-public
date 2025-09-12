@@ -1,12 +1,10 @@
-/* eslint-disable no-console */
-
-import { markFn, measureFn } from '../utils/build.mjs';
+import { withPerformanceMeasurement } from '../utils/build.mjs';
 
 /**
  * @typedef {import('../utils/extractErrorCodes.mjs').Args} Args
  */
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+const command = /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'extract-error-codes',
   describe: 'Extracts error codes from package(s).',
   builder(yargs) {
@@ -29,13 +27,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
   },
   async handler(args) {
-    const commandName = /** @type {string} */ (args._[0]);
-    await markFn(commandName, async () => {
-      const module = await import('../utils/extractErrorCodes.mjs');
-      await module.default(args);
-    });
-    console.log(
-      `✅ Extracted error codes in ${(measureFn(commandName).duration / 1000.0).toFixed(3)}s`,
-    );
+    const module = await import('../utils/extractErrorCodes.mjs');
+    await module.default(args);
   },
 });
+
+command.handler = withPerformanceMeasurement(
+  /** @type {string} */ (command.command),
+  command.handler,
+  { shouldLog: true },
+);
+
+export default command;

@@ -7,6 +7,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { globby } from 'globby';
 import { upload } from '@argos-ci/core';
+import { withPerformanceMeasurement } from '../utils/build.mjs';
 
 /**
  * @param {string} name
@@ -32,7 +33,7 @@ const BATCH_SIZE = 200;
  * @property {string} folder - Screenshots folder path
  */
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+const command = /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'argos-push',
   describe: 'Upload screenshots to Argos CI in batches',
   builder: (yargs) => {
@@ -114,3 +115,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
   },
 });
+
+command.handler = withPerformanceMeasurement(
+  /** @type {string} */ (command.command),
+  command.handler,
+  { shouldLog: true },
+);
+
+export default command;

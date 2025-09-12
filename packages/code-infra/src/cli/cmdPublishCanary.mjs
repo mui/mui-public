@@ -25,6 +25,7 @@ import {
   getCurrentGitSha,
   semverMax,
 } from './pnpm.mjs';
+import { withPerformanceMeasurement } from '../utils/build.mjs';
 
 const CANARY_TAG = 'canary';
 
@@ -176,7 +177,7 @@ async function publishCanaryVersions(
   }
 }
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+const command = /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'publish-canary',
   describe: 'Publish canary packages to npm',
   builder: (yargs) => {
@@ -240,3 +241,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     console.log('\n🏁 Publishing complete!');
   },
 });
+
+command.handler = withPerformanceMeasurement(
+  /** @type {string} */ (command.command),
+  command.handler,
+  { shouldLog: true },
+);
+
+export default command;

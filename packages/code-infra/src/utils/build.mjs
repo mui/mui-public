@@ -70,31 +70,60 @@ export function validatePkgJson(packageJson, options = {}) {
 }
 
 /**
- * Marks the start and end of a function execution for performance measurement.
- * Uses the Performance API to create marks and measure the duration.
+ * Creates a higher-order function that measures the execution time of the wrapped function.
+ * Works with both synchronous and asynchronous functions.
  * @function
- * @template {() => Promise<any>} F
- * @param {string} label
- * @param {() => ReturnType<F>} fn
- * @returns {Promise<ReturnType<F>>}
+ * @template {(...args: any[]) => any} F
+ * @param {string} label - The label for the performance measurement
+ * @param {F} fn - The function to wrap and measure
+ * @param {Object} [options={}]
+ * @param {boolean} [options.shouldLog=false] - Whether to log the duration to the console after each execution
+ * @returns {(this: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>} A new function that measures execution time and returns the same result as the original, with an additional getDuration method
  */
-export async function markFn(label, fn) {
-  const startMark = `${label}-start`;
-  const endMark = `${label}-end`;
-  performance.mark(startMark);
-  const result = await fn();
-  performance.mark(endMark);
-  performance.measure(label, startMark, endMark);
-  return result;
-}
+export function withPerformanceMeasurement(label, fn, options = {}) {
+  const { shouldLog = false } = options;
+  /**
+   * @type {PerformanceMeasure | null}
+   */
+  let lastMeasurement = null;
 
-/**
- * @param {string} label
- */
-export function measureFn(label) {
   const startMark = `${label}-start`;
   const endMark = `${label}-end`;
-  return performance.measure(label, startMark, endMark);
+
+  function markAndLog() {
+    performance.mark(endMark);
+    lastMeasurement = performance.measure(label, startMark, endMark);
+    performance.clearMarks(startMark);
+    performance.clearMarks(endMark);
+    performance.clearMeasures(label);
+    if (shouldLog && lastMeasurement) {
+      // Log the duration to the console
+      // eslint-disable-next-line no-console
+      console.log(`⏰ Ran "${label}" for ${(lastMeasurement.duration / 1000).toFixed(3)}s.`);
+    }
+  }
+
+  /**
+   * @this {ThisParameterType<F>}
+   * @param {...any} args
+   */
+  function withPerformanceMeasurementWrapper(...args) {
+    performance.mark(startMark);
+
+    const result = fn.apply(this, args);
+
+    // Handle both sync and async functions
+    if (result && typeof result.then === 'function') {
+      return result.finally(() => {
+        markAndLog();
+      });
+    }
+
+    markAndLog();
+    return result;
+  }
+
+  return withPerformanceMeasurementWrapper;
 }
 
 export const BASE_IGNORES = [
