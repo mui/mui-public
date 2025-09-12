@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Changelog Config Schema",
+  "description": "Configuration for categorizing commits into changelog sections.",
+  "type": "object",
+  "$defs": {
+    "baseLabelConfiguration": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the section. Can be a static string or interpolated with regex group names."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of regex patterns matched against commit PR labels."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "The friendly label to use for the specified key."
+                  },
+                  "priority": {
+                    "type": "number",
+                    "description": "If provided, it'll be used for sorting within the sections."
+                  }
+                },
+                "required": ["label", "priority"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "description": "Optional mapping to replace extracted regex group values with friendly names or objects containing label and priority."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Optional string to prepend to commit messages."
+        },
+        "suffix": {
+          "type": "string",
+          "description": "Optional string to append to commit messages."
+        },
+        "addToChangelog": {
+          "type": "boolean",
+          "description": "If false, commits matching this label configuration will be excluded from the changelog."
+        },
+        "isCatchAll": {
+          "type": "boolean",
+          "description": "If true, this configuration acts as a catch-all and matches any commit not matched by previous configurations."
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Priority for ordering sections and commits with flags. Lower the value, earlier it appears in the generated log. Defaults to 0. For sections with same priority, order is then determined as per string comparison."
+        }
+      }
+    },
+    "labelConfiguration": {
+      "allOf": [
+        { "$ref": "#/$defs/baseLabelConfiguration" },
+        { "type": "object", "required": ["title", "labels"] }
+      ]
+    },
+    "globalLabelConfiguration": {
+      "allOf": [
+        { "$ref": "#/$defs/baseLabelConfiguration" },
+        { "type": "object", "required": ["title", "labels"] }
+      ]
+    },
+    "flagConfiguration": {
+      "allOf": [
+        { "$ref": "#/$defs/baseLabelConfiguration" },
+        { "type": "object", "required": ["labels"] }
+      ]
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema version."
+    },
+    "categories": {
+      "type": "object",
+      "description": "Global categories that take highest precedence regardless of other labels. Processed in the order defined.",
+      "patternProperties": {
+        "^[a-z-A-Z0-9_\\s]+$": {
+          "$ref": "#/$defs/globalLabelConfiguration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sections": {
+      "type": "object",
+      "description": "Normal label-based categorization. Lower precedence than categories.",
+      "patternProperties": {
+        "^[a-z-A-Z0-9_\\s]+$": {
+          "$ref": "#/$defs/labelConfiguration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "subsections": {
+      "type": "object",
+      "description": "Optional subsections within sections for finer categorization. Processed after sections.",
+      "patternProperties": {
+        "^[a-z-A-Z0-9_\\s]+$": {
+          "$ref": "#/$defs/labelConfiguration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "flags": {
+      "type": "object",
+      "description": "Flag-based labels that do not affect categorization but modify commit messages.",
+      "patternProperties": {
+        "^[a-z-A-Z0-9_ ]+$": {
+          "$ref": "#/$defs/flagConfiguration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ignoreAuthors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of regexes for usernames whose commit to ignore when generating the changelog."
+    }
+  },
+  "required": ["categories", "labels"],
+  "additionalProperties": false
+}

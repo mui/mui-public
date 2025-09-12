@@ -4,6 +4,7 @@ import { hideBin } from 'yargs/helpers';
 
 import cmdArgosPush from './cmdArgosPush.mjs';
 import cmdBuild from './cmdBuild.mjs';
+import cmdChangelog from './cmdChangelog.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdExtractErrorCodes from './cmdExtractErrorCodes.mjs';
 import cmdJsonLint from './cmdJsonLint.mjs';
@@ -19,6 +20,7 @@ yargs()
   .usage('$0 <command> [args]')
   .command(cmdArgosPush)
   .command(cmdBuild)
+  .command(cmdChangelog)
   .command(cmdCopyFiles)
   .command(cmdExtractErrorCodes)
   .command(cmdJsonLint)

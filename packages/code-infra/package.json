@@ -15,7 +15,9 @@
     "./prettier": "./src/prettier.mjs",
     "./eslint": "./src/eslint/index.mjs",
     "./babel-config": "./src/babel-config.mjs",
-    "./markdownlint": "./src/markdownlint/index.mjs"
+    "./markdownlint": "./src/markdownlint/index.mjs",
+    "./changelog": "./src/utils/changelog.mjs",
+    "./changelog-schema.json": "./changelog-schema.json"
   },
   "bin": {
     "code-infra": "./bin/code-infra.mjs"
@@ -44,6 +46,8 @@
     "@octokit/auth-action": "^6.0.1",
     "@octokit/rest": "^22.0.0",
     "@pnpm/find-workspace-dir": "^1000.1.3",
+    "@octokit/graphql": "^9.0.1",
+    "ajv": "^8.17.1",
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
@@ -91,8 +95,8 @@
   },
   "files": [
     "bin",
-    "build",
     "src",
+    "changelog-schema.json",
     "README.md",
     "LICENSE"
   ],
