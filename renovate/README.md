@@ -74,7 +74,7 @@ This will do nothing, instead you will have to set it on each rule:
 For this use-case, it could be interesting to create a preset, like:
 
 ```json
-// ./renovate/vite-related
+// ./renovate/vite-related.json
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "packageRules": [
