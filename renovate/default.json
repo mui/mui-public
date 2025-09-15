@@ -79,7 +79,14 @@
     },
     {
       "groupName": "Vite & Vitest",
-      "extends": ["packages:vite", "monorepo:vitest"],
+      "extends": ["packages:vite"]
+    },
+    {
+      "groupName": "Vite & Vitest",
+      "extends": ["monorepo:vitest"]
+    },
+    {
+      "groupName": "Vite & Vitest",
       "matchPackageNames": ["esbuild"]
     },
     {
