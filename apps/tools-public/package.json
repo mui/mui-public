@@ -21,7 +21,7 @@
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
-    "@types/node": "^24.3.1",
+    "@types/node": "^22.18.3",
     "@types/ssh2": "^1.15.5"
   }
 }
