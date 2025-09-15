@@ -16,7 +16,8 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoLiveContent(props: ContentProps<object>) {
-  const demo = useDemo(props);
+  const preRef = React.useRef<HTMLPreElement | null>(null);
+  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -39,14 +40,13 @@ export function DemoLiveContent(props: ContentProps<object>) {
     [demo.variants],
   );
 
-  const editorRef = React.useRef(null);
   const onChange = React.useCallback(
     (text: string) => {
       demo.setSource?.(text);
     },
     [demo],
   );
-  useEditable(editorRef, onChange, { indentation: 2, disabled: !demo.setSource });
+  useEditable(preRef, onChange, { indentation: 2, disabled: !demo.setSource });
 
   return (
     <div className={styles.container}>
@@ -81,11 +81,7 @@ export function DemoLiveContent(props: ContentProps<object>) {
             </div>
           </div>
         </div>
-        <div className={styles.code}>
-          <pre className={styles.codeBlock} ref={editorRef}>
-            {demo.selectedFile}
-          </pre>
-        </div>
+        <div className={styles.code}>{demo.selectedFile}</div>
       </div>
     </div>
   );

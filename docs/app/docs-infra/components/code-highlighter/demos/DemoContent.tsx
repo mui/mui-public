@@ -16,7 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoContent(props: ContentProps<object>) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -77,9 +77,7 @@ export function DemoContent(props: ContentProps<object>) {
               </div>
             </div>
           </div>
-          <div className={styles.code}>
-            <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
-          </div>
+          <div className={styles.code}>{demo.selectedFile}</div>
         </div>
       </div>
     </div>
