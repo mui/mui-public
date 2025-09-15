@@ -432,8 +432,8 @@ importers:
         specifier: ^6.0.0-rc1
         version: 6.0.0(eslint@9.35.0(jiti@2.5.1))
       eslint-plugin-testing-library:
-        specifier: ^7.6.8
-        version: 7.6.8(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)
+        specifier: ^7.7.0
+        version: 7.7.0(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)
       execa:
         specifier: ^9.6.0
         version: 9.6.0
@@ -7128,8 +7128,8 @@ packages:
     peerDependencies:
       eslint: ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7
 
-  eslint-plugin-testing-library@7.6.8:
-    resolution: {integrity: sha512-8qvVtc9gzYsBWJd2bMJByAlOdr/GBBH2RZygvp70OTivsJkLkYRxSZFtHq1XQK8k+zNi8DcV7aiSx3avE0rf2w==}
+  eslint-plugin-testing-library@7.7.0:
+    resolution: {integrity: sha512-gxQU77Q9wuedmwnCEjXHd67Wr1HquWWK/6fb95vG8ImiDMB9fA4vorz9+wzHOj+aXexfz5EUYF9VU7J5zrgF8g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0, pnpm: ^9.14.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0
@@ -20440,7 +20440,7 @@ snapshots:
       string.prototype.matchall: 4.0.12
       string.prototype.repeat: 1.0.0
 
-  eslint-plugin-testing-library@7.6.8(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2):
+  eslint-plugin-testing-library@7.7.0(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2):
     dependencies:
       '@typescript-eslint/scope-manager': 8.42.0
       '@typescript-eslint/utils': 8.42.0(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)
