@@ -1,0 +1,14 @@
+.code {
+  margin: 1rem 0;
+  background: #f6f8fa;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.codeBlock {
+  margin: 0;
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+}

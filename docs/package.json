@@ -22,7 +22,8 @@
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "use-editable": "^2.3.3",
-    "vscode-oniguruma": "^2.0.1"
+    "vscode-oniguruma": "^2.0.1",
+    "web-vitals": "^5.1.0"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.2",
