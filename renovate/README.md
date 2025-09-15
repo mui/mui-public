@@ -70,33 +70,3 @@ This will do nothing, instead you will have to set it on each rule:
   "autoMerge": true
 }
 ```
-
-For this use-case, it could be interesting to create a preset, like:
-
-```json
-// ./renovate/vite-related.json
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "packageRules": [
-    {
-      "extends": ["monorepo:vitest"]
-    },
-    {
-      "extends": ["group:vite"]
-    },
-    {
-      "matchPackageNAmes": ["vite-*"]
-    }
-  ]
-}
-```
-
-Then do
-
-```json
-{
-  "extends": ["github>mui/mui-public//renovate/vite-related"],
-  "groupName": "vite-related",
-  "autoMerge": true
-}
-```
