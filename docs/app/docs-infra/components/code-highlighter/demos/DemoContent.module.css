@@ -6,14 +6,6 @@
 .demoSection {
   padding: 24px;
   border-radius: 7px 7px 0 0;
-  transition: all 0.3s ease-in-out;
-  background: repeating-linear-gradient(20deg, #f2eff3, #f2eff3 8px, #faf9fb 8px, #faf9fb 16px);
-}
-
-.demoSection:hover,
-.demoSection:active,
-.demoSection:focus-within {
-  background: none;
 }
 
 .codeSection {

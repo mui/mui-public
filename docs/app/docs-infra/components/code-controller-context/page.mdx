@@ -141,7 +141,8 @@ import { useEditable } from 'use-editable';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 
 function EditorContent(props) {
-  const code = useCode(props);
+  const preRef = React.useRef<HTMLPreElement | null>(null);
+  const code = useCode(props, { preRef });
 
   // code.setSource updates the controller automatically
   const onInput = React.useCallback(
@@ -151,13 +152,12 @@ function EditorContent(props) {
     [code],
   );
 
-  const editorRef = React.useRef(null);
-  useEditable(editorRef, onInput, { indentation: 2 });
+  useEditable(preRef, onInput, { indentation: 2 });
 
   return (
     <div>
       <h4>{code.selectedFileName}</h4>
-      <pre ref={editorRef}>{code.selectedFile}</pre>
+      {code.selectedFile}
     </div>
   );
 }
