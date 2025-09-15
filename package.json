@@ -39,6 +39,7 @@
     "@mui/internal-code-infra": "workspace:*",
     "@octokit/rest": "^22.0.0",
     "@tsconfig/node22": "^22.0.2",
+    "@types/babel__core": "^7.20.5",
     "@types/node": "^24.3.1",
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "8.43.0",
