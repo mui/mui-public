@@ -387,8 +387,8 @@ importers:
         specifier: ^22.0.0
         version: 22.0.0
       '@pnpm/find-workspace-dir':
-        specifier: ^1000.1.2
-        version: 1000.1.2
+        specifier: ^1000.1.3
+        version: 1000.1.3
       babel-plugin-optimize-clsx:
         specifier: ^2.6.2
         version: 2.6.2
@@ -3560,16 +3560,16 @@ packages:
     resolution: {integrity: sha512-htyl8TWnKL7K/ESFa1oW2UB5lVDxuF5DpM7tBi6Hu2LNL3mWkIzNLG6N4zoCUP1lCKNxWy/3iu8mS8MvToGd6w==}
     engines: {node: '>=12.22.0'}
 
-  '@pnpm/constants@1001.3.0':
-    resolution: {integrity: sha512-ZFRekNHbDlu//67Byg+mG8zmtmCsfBhNsg1wKBLRtF7VjH+Q5TDGMX0+8aJYSikQDuzM2FOhvQcDwyjILKshJQ==}
+  '@pnpm/constants@1001.3.1':
+    resolution: {integrity: sha512-2hf0s4pVrVEH8RvdJJ7YRKjQdiG8m0iAT26TTqXnCbK30kKwJW69VLmP5tED5zstmDRXcOeH5eRcrpkdwczQ9g==}
     engines: {node: '>=18.12'}
 
-  '@pnpm/error@1000.0.4':
-    resolution: {integrity: sha512-22mG/Mq4u2r7gr2+XY5j4GlN7J4Mg4WiCfT9flvsUc1uZecShocv6WkyoA20qs14M64f6I+aaWB6b6xsDiITlg==}
+  '@pnpm/error@1000.0.5':
+    resolution: {integrity: sha512-GjH0TPjbVNrPnl/BAGoFuBLJ2sFfXNKbS33lll/Ehe9yw0fyc8Kdw7kO9if37yQqn6vaa4dAHKkPllum7f/IPQ==}
     engines: {node: '>=18.12'}
 
-  '@pnpm/find-workspace-dir@1000.1.2':
-    resolution: {integrity: sha512-QU7LqV0T5lCuHwNoNT5YeArsrIYo4qcCEHz4F21tu42n6d1km3CGnpL6/7LMT0fgHL6cN55YyRU14imN/5b7vg==}
+  '@pnpm/find-workspace-dir@1000.1.3':
+    resolution: {integrity: sha512-4rdu8GPY9TeQwsYp5D2My74dC3dSVS3tghAvisG80ybK4lqa0gvlrglaSTBxogJbxqHRw/NjI/liEtb3+SD+Bw==}
     engines: {node: '>=18.12'}
 
   '@pnpm/network.ca-file@1.0.2':
@@ -15939,15 +15939,15 @@ snapshots:
 
   '@pnpm/config.env-replace@1.1.0': {}
 
-  '@pnpm/constants@1001.3.0': {}
+  '@pnpm/constants@1001.3.1': {}
 
-  '@pnpm/error@1000.0.4':
+  '@pnpm/error@1000.0.5':
     dependencies:
-      '@pnpm/constants': 1001.3.0
+      '@pnpm/constants': 1001.3.1
 
-  '@pnpm/find-workspace-dir@1000.1.2':
+  '@pnpm/find-workspace-dir@1000.1.3':
     dependencies:
-      '@pnpm/error': 1000.0.4
+      '@pnpm/error': 1000.0.5
       find-up: 5.0.0
 
   '@pnpm/network.ca-file@1.0.2':
