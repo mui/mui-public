@@ -24,7 +24,7 @@
     "@types/react-dom": "^19.1.9",
     "@types/semver": "^7.7.1",
     "@vitejs/plugin-react": "^5.0.2",
-    "netlify-cli": "^23.5.0",
+    "netlify-cli": "^23.5.1",
     "typescript": "^5.9.2",
     "vite": "^7.1.4",
     "vite-tsconfig-paths": "^5.1.4"
