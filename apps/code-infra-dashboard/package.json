@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@types/etag": "^1.8.4",
-    "@types/node": "^24.3.1",
+    "@types/node": "^22.9.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@types/semver": "^7.7.1",

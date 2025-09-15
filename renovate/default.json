@@ -54,14 +54,8 @@
     },
     {
       "groupName": "node",
-      "matchDatasources": ["node-version"],
-      "matchPackageNames": ["@types/node", "node", "cimg/node"],
-      "allowedVersions": "<=22.18"
-    },
-    {
-      "groupName": "node-version",
       "description": "Restricts Node.js version bumps in Github Actions workflows.",
-      "matchDepTypes": ["uses-with"],
+      "matchPackageNames": ["@types/node", "node", "cimg/node"],
       "allowedVersions": "<=22.18"
     },
     {
