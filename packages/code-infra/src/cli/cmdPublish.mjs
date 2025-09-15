@@ -14,6 +14,7 @@ import gitUrlParse from 'git-url-parse';
 import { $ } from 'execa';
 import { createActionAuth } from '@octokit/auth-action';
 import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
+import { withPerformanceMeasurement } from '../utils/build.mjs';
 
 function getOctokit() {
   return new Octokit({ authStrategy: createActionAuth });
@@ -246,7 +247,7 @@ async function createRelease(version, changelogContent, repoInfo) {
   );
 }
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
+const command = /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'publish',
   describe: 'Publish packages to npm',
   builder: (yargs) => {
@@ -314,3 +315,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     console.log('\n🏁 Publishing complete!');
   },
 });
+
+command.handler = withPerformanceMeasurement(
+  /** @type {string} */ (command.command),
+  command.handler,
+  { shouldLog: true },
+);
+
+export default command;
