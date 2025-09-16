@@ -1,6 +1,5 @@
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { toText } from 'hast-util-to-text';
 import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
@@ -21,24 +20,6 @@ function toKebabCase(str: string): string {
       .replace(/[^a-z0-9.]+/g, '-')
       .replace(/^-+|-+$/g, '')
   );
-}
-
-/**
- * Converts VariantSource to a string representation
- * @param source - The source to convert
- * @returns string representation of the source
- */
-function sourceToString(source: VariantSource): string {
-  if (typeof source === 'string') {
-    return source;
-  }
-  
-  if ('hastJson' in source) {
-    const hast = JSON.parse(source.hastJson);
-    return toText(hast, { whitespace: 'pre' });
-  }
-  
-  return toText(source, { whitespace: 'pre' });
 }
 
 /**
