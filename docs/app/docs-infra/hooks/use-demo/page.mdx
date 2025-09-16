@@ -34,9 +34,7 @@ export function DemoContent(props) {
 
       {/* Code Section */}
       <div className={styles.codeSection}>
-        <div className={styles.code}>
-          {demo.selectedFile}
-        </div>
+        <div className={styles.code}>{demo.selectedFile}</div>
       </div>
     </div>
   );
@@ -126,9 +124,7 @@ export function DemoContent(props) {
         </div>
 
         {/* Code Display */}
-        <div className={styles.code}>
-          {demo.selectedFile}
-        </div>
+        <div className={styles.code}>{demo.selectedFile}</div>
       </div>
     </div>
   );
@@ -139,7 +135,7 @@ export function DemoContent(props) {
 
 ```tsx
 export function DemoLiveContent(props) {
-   const preRef = React.useRef<HTMLPreElement | null>(null);
+  const preRef = React.useRef<HTMLPreElement | null>(null);
   const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
@@ -218,9 +214,7 @@ export function DemoLiveContent(props) {
         </div>
 
         {/* Editable Code Block */}
-        <div className={styles.code}>
-          {demo.selectedFile}
-        </div>
+        <div className={styles.code}>{demo.selectedFile}</div>
       </div>
     </div>
   );
@@ -347,9 +341,7 @@ export function DemoContent(props: ContentProps<{}>) {
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
 
-      <div className={styles.codeSection}>
-        {demo.selectedFile}
-      </div>
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
     </div>
   );
 }
@@ -388,9 +380,7 @@ export function DemoContent(props: ContentProps<{}>) {
   return (
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
-      <div className={styles.codeSection}>
-        {demo.selectedFile}
-      </div>
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
     </div>
   );
 }
@@ -499,9 +489,7 @@ export function DemoContent(props) {
   return (
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
-      <div className={styles.codeSection}>
-        {demo.selectedFile}
-      </div>
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
     </div>
   );
 }
