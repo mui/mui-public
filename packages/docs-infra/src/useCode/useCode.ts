@@ -11,7 +11,9 @@ import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
 import { UseCopierOpts } from '../useCopier';
 
-type UseCodeOpts = {
+export type UseCodeOpts = {
+  preClassName?: string;
+  preRef?: React.Ref<HTMLPreElement>;
   defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
@@ -48,7 +50,14 @@ export function useCode<T extends {} = {}>(
   contentProps: ContentProps<T>,
   opts?: UseCodeOpts,
 ): UseCodeResult<T> {
-  const { copy: copyOpts, defaultOpen = false, initialVariant, initialTransform } = opts || {};
+  const {
+    copy: copyOpts,
+    defaultOpen = false,
+    initialVariant,
+    initialTransform,
+    preClassName,
+    preRef,
+  } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
   const context = useCodeHighlighterContextOptional();
@@ -122,6 +131,8 @@ export function useCode<T extends {} = {}>(
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,
+    preClassName,
+    preRef,
   });
 
   // Sub-hook: Copy Functionality

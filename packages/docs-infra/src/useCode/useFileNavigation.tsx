@@ -1,10 +1,10 @@
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import type { TransformedFiles } from './useCodeUtils';
+import { Pre } from './Pre';
 
 /**
  * Converts a string to kebab-case
@@ -70,6 +70,8 @@ interface UseFileNavigationProps {
   variantKeys?: string[];
   shouldHighlight: boolean;
   initialVariant?: string;
+  preClassName?: string;
+  preRef?: React.Ref<HTMLPreElement>;
 }
 
 export interface UseFileNavigationResult {
@@ -92,6 +94,8 @@ export function useFileNavigation({
   variantKeys = [],
   initialVariant,
   shouldHighlight,
+  preClassName,
+  preRef,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -327,7 +331,11 @@ export function useFileNavigation({
       if (selectedVariant.source == null) {
         return null;
       }
-      return stringOrHastToJsx(selectedVariant.source, shouldHighlight);
+      return (
+        <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+          {selectedVariant.source}
+        </Pre>
+      );
     }
 
     // Look in extraFiles
@@ -351,11 +359,22 @@ export function useFileNavigation({
         return null;
       }
 
-      return stringOrHastToJsx(source, shouldHighlight);
+      return (
+        <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+          {source}
+        </Pre>
+      );
     }
 
     return null;
-  }, [selectedVariant, selectedFileNameInternal, transformedFiles, shouldHighlight]);
+  }, [
+    selectedVariant,
+    selectedFileNameInternal,
+    transformedFiles,
+    shouldHighlight,
+    preClassName,
+    preRef,
+  ]);
 
   const selectedFileLines = React.useMemo(() => {
     if (selectedFile == null) {
@@ -430,7 +449,11 @@ export function useFileNavigation({
           selectedVariantKey,
           isInitialVariant,
         ),
-        component: stringOrHastToJsx(selectedVariant.source, shouldHighlight),
+        component: (
+          <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+            {selectedVariant.source}
+          </Pre>
+        ),
       });
     }
 
@@ -453,7 +476,11 @@ export function useFileNavigation({
         result.push({
           name: fileName,
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
-          component: stringOrHastToJsx(source, shouldHighlight),
+          component: (
+            <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+              {source}
+            </Pre>
+          ),
         });
       });
     }
@@ -467,6 +494,8 @@ export function useFileNavigation({
     variantKeys,
     initialVariant,
     shouldHighlight,
+    preClassName,
+    preRef,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

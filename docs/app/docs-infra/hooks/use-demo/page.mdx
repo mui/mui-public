@@ -25,7 +25,7 @@ Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality l
 import { useDemo } from '@mui/internal-docs-infra';
 
 export function DemoContent(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   return (
     <div className={styles.container} ref={demo.ref}>
@@ -35,7 +35,7 @@ export function DemoContent(props) {
       {/* Code Section */}
       <div className={styles.codeSection}>
         <div className={styles.code}>
-          <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+          {demo.selectedFile}
         </div>
       </div>
     </div>
@@ -49,7 +49,7 @@ export function DemoContent(props) {
 
 ```tsx
 export function DemoContent(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -127,7 +127,7 @@ export function DemoContent(props) {
 
         {/* Code Display */}
         <div className={styles.code}>
-          <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+          {demo.selectedFile}
         </div>
       </div>
     </div>
@@ -139,7 +139,8 @@ export function DemoContent(props) {
 
 ```tsx
 export function DemoLiveContent(props) {
-  const demo = useDemo(props);
+   const preRef = React.useRef<HTMLPreElement | null>(null);
+  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -167,11 +168,10 @@ export function DemoLiveContent(props) {
   );
 
   // Set up editable functionality
-  const editorRef = React.useRef(null);
   const onChange = React.useCallback((text: string) => {
     demo.setSource?.(text);
   }, []);
-  useEditable(editorRef, onChange, {
+  useEditable(preRef, onChange, {
     indentation: 2,
     disabled: !demo.setSource,
   });
@@ -219,9 +219,7 @@ export function DemoLiveContent(props) {
 
         {/* Editable Code Block */}
         <div className={styles.code}>
-          <pre className={styles.codeBlock} ref={editorRef}>
-            {demo.selectedFile}
-          </pre>
+          {demo.selectedFile}
         </div>
       </div>
     </div>
@@ -343,14 +341,14 @@ The most common pattern is to use `useDemo` in a content component that receives
 ```tsx
 // In your demo's Content component
 export function DemoContent(props: ContentProps<{}>) {
-  const demo = useDemo(props); // Always pass props directly
+  const demo = useDemo(props, { preClassName: styles.codeBlock }); // Always pass props directly
 
   return (
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
 
       <div className={styles.codeSection}>
-        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+        {demo.selectedFile}
       </div>
     </div>
   );
@@ -382,7 +380,7 @@ const ButtonDemo = createDemo({
 
 ```tsx
 export function DemoContent(props: ContentProps<{}>) {
-  const demo = useDemo(props); // [✓] Pass props directly
+  const demo = useDemo(props, { preClassName: styles.codeBlock }); // [✓] Pass props directly
 
   // [x] Never access props.name, props.code, etc.
   // [✓] Use demo.name, demo.selectedFile, etc.
@@ -391,7 +389,7 @@ export function DemoContent(props: ContentProps<{}>) {
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
       <div className={styles.codeSection}>
-        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+        {demo.selectedFile}
       </div>
     </div>
   );
@@ -402,7 +400,7 @@ export function DemoContent(props: ContentProps<{}>) {
 
 ```tsx
 export function DemoContent(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   return (
     <div className={styles.container}>
@@ -419,7 +417,7 @@ export function DemoContent(props) {
         <span>{demo.selectedFileName}</span>
       )}
 
-      <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+      {demo.selectedFile}
     </div>
   );
 }
@@ -429,7 +427,7 @@ export function DemoContent(props) {
 
 ```tsx
 export function DemoContent(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasTransforms = demo.availableTransforms.length > 0;
   const isJsSelected = demo.selectedTransform === 'js';
@@ -444,7 +442,7 @@ export function DemoContent(props) {
         </button>
       )}
 
-      <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+      {demo.selectedFile}
     </div>
   );
 }
@@ -482,7 +480,7 @@ function DemoContent(props) {
           {file.name}
         </button>
       ))}
-      <pre>{demo.selectedFile}</pre>
+      {demo.selectedFile}
     </div>
   );
 }
@@ -496,13 +494,13 @@ The most basic pattern for showing a component with its code:
 
 ```tsx
 export function DemoContent(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   return (
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
       <div className={styles.codeSection}>
-        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+        {demo.selectedFile}
       </div>
     </div>
   );
@@ -515,7 +513,7 @@ When you have multiple files to show (includes automatic URL hash management):
 
 ```tsx
 export function MultiFileDemoContent(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   return (
     <div className={styles.container}>
@@ -538,7 +536,7 @@ export function MultiFileDemoContent(props) {
           </div>
         )}
 
-        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+        {demo.selectedFile}
       </div>
     </div>
   );
@@ -551,7 +549,7 @@ For demos that support TypeScript/JavaScript switching:
 
 ```tsx
 export function DemoWithLanguageToggle(props) {
-  const demo = useDemo(props);
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const canToggleJs = demo.availableTransforms.includes('js');
   const showingJs = demo.selectedTransform === 'js';
@@ -569,7 +567,7 @@ export function DemoWithLanguageToggle(props) {
           </div>
         )}
 
-        <pre className={styles.codeBlock}>{demo.selectedFile}</pre>
+        {demo.selectedFile}
       </div>
     </div>
   );

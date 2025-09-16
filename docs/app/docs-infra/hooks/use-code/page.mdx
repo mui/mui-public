@@ -69,7 +69,7 @@ function CodeContent(props: ContentProps<{}>) {
         </div>
       )}
 
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
 
       <button onClick={code.copy}>Copy Code</button>
     </div>
@@ -174,7 +174,7 @@ function CodeViewer(props) {
         Current file URL: #{code.files.find((f) => f.name === code.selectedFileName)?.slug}
       </span>
 
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
     </div>
   );
 }
@@ -240,7 +240,7 @@ function TransformSelector(props) {
           ))}
         </select>
       )}
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
     </div>
   );
 }
@@ -271,7 +271,7 @@ function CodeContent(props: ContentProps<{}>) {
 
   return (
     <div>
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
       <button onClick={code.copy}>Copy</button>
     </div>
   );
@@ -294,7 +294,7 @@ When your code has multiple files, you should provide navigation between them. T
 
 ```tsx
 function CodeWithTabs(props) {
-  const code = useCode(props);
+  const code = useCode(props, { preClassName: styles.codeBlock });
 
   return (
     <div className={styles.container}>
@@ -318,9 +318,7 @@ function CodeWithTabs(props) {
         )}
       </div>
 
-      <div className={styles.codeContent}>
-        <pre className={styles.codeBlock}>{code.selectedFile}</pre>
-      </div>
+      <div className={styles.codeContent}>{code.selectedFile}</div>
     </div>
   );
 }
@@ -439,7 +437,7 @@ function CodeViewer(props) {
           {file.name}
         </button>
       ))}
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
     </div>
   );
 }
@@ -459,7 +457,7 @@ function CodeSelector(props) {
         selected={code.selectedVariant}
         onSelect={code.selectVariant}
       />
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
     </div>
   );
 }
@@ -477,7 +475,7 @@ function SafeCodeInterface(props) {
 
   return (
     <div>
-      <pre>{code.selectedFile}</pre>
+      {code.selectedFile}
     </div>
   );
 }

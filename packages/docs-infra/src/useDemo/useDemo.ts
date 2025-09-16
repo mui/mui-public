@@ -2,7 +2,7 @@ import * as React from 'react';
 import kebabCase from 'kebab-case';
 
 import { useCode } from '../useCode';
-import { UseCopierOpts } from '../useCopier';
+import type { UseCodeOpts } from '../useCode';
 import type { ContentProps } from '../CodeHighlighter/types';
 import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
 import { createStackBlitz } from './createStackBlitz';
@@ -26,14 +26,9 @@ import { flattenVariant } from './flattenVariant';
  * createCodeSandboxDemo({ title, description, flattenedFiles, useTypescript })
  */
 
-type UseDemoOpts = {
-  defaultOpen?: boolean;
-  copy?: UseCopierOpts;
-  githubUrlPrefix?: string;
+type UseDemoOpts = UseCodeOpts & {
   codeSandboxUrlPrefix?: string;
   stackBlitzPrefix?: string;
-  initialVariant?: string;
-  initialTransform?: string;
   /** Common export configuration applied to both StackBlitz and CodeSandbox */
   export?: ExportConfig;
   /** StackBlitz-specific export configuration (merged with common export config) */
