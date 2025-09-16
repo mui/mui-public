@@ -238,7 +238,7 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
       JSON.stringify(packageJson, null, 2),
       'utf-8',
     ),
-    shimPackageExports(packageJson.exports, outputDir, {
+    shimPackageExports(outputDir, packageJson.exports, {
       sideEffects: packageJson.sideEffects ?? false,
     }),
   ]);
