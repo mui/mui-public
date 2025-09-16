@@ -275,6 +275,9 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.2
+      typescript-api-extractor:
+        specifier: 1.0.0-alpha.8
+        version: 1.0.0-alpha.8(typescript@5.9.2)
 
   packages/babel-plugin-display-name:
     dependencies:
@@ -592,6 +595,9 @@ importers:
       hast-util-to-text:
         specifier: ^4.0.2
         version: 4.0.2
+      import-meta-resolve:
+        specifier: ^4.2.0
+        version: 4.2.0
       jsondiffpatch:
         specifier: ^0.7.3
         version: 0.7.3
@@ -610,6 +616,12 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.6.2
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.2
+      typescript-api-extractor:
+        specifier: 1.0.0-alpha.8
+        version: 1.0.0-alpha.8(typescript@5.9.2)
       unist-util-visit:
         specifier: ^5.0.0
         version: 5.0.0
@@ -11924,6 +11936,12 @@ packages:
 
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
+
+  typescript-api-extractor@1.0.0-alpha.8:
+    resolution: {integrity: sha512-xYxfwZJY69gIHSsfBxTmHj2ezXZe6DYV6NA5uLjvjHbW4f3pQ4ad7M0uiWXMC/rBx+rrx84UNxvn9HD4ZBlquw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      typescript: ^5.8
 
   typescript-eslint@8.43.0:
     resolution: {integrity: sha512-FyRGJKUGvcFekRRcBKFBlAhnp4Ng8rhe8tuvvkR9OiU0gfd4vyvTRQHEckO6VDlH57jbeUQem2IpqPq9kLJH+w==}
@@ -26778,6 +26796,11 @@ snapshots:
       reflect.getprototypeof: 1.0.10
 
   typedarray@0.0.6: {}
+
+  typescript-api-extractor@1.0.0-alpha.8(typescript@5.9.2):
+    dependencies:
+      lodash: 4.17.21
+      typescript: 5.9.2
 
   typescript-eslint@8.43.0(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2):
     dependencies:

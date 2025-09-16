@@ -20,6 +20,7 @@
     "./useErrors": "./src/useErrors/index.ts",
     "./useLocalStorageState": "./src/useLocalStorageState/index.ts",
     "./usePreference": "./src/usePreference/index.ts",
+    "./useTypes": "./src/useTypes/index.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
@@ -30,6 +31,7 @@
     "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
+    "./pipeline/loadPrecomputedTypesMeta": "./src/pipeline/loadPrecomputedTypesMeta/index.ts",
     "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
     "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
@@ -69,11 +71,13 @@
     "clipboard-copy": "^4.0.1",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "hast-util-to-text": "^4.0.2",
+    "import-meta-resolve": "^4.2.0",
     "jsondiffpatch": "^0.7.3",
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
     "prettier": "^3.5.3",
+    "typescript-api-extractor": "1.0.0-alpha.8",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
   },
@@ -96,7 +100,8 @@
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "next": "^13.5.1 || ^14 || ^15.0.0",
-    "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "typescript": "^5.8.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
