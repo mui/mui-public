@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
+import { Pre } from './Pre';
 import type { VariantCode } from '../CodeHighlighter/types';
 
 // Mock the useUrlHashState hook to prevent browser API issues
@@ -72,17 +73,35 @@ describe('useFileNavigation', () => {
         {
           name: 'checkbox-basic.tsx',
           slug: 'basic:checkbox-basic.tsx',
-          component: 'const BasicCheckbox = () => <div>Basic</div>;',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'const BasicCheckbox = () => <div>Basic</div>;',
+            }),
+          }),
         },
         {
           name: 'styles.css',
           slug: 'basic:styles.css',
-          component: 'body { margin: 0; }',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'body { margin: 0; }',
+            }),
+          }),
         },
         {
           name: 'helper.ts',
           slug: 'basic:helper.ts',
-          component: 'export const helper = () => {};',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'export const helper = () => {};',
+            }),
+          }),
         },
       ]);
     });
@@ -112,12 +131,24 @@ describe('useFileNavigation', () => {
         {
           name: 'checkbox-tailwind.tsx',
           slug: 'basic:tailwind:checkbox-tailwind.tsx',
-          component: 'const TailwindCheckbox = () => <div className="p-4">Tailwind</div>;',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'const TailwindCheckbox = () => <div className="p-4">Tailwind</div>;',
+            }),
+          }),
         },
         {
           name: 'tailwind.config.js',
           slug: 'basic:tailwind:tailwind.config.js',
-          component: 'module.exports = {};',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'module.exports = {};',
+            }),
+          }),
         },
       ]);
     });
@@ -148,17 +179,35 @@ describe('useFileNavigation', () => {
         {
           name: 'checkbox.test.tsx',
           slug: 'advanced-checkbox:testing:checkbox.test.tsx',
-          component: 'test content',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'test content',
+            }),
+          }),
         },
         {
           name: 'component.d.ts',
           slug: 'advanced-checkbox:testing:component.d.ts',
-          component: 'type definitions',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'type definitions',
+            }),
+          }),
         },
         {
           name: 'style.module.css',
           slug: 'advanced-checkbox:testing:style.module.css',
-          component: 'css module',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'css module',
+            }),
+          }),
         },
       ]);
     });
@@ -185,7 +234,13 @@ describe('useFileNavigation', () => {
         {
           name: 'component.tsx',
           slug: 'component.tsx',
-          component: 'test content',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'test content',
+            }),
+          }),
         },
       ]);
     });
@@ -212,7 +267,13 @@ describe('useFileNavigation', () => {
         {
           name: 'checkbox-special.tsx',
           slug: 'basic:checkbox-special.tsx', // Should be treated as initial variant
-          component: 'const SpecialCheckbox = () => <div>Special</div>;',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'const SpecialCheckbox = () => <div>Special</div>;',
+            }),
+          }),
         },
       ]);
     });
@@ -243,17 +304,35 @@ describe('useFileNavigation', () => {
         {
           name: 'BasicCode.tsx',
           slug: 'basic:basic-code.tsx',
-          component: 'const BasicCode = () => <div>Basic</div>;',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'const BasicCode = () => <div>Basic</div>;',
+            }),
+          }),
         },
         {
           name: 'helperUtils.js',
           slug: 'basic:helper-utils.js',
-          component: 'export const helper = () => {};',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'export const helper = () => {};',
+            }),
+          }),
         },
         {
           name: 'MyComponent.test.tsx',
           slug: 'basic:my-component.test.tsx',
-          component: 'test content',
+          component: expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: 'test content',
+            }),
+          }),
         },
       ]);
     });
@@ -662,13 +741,46 @@ describe('useFileNavigation', () => {
       );
 
       expect(result.current.files).toHaveLength(2);
-      // With shouldHighlight=false, HAST nodes should be converted to plain text strings
-      expect(typeof result.current.files[0].component).toBe('string');
-      expect(result.current.files[0].component).toBe('const x = 1;');
-      expect(typeof result.current.files[1].component).toBe('string');
-      expect(result.current.files[1].component).toBe('export const util = () => {};');
-      expect(typeof result.current.selectedFileComponent).toBe('string');
-      expect(result.current.selectedFileComponent).toBe('const x = 1;');
+      // With shouldHighlight=false, still returns JSX objects (Pre components)
+      expect(typeof result.current.files[0].component).toBe('object');
+      expect(result.current.files[0].component).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: false,
+            children: expect.objectContaining({
+              type: 'root',
+              children: expect.any(Array),
+            }),
+          }),
+        }),
+      );
+      expect(typeof result.current.files[1].component).toBe('object');
+      expect(result.current.files[1].component).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: false,
+            children: expect.objectContaining({
+              type: 'root',
+              children: expect.any(Array),
+            }),
+          }),
+        }),
+      );
+      expect(typeof result.current.selectedFileComponent).toBe('object');
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: false,
+            children: expect.objectContaining({
+              type: 'root',
+              children: expect.any(Array),
+            }),
+          }),
+        }),
+      );
     });
 
     it('should handle shouldHighlight behavior when switching between files', () => {
@@ -716,19 +828,41 @@ describe('useFileNavigation', () => {
         }),
       );
 
-      // Initially on main file - should be plain text
+      // Initially on main file - should be JSX object (Pre component)
       expect(result.current.selectedFileName).toBe('main.js');
-      expect(typeof result.current.selectedFileComponent).toBe('string');
-      expect(result.current.selectedFileComponent).toBe('const main = true;');
+      expect(typeof result.current.selectedFileComponent).toBe('object');
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: false,
+            children: expect.objectContaining({
+              type: 'root',
+              children: expect.any(Array),
+            }),
+          }),
+        }),
+      );
 
-      // Switch to helper file - should also be plain text
+      // Switch to helper file - should also be JSX object (Pre component)
       act(() => {
         result.current.selectFileName('helper.js');
       });
 
       expect(result.current.selectedFileName).toBe('helper.js');
-      expect(typeof result.current.selectedFileComponent).toBe('string');
-      expect(result.current.selectedFileComponent).toBe('const helper = false;');
+      expect(typeof result.current.selectedFileComponent).toBe('object');
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: false,
+            children: expect.objectContaining({
+              type: 'root',
+              children: expect.any(Array),
+            }),
+          }),
+        }),
+      );
     });
 
     it('should apply shouldHighlight to selectedFileComponent when switching files', () => {
