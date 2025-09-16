@@ -432,7 +432,7 @@ export async function loadPrecomputedTypesMeta(
       if (allDependencies.length > 25) {
         // eslint-disable-next-line no-console
         console.log(
-          `[${functionName}] ${relativePath} - added ${allDependencies.length} dependencies to watch:\n\n${allDependencies.join('\n')}\n`,
+          `[${functionName}] ${relativePath} - added ${allDependencies.length} dependencies to watch:\n\n${allDependencies.map((dep) => `- ${path.relative(config.projectPath, dep)}`).join('\n')}\n`,
         );
       }
     }
