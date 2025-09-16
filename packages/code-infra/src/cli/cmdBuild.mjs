@@ -70,7 +70,7 @@ ${content}`,
 
 /**
  * @param {Object} param0
- * @param {string | Record<string, string>} param0.importPath
+ * @param {NonNullable<import('./packageJson').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
  * @param {string} param0.cwd
  * @param {string} param0.dir
@@ -92,9 +92,21 @@ async function createExportsFor({
   outExtension,
   addTypes,
 }) {
+  if (Array.isArray(importPath)) {
+    throw new Error(
+      `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+    );
+  }
+
   let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
   const rest = typeof importPath === 'string' ? {} : { ...importPath };
   delete rest['mui-src'];
+
+  if (typeof srcPath !== 'string') {
+    throw new Error(
+      `Unsupported export for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
+    );
+  }
 
   const exportFileExists = srcPath.includes('*')
     ? true
@@ -129,7 +141,7 @@ async function createExportsFor({
 
 /**
  * @param {Object} param0
- * @param {any} param0.packageJson - The package.json content.
+ * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
  * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
@@ -144,9 +156,12 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   packageJson.type = packageJson.type || 'commonjs';
 
   /**
-   * @type {Record<string, string | Record<string, string> | null>}
+   * @type {import('./packageJson').PackageJson.ExportConditions}
    */
-  const originalExports = packageJson.exports || {};
+  const originalExports =
+    typeof packageJson.exports === 'string' || Array.isArray(packageJson.exports)
+      ? { '.': packageJson.exports }
+      : packageJson.exports || {};
   delete packageJson.exports;
   /**
    * @type {Record<string, string | Record<string, string> | null>}

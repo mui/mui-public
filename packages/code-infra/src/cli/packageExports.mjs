@@ -5,7 +5,7 @@ import { globby } from 'globby';
 import regexpEscape from 'regexp.escape';
 
 /**
- * @typedef {string | Readonly<{ [key: string]: ExportsObject | null }>} ExportsObject
+ * @typedef {import('./packageJson').PackageJson.ExportConditions} ExportsConditions
  * @typedef {{ exportPattern: string; filePattern: string; conditions: string[] }} PositivePattern
  * @typedef {{ exportPattern: string; filePattern: null; conditions: string[] }} NegativePattern
  * @typedef {PositivePattern | NegativePattern} Pattern
@@ -36,7 +36,7 @@ function ensureNoPrefix(str, prefix) {
  *
  * @param {Object} options - Configuration options
  * @param {string} [options.cwd=process.cwd()] - Working directory containing package.json
- * @param {ExportsObject} [options.exports] - Exports object to analyze (if not provided, reads from package.json)
+ * @param {ExportsConditions} [options.exports] - Exports object to analyze (if not provided, reads from package.json)
  * @returns {Promise<Map<string, Array<{conditions: string[], path: string}>>>} Map of export paths to resolved files
  */
 
@@ -102,7 +102,7 @@ export async function findAllExportedPaths({ cwd = process.cwd(), exports } = {}
 
 /**
  * Phase 1: Recursively collect all export patterns
- * @param {ExportsObject | null} exportsObj
+ * @param {import('./packageJson').PackageJson.Exports} exportsObj
  * @param {string[]} conditions
  * @param {Pattern[]} patterns
  */
@@ -260,7 +260,7 @@ function convertToGlob(pattern) {
 
 /**
  * Resolves and converts export path to be relative to shim location
- * @param {ExportsObject} exports - Exports object from package.json
+ * @param {ExportsConditions} exports - Exports object from package.json
  * @param {string} exportPath - Export path to resolve (without leading "./")
  * @param {string[]} conditions - Conditions to resolve with
  * @param {string} packageRoot - Absolute path to package root
@@ -286,7 +286,8 @@ function resolveForShim(exports, exportPath, conditions, packageRoot, shimLocati
  * Creates package.json shim files for all exported paths
  *
  * @param {string} dir - Working directory to create shims in
- * @param {ExportsObject} exports - Exports object from package.json
+ * @param {ExportsConditions} exports - Exports object from package.json
+ * @param {import('./packageJson').PackageJson} [pkgJson={}] - Additional fields to include in shim package.json files
  * @returns {Promise<void>}
  */
 export async function shimPackageExports(dir, exports, pkgJson = {}) {
@@ -330,7 +331,7 @@ export async function shimPackageExports(dir, exports, pkgJson = {}) {
 
       // Create package.json content
       /**
-       * @type {Record<string, unknown>}
+       * @type {import('./packageJson').PackageJson}
        */
       const packageJsonContent = { ...pkgJson };
       if (cjsPath) {
