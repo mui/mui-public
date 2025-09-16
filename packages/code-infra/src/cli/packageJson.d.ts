@@ -1,3 +1,5 @@
+// Copied with love from https://github.com/sindresorhus/type-fest/blob/main/source/package-json.d.ts
+
 /**
 Matches a JSON object.
 
