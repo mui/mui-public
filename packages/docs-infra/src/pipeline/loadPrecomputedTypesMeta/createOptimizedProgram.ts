@@ -1,8 +1,7 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
-import ts from 'typescript';
-import { loadConfig } from 'typescript-api-extractor';
+import ts, { CompilerOptions } from 'typescript';
 
 export interface TypesMetaOptions {
   /**
@@ -128,30 +127,28 @@ function analyzeMissingTypes(diagnostics: readonly ts.Diagnostic[]): {
  * @returns Optimized TypeScript program
  */
 export function createOptimizedProgram(
-  tsconfigPath: string,
+  projectPath: string,
+  compilerOptions: CompilerOptions,
   entrypoints: string[],
   options: TypesMetaOptions = {},
 ): ts.Program {
   const { globalTypes = [] } = options;
 
-  // Load the base configuration
-  const config = loadConfig(tsconfigPath);
-
   // Calculate build info file path
-  const buildInfoPath = path.resolve(path.dirname(tsconfigPath), 'tsconfig.types.tsbuildinfo');
+  const buildInfoPath = path.resolve(projectPath, 'tsconfig.types.tsbuildinfo');
 
   // Create optimized compiler options
   const optimizedOptions: ts.CompilerOptions = {
-    ...config.options,
+    ...compilerOptions,
     // Use tsconfig directory as baseUrl if not explicitly set
-    baseUrl: config.options.baseUrl || path.dirname(tsconfigPath),
+    baseUrl: compilerOptions.baseUrl || projectPath,
 
     // Ensure rootDir is set for proper relative path calculations
-    rootDir: config.options.rootDir || path.dirname(tsconfigPath),
+    rootDir: compilerOptions.rootDir || projectPath,
 
     // PERFORMANCE OPTIMIZATION: Use minimal types instead of include patterns
     // This reduces file loading from ~700+ files to ~80-100 files
-    types: globalTypes.length > 0 ? globalTypes : [],
+    types: globalTypes || compilerOptions.types || [],
 
     // Skip library checking for better performance
     skipLibCheck: true,

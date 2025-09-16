@@ -18,6 +18,7 @@ import {
   nameMark,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { loadTypescriptConfig } from './loadTypescriptConfig';
 
 export type LoaderOptions = {
   performance?: {
@@ -92,12 +93,68 @@ export async function loadPrecomputedTypesMeta(
       return;
     }
 
+    // Resolve tsconfig.json relative to the webpack project root (rootContext),
+    // with graceful fallbacks to process.cwd().
+    const tsconfigCandidates = [
+      this.rootContext && path.join(this.rootContext, 'tsconfig.json'),
+      path.join(process.cwd(), 'tsconfig.json'),
+      // TODO: what if we need to load the tsconfig.json from an external project?
+    ].filter(Boolean) as string[];
+
+    const existsResults = await Promise.all(
+      tsconfigCandidates.map(async (candidate) => {
+        const exists = await fs
+          .access(candidate)
+          .then(() => true)
+          .catch(() => false);
+        return exists ? candidate : null;
+      }),
+    );
+
+    const tsconfigPath = existsResults.find(Boolean);
+    if (!tsconfigPath) {
+      throw new Error(
+        `Unable to locate tsconfig.json. Looked in: ${tsconfigCandidates.join(', ')}`,
+      );
+    }
+
+    const watchSourceDirectly = Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly);
+
+    const config = await loadTypescriptConfig(tsconfigPath);
+
+    let paths: Record<string, string[]> | undefined;
+    if (watchSourceDirectly && config.options.paths) {
+      const optionsPaths = config.options.paths;
+      Object.keys(optionsPaths).forEach((key) => {
+        const regex = `^${key.replace('**', '(.+)').replace('*', '([^/]+)')}$`;
+        if (!paths) {
+          paths = {};
+        }
+        paths[regex] = optionsPaths[key].map((p) => {
+          let index = 0;
+          return p.replace(/\*\*|\*/g, () => {
+            index = index + 1;
+            return `$${index}`;
+          });
+        });
+      });
+    }
+
+    const tsconfigLoadedMark = nameMark(functionName, 'tsconfig.json loaded', [relativePath]);
+    performance.mark(tsconfigLoadedMark);
+    performance.measure(
+      nameMark(functionName, 'tsconfig.json loading', [relativePath]),
+      currentMark,
+      tsconfigLoadedMark,
+    );
+    currentMark = tsconfigLoadedMark;
+
     // Load variant data for all variants
     const variantData: Record<string, any> = {};
     const allDependencies: string[] = [];
 
     // Resolve all variant entry point paths using import.meta.resolve
-    let globalTypes = typesMetaCall?.structuredOptions?.globalTypes[0].map((s: any) =>
+    let globalTypes = typesMetaCall?.structuredOptions?.globalTypes?.[0].map((s: any) =>
       s.replace(/['"]/g, ''),
     );
 
@@ -110,6 +167,36 @@ export async function loadPrecomputedTypesMeta(
       Object.entries(typesMetaCall.variants).forEach(([variantName, variantPath]) => {
         if (variantPath.startsWith(projectRoot)) {
           relativeVariants[variantName] = variantPath;
+        } else if (paths) {
+          Object.keys(paths).find((key) => {
+            if (!paths) {
+              return false;
+            }
+
+            const regex = new RegExp(key);
+            const pathMatch = variantPath.match(regex);
+            if (pathMatch && pathMatch.length > 0) {
+              const replacements = paths[key];
+              for (const replacement of replacements) {
+                let replacedPath = replacement;
+                for (let i = 1; i < pathMatch.length; i += 1) {
+                  replacedPath = replacedPath.replace(`$${i}`, pathMatch[i]);
+                }
+                if (replacedPath.startsWith('.')) {
+                  relativeVariants[variantName] = new URL(
+                    replacedPath,
+                    `file://${config.options.pathsBasePath || projectRoot}`,
+                  ).pathname;
+                } else {
+                  externalVariants[variantName] = replacedPath;
+                }
+
+                return true;
+              }
+            }
+
+            return false;
+          });
         } else {
           externalVariants[variantName] = variantPath;
         }
@@ -174,40 +261,6 @@ export async function loadPrecomputedTypesMeta(
       currentMark = pathsResolvedMark;
     }
 
-    // Resolve tsconfig.json relative to the webpack project root (rootContext),
-    // with graceful fallbacks to process.cwd().
-    const tsconfigCandidates = [
-      this.rootContext && path.join(this.rootContext, 'tsconfig.json'),
-      path.join(process.cwd(), 'tsconfig.json'),
-      // TODO: what if we need to load the tsconfig.json from an external project?
-    ].filter(Boolean) as string[];
-
-    const existsResults = await Promise.all(
-      tsconfigCandidates.map(async (candidate) => {
-        const exists = await fs
-          .access(candidate)
-          .then(() => true)
-          .catch(() => false);
-        return exists ? candidate : null;
-      }),
-    );
-
-    const tsconfigResolvedMark = nameMark(functionName, 'tsconfig.json resolved', [relativePath]);
-    performance.mark(tsconfigResolvedMark);
-    performance.measure(
-      nameMark(functionName, 'tsconfig.json resolution', [relativePath]),
-      currentMark,
-      tsconfigResolvedMark,
-    );
-    currentMark = tsconfigResolvedMark;
-
-    const tsconfigPath = existsResults.find(Boolean);
-    if (!tsconfigPath) {
-      throw new Error(
-        `Unable to locate tsconfig.json. Looked in: ${tsconfigCandidates.join(', ')}`,
-      );
-    }
-
     // Collect all entrypoints for optimized program creation
     const allEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
       url.replace('file://', ''),
@@ -218,8 +271,8 @@ export async function loadPrecomputedTypesMeta(
     // from ~700+ files to ~80-100 files while maintaining type accuracy
     let program;
     try {
-      program = createOptimizedProgram(tsconfigPath, allEntrypoints, {
-        globalTypes: globalTypes || [],
+      program = createOptimizedProgram(config.projectPath, config.options, allEntrypoints, {
+        globalTypes,
       });
     } catch (error) {
       if (error instanceof MissingGlobalTypesError) {
@@ -283,7 +336,7 @@ export async function loadPrecomputedTypesMeta(
           });
 
           // Get all source files that are dependencies of this entrypoint
-          const dependencies = [entrypoint];
+          const dependencies = [...config.dependencies, entrypoint];
 
           if (sourceFile) {
             // Get all imported files from the TypeScript program
@@ -374,6 +427,15 @@ export async function loadPrecomputedTypesMeta(
       // Strip 'file://' prefix if present before adding to webpack's dependency tracking
       this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
     });
+
+    if (options.performance?.logging) {
+      if (allDependencies.length > 25) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[${functionName}] ${relativePath} - added ${allDependencies.length} dependencies to watch:\n\n${allDependencies.join('\n')}\n`,
+        );
+      }
+    }
 
     // log any pending performance entries before completing
     observer
