@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
 
 import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '../utils/build.mjs';
+import { shimPackageExports } from './packageExports.mjs';
 
 /**
  * @typedef {Object} Args
@@ -231,11 +232,16 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
 
   packageJson.exports = newExports;
 
-  await fs.writeFile(
-    path.join(outputDir, 'package.json'),
-    JSON.stringify(packageJson, null, 2),
-    'utf-8',
-  );
+  await Promise.all([
+    fs.writeFile(
+      path.join(outputDir, 'package.json'),
+      JSON.stringify(packageJson, null, 2),
+      'utf-8',
+    ),
+    shimPackageExports(packageJson.exports, outputDir, {
+      sideEffects: packageJson.sideEffects ?? false,
+    }),
+  ]);
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
