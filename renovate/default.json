@@ -6,7 +6,8 @@
     ":semanticCommitsDisabled",
     "group:definitelyTyped",
     "config:recommended",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    "npm:unpublishSafe"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
