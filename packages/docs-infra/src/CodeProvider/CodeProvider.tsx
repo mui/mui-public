@@ -56,7 +56,8 @@ export function CodeProvider({
         }
 
         const highlighted = starryNight.highlight(source, extensionMap[fileType]);
-        starryNightGutter(highlighted); // mutates the tree to add line gutters
+        const sourceLines = source.split(/\r?\n|\r/);
+        starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
 
         return highlighted;
       };
