@@ -15,7 +15,6 @@
     "etag": "^1.8.1",
     "pako": "^2.1.0",
     "react": "^19.1.1",
-    "react-diff-viewer-continued": "^4.0.1",
     "react-dom": "^19.1.1",
     "react-router": "^7.9.1",
     "semver": "^7.7.2"
