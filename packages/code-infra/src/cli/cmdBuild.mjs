@@ -2,7 +2,6 @@
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import { globby } from 'globby';
-import set from 'lodash-es/set.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
@@ -75,11 +74,11 @@ ${content}`,
  * @param {string} param0.cwd
  * @param {string} param0.dir
  * @param {string} param0.type
- * @param {Object} param0.newExports
+ * @param {import('./packageJson').PackageJson.ExportConditions} param0.newExports
  * @param {string} param0.typeOutExtension
  * @param {string} param0.outExtension
  * @param {boolean} param0.addTypes
- * @returns {Promise<{path: string[], importPath: string | Record<string, string | undefined>}>}
+ * @returns {Promise<void>}
  */
 async function createExportsFor({
   importPath,
@@ -123,19 +122,19 @@ async function createExportsFor({
   const ext = path.extname(srcPath);
 
   if (ext === '.css') {
-    set(newExports, [key], srcPath);
-    return {
-      path: [key],
-      importPath: srcPath,
-    };
+    newExports[key] = srcPath;
+    return;
   }
-  return {
-    path: [key, type === 'cjs' ? 'require' : 'import'],
-    importPath: {
-      ...rest,
-      types: addTypes ? srcPath.replace(ext, typeOutExtension) : undefined,
-      default: srcPath.replace(ext, outExtension),
-    },
+
+  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
+    throw new Error(`The export "${key}" is already defined as a string or Array.`);
+  }
+
+  newExports[key] ??= {};
+  newExports[key][type === 'cjs' ? 'require' : 'import'] = {
+    ...rest,
+    ...(addTypes ? { types: srcPath.replace(ext, typeOutExtension) } : {}),
+    default: srcPath.replace(ext, outExtension),
   };
 }
 
@@ -164,7 +163,7 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
       : packageJson.exports || {};
   delete packageJson.exports;
   /**
-   * @type {Record<string, string | Record<string, string> | null>}
+   * @type {import('./packageJson').PackageJson.ExportConditions}
    */
   const newExports = {
     './package.json': './package.json',
@@ -193,10 +192,16 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
         if (type === 'cjs') {
           packageJson.main = exportDir;
         }
-        set(newExports, ['.', type === 'cjs' ? 'require' : 'import'], {
-          types: typeFileExists ? typeExportDir : undefined,
+
+        if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
+          throw new Error(`The export "." is already defined as a string or Array.`);
+        }
+
+        newExports['.'] ??= {};
+        newExports['.'][type === 'cjs' ? 'require' : 'import'] = {
+          ...(typeFileExists ? { types: typeExportDir } : {}),
           default: exportDir,
-        });
+        };
       }
       if (typeFileExists && type === 'cjs') {
         packageJson.types = typeExportDir;
@@ -206,11 +211,11 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
       for (const key of exportKeys) {
         const importPath = originalExports[key];
         if (!importPath) {
-          set(newExports, [key], null);
-          return;
+          newExports[key] = null;
+          continue;
         }
         // eslint-disable-next-line no-await-in-loop
-        const res = await createExportsFor({
+        await createExportsFor({
           importPath,
           key,
           cwd,
@@ -221,7 +226,6 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
           outExtension,
           addTypes,
         });
-        set(newExports, res.path, res.importPath);
       }
     }),
   );
@@ -234,6 +238,11 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   // default condition should come last
   Object.keys(newExports).forEach((key) => {
     const exportVal = newExports[key];
+    if (Array.isArray(exportVal)) {
+      throw new Error(
+        `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+      );
+    }
     if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
       const defaultExport = exportVal.import || exportVal.require;
       if (exportVal.import) {
