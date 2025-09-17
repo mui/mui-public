@@ -19,6 +19,8 @@ import './index.css';
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
+const RepositoryPR = React.lazy(() => import('./pages/RepositoryPR'));
+const RepositoryCharts = React.lazy(() => import('./pages/RepositoryCharts'));
 const NpmVersions = React.lazy(() => import('./pages/NpmVersions'));
 const DiffPackage = React.lazy(() => import('./pages/DiffPackage'));
 
@@ -207,10 +209,26 @@ function App() {
                   }
                 />
                 <Route
-                  path="/size-comparison/:owner/:repo"
+                  path="/repository/:owner/:repo/prs"
                   element={
                     <React.Suspense fallback={<div>Loading...</div>}>
                       <RepositoryPRs />
+                    </React.Suspense>
+                  }
+                />
+                <Route
+                  path="/repository/:owner/:repo/prs/:prNumber"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <RepositoryPR />
+                    </React.Suspense>
+                  }
+                />
+                <Route
+                  path="/repository/:owner/:repo/bundle-size"
+                  element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <RepositoryCharts />
                     </React.Suspense>
                   }
                 />

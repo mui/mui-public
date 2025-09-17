@@ -14,40 +14,7 @@ import CompareIcon from '@mui/icons-material/Compare';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
-
-interface Repository {
-  owner: string;
-  name: string;
-  displayName: string;
-  description: string;
-}
-
-const repositories: Repository[] = [
-  {
-    owner: 'mui',
-    name: 'material-ui',
-    displayName: 'MUI Core',
-    description: "React components implementing Google's Material Design",
-  },
-  {
-    owner: 'mui',
-    name: 'base-ui',
-    displayName: 'MUI Base',
-    description: 'Unstyled React components and low-level hooks',
-  },
-  {
-    owner: 'mui',
-    name: 'mui-x',
-    displayName: 'MUI X',
-    description: 'Advanced components for complex use cases',
-  },
-  {
-    owner: 'mui',
-    name: 'mui-public',
-    displayName: 'MUI Public',
-    description: 'Public monorepo with shared infrastructure and tooling',
-  },
-];
+import { repositories } from '../constants';
 
 interface Tool {
   name: string;
@@ -98,7 +65,15 @@ export default function Landing() {
                 <Button
                   size="small"
                   component={RouterLink}
-                  to={`/size-comparison/${repo.owner}/${repo.name}`}
+                  to={`/repository/${repo.owner}/${repo.name}/prs`}
+                >
+                  Pull Requests
+                </Button>
+                <Button
+                  size="small"
+                  component={RouterLink}
+                  to={`/repository/${repo.owner}/${repo.name}/bundle-size`}
+                  startIcon={<TrendingUpIcon />}
                 >
                   Bundle Size
                 </Button>
