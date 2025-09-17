@@ -12,6 +12,8 @@ import {
   FormControlLabel,
   Skeleton,
   Paper,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -20,6 +22,7 @@ import * as pako from 'pako';
 import * as semver from 'semver';
 import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
+import RichFileDiff from '../components/RichFileDiff';
 
 interface FileContent {
   path: string;
@@ -287,8 +290,14 @@ export default function DiffPackage() {
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
+  const [richDiffs, setRichDiffs] = React.useState(false);
+  const [inlineView, setInlineView] = React.useState(false);
   const [fileFilter, setFileFilter] = React.useState('');
   const deferredFileFilter = React.useDeferredValue(fileFilter);
+
+  const theme = useTheme();
+  const forceInlineDiff = useMediaQuery(theme.breakpoints.down('md'));
+  const shouldUseInline = forceInlineDiff || inlineView;
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
@@ -471,7 +480,7 @@ export default function DiffPackage() {
               Diff Results{' '}
               {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
               <TextField
                 size="small"
                 placeholder={PLACEHOLDER}
@@ -482,12 +491,37 @@ export default function DiffPackage() {
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={ignoreWhitespace}
-                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                    checked={richDiffs}
+                    onChange={(event) => setRichDiffs(event.target.checked)}
                     size="small"
                   />
                 }
+                label="Rich Diffs"
+                sx={{ mr: 0 }}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={inlineView}
+                    onChange={(event) => setInlineView(event.target.checked)}
+                    size="small"
+                    disabled={!richDiffs || forceInlineDiff}
+                  />
+                }
+                label="Inline"
+                sx={{ mr: 0 }}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={ignoreWhitespace}
+                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                    size="small"
+                    disabled={richDiffs}
+                  />
+                }
                 label="Ignore whitespace"
+                sx={{ mr: 0 }}
               />
             </Box>
           </Box>
@@ -498,17 +532,28 @@ export default function DiffPackage() {
               <React.Fragment>
                 {filteredFilesToDiff.length > 0 ? (
                   filteredFilesToDiff.map(
-                    ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                      <FileDiff
-                        key={filePath}
-                        filePath={filePath}
-                        oldValue={old}
-                        newValue={newContent}
-                        oldHeader={oldHeader}
-                        newHeader={newHeader}
-                        ignoreWhitespace={ignoreWhitespace}
-                      />
-                    ),
+                    ({ filePath, old, new: newContent, oldHeader, newHeader }) =>
+                      richDiffs ? (
+                        <RichFileDiff
+                          key={filePath}
+                          filePath={filePath}
+                          oldValue={old}
+                          newValue={newContent}
+                          oldHeader={oldHeader}
+                          newHeader={newHeader}
+                          inline={shouldUseInline}
+                        />
+                      ) : (
+                        <FileDiff
+                          key={filePath}
+                          filePath={filePath}
+                          oldValue={old}
+                          newValue={newContent}
+                          oldHeader={oldHeader}
+                          newHeader={newHeader}
+                          ignoreWhitespace={ignoreWhitespace}
+                        />
+                      ),
                   )
                 ) : (
                   <Alert severity="info">
