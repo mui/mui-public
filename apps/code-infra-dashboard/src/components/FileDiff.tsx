@@ -86,6 +86,7 @@ export default function FileDiff({
       <Box
         sx={{
           code: {
+            minWidth: '100%',
             width: 'fit-content',
             display: 'block',
           },
