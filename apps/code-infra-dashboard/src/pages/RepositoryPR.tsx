@@ -159,6 +159,13 @@ export default function RepositoryPR() {
                     </Button>
                     <Button
                       size="small"
+                      component={RouterLink}
+                      to={`/npm-versions?package=${packageName}`}
+                    >
+                      Versions
+                    </Button>
+                    <Button
+                      size="small"
                       component={Link}
                       href={`https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
                       disabled={!prInfo}

@@ -11,7 +11,6 @@ import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 import GitPullRequestIcon from '@mui/icons-material/Commit';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import { styled } from '@mui/material/styles';
 import { GitHubPRInfo } from '../hooks/useGitHubPR';
 import ErrorDisplay from './ErrorDisplay';
@@ -130,17 +129,6 @@ function PrRow({ pr, owner, repo, loading = false }: PrRowProps) {
             <Typography variant="caption" color="text.secondary">
               SHA: <code>{pr.head.sha.substring(0, 7)}</code>
             </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                color: 'secondary.main',
-                gap: 0.5,
-              }}
-            >
-              <BarChartIcon fontSize="inherit" />
-              <Typography variant="caption">View Bundle Size</Typography>
-            </Box>
           </Box>
         }
       />
@@ -170,7 +158,7 @@ export default function PRList({
   onLoadMore,
 }: PRListProps) {
   const displayItems = isLoading
-    ? Array.from({ length: 5 }, (_, index) => ({ id: `skeleton-${index}`, pr: null }))
+    ? Array.from({ length: 20 }, (_, index) => ({ id: `skeleton-${index}`, pr: null }))
     : prs.map((pr) => ({ id: pr.number, pr }));
 
   return (

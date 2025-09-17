@@ -18,6 +18,7 @@ import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
+const RepositoryLayout = React.lazy(() => import('./pages/RepositoryLayout'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
 const RepositoryPR = React.lazy(() => import('./pages/RepositoryPR'));
 const RepositoryCharts = React.lazy(() => import('./pages/RepositoryCharts'));
@@ -209,29 +210,39 @@ function App() {
                   }
                 />
                 <Route
-                  path="/repository/:owner/:repo/prs"
+                  path="/repository/:owner/:repo"
                   element={
                     <React.Suspense fallback={<div>Loading...</div>}>
-                      <RepositoryPRs />
+                      <RepositoryLayout />
                     </React.Suspense>
                   }
-                />
-                <Route
-                  path="/repository/:owner/:repo/prs/:prNumber"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <RepositoryPR />
-                    </React.Suspense>
-                  }
-                />
-                <Route
-                  path="/repository/:owner/:repo/bundle-size"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <RepositoryCharts />
-                    </React.Suspense>
-                  }
-                />
+                >
+                  <Route
+                    path="prs"
+                    element={
+                      <React.Suspense fallback={<div>Loading...</div>}>
+                        <RepositoryPRs />
+                      </React.Suspense>
+                    }
+                  />
+                  <Route
+                    path="prs/:prNumber"
+                    element={
+                      <React.Suspense fallback={<div>Loading...</div>}>
+                        <RepositoryPR />
+                      </React.Suspense>
+                    }
+                  />
+                  <Route
+                    path="bundle-size"
+                    element={
+                      <React.Suspense fallback={<div>Loading...</div>}>
+                        <RepositoryCharts />
+                      </React.Suspense>
+                    }
+                  />
+                  <Route index element={<Navigate replace to="prs" />} />
+                </Route>
                 <Route
                   path="/npm-versions"
                   element={
