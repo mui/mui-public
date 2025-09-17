@@ -16,7 +16,7 @@ import Skeleton from '@mui/material/Skeleton';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
-import { useGitHubMergeBase } from '../hooks/useGitHubMergeBase';
+import { useCompareCommits } from '../hooks/useCompareCommits';
 import { repositories } from '../constants';
 
 interface InfoChipProps {
@@ -59,14 +59,15 @@ export default function RepositoryPR() {
 
   const { prInfo, isLoading: isPrLoading, error: prError } = useGitHubPR(fullRepo, prNumber);
   const {
-    mergeBase,
+    compareInfo,
     isLoading: isMergeBaseLoading,
     error: mergeBaseError,
-  } = useGitHubMergeBase(fullRepo, prInfo?.base.ref, prInfo?.head.sha);
+  } = useCompareCommits(fullRepo, prInfo?.base.ref, prInfo?.head.sha);
 
   // Find repository packages
   const repository = repositories.find((r) => r.owner === owner && r.name === repo);
   const packages = repository?.packages || [];
+  const mergeBase = compareInfo?.mergeBase || null;
 
   return (
     <Box>
