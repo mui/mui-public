@@ -13,6 +13,7 @@ import Skeleton from '@mui/material/Skeleton';
 import GitPullRequestIcon from '@mui/icons-material/Commit';
 import { styled } from '@mui/material/styles';
 import { GitHubPRInfo } from '../hooks/useGitHubPR';
+import { useGitHubPRs } from '../hooks/useGitHubPRs';
 import ErrorDisplay from './ErrorDisplay';
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
@@ -137,26 +138,16 @@ function PrRow({ pr, owner, repo, loading = false }: PrRowProps) {
 }
 
 interface PRListProps {
-  prs: GitHubPRInfo[];
-  isLoading: boolean;
-  isFetchingNextPage?: boolean;
-  hasNextPage?: boolean;
-  error: Error | null;
   owner: string;
   repo: string;
-  onLoadMore?: () => void;
 }
 
-export default function PRList({
-  prs,
-  isLoading,
-  isFetchingNextPage = false,
-  hasNextPage = false,
-  error,
-  owner,
-  repo,
-  onLoadMore,
-}: PRListProps) {
+export default function PRList({ owner, repo }: PRListProps) {
+  const fullRepo = `${owner}/${repo}`;
+  const { prs, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } = useGitHubPRs(
+    fullRepo,
+    20,
+  );
   const displayItems = isLoading
     ? Array.from({ length: 20 }, (_, index) => ({ id: `skeleton-${index}`, pr: null }))
     : prs.map((pr) => ({ id: pr.number, pr }));
@@ -181,11 +172,11 @@ export default function PRList({
               ))}
             </List>
 
-            {onLoadMore && (
+            {hasNextPage && (
               <Box sx={{ display: 'flex', justifyContent: 'center', m: 3 }}>
                 <Button
                   variant="outlined"
-                  onClick={onLoadMore}
+                  onClick={fetchNextPage}
                   disabled={isFetchingNextPage || !hasNextPage}
                   loading={isFetchingNextPage}
                 >

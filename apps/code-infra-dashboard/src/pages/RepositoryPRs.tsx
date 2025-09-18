@@ -3,7 +3,6 @@ import { useParams } from 'react-router';
 import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
-import { useGitHubPRs } from '../hooks/useGitHubPRs';
 
 export default function RepositoryPRs() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -13,12 +12,6 @@ export default function RepositoryPRs() {
 
   const owner = params.owner;
   const repo = params.repo;
-  const fullRepo = `${owner}/${repo}`;
-
-  const { prs, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } = useGitHubPRs(
-    fullRepo,
-    20,
-  );
 
   return (
     <React.Fragment>
@@ -33,16 +26,7 @@ export default function RepositoryPRs() {
         </Link>
       </Heading>
 
-      <PRList
-        prs={prs}
-        isLoading={isLoading}
-        isFetchingNextPage={isFetchingNextPage}
-        hasNextPage={hasNextPage}
-        error={error}
-        owner={owner}
-        repo={repo}
-        onLoadMore={fetchNextPage}
-      />
+      <PRList owner={owner} repo={repo} />
     </React.Fragment>
   );
 }
