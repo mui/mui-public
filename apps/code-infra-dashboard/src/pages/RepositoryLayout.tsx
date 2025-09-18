@@ -4,7 +4,6 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Heading from '../components/Heading';
-import { repositories } from '../constants';
 
 interface NavLinkProps {
   to: string;
