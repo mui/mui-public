@@ -9,6 +9,7 @@ import { fetchSnapshot } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
 import { getMergeBase } from './git.js';
 import { fetchSnapshotWithFallback } from './fetchSnapshotWithFallback.js';
+import { DASHBOARD_ORIGIN } from './constants.js';
 
 /**
  * Generates a symbol based on the relative change value.
@@ -202,7 +203,7 @@ export function renderMarkdownReportContent(
 function getDetailsUrl(prInfo, options = {}) {
   const { actualBaseCommit } = options;
   const detailedComparisonUrl = new URL(
-    `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
+    `${DASHBOARD_ORIGIN}/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
   detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);

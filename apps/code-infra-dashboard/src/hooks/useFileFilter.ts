@@ -1,74 +1,66 @@
 import * as React from 'react';
 
-export const PLACEHOLDER = 'Filter files (e.g., src/, *.js, !node_modules, !*.test.js)';
+export const PLACEHOLDER = 'Filter files (e.g., package.json, *.ts)';
 
-interface FileWithPath {
-  filePath: string;
+function createPattern(pattern: string): string | RegExp {
+  if (pattern.includes('*/')) {
+    const regexPattern = pattern.replace(/[.+?^${}()|[\]\\*]/g, (char) =>
+      char === '*' ? '.*' : `\\${char}`,
+    );
+    return new RegExp(`^${regexPattern}$`);
+  }
+  return pattern;
 }
 
-interface Pattern {
-  pattern: string | RegExp;
-  negative: boolean;
-}
-
-export function useFileFilter(filterQuery: string) {
-  const patterns = React.useMemo(() => {
-    if (!filterQuery.trim()) {
-      return [];
-    }
-
-    return filterQuery
-      .split(',')
-      .map((pattern) => pattern.trim())
-      .filter((pattern) => pattern.length > 0)
-      .map((pattern): Pattern => {
-        const negative = pattern.startsWith('!');
-        const cleanPattern = negative ? pattern.slice(1) : pattern;
-
-        if (cleanPattern.includes('*')) {
-          // Create regex for wildcard patterns
-          const regexPattern = cleanPattern.replace(/[.+?^${}()|[\]\\*]/g, (char) =>
-            char === '*' ? '.*' : `\\${char}`,
-          );
-          return {
-            pattern: new RegExp(`^${regexPattern}$`, 'i'),
-            negative,
-          };
-        }
-
-        // String pattern for includes
-        return {
-          pattern: cleanPattern.toLowerCase(),
-          negative,
-        };
-      });
-  }, [filterQuery]);
-
+/**
+ * Hook to create a file filter function based on glob-like patterns.
+ *
+ * Supports:
+ * - Exact matches: package.json
+ * - Wildcards: *.ts, **\/test/**
+ */
+export function useFileFilter(includeFilter: string, excludeFilter: string) {
   return React.useMemo(() => {
-    if (patterns.length === 0) {
-      return () => true;
-    }
+    const includePatterns = includeFilter
+      .split(',')
+      .map((p) => createPattern(p.trim()))
+      .filter(Boolean);
 
-    return (file: FileWithPath) => {
-      const filePath = file.filePath.toLowerCase();
-      let matches = false;
+    const excludePatterns = excludeFilter
+      .split(',')
+      .map((p) => createPattern(p.trim()))
+      .filter(Boolean);
 
-      // Test patterns in order, allowing later patterns to override earlier ones
-      for (const pattern of patterns) {
-        let patternMatches = false;
-
-        if (typeof pattern.pattern === 'string') {
-          patternMatches = filePath.includes(pattern.pattern);
-        } else {
-          patternMatches = pattern.pattern.test(file.filePath);
-        }
-
-        if (patternMatches) {
-          matches = !pattern.negative;
+    return (filePath: string) => {
+      // Check exclusions first
+      if (excludePatterns.length > 0) {
+        for (const pattern of excludePatterns) {
+          if (matchesPattern(filePath, pattern)) {
+            return false;
+          }
         }
       }
 
-      return matches;
+      // If no include patterns, include everything (except excluded)
+      if (includePatterns.length === 0) {
+        return true;
+      }
+
+      // Check includes
+      for (const pattern of includePatterns) {
+        if (matchesPattern(filePath, pattern)) {
+          return true;
+        }
+      }
+
+      return false;
     };
-  }, [patterns]);
+  }, [includeFilter, excludeFilter]);
+}
+
+function matchesPattern(filePath: string, pattern: string | RegExp): boolean {
+  if (typeof pattern === 'string') {
+    return filePath.includes(pattern);
+  }
+  return pattern.test(filePath);
 }

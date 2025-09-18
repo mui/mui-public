@@ -9,7 +9,6 @@ import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
@@ -72,16 +71,7 @@ export default function RepositoryPR() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Button
-          component={RouterLink}
-          to={`/repository/${owner}/${repo}/prs`}
-          startIcon={<ArrowBackIcon />}
-          sx={{ mb: 2 }}
-        >
-          Back to PRs
-        </Button>
-
-        <Heading level={1}>
+        <Heading level={2}>
           #{prNumber}:{' '}
           {prInfo?.title || (
             <Skeleton variant="text" sx={{ display: 'inline-block' }} width={100} />
@@ -133,15 +123,13 @@ export default function RepositoryPR() {
 
       {packages.length > 0 && (
         <Box sx={{ mb: 3 }}>
-          <Heading level={2} sx={{ mb: 2 }}>
-            Packages
-          </Heading>
+          <Heading level={3}>Packages</Heading>
           <Grid container spacing={3}>
             {packages.map((packageName) => (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={packageName}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography gutterBottom variant="h5" component="h2">
+                    <Typography gutterBottom variant="h5" component="h4">
                       {packageName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">

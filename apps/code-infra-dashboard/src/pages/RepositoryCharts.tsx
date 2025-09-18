@@ -16,7 +16,7 @@ export default function RepositoryCharts() {
 
   return (
     <React.Fragment>
-      <Heading level={1}>
+      <Heading level={2}>
         Bundle Size Charts for{' '}
         <Link
           href={`https://github.com/${owner}/${repo}`}

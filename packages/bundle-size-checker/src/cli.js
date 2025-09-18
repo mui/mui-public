@@ -13,6 +13,21 @@ import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { octokit } from './github.js';
 import { getCurrentRepoInfo } from './git.js';
 import { notifyPr } from './notifyPr.js';
+import { DASHBOARD_ORIGIN } from './constants.js';
+
+/**
+ * @param {string} repo
+ * @param {number} prNumber
+ * @param {string} bundleSizeInfo
+ */
+function formatComment(repo, prNumber, bundleSizeInfo) {
+  return [
+    '## Bundle size report',
+    bundleSizeInfo,
+    '<hr>',
+    `Check out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
+  ].join('\n\n');
+}
 
 /**
  */
@@ -123,9 +138,11 @@ async function postInitialPrComment() {
     // eslint-disable-next-line no-console
     console.log('Posting initial PR comment...');
 
-    const initialComment = `## Bundle size report
-
-Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.`;
+    const initialComment = formatComment(
+      ciInfo.slug,
+      prNumber,
+      `Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.\n\nStatus: 🟠 Processing...`,
+    );
 
     await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', initialComment);
 
@@ -273,7 +290,7 @@ async function run(argv) {
       ciInfo.slug,
       prNumber,
       'bundle-size-report',
-      `## Bundle size report\n\n${report}`,
+      formatComment(ciInfo.slug, prNumber, report),
     );
 
     // eslint-disable-next-line no-console
