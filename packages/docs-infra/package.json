@@ -14,7 +14,7 @@
     "./CodeProvider": "./src/CodeProvider/index.ts",
     "./createDemoData": "./src/createDemoData/index.ts",
     "./createDemoData/types": "./src/createDemoData/types.ts",
-    "./markdownDev": "./src/markdownDev/index.ts",
+    "./markdownAlternatePage": "./src/markdownAlternatePage/index.ts",
     "./useCode": "./src/useCode/index.ts",
     "./useCopier": "./src/useCopier/index.ts",
     "./useDemo": "./src/useDemo/index.ts",

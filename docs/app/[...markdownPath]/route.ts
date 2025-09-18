@@ -1,1 +1,1 @@
-export * from '@mui/internal-docs-infra/markdownDev';
+export * from '@mui/internal-docs-infra/markdownAlternatePage';
