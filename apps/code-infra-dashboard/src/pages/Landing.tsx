@@ -10,43 +10,11 @@ import { Link as RouterLink } from 'react-router';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
+import CompareIcon from '@mui/icons-material/Compare';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
-
-interface Repository {
-  owner: string;
-  name: string;
-  displayName: string;
-  description: string;
-}
-
-const repositories: Repository[] = [
-  {
-    owner: 'mui',
-    name: 'material-ui',
-    displayName: 'MUI Core',
-    description: "React components implementing Google's Material Design",
-  },
-  {
-    owner: 'mui',
-    name: 'base-ui',
-    displayName: 'MUI Base',
-    description: 'Unstyled React components and low-level hooks',
-  },
-  {
-    owner: 'mui',
-    name: 'mui-x',
-    displayName: 'MUI X',
-    description: 'Advanced components for complex use cases',
-  },
-  {
-    owner: 'mui',
-    name: 'mui-public',
-    displayName: 'MUI Public',
-    description: 'Public monorepo with shared infrastructure and tooling',
-  },
-];
+import { repositories } from '../constants';
 
 interface Tool {
   name: string;
@@ -62,11 +30,17 @@ const tools: Tool[] = [
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
   },
+  {
+    name: 'Package Diff Tool',
+    description: 'Compare two npm packages side-by-side to see file-level differences and changes',
+    icon: <CompareIcon />,
+    path: '/diff-package',
+  },
 ];
 
 export default function Landing() {
   return (
-    <Box>
+    <Box sx={{ mt: 4 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {repositories.map((repo) => (
@@ -91,7 +65,15 @@ export default function Landing() {
                 <Button
                   size="small"
                   component={RouterLink}
-                  to={`/size-comparison/${repo.owner}/${repo.name}`}
+                  to={`/repository/${repo.owner}/${repo.name}/prs`}
+                >
+                  Pull Requests
+                </Button>
+                <Button
+                  size="small"
+                  component={RouterLink}
+                  to={`/repository/${repo.owner}/${repo.name}/bundle-size`}
+                  startIcon={<TrendingUpIcon />}
                 >
                   Bundle Size
                 </Button>
@@ -125,8 +107,12 @@ export default function Landing() {
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {tools.map((tool) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
-            <Card>
-              <CardActionArea component={RouterLink} to={tool.path} sx={{ height: '100%' }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardActionArea
+                component={RouterLink}
+                to={tool.path}
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     {tool.icon}
