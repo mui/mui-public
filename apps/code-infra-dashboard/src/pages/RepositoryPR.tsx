@@ -9,7 +9,6 @@ import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
@@ -72,15 +71,6 @@ export default function RepositoryPR() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Button
-          component={RouterLink}
-          to={`/repository/${owner}/${repo}/prs`}
-          startIcon={<ArrowBackIcon />}
-          sx={{ mb: 2 }}
-        >
-          Back to PRs
-        </Button>
-
         <Heading level={1}>
           #{prNumber}:{' '}
           {prInfo?.title || (

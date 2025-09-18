@@ -49,12 +49,6 @@ export default function RepositoryLayout() {
   const owner = params.owner;
   const repo = params.repo;
 
-  const repository = React.useMemo(
-    () => repositories.find((r) => r.owner === owner && r.name === repo),
-    [owner, repo],
-  );
-  const displayName = repository?.displayName || `${owner}/${repo}`;
-
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
@@ -67,7 +61,9 @@ export default function RepositoryLayout() {
             gap: 2,
           }}
         >
-          <Heading level={1}>{displayName}</Heading>
+          <Heading level={1}>
+            {owner}/{repo}
+          </Heading>
 
           <Box sx={{ display: 'flex', gap: 3 }}>
             <NavLink to={`/prs`}>Pull Requests</NavLink>
