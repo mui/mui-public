@@ -1,5 +1,5 @@
-import fs from 'fs/promises';
-import { htmlToMarkdown } from '../htmlToMarkdown';
+import fs from 'node:fs/promises';
+import { transformHtmlToMarkdown } from '../pipeline/transformHtmlToMarkdown';
 
 export const dynamic = 'force-static';
 
@@ -24,7 +24,7 @@ export async function GET(
   path[path.length - 1] = path[path.length - 1].replace(/\.md$/, '');
   const html = await fetch(`http://127.0.0.1:${PORT}/${path.join('/')}`).then((res) => res.text());
 
-  const markdown = await htmlToMarkdown(html);
+  const markdown = await transformHtmlToMarkdown(html);
 
   return new Response(markdown, {
     headers: {

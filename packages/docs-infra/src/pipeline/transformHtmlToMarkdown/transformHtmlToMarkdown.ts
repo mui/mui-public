@@ -37,7 +37,7 @@ const pre: Handle = (state, element) => {
   return output;
 };
 
-export async function htmlToMarkdown(html: string): Promise<string> {
+export async function transformHtmlToMarkdown(html: string): Promise<string> {
   const file = await unified()
     .use(rehypeParse)
     .use(rehypeSanitize, {
