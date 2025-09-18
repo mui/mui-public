@@ -24,6 +24,7 @@ function formatComment(repo, prNumber, bundleSizeInfo) {
   return [
     '## Bundle size report',
     bundleSizeInfo,
+    '<hr>',
     `Check out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
   ].join('\n\n');
 }
@@ -140,7 +141,7 @@ async function postInitialPrComment() {
     const initialComment = formatComment(
       ciInfo.slug,
       prNumber,
-      `Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.`,
+      `Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.\n\nStatus: 🟠 Processing...`,
     );
 
     await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', initialComment);
