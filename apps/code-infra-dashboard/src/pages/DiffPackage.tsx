@@ -415,28 +415,20 @@ export default function DiffPackage() {
 
       {!error && (
         <Box>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 2,
-              gap: 2,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Typography variant="h6">
-              Diff Results{' '}
-              {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-              <TextField
-                size="small"
-                placeholder={PLACEHOLDER}
-                value={fileFilter}
-                onChange={(event) => setFileFilter(event.target.value)}
-                sx={{ minWidth: '300px' }}
-              />
+          <Box sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography variant="h6">
+                Diff Results{' '}
+                {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
+              </Typography>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -449,6 +441,13 @@ export default function DiffPackage() {
                 sx={{ mr: 0 }}
               />
             </Box>
+            <TextField
+              size="small"
+              placeholder={PLACEHOLDER}
+              value={fileFilter}
+              onChange={(event) => setFileFilter(event.target.value)}
+              fullWidth
+            />
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {loading ? (
