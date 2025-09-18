@@ -67,7 +67,7 @@ export default function RepositoryLayout() {
           <Box sx={{ display: 'flex', gap: 3 }}>
             <NavLink to={`/prs`}>Pull Requests</NavLink>
             <NavLink to={`/bundle-size`} icon={<TrendingUpIcon fontSize="small" />}>
-              Bundle Size
+              Bundle Size History
             </NavLink>
           </Box>
         </Box>
