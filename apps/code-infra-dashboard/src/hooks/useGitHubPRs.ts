@@ -28,7 +28,7 @@ export function useGitHubPRs(repo: string, initialLimit: number = 5): UseGitHubP
           owner,
           repo: repoName,
           state: 'all',
-          sort: 'updated',
+          sort: 'created',
           direction: 'desc',
           per_page: perPage,
           page: pageParam,

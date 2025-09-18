@@ -2,10 +2,9 @@ import * as React from 'react';
 import { useParams } from 'react-router';
 import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
-import PRList from '../components/PRList';
-import { useGitHubPRs } from '../hooks/useGitHubPRs';
+import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
 
-export default function RepositoryPRs() {
+export default function RepositoryCharts() {
   const params = useParams<{ owner: string; repo: string }>();
   if (!params.owner || !params.repo) {
     throw new Error('Missing required path parameters');
@@ -15,15 +14,10 @@ export default function RepositoryPRs() {
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
 
-  const { prs, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } = useGitHubPRs(
-    fullRepo,
-    20,
-  );
-
   return (
     <React.Fragment>
       <Heading level={1}>
-        Pull Requests for{' '}
+        Bundle Size Charts for{' '}
         <Link
           href={`https://github.com/${owner}/${repo}`}
           target="_blank"
@@ -33,16 +27,7 @@ export default function RepositoryPRs() {
         </Link>
       </Heading>
 
-      <PRList
-        prs={prs}
-        isLoading={isLoading}
-        isFetchingNextPage={isFetchingNextPage}
-        hasNextPage={hasNextPage}
-        error={error}
-        owner={owner}
-        repo={repo}
-        onLoadMore={fetchNextPage}
-      />
+      <DailyBundleSizeChart repo={fullRepo} />
     </React.Fragment>
   );
 }
