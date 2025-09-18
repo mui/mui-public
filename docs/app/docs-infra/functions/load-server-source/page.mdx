@@ -1,0 +1,104 @@
+# loadServerSource
+
+The `loadServerSource` utility reads source files and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
+
+## Features
+
+- Reads source files from the filesystem
+- Parses and resolves relative imports
+- Extracts external dependencies (npm packages)
+- Builds dependency trees for recursive loading
+- Handles both JavaScript/TypeScript modules and static assets
+- Processes import statements and rewrites paths
+
+## Usage
+
+```ts
+import { loadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+
+const result = await loadServerSource('file:///app/components/button/Component.tsx');
+
+// Returns:
+// {
+//   source: "import React from 'react';\n...",  // Processed source code
+//   extraFiles: {                               // URLs for recursive loading
+//     './utils.js': 'file:///app/components/button/utils.ts',
+//     './styles.css': 'file:///app/components/button/styles.css'
+//   },
+//   extraDependencies: [                        // File URLs for recursive loading
+//     'file:///app/components/button/utils.ts',
+//     'file:///app/components/button/styles.css'
+//   ],
+//   externals: {                                // External npm dependencies
+//     'react': [{ name: 'default', type: 'ImportDefaultSpecifier', isType: false }],
+//     '@mui/material': [{ name: 'Button', type: 'ImportSpecifier', isType: false }]
+//   }
+// }
+```
+
+## Configuration
+
+Create a custom `loadSource` function with options:
+
+```ts
+import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+
+const customLoadSource = createLoadServerSource({
+  includeDependencies: true, // Whether to resolve imports (default: true)
+  storeAt: 'flat', // How to store imports: 'canonical' | 'import' | 'flat'
+  maxDepth: 10, // Maximum recursion depth (not implemented yet)
+  maxFiles: 100, // Maximum files to process (not implemented yet)
+});
+```
+
+## Import Storage Modes
+
+The `storeAt` option controls how imports are stored in `extraFiles`:
+
+- **`'canonical'`**: Full resolved path (e.g., `'../Component/index.js'`)
+- **`'import'`**: Import path with file extension (e.g., `'../Component.js'`)
+- **`'flat'`**: Flattened to current directory with rewritten imports (e.g., `'./Component.js'`)
+
+```ts
+// Example with different storeAt modes
+const flatResult = await createLoadServerSource({ storeAt: 'flat' })('file:///demo.tsx');
+// extraFiles: { './Component.js': '...' }
+
+const canonicalResult = await createLoadServerSource({ storeAt: 'canonical' })('file:///demo.tsx');
+// extraFiles: { '../Component/index.js': '...' }
+```
+
+## Return Value
+
+```ts
+interface LoadSourceResult {
+  source: string; // Processed source code
+  extraFiles?: Record<string, string>; // URLs of resolved dependencies
+  extraDependencies?: string[]; // File URLs for recursive loading
+  externals?: Externals; // External npm dependencies
+}
+```
+
+## How It Works
+
+1. **Read File**: Loads the source file from the filesystem
+2. **Check File Type**: Determines if it's a JavaScript/TypeScript module or static asset
+3. **Parse Imports**: Extracts relative and external imports using `parseImports`
+4. **Resolve Paths**: Uses `resolveImportResultWithFs` to resolve relative import paths to absolute URLs
+5. **Process Imports**: Rewrites import statements and builds `extraFiles` with URLs using `processRelativeImports`
+6. **Build Dependencies**: Creates list of file URLs for recursive processing by [`loadVariant`](../load-variant/page.mdx)
+
+> [!IMPORTANT]
+> The `extraFiles` values are absolute URLs (not source code), which allows [`loadVariant`](../load-variant/page.mdx) to recursively load and process dependency files. This creates a chain where each file can discover and load its own dependencies.
+
+## When to Use
+
+- When implementing server-side code loading for [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
+- When building demo processing pipelines that need dependency resolution
+- When you need to analyze import dependencies in source files
+
+## Related
+
+- [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata
+- [`parseImports`](../parse-imports/page.mdx) - For parsing import statements
+- [`processRelativeImports`](../process-relative-imports/page.mdx) - For processing import paths

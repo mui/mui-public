@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
-import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
 import { useGitHubPRs } from '../hooks/useGitHubPRs';
@@ -15,17 +15,34 @@ export default function RepositoryPRs() {
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
 
-  const { prs, isLoading, error } = useGitHubPRs(fullRepo, 10);
+  const { prs, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } = useGitHubPRs(
+    fullRepo,
+    20,
+  );
 
   return (
     <React.Fragment>
       <Heading level={1}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          Bundle Size Comparisons for {owner}/{repo}
-        </Box>
+        Pull Requests for{' '}
+        <Link
+          href={`https://github.com/${owner}/${repo}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {owner}/{repo}
+        </Link>
       </Heading>
 
-      <PRList prs={prs} isLoading={isLoading} error={error} owner={owner} repo={repo} />
+      <PRList
+        prs={prs}
+        isLoading={isLoading}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        error={error}
+        owner={owner}
+        repo={repo}
+        onLoadMore={fetchNextPage}
+      />
     </React.Fragment>
   );
 }

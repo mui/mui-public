@@ -22,18 +22,18 @@
     "find-package-json": "^1.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.27.4",
+    "@babel/core": "^7.28.4",
     "@types/babel__core": "^7.20.5",
     "@types/babel__helper-module-imports": "^7.18.3",
     "@types/find-package-json": "^1.2.6",
-    "babel-plugin-tester": "^12.0.0",
-    "chai": "^4.5.0"
+    "babel-plugin-tester": "^12.0.0"
   },
   "peerDependencies": {
     "@babel/core": "7"
   },
   "sideEffects": false,
   "type": "commonjs",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   },

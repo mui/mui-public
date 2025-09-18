@@ -1,15 +1,24 @@
 #!/usr/bin/env node
 
 import { $ } from 'execa';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import * as semver from 'semver';
 
 /**
- * @typedef {Object} Package
+ * @typedef {Object} PrivatePackage
+ * @property {string} [name] - Package name
+ * @property {string} [version] - Package version
+ * @property {string} path - Package directory path
+ * @property {true} isPrivate - Whether the package is private
+ */
+
+/**
+ * @typedef {Object} PublicPackage
  * @property {string} name - Package name
  * @property {string} version - Package version
  * @property {string} path - Package directory path
+ * @property {false} isPrivate - Whether the package is private
  */
 
 /**
@@ -21,7 +30,6 @@ import * as semver from 'semver';
 /**
  * @typedef {Object} PublishOptions
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
- * @property {boolean} [provenance] - Whether to include provenance information
  * @property {boolean} [noGitChecks] - Whether to skip git checks
  */
 
@@ -41,8 +49,21 @@ import * as semver from 'semver';
 
 /**
  * Get workspace packages with optional filtering
+ *
+ * @overload
+ * @param {{ publicOnly: true } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<PublicPackage[]>} Array of packages
+ *
+ * @overload
+ * @param {{ publicOnly?: false | undefined } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<PrivatePackage[]>} Array of packages
+ *
+ * @overload
  * @param {GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
- * @returns {Promise<Package[]>} Array of packages
+ * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
+ *
+ * @param {GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
  */
 export async function getWorkspacePackages(options = {}) {
   const { sinceRef = null, publicOnly = false } = options;
@@ -54,18 +75,20 @@ export async function getWorkspacePackages(options = {}) {
   const packageData = JSON.parse(result.stdout);
 
   // Filter packages based on options
-  const filteredPackages = packageData
-    .filter((pkg) => !publicOnly || !pkg.private)
-    .map((pkg) => {
-      if (!pkg.name || !pkg.version) {
-        throw new Error(`Invalid package data: ${JSON.stringify(pkg)}`);
-      }
-      return {
+  const filteredPackages = packageData.flatMap((pkg) => {
+    const isPrivate = pkg.private || !pkg.name || !pkg.version;
+    if (publicOnly && isPrivate) {
+      return [];
+    }
+    return [
+      /** @type {PublicPackage | PrivatePackage} */ ({
         name: pkg.name,
         version: pkg.version,
         path: pkg.path,
-      };
-    });
+        isPrivate,
+      }),
+    ];
+  });
 
   return filteredPackages;
 }
@@ -105,7 +128,7 @@ export async function getPackageVersionInfo(packageName, baseVersion) {
 
 /**
  * Publish packages with the given options
- * @param {Package[]} packages - Packages to publish
+ * @param {PublicPackage[]} packages - Packages to publish
  * @param {string} tag - npm tag to publish with
  * @param {PublishOptions} [options={}] - Publishing options
  * @returns {Promise<void>}
@@ -127,14 +150,7 @@ export async function publishPackages(packages, tag, options = {}) {
     args.push('--no-git-checks');
   }
 
-  // Set up environment variables
-  /** @type {Record<string, string>} */
-  const env = {};
-  if (options.provenance) {
-    env.NPM_CONFIG_PROVENANCE = 'true';
-  }
-
-  await $({ stdio: 'inherit', env })`pnpm -r publish --access public --tag=${tag} ${args}`;
+  await $({ stdio: 'inherit' })`pnpm -r publish --access public --tag=${tag} ${args}`;
 }
 
 /**
@@ -165,6 +181,29 @@ export async function writePackageJson(packagePath, packageJson) {
 export async function getCurrentGitSha() {
   const result = await $`git rev-parse HEAD`;
   return result.stdout.trim();
+}
+
+/**
+ * Resolve a package@version specifier to an exact version
+ * @param {string} packageSpec - Package specifier in format "package@version"
+ * @returns {Promise<string>} Exact version string
+ */
+export async function resolveVersion(packageSpec) {
+  const result = await $`pnpm info ${packageSpec} version --json`;
+  const versions = JSON.parse(result.stdout);
+  return typeof versions === 'string' ? versions : versions[versions.length - 1];
+}
+
+/**
+ * Find the version of a dependency for a specific package@version
+ * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {string} dependency - Dependency name to look up
+ * @returns {Promise<string>} Exact version string of the dependency
+ */
+export async function findDependencyVersionFromSpec(packageSpec, dependency) {
+  const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
+  const spec = result.stdout.trim();
+  return resolveVersion(`${dependency}@${spec}`);
 }
 
 /**

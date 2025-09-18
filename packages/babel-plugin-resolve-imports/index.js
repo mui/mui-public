@@ -1,7 +1,8 @@
 // @ts-check
+
 /// <reference path="./resolve.d.ts" />
 
-const nodePath = require('path');
+const nodePath = require('node:path');
 const resolve = require('resolve/sync');
 
 /**
@@ -39,7 +40,7 @@ function pathToNodeImportSpecifier(importPath) {
 module.exports = function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
   const cache = new Map();
-  const extensions = ['.ts', '.tsx', '.js', '.jsx'];
+  const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
   const extensionsSet = new Set(extensions);
 
   /**
@@ -49,6 +50,12 @@ module.exports = function plugin({ types: t }, { outExtension }) {
    */
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;
+
+    const importExt = nodePath.extname(importedPath);
+    // ignore if the import already has a desired extension or if it is a css import.
+    if (extensionsSet.has(importExt) || importExt === '.css') {
+      return;
+    }
 
     if (!importedPath.startsWith('.')) {
       // Only handle relative imports

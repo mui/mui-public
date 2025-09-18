@@ -7,13 +7,17 @@ const createEnumerationFromArray = (stringArray) =>
         .join(', ')} or \`${stringArray.slice(-1)}\``
     : stringArray.map((s) => `\`${s}\``).join('');
 
+// See definition in https://www.notion.so/mui-org/GitHub-issues-Product-backlog-c1d7072e0c2545b0beb43b115f6030f6?source=copy_link#1e3cbfe7b660801e8af6eed5b0d0ce68
 const typeLabels = [
   'type: bug',
   'type: regression',
   'type: enhancement',
   'type: new feature',
-  // only used by renovate bot so we can ignore the "type: " prefix here
+  'type: expected behavior',
+  // Those are not technically type labels but for those kind of PRs, adding a type is so redundant
+  // that it feels like noise.
   'dependencies',
+  'duplicate',
   'release',
 ];
 const labelRegex = new RegExp(`\\b(${typeLabels.join('|')})\\b`, 'i');
@@ -45,13 +49,6 @@ module.exports = async ({ core, context, github }) => {
     const typeLabelsFound = pr.labels
       ?.map((label) => label.name)
       .filter((labelName) => labelRegex.test(labelName));
-
-    await github.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      per_page: 100,
-    });
 
     if (typeLabelsFound.length === 0) {
       core.info(`>>> No type labels found`);

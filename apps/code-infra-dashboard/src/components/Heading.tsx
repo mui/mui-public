@@ -4,40 +4,45 @@ import Link from '@mui/material/Link';
 import IconButton from '@mui/material/IconButton';
 import LinkIcon from '@mui/icons-material/Link';
 import Box from '@mui/material/Box';
+import { SxProps } from '@mui/material/styles';
 
 interface HeadingProps {
   id?: string;
   level: 1 | 2 | 3 | 4 | 5 | 6;
   children: React.ReactNode;
+  sx?: SxProps;
 }
 
 export default function Heading(props: HeadingProps): React.ReactElement {
-  const { children, id, level } = props;
+  const { children, id, level, sx } = props;
 
   return (
     <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        mb: level === 1 ? 4 : 3,
-        position: 'relative',
-        '&:hover .anchor-link': {
-          opacity: 0.6,
+      sx={[
+        {
+          display: 'flex',
+          alignItems: 'center',
+          mb: level === 1 ? 4 : 3,
+          position: 'relative',
+          '&:hover .anchor-link': {
+            opacity: 0.6,
+          },
+          '&::after':
+            level === 1
+              ? {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: -8,
+                  left: 0,
+                  width: '40px',
+                  height: '2px',
+                  bgcolor: 'primary.main',
+                  borderRadius: '1px',
+                }
+              : {},
         },
-        '&::after':
-          level === 1
-            ? {
-                content: '""',
-                position: 'absolute',
-                bottom: -8,
-                left: 0,
-                width: '40px',
-                height: '2px',
-                bgcolor: 'primary.main',
-                borderRadius: '1px',
-              }
-            : {},
-      }}
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
     >
       <Typography id={id} variant={`h${level}`} component={`h${level}`}>
         {children}

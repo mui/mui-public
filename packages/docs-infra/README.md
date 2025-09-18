@@ -2,16 +2,9 @@
 
 This package hosts the tools that help create the documentation.
 
-## Installation
-
-Install the package in your project directory with:
-
-<!-- #npm-tag-reference -->
-
-```bash
-npm install @mui/internal-docs-infra
-```
-
 ## Documentation
 
-We have no documentation for these components.
+This is stored in the `docs` top-level directory.
+
+[Read in Markdown](../../docs/app/docs-infra/page.mdx)
+[Read in Browser](https://infra.mui.com/docs-infra)

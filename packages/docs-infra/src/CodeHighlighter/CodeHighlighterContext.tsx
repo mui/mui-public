@@ -1,15 +1,20 @@
 'use client';
 import * as React from 'react';
-import { Code } from './types';
+import { Code, ControlledCode } from './types';
+import { Selection } from '../CodeControllerContext';
 
-export interface CodeHighlighterContext {
+export interface CodeHighlighterContextType {
   code?: Code;
-  setCode?: React.Dispatch<React.SetStateAction<Code | undefined>>;
-  variantName?: string;
-  setVariantName?: React.Dispatch<React.SetStateAction<string>>;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  selection?: Selection;
+  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
+  components?: Record<string, React.ReactNode>;
+  availableTransforms?: string[];
+  url?: string;
+  deferHighlight?: boolean;
 }
 
-export const CodeHighlighterContext = React.createContext<CodeHighlighterContext | undefined>(
+export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(
   undefined,
 );
 
@@ -21,4 +26,8 @@ export function useCodeHighlighterContext() {
     );
   }
   return context;
+}
+
+export function useCodeHighlighterContextOptional() {
+  return React.useContext(CodeHighlighterContext);
 }

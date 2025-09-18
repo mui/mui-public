@@ -11,7 +11,6 @@ import { defineConfig } from '@mui/internal-bundle-size-checker';
 export default defineConfig(async () => {
   return {
     entrypoints: [
-      '@base-ui-components/react',
       {
         id: 'Base UI checkbox',
         code: `
@@ -27,20 +26,12 @@ export default defineConfig(async () => {
         `,
         externals: ['react', 'react-dom'],
       },
-      {
-        id: 'Radix UI checkbox',
-        code: `
-          import * as React from "react";
-          import { Checkbox } from "radix-ui";
-
-          export default function ExampleCheckbox() {
-            return (<>
-              <Checkbox.Root /><Checkbox.Indicator />
-            </>)
-          }
-        `,
-        externals: ['react', 'react-dom'],
-      },
+      { id: '@base-ui-components/react', track: true, expand: true },
+      '@base-ui-components/react/checkbox#Checkbox',
+      '@mui/x-charts-pro/BarChartPro',
+      '@mui/internal-docs-infra/useDemo',
     ],
+    upload: !!process.env.CI,
+    comment: true,
   };
 });

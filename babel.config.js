@@ -1,9 +1,11 @@
+// @ts-check
+/* eslint-disable @typescript-eslint/no-require-imports */
 // copied from https://github.com/mui/material-ui/blob/master/babel.config.js
 // defaultAlias modified
 // @mui/internal-babel-plugin-minify-errors removed
 
-// @ts-check
-const path = require('path');
+const path = require('node:path');
+const { default: getBaseConfig } = require('@mui/internal-code-infra/babel-config');
 
 /**
  * @typedef {import('@babel/core')} babel
@@ -20,75 +22,13 @@ function resolveAliasPath(relativeToBabelConf) {
 
 /** @type {babel.ConfigFunction} */
 module.exports = function getBabelConfig(api) {
-  const useESModules = api.env(['regressions', 'stable']);
+  const baseConfig = getBaseConfig(api);
 
   const defaultAlias = {
     '@mui/internal-docs-infra': resolveAliasPath('./packages/docs-infra/src'),
   };
 
-  const presets = [
-    [
-      '@babel/preset-env',
-      {
-        bugfixes: true,
-        browserslistEnv: api.env() || process.env.NODE_ENV,
-        debug: process.env.MUI_BUILD_VERBOSE === 'true',
-        modules: useESModules ? false : 'commonjs',
-      },
-    ],
-    [
-      '@babel/preset-react',
-      {
-        runtime: 'automatic',
-      },
-    ],
-    '@babel/preset-typescript',
-  ];
-
-  // Essentially only replace in production builds.
-  // When aliasing we want to keep the original extension
-  const outFileExtension = process.env.MUI_OUT_FILE_EXTENSION || null;
-
-  /** @type {babel.PluginItem[]} */
-  const plugins = [
-    'babel-plugin-optimize-clsx',
-    [
-      '@babel/plugin-transform-runtime',
-      {
-        useESModules,
-        // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
-        version: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
-      },
-    ],
-    [
-      'babel-plugin-transform-react-remove-prop-types',
-      {
-        mode: 'unsafe-wrap',
-      },
-    ],
-    [
-      'transform-inline-environment-variables',
-      {
-        include: [
-          'MUI_VERSION',
-          'MUI_MAJOR_VERSION',
-          'MUI_MINOR_VERSION',
-          'MUI_PATCH_VERSION',
-          'MUI_PRERELEASE',
-        ],
-      },
-    ],
-    ...(useESModules
-      ? [
-          [
-            '@mui/internal-babel-plugin-resolve-imports',
-            {
-              outExtension: outFileExtension,
-            },
-          ],
-        ]
-      : []),
-  ];
+  const plugins = [];
 
   if (process.env.NODE_ENV === 'test') {
     plugins.push([
@@ -101,15 +41,13 @@ module.exports = function getBabelConfig(api) {
   }
 
   return {
-    assumptions: {
-      noDocumentAll: true,
-    },
-    presets,
-    plugins,
-    ignore: [/@babel[\\|/]runtime/], // Fix a Windows issue.
+    ...baseConfig,
+    plugins: [...(baseConfig.plugins ?? []), ...plugins],
     overrides: [
       {
-        exclude: /\.test\.(m?js|ts|tsx)$/,
+        // Reduces cold start time of tests. Hoisting the elements is also almost never intended for test files.
+        // Context https://github.com/mui/material-ui/pull/26448
+        exclude: /\.test\.(m?js|tsx)$/,
         plugins: ['@babel/plugin-transform-react-constant-elements'],
       },
       {

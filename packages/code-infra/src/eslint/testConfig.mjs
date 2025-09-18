@@ -18,6 +18,7 @@ export const baseSpecRules = {
     '@typescript-eslint/no-unused-expressions': 'off',
     '@typescript-eslint/no-unused-vars': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off',
 
     'import/prefer-default-export': 'off',
 
@@ -84,6 +85,12 @@ export function createTestConfig(options = {}) {
           // that they don't need type-checking
           'react/prop-types': 'off',
           'react/no-unused-prop-types': 'off',
+          // Part of the migration away from airbnb config. Turned of initially.
+          '@typescript-eslint/no-empty-function': 'off',
+          '@typescript-eslint/ban-ts-comment': 'off',
+          'testing-library/no-node-access': 'off',
+          '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
+          // end migration
           ...(useMocha
             ? {
                 'mocha/consistent-spacing-between-blocks': 'off',

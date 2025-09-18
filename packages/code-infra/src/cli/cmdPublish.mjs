@@ -3,39 +3,36 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./pnpm.mjs').Package} Package
+ * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
  * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
  */
 
 import { Octokit } from '@octokit/rest';
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import gitUrlParse from 'git-url-parse';
 import { $ } from 'execa';
+import { createActionAuth } from '@octokit/auth-action';
 import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
+
+function getOctokit() {
+  return new Octokit({ authStrategy: createActionAuth });
+}
 
 /**
  * @typedef {Object} Args
  * @property {boolean} dry-run Run in dry-run mode without publishing
- * @property {boolean} no-git-checks - Skip git checks before publishing
- * @property {boolean} provenance - Enable provenance tracking for the publish
+ * @property {boolean} github-release Create a GitHub draft release after publishing
  */
 
 /**
  * Get the version to release from the root package.json
- * @returns {Promise<string>} Version string
+ * @returns {Promise<string | null>} Version string
  */
 async function getReleaseVersion() {
   const result = await $`pnpm pkg get version`;
-  const versionData = JSON.parse(result.stdout.trim());
-  const version = versionData.version;
-
-  const validVersion = semver.valid(version);
-  if (!validVersion) {
-    throw new Error(`Invalid version in root package.json: ${version}`);
-  }
-
-  return validVersion;
+  const version = JSON.parse(result.stdout.trim());
+  return semver.valid(version);
 }
 
 /**
@@ -100,14 +97,14 @@ async function parseChangelog(changelogPath, version) {
 
 /**
  * Check if GitHub release already exists
- * @param {Octokit} octokit - GitHub API client
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} version - Version to check
  * @returns {Promise<boolean>} True if release exists
  */
-async function checkGitHubReleaseExists(octokit, owner, repo, version) {
+async function checkGitHubReleaseExists(owner, repo, version) {
   try {
+    const octokit = getOctokit();
     await octokit.repos.getReleaseByTag({ owner, repo, tag: `v${version}` });
     return true;
   } catch (/** @type {any} */ error) {
@@ -172,45 +169,40 @@ async function createGitTag(version, dryRun = false) {
 
 /**
  * Validate GitHub release requirements
- * @param {string} version - Version to validate
- * @returns {Promise<{changelogContent: string, repoInfo: {owner: string, repo: string}}>}
+ * @param {string | null} version - Version to validate
+ * @returns {Promise<{changelogContent: string, version: string, repoInfo: {owner: string, repo: string}}>}
  */
 async function validateGitHubRelease(version) {
   console.log('🔍 Validating GitHub release requirements...');
 
+  const validVersion = semver.valid(version);
+  if (!validVersion) {
+    throw new Error(`Invalid version in root package.json: ${version}`);
+  }
+
   // Check if CHANGELOG.md exists and parse it
-  console.log(`📄 Parsing CHANGELOG.md for version ${version}...`);
-  const changelogContent = await parseChangelog('CHANGELOG.md', version);
+  console.log(`📄 Parsing CHANGELOG.md for version ${validVersion}...`);
+  const changelogContent = await parseChangelog('CHANGELOG.md', validVersion);
   console.log('✅ Found changelog content for version');
 
   // Get repository info
   const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
 
-  // Check if release already exists on GitHub
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
-
-  console.log(`🔍 Checking if GitHub release v${version} already exists...`);
-  const releaseExists = await checkGitHubReleaseExists(
-    octokit,
-    repoInfo.owner,
-    repoInfo.repo,
-    version,
-  );
+  console.log(`🔍 Checking if GitHub release v${validVersion} already exists...`);
+  const releaseExists = await checkGitHubReleaseExists(repoInfo.owner, repoInfo.repo, validVersion);
 
   if (releaseExists) {
-    throw new Error(`GitHub release v${version} already exists`);
+    throw new Error(`GitHub release v${validVersion} already exists`);
   }
   console.log('✅ GitHub release does not exist yet');
 
-  return { changelogContent, repoInfo };
+  return { changelogContent, repoInfo, version: validVersion };
 }
 
 /**
  * Publish packages to npm
- * @param {Package[]} packages - Packages to publish
+ * @param {PublicPackage[]} packages - Packages to publish
  * @param {PublishOptions} options - Publishing options
  * @returns {Promise<void>}
  */
@@ -236,12 +228,9 @@ async function publishToNpm(packages, options) {
 async function createRelease(version, changelogContent, repoInfo) {
   console.log('\n🚀 Creating GitHub draft release...');
 
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
-
   const sha = await getCurrentGitSha();
 
+  const octokit = getOctokit();
   await octokit.repos.createRelease({
     owner: repoInfo.owner,
     repo: repoInfo.repo,
@@ -262,37 +251,28 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   describe: 'Publish packages to npm',
   builder: (yargs) => {
     return yargs
+      .parserConfiguration({ 'boolean-negation': false })
       .option('dry-run', {
         type: 'boolean',
         default: false,
         description: 'Run in dry-run mode without publishing',
       })
-      .option('no-git-checks', {
+      .option('github-release', {
         type: 'boolean',
         default: false,
-        description: 'Skip git checks before publishing',
-      })
-      .option('provenance', {
-        type: 'boolean',
-        default: false,
-        description: 'Enable provenance tracking for the publish',
+        description: 'Create a GitHub draft release after publishing',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, provenance = false, githubRelease = false } = argv;
-
-    const options = { dryRun, provenance };
+    const { dryRun = false, githubRelease = false } = argv;
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
     }
 
-    if (provenance) {
-      console.log('🔐 Provenance enabled - packages will include provenance information\n');
-    }
-
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
+
     const allPackages = await getWorkspacePackages({ publicOnly: true });
 
     if (allPackages.length === 0) {
@@ -302,23 +282,31 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Get version from root package.json
     const version = await getReleaseVersion();
-    console.log(`📋 Release version: ${version}`);
 
     // Early validation for GitHub release (before any publishing)
     let githubReleaseData = null;
     if (githubRelease) {
+      console.log(`📋 Release version: ${version}`);
       githubReleaseData = await validateGitHubRelease(version);
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
-    await publishToNpm(allPackages, options);
+    // No git checks, we'll do our own
+    await publishToNpm(allPackages, { dryRun, noGitChecks: true });
 
     // Create GitHub release or git tag after successful npm publishing
-    if (githubRelease && githubReleaseData && !dryRun) {
-      await createRelease(version, githubReleaseData.changelogContent, githubReleaseData.repoInfo);
-    } else if (githubRelease && dryRun) {
-      console.log('\n🚀 Would create GitHub draft release (dry-run)');
-    } else {
+    if (githubRelease && githubReleaseData) {
+      if (dryRun) {
+        console.log('\n🚀 Would create GitHub draft release (dry-run)');
+        console.log(githubReleaseData?.changelogContent);
+      } else {
+        await createRelease(
+          githubReleaseData.version,
+          githubReleaseData.changelogContent,
+          githubReleaseData.repoInfo,
+        );
+      }
+    } else if (version) {
       // Create git tag when not doing GitHub release
       await createGitTag(version, dryRun);
     }

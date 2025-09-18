@@ -19,7 +19,7 @@ export async function queryAbout() {
     throw new Error(`Env variable HIBOB_TOKEN_READ_STANDARD not configured`);
   }
 
-  const res = await fetch('https://api.hibob.com/v1/people/search', {
+  const peopleRes = await fetch('https://api.hibob.com/v1/people/search', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -29,11 +29,12 @@ export async function queryAbout() {
       showInactive: false,
       humanReadable: 'REPLACE',
       fields: [
+        'root.id',
         'root.displayName', // 'root.fullName', is the legal name, use the preferred name instead.
         'address.country',
-        'work.custom.field_1680187492413',
         'address.city',
         'address.customColumns.column_1738498855264',
+        'work.custom.field_1680187492413',
         'work.title',
         'work.tenureDurationYears',
         'about.custom.field_1682954415714',
@@ -42,11 +43,33 @@ export async function queryAbout() {
       ],
     }),
   });
-
-  if (res.status !== 200) {
-    throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
+  if (peopleRes.status !== 200) {
+    throw new Error(`HTTP ${peopleRes.status}: ${(await peopleRes.text()).slice(0, 500)}`);
   }
-  const data = await res.json();
+  const peopleData = await peopleRes.json();
+
+  // https://app.hibob.com/reports/company-reports/viewer/employee_data/31115981
+  const workRes = await fetch(
+    'https://api.hibob.com/v1/company/reports/31115981/download?format=json&humanReadable=APPEND',
+    {
+      method: 'GET',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Basic ${btoa(`SERVICE-5772:${process.env.HIBOB_TOKEN_READ_STANDARD}`)}`,
+      },
+    },
+  );
+  if (workRes.status !== 200) {
+    throw new Error(`HTTP ${workRes.status}: ${(await workRes.text()).slice(0, 500)}`);
+  }
+  let workData = await workRes.json();
+  workData = workData.employees.reduce((acc, employee) => {
+    acc[employee.id] = {
+      old: employee.humanReadable.history.work?.title?.previousValue,
+      new: employee.humanReadable.work.title,
+    };
+    return acc;
+  }, {});
 
   const countriesRes = await fetch('https://flagcdn.com/en/codes.json', {
     method: 'GET',
@@ -54,18 +77,18 @@ export async function queryAbout() {
       'content-type': 'application/json',
     },
   });
-
   if (countriesRes.status !== 200) {
     throw new Error(`HTTP ${countriesRes.status}: ${(await countriesRes.text()).slice(0, 500)}`);
   }
   const countries = await countriesRes.json();
+
   // Fix country label
   countries.cz = 'Czech Republic';
   countries.us = 'US';
   countries.gb = 'UK';
   const countryToISO = flip(countries);
 
-  return data.employees
+  return peopleData.employees
     .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
     .map((employee) => {
       const country = countryFix[employee.address.country] || employee.address.country;
@@ -88,9 +111,16 @@ export async function queryAbout() {
       if (city === country) {
         location = city;
       }
+
+      let title = employee.work.title;
+      // People externally don't need to know about Acting titles. Better keep it private.
+      if (title.startsWith('Acting ')) {
+        title = workData[employee.id].old;
+      }
+
       return {
         name: employee.displayName,
-        title: team === 'MUI' ? employee.work.title : `${employee.work.title} — ${team}`,
+        title: team === 'MUI' ? title : `${title} — ${team}`,
         location,
         locationCountry: countryToISO[country],
         about: employee.about?.custom?.field_1690557141686,

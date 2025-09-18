@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { pluginTester } from 'babel-plugin-tester';
 import plugin from './index';
 
@@ -106,6 +106,17 @@ pluginTester({
       },
       fixture: path.join(fixturePath, 'declaration-files', 'input.d.ts'),
       output: readOutputFixtureSync('declaration-files', 'output.d.ts'),
+    },
+    {
+      title: 'Ignore imports with extensions',
+      pluginOptions: {
+        outExtension: '.js',
+      },
+      babelOptions: {
+        plugins: [['@babel/plugin-syntax-typescript', { dts: true }]],
+      },
+      fixture: path.join(fixturePath, 'ignore-imports-with-extensions', 'input.d.ts'),
+      output: readOutputFixtureSync('ignore-imports-with-extensions', 'output.d.ts'),
     },
   ],
 });

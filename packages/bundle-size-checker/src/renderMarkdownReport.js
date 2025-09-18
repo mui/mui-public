@@ -5,8 +5,10 @@
  */
 
 import { calculateSizeDiff } from './sizeDiff.js';
-import { fetchSnapshot, fetchSnapshotWithFallback } from './fetchSnapshot.js';
+import { fetchSnapshot } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
+import { getMergeBase } from './git.js';
+import { fetchSnapshotWithFallback } from './fetchSnapshotWithFallback.js';
 
 /**
  * Generates a symbol based on the relative change value.
@@ -96,11 +98,13 @@ function formatMarkdownTable(columns, data) {
   const separators = alignments.map((align) => {
     switch (align) {
       case 'center':
-        return ':----------:';
+        return ':---------:';
       case 'right':
         return '----------:';
+      case 'left':
+        return ':----------';
       default:
-        return '----------';
+        return '-----------';
     }
   });
   table += `|${separators.join('|')}|\n`;
@@ -140,9 +144,9 @@ export function renderMarkdownReportContent(
 
     markdownContent += formatMarkdownTable(
       [
-        { field: 'id', header: 'Bundle' },
-        { field: 'parsed', header: 'Parsed Size', align: 'right' },
-        { field: 'gzip', header: 'Gzip Size', align: 'right' },
+        { field: 'id', header: 'Bundle', align: 'left' },
+        { field: 'parsed', header: 'Parsed size', align: 'right' },
+        { field: 'gzip', header: 'Gzip size', align: 'right' },
       ],
       trackedEntries.map(({ id, parsed, gzip }) => ({
         id,
@@ -192,12 +196,11 @@ export function renderMarkdownReportContent(
  *
  * @param {PrInfo} prInfo
  * @param {Object} [options] - Optional parameters
- * @param {string | null} [options.circleciBuildNumber] - The CircleCI build number
  * @param {string | null} [options.actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
  */
 function getDetailsUrl(prInfo, options = {}) {
-  const { circleciBuildNumber, actualBaseCommit } = options;
+  const { actualBaseCommit } = options;
   const detailedComparisonUrl = new URL(
     `https://frontend-public.mui.com/size-comparison/${prInfo.base.repo.full_name}/diff`,
   );
@@ -205,29 +208,28 @@ function getDetailsUrl(prInfo, options = {}) {
   detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
   detailedComparisonUrl.searchParams.set('baseCommit', actualBaseCommit || prInfo.base.sha);
   detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
-  if (circleciBuildNumber) {
-    detailedComparisonUrl.searchParams.set('circleCIBuildNumber', circleciBuildNumber);
-  }
   return detailedComparisonUrl;
 }
 
 /**
  *
  * @param {PrInfo} prInfo
- * @param {string} [circleciBuildNumber] - The CircleCI build number
  * @param {Object} [options] - Additional options
  * @param {string[]} [options.track] - Array of bundle IDs to track
  * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
  * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
+ * @param {(base: string, head: string) => Promise<string>} [options.getMergeBase] - Custom function to get merge base commit
  * @returns {Promise<string>} Markdown report
  */
-export async function renderMarkdownReport(prInfo, circleciBuildNumber, options = {}) {
+export async function renderMarkdownReport(prInfo, options = {}) {
   let markdownContent = '';
 
-  const baseCommit = prInfo.base.sha;
   const prCommit = prInfo.head.sha;
   const repo = prInfo.base.repo.full_name;
   const { fallbackDepth = 3 } = options;
+
+  const getMergeBaseFn = options.getMergeBase || getMergeBase;
+  const baseCommit = await getMergeBaseFn(prInfo.base.sha, prCommit);
 
   const [baseResult, prSnapshot] = await Promise.all([
     fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
@@ -237,9 +239,9 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
   const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
 
   if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for base commit ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
+    markdownContent += `_:no_entry_sign: No bundle size snapshot found for merge base ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
   } else if (actualBaseCommit !== baseCommit) {
-    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from ${baseCommit})._\n\n`;
+    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from merge base ${baseCommit})._\n\n`;
   }
 
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
@@ -248,7 +250,7 @@ export async function renderMarkdownReport(prInfo, circleciBuildNumber, options 
 
   markdownContent += report;
 
-  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { circleciBuildNumber, actualBaseCommit })})`;
+  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { actualBaseCommit })})`;
 
   return markdownContent;
 }

@@ -2,13 +2,22 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import * as fetchSnapshotModule from './fetchSnapshot.js';
+import * as fetchSnapshotWithFallbackModule from './fetchSnapshotWithFallback.js';
+import * as gitModule from './git.js';
 
 // Mock the fetchSnapshot module
 vi.mock('./fetchSnapshot.js');
+// Mock the fetchSnapshotWithFallback module
+vi.mock('./fetchSnapshotWithFallback.js');
+// Mock the git module
+vi.mock('./git.js');
 
 describe('renderMarkdownReport', () => {
   const mockFetchSnapshot = vi.mocked(fetchSnapshotModule.fetchSnapshot);
-  const mockFetchSnapshotWithFallback = vi.mocked(fetchSnapshotModule.fetchSnapshotWithFallback);
+  const mockFetchSnapshotWithFallback = vi.mocked(
+    fetchSnapshotWithFallbackModule.fetchSnapshotWithFallback,
+  );
+  const mockGetMergeBase = vi.mocked(gitModule.getMergeBase);
 
   /** @type {PrInfo} */
   const mockPrInfo = {
@@ -27,6 +36,10 @@ describe('renderMarkdownReport', () => {
   beforeEach(() => {
     mockFetchSnapshot.mockClear();
     mockFetchSnapshotWithFallback.mockClear();
+    mockGetMergeBase.mockClear();
+
+    // Set up default mock for getMergeBase
+    mockGetMergeBase.mockResolvedValue(mockPrInfo.base.sha);
   });
 
   it('should generate markdown report with size increases', async () => {
@@ -109,7 +122,7 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toContain(
-      'No bundle size snapshot found for base commit abc123 or any of its 3 parent commits.',
+      'No bundle size snapshot found for merge base abc123 or any of its 3 parent commits.',
     );
   });
 
@@ -235,39 +248,6 @@ describe('renderMarkdownReport', () => {
     `);
   });
 
-  it('should include CircleCI build number in details URL', async () => {
-    const baseSnapshot = {
-      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
-    };
-
-    const prSnapshot = {
-      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
-    };
-
-    mockFetchSnapshotWithFallback.mockResolvedValueOnce({
-      snapshot: baseSnapshot,
-      actualCommit: 'abc123',
-    });
-    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
-
-    const result = await renderMarkdownReport(mockPrInfo, '12345');
-
-    expect(result).toContain('circleCIBuildNumber=12345');
-    expect(result).toMatchInlineSnapshot(`
-      "**Total Size Change:**  0B<sup>(0.00%)</sup> - **Total Gzip Change:**  0B<sup>(0.00%)</sup>
-      Files: 1 total (0 added, 0 removed, 0 changed)
-
-      <details>
-      <summary>Show details for 1 more bundle</summary>
-
-      **@mui/material/Button/index.js**&emsp;**parsed:**  0B<sup>(0.00%)</sup> **gzip:**  0B<sup>(0.00%)</sup>
-
-      </details>
-
-      [Details of bundle changes](https://frontend-public.mui.com/size-comparison/mui/material-ui/diff?prNumber=42&baseRef=master&baseCommit=abc123&headCommit=def456&circleCIBuildNumber=12345)"
-    `);
-  });
-
   it('should handle no changes', async () => {
     const baseSnapshot = {
       '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
@@ -319,13 +299,13 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
-      |----------|----------:|----------:|
+      "| Bundle | Parsed size | Gzip size |
+      |:----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
       | @mui/material/TextField/index.js | 🔺+200B<sup>(+0.91%)</sup> | 🔺+100B<sup>(+1.54%)</sup> |
 
@@ -354,13 +334,13 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
-      |----------|----------:|----------:|
+      "| Bundle | Parsed size | Gzip size |
+      |:----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+500B<sup>(+3.33%)</sup> | 🔺+150B<sup>(+3.33%)</sup> |
       | @mui/material/TextField/index.js | 🔺+300B<sup>(+1.36%)</sup> | 🔺+150B<sup>(+2.31%)</sup> |
 
@@ -389,13 +369,13 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js'],
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
-      |----------|----------:|----------:|
+      "| Bundle | Parsed size | Gzip size |
+      |:----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
 
 
@@ -423,13 +403,13 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js', '@mui/material/TextField/index.js'],
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
-      |----------|----------:|----------:|
+      "| Bundle | Parsed size | Gzip size |
+      |:----------|----------:|----------:|
       | @mui/material/Button/index.js |  0B<sup>(0.00%)</sup> |  0B<sup>(0.00%)</sup> |
       | @mui/material/TextField/index.js |  0B<sup>(0.00%)</sup> |  0B<sup>(0.00%)</sup> |
 
@@ -456,13 +436,13 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, {
+    const result = await renderMarkdownReport(mockPrInfo, {
       track: ['@mui/material/Button/index.js'],
     });
 
     expect(result).toMatchInlineSnapshot(`
-      "| Bundle | Parsed Size | Gzip Size |
-      |----------|----------:|----------:|
+      "| Bundle | Parsed size | Gzip size |
+      |:----------|----------:|----------:|
       | @mui/material/Button/index.js | 🔺+400B<sup>(+2.67%)</sup> | 🔺+100B<sup>(+2.22%)</sup> |
 
 
@@ -487,7 +467,7 @@ describe('renderMarkdownReport', () => {
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
     await expect(
-      renderMarkdownReport(mockPrInfo, undefined, {
+      renderMarkdownReport(mockPrInfo, {
         track: ['@mui/material/Button/index.js', '@mui/material/NonExistent/index.js'],
       }),
     ).rejects.toThrow(
@@ -512,7 +492,9 @@ describe('renderMarkdownReport', () => {
 
     const result = await renderMarkdownReport(mockPrInfo);
 
-    expect(result).toContain('Using snapshot from parent commit parent1 (fallback from abc123)');
+    expect(result).toContain(
+      'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
+    );
     expect(result).toContain('baseCommit=parent1');
   });
 
@@ -527,7 +509,7 @@ describe('renderMarkdownReport', () => {
     const result = await renderMarkdownReport(mockPrInfo);
 
     expect(result).toContain(
-      'No bundle size snapshot found for base commit abc123 or any of its 3 parent commits.',
+      'No bundle size snapshot found for merge base abc123 or any of its 3 parent commits.',
     );
   });
 
@@ -546,9 +528,77 @@ describe('renderMarkdownReport', () => {
     });
     mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
 
-    const result = await renderMarkdownReport(mockPrInfo, undefined, { fallbackDepth: 1 });
+    const result = await renderMarkdownReport(mockPrInfo, { fallbackDepth: 1 });
 
-    expect(result).toContain('Using snapshot from parent commit parent1 (fallback from abc123)');
+    expect(result).toContain(
+      'Using snapshot from parent commit parent1 (fallback from merge base abc123)',
+    );
     expect(mockFetchSnapshotWithFallback).toHaveBeenCalledWith('mui/material-ui', 'abc123', 1);
+  });
+
+  it('should throw error when default getMergeBase fails', async () => {
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    // Mock getMergeBase to fail (simulating no merge base found)
+    mockGetMergeBase.mockRejectedValue(new Error('fatal: Not a valid object name abc123'));
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    await expect(renderMarkdownReport(mockPrInfo)).rejects.toThrow(
+      'fatal: Not a valid object name abc123',
+    );
+
+    // Verify that getMergeBase was called with correct parameters
+    expect(mockGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
+  });
+
+  it('should use custom getMergeBase function when provided', async () => {
+    const baseSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15400, gzip: 4600 },
+    };
+
+    const customGetMergeBase = vi.fn().mockResolvedValue('custom123');
+
+    // Reset mocks to ensure clean state for this test
+    mockFetchSnapshotWithFallback.mockReset();
+    mockFetchSnapshot.mockReset();
+
+    mockFetchSnapshotWithFallback.mockResolvedValueOnce({
+      snapshot: baseSnapshot,
+      actualCommit: 'custom123',
+    });
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    const result = await renderMarkdownReport(mockPrInfo, { getMergeBase: customGetMergeBase });
+
+    // Verify that custom getMergeBase was called instead of default
+    expect(customGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
+    expect(mockGetMergeBase).not.toHaveBeenCalled();
+    expect(mockFetchSnapshotWithFallback).toHaveBeenCalledWith('mui/material-ui', 'custom123', 3);
+
+    expect(result).toContain('**Total Size Change:** 🔺+400B');
+  });
+
+  it('should throw error when custom getMergeBase fails', async () => {
+    const prSnapshot = {
+      '@mui/material/Button/index.js': { parsed: 15000, gzip: 4500 },
+    };
+
+    const customGetMergeBase = vi.fn().mockRejectedValue(new Error('Custom merge base error'));
+
+    mockFetchSnapshot.mockResolvedValueOnce(prSnapshot);
+
+    await expect(
+      renderMarkdownReport(mockPrInfo, { getMergeBase: customGetMergeBase }),
+    ).rejects.toThrow('Custom merge base error');
+
+    // Verify that custom getMergeBase was called
+    expect(customGetMergeBase).toHaveBeenCalledWith('abc123', 'def456');
+    expect(mockGetMergeBase).not.toHaveBeenCalled();
   });
 });

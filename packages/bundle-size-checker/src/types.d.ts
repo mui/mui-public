@@ -1,23 +1,3 @@
-// WebpackEntry type
-interface WebpackEntry {
-  import: string;
-  importName?: string;
-}
-
-// Webpack stats types
-interface StatsAsset {
-  name: string;
-  size: number;
-  related?: {
-    find: (predicate: (asset: any) => boolean) => { size: number; type: string };
-  };
-}
-
-interface StatsChunkGroup {
-  name: string;
-  assets: Array<{ name: string; size: number }>;
-}
-
 // Upload configuration with optional properties
 interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
@@ -41,6 +21,8 @@ interface ObjectEntry {
   import?: string; // Optional package name to import
   importedNames?: string[]; // Optional array of named imports
   externals?: string[]; // Optional array of packages to exclude from the bundle
+  track?: boolean; // Whether this bundle should be tracked in PR comments (defaults to false)
+  expand?: boolean; // Whether to expand the entry to include all exports
 }
 
 type EntryPoint = StringEntry | ObjectEntry;
@@ -49,6 +31,7 @@ type EntryPoint = StringEntry | ObjectEntry;
 interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
+  comment?: boolean; // Whether to post PR comments (defaults to true)
 }
 
 type BundleSizeCheckerConfig =
@@ -60,17 +43,23 @@ type BundleSizeCheckerConfig =
 interface NormalizedBundleSizeCheckerConfig {
   entrypoints: ObjectEntry[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
+  comment: boolean; // Whether to post PR comments
 }
 
 // Command line argument types
 interface CommandLineArgs {
   analyze?: boolean;
-  accurateBundles?: boolean;
   output?: string;
   verbose?: boolean;
   filter?: string[];
   concurrency?: number;
-  vite?: boolean;
+  debug?: boolean;
+}
+
+interface ReportCommandArgs {
+  pr?: number;
+  owner?: string;
+  repo?: string;
 }
 
 // Diff command argument types
@@ -85,7 +74,6 @@ interface DiffCommandArgs {
 interface PrCommandArgs {
   prNumber: number;
   output?: 'json' | 'markdown';
-  circleci?: string;
 }
 
 interface PrInfo {
@@ -101,4 +89,9 @@ interface PrInfo {
     ref: string;
     sha: string;
   };
+}
+
+interface SizeSnapshotEntry {
+  parsed: number;
+  gzip: number;
 }

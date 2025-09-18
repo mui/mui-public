@@ -1,0 +1,25 @@
+name: 'Publish Preparation'
+description: 'Common setup steps for publishing MUI packages (after checkout)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up pnpm
+      uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+    - name: Setup Node.js
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+      with:
+        node-version: 22.19.0
+        # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
+        cache: 'pnpm'
+        registry-url: 'https://registry.npmjs.org'
+    # Ensure npm 11.5.1 or later is installed
+    - name: Update npm
+      shell: bash
+      run: npm install -g npm@latest
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+    - name: Build packages
+      shell: bash
+      run: pnpm run release:build
