@@ -164,12 +164,11 @@ export default function PRList({
   return (
     <Box>
       <Paper elevation={2} sx={{ overflow: 'hidden' }}>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Recent pull requests
-          </Typography>
-          {error ? <ErrorDisplay title="Error loading pull requests" error={error} /> : null}
-        </Box>
+        {error ? (
+          <Box sx={{ p: 3 }}>
+            <ErrorDisplay title="Error loading pull requests" error={error} />{' '}
+          </Box>
+        ) : null}
 
         {error ? null : (
           <React.Fragment>
