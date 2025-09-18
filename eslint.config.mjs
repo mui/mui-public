@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
   createBaseConfig,
   createTestConfig,
+  createDocsConfig,
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
@@ -45,6 +46,20 @@ export default defineConfig(
       `**/*${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig(),
+  },
+  {
+    files: ['docs/**/*'],
+    extends: createDocsConfig(),
+    settings: {
+      'import/resolver': {
+        typescript: {
+          project: ['docs/tsconfig.json'],
+        },
+      },
+    },
+    rules: {
+      '@next/next/no-img-element': 'off',
+    },
   },
   {
     files: [`apps/**/*.${EXTENSION_TS}`],
