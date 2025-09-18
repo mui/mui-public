@@ -61,27 +61,24 @@ function processDiff(
 
   const lines = fileDiff.split('\n');
   const rawHeaderLine = lines[0] || '';
-  const contentLines = lines.slice(2); // Skip first two lines
-
-  const blocks = contentLines.reduce<{ text: string; className: string | null }[]>(
-    (acc, line, index) => {
-      const className = getLineClass(line, index);
-      const content = `${line}\n`;
-
-      const lastBlock = acc[acc.length - 1];
-
-      if (lastBlock && lastBlock.className === className) {
-        lastBlock.text += content;
-      } else {
-        acc.push({ text: content, className });
-      }
-
-      return acc;
-    },
-    [],
-  );
-
   const fileName = rawHeaderLine.replace(/^Index: /, '');
+
+  const blocks: { text: string; className: string | null }[] = [];
+
+  const contentLines = lines.slice(2); // Skip first two lines ("Index: <filename>" and "===")
+  for (let index = 0; index < contentLines.length; index += 1) {
+    const line = contentLines[index];
+    const className = getLineClass(line, index);
+    const content = `${line}\n`;
+
+    const lastBlock = blocks[blocks.length - 1];
+
+    if (lastBlock && lastBlock.className === className) {
+      lastBlock.text += content;
+    } else {
+      blocks.push({ text: content, className });
+    }
+  }
 
   return {
     fileName,
