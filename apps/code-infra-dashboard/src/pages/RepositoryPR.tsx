@@ -71,7 +71,7 @@ export default function RepositoryPR() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Heading level={1}>
+        <Heading level={2}>
           #{prNumber}:{' '}
           {prInfo?.title || (
             <Skeleton variant="text" sx={{ display: 'inline-block' }} width={100} />
