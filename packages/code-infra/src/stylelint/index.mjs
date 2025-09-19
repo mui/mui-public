@@ -12,7 +12,10 @@ export default {
     'import-notation': null,
 
     // Allow commenting code out without forcing an empty line
-    'comment-empty-line-before': ['always', { ignore: ['after-comment'] }],
+    'comment-empty-line-before': [
+      'always',
+      { except: ['first-nested'], ignore: ['after-comment', 'stylelint-commands'] },
+    ],
 
     // Don't assume we preprocess
     'property-no-vendor-prefix': null,
