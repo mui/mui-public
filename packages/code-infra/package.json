@@ -11,6 +11,7 @@
   },
   "sideEffects": false,
   "exports": {
+    "./stylelint": "./src/stylelint/index.mjs",
     "./package.json": "./package.json",
     "./prettier": "./src/prettier.mjs",
     "./eslint": "./src/eslint/index.mjs",
@@ -64,9 +65,11 @@
     "globals": "^16.4.0",
     "globby": "^14.1.0",
     "minimatch": "^10.0.3",
+    "postcss-styled-syntax": "^0.7.1",
     "regexp.escape": "^2.0.1",
     "resolve-pkg-maps": "^1.0.0",
     "semver": "^7.7.2",
+    "stylelint-config-standard": "^39.0.0",
     "typescript-eslint": "^8.43.0",
     "yargs": "^18.0.0"
   },
