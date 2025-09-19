@@ -242,6 +242,10 @@ function renderCodeHighlighter<T extends {}>(props: RenderCodeHighlighterProps<T
  * Ensures that the suspense boundary is always rendered, even if none of the children have async operations.
  */
 async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+
   return props.children;
 }
 
@@ -413,25 +417,8 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
     });
   }
 
-  // Check if any loader functions are available
-  const hasAnyLoaderFunction = !!(
-    props.loadCodeMeta ||
-    props.loadVariantMeta ||
-    props.loadSource ||
-    props.sourceParser ||
-    props.sourceTransformers
-  );
-
-  // If no loader functions are available, skip async loading and go directly to client
-  if (!hasAnyLoaderFunction) {
-    return renderCodeHighlighter({
-      ...props,
-      code,
-    });
-  }
-
   const initialKey = props.initialVariant || props.variant || props.defaultVariant || variants[0];
-  const initial = code?.[initialKey];
+  const initial = code?.[initialKey] || props.precompute?.[initialKey];
   if (!initial && !props.components?.[initialKey]) {
     throw new Errors.ErrorCodeHighlighterServerMissingVariant(initialKey);
   }
@@ -454,7 +441,17 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
       console.log('Initial data not found:', reason);
     }
 
-    if (props.forceClient) {
+    // Check if any loader functions are available
+    const hasAnyLoaderFunction = !!(
+      props.loadCodeMeta ||
+      props.loadVariantMeta ||
+      props.loadSource ||
+      props.sourceParser ||
+      props.sourceTransformers
+    );
+
+    // If no loader functions are available, skip async loading and go directly to client
+    if (!hasAnyLoaderFunction || props.forceClient) {
       if (props.highlightAfter === 'init') {
         throw new Errors.ErrorCodeHighlighterServerInvalidClientMode();
       }
