@@ -29,9 +29,10 @@ const rootDir = process.cwd();
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
+ * @param {NormalizedBundleSizeCheckerConfig} config
  * @returns {Promise<import('vite').InlineConfig>}
  */
-async function createViteConfig(entry, args) {
+async function createViteConfig(entry, args, config) {
   const entryName = entry.id;
   let entryContent;
 
@@ -108,6 +109,7 @@ async function createViteConfig(entry, args) {
     },
 
     define: {
+      ...config.define,
       'process.env.NODE_ENV': JSON.stringify('production'),
     },
     logLevel: args.verbose ? 'info' : 'silent',
@@ -240,11 +242,12 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
+ * @param {NormalizedBundleSizeCheckerConfig} config - The normalized configuration
  * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
-export async function getBundleSizes(entry, args) {
+export async function getBundleSizes(entry, args, config) {
   // Create vite configuration
-  const configuration = await createViteConfig(entry, args);
+  const configuration = await createViteConfig(entry, args, config);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));
