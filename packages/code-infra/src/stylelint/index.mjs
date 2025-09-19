@@ -13,7 +13,6 @@ export default {
     'string-no-newline': null, // not compatible with prettier
     'value-keyword-case': null,
     'import-notation': null,
-    'selector-pseudo-element-colon-notation': 'single',
 
     // Tailwind
     'at-rule-no-unknown': [true, { ignoreAtRules: ['theme', 'config'] }],
