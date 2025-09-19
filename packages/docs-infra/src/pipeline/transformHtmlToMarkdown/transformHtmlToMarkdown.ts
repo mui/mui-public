@@ -38,14 +38,27 @@ const pre: Handle = (state, element) => {
   return output;
 };
 
+const a: Handle = (state, element) => {
+  const output = defaultHandlers.a(state, element);
+
+  if (output.url) {
+    if (output.url.startsWith('/') && !output.url.endsWith('.md')) {
+      // TODO: in some scenarios, we might want to include a hostname
+      return { ...output, url: `${output.url}.md` };
+    }
+  }
+
+  return output;
+};
+
 export async function transformHtmlToMarkdown(html: string): Promise<string> {
   const file = await unified()
     .use(rehypeParse)
     .use(rehypeSanitize, {
-      attributes: { '*': ['className'], pre: ['dataLang', 'dataFilename'] },
+      attributes: { '*': ['className'], pre: ['dataLang', 'dataFilename'], a: ['href'] },
       strip: ['script', 'title'],
     })
-    .use(rehypeRemark, { handlers: { div, pre } })
+    .use(rehypeRemark, { handlers: { div, pre, a } })
     .use(remarkGfm)
     .use(remarkStringify)
     .process(html);
