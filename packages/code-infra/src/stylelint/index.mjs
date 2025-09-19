@@ -13,6 +13,7 @@ export default {
     'string-no-newline': null, // not compatible with prettier
     'value-keyword-case': null,
     'import-notation': null,
+    'selector-pseudo-element-colon-notation': 'single',
 
     // Tailwind
     'at-rule-no-unknown': [true, { ignoreAtRules: ['theme', 'config'] }],
@@ -25,6 +26,7 @@ export default {
 
     // Don't assume we preprocess
     'property-no-vendor-prefix': null,
+    'property-no-deprecated': null,
     'declaration-property-value-keyword-no-deprecated': null,
 
     // Work for a minifier
