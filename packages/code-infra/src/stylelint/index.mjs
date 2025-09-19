@@ -11,6 +11,7 @@ export default {
     'value-keyword-case': null,
     'import-notation': null,
     'property-no-vendor-prefix': null,
+    'declaration-property-value-keyword-no-deprecated': null,
     'comment-empty-line-before': ['always', { ignore: ['after-comment'] }],
   },
   overrides: [
