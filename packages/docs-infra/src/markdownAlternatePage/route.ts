@@ -16,10 +16,16 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ markdownPath: string[] }> },
 ) {
-  const path = (await params).markdownPath;
-  if (path.length === 0 || (path.length === 1 && path[0] === PLACEHOLDER)) {
+  const markdownPath = (await params).markdownPath;
+  if (markdownPath.length === 0 || (markdownPath.length === 1 && markdownPath[0] === PLACEHOLDER)) {
     return new Response('No path provided', { status: 400 });
   }
+
+  const fileName = markdownPath[markdownPath.length - 1];
+  const path = [
+    ...markdownPath.slice(0, -1),
+    fileName.endsWith('.md') ? fileName.substring(0, fileName.length - 3) : fileName,
+  ];
 
   const html = await fetch(`http://127.0.0.1:${PORT}/${path.join('/')}`).then((res) => res.text());
 
@@ -36,11 +42,13 @@ export async function generateStaticParams() {
   if (process.env.NODE_ENV === 'development') {
     const paths = await collectKnownPages();
 
-    return paths.map((segments) => {
+    const params = paths.map((segments) => {
       const markdownPath = [...segments];
       markdownPath[markdownPath.length - 1] += '.md';
       return { markdownPath };
     });
+
+    return params;
   }
 
   // During a production build, we can't fetch html from the server,
