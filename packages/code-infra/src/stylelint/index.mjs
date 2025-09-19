@@ -1,3 +1,6 @@
+// @ts-expect-error No types available
+import postcssStylesSyntax from 'postcss-styled-syntax';
+
 /** @type {import('stylelint').Config} */
 export default {
   extends: 'stylelint-config-standard',
@@ -31,7 +34,7 @@ export default {
   overrides: [
     {
       files: ['**/*.?(c|m)[jt]s?(x)'],
-      customSyntax: 'postcss-styled-syntax',
+      customSyntax: postcssStylesSyntax,
     },
   ],
 };
