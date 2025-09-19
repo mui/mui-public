@@ -10,9 +10,17 @@ export default {
     'string-no-newline': null, // not compatible with prettier
     'value-keyword-case': null,
     'import-notation': null,
+
+    // Allow commenting code out without forcing an empty line
+    'comment-empty-line-before': ['always', { ignore: ['after-comment'] }],
+
+    // Don't assume we preprocess
     'property-no-vendor-prefix': null,
     'declaration-property-value-keyword-no-deprecated': null,
-    'comment-empty-line-before': ['always', { ignore: ['after-comment'] }],
+
+    // Work for a minifier
+    'color-hex-length': null,
+    'declaration-block-no-redundant-longhand-properties': null,
   },
   overrides: [
     {
