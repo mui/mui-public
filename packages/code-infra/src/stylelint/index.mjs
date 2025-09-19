@@ -11,6 +11,9 @@ export default {
     'value-keyword-case': null,
     'import-notation': null,
 
+    // Tailwind
+    'at-rule-no-unknown': [true, { ignoreAtRules: ['theme', 'config'] }],
+
     // Allow commenting code out without forcing an empty line
     'comment-empty-line-before': [
       'always',
