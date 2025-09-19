@@ -595,6 +595,9 @@ importers:
       '@wooorm/starry-night':
         specifier: ^3.8.0
         version: 3.8.0
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
       clipboard-copy:
         specifier: ^4.0.1
         version: 4.0.1
@@ -631,6 +634,9 @@ importers:
       rehype-sanitize:
         specifier: ^6.0.0
         version: 6.0.0
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
       remark-stringify:
         specifier: ^11.0.0
         version: 11.0.0
@@ -640,6 +646,9 @@ importers:
       vscode-oniguruma:
         specifier: ^2.0.1
         version: 2.0.1
+      yargs:
+        specifier: ^18.0.0
+        version: 18.0.0
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.0
@@ -665,6 +674,9 @@ importers:
       '@types/webpack':
         specifier: ^5.28.5
         version: 5.28.5(jiti@2.5.1)
+      '@types/yargs':
+        specifier: ^17.0.33
+        version: 17.0.33
       react:
         specifier: ^19.1.1
         version: 19.1.1

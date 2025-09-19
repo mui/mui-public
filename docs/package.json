@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
-    "build-exp": "next build --turbopack",
+    "build": "next build && docs-infra post-build",
+    "build-exp": "next build --turbopack && docs-infra post-build",
     "start": "next start"
   },
   "dependencies": {

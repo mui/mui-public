@@ -2,6 +2,7 @@ import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeRemark from 'rehype-remark';
+import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { defaultHandlers } from 'hast-util-to-mdast';
 import type { Handle } from 'hast-util-to-mdast';
@@ -45,6 +46,7 @@ export async function transformHtmlToMarkdown(html: string): Promise<string> {
       strip: ['script', 'title'],
     })
     .use(rehypeRemark, { handlers: { div, pre } })
+    .use(remarkGfm)
     .use(remarkStringify)
     .process(html);
 

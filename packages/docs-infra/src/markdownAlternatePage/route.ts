@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+import { collectKnownPages } from '../markdownAlternates/collectKnownPages';
 import { transformHtmlToMarkdown } from '../pipeline/transformHtmlToMarkdown';
 
 export const dynamic = 'force-static';
@@ -21,7 +21,6 @@ export async function GET(
     return new Response('No path provided', { status: 400 });
   }
 
-  path[path.length - 1] = path[path.length - 1].replace(/\.md$/, '');
   const html = await fetch(`http://127.0.0.1:${PORT}/${path.join('/')}`).then((res) => res.text());
 
   const markdown = await transformHtmlToMarkdown(html);
@@ -33,45 +32,15 @@ export async function GET(
   });
 }
 
-// TODO: refactor to be used by build process
-async function generateStaticParamsRecursive(
-  maxDepth: number = 5,
-  basePath: string[] = [],
-  currentPath: string[] = [],
-) {
-  if (maxDepth === 0) {
-    return [];
-  }
-
-  const fullPath = [...basePath, ...currentPath].join('/');
-  const files = await fs.readdir(`./app/${fullPath}`, { withFileTypes: true });
-
-  const params: { markdownPath: string[] }[] = [];
-  const dirPromises: Promise<{ markdownPath: string[] }[]>[] = [];
-
-  for (const file of files) {
-    if (file.isDirectory()) {
-      dirPromises.push(
-        generateStaticParamsRecursive(maxDepth - 1, basePath, [...currentPath, file.name]),
-      );
-    } else if (file.isFile() && file.name.startsWith('page.')) {
-      const markdownPath = [...currentPath];
-      markdownPath[markdownPath.length - 1] += '.md';
-      params.push({ markdownPath });
-    }
-  }
-
-  const dirResults = await Promise.all(dirPromises);
-  for (const result of dirResults) {
-    params.push(...result);
-  }
-
-  return params;
-}
-
 export async function generateStaticParams() {
   if (process.env.NODE_ENV === 'development') {
-    return generateStaticParamsRecursive();
+    const paths = await collectKnownPages();
+
+    return paths.map((segments) => {
+      const markdownPath = [...segments];
+      markdownPath[markdownPath.length - 1] += '.md';
+      return { markdownPath };
+    });
   }
 
   // During a production build, we can't fetch html from the server,
