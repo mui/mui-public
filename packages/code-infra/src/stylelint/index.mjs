@@ -9,6 +9,7 @@ export default {
     'selector-class-pattern': null,
     'string-no-newline': null, // not compatible with prettier
     'value-keyword-case': null,
+    'import-notation': null,
     'comment-empty-line-before': ['always', { ignore: ['after-comment'] }],
   },
   overrides: [
