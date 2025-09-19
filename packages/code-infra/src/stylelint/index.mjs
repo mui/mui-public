@@ -10,6 +10,7 @@ export default {
     'string-no-newline': null, // not compatible with prettier
     'value-keyword-case': null,
     'import-notation': null,
+    'property-no-vendor-prefix': null,
     'comment-empty-line-before': ['always', { ignore: ['after-comment'] }],
   },
   overrides: [
