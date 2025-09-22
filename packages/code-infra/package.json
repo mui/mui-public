@@ -27,7 +27,7 @@
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
   "dependencies": {
-    "@argos-ci/core": "^4.1.4",
+    "@argos-ci/core": "^4.1.5",
     "@babel/cli": "^7.28.3",
     "@babel/core": "^7.28.4",
     "@babel/plugin-syntax-jsx": "^7.27.1",
@@ -59,7 +59,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^6.0.0-rc1",
-    "eslint-plugin-testing-library": "^7.7.0",
+    "eslint-plugin-testing-library": "^7.8.0",
     "execa": "^9.6.0",
     "git-url-parse": "^16.1.0",
     "globals": "^16.4.0",
@@ -70,7 +70,7 @@
     "resolve-pkg-maps": "^1.0.0",
     "semver": "^7.7.2",
     "stylelint-config-standard": "^39.0.0",
-    "typescript-eslint": "^8.43.0",
+    "typescript-eslint": "^8.44.0",
     "yargs": "^18.0.0"
   },
   "peerDependencies": {
@@ -86,11 +86,11 @@
     "@types/estree-jsx": "^1.0.5",
     "@types/regexp.escape": "^2.0.0",
     "@types/yargs": "^17.0.33",
-    "@typescript-eslint/parser": "^8.43.0",
-    "@typescript-eslint/rule-tester": "^8.43.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "@typescript-eslint/rule-tester": "^8.44.0",
     "eslint": "^9.35.0",
     "prettier": "^3.6.2",
-    "typescript-eslint": "^8.43.0"
+    "typescript-eslint": "^8.44.0"
   },
   "files": [
     "bin",
