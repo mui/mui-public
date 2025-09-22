@@ -1,9 +1,11 @@
 // @ts-expect-error No types available
 import postcssStylesSyntax from 'postcss-styled-syntax';
+// @ts-expect-error No types available
+import standardConfig from 'stylelint-config-standard';
 
 /** @type {import('stylelint').Config} */
 export default {
-  extends: 'stylelint-config-standard',
+  extends: standardConfig,
   rules: {
     'alpha-value-notation': null,
     'custom-property-pattern': null,
