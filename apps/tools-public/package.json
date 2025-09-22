@@ -10,7 +10,7 @@
     "@googleapis/sheets": "^9.8.0",
     "@mui/system": "^7.3.2",
     "@mui/x-charts": "^8.11.2",
-    "@octokit/core": "^7.0.3",
+    "@octokit/core": "^7.0.4",
     "@toolpad/studio": "^0.13.0",
     "dayjs": "^1.11.18",
     "google-auth-library": "^9.15.1",
