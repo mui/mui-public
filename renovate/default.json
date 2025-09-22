@@ -66,6 +66,11 @@
       "allowedVersions": "<=22.18"
     },
     {
+      "matchDepTypes": ["engines"],
+      "matchFileNames": ["packages/*/package.json"],
+      "enabled": false
+    },
+    {
       "groupName": "eslint",
       "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
     },
