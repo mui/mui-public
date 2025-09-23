@@ -29,9 +29,10 @@ const rootDir = process.cwd();
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
+ * @param {any[]} [extraPlugins] - Additional Vite plugins to include
  * @returns {Promise<import('vite').InlineConfig>}
  */
-async function createViteConfig(entry, args) {
+async function createViteConfig(entry, args, extraPlugins = []) {
   const entryName = entry.id;
   let entryContent;
 
@@ -113,6 +114,7 @@ async function createViteConfig(entry, args) {
     logLevel: args.verbose ? 'info' : 'silent',
     // Add plugins to handle virtual entry points
     plugins: [
+      ...extraPlugins,
       {
         name: 'virtual-entry',
         resolveId(id) {
@@ -240,11 +242,12 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
+ * @param {any[]} [extraPlugins] - Additional Vite plugins to include
  * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
-export async function getBundleSizes(entry, args) {
+export async function getBundleSizes(entry, args, extraPlugins) {
   // Create vite configuration
-  const configuration = await createViteConfig(entry, args);
+  const configuration = await createViteConfig(entry, args, extraPlugins);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));

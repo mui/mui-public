@@ -1,3 +1,5 @@
+import type { UserConfig as ViteUserConfig } from 'vite';
+
 // Upload configuration with optional properties
 interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
@@ -32,6 +34,7 @@ interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
   comment?: boolean; // Whether to post PR comments (defaults to true)
+  vite?: Pick<ViteUserConfig, 'plugins'>; // Additional Vite config options
 }
 
 type BundleSizeCheckerConfig =
@@ -44,6 +47,9 @@ interface NormalizedBundleSizeCheckerConfig {
   entrypoints: ObjectEntry[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
   comment: boolean; // Whether to post PR comments
+  vite: {
+    plugins: any[]; // Additional Vite plugins to include in the build
+  };
 }
 
 // Command line argument types
