@@ -94,9 +94,7 @@ async function createViteConfig(entry, args, replacements = {}) {
       outDir,
       emptyOutDir: true,
       rollupOptions: {
-        input: {
-          bundle: '/entry.tsx',
-        },
+        input: '/index.tsx',
         external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(`${ext}/`)),
         plugins: [
           ...(args.analyze
@@ -139,12 +137,18 @@ async function createViteConfig(entry, args, replacements = {}) {
       {
         name: 'virtual-entry',
         resolveId(id) {
+          if (id === '/index.tsx') {
+            return `\0virtual:index.tsx`;
+          }
           if (id === '/entry.tsx') {
             return `\0virtual:entry.tsx`;
           }
           return null;
         },
         load(id) {
+          if (id === `\0virtual:index.tsx`) {
+            return transformWithEsbuild(`import('/entry.tsx').then(console.log)`, id);
+          }
           if (id === `\0virtual:entry.tsx`) {
             return transformWithEsbuild(entryContent, id);
           }
@@ -240,6 +244,10 @@ async function processBundleSizes(output, entryName) {
     const gzipBuffer = await gzipAsync(fileContent, { level: zlib.constants.Z_BEST_COMPRESSION });
     const gzipSize = Buffer.byteLength(gzipBuffer);
 
+    if (chunk.isEntry) {
+      return null;
+    }
+
     // Use chunk key as the name, or fallback to entry name for main chunk
     const chunkName = chunk.name === 'bundle' ? entryName : chunk.name || chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
@@ -253,12 +261,11 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
- * @param {Record<string, string>} [replacements] - String replacements to apply
  * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
-export async function getBundleSizes(entry, args, replacements) {
+export async function getBundleSizes(entry, args) {
   // Create vite configuration
-  const configuration = await createViteConfig(entry, args, replacements);
+  const configuration = await createViteConfig(entry, args);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));
