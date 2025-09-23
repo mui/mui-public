@@ -6,11 +6,11 @@ import fs from 'fs/promises';
 
 import { resolve } from 'import-meta-resolve';
 import type { LoaderContext } from 'webpack';
-import { parseFromProgram } from 'typescript-api-extractor';
+import { ExportNode, parseFromProgram } from 'typescript-api-extractor';
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl, getFileNameFromUrl } from '../loaderUtils';
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
 import {
   createPerformanceLogger,
@@ -19,6 +19,9 @@ import {
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
+import { ComponentTypeMeta, formatComponentData, isPublicComponent } from './formatComponent';
+import { formatHookData, HookTypeMeta, isPublicHook } from './formatHook';
+import { generateTypesMarkdown } from './generateTypesMarkdown';
 
 export type LoaderOptions = {
   performance?: {
@@ -27,6 +30,20 @@ export type LoaderOptions = {
     showWrapperMeasures?: boolean;
   };
 };
+
+export type TypesMeta =
+  | {
+      type: 'component';
+      data: ComponentTypeMeta;
+    }
+  | {
+      type: 'hook';
+      data: HookTypeMeta;
+    }
+  | {
+      type: 'other';
+      data: ExportNode;
+    };
 
 const functionName = 'Load Precomputed Types Meta';
 
@@ -51,6 +68,10 @@ export async function loadPrecomputedTypesMeta(
   const options = this.getOptions();
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
+
+  const resourceName = extractNameAndSlugFromUrl(
+    new URL('.', `file://${this.resourcePath}`).pathname,
+  ).name;
 
   let observer: PerformanceObserver | undefined = undefined;
   if (options.performance?.logging) {
@@ -150,7 +171,13 @@ export async function loadPrecomputedTypesMeta(
     currentMark = tsconfigLoadedMark;
 
     // Load variant data for all variants
-    const variantData: Record<string, any> = {};
+    const variantData: Record<
+      string,
+      {
+        types: TypesMeta[];
+        importedFrom: string;
+      }
+    > = {};
     const allDependencies: string[] = [];
 
     // Resolve all variant entry point paths using import.meta.resolve
@@ -318,6 +345,7 @@ export async function loadPrecomputedTypesMeta(
         }
 
         const entrypoint = fileUrl.replace('file://', '');
+        const entrypointDir = new URL('.', fileUrl).pathname;
         try {
           // Ensure the entrypoint exists and is accessible to the TypeScript program
           const sourceFile = program.getSourceFile(entrypoint);
@@ -329,7 +357,7 @@ export async function loadPrecomputedTypesMeta(
           }
 
           // Pass parser options with proper configuration
-          const moduleInfo = parseFromProgram(entrypoint, program, {
+          const { exports } = parseFromProgram(entrypoint, program, {
             includeExternalTypes: false, // Only include project types
             shouldInclude: ({ depth }) => depth <= 10, // Limit depth
             shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
@@ -338,22 +366,34 @@ export async function loadPrecomputedTypesMeta(
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...config.dependencies, entrypoint];
 
-          if (sourceFile) {
-            // Get all imported files from the TypeScript program
-            // This includes all transitively imported files (imports within imports)
-            const allSourceFiles = program.getSourceFiles();
-            const projectFiles = allSourceFiles
-              .map((sf) => sf.fileName)
-              .filter(
-                (fileName) =>
-                  // Exclude TypeScript lib files but include everything else (including node_modules for pnpm workspaces)
-                  !fileName.includes('lib.') &&
-                  !fileName.includes('lib/') &&
-                  (fileName.endsWith('.ts') || fileName.endsWith('.tsx')),
-              );
+          // Get all imported files from the TypeScript program
+          // This includes all transitively imported files (imports within imports)
+          const allSourceFiles = program.getSourceFiles();
+          const dependantFiles = allSourceFiles
+            .map((sf) => sf.fileName)
+            .filter((fileName) => !fileName.includes('node_modules/typescript/lib'));
 
-            dependencies.push(...projectFiles);
-          }
+          dependencies.push(...dependantFiles);
+
+          const adjacentFiles = dependantFiles.filter(
+            (fileName) => fileName !== entrypoint && fileName.startsWith(entrypointDir),
+          );
+
+          const allInternalTypes = adjacentFiles.map(
+            (file) =>
+              parseFromProgram(file, program, {
+                includeExternalTypes: false, // Only include project types
+                shouldInclude: ({ depth }) => depth <= 10, // Limit depth
+                shouldResolveObject: ({ propertyCount, depth }) =>
+                  propertyCount <= 50 && depth <= 10,
+              }).exports,
+          );
+
+          const internalTypes = allInternalTypes.reduce((acc, cur) => {
+            acc.push(...cur);
+            return acc;
+          }, []);
+          const allTypes = [...exports, ...internalTypes];
 
           const relativeEntrypoint = path.relative(this.rootContext || process.cwd(), entrypoint);
           const parsedFromProgramMark = nameMark(functionName, 'parsed from program', [
@@ -368,10 +408,40 @@ export async function loadPrecomputedTypesMeta(
           );
           currentMark = parsedFromProgramMark;
 
+          const types: TypesMeta[] = await Promise.all(
+            exports.map(async (exportNode) => {
+              if (isPublicComponent(exportNode)) {
+                const componentApiReference = await formatComponentData(exportNode, allTypes, [
+                  'Component',
+                ]);
+                return { type: 'component', data: componentApiReference };
+              }
+
+              if (isPublicHook(exportNode)) {
+                const hookApiReference = await formatHookData(exportNode, []);
+                return { type: 'hook', data: hookApiReference };
+              }
+
+              return { type: 'other', data: exportNode };
+            }),
+          );
+
+          const formattedTypesMark = nameMark(functionName, 'formatted types', [
+            relativeEntrypoint,
+            relativePath,
+          ]);
+          performance.mark(formattedTypesMark);
+          performance.measure(
+            nameMark(functionName, 'types formatting', [relativeEntrypoint, relativePath]),
+            currentMark,
+            formattedTypesMark,
+          );
+          currentMark = formattedTypesMark;
+
           return {
             variantName,
             variantData: {
-              types: moduleInfo,
+              types,
               importedFrom: namedExport || 'default',
             },
             dependencies,
@@ -421,6 +491,25 @@ export async function loadPrecomputedTypesMeta(
       replacedPrecomputeMark,
     );
     currentMark = replacedPrecomputeMark;
+
+    const allTypes: TypesMeta[] = [];
+    Object.values(variantData).forEach((v) => {
+      allTypes.push(...v.types);
+    });
+
+    const markdown = await generateTypesMarkdown(resourceName, allTypes);
+    const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');
+    await fs.writeFile(markdownFilePath, markdown, 'utf-8');
+    allDependencies.push(markdownFilePath);
+
+    const generatedTypesMdMark = nameMark(functionName, 'generated types.md', [relativePath]);
+    performance.mark(generatedTypesMdMark);
+    performance.measure(
+      nameMark(functionName, 'types.md generation', [relativePath]),
+      currentMark,
+      generatedTypesMdMark,
+    );
+    currentMark = generatedTypesMdMark;
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
