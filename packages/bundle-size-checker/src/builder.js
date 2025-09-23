@@ -94,7 +94,7 @@ async function createViteConfig(entry, args, replacements = {}) {
       outDir,
       emptyOutDir: true,
       rollupOptions: {
-        input: '/index.tsx',
+        input: { bundle: '/entry.tsx' },
         external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(`${ext}/`)),
         plugins: [
           ...(args.analyze
@@ -137,18 +137,12 @@ async function createViteConfig(entry, args, replacements = {}) {
       {
         name: 'virtual-entry',
         resolveId(id) {
-          if (id === '/index.tsx') {
-            return `\0virtual:index.tsx`;
-          }
           if (id === '/entry.tsx') {
             return `\0virtual:entry.tsx`;
           }
           return null;
         },
         load(id) {
-          if (id === `\0virtual:index.tsx`) {
-            return transformWithEsbuild(`import('/entry.tsx').then(console.log)`, id);
-          }
           if (id === `\0virtual:entry.tsx`) {
             return transformWithEsbuild(entryContent, id);
           }
@@ -221,7 +215,7 @@ async function processBundleSizes(output, entryName) {
   const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
-  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === '_virtual_entry');
+  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === 'bundle');
 
   if (!mainEntry) {
     throw new Error(`No main entry found in manifest for ${entryName}`);
@@ -244,12 +238,8 @@ async function processBundleSizes(output, entryName) {
     const gzipBuffer = await gzipAsync(fileContent, { level: zlib.constants.Z_BEST_COMPRESSION });
     const gzipSize = Buffer.byteLength(gzipBuffer);
 
-    if (chunk.isEntry) {
-      return null;
-    }
-
     // Use chunk key as the name, or fallback to entry name for main chunk
-    const chunkName = chunk.name === '_virtual_entry' ? entryName : chunk.name || chunkKey;
+    const chunkName = chunk.name === 'bundle' ? entryName : chunk.name || chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
