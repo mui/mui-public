@@ -1,12 +1,11 @@
-// @ts-expect-error No types available
 import postcssStylesSyntax from 'postcss-styled-syntax';
-// @ts-expect-error No types available
 import standardConfig from 'stylelint-config-standard';
 
 /** @type {import('stylelint').Config} */
 export default {
   extends: standardConfig,
   rules: {
+    // Adopted from mui/material-ui repo
     'alpha-value-notation': null,
     'custom-property-pattern': null,
     'media-feature-range-notation': null,
@@ -16,21 +15,22 @@ export default {
     'value-keyword-case': null,
     'import-notation': null,
 
+    // Responsibility of prettier:
+    'at-rule-empty-line-before': null,
+    'comment-empty-line-before': null,
+    'custom-property-empty-line-before': null,
+    'declaration-empty-line-before': null,
+    'rule-empty-line-before': null,
+
     // Tailwind
     'at-rule-no-unknown': [true, { ignoreAtRules: ['theme', 'config'] }],
 
-    // Allow commenting code out without forcing an empty line
-    'comment-empty-line-before': [
-      'always',
-      { except: ['first-nested'], ignore: ['after-comment', 'stylelint-commands'] },
-    ],
-
-    // Don't assume we preprocess
+    // Don't assume we use a preprocessor
     'property-no-vendor-prefix': null,
     'property-no-deprecated': null,
     'declaration-property-value-keyword-no-deprecated': null,
 
-    // Work for a minifier
+    // Responsibility of a minifier
     'color-hex-length': null,
     'declaration-block-no-redundant-longhand-properties': null,
   },
