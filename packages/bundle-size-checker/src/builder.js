@@ -26,13 +26,31 @@ const rootDir = process.cwd();
  */
 
 /**
+ * Creates a simple string replacement plugin
+ * @param {Record<string, string>} replacements - Object with string replacements
+ * @returns {import('vite').Plugin}
+ */
+function createReplacePlugin(replacements) {
+  return {
+    name: 'string-replace',
+    transform(code) {
+      let transformedCode = code;
+      for (const [search, replace] of Object.entries(replacements)) {
+        transformedCode = transformedCode.replaceAll(search, replace);
+      }
+      return transformedCode !== code ? transformedCode : null;
+    },
+  };
+}
+
+/**
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
- * @param {any[]} [extraPlugins] - Additional Vite plugins to include
+ * @param {Record<string, string>} [replacements] - String replacements to apply
  * @returns {Promise<import('vite').InlineConfig>}
  */
-async function createViteConfig(entry, args, extraPlugins = []) {
+async function createViteConfig(entry, args, replacements = {}) {
   const entryName = entry.id;
   let entryContent;
 
@@ -117,7 +135,7 @@ async function createViteConfig(entry, args, extraPlugins = []) {
     logLevel: args.verbose ? 'info' : 'silent',
     // Add plugins to handle virtual entry points
     plugins: [
-      ...extraPlugins,
+      createReplacePlugin(replacements),
       {
         name: 'virtual-entry',
         resolveId(id) {
@@ -235,12 +253,12 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
- * @param {import('vite').Plugin[]} [extraPlugins] - Additional Vite plugins to include
+ * @param {Record<string, string>} [replacements] - String replacements to apply
  * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
-export async function getBundleSizes(entry, args, extraPlugins) {
+export async function getBundleSizes(entry, args, replacements) {
   // Create vite configuration
-  const configuration = await createViteConfig(entry, args, extraPlugins);
+  const configuration = await createViteConfig(entry, args, replacements);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));

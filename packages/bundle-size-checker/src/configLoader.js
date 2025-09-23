@@ -225,9 +225,7 @@ async function applyConfigDefaults(config, configPath) {
     entrypoints: await normalizeEntries(config.entrypoints, configPath),
     upload: null, // Default to disabled
     comment: config.comment !== undefined ? config.comment : true, // Default to enabled
-    vite: {
-      plugins: config.vite?.plugins || [], // Default to empty array
-    },
+    replace: config.replace || {}, // String replacements, default to empty object
   };
 
   // Handle different types of upload value

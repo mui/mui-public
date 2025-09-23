@@ -32,7 +32,7 @@ interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
   comment?: boolean; // Whether to post PR comments (defaults to true)
-  vite?: Pick<ViteUserConfig, 'plugins'>; // Additional Vite config options
+  replace?: Record<string, string>; // String replacements to apply during bundling
 }
 
 type BundleSizeCheckerConfig =
@@ -45,7 +45,7 @@ interface NormalizedBundleSizeCheckerConfig {
   entrypoints: ObjectEntry[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
   comment: boolean; // Whether to post PR comments
-  vite: Pick<import('vite').UserConfig, 'plugins'>; // Additional Vite config options
+  replace: Record<string, string>; // String replacements to apply during bundling
 }
 
 // Command line argument types

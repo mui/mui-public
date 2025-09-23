@@ -57,10 +57,10 @@ async function getPeerDependencies(packageName) {
 
 /**
  * Get sizes for a bundle
- * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number, viteConfig?: { plugins: any[] } }} options
+ * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number, replace?: Record<string, string> }} options
  * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
  */
-export default async function getSizes({ entry, args, index, total, viteConfig }) {
+export default async function getSizes({ entry, args, index, total, replace }) {
   // eslint-disable-next-line no-console -- process monitoring
   console.log(chalk.blue(`Compiling ${index + 1}/${total}: ${chalk.bold(`[${entry.id}]`)}`));
 
@@ -83,7 +83,7 @@ export default async function getSizes({ entry, args, index, total, viteConfig }
   }
 
   try {
-    const sizeMap = await getBundleSizes(entry, args, viteConfig?.plugins);
+    const sizeMap = await getBundleSizes(entry, args, replace);
 
     // Create a concise log message showing import details
     let entryDetails = '';
