@@ -22,10 +22,10 @@ async function getPeerDependencies(packageName) {
 
     if (module.findPackageJSON) {
       // findPackageJSON was added in: v23.2.0, v22.14.0
-      packageJsonPath = module.findPackageJSON(packageName, rootDirUrl);
+      packageJsonPath = module.findPackageJSON(packageName, `${rootDirUrl}/index.mjs`);
     } else {
       // Try to resolve packageName/package.json
-      const require = module.createRequire(rootDirUrl);
+      const require = module.createRequire(`${rootDirUrl}/index.mjs`);
       packageJsonPath = require.resolve(`${packageName}/package.json`, {
         paths: [rootDir],
       });
