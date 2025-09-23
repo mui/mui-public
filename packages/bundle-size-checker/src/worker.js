@@ -6,8 +6,6 @@ import * as module from 'node:module';
 import { byteSizeFormatter } from './formatUtils.js';
 import { getBundleSizes } from './builder.js';
 
-const require = module.createRequire(import.meta.url);
-
 const rootDir = process.cwd();
 
 /**
@@ -20,11 +18,14 @@ async function getPeerDependencies(packageName) {
     /** @type {string | undefined} */
     let packageJsonPath;
 
+    const rootDirUrl = pathToFileURL(rootDir);
+
     if (module.findPackageJSON) {
       // findPackageJSON was added in: v23.2.0, v22.14.0
-      packageJsonPath = module.findPackageJSON(packageName, `${rootDir}/_.js`);
+      packageJsonPath = module.findPackageJSON(packageName, rootDirUrl);
     } else {
       // Try to resolve packageName/package.json
+      const require = module.createRequire(rootDirUrl);
       packageJsonPath = require.resolve(`${packageName}/package.json`, {
         paths: [rootDir],
       });
