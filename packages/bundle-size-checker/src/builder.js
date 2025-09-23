@@ -242,7 +242,7 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
- * @param {any[]} [extraPlugins] - Additional Vite plugins to include
+ * @param {import('vite').Plugin[]} [extraPlugins] - Additional Vite plugins to include
  * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
 export async function getBundleSizes(entry, args, extraPlugins) {
