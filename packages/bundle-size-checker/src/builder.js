@@ -249,7 +249,7 @@ async function processBundleSizes(output, entryName) {
     }
 
     // Use chunk key as the name, or fallback to entry name for main chunk
-    const chunkName = chunk.name === 'bundle' ? entryName : chunk.name || chunkKey;
+    const chunkName = chunk.name === '_virtual_entry' ? entryName : chunk.name || chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
@@ -261,11 +261,12 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
+ * @param {Record<string, string>} [replacements] - String replacements to apply
  * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
-export async function getBundleSizes(entry, args) {
+export async function getBundleSizes(entry, args, replacements) {
   // Create vite configuration
-  const configuration = await createViteConfig(entry, args);
+  const configuration = await createViteConfig(entry, args, replacements);
 
   // Run vite build
   const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));
