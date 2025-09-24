@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as semver from 'semver';
 import { $ } from 'execa';
-import { resolveVersion, findDependencyVersionFromSpec } from './pnpm.mjs';
+import { resolveVersion, findDependencyVersionFromSpec } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
