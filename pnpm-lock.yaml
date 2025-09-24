@@ -541,30 +541,12 @@ importers:
         specifier: ^13.5.1 || ^14 || ^15.0.0
         version: 15.5.2(@babel/core@7.28.4)(@opentelemetry/api@1.8.0)(babel-plugin-macros@3.1.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
     devDependencies:
-      '@babel/cli':
-        specifier: ^7.28.3
-        version: 7.28.3(@babel/core@7.28.4)
-      '@babel/core':
-        specifier: ^7.28.4
-        version: 7.28.4
-      '@babel/plugin-transform-react-constant-elements':
-        specifier: ^7.27.1
-        version: 7.27.1(@babel/core@7.28.4)
-      '@babel/plugin-transform-runtime':
-        specifier: ^7.28.3
-        version: 7.28.3(@babel/core@7.28.4)
       '@types/node':
         specifier: ^22.18.6
         version: 22.18.6
       '@types/react':
         specifier: ^19.1.13
         version: 19.1.13
-      babel-plugin-istanbul:
-        specifier: ^7.0.1
-        version: 7.0.1
-      babel-plugin-module-resolver:
-        specifier: ^5.0.2
-        version: 5.0.2
       csstype:
         specifier: ^3.1.3
         version: 3.1.3
@@ -2296,14 +2278,6 @@ packages:
 
   '@isaacs/string-locale-compare@1.1.0':
     resolution: {integrity: sha512-SQ7Kzhh9+D+ZW9MA0zkYv3VXhIDNx+LzM6EJ+/65I3QY+enU6Itte7E5XX7EWrqLW2FN4n06GWzBnPoC3th2aQ==}
-
-  '@istanbuljs/load-nyc-config@1.1.0':
-    resolution: {integrity: sha512-VjeHSlIzpv/NyD3N0YuHfXOPDIixcA1q2ZV98wsMqcYlPmv2n3Yb2lYP9XMElnaFVXg5A7YLTeLu6V84uQDjmQ==}
-    engines: {node: '>=8'}
-
-  '@istanbuljs/schema@0.1.3':
-    resolution: {integrity: sha512-ZXRY4jNvVgSVQ8DL3LTcakaAtXwTVUxE81hslsyD2AtoXW/wVob10HkOJ1X/pAlcI7D+2YoZKg5do8G/w6RYgA==}
-    engines: {node: '>=8'}
 
   '@jest/schemas@29.6.3':
     resolution: {integrity: sha512-mo5j5X+jIZmJQveBKeS/clAueipV7KgiX1vMgCxam1RNYiqE1w62n0/tJJnHtjW8ZHcQco5gY85jA3mi0L+nSA==}
@@ -5757,16 +5731,9 @@ packages:
   b4a@1.6.7:
     resolution: {integrity: sha512-OnAYlL5b7LEkALw87fUVafQw5rVR9RjwGd4KUwNQ6DrrNmaVaUCgLipfVlzrPQ4tWOR9P0IXGNOx50jYCCdSJg==}
 
-  babel-plugin-istanbul@7.0.1:
-    resolution: {integrity: sha512-D8Z6Qm8jCvVXtIRkBnqNHX0zJ37rQcFJ9u8WOS6tkYOsRdHBzypCstaxWiu5ZIlqQtviRYbgnRLSoCEvjqcqbA==}
-    engines: {node: '>=12'}
-
   babel-plugin-macros@3.1.0:
     resolution: {integrity: sha512-Cg7TFGpIr01vOQNODXOOaGz2NpCU5gl8x1qJFbb6hbZxR7XrcE2vtbAsTAbJ7/xwJtUuJEw8K8Zr/AE0LHlesg==}
     engines: {node: '>=10', npm: '>=6'}
-
-  babel-plugin-module-resolver@5.0.2:
-    resolution: {integrity: sha512-9KtaCazHee2xc0ibfqsDeamwDps6FZNo5S0Q81dUqEuFzVwPhcT4J5jOqIVvgCA3Q/wO9hKYxN/Ds3tIsp5ygg==}
 
   babel-plugin-optimize-clsx@2.6.2:
     resolution: {integrity: sha512-TxgyjdVb7trTAsg/J5ByqJdbBPTYR8yaWLGQGpSxwygw8IFST5gEc1J9QktCGCHCb+69t04DWg9KOE0y2hN30w==}
@@ -7422,9 +7389,6 @@ packages:
     resolution: {integrity: sha512-6BN9trH7bp3qvnrRyzsBz+g3lZxTNZTbVO2EV1CS0WIcDbawYVdYvGflME/9QP0h0pYlCDBCTjYa9nZzMDpyxQ==}
     engines: {node: '>= 0.8'}
 
-  find-babel-config@2.1.2:
-    resolution: {integrity: sha512-ZfZp1rQyp4gyuxqt1ZqjFGVeVBvmpURMqdIWXbPRfB97Bf6BzdK/xSIbylEINzQ0kB5tlDQfn9HkNXXWsqTqLg==}
-
   find-cache-dir@3.3.2:
     resolution: {integrity: sha512-wXZV5emFEjrridIgED11OoUKLxiYjAcqot/NJdAkOhlJ+vGzwhOAfcG5OX1jP+S0PcjEn8bdMJv+g2jwQ3Onig==}
     engines: {node: '>=8'}
@@ -7627,10 +7591,6 @@ packages:
   get-nonce@1.0.1:
     resolution: {integrity: sha512-FJhYRoDaiatfEkUK8HKlicmu/3SGFD51q3itKDGoSTysQJBnfOcxU5GxnhE1E6soB76MbT0MBtnKJuXyAx+96Q==}
     engines: {node: '>=6'}
-
-  get-package-type@0.1.0:
-    resolution: {integrity: sha512-pjzuKtY64GYfWizNAJ0fr9VqttZkNiK2iS430LtIHzjBEr6bX8Am2zm4sW4Ro5wjWW5cAlRL1qAMTcXbjNAO2Q==}
-    engines: {node: '>=8.0.0'}
 
   get-pkg-repo@4.2.1:
     resolution: {integrity: sha512-2+QbHjFRfGB74v/pYWjd5OhU3TDIC2Gv/YKUTk/tCvAz0pkn/Mz6P3uByuBimLOcPvN2jYdScl3xGFSrx0jEcA==}
@@ -8424,14 +8384,6 @@ packages:
   isobject@3.0.1:
     resolution: {integrity: sha512-WhB9zCku7EGTj/HQQRz5aUQEUeoQZH2bWcltRErOpymJ4boYE6wL9Tbr23krRPSZ+C5zqNSrSw+Cc7sZZ4b7vg==}
     engines: {node: '>=0.10.0'}
-
-  istanbul-lib-coverage@3.2.2:
-    resolution: {integrity: sha512-O8dpsF+r0WV/8MNRKfnmrtCWhuKjxrq2w+jpzBL5UZKTi2LeVWnWOmWRxFlesJONmc+wLAGvKQZEOanko0LFTg==}
-    engines: {node: '>=8'}
-
-  istanbul-lib-instrument@6.0.3:
-    resolution: {integrity: sha512-Vtgk7L/R2JHyyGW07spoFlB8/lpjiOLTjMdms6AFMraYt3BaJauod/NGrfnVG/y4Ix1JEuMRPDPEj2ua+zz1/Q==}
-    engines: {node: '>=10'}
 
   iterator.prototype@1.1.5:
     resolution: {integrity: sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g==}
@@ -10484,9 +10436,6 @@ packages:
   requires-port@1.0.0:
     resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
 
-  reselect@4.1.8:
-    resolution: {integrity: sha512-ab9EmR80F/zQTMNeneUr4cv+jSwPJgIlvEmVwLerwrWVbpLlBuls9XHzIeTFy4cegU2NHBp3va0LKOzU5qFEYQ==}
-
   reselect@5.1.1:
     resolution: {integrity: sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w==}
 
@@ -11165,10 +11114,6 @@ packages:
     resolution: {integrity: sha512-nIVck8DK+GM/0Frwd+nIhZ84pR/BX7rmXMfYwyg+Sri5oGVE99/E3KvXqpC2xHFxyqXyGHTKBSioxxplrO4I4w==}
     engines: {node: '>=10'}
     hasBin: true
-
-  test-exclude@6.0.0:
-    resolution: {integrity: sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w==}
-    engines: {node: '>=8'}
 
   text-decoder@1.2.3:
     resolution: {integrity: sha512-3/o9z3X0X0fTupwsYvR03pJ/DjWuqqrfwBgTQzdWDiQSm9KitAyz/9WqsT2JQW7KV2m+bC2ol/zqpW37NHxLaA==}
@@ -14248,16 +14193,6 @@ snapshots:
       minipass: 7.1.2
 
   '@isaacs/string-locale-compare@1.1.0': {}
-
-  '@istanbuljs/load-nyc-config@1.1.0':
-    dependencies:
-      camelcase: 5.3.1
-      find-up: 4.1.0
-      get-package-type: 0.1.0
-      js-yaml: 3.14.1
-      resolve-from: 5.0.0
-
-  '@istanbuljs/schema@0.1.3': {}
 
   '@jest/schemas@29.6.3':
     dependencies:
@@ -18736,28 +18671,10 @@ snapshots:
 
   b4a@1.6.7: {}
 
-  babel-plugin-istanbul@7.0.1:
-    dependencies:
-      '@babel/helper-plugin-utils': 7.27.1
-      '@istanbuljs/load-nyc-config': 1.1.0
-      '@istanbuljs/schema': 0.1.3
-      istanbul-lib-instrument: 6.0.3
-      test-exclude: 6.0.0
-    transitivePeerDependencies:
-      - supports-color
-
   babel-plugin-macros@3.1.0:
     dependencies:
       '@babel/runtime': 7.28.4
       cosmiconfig: 7.1.0
-      resolve: 1.22.10
-
-  babel-plugin-module-resolver@5.0.2:
-    dependencies:
-      find-babel-config: 2.1.2
-      glob: 9.3.5
-      pkg-up: 3.1.0
-      reselect: 4.1.8
       resolve: 1.22.10
 
   babel-plugin-optimize-clsx@2.6.2:
@@ -20777,10 +20694,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  find-babel-config@2.1.2:
-    dependencies:
-      json5: 2.2.3
-
   find-cache-dir@3.3.2:
     dependencies:
       commondir: 1.0.1
@@ -21003,8 +20916,6 @@ snapshots:
       math-intrinsics: 1.1.0
 
   get-nonce@1.0.1: {}
-
-  get-package-type@0.1.0: {}
 
   get-pkg-repo@4.2.1:
     dependencies:
@@ -21885,18 +21796,6 @@ snapshots:
   isexe@3.1.1: {}
 
   isobject@3.0.1: {}
-
-  istanbul-lib-coverage@3.2.2: {}
-
-  istanbul-lib-instrument@6.0.3:
-    dependencies:
-      '@babel/core': 7.28.4
-      '@babel/parser': 7.28.4
-      '@istanbuljs/schema': 0.1.3
-      istanbul-lib-coverage: 3.2.2
-      semver: 7.7.2
-    transitivePeerDependencies:
-      - supports-color
 
   iterator.prototype@1.1.5:
     dependencies:
@@ -24480,8 +24379,6 @@ snapshots:
 
   requires-port@1.0.0: {}
 
-  reselect@4.1.8: {}
-
   reselect@5.1.1: {}
 
   resolve-alpn@1.2.1: {}
@@ -25240,12 +25137,6 @@ snapshots:
       acorn: 8.15.0
       commander: 2.20.3
       source-map-support: 0.5.21
-
-  test-exclude@6.0.0:
-    dependencies:
-      '@istanbuljs/schema': 0.1.3
-      glob: 7.2.3
-      minimatch: 3.1.2
 
   text-decoder@1.2.3:
     dependencies:
