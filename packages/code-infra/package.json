@@ -13,10 +13,11 @@
   "exports": {
     "./stylelint": "./src/stylelint/index.mjs",
     "./package.json": "./package.json",
-    "./prettier": "./src/prettier.mjs",
-    "./eslint": "./src/eslint/index.mjs",
     "./babel-config": "./src/babel-config.mjs",
-    "./markdownlint": "./src/markdownlint/index.mjs"
+    "./changelog": "./src/utils/changelog.mjs",
+    "./eslint": "./src/eslint/index.mjs",
+    "./markdownlint": "./src/markdownlint/index.mjs",
+    "./prettier": "./src/prettier.mjs"
   },
   "bin": {
     "code-infra": "./bin/code-infra.mjs"
@@ -44,6 +45,7 @@
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
     "@next/eslint-plugin-next": "^15.5.4",
     "@octokit/auth-action": "^6.0.1",
+    "@octokit/graphql": "^9.0.1",
     "@octokit/rest": "^22.0.0",
     "@pnpm/find-workspace-dir": "^1000.1.3",
     "babel-plugin-optimize-clsx": "^2.6.2",
