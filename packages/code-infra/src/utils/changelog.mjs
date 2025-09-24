@@ -1,4 +1,3 @@
-import { graphql, GraphqlResponseError } from '@octokit/graphql';
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 
@@ -12,10 +11,6 @@ import { $ } from 'execa';
  * @property {string[]} labels
  * @property {number} prNumber
  * @property {{login: string; association: AuthorAssociation} | null} author
- */
-
-/**
- * @typedef {import('./github-gql.mjs').CommitConnection} CommitConnection
  */
 
 /**
@@ -51,137 +46,7 @@ export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
   }
   const opts = { ...options, org };
 
-  /**
-   * @type {FetchedCommitDetails[]}
-   */
-  try {
-    return fetchCommitsGraphql(opts);
-  } catch (error) {
-    let status = 0;
-    if (error instanceof GraphqlResponseError) {
-      if (error.headers.status) {
-        status = parseInt(error.headers.status, 10);
-        // only re-throw for client errors (4xx), for server errors (5xx) we want to fall back to the REST API
-        if (status >= 400 && status < 500) {
-          throw error;
-        }
-      }
-    }
-    console.warn(
-      `Failed to fetch commits using the GraphQL API, falling back to the REST API. Status Code: ${status}`,
-    );
-    return await fetchCommitsRest(opts);
-  }
-}
-
-/**
- * Fetches commits between two refs using GitHub's GraphQL API over a single network call.
- * Its efficient network-wise but is not as reliable as the REST API (in my findings).
- * So keeping both implementations for the time being.
- *
- * @param {FetchCommitsOptions & {org: string}} param0
- * @returns {Promise<FetchedCommitDetails[]>}
- */
-export async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
-  const gql = graphql.defaults({
-    headers: {
-      authorization: `token ${token}`,
-    },
-  });
-  /**
-   * @param {string | null} commitAfter
-   * @returns {Promise<{repository: {ref: {compare: {commits: CommitConnection}}}}>}
-   */
-  async function fetchCommitsPaginated(commitAfter = null) {
-    return await gql({
-      query: `query GetCommitsBetweenRefs($org: String!, $repo: String!, $baseRef: String!, $headRef: String!, $commitCount: Int!, $commitAfter: String) {
-  repository(owner: $org, name: $repo) {
-    ref(qualifiedName: $baseRef) {
-      compare(headRef: $headRef) {
-        commits(first: $commitCount, after: $commitAfter) {
-          pageInfo {
-            hasNextPage
-            endCursor
-          }
-          nodes {
-            oid
-            authoredDate
-            message
-            author {
-              user {
-                login
-              }
-            }
-            associatedPullRequests(first: 1) {
-              nodes {
-                number
-                authorAssociation
-                author {
-                  login
-                }
-                labels(first: 20) {
-                  nodes {
-                    name
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}`,
-      org,
-      repo,
-      commitAfter,
-      baseRef: lastRelease,
-      headRef: release,
-      commitCount: 100,
-    });
-  }
-
-  let hasNextPage = true;
-  /**
-   * @type {string | null}
-   */
-  let commitAfter = null;
-  /**
-   * @type {import('./github-gql.mjs').CommitNode[]}
-   */
-  let allCommits = [];
-  // fetch all commits (with pagination)
-  do {
-    // eslint-disable-next-line no-await-in-loop
-    const data = await fetchCommitsPaginated(commitAfter);
-    const commits = data.repository.ref.compare.commits;
-    hasNextPage = !!commits.pageInfo.hasNextPage;
-    commitAfter = hasNextPage ? commits.pageInfo.endCursor : null;
-    allCommits.push(...commits.nodes);
-  } while (hasNextPage);
-
-  allCommits = allCommits.filter((commit) => commit.associatedPullRequests.nodes.length > 0);
-
-  return allCommits.map((commit) => {
-    const pr = commit.associatedPullRequests.nodes[0];
-    const labels = pr.labels.nodes.map((label) => label.name);
-
-    /**
-     * @type {FetchedCommitDetails}
-     */
-    return {
-      sha: commit.oid,
-      message: commit.message,
-      labels,
-      prNumber: pr.number,
-      author: pr.author.user?.login
-        ? {
-            login: pr.author.user.login,
-            association: getAuthorAssociation(pr.authorAssociation),
-          }
-        : null,
-    };
-  });
+  return await fetchCommitsRest(opts);
 }
 
 /**
@@ -193,7 +58,7 @@ export async function fetchCommitsGraphql({ org, token, repo, lastRelease, relea
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-export async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
+async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
   const octokit = new Octokit({
     auth: token,
   });
@@ -253,7 +118,7 @@ export async function fetchCommitsRest({ token, repo, lastRelease, release, org 
 
 /**
  *
- * @param {import('./github-gql.mjs').AuthorAssocation} input
+ * @param {import('./github-types.mjs').AuthorAssocation} input
  * @returns {AuthorAssociation}
  */
 function getAuthorAssociation(input) {
