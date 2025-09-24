@@ -3,3 +3,5 @@
 import { loadPrecomputedTypesMeta } from './loadPrecomputedTypesMeta';
 
 export default loadPrecomputedTypesMeta;
+
+export * from './loadPrecomputedTypesMeta';

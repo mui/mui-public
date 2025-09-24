@@ -64,6 +64,7 @@ export function isPublicHook(exportNode: tae.ExportNode) {
   return (
     exportNode.type instanceof tae.FunctionNode &&
     exportNode.name.startsWith('use') &&
-    exportNode.isPublic(true)
+    !exportNode.documentation?.hasTag('ignore') &&
+    exportNode.isPublic()
   );
 }

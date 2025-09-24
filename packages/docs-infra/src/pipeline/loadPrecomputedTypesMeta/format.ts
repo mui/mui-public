@@ -3,6 +3,40 @@ import * as tae from 'typescript-api-extractor';
 import { uniq, sortBy } from 'es-toolkit';
 import * as prettier from 'prettier';
 
+async function prettyFormat(type: string, typeName?: string) {
+  const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
+    parser: 'typescript',
+    singleQuote: true,
+    semi: false,
+    printWidth: 60,
+  });
+
+  // Improve readability by formatting complex types with Prettier.
+  // Prettier either formats the type on a single line or multiple lines.
+  // If it's on a single line, we remove the `type _ = ` prefix.
+  // If it's on multiple lines, we remove the first line (`type _ =`) and de-indent the rest.
+  const lines = formattedType.trimEnd().split('\n');
+  if (lines.length === 1) {
+    type = lines[0].replace(/^type _ = /, '');
+  } else {
+    const codeLines = typeName ? lines : lines.slice(1);
+    const nonEmptyLines = codeLines.filter((l) => l.trim() !== '');
+    if (nonEmptyLines.length > 0) {
+      const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)?.[0].length ?? 0));
+
+      if (Number.isFinite(minIndent) && minIndent > 0) {
+        type = codeLines.map((l) => l.substring(minIndent)).join('\n');
+      } else {
+        type = codeLines.join('\n');
+      }
+    } else {
+      type = codeLines.join('\n');
+    }
+  }
+
+  return type;
+}
+
 export async function formatProperties(
   props: tae.PropertyNode[],
   exportNames: string[],
@@ -27,35 +61,7 @@ export async function formatProperties(
       detailedType = formatDetailedType(prop.type, allExports, exportNames);
     }
 
-    const formattedDetailedType = await prettier.format(`type _ = ${detailedType}`, {
-      parser: 'typescript',
-      singleQuote: true,
-      semi: false,
-      printWidth: 60,
-    });
-
-    // Improve readability by formatting complex types with Prettier.
-    // Prettier either formats the type on a single line or multiple lines.
-    // If it's on a single line, we remove the `type _ = ` prefix.
-    // If it's on multiple lines, we remove the first line (`type _ =`) and de-indent the rest.
-    const lines = formattedDetailedType.trimEnd().split('\n');
-    if (lines.length === 1) {
-      detailedType = lines[0].replace(/^type _ = /, '');
-    } else {
-      const codeLines = lines.slice(1);
-      const nonEmptyLines = codeLines.filter((l) => l.trim() !== '');
-      if (nonEmptyLines.length > 0) {
-        const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)?.[0].length ?? 0));
-
-        if (Number.isFinite(minIndent) && minIndent > 0) {
-          detailedType = codeLines.map((l) => l.substring(minIndent)).join('\n');
-        } else {
-          detailedType = codeLines.join('\n');
-        }
-      } else {
-        detailedType = codeLines.join('\n');
-      }
-    }
+    detailedType = await prettyFormat(detailedType);
 
     const formattedType = formatType(
       prop.type,
@@ -324,6 +330,13 @@ export function formatType(
   }
 
   return 'unknown';
+}
+
+export async function prettyFormatType(...args: Parameters<typeof formatType>) {
+  return prettyFormat(
+    formatType(...args),
+    args[0].kind === 'object' ? args[0].typeName?.name : undefined,
+  );
 }
 
 function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): string {

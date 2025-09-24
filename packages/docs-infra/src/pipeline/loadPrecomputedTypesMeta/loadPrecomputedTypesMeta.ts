@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 
 import { resolve } from 'import-meta-resolve';
 import type { LoaderContext } from 'webpack';
-import { ExportNode, parseFromProgram } from 'typescript-api-extractor';
+import { ExportNode, parseFromProgram, ParserOptions } from 'typescript-api-extractor';
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
@@ -19,8 +19,12 @@ import {
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
-import { ComponentTypeMeta, formatComponentData, isPublicComponent } from './formatComponent';
-import { formatHookData, HookTypeMeta, isPublicHook } from './formatHook';
+import {
+  ComponentTypeMeta as ComponentType,
+  formatComponentData,
+  isPublicComponent,
+} from './formatComponent';
+import { formatHookData, HookTypeMeta as HookType, isPublicHook } from './formatHook';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 
 export type LoaderOptions = {
@@ -30,6 +34,9 @@ export type LoaderOptions = {
     showWrapperMeasures?: boolean;
   };
 };
+
+export type ComponentTypeMeta = ComponentType;
+export type HookTypeMeta = HookType;
 
 export type TypesMeta =
   | {
@@ -329,6 +336,13 @@ export async function loadPrecomputedTypesMeta(
     );
     currentMark = programCreatedMark;
 
+    const internalTypesCache: Record<string, ExportNode[]> = {};
+    const parserOptions: ParserOptions = {
+      includeExternalTypes: false, // Only include project types
+      shouldInclude: ({ depth }) => depth <= 10, // Limit depth
+      shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
+    };
+
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
@@ -357,11 +371,8 @@ export async function loadPrecomputedTypesMeta(
           }
 
           // Pass parser options with proper configuration
-          const { exports } = parseFromProgram(entrypoint, program, {
-            includeExternalTypes: false, // Only include project types
-            shouldInclude: ({ depth }) => depth <= 10, // Limit depth
-            shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
-          });
+          const parsed = parseFromProgram(entrypoint, program, parserOptions);
+          const { exports } = parsed;
 
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...config.dependencies, entrypoint];
@@ -379,15 +390,16 @@ export async function loadPrecomputedTypesMeta(
             (fileName) => fileName !== entrypoint && fileName.startsWith(entrypointDir),
           );
 
-          const allInternalTypes = adjacentFiles.map(
-            (file) =>
-              parseFromProgram(file, program, {
-                includeExternalTypes: false, // Only include project types
-                shouldInclude: ({ depth }) => depth <= 10, // Limit depth
-                shouldResolveObject: ({ propertyCount, depth }) =>
-                  propertyCount <= 50 && depth <= 10,
-              }).exports,
-          );
+          const allInternalTypes = adjacentFiles.map((file) => {
+            if (internalTypesCache[file]) {
+              return internalTypesCache[file];
+            }
+
+            const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
+
+            internalTypesCache[file] = internalExport;
+            return internalExport;
+          });
 
           const internalTypes = allInternalTypes.reduce((acc, cur) => {
             acc.push(...cur);
@@ -500,7 +512,14 @@ export async function loadPrecomputedTypesMeta(
     const markdown = await generateTypesMarkdown(resourceName, allTypes);
     const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');
     await fs.writeFile(markdownFilePath, markdown, 'utf-8');
-    allDependencies.push(markdownFilePath);
+
+    if (process.env.NODE_ENV === 'production') {
+      // during development, if this markdown file is included as a dependency,
+      // it causes a second rebuild when this file is written
+      // during production builds, we should already have the file in place
+      // so this is not an issue and we should ensure changing this file triggers a rebuild
+      allDependencies.push(markdownFilePath);
+    }
 
     const generatedTypesMdMark = nameMark(functionName, 'generated types.md', [relativePath]);
     performance.mark(generatedTypesMdMark);
