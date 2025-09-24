@@ -1,7 +1,7 @@
-import path from 'path';
-import fs from 'fs/promises';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import * as zlib from 'node:zlib';
+import { promisify } from 'node:util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -75,7 +75,7 @@ async function createViteConfig(entry, args) {
       emptyOutDir: true,
       rollupOptions: {
         input: '/index.tsx',
-        external: externalsArray,
+        external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(`${ext}/`)),
         plugins: [
           ...(args.analyze
             ? [
@@ -108,7 +108,7 @@ async function createViteConfig(entry, args) {
     },
 
     define: {
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+      'process.env.NODE_ENV': JSON.stringify('production'),
     },
     logLevel: args.verbose ? 'info' : 'silent',
     // Add plugins to handle virtual entry points
@@ -180,7 +180,7 @@ function walkDependencyTree(chunkKey, manifest, visited = new Set()) {
  * Process vite output to extract bundle sizes
  * @param {import('vite').Rollup.RollupOutput['output']} output - The Vite output
  * @param {string} entryName - The entry name
- * @returns {Promise<Map<string, { parsed: number, gzip: number }>>} - Map of bundle names to size information
+ * @returns {Promise<Map<string, SizeSnapshotEntry>>} - Map of bundle names to size information
  */
 async function processBundleSizes(output, entryName) {
   const chunksByFileName = new Map(output.map((chunk) => [chunk.fileName, chunk]));
@@ -200,14 +200,14 @@ async function processBundleSizes(output, entryName) {
   const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
-  const mainEntry = manifest['virtual:entry.tsx'];
+  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === '_virtual_entry');
 
   if (!mainEntry) {
     throw new Error(`No main entry found in manifest for ${entryName}`);
   }
 
   // Walk the dependency tree to get all chunks that are part of this entry
-  const allChunks = walkDependencyTree('virtual:entry.tsx', manifest);
+  const allChunks = walkDependencyTree(mainEntry[0], manifest);
 
   // Process each chunk in the dependency tree in parallel
   const chunkPromises = Array.from(allChunks, async (chunkKey) => {
@@ -223,20 +223,24 @@ async function processBundleSizes(output, entryName) {
     const gzipBuffer = await gzipAsync(fileContent, { level: zlib.constants.Z_BEST_COMPRESSION });
     const gzipSize = Buffer.byteLength(gzipBuffer);
 
+    if (chunk.isEntry) {
+      return null;
+    }
+
     // Use chunk key as the name, or fallback to entry name for main chunk
-    const chunkName = chunkKey === 'virtual:entry.tsx' ? entryName : chunkKey;
+    const chunkName = chunk.name === '_virtual_entry' ? entryName : chunk.name || chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
   const chunkEntries = await Promise.all(chunkPromises);
-  return new Map(chunkEntries);
+  return new Map(/** @type {[string, SizeSnapshotEntry][]} */ (chunkEntries.filter(Boolean)));
 }
 
 /**
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
- * @returns {Promise<Map<string, { parsed: number, gzip: number }>>}
+ * @returns {Promise<Map<string, SizeSnapshotEntry>>}
  */
 export async function getBundleSizes(entry, args) {
   // Create vite configuration

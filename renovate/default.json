@@ -2,10 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for MUI repositories.",
   "extends": [
+    "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
     "group:definitelyTyped",
     "config:recommended",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    "npm:unpublishSafe"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
@@ -28,10 +30,15 @@
       "rangeStrategy": "widen"
     },
     {
-      "groupName": "Infra packages",
+      "groupName": "MUI public packages",
+      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
+    },
+    {
+      "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
-      "schedule": null
+      "schedule": null,
+      "additionalReviewers": ["mui/infra"]
     },
     {
       "groupName": "GitHub Actions",
@@ -39,7 +46,6 @@
     },
     {
       "matchDepTypes": ["action"],
-      "automerge": true,
       "matchCurrentVersion": "!/^0/",
       "matchUpdateTypes": ["minor", "patch", "digest"]
     },
@@ -49,8 +55,19 @@
     },
     {
       "groupName": "node",
-      "matchDatasources": ["docker", "node-version"],
-      "matchPackageNames": ["@types/node", "node", "cimg/node", "actions/setup-node"],
+      "description": "Restricts Node.js version bumps in Github Actions workflows.",
+      "extends": ["group:nodeJs"],
+      "allowedVersions": "<=22.18"
+    },
+    {
+      "groupName": "node",
+      "matchDepTypes": ["uses-with"],
+      "matchDepNames": ["node"],
+      "allowedVersions": "<=22.18"
+    },
+    {
+      "matchDepTypes": ["engines"],
+      "matchFileNames": ["packages/*/package.json"],
       "enabled": false
     },
     {
@@ -58,13 +75,25 @@
       "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
     },
     {
+      "groupName": "eslint",
+      "matchPackageNames": ["eslint-plugin-*"]
+    },
+    {
       "groupName": "playwright monorepo",
-      "description": "Extends existing playwright preset to include docker images.",
+      "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
     },
     {
       "groupName": "Vite & Vitest",
-      "matchPackageNames": ["vite", "@vitejs/**", "/vitest/", "esbuild", "^vitest$", "^@vitest/"]
+      "extends": ["packages:vite"]
+    },
+    {
+      "groupName": "Vite & Vitest",
+      "extends": ["monorepo:vitest"]
+    },
+    {
+      "groupName": "Vite & Vitest",
+      "matchPackageNames": ["esbuild"]
     },
     {
       "matchPackageNames": ["eslint-config-prettier"],

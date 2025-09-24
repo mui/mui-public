@@ -1,9 +1,12 @@
 /* eslint-disable no-console */
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
-import set from 'lodash-es/set.js';
+import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
+import { sep as posixSep } from 'node:path/posix';
+
+import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -16,7 +19,9 @@ import { getOutExtension, isMjsBuild } from '../utils/build.mjs';
  * @property {boolean} skipTsc - Whether to build types for the package.
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
+ * @property {boolean} skipMainCheck - Whether to skip checking for main field in package.json.
  * @property {string[]} ignore - Globs to be ignored by Babel.
+ * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
  */
 
 const validBundles = [
@@ -63,16 +68,16 @@ ${content}`,
 
 /**
  * @param {Object} param0
- * @param {string | Record<string, string>} param0.importPath
+ * @param {NonNullable<import('./packageJson').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
  * @param {string} param0.cwd
  * @param {string} param0.dir
  * @param {string} param0.type
- * @param {Object} param0.newExports
+ * @param {import('./packageJson').PackageJson.ExportConditions} param0.newExports
  * @param {string} param0.typeOutExtension
  * @param {string} param0.outExtension
  * @param {boolean} param0.addTypes
- * @returns {Promise<{path: string[], importPath: string | Record<string, string | undefined>}>}
+ * @returns {Promise<void>}
  */
 async function createExportsFor({
   importPath,
@@ -85,9 +90,21 @@ async function createExportsFor({
   outExtension,
   addTypes,
 }) {
+  if (Array.isArray(importPath)) {
+    throw new Error(
+      `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+    );
+  }
+
   let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
   const rest = typeof importPath === 'string' ? {} : { ...importPath };
   delete rest['mui-src'];
+
+  if (typeof srcPath !== 'string') {
+    throw new Error(
+      `Unsupported export for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
+    );
+  }
 
   const exportFileExists = srcPath.includes('*')
     ? true
@@ -104,25 +121,25 @@ async function createExportsFor({
   const ext = path.extname(srcPath);
 
   if (ext === '.css') {
-    set(newExports, [key], srcPath);
-    return {
-      path: [key],
-      importPath: srcPath,
-    };
+    newExports[key] = srcPath;
+    return;
   }
-  return {
-    path: [key, type === 'cjs' ? 'require' : 'import'],
-    importPath: {
-      ...rest,
-      types: addTypes ? srcPath.replace(ext, typeOutExtension) : undefined,
-      default: srcPath.replace(ext, outExtension),
-    },
+
+  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
+    throw new Error(`The export "${key}" is already defined as a string or Array.`);
+  }
+
+  newExports[key] ??= {};
+  newExports[key][type === 'cjs' ? 'require' : 'import'] = {
+    ...rest,
+    ...(addTypes ? { types: srcPath.replace(ext, typeOutExtension) } : {}),
+    default: srcPath.replace(ext, outExtension),
   };
 }
 
 /**
  * @param {Object} param0
- * @param {any} param0.packageJson - The package.json content.
+ * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
  * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
@@ -137,12 +154,15 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   packageJson.type = packageJson.type || 'commonjs';
 
   /**
-   * @type {Record<string, string | Record<string, string> | null>}
+   * @type {import('./packageJson').PackageJson.ExportConditions}
    */
-  const originalExports = packageJson.exports || {};
+  const originalExports =
+    typeof packageJson.exports === 'string' || Array.isArray(packageJson.exports)
+      ? { '.': packageJson.exports }
+      : packageJson.exports || {};
   delete packageJson.exports;
   /**
-   * @type {Record<string, string | Record<string, string> | null>}
+   * @type {import('./packageJson').PackageJson.ExportConditions}
    */
   const newExports = {
     './package.json': './package.json',
@@ -171,10 +191,16 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
         if (type === 'cjs') {
           packageJson.main = exportDir;
         }
-        set(newExports, ['.', type === 'cjs' ? 'require' : 'import'], {
-          types: typeFileExists ? typeExportDir : undefined,
+
+        if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
+          throw new Error(`The export "." is already defined as a string or Array.`);
+        }
+
+        newExports['.'] ??= {};
+        newExports['.'][type === 'cjs' ? 'require' : 'import'] = {
+          ...(typeFileExists ? { types: typeExportDir } : {}),
           default: exportDir,
-        });
+        };
       }
       if (typeFileExists && type === 'cjs') {
         packageJson.types = typeExportDir;
@@ -184,11 +210,11 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
       for (const key of exportKeys) {
         const importPath = originalExports[key];
         if (!importPath) {
-          set(newExports, [key], null);
-          return;
+          newExports[key] = null;
+          continue;
         }
         // eslint-disable-next-line no-await-in-loop
-        const res = await createExportsFor({
+        await createExportsFor({
           importPath,
           key,
           cwd,
@@ -199,13 +225,31 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
           outExtension,
           addTypes,
         });
-        set(newExports, res.path, res.importPath);
       }
     }),
   );
   bundles.forEach(({ dir }) => {
     if (dir !== '.') {
       newExports[`./${dir}`] = null;
+    }
+  });
+
+  // default condition should come last
+  Object.keys(newExports).forEach((key) => {
+    const exportVal = newExports[key];
+    if (Array.isArray(exportVal)) {
+      throw new Error(
+        `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+      );
+    }
+    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
+      const defaultExport = exportVal.import || exportVal.require;
+      if (exportVal.import) {
+        delete exportVal.import;
+      } else if (exportVal.require) {
+        delete exportVal.require;
+      }
+      exportVal.default = defaultExport;
     }
   });
 
@@ -277,6 +321,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip generating the package.json file in the bundle output.',
+      })
+      .option('skipMainCheck', {
+        // Currently added only to support @mui/icons-material. To be removed separately.
+        type: 'boolean',
+        default: false,
+        description: 'Skip checking for main field in package.json.',
+      })
+      .option('copy', {
+        type: 'string',
+        array: true,
+        description:
+          'Files/Directories to be copied to the output directory. Can be a glob pattern.',
+        default: [],
       });
   },
   async handler(args) {
@@ -296,12 +353,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    const buildDirBase = packageJson.publishConfig?.directory;
-    if (!buildDirBase) {
-      throw new Error(
-        'No build directory specified in package.json. Specify it in the "publishConfig.directory" field.',
-      );
-    }
+    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck });
+
+    const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
 
     console.log(`Selected output directory: "${buildDirBase}"`);
@@ -424,5 +478,144 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: buildDir,
       addTypes: buildTypes,
     });
+
+    await copyHandler({
+      cwd,
+      globs: args.copy ?? [],
+      buildDir,
+      verbose: args.verbose,
+    });
   },
 });
+
+/**
+ * @param {Object} param0
+ * @param {string} param0.cwd - The current working directory.
+ * @param {string[]} [param0.globs=[]] - Extra files to copy, can be specified as `source:target` pairs or just `source`.
+ * @param {string} param0.buildDir - The build directory to copy to.
+ * @param {boolean} [param0.verbose=false] - Whether to suppress output.
+ * @returns {Promise<void>}
+ */
+async function copyHandler({ cwd, globs = [], buildDir, verbose = false }) {
+  /**
+   * @type {(string|{targetPath: string; sourcePath: string})[]}
+   */
+  const defaultFiles = [];
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Workspace directory not found');
+  }
+
+  const localOrRootFiles = [
+    [path.join(cwd, 'README.md'), path.join(workspaceDir, 'README.md')],
+    [path.join(cwd, 'LICENSE'), path.join(workspaceDir, 'LICENSE')],
+    [path.join(cwd, 'CHANGELOG.md'), path.join(workspaceDir, 'CHANGELOG.md')],
+  ];
+  await Promise.all(
+    localOrRootFiles.map(async (filesToCopy) => {
+      for (const file of filesToCopy) {
+        if (
+          // eslint-disable-next-line no-await-in-loop
+          await fs.stat(file).then(
+            () => true,
+            () => false,
+          )
+        ) {
+          defaultFiles.push(file);
+          break;
+        }
+      }
+    }),
+  );
+
+  if (globs.length) {
+    const res = globs.map((globPattern) => {
+      const [pattern, baseDir] = globPattern.split(':');
+      return { pattern, baseDir };
+    });
+    /**
+     * Avoids redundant globby calls for the same pattern.
+     *
+     * @type {Map<string, Promise<string[]>>}
+     */
+    const globToResMap = new Map();
+
+    const result = await Promise.all(
+      res.map(async ({ pattern, baseDir }) => {
+        if (!globToResMap.has(pattern)) {
+          const promise = globby(pattern, { cwd });
+          globToResMap.set(pattern, promise);
+        }
+        const files = await globToResMap.get(pattern);
+        return { files: files ?? [], baseDir };
+      }),
+    );
+    globToResMap.clear();
+
+    result.forEach(({ files, baseDir }) => {
+      files.forEach((file) => {
+        const sourcePath = path.resolve(cwd, file);
+        // Use posix separator for the relative paths. So devs can only specify globs with `/` even on Windows.
+        const pathSegments = file.split(posixSep);
+        const relativePath =
+          // Use index 2 (when required) since users can also specify paths like `./src/index.js`
+          pathSegments.slice(pathSegments[0] === '.' ? 2 : 1).join(posixSep) || file;
+        const targetPath = baseDir
+          ? path.resolve(buildDir, baseDir, relativePath)
+          : path.resolve(buildDir, relativePath);
+        defaultFiles.push({ sourcePath, targetPath });
+      });
+    });
+  }
+
+  if (!defaultFiles.length) {
+    if (verbose) {
+      console.log('⓿ No files to copy.');
+    }
+  }
+  await mapConcurrently(
+    defaultFiles,
+    async (file) => {
+      if (typeof file === 'string') {
+        const sourcePath = file;
+        const fileName = path.basename(file);
+        const targetPath = path.join(buildDir, fileName);
+        await recursiveCopy({ source: sourcePath, target: targetPath, verbose });
+      } else {
+        await fs.mkdir(path.dirname(file.targetPath), { recursive: true });
+        await recursiveCopy({ source: file.sourcePath, target: file.targetPath, verbose });
+      }
+    },
+    20,
+  );
+  console.log(`📋 Copied ${defaultFiles.length} files.`);
+}
+
+/**
+ * Recursively copies files and directories from a source path to a target path.
+ *
+ * @async
+ * @param {Object} options - The options for copying files.
+ * @param {string} options.source - The source path to copy from.
+ * @param {string} options.target - The target path to copy to.
+ * @param {boolean} [options.verbose=true] - If true, suppresses console output.
+ * @returns {Promise<boolean>} Resolves when the copy operation is complete.
+ * @throws {Error} Throws if an error occurs other than the source not existing.
+ */
+async function recursiveCopy({ source, target, verbose = true }) {
+  try {
+    await fs.cp(source, target, { recursive: true });
+    if (verbose) {
+      console.log(`Copied ${source} to ${target}`);
+    }
+    return true;
+  } catch (err) {
+    if (/** @type {{ code: string }} */ (err).code !== 'ENOENT') {
+      throw err;
+    }
+    if (verbose) {
+      console.warn(`Source does not exist: ${source}`);
+    }
+    throw err;
+  }
+}

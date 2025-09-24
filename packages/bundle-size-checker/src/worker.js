@@ -1,8 +1,8 @@
-import { pathToFileURL } from 'url';
-import path from 'path';
-import fs from 'fs/promises';
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import chalk from 'chalk';
-import * as module from 'module';
+import * as module from 'node:module';
 import { byteSizeFormatter } from './formatUtils.js';
 import { getBundleSizes } from './builder.js';
 
@@ -57,7 +57,7 @@ async function getPeerDependencies(packageName) {
 /**
  * Get sizes for a bundle
  * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number }} options
- * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
+ * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
  */
 export default async function getSizes({ entry, args, index, total }) {
   // eslint-disable-next-line no-console -- process monitoring

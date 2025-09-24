@@ -1,16 +1,33 @@
 // @ts-check
 
-import path from 'path';
-import os from 'os';
-import fs from 'fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs/promises';
 import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
+import envCi from 'env-ci';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { octokit } from './github.js';
 import { getCurrentRepoInfo } from './git.js';
+import { notifyPr } from './notifyPr.js';
+
+/**
+ */
+function getCiInfo() {
+  const ciInfo = envCi();
+  if (!ciInfo.isCi) {
+    return null;
+  }
+  switch (ciInfo.name) {
+    case 'CircleCI':
+      return ciInfo;
+    default:
+      throw new Error(`Unsupported CI environment: ${ciInfo.name}`);
+  }
+}
 
 /**
  * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
@@ -25,7 +42,7 @@ const rootDir = process.cwd();
  * creates size snapshot for every bundle
  * @param {CommandLineArgs} args
  * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
- * @returns {Promise<Array<[string, { parsed: number, gzip: number }]>>}
+ * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
  */
 async function getBundleSizes(args, config) {
   const worker = new Piscina({
@@ -76,6 +93,51 @@ async function getBundleSizes(args, config) {
 }
 
 /**
+ * Posts initial "in progress" PR comment with CircleCI build information
+ * @returns {Promise<void>}
+ */
+async function postInitialPrComment() {
+  // /** @type {envCi.CircleCiEnv} */
+  const ciInfo = getCiInfo();
+
+  if (!ciInfo || !ciInfo.isPr) {
+    return;
+  }
+
+  // In CI PR builds, all required info must be present
+  if (!ciInfo.slug || !ciInfo.pr) {
+    throw new Error('PR commenting enabled but repository information missing in CI PR build');
+  }
+
+  const prNumber = Number(ciInfo.pr);
+  const circleBuildNum = process.env.CIRCLE_BUILD_NUM;
+  const circleBuildUrl = process.env.CIRCLE_BUILD_URL;
+
+  if (!circleBuildNum || !circleBuildUrl) {
+    throw new Error(
+      'PR commenting enabled but CircleCI environment variables missing in CI PR build',
+    );
+  }
+
+  try {
+    // eslint-disable-next-line no-console
+    console.log('Posting initial PR comment...');
+
+    const initialComment = `## Bundle size report
+
+Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.`;
+
+    await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', initialComment);
+
+    // eslint-disable-next-line no-console
+    console.log(`Initial PR comment posted for PR #${prNumber}`);
+  } catch (/** @type {any} */ error) {
+    console.error('Failed to post initial PR comment:', error.message);
+    // Don't fail the build for comment failures
+  }
+}
+
+/**
  * Report command handler
  * @param {ReportCommandArgs} argv - Command line arguments
  */
@@ -85,7 +147,7 @@ async function reportCommand(argv) {
   // Get current repo info and coerce with provided arguments
   const currentRepo = await getCurrentRepoInfo();
   const owner = argOwner ?? currentRepo.owner;
-  const repo = argRepo ?? currentRepo.repo;
+  const repo = argRepo ?? currentRepo.name;
 
   if (typeof pr !== 'number') {
     throw new Error('Invalid pull request number. Please provide a valid --pr option.');
@@ -105,8 +167,18 @@ async function reportCommand(argv) {
     pull_number: pr,
   });
 
+  const getMergeBaseFromGithubApi = async (
+    /** @type {string} */ base,
+    /** @type {string} */ head,
+  ) => {
+    const { data } = await octokit.repos.compareCommits({ owner, repo, base, head });
+    return data.merge_base_commit.sha;
+  };
+
   // Generate and print the markdown report
-  const report = await renderMarkdownReport(prInfo);
+  const report = await renderMarkdownReport(prInfo, {
+    getMergeBase: getMergeBaseFromGithubApi,
+  });
   // eslint-disable-next-line no-console
   console.log(report);
 }
@@ -121,6 +193,11 @@ async function run(argv) {
   const snapshotDestPath = output ? path.resolve(output) : path.join(rootDir, 'size-snapshot.json');
 
   const config = await loadConfig(rootDir);
+
+  // Post initial PR comment if enabled and in CI environment
+  if (config && config.comment) {
+    await postInitialPrComment();
+  }
 
   // eslint-disable-next-line no-console
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
@@ -153,6 +230,54 @@ async function run(argv) {
   } else {
     // eslint-disable-next-line no-console
     console.log('No upload configuration provided, skipping upload.');
+  }
+
+  // Post PR comment if enabled and in CI environment
+  if (config && config.comment) {
+    const ciInfo = getCiInfo();
+
+    // Skip silently if not in CI or not a PR
+    if (!ciInfo || !ciInfo.isPr) {
+      return;
+    }
+
+    // In CI PR builds, all required info must be present
+    if (!ciInfo.slug || !ciInfo.pr) {
+      throw new Error('PR commenting enabled but repository information missing in CI PR build');
+    }
+
+    const prNumber = Number(ciInfo.pr);
+
+    // eslint-disable-next-line no-console
+    console.log('Generating PR comment with bundle size changes...');
+
+    // Get tracked bundles from config
+    const trackedBundles = config.entrypoints
+      .filter((entry) => entry.track === true)
+      .map((entry) => entry.id);
+
+    // Get PR info for renderMarkdownReport
+    const { data: prInfo } = await octokit.pulls.get({
+      owner: ciInfo.slug.split('/')[0],
+      repo: ciInfo.slug.split('/')[1],
+      pull_number: prNumber,
+    });
+
+    // Generate markdown report
+    const report = await renderMarkdownReport(prInfo, {
+      track: trackedBundles.length > 0 ? trackedBundles : undefined,
+    });
+
+    // Post or update PR comment
+    await notifyPr(
+      ciInfo.slug,
+      prNumber,
+      'bundle-size-report',
+      `## Bundle size report\n\n${report}`,
+    );
+
+    // eslint-disable-next-line no-console
+    console.log(`PR comment posted/updated for PR #${prNumber}`);
   }
 }
 

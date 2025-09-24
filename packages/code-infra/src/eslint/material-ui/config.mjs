@@ -411,7 +411,10 @@ export function createCoreConfig(options = {}) {
         'material-ui/no-styled-box': 'error',
         'material-ui/straight-quotes': 'off',
 
-        'react-hooks/exhaustive-deps': ['error', { additionalHooks: 'useEnhancedEffect' }],
+        'react-hooks/exhaustive-deps': [
+          'error',
+          { additionalHooks: '(useEnhancedEffect|useIsoLayoutEffect)' },
+        ],
         'react-hooks/rules-of-hooks': 'error',
 
         'react/default-props-match-prop-types': [

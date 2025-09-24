@@ -1,9 +1,4 @@
 /**
- * @description Represents a single bundle size entry
- * @typedef {Object} SizeSnapshotEntry
- * @property {number} parsed
- * @property {number} gzip
- *
  * @description Represents a single bundle size snapshot
  * @typedef {Object.<string, SizeSnapshotEntry>} SizeSnapshot
  *
@@ -36,6 +31,7 @@
  * @property {number} fileCounts.total - Total number of files
  */
 
+/** @type {SizeSnapshotEntry} */
 const nullSnapshot = { parsed: 0, gzip: 0 };
 
 /**

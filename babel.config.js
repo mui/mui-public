@@ -4,7 +4,7 @@
 // defaultAlias modified
 // @mui/internal-babel-plugin-minify-errors removed
 
-const path = require('path');
+const path = require('node:path');
 const { default: getBaseConfig } = require('@mui/internal-code-infra/babel-config');
 
 /**
@@ -45,7 +45,9 @@ module.exports = function getBabelConfig(api) {
     plugins: [...(baseConfig.plugins ?? []), ...plugins],
     overrides: [
       {
-        exclude: /\.test\.(m?js|ts|tsx)$/,
+        // Reduces cold start time of tests. Hoisting the elements is also almost never intended for test files.
+        // Context https://github.com/mui/material-ui/pull/26448
+        exclude: /\.test\.(m?js|tsx)$/,
         plugins: ['@babel/plugin-transform-react-constant-elements'],
       },
       {

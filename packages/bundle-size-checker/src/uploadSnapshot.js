@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import { S3Client, PutObjectCommand, PutObjectTaggingCommand } from '@aws-sdk/client-s3';
 import { execa } from 'execa';
 import { fromEnv } from '@aws-sdk/credential-providers';

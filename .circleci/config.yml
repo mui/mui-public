@@ -9,7 +9,7 @@ parameters:
 default-job: &default-job
   working_directory: /tmp/mui
   docker:
-    - image: cimg/node:24.3
+    - image: cimg/node:22.18
   environment:
     DANGER_DISABLE_TRANSPILATION: 'true'
 
@@ -100,11 +100,6 @@ jobs:
       - checkout
       - install_js
       - run:
-          name: prepare danger on PRs
-          command: pnpm danger ci
-          environment:
-            DANGER_COMMAND: prepareBundleSizeReport
-      - run:
           name: Build packages
           command: pnpm release:build
       - run:
@@ -114,11 +109,6 @@ jobs:
             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
             export AWS_REGION=$AWS_REGION_ARTIFACTS
             pnpm size:snapshot
-      - run:
-          name: Run danger on PRs
-          command: pnpm danger ci --fail-on-errors
-          environment:
-            DANGER_COMMAND: reportBundleSize
 
 workflows:
   version: 2
