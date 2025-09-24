@@ -1,4 +1,4 @@
-import { graphql } from '@octokit/graphql';
+import { graphql, GraphqlResponseError } from '@octokit/graphql';
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 
@@ -35,20 +35,43 @@ export async function findLatestTaggedVersion(opts) {
  * @property {string} lastRelease
  * @property {string} release
  * @property {string} [org="mui"]
- * @property {'rest' | 'graphql'} [method="rest"]
  */
 
 /**
+ * Fetches commits between two refs (lastRelease..release) including PR details.
+ * It first tries to use the GraphQL API (more efficient) and falls back to the
+ * REST api if it fails with server error.
+ *
  * @param {FetchCommitsOptions} param0
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-export async function fetchCommitsBetweenRefs({ method = 'rest', org = 'mui', ...options }) {
+export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
   if (!options.token) {
     throw new Error('Missing "token" option. The token needs `public_repo` permissions.');
   }
   const opts = { ...options, org };
 
-  return method === 'rest' ? fetchCommitsRest(opts) : fetchCommitsGraphql(opts);
+  /**
+   * @type {FetchedCommitDetails[]}
+   */
+  try {
+    return fetchCommitsGraphql(opts);
+  } catch (error) {
+    let status = 0;
+    if (error instanceof GraphqlResponseError) {
+      if (error.headers.status) {
+        status = parseInt(error.headers.status, 10);
+        // only re-throw for client errors (4xx), for server errors (5xx) we want to fall back to the REST API
+        if (status >= 400 && status < 500) {
+          throw error;
+        }
+      }
+    }
+    console.warn(
+      `Failed to fetch commits using the GraphQL API, falling back to the REST API. Status Code: ${status}`,
+    );
+    return await fetchCommitsRest(opts);
+  }
 }
 
 /**
@@ -56,10 +79,10 @@ export async function fetchCommitsBetweenRefs({ method = 'rest', org = 'mui', ..
  * Its efficient network-wise but is not as reliable as the REST API (in my findings).
  * So keeping both implementations for the time being.
  *
- * @param {Omit<FetchCommitsOptions, 'method'> & {org: string}} param0
+ * @param {FetchCommitsOptions & {org: string}} param0
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
+export async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
   const gql = graphql.defaults({
     headers: {
       authorization: `token ${token}`,
@@ -129,11 +152,9 @@ async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
   let allCommits = [];
   // fetch all commits (with pagination)
   do {
-    /**
-     * @type {CommitConnection}
-     */
     // eslint-disable-next-line no-await-in-loop
-    const commits = (await fetchCommitsPaginated(commitAfter)).repository.ref.compare.commits;
+    const data = await fetchCommitsPaginated(commitAfter);
+    const commits = data.repository.ref.compare.commits;
     hasNextPage = !!commits.pageInfo.hasNextPage;
     commitAfter = hasNextPage ? commits.pageInfo.endCursor : null;
     allCommits.push(...commits.nodes);
@@ -142,23 +163,24 @@ async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
   allCommits = allCommits.filter((commit) => commit.associatedPullRequests.nodes.length > 0);
 
   return allCommits.map((commit) => {
-    const labels = commit.associatedPullRequests.nodes.flatMap((pr) =>
-      pr.labels.nodes.map((label) => label.name),
-    );
-    const firstPr = commit.associatedPullRequests.nodes[0];
+    const pr = commit.associatedPullRequests.nodes[0];
+    const labels = pr.labels.nodes.map((label) => label.name);
 
-    return /** @type {FetchedCommitDetails} */ ({
+    /**
+     * @type {FetchedCommitDetails}
+     */
+    return {
       sha: commit.oid,
       message: commit.message,
       labels,
-      prNumber: firstPr.number,
-      author: firstPr.author.user?.login
+      prNumber: pr.number,
+      author: pr.author.user?.login
         ? {
-            login: firstPr.author.user.login,
-            association: getAuthorAssociation(firstPr.authorAssociation),
+            login: pr.author.user.login,
+            association: getAuthorAssociation(pr.authorAssociation),
           }
         : null,
-    });
+    };
   });
 }
 
@@ -167,11 +189,11 @@ async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
  * It is more reliable than the GraphQL API but requires multiple network calls (1 + n).
  * One to list all commits between the two refs and then one for each commit to get the PR details.
  *
- * @param {Omit<FetchCommitsOptions, 'method'> & { org: string }} param0
+ * @param {FetchCommitsOptions & { org: string }} param0
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
+export async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
   const octokit = new Octokit({
     auth: token,
   });
