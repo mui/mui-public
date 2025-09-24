@@ -93,8 +93,16 @@ async function createViteConfig(entry, args, replacements = {}) {
       minify: args.debug ? 'esbuild' : true,
       outDir,
       emptyOutDir: true,
+      modulePreload: false,
       rollupOptions: {
         input: { bundle: '/entry.tsx' },
+        output: {
+          // The output is for debugging purposes only. Remove all hashes to make it easier to compare two folders
+          // of build output.
+          entryFileNames: `assets/[name].js`,
+          chunkFileNames: `assets/[name].js`,
+          assetFileNames: `assets/[name].[ext]`,
+        },
         external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(`${ext}/`)),
         plugins: [
           ...(args.analyze
