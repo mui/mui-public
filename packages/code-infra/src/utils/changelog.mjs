@@ -15,15 +15,16 @@ import { $ } from 'execa';
  */
 
 /**
- * @typedef {import('./github-gql').CommitConnection} CommitConnection
+ * @typedef {import('./github-gql.mjs').CommitConnection} CommitConnection
  */
 
 /**
- * @param {string} cwd
+ * @param {Object} opts
+ * @param {string} opts.cwd
  * @returns {Promise<string>}
  */
-export async function findLatestTaggedVersion(cwd) {
-  const { stdout } = await $({ cwd })`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
+export async function findLatestTaggedVersion(opts) {
+  const { stdout } = await $({ cwd: opts.cwd })`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
   return stdout.trim();
 }
 
@@ -52,8 +53,8 @@ export async function fetchCommitsBetweenRefs({ method = 'rest', org = 'mui', ..
 
 /**
  * Fetches commits between two refs using GitHub's GraphQL API over a single network call.
- * Its efficient network-wise but is not as reliable as the REST API. So keeping both
- * implementations for the time being.
+ * Its efficient network-wise but is not as reliable as the REST API (in my findings).
+ * So keeping both implementations for the time being.
  *
  * @param {Omit<FetchCommitsOptions, 'method'> & {org: string}} param0
  * @returns {Promise<FetchedCommitDetails[]>}
@@ -123,7 +124,7 @@ async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
    */
   let commitAfter = null;
   /**
-   * @type {import('./github-gql').CommitNode[]}
+   * @type {import('./github-gql.mjs').CommitNode[]}
    */
   let allCommits = [];
   // fetch all commits (with pagination)
@@ -162,10 +163,6 @@ async function fetchCommitsGraphql({ org, token, repo, lastRelease, release }) {
 }
 
 /**
- * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} CompareCommitsResult
- */
-
-/**
  * Fetches commits between two refs using GitHub's REST API.
  * It is more reliable than the GraphQL API but requires multiple network calls (1 + n).
  * One to list all commits between the two refs and then one for each commit to get the PR details.
@@ -179,7 +176,7 @@ async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
     auth: token,
   });
   /**
-   * @type {CompareCommitsResult}
+   * @type {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']}
    */
   const results = [];
   /**
@@ -234,7 +231,7 @@ async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
 
 /**
  *
- * @param {import('./github-gql').AuthorAssocation} input
+ * @param {import('./github-gql.mjs').AuthorAssocation} input
  * @returns {AuthorAssociation}
  */
 function getAuthorAssociation(input) {

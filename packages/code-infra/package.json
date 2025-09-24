@@ -13,16 +13,32 @@
   "exports": {
     "./stylelint": "./src/stylelint/index.mjs",
     "./package.json": "./package.json",
-    "./babel-config": "./src/babel-config.mjs",
-    "./changelog": "./src/utils/changelog.mjs",
-    "./eslint": "./src/eslint/index.mjs",
-    "./markdownlint": "./src/markdownlint/index.mjs",
-    "./prettier": "./src/prettier.mjs"
+    "./babel-config": {
+      "types": "./build/babel-config.d.mts",
+      "default": "./src/babel-config.mjs"
+    },
+    "./changelog": {
+      "types": "./build/utils/changelog.d.mts",
+      "default": "./src/utils/changelog.mjs"
+    },
+    "./eslint": {
+      "types": "./build/eslint/index.d.mts",
+      "default": "./src/eslint/index.mjs"
+    },
+    "./markdownlint": {
+      "types": "./build/markdownlint/index.d.mts",
+      "default": "./src/markdownlint/index.mjs"
+    },
+    "./prettier": {
+      "types": "./build/prettier.d.mts",
+      "default": "./src/prettier.mjs"
+    }
   },
   "bin": {
     "code-infra": "./bin/code-infra.mjs"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
