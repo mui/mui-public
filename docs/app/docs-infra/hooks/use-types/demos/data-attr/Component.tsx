@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ComponentDataAttributes } from './ComponentDataAttributes';
 
 interface Props {
   /** The title to display */
@@ -18,7 +19,7 @@ export function Component(props: Props) {
   };
 
   return (
-    <button type="button" onClick={handleClick}>
+    <button type="button" onClick={handleClick} {...{ [ComponentDataAttributes.type]: 'example' }}>
       {props.title}
       {!props.disabled ? props.children : null}
     </button>

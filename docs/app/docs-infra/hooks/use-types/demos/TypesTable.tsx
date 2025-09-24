@@ -1,9 +1,14 @@
 import * as React from 'react';
 import type { AnyType } from 'typescript-api-extractor';
-import { TypesMeta, useTypes } from '@mui/internal-docs-infra/useTypes';
+import { Types, useTypes } from '@mui/internal-docs-infra/useTypes';
+import {
+  TypesMeta,
+  ComponentTypeMeta,
+  HookTypeMeta,
+} from '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta';
 import styles from './TypesTable.module.css';
 
-export type TypesTableProps = TypesMeta;
+export type TypesTableProps = Types;
 
 export function TypeDoc(props: {
   type: AnyType;
@@ -12,7 +17,7 @@ export function TypeDoc(props: {
   isOptionalProperty?: boolean;
 }) {
   const { type, depth = 0, showName = true, isOptionalProperty = false } = props;
-  const maxDepth = 7; // Prevent infinite recursion
+  const maxDepth = 10; // Prevent infinite recursion
 
   if (depth > maxDepth) {
     return <div className={styles.typeDoc}>...</div>;
@@ -21,7 +26,11 @@ export function TypeDoc(props: {
   const renderType = (t: AnyType): React.ReactNode => {
     switch (t.kind) {
       case 'intrinsic':
-        return <span className={styles.intrinsicType}>{t.intrinsic}</span>;
+        return t.intrinsic === 'undefined' ? (
+          <span className={styles.undefinedType}>{t.intrinsic}</span>
+        ) : (
+          <span className={styles.intrinsicType}>{t.intrinsic}</span>
+        );
 
       case 'literal':
         return <span className={styles.literalType}>{JSON.stringify(t.value)}</span>;
@@ -45,7 +54,16 @@ export function TypeDoc(props: {
 
         // If filtering left us with only one type, render it directly without union wrapper
         if (filteredTypes.length === 1) {
-          return renderType(filteredTypes[0]);
+          const firstType = filteredTypes[0];
+          const typeName = 'typeName' in firstType ? firstType.typeName?.name : undefined;
+          return (
+            <React.Fragment>
+              {firstType.kind === 'object' && typeName && (
+                <div className={styles.typeName}>{typeName}</div>
+              )}
+              {renderType(firstType)}
+            </React.Fragment>
+          );
         }
 
         return (
@@ -74,7 +92,7 @@ export function TypeDoc(props: {
 
       case 'object':
         if (t.properties.length === 0) {
-          return <span className={styles.intrinsicType}>{'{}'}</span>;
+          return null;
         }
         return (
           <div className={styles.objectType}>
@@ -203,7 +221,24 @@ export function TypeDoc(props: {
         );
 
       case 'external':
-        return <span className={styles.externalType}>{t.typeName.toString()}</span>;
+        return (
+          <span className={styles.externalType}>
+            {t.typeName.namespaces ? `${t.typeName.namespaces?.join(' > ')}.` : ''}
+            {t.typeName.name}
+            {t.typeName.typeArguments && t.typeName.typeArguments.length > 0 && (
+              <React.Fragment>
+                {'<'}
+                {t.typeName.typeArguments.map((arg, index) => (
+                  <React.Fragment key={index}>
+                    {index > 0 && ', '}
+                    <TypeDoc type={arg.type} depth={depth + 1} />
+                  </React.Fragment>
+                ))}
+                {'>'}
+              </React.Fragment>
+            )}
+          </span>
+        );
 
       case 'typeParameter':
         return (
@@ -228,9 +263,14 @@ export function TypeDoc(props: {
     }
   };
 
-  if (!showName) {
+  if (!showName || type.kind === 'external') {
     // For function and component types, return directly without wrapper since they have their own styling
-    if (type.kind === 'function' || type.kind === 'component' || type.kind === 'union') {
+    if (
+      type.kind === 'function' ||
+      type.kind === 'component' ||
+      type.kind === 'union' ||
+      type.kind === 'external'
+    ) {
       return renderType(type);
     }
     return <div className={styles.typeDocWithoutName}>{renderType(type)}</div>;
@@ -239,7 +279,12 @@ export function TypeDoc(props: {
   const typeName = 'typeName' in type ? type.typeName?.name : undefined;
 
   // For function and component types, return directly without wrapper since they have their own styling
-  if (type.kind === 'function' || type.kind === 'component' || type.kind === 'union') {
+  if (
+    type.kind === 'function' ||
+    type.kind === 'component' ||
+    type.kind === 'union' ||
+    type.kind === 'intrinsic'
+  ) {
     return (
       <React.Fragment>
         {typeName && <div className={styles.typeName}>{typeName}</div>}
@@ -256,21 +301,183 @@ export function TypeDoc(props: {
   );
 }
 
+function ComponentDoc(props: { type: ComponentTypeMeta }) {
+  const { type } = props;
+
+  return (
+    <div className={styles.componentDoc}>
+      <div className={styles.componentName}>{type.name}</div>
+      <div className={styles.componentDescription}>{type.description}</div>
+      {Object.keys(type.props).length > 0 && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Prop</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(type.props).map((key) => {
+              const prop = type.props[key];
+              return (
+                <tr key={key}>
+                  <td>{key}</td>
+                  <td>
+                    <code>{prop.type}</code>
+                  </td>
+                  <td>{prop.description}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {Object.keys(type.dataAttributes).length > 0 && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Data Attribute</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(type.dataAttributes).map((key) => {
+              const dataAttr = type.dataAttributes[key];
+              return (
+                <tr key={key}>
+                  <td>{key}</td>
+                  <td>{dataAttr.description}</td>
+                  <td>
+                    <code>{dataAttr.default}</code>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {Object.keys(type.cssVariables).length > 0 && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>CSS Variable</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(type.cssVariables).map((key) => {
+              const cssVar = type.cssVariables[key];
+              return (
+                <tr key={key}>
+                  <td>{key}</td>
+                  <td>{cssVar.description}</td>
+                  <td>
+                    <code>{cssVar.default}</code>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function HookDoc(props: { type: HookTypeMeta }) {
+  const { type } = props;
+
+  const { name, description, parameters, returnValue } = type;
+
+  return (
+    <div className={styles.componentDoc}>
+      <div className={styles.componentName}>{name}</div>
+      {description && <div className={styles.componentDescription}>{description}</div>}
+      {Object.keys(parameters).length > 0 && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(parameters).map((key) => {
+              const param = type.parameters[key];
+              return (
+                <tr key={param.name}>
+                  <td>{param.name}</td>
+                  <td>
+                    <code>{param.type}</code>
+                  </td>
+                  <td>{param.description}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <div className={styles.returnType}>Return Type</div>
+      {typeof returnValue === 'string' ? (
+        <code>{returnValue}</code>
+      ) : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Type</th>
+              <th>Required</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(returnValue).map((key) => {
+              const returnValueValue = returnValue[key];
+              return (
+                <tr key={key}>
+                  <td>{key}</td>
+                  <td>
+                    <code>{returnValueValue.type}</code>
+                  </td>
+                  <td>{returnValueValue.required ? 'Yes' : 'No'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export function TypesTable(props: TypesTableProps) {
   const { types } = useTypes(props);
 
+  const renderType = React.useCallback((type: TypesMeta) => {
+    switch (type.type) {
+      case 'component':
+        return <ComponentDoc type={type.data} />;
+      case 'hook':
+        return <HookDoc type={type.data} />;
+      default:
+        return (
+          <React.Fragment>
+            <div className={styles.name}>{type.data.name}</div>
+            {type.data.documentation && type.data.documentation.description && (
+              <div className={styles.documentation}>{type.data.documentation.description}</div>
+            )}
+            <TypeDoc type={type.data.type} showName={false} />
+          </React.Fragment>
+        );
+    }
+  }, []);
+
   return (
     <div className={styles.root}>
-      {types &&
-        types.exports?.map(({ name, type, documentation }) => (
-          <div key={name}>
-            <div className={styles.name}>{name}</div>
-            {documentation && documentation.description && (
-              <div className={styles.documentation}>{documentation.description}</div>
-            )}
-            <TypeDoc type={type} showName={false} />
-          </div>
-        ))}
+      {types && types?.map((type, i) => <div key={i}>{renderType(type)}</div>)}
     </div>
   );
 }
