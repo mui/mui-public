@@ -95,7 +95,10 @@ async function createViteConfig(entry, args, replacements = {}) {
       emptyOutDir: true,
       modulePreload: false,
       rollupOptions: {
-        input: { bundle: '/entry.tsx' },
+        input: {
+          ignore: '/ignore.ts',
+          bundle: '/entry.tsx',
+        },
         output: {
           // The output is for debugging purposes only. Remove all hashes to make it easier to compare two folders
           // of build output.
@@ -145,12 +148,20 @@ async function createViteConfig(entry, args, replacements = {}) {
       {
         name: 'virtual-entry',
         resolveId(id) {
+          if (id === '/ignore.ts') {
+            return `\0virtual:ignore.ts`;
+          }
           if (id === '/entry.tsx') {
             return `\0virtual:entry.tsx`;
           }
           return null;
         },
         load(id) {
+          if (id === `\0virtual:ignore.ts`) {
+            // ignore chunk will contain the vite preload code, we can ignore this chunk in the output
+            // See https://github.com/vitejs/vite/issues/18551
+            return transformWithEsbuild(`import('/entry.tsx').then(console.log)`, id);
+          }
           if (id === `\0virtual:entry.tsx`) {
             return transformWithEsbuild(entryContent, id);
           }
@@ -240,6 +251,10 @@ async function processBundleSizes(output, entryName) {
       throw new Error(`Output chunk not found for ${chunk.file}`);
     }
     const fileContent = outputChunk.code;
+    if (chunk.name === 'preload-helper') {
+      // Skip the preload-helper chunk as it is not relevant for bundle size
+      return null;
+    }
 
     // Calculate sizes
     const parsed = Buffer.byteLength(fileContent);
