@@ -1,5 +1,6 @@
 import mochaPlugin from 'eslint-plugin-mocha';
 import testingLibrary from 'eslint-plugin-testing-library';
+import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
 
@@ -45,75 +46,73 @@ export const baseSpecRules = {
  */
 export function createTestConfig(options = {}) {
   const { useMocha = true } = options;
-  return /** @type {import('eslint').Linter.Config[]} */ (
-    tseslint.config(
-      // @ts-expect-error The types don't make sense here.
-      useMocha ? mochaPlugin.configs.recommended : {},
-      testingLibrary.configs['flat/dom'],
-      testingLibrary.configs['flat/react'],
-      {
-        languageOptions: {
-          parser: tseslint.parser,
-          parserOptions: {
-            ecmaVersion: 7,
-          },
-          globals: globals.mocha,
+  return defineConfig(
+    // @ts-expect-error The types don't make sense here.
+    useMocha ? mochaPlugin.configs.recommended : {},
+    testingLibrary.configs['flat/dom'],
+    testingLibrary.configs['flat/react'],
+    {
+      languageOptions: {
+        parser: tseslint.parser,
+        parserOptions: {
+          ecmaVersion: 7,
         },
-        rules: {
-          // does not work with wildcard imports. Mistakes will throw at runtime anyway
-          'import/named': 'off',
-          'material-ui/disallow-active-element-as-key-event-target': 'error',
-
-          // disable eslint-plugin-jsx-a11y
-          // tests are not driven by assistive technology
-          // add `jsx-a11y` rules once you encounter them in tests
-          'jsx-a11y/click-events-have-key-events': 'off',
-          'jsx-a11y/control-has-associated-label': 'off',
-          'jsx-a11y/iframe-has-title': 'off',
-          'jsx-a11y/label-has-associated-control': 'off',
-          'jsx-a11y/mouse-events-have-key-events': 'off',
-          'jsx-a11y/no-noninteractive-tabindex': 'off',
-          'jsx-a11y/no-static-element-interactions': 'off',
-          'jsx-a11y/tabindex-no-positive': 'off',
-          'jsx-a11y/anchor-is-valid': 'off',
-
-          // In tests this is generally intended.
-          'react/button-has-type': 'off',
-          // They are accessed to test custom validator implementation with PropTypes.checkPropTypes
-          'react/forbid-foreign-prop-types': 'off',
-          // components that are defined in test are isolated enough
-          // that they don't need type-checking
-          'react/prop-types': 'off',
-          'react/no-unused-prop-types': 'off',
-          // Part of the migration away from airbnb config. Turned of initially.
-          '@typescript-eslint/no-empty-function': 'off',
-          '@typescript-eslint/ban-ts-comment': 'off',
-          'testing-library/no-node-access': 'off',
-          '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
-          // end migration
-          ...(useMocha
-            ? {
-                'mocha/consistent-spacing-between-blocks': 'off',
-
-                // upgraded level from recommended
-                'mocha/no-pending-tests': 'error',
-
-                // no rationale provided in /recommended
-                'mocha/no-mocha-arrows': 'off',
-                // definitely a useful rule but too many false positives
-                // due to `describeConformance`
-                // "If you're using dynamically generated tests, you should disable this rule.""
-                'mocha/no-setup-in-describe': 'off',
-                // `beforeEach` for a single case is optimized for change
-                // when we add a test we don't have to refactor the existing
-                // test to `beforeEach`.
-                // `beforeEach`+`afterEach` also means that the `beforeEach`
-                // is cleaned up in `afterEach` if the test causes a crash
-                'mocha/no-hooks-for-single-case': 'off',
-              }
-            : {}),
-        },
+        globals: globals.mocha,
       },
-    )
+      rules: {
+        // does not work with wildcard imports. Mistakes will throw at runtime anyway
+        'import/named': 'off',
+        'material-ui/disallow-active-element-as-key-event-target': 'error',
+
+        // disable eslint-plugin-jsx-a11y
+        // tests are not driven by assistive technology
+        // add `jsx-a11y` rules once you encounter them in tests
+        'jsx-a11y/click-events-have-key-events': 'off',
+        'jsx-a11y/control-has-associated-label': 'off',
+        'jsx-a11y/iframe-has-title': 'off',
+        'jsx-a11y/label-has-associated-control': 'off',
+        'jsx-a11y/mouse-events-have-key-events': 'off',
+        'jsx-a11y/no-noninteractive-tabindex': 'off',
+        'jsx-a11y/no-static-element-interactions': 'off',
+        'jsx-a11y/tabindex-no-positive': 'off',
+        'jsx-a11y/anchor-is-valid': 'off',
+
+        // In tests this is generally intended.
+        'react/button-has-type': 'off',
+        // They are accessed to test custom validator implementation with PropTypes.checkPropTypes
+        'react/forbid-foreign-prop-types': 'off',
+        // components that are defined in test are isolated enough
+        // that they don't need type-checking
+        'react/prop-types': 'off',
+        'react/no-unused-prop-types': 'off',
+        // Part of the migration away from airbnb config. Turned of initially.
+        '@typescript-eslint/no-empty-function': 'off',
+        '@typescript-eslint/ban-ts-comment': 'off',
+        'testing-library/no-node-access': 'off',
+        '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
+        // end migration
+        ...(useMocha
+          ? {
+              'mocha/consistent-spacing-between-blocks': 'off',
+
+              // upgraded level from recommended
+              'mocha/no-pending-tests': 'error',
+
+              // no rationale provided in /recommended
+              'mocha/no-mocha-arrows': 'off',
+              // definitely a useful rule but too many false positives
+              // due to `describeConformance`
+              // "If you're using dynamically generated tests, you should disable this rule.""
+              'mocha/no-setup-in-describe': 'off',
+              // `beforeEach` for a single case is optimized for change
+              // when we add a test we don't have to refactor the existing
+              // test to `beforeEach`.
+              // `beforeEach`+`afterEach` also means that the `beforeEach`
+              // is cleaned up in `afterEach` if the test causes a crash
+              'mocha/no-hooks-for-single-case': 'off',
+            }
+          : {}),
+      },
+    },
   );
 }
