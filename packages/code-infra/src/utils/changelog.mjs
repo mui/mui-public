@@ -19,7 +19,11 @@ import { $ } from 'execa';
  * @returns {Promise<string>}
  */
 export async function findLatestTaggedVersion(opts) {
-  const { stdout } = await $({ cwd: opts.cwd })`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
+  const { stdout } = await $({
+    cwd: opts.cwd,
+    // First fetch all tags from all remotes to ensure we have the latest tags. Uses -q flag to suppress output.
+    // And then find the latest tag matching "v*".
+  })`git fetch --tags --all -q && git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
   return stdout.trim();
 }
 
@@ -34,8 +38,7 @@ export async function findLatestTaggedVersion(opts) {
 
 /**
  * Fetches commits between two refs (lastRelease..release) including PR details.
- * It first tries to use the GraphQL API (more efficient) and falls back to the
- * REST api if it fails with server error.
+ * Throws if the `token` option is not provided.
  *
  * @param {FetchCommitsOptions} param0
  * @returns {Promise<FetchedCommitDetails[]>}
@@ -118,7 +121,7 @@ async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
 
 /**
  *
- * @param {import('./github-types.mjs').AuthorAssocation} input
+ * @param {import('@octokit/rest').RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]["author_association"]} input
  * @returns {AuthorAssociation}
  */
 function getAuthorAssociation(input) {
