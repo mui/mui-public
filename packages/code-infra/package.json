@@ -21,6 +21,10 @@
       "types": "./build/utils/changelog.d.mts",
       "default": "./src/utils/changelog.mjs"
     },
+    "./credentials": {
+      "types": "./build/utils/credentials.d.mts",
+      "default": "./src/utils/credentials.mjs"
+    },
     "./eslint": {
       "types": "./build/eslint/index.d.mts",
       "default": "./src/eslint/index.mjs"
