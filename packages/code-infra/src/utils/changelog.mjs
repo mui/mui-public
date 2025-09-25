@@ -16,37 +16,41 @@ import { $ } from 'execa';
 /**
  * @param {Object} opts
  * @param {string} opts.cwd
+ * @param {boolean} [opts.fetchAll=true] Whether to fetch all tags from all remotes before finding the latest tag.
  * @returns {Promise<string>}
  */
 export async function findLatestTaggedVersion(opts) {
-  const { stdout } = await $({
-    cwd: opts.cwd,
-    // First fetch all tags from all remotes to ensure we have the latest tags. Uses -q flag to suppress output.
-    // And then find the latest tag matching "v*".
-  })`git fetch --tags --all -q && git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
+  const $$ = $({ cwd: opts.cwd });
+  const fetchAll = opts.fetchAll ?? true;
+  if (fetchAll) {
+    // Fetch all tags from all remotes to ensure we have the latest tags.
+    await $$`git fetch --tags --all`;
+  }
+  const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
   return stdout.trim();
 }
 
 /**
  * @typedef {Object} FetchCommitsOptions
- * @property {string} token
  * @property {string} repo
  * @property {string} lastRelease
  * @property {string} release
+ * @property {string} token
  * @property {string} [org="mui"]
  */
 
 /**
  * Fetches commits between two refs (lastRelease..release) including PR details.
- * Throws if the `token` option is not provided.
+ * Automatically handles GitHub OAuth authentication.
  *
  * @param {FetchCommitsOptions} param0
  * @returns {Promise<FetchedCommitDetails[]>}
  */
 export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
   if (!options.token) {
-    throw new Error('Missing "token" option. The token needs `public_repo` permissions.');
+    throw new Error('GitHub token is required.');
   }
+
   const opts = { ...options, org };
 
   return await fetchCommitsRest(opts);
@@ -57,7 +61,7 @@ export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
  * It is more reliable than the GraphQL API but requires multiple network calls (1 + n).
  * One to list all commits between the two refs and then one for each commit to get the PR details.
  *
- * @param {FetchCommitsOptions & { org: string }} param0
+ * @param {FetchCommitsOptions & { org: string, token: string }} param0
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
