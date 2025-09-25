@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createBaseConfig,
+  createJsonConfig,
   createTestConfig,
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
@@ -13,7 +14,9 @@ const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
 export default defineConfig(
+  createJsonConfig(),
   {
+    files: [`**/*.${EXTENSION_TS}`],
     name: 'Base config',
     extends: createBaseConfig({
       baseDirectory: dirname,
@@ -59,7 +62,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/bundle-size-checker/**/*'],
+    files: [`packages/bundle-size-checker/**/*.${EXTENSION_TS}`],
     rules: {
       // Allow .js file extensions in import statements for ESM compatibility
       'import/extensions': [
