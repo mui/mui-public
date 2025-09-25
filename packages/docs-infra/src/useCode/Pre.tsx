@@ -156,6 +156,10 @@ export function Pre({
   const frames = React.useMemo(() => {
     return hast?.children.map((child, index) => {
       if (child.type !== 'element') {
+        if (child.type === 'text') {
+          return <React.Fragment key={index}>{child.value}</React.Fragment>;
+        }
+
         return null;
       }
 
@@ -184,7 +188,7 @@ export function Pre({
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      {typeof children === 'string' ? children : frames}
+      <code>{typeof children === 'string' ? children : frames}</code>
     </pre>
   );
 }
