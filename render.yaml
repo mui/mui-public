@@ -1,11 +1,11 @@
 previews:
-  generation: automatic
+  generation: manual
   expireAfterDays: 6
 
 services:
   - type: web
     name: mui-tools-public
-    env: node
+    runtime: node
     rootDir: apps/tools-public
     buildCommand: |
       # Required per https://github.com/pnpm/pnpm/issues/9029#issuecomment-2629866277
