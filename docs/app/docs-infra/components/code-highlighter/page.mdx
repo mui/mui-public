@@ -157,15 +157,16 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 ---
 
-import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
+import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-init';
 
-<DemoCodeHighlighterCodeHighlightIdle.Title />
+<DemoCodeHighlighterCodeHighlightInit.Title />
 
-For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
+Generally, since hydration occurs quickly, a slight delay is acceptable to prioritize faster content rendering.
+For demos shown above the fold, you might want highlighting to show immediately on initial render.
 
-<DemoCodeHighlighterCodeHighlightIdle />
+<DemoCodeHighlighterCodeHighlightInit />
 
-[See Demo](./demos/code-highlight-idle/)
+[See Demo](./demos/code-highlight-init/)
 
 ---
 
@@ -231,6 +232,12 @@ You can do so by using the [`CodeProvider`](../code-provider/page.mdx) component
 `CodeHighlighter` also supports controlled scenarios where you need to manage code state externally. This is useful for interactive demos where code changes affect other parts of your application or when you need to synchronize code across multiple components.
 
 You can use the [`CodeControllerContext`](../code-controller-context/page.mdx) for this purpose, which provides a controlled environment for managing code state in interactive scenarios.
+
+## Benchmarking
+
+We have created some demos that showcase the performance of various configurations.
+
+[See Performance Considerations](./bench/page.mdx)
 
 ## Authoring Recommendations
 
