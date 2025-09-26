@@ -47,8 +47,9 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
     // Check if this is a static asset file (non-JS/TS modules)
     const isJavascriptModuleFile = isJavaScriptModule(filePath);
+    const isCssFile = filePath.toLowerCase().endsWith('.css');
 
-    if (!isJavascriptModuleFile) {
+    if (!isJavascriptModuleFile && !isCssFile) {
       // Static assets (CSS, JSON, etc.) don't have imports to resolve
       return { source };
     }
@@ -73,34 +74,61 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
       };
     }
 
-    // Convert to format expected by resolveImportResultWithFs and processImports
-    const relativeImportsCompatible: Record<
-      string,
-      { path: string; names: string[]; includeTypeDefs?: true }
-    > = {};
-    for (const [importPath, { path, names, includeTypeDefs }] of Object.entries(importResult)) {
-      relativeImportsCompatible[importPath] = {
+    let processedSource: string;
+    let extraFiles: Record<string, string>;
+    let extraDependencies: string[];
+
+    // Convert import result to the format expected by processImports
+    const importsCompatible: Record<string, { path: string; names: string[] }> = {};
+    for (const [importPath, { path, names }] of Object.entries(importResult)) {
+      importsCompatible[importPath] = {
         path,
-        names: names.map(({ name, alias }) => alias || name), // Use alias if available
-        ...(includeTypeDefs && { includeTypeDefs }),
+        names: names.map(({ name, alias }) => alias || name),
       };
     }
 
-    // Resolve import paths, handling JS/TS modules and static assets appropriately
-    const resolvedPathsMap = await resolveImportResultWithFs(relativeImportsCompatible);
+    if (isCssFile) {
+      // For CSS files, we don't need complex path resolution
+      // The parseImports function already resolved paths for CSS
+      const result = processRelativeImports(source, importsCompatible, storeAt);
+      processedSource = result.processedSource;
+      extraFiles = result.extraFiles;
 
-    // Process imports using the consolidated helper function
-    const { processedSource, extraFiles } = processRelativeImports(
-      source,
-      relativeImportsCompatible,
-      resolvedPathsMap,
-      storeAt,
-    );
+      // Build dependencies list for recursive loading (CSS files use direct paths)
+      extraDependencies = Object.values(importResult).map(({ path }) => path);
+    } else {
+      // For JavaScript/TypeScript files, resolve paths first
+      const relativeImportsCompatible: Record<
+        string,
+        { path: string; names: string[]; includeTypeDefs?: true }
+      > = {};
+      for (const [importPath, { path, names, includeTypeDefs }] of Object.entries(importResult)) {
+        relativeImportsCompatible[importPath] = {
+          path,
+          names: names.map(({ name, alias }) => alias || name), // Use alias if available
+          ...(includeTypeDefs && { includeTypeDefs }),
+        };
+      }
 
-    // Build dependencies list for recursive loading
-    const extraDependencies = Object.values(importResult)
-      .map(({ path }) => resolvedPathsMap.get(path))
-      .filter((path): path is string => path !== undefined);
+      // Resolve import paths, handling JS/TS modules and static assets appropriately
+      const resolvedPathsMap = await resolveImportResultWithFs(relativeImportsCompatible);
+
+      // Process imports using the unified helper function
+      const result = processRelativeImports(
+        source,
+        importsCompatible,
+        storeAt,
+        true,
+        resolvedPathsMap,
+      );
+      processedSource = result.processedSource;
+      extraFiles = result.extraFiles;
+
+      // Build dependencies list for recursive loading
+      extraDependencies = Object.values(importResult)
+        .map(({ path }) => resolvedPathsMap.get(path))
+        .filter((path): path is string => path !== undefined);
+    }
 
     return {
       source: processedSource,

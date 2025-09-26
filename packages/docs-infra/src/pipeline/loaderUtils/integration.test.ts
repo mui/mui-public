@@ -10,8 +10,10 @@ const mockFileSystem: Record<string, DirectoryEntry[]> = {
     { name: 'components', isDirectory: true, isFile: false },
     { name: 'utils', isDirectory: true, isFile: false },
     { name: 'shared', isDirectory: true, isFile: false },
+    { name: 'styles', isDirectory: true, isFile: false },
     { name: 'types.d.ts', isDirectory: false, isFile: true },
     { name: 'styles.css', isDirectory: false, isFile: true },
+    { name: 'global.css', isDirectory: false, isFile: true },
   ],
   '/src/components': [
     { name: 'ComponentA.tsx', isDirectory: false, isFile: true },
@@ -28,10 +30,26 @@ const mockFileSystem: Record<string, DirectoryEntry[]> = {
   '/src/shared': [{ name: 'helpers.js', isDirectory: false, isFile: true }],
   '/src/a': [{ name: 'Component.js', isDirectory: false, isFile: true }],
   '/src/b': [{ name: 'Component.js', isDirectory: false, isFile: true }],
-  '/src/current': [{ name: 'side-effect-import.js', isDirectory: false, isFile: true }],
+  '/src/current': [
+    { name: 'side-effect-import.js', isDirectory: false, isFile: true },
+    { name: 'theme.css', isDirectory: false, isFile: true },
+    { name: 'components.css', isDirectory: false, isFile: true },
+  ],
   '/src/dual': [
     { name: 'Component.ts', isDirectory: false, isFile: true },
     { name: 'Component.d.ts', isDirectory: false, isFile: true },
+  ],
+  '/src/styles': [
+    { name: 'base.css', isDirectory: false, isFile: true },
+    { name: 'components.css', isDirectory: false, isFile: true },
+    { name: 'theme.css', isDirectory: false, isFile: true },
+    { name: 'variables.css', isDirectory: false, isFile: true },
+    { name: 'ui', isDirectory: true, isFile: false },
+  ],
+  '/src/styles/ui': [
+    { name: 'button.css', isDirectory: false, isFile: true },
+    { name: 'dialog.css', isDirectory: false, isFile: true },
+    { name: 'forms.css', isDirectory: false, isFile: true },
   ],
 };
 
@@ -68,7 +86,63 @@ async function mockLoader(
   const resolvedPathsMap = await resolveImportResult(importResult, mockDirectoryReader);
 
   // Step 3: Process imports and generate final result
-  const processedResult = processRelativeImports(sourceCode, importResult, resolvedPathsMap, mode);
+  // Determine if this is a JavaScript/TypeScript file
+  const isJsFile = /\.(js|jsx|ts|tsx|mjs|cjs)$/i.test(filePath);
+  const processedResult = processRelativeImports(
+    sourceCode,
+    importResult,
+    mode,
+    isJsFile,
+    resolvedPathsMap,
+  );
+
+  return {
+    // Input
+    sourceCode,
+    filePath,
+    mode,
+    // Intermediate results
+    importResult,
+    resolvedPathsMap,
+    // Final output
+    processedSource: processedResult.processedSource,
+    extraFiles: processedResult.extraFiles,
+  };
+}
+
+// CSS-specific loader for testing CSS import processing
+async function mockCssLoader(
+  sourceCode: string,
+  filePath: string,
+  mode: 'flat' | 'canonical' | 'import' = 'flat',
+) {
+  // Step 1: Parse imports from CSS source code
+  const parseResult = await parseImports(sourceCode, filePath);
+
+  // Convert the new format to the old format expected by the integration test functions
+  const importResult: Record<string, { path: string; names: string[] }> = {};
+  for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
+    importResult[path] = {
+      path: relativeImport.path,
+      names: [], // CSS imports don't have named imports
+    };
+  }
+
+  // Step 2: For CSS files, we don't need complex path resolution like JS files
+  // CSS imports are typically direct file references
+  const resolvedPathsMap = new Map<string, string>();
+  for (const [, importInfo] of Object.entries(importResult)) {
+    resolvedPathsMap.set(importInfo.path, importInfo.path);
+  }
+
+  // Step 3: Process CSS imports (isJsFile = false)
+  const processedResult = processRelativeImports(
+    sourceCode,
+    importResult,
+    mode,
+    false,
+    resolvedPathsMap,
+  );
 
   return {
     // Input
@@ -372,6 +446,323 @@ import ComponentA from '../components/ComponentA';
 
       testCases.forEach(({ url, expected }) => {
         expect(getFileNameFromUrl(url)).toEqual(expected);
+      });
+    });
+  });
+
+  describe('CSS Integration Tests', () => {
+    describe('CSS import processing', () => {
+      it('should process basic CSS imports in flat mode', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/base.css';
+@import './components.css';
+@import '../styles/theme.css';
+
+.component {
+  color: red;
+}
+`,
+          filePath: '/src/current/main.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './base.css': 'file:///src/styles/base.css',
+          './components.css': 'file:///src/current/components.css',
+          './theme.css': 'file:///src/styles/theme.css',
+        });
+
+        expect(result.processedSource).toContain("@import 'base.css'");
+        expect(result.processedSource).toContain("@import 'components.css'");
+        expect(result.processedSource).toContain("@import 'theme.css'");
+        expect(result.processedSource).toContain('.component {\n  color: red;\n}');
+      });
+
+      it('should handle CSS imports with layers and media queries', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/base.css' layer(base);
+@import '../styles/components.css' layer(components) screen and (min-width: 768px);
+@import url('../styles/theme.css') supports(display: grid);
+@import '../styles/variables.css' layer(utilities) print;
+
+.main {
+  display: grid;
+}
+`,
+          filePath: '/src/current/advanced.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './base.css': 'file:///src/styles/base.css',
+          './components.css': 'file:///src/styles/components.css',
+          './theme.css': 'file:///src/styles/theme.css',
+          './variables.css': 'file:///src/styles/variables.css',
+        });
+
+        expect(result.processedSource).toContain("@import 'base.css' layer(base)");
+        expect(result.processedSource).toContain(
+          "@import 'components.css' layer(components) screen and (min-width: 768px)",
+        );
+        expect(result.processedSource).toContain(
+          "@import url('theme.css') supports(display: grid)",
+        );
+        expect(result.processedSource).toContain("@import 'variables.css' layer(utilities) print");
+      });
+
+      it('should handle nested directory CSS imports with naming conflicts', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/ui/button.css';
+@import '../styles/ui/dialog.css';
+@import '../styles/ui/forms.css';
+@import '../styles/components.css';
+
+.layout {
+  margin: 0;
+}
+`,
+          filePath: '/src/current/layout.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './button.css': 'file:///src/styles/ui/button.css',
+          './dialog.css': 'file:///src/styles/ui/dialog.css',
+          './forms.css': 'file:///src/styles/ui/forms.css',
+          './components.css': 'file:///src/styles/components.css',
+        });
+
+        expect(result.processedSource).toContain("@import 'button.css'");
+        expect(result.processedSource).toContain("@import 'dialog.css'");
+        expect(result.processedSource).toContain("@import 'forms.css'");
+        expect(result.processedSource).toContain("@import 'components.css'");
+      });
+
+      it('should preserve canonical mode without rewriting CSS imports', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/base.css';
+@import './theme.css' layer(theme);
+
+body {
+  margin: 0;
+}
+`,
+          filePath: '/src/current/app.css',
+          mode: 'canonical' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.processedSource).toBe(input.sourceCode); // No rewriting
+        expect(result.extraFiles).toEqual({
+          '../styles/base.css': 'file:///src/styles/base.css',
+          './theme.css': 'file:///src/current/theme.css',
+        });
+      });
+
+      it('should preserve import mode without rewriting CSS imports', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/variables.css';
+@import url('../styles/theme.css') supports(color: color(display-p3 1 0 0));
+
+:root {
+  --primary: blue;
+}
+`,
+          filePath: '/src/current/variables.css',
+          mode: 'import' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.processedSource).toBe(input.sourceCode); // No rewriting
+        expect(result.extraFiles).toEqual({
+          '../styles/variables.css': 'file:///src/styles/variables.css',
+          '../styles/theme.css': 'file:///src/styles/theme.css',
+        });
+      });
+
+      it('should handle complex CSS imports with quotes and url() syntax', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/base.css';
+@import url("../styles/theme.css");
+@import url('../styles/components.css') layer(components);
+@import "../styles/variables.css" supports(display: grid) screen;
+
+.container {
+  display: flex;
+}
+`,
+          filePath: '/src/current/complex.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './base.css': 'file:///src/styles/base.css',
+          './theme.css': 'file:///src/styles/theme.css',
+          './components.css': 'file:///src/styles/components.css',
+          './variables.css': 'file:///src/styles/variables.css',
+        });
+
+        expect(result.processedSource).toContain("@import 'base.css'");
+        expect(result.processedSource).toContain('@import url("theme.css")');
+        expect(result.processedSource).toContain("@import url('components.css') layer(components)");
+        expect(result.processedSource).toContain(
+          '@import "variables.css" supports(display: grid) screen',
+        );
+      });
+
+      it('should handle CSS imports mixed with external imports', async () => {
+        const input = {
+          sourceCode: `
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
+@import '../styles/base.css';
+@import url('https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css');
+@import './theme.css' layer(theme);
+
+.app {
+  font-family: 'Roboto', sans-serif;
+}
+`,
+          filePath: '/src/current/app.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        // Both relative imports should be processed correctly
+        expect(result.extraFiles).toEqual({
+          './base.css': 'file:///src/styles/base.css',
+          './theme.css': 'file:///src/current/theme.css',
+        });
+
+        // External imports should remain unchanged
+        expect(result.processedSource).toContain(
+          "@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap')",
+        );
+        expect(result.processedSource).toContain(
+          "@import url('https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css')",
+        );
+        // Relative imports should be rewritten
+        expect(result.processedSource).toContain("@import 'base.css'");
+        expect(result.processedSource).toContain("@import 'theme.css' layer(theme)");
+      });
+
+      it('should handle empty CSS file', async () => {
+        const input = {
+          sourceCode: `
+/* Empty CSS file with just comments */
+
+/* No imports here */
+`,
+          filePath: '/src/current/empty.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({});
+        expect(result.processedSource).toBe(input.sourceCode); // Unchanged
+      });
+
+      it('should handle CSS with no relative imports', async () => {
+        const input = {
+          sourceCode: `
+@import url('https://fonts.googleapis.com/css?family=Open+Sans');
+
+.header {
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+}
+`,
+          filePath: '/src/current/external-only.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({});
+        expect(result.processedSource).toBe(input.sourceCode); // External imports unchanged
+      });
+    });
+
+    describe('CSS error handling and edge cases', () => {
+      it('should handle malformed CSS imports gracefully', async () => {
+        const input = {
+          sourceCode: `
+@import '../styles/base.css';
+@import; /* Malformed import */
+@import '../styles/theme.css';
+
+.component {
+  color: red;
+}
+`,
+          filePath: '/src/current/malformed.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        // Should process valid imports and ignore malformed ones
+        expect(result.extraFiles).toEqual({
+          './base.css': 'file:///src/styles/base.css',
+          './theme.css': 'file:///src/styles/theme.css',
+        });
+
+        expect(result.processedSource).toContain("@import 'base.css'");
+        expect(result.processedSource).toContain('@import; /* Malformed import */'); // Unchanged
+        expect(result.processedSource).toContain("@import 'theme.css'");
+      });
+
+      it('should handle CSS imports in comments', async () => {
+        const input = {
+          sourceCode: `
+/* @import '../styles/commented.css'; */
+@import '../styles/base.css';
+// @import '../styles/single-line-comment.css';
+@import '../styles/theme.css';
+
+.component {
+  /* @import '../styles/inside-rule.css'; */
+  color: blue;
+}
+`,
+          filePath: '/src/current/with-comments.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        // Should only process actual imports, not commented ones
+        expect(result.extraFiles).toEqual({
+          './base.css': 'file:///src/styles/base.css',
+          './theme.css': 'file:///src/styles/theme.css',
+        });
+
+        expect(result.processedSource).toContain("/* @import '../styles/commented.css'; */"); // Unchanged
+        expect(result.processedSource).toContain("@import 'base.css'");
+        expect(result.processedSource).toContain("@import 'theme.css'");
       });
     });
   });
