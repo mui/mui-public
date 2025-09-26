@@ -191,75 +191,25 @@ function App() {
                   Code infra dashboard
                 </Typography>
               </Link>
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <Landing />
-                    </React.Suspense>
-                  }
-                />
-                <Route path="/size-comparison" element={<SizeComparisonRedirect />} />
-                <Route
-                  path="/size-comparison/:owner/:repo/diff"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <SizeComparison />
-                    </React.Suspense>
-                  }
-                />
-                <Route
-                  path="/repository/:owner/:repo"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <RepositoryLayout />
-                    </React.Suspense>
-                  }
-                >
-                  <Route
-                    path="prs"
-                    element={
-                      <React.Suspense fallback={<div>Loading...</div>}>
-                        <RepositoryPRs />
-                      </React.Suspense>
-                    }
-                  />
-                  <Route
-                    path="prs/:prNumber"
-                    element={
-                      <React.Suspense fallback={<div>Loading...</div>}>
-                        <RepositoryPR />
-                      </React.Suspense>
-                    }
-                  />
-                  <Route
-                    path="bundle-size"
-                    element={
-                      <React.Suspense fallback={<div>Loading...</div>}>
-                        <RepositoryCharts />
-                      </React.Suspense>
-                    }
-                  />
-                  <Route index element={<Navigate replace to="prs" />} />
-                </Route>
-                <Route
-                  path="/npm-versions"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <NpmVersions />
-                    </React.Suspense>
-                  }
-                />
-                <Route
-                  path="/diff-package"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <DiffPackage />
-                    </React.Suspense>
-                  }
-                />
-              </Routes>
+              <React.Suspense fallback={<div>Loading...</div>}>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/size-comparison">
+                    <Route index element={<SizeComparisonRedirect />} />
+                    <Route path=":owner/:repo/diff" element={<SizeComparison />} />
+                  </Route>
+                  <Route path="/repository/:owner/:repo" element={<RepositoryLayout />}>
+                    <Route index element={<Navigate replace to="prs" />} />
+                    <Route path="prs">
+                      <Route index element={<RepositoryPRs />} />
+                      <Route path=":prNumber" element={<RepositoryPR />} />
+                    </Route>
+                    <Route path="bundle-size" element={<RepositoryCharts />} />
+                  </Route>
+                  <Route path="/npm-versions" element={<NpmVersions />} />
+                  <Route path="/diff-package" element={<DiffPackage />} />
+                </Routes>
+              </React.Suspense>
             </Container>
           </BrowserRouter>
         </div>
