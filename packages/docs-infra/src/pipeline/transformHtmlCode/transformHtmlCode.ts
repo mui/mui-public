@@ -220,6 +220,8 @@ export const transformHtmlCode: Plugin = () => {
                         loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
                         sourceTransformers,
                         disableTransforms: variantData.skipTransforms || false,
+                        // TODO: output option
+                        output: 'hastGzip',
                       },
                     );
 

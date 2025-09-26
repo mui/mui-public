@@ -1,4 +1,6 @@
 import * as path from 'path-module';
+import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
+import { encode } from 'uint8-to-base64';
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils';
@@ -16,6 +18,18 @@ import type {
   Externals,
 } from './types';
 import { nameMark } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
+
+function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    compress(input, options, (err, output) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(output);
+      }
+    });
+  });
+}
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
@@ -331,6 +345,16 @@ async function loadSingleFile(
           transformParsedFileMark,
         );
         currentMark = transformParsedFileMark;
+      }
+
+      if (options.output === 'hastGzip' && process.env.NODE_ENV === 'production') {
+        const hastGzip = encode(
+          await compressAsync(strToU8(JSON.stringify(finalSource)), { consume: true, level: 9 }),
+        );
+        finalSource = { hastGzip };
+      } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
+        // in development, we skip compression but still convert to JSON
+        finalSource = { hastJson: JSON.stringify(finalSource) };
       }
     } catch (error) {
       throw new Error(
