@@ -57,13 +57,13 @@ interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterBaseProp
   processedGlobalsCode?: Array<Code>;
 }
 
-const DEFAULT_HIGHLIGHT_AT = 'stream';
 const DEBUG = false; // Set to true for debugging purposes
 
 function createClientProps<T extends {}>(
   props: CreateClientPropsOptions<T>,
 ): CodeHighlighterClientProps {
-  const highlightAt = props.highlightAt === 'stream' ? 'init' : props.highlightAt;
+  const highlightAfter = props.highlightAfter === 'stream' ? 'init' : props.highlightAfter;
+  const enhanceAfter = props.enhanceAfter === 'stream' ? 'init' : props.enhanceAfter;
 
   const contentProps = {
     code: props.code || props.precompute,
@@ -85,7 +85,8 @@ function createClientProps<T extends {}>(
     fileName: props.fileName,
     initialVariant: props.initialVariant,
     defaultVariant: props.defaultVariant,
-    highlightAt: highlightAt || 'init',
+    highlightAfter: highlightAfter || 'idle',
+    enhanceAfter: enhanceAfter || 'idle',
     skipFallback: props.skipFallback,
     controlled: props.controlled,
     name: props.name,
@@ -168,12 +169,20 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         }
       }
 
+      let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+      if (props.deferParsing === 'json') {
+        output = 'hastJson';
+      } else if (props.deferParsing === 'none') {
+        output = 'hast';
+      }
+
       return loadVariant(variantUrl, variantName, variantCode, {
         sourceParser: props.sourceParser,
         loadSource: props.loadSource,
         loadVariantMeta: props.loadVariantMeta,
         sourceTransformers: props.sourceTransformers,
         globalsCode: resolvedGlobalsCode,
+        output,
       })
         .then((variant) => ({ name: variantName, variant }))
         .catch((error) => ({ error }));
@@ -280,31 +289,31 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
 
   const fallback = <ContentLoading {...contentProps} />;
 
-  if (props.forceClient) {
-    return renderCodeHighlighter({
-      ...props,
-      fallback,
-    });
+  if (props.highlightAfter === 'stream' && !props.forceClient) {
+    return (
+      <React.Suspense fallback={fallback}>
+        <CodeHighlighterSuspense>
+          {renderCodeHighlighter({
+            ...props,
+            fallback,
+            skipFallback: props.enhanceAfter === 'stream',
+          })}
+        </CodeHighlighterSuspense>
+      </React.Suspense>
+    );
   }
 
-  return (
-    <React.Suspense fallback={fallback}>
-      <CodeHighlighterSuspense>
-        {renderCodeHighlighter({
-          ...props,
-          fallback,
-          skipFallback: true,
-        })}
-      </CodeHighlighterSuspense>
-    </React.Suspense>
-  );
+  return renderCodeHighlighter({
+    ...props,
+    fallback,
+  });
 }
 
 async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoaderProps<T>) {
   const {
     url,
     initialVariant,
-    highlightAt,
+    highlightAfter,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     sourceParser,
@@ -321,9 +330,16 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     throw new Errors.ErrorCodeHighlighterServerMissingUrl();
   }
 
+  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  if (props.deferParsing === 'json') {
+    output = 'hastJson';
+  } else if (props.deferParsing === 'none') {
+    output = 'hast';
+  }
+
   const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } =
     await loadFallbackCode(url, initialVariant, props.code, {
-      shouldHighlight: highlightAt === 'init',
+      shouldHighlight: highlightAfter === 'init',
       fallbackUsesExtraFiles,
       fallbackUsesAllVariants,
       sourceParser,
@@ -333,6 +349,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
       initialFilename: fileName,
       variants,
       globalsCode,
+      output,
     });
 
   return renderWithInitialSource({
@@ -389,8 +406,8 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
 
   const ContentLoading = props.ContentLoading;
   if (!ContentLoading) {
-    if (props.highlightAt === 'stream') {
-      // if the user explicitly sets highlightAt to 'stream', we need a ContentLoading component
+    if (props.highlightAfter === 'stream') {
+      // if the user explicitly sets highlightAfter to 'stream', we need a ContentLoading component
       throw new Errors.ErrorCodeHighlighterServerMissingContentLoading();
     }
 
@@ -407,14 +424,13 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   }
 
   // TODO: use initial.filesOrder to determing which source to use
-  const highlightAt = props.highlightAt || DEFAULT_HIGHLIGHT_AT;
 
   const { initialData, reason } = maybeInitialData(
     variants,
     initialKey,
     code || props.precompute,
     undefined, // TODO: use initial.filesOrder if provided?
-    highlightAt === 'init',
+    props.highlightAfter === 'init',
     props.fallbackUsesExtraFiles,
     props.fallbackUsesAllVariants,
   );
@@ -436,7 +452,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
 
     // If no loader functions are available, skip async loading and go directly to client
     if (!hasAnyLoaderFunction || props.forceClient) {
-      if (highlightAt === 'init') {
+      if (props.highlightAfter === 'init') {
         throw new Errors.ErrorCodeHighlighterServerInvalidClientMode();
       }
 

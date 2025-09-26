@@ -29,7 +29,7 @@ export function Pre(props: PreProps) {
       Content={CodeContent}
       ContentLoading={CodeContentLoading}
       fallbackUsesAllVariants
-      highlightAt="idle"
+      highlightAfter="idle"
     />
   );
 }

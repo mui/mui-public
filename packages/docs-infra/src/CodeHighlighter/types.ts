@@ -25,7 +25,7 @@ export interface HastRoot extends Root {
   data?: RootData & { totalLines?: number };
 }
 
-export type VariantSource = string | HastRoot | { hastJson: string };
+export type VariantSource = string | HastRoot | { hastJson: string } | { hastGzip: string };
 
 /**
  * Additional files associated with a code variant.
@@ -146,6 +146,10 @@ export interface LoadFileOptions {
   loadedFiles?: Set<string>;
   /** Side effects code to inject into extraFiles */
   globalsCode?: Array<VariantCode | string>;
+  /** Output format for the loaded file
+   * @default 'hast'
+   */
+  output?: 'hast' | 'hastJson' | 'hastGzip';
 }
 
 /**
@@ -226,11 +230,21 @@ export interface CodeLoadingProps {
   children?: string;
   /**
    * When to perform syntax highlighting and code processing
-   * @default 'stream'
+   * @default 'idle'
    */
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /**
+   * When to enhance the code display with interactivity
+   * @default 'idle'
+   */
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   /** Force client-side rendering even when server rendering is available */
   forceClient?: boolean;
+  /** Defer parsing and populating the AST into memory until the code is enhanced
+   * Applies only in production when RSC loading
+   * @default 'gzip'
+   */
+  deferParsing?: 'none' | 'json' | 'gzip';
 }
 
 /**
@@ -295,7 +309,8 @@ export interface CodeHighlighterClientProps
    * When to perform syntax highlighting for performance optimization
    * @default 'hydration'
    */
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAfter?: 'init' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'hydration' | 'idle';
 }
 
 /**

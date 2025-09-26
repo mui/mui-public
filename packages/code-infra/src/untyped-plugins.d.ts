@@ -154,3 +154,16 @@ declare module '@babel/preset-typescript' {
   declare const preset: PluginItem;
   export default preset;
 }
+
+declare module 'stylelint-config-standard' {
+  import type { Config } from 'stylelint';
+
+  declare const configExtends: Config['extends'];
+  export default configExtends;
+}
+declare module 'postcss-styled-syntax' {
+  import type { Syntax } from 'postcss';
+
+  declare const syntax: Syntax;
+  export default syntax;
+}

@@ -16,7 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function CodeContent(props: ContentProps<object>) {
-  const code = useCode(props);
+  const code = useCode(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
@@ -75,9 +75,7 @@ export function CodeContent(props: ContentProps<object>) {
             </div>
           </div>
         </div>
-        <div className={styles.code}>
-          <pre className={styles.codeBlock}>{code.selectedFile}</pre>
-        </div>
+        <div className={styles.code}>{code.selectedFile}</div>
       </div>
     </div>
   );

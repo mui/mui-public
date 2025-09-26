@@ -1,5 +1,7 @@
 import * as React from 'react';
+import { decompressSync, strFromU8 } from 'fflate';
 import type { Root as HastRoot } from 'hast';
+import { decode } from 'uint8-to-base64';
 import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
@@ -391,6 +393,8 @@ export function useFileNavigation({
       let hastSelectedFile: HastRoot;
       if ('hastJson' in selectedFile) {
         hastSelectedFile = JSON.parse(selectedFile.hastJson);
+      } else if ('hastGzip' in selectedFile) {
+        hastSelectedFile = JSON.parse(strFromU8(decompressSync(decode(selectedFile.hastGzip))));
       } else {
         hastSelectedFile = selectedFile;
       }
