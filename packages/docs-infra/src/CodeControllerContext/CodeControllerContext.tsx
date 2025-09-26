@@ -69,5 +69,12 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
  */
 export function useControlledCode() {
   const context = React.useContext(CodeControllerContext);
-  return context;
+
+  return {
+    code: context?.code,
+    selection: context?.selection,
+    setCode: context?.setCode,
+    setSelection: context?.setSelection,
+    components: context?.components,
+  };
 }

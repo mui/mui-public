@@ -290,6 +290,9 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.2
+      typescript-api-extractor:
+        specifier: 1.0.0-alpha.8
+        version: 1.0.0-alpha.8(typescript@5.9.2)
 
   packages/babel-plugin-display-name:
     dependencies:
@@ -610,6 +613,9 @@ importers:
       clipboard-copy:
         specifier: ^4.0.1
         version: 4.0.1
+      es-toolkit:
+        specifier: ^1.39.10
+        version: 1.39.10
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
@@ -619,6 +625,9 @@ importers:
       hast-util-to-text:
         specifier: ^4.0.2
         version: 4.0.2
+      import-meta-resolve:
+        specifier: ^4.2.0
+        version: 4.2.0
       jsondiffpatch:
         specifier: ^0.7.3
         version: 0.7.3
@@ -637,6 +646,18 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.6.2
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      remark-stringify:
+        specifier: ^11.0.0
+        version: 11.0.0
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.2
+      typescript-api-extractor:
+        specifier: 1.0.0-alpha.8
+        version: 1.0.0-alpha.8(typescript@5.9.2)
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
@@ -7459,6 +7480,9 @@ packages:
     resolution: {integrity: sha512-w+5mJ3GuFL+NjVtJlvydShqE1eN3h3PbI7/5LAsYJP/2qtuMXjfL2LpHSRqo4b4eSF5K/DH1JXKUAHSB2UW50g==}
     engines: {node: '>= 0.4'}
 
+  es-toolkit@1.39.10:
+    resolution: {integrity: sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==}
+
   es7-shim@6.0.0:
     resolution: {integrity: sha512-aiQ/QyJBVJbabtsSediM1S4qI+P3p8F5J5YR5o/bH003BCnnclzxK9pi5Qd2Hg01ktAtZCaQBdejHrkOBGwf5Q==}
     engines: {node: '>=0.4.0'}
@@ -12259,6 +12283,12 @@ packages:
 
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
+
+  typescript-api-extractor@1.0.0-alpha.8:
+    resolution: {integrity: sha512-xYxfwZJY69gIHSsfBxTmHj2ezXZe6DYV6NA5uLjvjHbW4f3pQ4ad7M0uiWXMC/rBx+rrx84UNxvn9HD4ZBlquw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      typescript: ^5.8
 
   typescript-eslint@8.44.1:
     resolution: {integrity: sha512-0ws8uWGrUVTjEeN2OM4K1pLKHK/4NiNP/vz6ns+LjT/6sqpaYzIVFajZb1fj/IDwpsrrHb3Jy0Qm5u9CPcKaeg==}
@@ -21399,6 +21429,8 @@ snapshots:
       is-date-object: 1.1.0
       is-symbol: 1.1.1
 
+  es-toolkit@1.39.10: {}
+
   es7-shim@6.0.0:
     dependencies:
       array-includes: 3.1.9
@@ -27512,6 +27544,11 @@ snapshots:
       reflect.getprototypeof: 1.0.10
 
   typedarray@0.0.6: {}
+
+  typescript-api-extractor@1.0.0-alpha.8(typescript@5.9.2):
+    dependencies:
+      lodash: 4.17.21
+      typescript: 5.9.2
 
   typescript-eslint@8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2):
     dependencies:
