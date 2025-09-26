@@ -69,6 +69,14 @@ export interface WithDocsInfraOptions {
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
+  /**
+   * Defer AST parsing option for code highlighter output.
+   * 'gzip' - Default, outputs gzipped HAST for best performance.
+   * 'json' - Outputs JSON HAST, requires client-side parsing.
+   * 'none' - Outputs raw HAST, requires client-side parsing and is largest size.
+   * @default 'gzip'
+   */
+  deferCodeParsing?: 'gzip' | 'json' | 'none';
 }
 
 export interface DocsInfraMdxOptions {
@@ -133,7 +141,15 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
     performance = {},
+    deferCodeParsing = 'gzip',
   } = options;
+
+  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  if (deferCodeParsing === 'json') {
+    output = 'hastJson';
+  } else if (deferCodeParsing === 'none') {
+    output = 'hast';
+  }
 
   return (nextConfig: NextConfig = {}): NextConfig => {
     const basePageExtensions = ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'];
@@ -142,13 +158,13 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     // Build Turbopack rules
     const turbopackRules: Record<
       string,
-      { loaders: { loader: string; options: Record<string, unknown> }[] }
+      { loaders: { loader: string; options: Record<string, unknown> }[] | string[] }
     > = {
       [demoPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance },
+            options: { performance, output },
           },
         ],
       },
@@ -177,7 +193,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance },
+              options: { performance, output },
             },
           ],
         };
@@ -234,7 +250,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance },
+              options: { performance, output },
             },
           ],
         });
@@ -280,7 +296,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: { performance },
+                  options: { performance, output },
                 },
               ],
             });

@@ -21,7 +21,7 @@ function useInitialData({
   setCode,
   fileName,
   url,
-  highlightAt,
+  highlightAfter,
   fallbackUsesExtraFiles,
   fallbackUsesAllVariants,
   isControlled,
@@ -34,7 +34,7 @@ function useInitialData({
   setCode: React.Dispatch<React.SetStateAction<Code | undefined>>;
   fileName?: string;
   url?: string;
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAfter?: 'init' | 'hydration' | 'idle';
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   isControlled: boolean;
@@ -51,7 +51,7 @@ function useInitialData({
         variantName,
         code,
         fileName,
-        highlightAt === 'init',
+        highlightAfter === 'init',
         fallbackUsesExtraFiles,
         fallbackUsesAllVariants,
       ),
@@ -60,7 +60,7 @@ function useInitialData({
       variantName,
       code,
       fileName,
-      highlightAt,
+      highlightAfter,
       fallbackUsesExtraFiles,
       fallbackUsesAllVariants,
     ],
@@ -94,7 +94,7 @@ function useInitialData({
       }
 
       const loaded = await loadFallbackCode(url, variantName, code, {
-        shouldHighlight: highlightAt === 'init',
+        shouldHighlight: highlightAfter === 'init',
         fallbackUsesExtraFiles,
         fallbackUsesAllVariants,
         sourceParser,
@@ -123,7 +123,7 @@ function useInitialData({
     variantName,
     code,
     setCode,
-    highlightAt,
+    highlightAfter,
     url,
     sourceParser,
     loadSource,
@@ -325,50 +325,58 @@ function useAllVariants({
   return { readyForContent };
 }
 
+function yieldToMain(): Promise<void> {
+  if ((globalThis as any).scheduler?.yield) {
+    return (globalThis as any).scheduler.yield();
+  }
+
+  // Fall back to yielding with setTimeout.
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 function useCodeParsing({
   code,
   readyForContent,
-  highlightAt,
+  highlightAfter,
+  isHydrated,
   forceClient,
   url,
 }: {
   code?: Code;
   readyForContent: boolean;
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAfter?: 'init' | 'hydration' | 'idle';
+  isHydrated: boolean;
   forceClient?: boolean;
   url?: string;
 }) {
   const { parseSource, parseCode } = useCodeContext();
 
-  // Use useSyncExternalStore to detect hydration
-  const subscribe = React.useCallback(() => () => {}, []);
-  const getSnapshot = React.useCallback(() => true, []);
-  const getServerSnapshot = React.useCallback(() => false, []);
-  const useIsHydrated = () => React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-
-  const isHydrated = useIsHydrated();
   const [isHighlightAllowed, setIsHighlightAllowed] = React.useState(
-    highlightAt === 'init' || (highlightAt === 'hydration' && isHydrated),
+    highlightAfter === 'init' || (highlightAfter === 'hydration' && isHydrated),
   );
 
   React.useEffect(() => {
-    if (highlightAt === 'idle') {
+    if (highlightAfter === 'idle') {
       const idleRequest = window.requestIdleCallback(() => {
         setIsHighlightAllowed(true);
       });
       return () => window.cancelIdleCallback(idleRequest);
     }
     return undefined;
-  }, [highlightAt]);
+  }, [highlightAfter]);
 
   // Update highlight allowed state when hydration completes
   React.useEffect(() => {
-    if (highlightAt === 'hydration' && isHydrated) {
-      setIsHighlightAllowed(true);
+    if (highlightAfter === 'hydration' && isHydrated) {
+      // we should ensure that each code highlighter is enhanced as a separate task
+      // this should run from top to bottom
+      yieldToMain().then(() => setIsHighlightAllowed(true));
     }
-  }, [highlightAt, isHydrated]);
+  }, [highlightAfter, isHydrated]);
 
-  // Determine if we should highlight based on the highlightAt setting
+  // Determine if we should highlight based on the highlightAfter setting
   const shouldHighlight = React.useMemo(() => {
     if (!readyForContent) {
       return false;
@@ -823,7 +831,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }
   const fileName = controlled?.selection?.fileName || props.fileName || initialFilename;
 
-  const { url, highlightAt, fallbackUsesExtraFiles, fallbackUsesAllVariants } = props;
+  const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
+    props;
 
   useInitialData({
     variants,
@@ -832,13 +841,43 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     setCode,
     fileName,
     url,
-    highlightAt,
+    highlightAfter,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     isControlled,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
   });
+
+  // Use useSyncExternalStore to detect hydration
+  const subscribe = React.useCallback(() => () => {}, []);
+  const getSnapshot = React.useCallback(() => true, []);
+  const getServerSnapshot = React.useCallback(() => false, []);
+  const useIsHydrated = () => React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  const isHydrated = useIsHydrated();
+  const [isEnhanceAllowed, setIsEnhanceAllowed] = React.useState(
+    enhanceAfter === 'init' || (enhanceAfter === 'hydration' && isHydrated),
+  );
+
+  React.useEffect(() => {
+    if (enhanceAfter === 'idle') {
+      const idleRequest = window.requestIdleCallback(() => {
+        setIsEnhanceAllowed(true);
+      });
+      return () => window.cancelIdleCallback(idleRequest);
+    }
+    return undefined;
+  }, [enhanceAfter]);
+
+  // Update enhance allowed state when hydration completes
+  React.useEffect(() => {
+    if (enhanceAfter === 'hydration' && isHydrated) {
+      // we should ensure that each code highlighter is enhanced as a separate task
+      // this should run from top to bottom
+      yieldToMain().then(() => setIsEnhanceAllowed(true));
+    }
+  }, [enhanceAfter, isHydrated]);
 
   const readyForContent = React.useMemo(() => {
     if (!code) {
@@ -850,7 +889,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // Separate check for activeCode to determine when to show fallback
   const activeCodeReady = React.useMemo(() => {
-    if (!activeCode) {
+    if (!activeCode || !isEnhanceAllowed) {
       return false;
     }
 
@@ -862,7 +901,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     // For regular code, use the existing hasAllVariants function
     const regularCode = props.code || code;
     return regularCode ? hasAllVariants(variants, regularCode) : false;
-  }, [activeCode, controlled?.code, variants, props.code, code]);
+  }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
 
   useAllVariants({
     readyForContent,
@@ -901,7 +940,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const { parsedCode, deferHighlight } = useCodeParsing({
     code: codeWithGlobals,
     readyForContent: readyForContent || Boolean(props.code),
-    highlightAt,
+    highlightAfter,
+    isHydrated,
     forceClient: props.forceClient,
     url: props.url,
   });

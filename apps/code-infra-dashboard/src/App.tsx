@@ -18,8 +18,12 @@ import './index.css';
 
 const Landing = React.lazy(() => import('./pages/Landing'));
 const SizeComparison = React.lazy(() => import('./pages/SizeComparison'));
+const RepositoryLayout = React.lazy(() => import('./pages/RepositoryLayout'));
 const RepositoryPRs = React.lazy(() => import('./pages/RepositoryPRs'));
+const RepositoryPR = React.lazy(() => import('./pages/RepositoryPR'));
+const RepositoryCharts = React.lazy(() => import('./pages/RepositoryCharts'));
 const NpmVersions = React.lazy(() => import('./pages/NpmVersions'));
+const DiffPackage = React.lazy(() => import('./pages/DiffPackage'));
 
 // Redirect component for size comparison with query params
 function SizeComparisonRedirect() {
@@ -187,41 +191,25 @@ function App() {
                   Code infra dashboard
                 </Typography>
               </Link>
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <Landing />
-                    </React.Suspense>
-                  }
-                />
-                <Route path="/size-comparison" element={<SizeComparisonRedirect />} />
-                <Route
-                  path="/size-comparison/:owner/:repo/diff"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <SizeComparison />
-                    </React.Suspense>
-                  }
-                />
-                <Route
-                  path="/size-comparison/:owner/:repo"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <RepositoryPRs />
-                    </React.Suspense>
-                  }
-                />
-                <Route
-                  path="/npm-versions"
-                  element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <NpmVersions />
-                    </React.Suspense>
-                  }
-                />
-              </Routes>
+              <React.Suspense fallback={<div>Loading...</div>}>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/size-comparison">
+                    <Route index element={<SizeComparisonRedirect />} />
+                    <Route path=":owner/:repo/diff" element={<SizeComparison />} />
+                  </Route>
+                  <Route path="/repository/:owner/:repo" element={<RepositoryLayout />}>
+                    <Route index element={<Navigate replace to="prs" />} />
+                    <Route path="prs">
+                      <Route index element={<RepositoryPRs />} />
+                      <Route path=":prNumber" element={<RepositoryPR />} />
+                    </Route>
+                    <Route path="bundle-size" element={<RepositoryCharts />} />
+                  </Route>
+                  <Route path="/npm-versions" element={<NpmVersions />} />
+                  <Route path="/diff-package" element={<DiffPackage />} />
+                </Routes>
+              </React.Suspense>
             </Container>
           </BrowserRouter>
         </div>
