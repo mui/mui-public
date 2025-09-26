@@ -1,26 +1,16 @@
 import { defineConfig } from 'eslint/config';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   createBaseConfig,
-  createJsonConfig,
   createTestConfig,
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
 
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
-
 export default defineConfig(
-  createJsonConfig(),
+  createBaseConfig({ baseDirectory: import.meta.dirname }),
   {
     files: [`**/*.${EXTENSION_TS}`],
-    name: 'Base config',
-    extends: createBaseConfig({
-      baseDirectory: dirname,
-    }),
     plugins: {
       n: nPlugin,
     },

@@ -11,9 +11,10 @@ import globals from 'globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
-
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
+import { EXTENSION_TS } from './extensions.mjs';
+import { createJsonConfig } from './jsonConfig.mjs';
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether the config is for spec files.
@@ -36,66 +37,72 @@ export function createBaseConfig(
       .filter(Boolean)
   );
 
-  return defineConfig(
-    ...ignoreRules,
-    eslintJs.configs.recommended,
-    importPlugin.flatConfigs.recommended,
-    importPlugin.flatConfigs.react,
-    jsxA11yPlugin.flatConfigs.recommended,
-    reactPlugin.configs.flat.recommended,
-    reactHookConfigs.recommended,
-    tseslint.configs.recommended,
-    importPlugin.flatConfigs.typescript,
-    enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
+  return defineConfig([
+    ignoreRules,
+    createJsonConfig(),
     prettier,
     {
-      name: 'typescript-eslint-parser',
-      languageOptions: {
-        ecmaVersion: 7,
-        globals: {
-          ...globals.es2020,
-          ...globals.browser,
-          ...globals.node,
-        },
-      },
-      plugins: {
-        'material-ui': muiPlugin,
-      },
-      extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
-    },
-    {
-      files: ['**/*.mjs'],
-      rules: {
-        'import/extensions': [
-          'error',
-          'ignorePackages',
-          {
-            js: 'always',
-            mjs: 'always',
+      files: [`**/*.${EXTENSION_TS}`],
+      extends: defineConfig([
+        eslintJs.configs.recommended,
+        importPlugin.flatConfigs.recommended,
+        importPlugin.flatConfigs.react,
+        jsxA11yPlugin.flatConfigs.recommended,
+        reactPlugin.configs.flat.recommended,
+        reactHookConfigs.recommended,
+        tseslint.configs.recommended,
+        importPlugin.flatConfigs.typescript,
+        enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
+        {
+          name: 'typescript-eslint-parser',
+          languageOptions: {
+            ecmaVersion: 7,
+            globals: {
+              ...globals.es2020,
+              ...globals.browser,
+              ...globals.node,
+            },
           },
-        ],
-      },
+          plugins: {
+            'material-ui': muiPlugin,
+          },
+          extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
+        },
+        {
+          files: ['**/*.mjs'],
+          rules: {
+            'import/extensions': [
+              'error',
+              'ignorePackages',
+              {
+                js: 'always',
+                mjs: 'always',
+              },
+            ],
+          },
+        },
+        // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
+        //   * Creates non-portable types in base ui. [1]
+        //   * This pattern [2] leads to broken bundling in codesandbox [3].
+        // Gauging the ecosystem it also looks like support for namespaces in tooling is poor and tends to
+        // be treated as a deprecated feature.
+        // [1] https://github.com/mui/base-ui/pull/2324
+        // [2] https://github.com/mui/mui-x/blob/1cf853ed45cf301211ece1c0ca21981ea208edfb/packages/x-virtualizer/src/models/core.ts#L4-L10
+        // [3] https://codesandbox.io/embed/kgylpd?module=/src/Demo.tsx&fontsize=12
+        {
+          rules: {
+            '@typescript-eslint/no-namespace': 'error',
+          },
+        },
+        // Part of the migration away from airbnb config. Turned of initially.
+        {
+          rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-unsafe-function-type': 'off',
+            '@typescript-eslint/no-empty-object-type': 'off',
+          },
+        },
+      ]),
     },
-    // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
-    //   * Creates non-portable types in base ui. [1]
-    //   * This pattern [2] leads to broken bundling in codesandbox [3].
-    // Gauging the ecosystem it also looks like support for namespaces in tooling is poor and tends to
-    // be treated as a deprecated feature.
-    // [1] https://github.com/mui/base-ui/pull/2324
-    // [2] https://github.com/mui/mui-x/blob/1cf853ed45cf301211ece1c0ca21981ea208edfb/packages/x-virtualizer/src/models/core.ts#L4-L10
-    // [3] https://codesandbox.io/embed/kgylpd?module=/src/Demo.tsx&fontsize=12
-    {
-      rules: {
-        '@typescript-eslint/no-namespace': 'error',
-      },
-    },
-    // Part of the migration away from airbnb config. Turned of initially.
-    {
-      rules: {
-        '@typescript-eslint/no-explicit-any': 'off',
-        '@typescript-eslint/no-unsafe-function-type': 'off',
-        '@typescript-eslint/no-empty-object-type': 'off',
-      },
-    },
-  );
+  ]);
 }
