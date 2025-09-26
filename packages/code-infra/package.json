@@ -11,7 +11,6 @@
   },
   "sideEffects": false,
   "exports": {
-    "./stylelint": "./src/stylelint/index.mjs",
     "./package.json": "./package.json",
     "./babel-config": {
       "types": "./build/babel-config.d.mts",
@@ -36,6 +35,10 @@
     "./prettier": {
       "types": "./build/prettier.d.mts",
       "default": "./src/prettier.mjs"
+    },
+    "./stylelint": {
+      "types": "./build/stylelint/index.d.mts",
+      "default": "./src/stylelint/index.mjs"
     }
   },
   "bin": {
