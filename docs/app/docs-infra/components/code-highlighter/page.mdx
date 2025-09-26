@@ -157,15 +157,16 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 ---
 
-import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
+import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-init';
 
-<DemoCodeHighlighterCodeHighlightIdle.Title />
+<DemoCodeHighlighterCodeHighlightInit.Title />
 
-For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
+Generally, since hydration occurs quickly, a slight delay is acceptable to prioritize faster content rendering.
+For demos shown above the fold, you might want highlighting to show immediately on initial render.
 
-<DemoCodeHighlighterCodeHighlightIdle />
+<DemoCodeHighlighterCodeHighlightInit />
 
-[See Demo](./demos/code-highlight-idle/)
+[See Demo](./demos/code-highlight-init/)
 
 ---
 
@@ -441,7 +442,7 @@ The `CodeHighlighter` component accepts the following props:
 
 #### Rendering Props
 
-- `highlightAt` ('init' | 'stream' | 'hydration' | 'idle'): When to highlight code
+- `highlightAfter` ('init' | 'stream' | 'hydration' | 'idle'): When to highlight code
   - **Default**: 'stream'
 - `forceClient` (boolean): Force client-side rendering only
 
@@ -486,7 +487,7 @@ The fallback content always receives certain data for navigation and UX consiste
 1. **Use precompute for static content** - Enables a per-demo cache for faster builds
 2. **Implement proper loading states** - Provide `ContentLoading` for quicker hydration
 3. **Handle errors gracefully** - Use `ErrorHandler` to display meaningful error messages
-4. **Optimize highlight timing** - Use `highlightAt: 'idle'` for non-critical code blocks
+4. **Optimize highlight timing** - Use `highlightAfter: 'idle'` for non-critical code blocks
 5. **Group related variants** - Keep related code variations together
 
 ## Troubleshooting
@@ -497,18 +498,18 @@ The fallback content always receives certain data for navigation and UX consiste
 
 - Ensure `sourceParser` is provided
 - Check that the code variant exists
-- Verify `highlightAt` timing is appropriate
+- Verify `highlightAfter` timing is appropriate
 
 **Loading states not showing:**
 
 - Provide `ContentLoading` component
-- Use `highlightAt: 'stream'` for loading states
+- Use `highlightAfter: 'stream'` for loading states
 - Check `fallbackUsesExtraFiles` settings
 
 **Performance issues:**
 
 - Use demo factory pattern for build-time optimization
-- Consider `highlightAt: 'idle'` for non-critical code
+- Consider `highlightAfter: 'idle'` for non-critical code
 - Implement proper error boundaries
 - Remember: precomputation only works with `createDemo()` in `index.ts` files
 

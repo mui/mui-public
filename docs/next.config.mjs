@@ -22,6 +22,9 @@ const nextConfig = {
 
 export default withBundleAnalyzer(
   withDocsInfra({
+    performance: {
+      logging: true,
+    },
     // Add demo-* patterns specific to this docs site
     additionalDemoPatterns: {
       // Note: The demo-* pattern below is specific to our internal docs structure
