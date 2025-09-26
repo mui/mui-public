@@ -6,7 +6,8 @@
     ":semanticCommitsDisabled",
     "group:definitelyTyped",
     "config:recommended",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    "npm:unpublishSafe"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
@@ -37,7 +38,7 @@
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
       "schedule": null,
-      "additionalReviewers": ["@mui/infra"]
+      "additionalReviewers": ["mui/infra"]
     },
     {
       "groupName": "GitHub Actions",

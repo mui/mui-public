@@ -158,7 +158,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     // Build Turbopack rules
     const turbopackRules: Record<
       string,
-      { loaders: { loader: string; options: Record<string, unknown> }[] }
+      { loaders: { loader: string; options: Record<string, unknown> }[] | string[] }
     > = {
       [demoPathPattern]: {
         loaders: [
