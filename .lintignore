@@ -6,5 +6,6 @@ build
 node_modules
 pnpm-lock.yaml
 .next
+docs/out
 
 __fixtures__
