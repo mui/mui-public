@@ -308,29 +308,9 @@ async function loadSingleFile(
           await compressAsync(strToU8(JSON.stringify(finalSource)), { consume: true, level: 9 }),
         );
         finalSource = { hastGzip };
-
-        const compressedFileMark = nameMark(functionName, 'Compressed File', [url || fileName]);
-        performance.mark(compressedFileMark);
-        performance.measure(
-          nameMark(functionName, 'File Compression', [url || fileName]),
-          currentMark,
-          compressedFileMark,
-        );
-        currentMark = compressedFileMark;
       } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
         // in development, we skip compression but still convert to JSON
         finalSource = { hastJson: JSON.stringify(finalSource) };
-
-        const compressedFileMark = nameMark(functionName, 'JSON Stringified File', [
-          url || fileName,
-        ]);
-        performance.mark(compressedFileMark);
-        performance.measure(
-          nameMark(functionName, 'File Stringification', [url || fileName]),
-          currentMark,
-          compressedFileMark,
-        );
-        currentMark = compressedFileMark;
       }
     } catch (error) {
       throw new Error(
