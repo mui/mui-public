@@ -78,6 +78,7 @@ export async function loadFallbackCode(
     initialFilename,
     variants,
     globalsCode,
+    output,
   } = options;
   loaded = { ...loaded };
 
@@ -319,6 +320,7 @@ export async function loadFallbackCode(
       disableTransforms: true, // Don't apply transforms for fallback
       disableParsing: !shouldHighlight, // Only parse if highlighting is needed
       globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
+      output,
     });
 
     // Update the loaded code with the processed variant
@@ -384,6 +386,7 @@ export async function loadFallbackCode(
             sourceTransformers: undefined, // sourceTransformers
             disableTransforms: true,
             disableParsing: !shouldHighlight,
+            output,
             globalsCode:
               globalsCodeObjects && globalsCodeObjects.length > 0
                 ? (() => {

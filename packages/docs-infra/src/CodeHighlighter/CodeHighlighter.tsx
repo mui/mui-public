@@ -169,12 +169,20 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         }
       }
 
+      let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+      if (props.deferParsing === 'json') {
+        output = 'hastJson';
+      } else if (props.deferParsing === 'none') {
+        output = 'hast';
+      }
+
       return loadVariant(variantUrl, variantName, variantCode, {
         sourceParser: props.sourceParser,
         loadSource: props.loadSource,
         loadVariantMeta: props.loadVariantMeta,
         sourceTransformers: props.sourceTransformers,
         globalsCode: resolvedGlobalsCode,
+        output,
       })
         .then((variant) => ({ name: variantName, variant }))
         .catch((error) => ({ error }));
@@ -318,6 +326,13 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     throw new Errors.ErrorCodeHighlighterServerMissingUrl();
   }
 
+  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  if (props.deferParsing === 'json') {
+    output = 'hastJson';
+  } else if (props.deferParsing === 'none') {
+    output = 'hast';
+  }
+
   const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } =
     await loadFallbackCode(url, initialVariant, props.code, {
       shouldHighlight: highlightAfter === 'init',
@@ -330,6 +345,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
       initialFilename: fileName,
       variants,
       globalsCode,
+      output,
     });
 
   return renderWithInitialSource({

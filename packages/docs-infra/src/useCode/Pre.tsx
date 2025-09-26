@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { toText } from 'hast-util-to-text';
 import { ElementContent } from 'hast';
+import { decompressSync, strFromU8 } from 'fflate';
+import { decode } from 'uint8-to-base64';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
@@ -26,6 +28,10 @@ export function Pre({
 
     if ('hastJson' in children) {
       return JSON.parse(children.hastJson) as HastRoot;
+    }
+
+    if ('hastGzip' in children) {
+      return JSON.parse(strFromU8(decompressSync(decode(children.hastGzip)))) as HastRoot;
     }
 
     return children;

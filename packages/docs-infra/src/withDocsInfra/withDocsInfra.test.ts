@@ -61,7 +61,12 @@ describe('withDocsInfra', () => {
 
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
@@ -80,13 +85,23 @@ describe('withDocsInfra', () => {
 
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
         },
         './app/**/demos/*/demo-*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/demo-*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
@@ -106,7 +121,12 @@ describe('withDocsInfra', () => {
 
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
@@ -135,7 +155,12 @@ describe('withDocsInfra', () => {
           loaders: ['existing-loader'],
         },
         './app/**/demos/*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
@@ -177,7 +202,10 @@ describe('withDocsInfra', () => {
         test: new RegExp('/demos/[^/]+/index\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
-          '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: { output: 'hastGzip' },
+          },
         ],
       });
       expect(webpackResult.module?.rules).toContainEqual({
@@ -351,13 +379,23 @@ describe('withDocsInfra', () => {
       // Check turbopack rules match original
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
         },
         './app/**/demos/*/demo-*/index.ts': {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { output: 'hastGzip' },
+            },
+          ],
         },
         './app/**/demos/*/demo-*/client.ts': {
           loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],

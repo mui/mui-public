@@ -10,7 +10,9 @@ import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
 
-export type LoaderOptions = {};
+export type LoaderOptions = {
+  output?: 'hast' | 'hastJson' | 'hastGzip';
+};
 
 /**
  * Webpack loader that processes demo files and precomputes variant data.
@@ -97,6 +99,7 @@ export async function loadPrecomputedCodeHighlighter(
               loadVariantMeta: undefined,
               sourceTransformers, // For TypeScript to JavaScript conversion
               maxDepth: 5,
+              output: this.getOptions().output || 'hastGzip',
             },
           );
 

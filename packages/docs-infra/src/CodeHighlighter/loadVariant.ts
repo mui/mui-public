@@ -1,4 +1,6 @@
 import * as path from 'path-module';
+import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
+import { encode } from 'uint8-to-base64';
 import { transformSource } from './transformSource';
 import { transformParsedSource } from './transformParsedSource';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils';
@@ -15,6 +17,18 @@ import type {
   LoadVariantOptions,
   Externals,
 } from './types';
+
+function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    compress(input, options, (err, output) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(output);
+      }
+    });
+  });
+}
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
@@ -287,6 +301,36 @@ async function loadSingleFile(
           finalTransforms,
           parseSource,
         );
+      }
+
+      if (options.output === 'hastGzip' && process.env.NODE_ENV === 'production') {
+        const hastGzip = encode(
+          await compressAsync(strToU8(JSON.stringify(finalSource)), { consume: true, level: 9 }),
+        );
+        finalSource = { hastGzip };
+
+        const compressedFileMark = nameMark(functionName, 'Compressed File', [url || fileName]);
+        performance.mark(compressedFileMark);
+        performance.measure(
+          nameMark(functionName, 'File Compression', [url || fileName]),
+          currentMark,
+          compressedFileMark,
+        );
+        currentMark = compressedFileMark;
+      } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
+        // in development, we skip compression but still convert to JSON
+        finalSource = { hastJson: JSON.stringify(finalSource) };
+
+        const compressedFileMark = nameMark(functionName, 'JSON Stringified File', [
+          url || fileName,
+        ]);
+        performance.mark(compressedFileMark);
+        performance.measure(
+          nameMark(functionName, 'File Stringification', [url || fileName]),
+          currentMark,
+          compressedFileMark,
+        );
+        currentMark = compressedFileMark;
       }
     } catch (error) {
       throw new Error(
