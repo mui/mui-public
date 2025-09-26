@@ -507,6 +507,9 @@ importers:
         specifier: ^18.0.0
         version: 18.0.0
     devDependencies:
+      '@octokit/types':
+        specifier: ^15.0.0
+        version: 15.0.0
       '@types/babel__core':
         specifier: ^7.20.5
         version: 7.20.5

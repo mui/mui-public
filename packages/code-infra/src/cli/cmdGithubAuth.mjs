@@ -24,14 +24,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   async handler(args) {
     const gh = await import('../utils/github.mjs');
     if (args.clear) {
-      try {
-        await gh.clearGitHubAuth();
-        console.log('✅ GitHub authentication cleared');
-      } catch (/** @type {any} */ error) {
-        console.error('❌ Failed to clear GitHub authentication:', error.message);
-        process.exit(1);
-      }
-    } else if (args.authorize) {
+      await gh.clearGitHubAuth();
+      console.log('✅ GitHub authentication cleared');
+      return;
+    }
+    if (args.authorize) {
       await gh.endToEndGhAuthGetToken(true);
       console.log('✅ GitHub authentication successful');
     }

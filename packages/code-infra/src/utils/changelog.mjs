@@ -1,5 +1,6 @@
-import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
+
+import { getOctokitInstance } from './github.mjs';
 
 /**
  * @typedef {'team' | 'first_timer' | 'contributor'} AuthorAssociation
@@ -35,7 +36,7 @@ export async function findLatestTaggedVersion(opts) {
  * @property {string} repo
  * @property {string} lastRelease
  * @property {string} release
- * @property {string} token
+ * @property {string} [token]
  * @property {string} [org="mui"]
  */
 
@@ -47,10 +48,6 @@ export async function findLatestTaggedVersion(opts) {
  * @returns {Promise<FetchedCommitDetails[]>}
  */
 export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
-  if (!options.token) {
-    throw new Error('GitHub token is required.');
-  }
-
   const opts = { ...options, org };
 
   return await fetchCommitsRest(opts);
@@ -61,16 +58,20 @@ export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
  * It is more reliable than the GraphQL API but requires multiple network calls (1 + n).
  * One to list all commits between the two refs and then one for each commit to get the PR details.
  *
- * @param {FetchCommitsOptions & { org: string, token: string }} param0
+ * @param {FetchCommitsOptions & { org: string }} param0
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
 async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
-  const octokit = new Octokit({
-    auth: token,
-  });
+  const octokit = getOctokitInstance(token);
   /**
-   * @type {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']}
+   * @typedef {import('@octokit/rest').Octokit} Octokit
+   */
+  /**
+   * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
+   */
+  /**
+   * @type {Commits}
    */
   const results = [];
   /**

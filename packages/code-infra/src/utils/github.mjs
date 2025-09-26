@@ -13,17 +13,18 @@ import {
   exchangeDeviceCode,
   refreshToken as ghRefreshToken,
 } from '@octokit/oauth-methods';
+import { Octokit } from '@octokit/rest';
 import clipboardy from 'clipboardy';
 import open from 'open';
 
 import {
+  ERRORS as CREDENTIAL_ERRORS,
   getCredential,
   removeCredential,
   setCredential,
-  ERRORS as CREDENTIAL_ERRORS,
 } from './credentials.mjs';
 
-const GITHUB_CLIENT_ID = 'Iv23lilHsGU3i1tIARsT'; // MUI Code Infra Oauth App
+const GITHUB_APP_CLIENT_ID = 'Iv23lilHsGU3i1tIARsT'; // MUI Code Infra Oauth App
 const KEY_ACCESS_TOKEN = 'github.access-token';
 const KEY_ACCESS_TOKEN_EXPIRY = 'github.access-token-expiry';
 const KEY_REFRESH_TOKEN = 'github.refresh-token';
@@ -37,6 +38,62 @@ export const ERRORS = {
 };
 
 /**
+ * Get Octokit instance authenticated via provided token, GITHUB_TOKEN env var, or device flow.
+ *
+ * @param {string} [token]
+ * @returns {import('@octokit/rest').Octokit}
+ */
+export function getOctokitInstance(token) {
+  if (token) {
+    return new Octokit({
+      auth: token,
+    });
+  }
+
+  const octokit = new Octokit({
+    authStrategy: createPeristentAuthStrategy,
+  });
+  return octokit;
+}
+
+function createPeristentAuthStrategy() {
+  /**
+   * Request hook to add authentication token to requests.
+   * Automatically handles token refresh on 401 errors.
+   *
+   * @param {import('@octokit/types').RequestInterface} request
+   * @param {import('@octokit/types').Route} route
+   * @param {import('@octokit/types').RequestParameters} parameters
+   * @returns
+   */
+  async function hook(request, route, parameters) {
+    const token = await endToEndGhAuthGetToken();
+    const endpoint = request.endpoint.merge(route, parameters);
+    endpoint.headers.authorization = `token ${token}`;
+    try {
+      // @ts-expect-error - request.endpoint.merge doesn't return correct type
+      return await request(endpoint);
+    } catch (error) {
+      const err =
+        /** @type {import('@octokit/types').RequestError & {response: {data: {message: string}}}} */ (
+          error
+        );
+      if (err.status === 401 && err.response.data.message.toLowerCase() === 'bad credentials') {
+        // refresh token and retry again
+        await clearGitHubAuth();
+        const newToken = await endToEndGhAuthGetToken();
+        endpoint.headers.authorization = `token ${newToken}`;
+        // @ts-expect-error - request.endpoint.merge doesn't return correct type
+        return await request(endpoint);
+      }
+      throw error;
+    }
+  }
+
+  return { hook };
+}
+
+/**
  * @param {Object} data
  * @param {string} data.url
  * @param {string} data.code
@@ -45,10 +102,7 @@ export const ERRORS = {
  * @param {boolean} [options.copyToCliboard=true] - Whether to copy the code to clipboard
  * @returns {Promise<void>}
  */
-export async function logAuthInformation(
-  data,
-  { openInBrowser = true, copyToCliboard = true } = {},
-) {
+async function logAuthInformation(data, { openInBrowser = true, copyToCliboard = true } = {}) {
   if (copyToCliboard) {
     await clipboardy.write(data.code);
     console.warn(`Pasted authentication code ${data.code} to system clipboard...`);
@@ -56,7 +110,7 @@ export async function logAuthInformation(
     console.warn(`To authenticate, paste "${data.code}" when prompted.`);
   }
   if (openInBrowser) {
-    console.warn(`Opening ${data.url} in default browser...`);
+    console.warn(`Press enter to open ${data.url} in default browser, or goto the link manually.`);
     await open(data.url);
   } else {
     console.warn(`Open ${data.url} in your browser to authenticate.`);
@@ -89,7 +143,7 @@ async function isTokenExpired() {
  * @param {{token: string, refreshToken?: string, expiresAt?: string; refreshTokenExpiresAt?: string}} tokens - Token response from openid-client
  * @returns {Promise<void>}
  */
-export async function storeGitHubTokens(tokens) {
+async function storeGitHubTokens(tokens) {
   const expiryTime = tokens.expiresAt
     ? new Date(tokens.expiresAt).getTime()
     : Date.now() + 30 * 24 * 3600 * 1000; // Token doesn't expire, set arbitrary 30 days expiry
@@ -111,7 +165,7 @@ export async function storeGitHubTokens(tokens) {
  * @returns {Promise<string>} Valid GitHub access token
  * @throws {Error} If no valid token exists
  */
-export async function getStoredGitHubToken() {
+async function getStoredGitHubToken() {
   const existingToken = await getCredential(KEY_ACCESS_TOKEN);
 
   if (await isTokenExpired()) {
@@ -121,7 +175,7 @@ export async function getStoredGitHubToken() {
   return existingToken;
 }
 
-export async function refreshAccessToken() {
+async function refreshAccessToken() {
   const refreshToken = await getCredential(KEY_REFRESH_TOKEN);
   if (!refreshToken) {
     throw new Error(ERRORS.REFRESH_FAILED);
@@ -133,7 +187,7 @@ export async function refreshAccessToken() {
     throw new Error(ERRORS.AUTH_REQUIRED);
   }
   const { authentication } = await ghRefreshToken({
-    clientId: GITHUB_CLIENT_ID,
+    clientId: GITHUB_APP_CLIENT_ID,
     refreshToken,
     clientType: 'github-app',
     clientSecret: '',
@@ -145,9 +199,9 @@ export async function refreshAccessToken() {
 /**
  * @returns {Promise<{url: string, code: string; deviceCode: string}>} Device flow response with verification URI and user code
  */
-export async function getAuthInformation() {
+async function getAuthInformation() {
   const { data } = await createDeviceCode({
-    clientId: GITHUB_CLIENT_ID,
+    clientId: GITHUB_APP_CLIENT_ID,
     clientType: 'github-app',
   });
   return {
@@ -174,7 +228,7 @@ async function exchangeDeviceCodeWithRetry(deviceCode, { delay = 5000, retries =
   }
   try {
     const { authentication } = await exchangeDeviceCode({
-      clientId: GITHUB_CLIENT_ID,
+      clientId: GITHUB_APP_CLIENT_ID,
       clientType: 'github-app',
       code: deviceCode,
     });
@@ -207,7 +261,7 @@ export async function endToEndGhAuthGetToken(log = false) {
     switch (/** @type {Error} */ (ex).message) {
       case CREDENTIAL_ERRORS.NOT_FOUND: {
         if (log) {
-          console.warn('No existing GitHub token found. Starting authentication flow...');
+          console.warn("🔍 GitHub token doesn't exist. Starting authentication flow...");
         }
         const data = await getAuthInformation();
 
@@ -230,8 +284,8 @@ export async function endToEndGhAuthGetToken(log = false) {
 }
 
 /**
- * Gets a valid GitHub access token for API usage (non-interactive)
- * This function is for use by other utilities like changelog.mjs
+ * Gets a valid GitHub access token for API usage.
+ *
  * @returns {Promise<string>} Valid GitHub access token
  * @throws {Error} If no valid token exists and authentication is required
  */
