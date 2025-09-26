@@ -35,7 +35,7 @@ export default defineConfig(
   {
     files: [
       // matching the pattern of the test runner
-      `**/*${EXTENSION_TEST_FILE}`,
+      `**/*.${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig(),
   },
