@@ -245,8 +245,10 @@ export default function DiffPackage() {
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
-  const [fileFilter, setFileFilter] = React.useState('');
-  const deferredFileFilter = React.useDeferredValue(fileFilter);
+  const [includeFilter, setIncludeFilter] = React.useState('');
+  const [excludeFilter, setExcludeFilter] = React.useState('');
+  const deferredIncludeFilter = React.useDeferredValue(includeFilter);
+  const deferredExcludeFilter = React.useDeferredValue(excludeFilter);
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
@@ -257,7 +259,7 @@ export default function DiffPackage() {
   const pkg1 = pkg1Query.data;
   const pkg2 = pkg2Query.data;
 
-  const fileFilterFn = useFileFilter(deferredFileFilter);
+  const fileFilterFn = useFileFilter(deferredIncludeFilter, deferredExcludeFilter);
 
   const filesToDiff = React.useMemo(() => {
     if (!pkg1 || !pkg2) {
@@ -298,9 +300,10 @@ export default function DiffPackage() {
     return files;
   }, [pkg1, pkg2]);
 
-  const filteredFilesToDiff = React.useMemo(() => {
-    return filesToDiff.filter(fileFilterFn);
-  }, [filesToDiff, fileFilterFn]);
+  const filteredFilesToDiff = React.useMemo(
+    () => filesToDiff.filter(({ filePath }) => fileFilterFn(filePath)),
+    [filesToDiff, fileFilterFn],
+  );
 
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
@@ -415,28 +418,20 @@ export default function DiffPackage() {
 
       {!error && (
         <Box>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 2,
-              gap: 2,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Typography variant="h6">
-              Diff Results{' '}
-              {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-              <TextField
-                size="small"
-                placeholder={PLACEHOLDER}
-                value={fileFilter}
-                onChange={(event) => setFileFilter(event.target.value)}
-                sx={{ minWidth: '300px' }}
-              />
+          <Box sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography variant="h6">
+                Diff Results{' '}
+                {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
+              </Typography>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -447,6 +442,24 @@ export default function DiffPackage() {
                 }
                 label="Ignore whitespace"
                 sx={{ mr: 0 }}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                size="small"
+                label="Include"
+                placeholder={PLACEHOLDER}
+                value={includeFilter}
+                onChange={(event) => setIncludeFilter(event.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Exclude"
+                placeholder="e.g., node_modules, *.test.ts"
+                value={excludeFilter}
+                onChange={(event) => setExcludeFilter(event.target.value)}
+                sx={{ flex: 1 }}
               />
             </Box>
           </Box>
