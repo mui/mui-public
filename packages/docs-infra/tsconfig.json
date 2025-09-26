@@ -1,9 +1,6 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.options.json",
   "compilerOptions": {
-    "skipLibCheck": true,
-    "module": "es2020",
-    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "types": ["react", "node", "csstype"]
   },
