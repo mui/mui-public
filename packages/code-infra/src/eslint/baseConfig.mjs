@@ -8,6 +8,7 @@ import reactPlugin from 'eslint-plugin-react';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import { configs as reactHookConfigs } from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
@@ -16,11 +17,15 @@ import { createJsonConfig } from './jsonConfig.mjs';
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether the config is for spec files.
+ * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createBaseConfig({ enableReactCompiler = false } = {}) {
+export function createBaseConfig({
+  enableReactCompiler = false,
+  baseDirectory = process.cwd(),
+} = {}) {
   return defineConfig([
-    includeIgnoreFile('.lintignore', `Ignore rules from '.lintignore'`),
+    includeIgnoreFile(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
     prettier,
     {
