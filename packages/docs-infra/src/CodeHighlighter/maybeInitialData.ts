@@ -69,7 +69,7 @@ import { Code, VariantExtraFiles, VariantSource } from './types';
  *   initialKey,
  *   code || props.precompute,
  *   undefined,
- *   highlightAt === 'init',
+ *   highlightAfter === 'init',
  *   props.fallbackUsesExtraFiles,
  *   props.fallbackUsesAllVariants,
  * );
@@ -86,7 +86,7 @@ import { Code, VariantExtraFiles, VariantSource } from './types';
  *     variantName,
  *     code,
  *     fileName,
- *     highlightAt === 'init',
+ *     highlightAfter === 'init',
  *     fallbackUsesExtraFiles,
  *     fallbackUsesAllVariants,
  *   ), [dependencies]);

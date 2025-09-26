@@ -145,7 +145,7 @@ export class ErrorCodeHighlighterServerMissingContentLoading extends ErrorCodeHi
 export class ErrorCodeHighlighterServerInvalidClientMode extends ErrorCodeHighlighterServerValidation {
   constructor() {
     super(
-      `Invalid client mode - Client only mode with highlightAt: init requires precomputed and parsed source code`,
+      `Invalid client mode - Client only mode with highlightAfter: init requires precomputed and parsed source code`,
     );
   }
 }
