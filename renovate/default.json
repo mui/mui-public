@@ -24,6 +24,7 @@
   "prHourlyLimit": 0,
   "rangeStrategy": "bump",
   "timezone": "UTC",
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
