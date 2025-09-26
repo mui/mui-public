@@ -225,6 +225,7 @@ async function applyConfigDefaults(config, configPath) {
     entrypoints: await normalizeEntries(config.entrypoints, configPath),
     upload: null, // Default to disabled
     comment: config.comment !== undefined ? config.comment : true, // Default to enabled
+    replace: config.replace || {}, // String replacements, default to empty object
   };
 
   // Handle different types of upload value

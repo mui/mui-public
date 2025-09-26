@@ -100,7 +100,7 @@ async function getBundleSizes(args, config) {
 
   const sizeArrays = await Promise.all(
     validEntries.map((entry, index) =>
-      worker.run({ entry, args, index, total: validEntries.length }),
+      worker.run({ entry, args, index, total: validEntries.length, replace: config.replace }),
     ),
   );
 
