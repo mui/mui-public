@@ -226,9 +226,14 @@ export interface CodeLoadingProps {
   children?: string;
   /**
    * When to perform syntax highlighting and code processing
-   * @default 'stream'
+   * @default 'idle'
    */
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle';
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /**
+   * When to enhance the code display with interactivity
+   * @default 'idle'
+   */
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   /** Force client-side rendering even when server rendering is available */
   forceClient?: boolean;
 }
@@ -295,7 +300,8 @@ export interface CodeHighlighterClientProps
    * When to perform syntax highlighting for performance optimization
    * @default 'hydration'
    */
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAfter?: 'init' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'hydration' | 'idle';
 }
 
 /**

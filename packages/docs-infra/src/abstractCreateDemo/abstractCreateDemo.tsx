@@ -20,7 +20,8 @@ type CreateDemoMeta = {
   displayName?: string;
   variantType?: string;
   skipPrecompute?: boolean;
-  highlightAt?: CodeHighlighterProps<{}>['highlightAt'];
+  highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
+  enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
   precompute?: Code;
   ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
 };
@@ -32,7 +33,8 @@ type AbstractCreateDemoOptions<T extends {}> = {
   controlled?: boolean;
   demoGlobalData?: DemoGlobalData[];
   variantTypes?: Record<string, string>;
-  highlightAt?: CodeHighlighterProps<{}>['highlightAt'];
+  highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
+  enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: LoadCodeMeta;
@@ -83,7 +85,8 @@ export function abstractCreateDemo<T extends {}>(
         loadVariantMeta={options.loadVariantMeta}
         loadSource={options.loadSource}
         sourceParser={options.sourceParser}
-        highlightAt={meta?.highlightAt || options.highlightAt}
+        highlightAfter={meta?.highlightAfter || options.highlightAfter}
+        enhanceAfter={meta?.enhanceAfter || options.enhanceAfter}
         controlled={options.controlled}
         fallbackUsesExtraFiles={options.fallbackUsesExtraFiles}
         fallbackUsesAllVariants={options.fallbackUsesAllVariants}
