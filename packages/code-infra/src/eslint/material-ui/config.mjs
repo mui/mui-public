@@ -1,3 +1,5 @@
+import { defineConfig } from 'eslint/config';
+
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
 const restrictedSyntaxRules = restrictedMethods.map((method) => ({
@@ -303,10 +305,9 @@ const airbnbJsxA11y = {
 /**
  * @param {Object} [options]
  * @param {boolean} [options.reactCompilerEnabled] - Whether the config is for spec files.
- * @returns {import('typescript-eslint').InfiniteDepthConfigWithExtends[]}
  */
 export function createCoreConfig(options = {}) {
-  return [
+  return defineConfig([
     {
       name: 'material-ui-base',
       settings: {
@@ -507,5 +508,5 @@ export function createCoreConfig(options = {}) {
         '@typescript-eslint/return-await': 'off',
       },
     },
-  ];
+  ]);
 }

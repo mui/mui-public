@@ -14,7 +14,7 @@ export function Code({ children, fileName }: { children: string; fileName?: stri
       fileName={fileName}
       Content={CodeContent}
       sourceParser={sourceParser}
-      highlightAfter="init"
+      highlightAfter="idle"
     >
       {children}
     </CodeHighlighter>
