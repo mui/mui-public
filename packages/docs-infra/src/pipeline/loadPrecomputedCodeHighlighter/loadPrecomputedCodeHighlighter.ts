@@ -21,6 +21,7 @@ export type LoaderOptions = {
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
+  output?: 'hast' | 'hastJson' | 'hastGzip';
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -154,6 +155,7 @@ export async function loadPrecomputedCodeHighlighter(
               loadVariantMeta: undefined,
               sourceTransformers, // For TypeScript to JavaScript conversion
               maxDepth: 5,
+              output: options.output || 'hastGzip',
             },
           );
 

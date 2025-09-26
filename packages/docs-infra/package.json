@@ -67,6 +67,7 @@
     "@babel/standalone": "^7.28.4",
     "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
+    "fflate": "^0.8.2",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "hast-util-to-text": "^4.0.2",
     "jsondiffpatch": "^0.7.3",
@@ -74,6 +75,7 @@
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
     "prettier": "^3.5.3",
+    "uint8-to-base64": "^0.2.1",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
   },
