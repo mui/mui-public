@@ -29,17 +29,24 @@ function joinPath(basePath: string, ...segments: string[]): string {
 /**
  * Default file extensions for JavaScript/TypeScript modules that can be resolved
  */
-export const JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.d.ts'] as const;
+export const JAVASCRIPT_MODULE_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mdx',
+  '.d.ts',
+] as const;
 
 /**
  * Extension priority for type-only imports - prioritize .d.ts first
  */
-export const TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx'] as const;
+export const TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'] as const;
 
 /**
  * Extension priority for value imports - standard priority with .d.ts last
  */
-export const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.d.ts'] as const;
+export const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'] as const;
 
 /**
  * Checks if a file path or import path represents a JavaScript/TypeScript module

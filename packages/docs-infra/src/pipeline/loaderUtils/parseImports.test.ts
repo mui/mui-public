@@ -1244,4 +1244,628 @@ export default function CheckboxBasic() {
       expect(result.relative).toEqual({});
     });
   });
+
+  // Test cases for MDX file support (code blocks, inline code, etc.)
+  describe('MDX file support', () => {
+    it('should ignore imports inside triple backtick code blocks in MDX files', async () => {
+      const code = `
+        import React from 'react';
+        import { Button } from '@mui/material';
+        
+        # My Component Demo
+        
+        Here's how to use the component:
+        
+        \`\`\`tsx
+        import { FakeComponent } from './fake-component';
+        import { AnotherFake } from '../fake-utils';
+        
+        export default function Example() {
+          return <FakeComponent />;
+        }
+        \`\`\`
+        
+        The real import below should be parsed:
+        
+        import { RealComponent } from './real-component';
+      `;
+      const filePath = '/src/demo.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './real-component': {
+            path: '/src/real-component',
+            names: [{ name: 'RealComponent', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+          '@mui/material': { names: [{ name: 'Button', type: 'named' }] },
+        },
+      });
+    });
+
+    it('should handle multiple code blocks in MDX files', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Component Examples
+        
+        \`\`\`tsx
+        import { Fake1 } from './fake1';
+        \`\`\`
+        
+        Some text between code blocks.
+        
+        \`\`\`jsx  
+        import { Fake2 } from './fake2';
+        import * as Fake3 from '../fake3';
+        \`\`\`
+        
+        More documentation.
+        
+        \`\`\`typescript
+        // Even this should be ignored
+        import { Fake4 } from '@mui/fake';
+        \`\`\`
+        
+        import { ActualImport } from './actual';
+      `;
+      const filePath = '/src/docs/examples.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './actual': {
+            path: '/src/docs/actual',
+            names: [{ name: 'ActualImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle nested code blocks and complex MDX content', async () => {
+      const code = `
+        import React from 'react';
+        import { Typography } from '@mui/material';
+        
+        # Demo Documentation
+        
+        Here's a basic example:
+        
+        \`\`\`tsx
+        // This should be ignored
+        import { ComponentA } from './ComponentA';
+        import { ComponentB } from '../ComponentB';
+        
+        export default function Demo() {
+          return (
+            <div>
+              <ComponentA />
+              {/* Even comments with imports should be ignored */}
+              {/* import { CommentComponent } from './comment'; */}
+            </div>
+          );
+        }
+        \`\`\`
+        
+        You can also do this with CSS:
+        
+        \`\`\`css
+        @import url('./fake-styles.css');
+        @import 'fake-theme.css';
+        
+        .container {
+          color: blue;
+        }
+        \`\`\`
+        
+        And here's a real import that should be parsed:
+        import { ActualUtil } from '../utils/actual';
+        
+        \`\`\`bash
+        # Even shell commands with import-like text should be ignored
+        npm import fake-package
+        import fake-command
+        \`\`\`
+      `;
+      const filePath = '/src/documentation/demo.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          '../utils/actual': {
+            path: '/src/utils/actual',
+            names: [{ name: 'ActualUtil', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+          '@mui/material': { names: [{ name: 'Typography', type: 'named' }] },
+        },
+      });
+    });
+
+    it('should handle malformed or incomplete code blocks gracefully', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Demo with Malformed Code
+        
+        \`\`\`tsx
+        import { Fake1 } from './fake1';
+        // Missing closing backticks - this whole section until next triple backticks should be ignored
+        
+        import { Fake2 } from './fake2';
+        
+        Some text that looks like it's outside but isn't
+        import { Fake3 } from './fake3';
+        \`\`\`
+        
+        This import should be parsed:
+        import { RealImport } from './real';
+        
+        \`\`\`
+        // Code block with no language specified
+        import { Fake4 } from './fake4';
+        \`\`\`
+        
+        // Another unclosed block
+        \`\`\`javascript
+        import { Fake5 } from './fake5';
+        // This continues to end of file since no closing backticks
+        
+        import { Fake6 } from './fake6';
+      `;
+      const filePath = '/src/malformed.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './real': {
+            path: '/src/real',
+            names: [{ name: 'RealImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should only apply triple backtick logic to .mdx files, not .tsx/.ts files', async () => {
+      const code = `
+        import React from 'react';
+        
+        // In a regular TypeScript file, backticks are template literals
+        const templateWithImport = \`
+          This looks like an import but is in a template literal:
+          import { TemplateComponent } from './template';
+        \`;
+        
+        // These "code blocks" should not be treated specially in .tsx files
+        // \`\`\`tsx
+        import { ShouldBeParsed } from './should-be-parsed';
+        // \`\`\`
+        
+        const anotherTemplate = \`\`\`
+          Multi-line template literal
+          import { TemplateFake } from './template-fake';
+        \`\`\`;
+      `;
+      const filePath = '/src/component.tsx'; // Not .mdx
+      const result = await parseImports(code, filePath);
+
+      // In .tsx files, the import inside the "code block" should be parsed
+      // because it's not actually a code block, just a template literal
+      expect(result).toEqual({
+        relative: {
+          './should-be-parsed': {
+            path: '/src/should-be-parsed',
+            names: [{ name: 'ShouldBeParsed', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle code blocks with different language identifiers', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Multi-Language Examples
+        
+        \`\`\`tsx
+        import { TSXComponent } from './tsx-fake';
+        \`\`\`
+        
+        \`\`\`jsx
+        import { JSXComponent } from './jsx-fake';
+        \`\`\`
+        
+        \`\`\`typescript
+        import { TypeScriptUtil } from './ts-fake';
+        \`\`\`
+        
+        \`\`\`javascript
+        import { JavaScriptUtil } from './js-fake';
+        \`\`\`
+        
+        \`\`\`js
+        import { JSUtil } from './js-util-fake';
+        \`\`\`
+        
+        \`\`\`ts
+        import { TSUtil } from './ts-util-fake';
+        \`\`\`
+        
+        \`\`\`python
+        # Even non-JS languages should be ignored
+        import numpy as np
+        from pandas import DataFrame
+        \`\`\`
+        
+        \`\`\`css
+        @import url('./css-fake.css');
+        \`\`\`
+        
+        \`\`\`html
+        <!-- import './html-fake.js' -->
+        \`\`\`
+        
+        import { ActualComponent } from './actual-component';
+      `;
+      const filePath = '/src/multi-lang.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './actual-component': {
+            path: '/src/actual-component',
+            names: [{ name: 'ActualComponent', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle code blocks mixed with regular template literals', async () => {
+      const code = `
+        import React from 'react';
+        
+        # MDX with Mixed Content
+        
+        Regular template literal (single backticks):
+        const singleTemplate = \`import { SingleFake } from './single-fake';\`;
+        
+        Code block (triple backticks - should be ignored):
+        \`\`\`tsx
+        import { CodeBlockFake } from './code-block-fake';
+        \`\`\`
+        
+        Another template literal:
+        const multiLine = \`
+          import { MultiLineFake } from './multi-line-fake';
+          console.log('test');
+        \`;
+        
+        import { RealImport } from './real-import';
+      `;
+      const filePath = '/src/mixed-content.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './real-import': {
+            path: '/src/real-import',
+            names: [{ name: 'RealImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle code blocks with inline code and escaped backticks', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Complex MDX Content
+        
+        Here's some inline code: \`import { InlineImport } from './inline';\`
+        
+        And a code block:
+        \`\`\`tsx
+        import { BlockImport } from './block';
+        
+        // Code with escaped backticks
+        const str = "This has backticks in it";
+        \`\`\`
+        
+        More inline code: \`const x = 'import fake';\`
+        
+        import { ActualImport } from './actual';
+      `;
+      const filePath = '/src/complex.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './actual': {
+            path: '/src/actual',
+            names: [{ name: 'ActualImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle empty code blocks and code blocks with only comments', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Examples with Empty Blocks
+        
+        Empty code block:
+        \`\`\`tsx
+        \`\`\`
+        
+        Code block with only comments:
+        \`\`\`jsx
+        // import { CommentedImport } from './commented';
+        /* import { BlockCommentImport } from './block-comment'; */
+        \`\`\`
+        
+        Code block with whitespace:
+        \`\`\`typescript
+        
+           
+           
+        \`\`\`
+        
+        import { ValidImport } from './valid';
+      `;
+      const filePath = '/src/empty-blocks.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './valid': {
+            path: '/src/valid',
+            names: [{ name: 'ValidImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle code blocks immediately adjacent to each other', async () => {
+      const code = `
+        import React from 'react';
+        
+        \`\`\`tsx
+        import { First } from './first';
+        \`\`\`
+        \`\`\`jsx
+        import { Second } from './second';
+        \`\`\`
+        \`\`\`
+        import { Third } from './third';
+        \`\`\`
+        
+        import { Actual } from './actual';
+      `;
+      const filePath = '/src/adjacent.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './actual': {
+            path: '/src/actual',
+            names: [{ name: 'Actual', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle 4+ backticks containing 3 backticks', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Four+ Backticks Tests
+        
+        Four backticks containing triple backticks:
+        \`\`\`\`markdown
+        Here's how to show code blocks in markdown:
+        \`\`\`tsx
+        import { ShowcaseComponent } from './showcase';
+        \`\`\`
+        \`\`\`\`
+        
+        Five backticks:
+        \`\`\`\`\`typescript
+        \`\`\`tsx
+        import { FiveBackticks } from './five-backticks';
+        \`\`\`
+        Even nested \`\`\`js code\`\`\` blocks
+        \`\`\`\`\`
+        
+        Six backticks inline: \`\`\`\`\`\`tsx import { Inline6 } from './inline6'; \`\`\`js nested\`\`\`\`\`\`\`\`\`
+        
+        import { RealImport } from './real-import';
+      `;
+      const filePath = '/src/four-plus-backticks.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './real-import': {
+            path: '/src/real-import',
+            names: [{ name: 'RealImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle the specific case that caused issues: imports with special characters', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Component Demo
+        
+        \`\`\`tsx
+        import { ComponentA } from '../components/ComponentA';
+        import { ComponentB } from '../utils/ComponentB';
+        import * as helpers from '../shared/helpers';
+        \`\`\`
+        
+        import { RealComponent } from './RealComponent';
+      `;
+      const filePath = '/src/demo/example.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './RealComponent': {
+            path: '/src/demo/RealComponent',
+            names: [{ name: 'RealComponent', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle inline code blocks (triple backticks on same line)', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Component Examples
+        
+        Here's an inline code block: \`\`\`tsx import { InlineComponent } from './inline';\`\`\`
+        
+        And another: \`\`\`jsx\nimport { AnotherInline } from './another-inline';\n\`\`\`
+        
+        Multiple on one line: \`\`\`js import a from './a';\`\`\` and \`\`\`ts import b from './b';\`\`\`
+        
+        import { ActualImport } from './actual';
+      `;
+      const filePath = '/src/inline-test.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './actual': {
+            path: '/src/actual',
+            names: [{ name: 'ActualImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle mixed inline and multiline code blocks', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Mixed Code Block Examples
+        
+        Inline code: \`\`\`tsx import { Inline } from './inline';\`\`\`
+        
+        Multiline code:
+        \`\`\`jsx
+        import { Multiline } from './multiline';
+        import { Another } from '../another';
+        \`\`\`
+        
+        Another inline: \`\`\`js import { Final } from './final';\`\`\` followed by text.
+        
+        \`\`\`typescript
+        // Complex multiline
+        import * as All from '../all';
+        import type { Types } from './types';
+        \`\`\`
+        
+        import { RealImport } from './real';
+      `;
+      const filePath = '/src/mixed-blocks.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './real': {
+            path: '/src/real',
+            names: [{ name: 'RealImport', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+
+    it('should handle code blocks with language specifiers containing numbers and special chars', async () => {
+      const code = `
+        import React from 'react';
+        
+        # Various Language Specifiers
+        
+        \`\`\`typescript-4.5
+        import { TypeScript45 } from './ts45-fake';
+        \`\`\`
+        
+        \`\`\`jsx-runtime
+        import { Runtime } from './runtime-fake';
+        \`\`\`
+        
+        \`\`\`ts-node
+        import { TSNode } from './ts-node-fake';
+        \`\`\`
+        
+        \`\`\`javascript+jsx
+        import { JSXPlus } from './jsx-plus-fake';
+        \`\`\`
+        
+        Inline: \`\`\`ts-4.9 import { Version } from './version-fake';\`\`\`
+        
+        import { RealComponent } from './real-component';
+      `;
+      const filePath = '/src/lang-specifiers.mdx';
+      const result = await parseImports(code, filePath);
+
+      expect(result).toEqual({
+        relative: {
+          './real-component': {
+            path: '/src/real-component',
+            names: [{ name: 'RealComponent', type: 'named' }],
+          },
+        },
+        externals: {
+          react: { names: [{ name: 'React', type: 'default' }] },
+        },
+      });
+    });
+  });
 });

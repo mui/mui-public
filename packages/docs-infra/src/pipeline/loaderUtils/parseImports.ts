@@ -31,9 +31,27 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
   // Check if this is a CSS file
   const isCssFile = filePath.toLowerCase().endsWith('.css');
 
-  // Helper to check if a char is a quote
-  function isQuote(ch: string) {
+  // Check if this is an MDX file (which can contain code blocks with triple backticks)
+  const isMdxFile = filePath.toLowerCase().endsWith('.mdx');
+
+  // Helper to check if a char starts a string
+  function isStringStart(ch: string, withinMdx?: boolean): boolean {
+    if (withinMdx) {
+      // quotes in MDX don't create strings
+      return ch === '`';
+    }
     return ch === '"' || ch === "'" || ch === '`';
+  }
+
+  // Helper function to count consecutive backticks starting at position
+  function countBackticks(sourceText: string, startPos: number): number {
+    let count = 0;
+    let pos = startPos;
+    while (pos < sourceText.length && sourceText[pos] === '`') {
+      count += 1;
+      pos += 1;
+    }
+    return count;
   }
 
   // Generic function to scan code and find import statements
@@ -47,14 +65,32 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
     const statements: any[] = [];
     let i = 0;
     const len = sourceCode.length;
-    let state: 'code' | 'singleline-comment' | 'multiline-comment' | 'string' | 'template' = 'code';
+    let state:
+      | 'code'
+      | 'singleline-comment'
+      | 'multiline-comment'
+      | 'string'
+      | 'template'
+      | 'codeblock' = 'code';
     let stringQuote: string | null = null;
+    let codeblockBacktickCount = 0; // Track how many backticks opened the current code block
 
     while (i < len) {
       const ch = sourceCode[i];
       const next = sourceCode[i + 1];
 
       if (state === 'code') {
+        // Check for backtick sequences (3 or more backticks start code blocks in MDX)
+        if (isMdxFile && ch === '`') {
+          // Count consecutive backticks
+          const backtickCount = countBackticks(sourceCode, i);
+          if (backtickCount >= 3) {
+            state = 'codeblock';
+            codeblockBacktickCount = backtickCount;
+            i += backtickCount;
+            continue;
+          }
+        }
         // Start of single-line comment
         if (ch === '/' && next === '/') {
           state = 'singleline-comment';
@@ -68,7 +104,7 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
           continue;
         }
         // Start of string
-        if (isQuote(ch)) {
+        if (isStringStart(ch, isMdxFile)) {
           state = ch === '`' ? 'template' : 'string';
           stringQuote = ch;
           i += 1;
@@ -126,6 +162,20 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
         if (ch === '\\') {
           i += 2;
           continue;
+        }
+        i += 1;
+        continue;
+      }
+      if (state === 'codeblock') {
+        // Look for closing backticks that match or exceed the opening count
+        if (ch === '`') {
+          const closingBacktickCount = countBackticks(sourceCode, i);
+          if (closingBacktickCount >= codeblockBacktickCount) {
+            state = 'code';
+            codeblockBacktickCount = 0;
+            i += closingBacktickCount;
+            continue;
+          }
         }
         i += 1;
         continue;
@@ -335,7 +385,7 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
             while (k < len && /\s/.test(sourceText[k])) {
               k += 1;
             }
-            if (k >= len || sourceText.slice(k, k + 4) === 'from' || isQuote(sourceText[k])) {
+            if (k >= len || sourceText.slice(k, k + 4) === 'from' || isStringStart(sourceText[k])) {
               // Continue, this newline is within the import
             } else {
               // This looks like the end of a side-effect import
@@ -343,7 +393,7 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
               break;
             }
           }
-          if (isQuote(cj)) {
+          if (isStringStart(cj)) {
             importState = cj === '`' ? 'template' : 'string';
             importQuote = cj;
             if (foundFrom) {
@@ -599,7 +649,7 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
     }
 
     // Check if this is a side-effect import (starts with quote)
-    if (pos < textLen && isQuote(text[pos])) {
+    if (pos < textLen && (text[pos] === '"' || text[pos] === "'")) {
       const { value: modulePath } = readQuotedString(text, pos);
       if (modulePath) {
         const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
@@ -697,7 +747,7 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
     pos = skipWhitespace(text, pos);
 
     // Read module path
-    if (pos >= textLen || !isQuote(text[pos])) {
+    if (pos >= textLen || !(text[pos] === '"' || text[pos] === "'")) {
       continue; // No quoted module path found
     }
 

@@ -87,7 +87,7 @@ async function mockLoader(
 
   // Step 3: Process imports and generate final result
   // Determine if this is a JavaScript/TypeScript file
-  const isJsFile = /\.(js|jsx|ts|tsx|mjs|cjs)$/i.test(filePath);
+  const isJsFile = /\.(js|jsx|ts|tsx|mjs|cjs|mdx)$/i.test(filePath);
   const processedResult = processRelativeImports(
     sourceCode,
     importResult,
@@ -763,6 +763,418 @@ body {
         expect(result.processedSource).toContain("/* @import '../styles/commented.css'; */"); // Unchanged
         expect(result.processedSource).toContain("@import 'base.css'");
         expect(result.processedSource).toContain("@import 'theme.css'");
+      });
+    });
+  });
+
+  describe('MDX Integration Tests', () => {
+    describe('MDX file processing with triple backtick support', () => {
+      it('should process MDX files like JavaScript files but ignore imports in code blocks', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+import { Button } from '@mui/material';
+import ComponentA from '../components/ComponentA';
+
+# My Documentation
+
+This is a markdown document with embedded JSX.
+
+<ComponentA />
+
+Here's an example that should be ignored:
+
+\`\`\`javascript
+import { FakeComponent } from './fake-component';
+import { AnotherFake } from '../fake-parent';
+
+function Example() {
+  return <FakeComponent />;
+}
+\`\`\`
+
+<Button>Click me</Button>
+
+import ComponentB from '../utils/ComponentB';
+
+\`\`\`tsx
+// This import should also be ignored
+import type { Props } from './fake-props';
+
+export default function FakeExample({ title }: Props) {
+  return <div>{title}</div>;
+}
+\`\`\`
+
+Back to real content:
+import { helper } from '../shared/helpers';
+`,
+          filePath: '/src/current/file.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          './ComponentB.ts': 'file:///src/utils/ComponentB.ts',
+          './helpers.js': 'file:///src/shared/helpers.js',
+        });
+
+        expect(result.processedSource).toContain("import ComponentA from './ComponentA'");
+        expect(result.processedSource).toContain("import ComponentB from './ComponentB'");
+        expect(result.processedSource).toContain("import { helper } from './helpers'");
+
+        // External imports should remain unchanged
+        expect(result.processedSource).toContain("import React from 'react'");
+        expect(result.processedSource).toContain("import { Button } from '@mui/material'");
+
+        // Imports in code blocks should remain unchanged (not rewritten)
+        expect(result.processedSource).toContain(
+          "import { FakeComponent } from './fake-component'",
+        );
+        expect(result.processedSource).toContain("import { AnotherFake } from '../fake-parent'");
+        expect(result.processedSource).toContain("import type { Props } from './fake-props'");
+      });
+
+      it('should handle complex MDX with multiple code blocks and language specifiers', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+import { Layout } from '../components/Layout';
+
+# Advanced Example
+
+TypeScript example:
+\`\`\`typescript
+import { TypeScript } from './typescript-example';
+interface Props {
+  title: string;
+}
+\`\`\`
+
+<Layout>
+  <div>Some content</div>
+</Layout>
+
+JSX example:
+\`\`\`jsx
+import { JSXComponent } from './jsx-example';
+function App() {
+  return <JSXComponent />;
+}
+\`\`\`
+
+import ComponentA from '../components/ComponentA';
+
+TSX example:
+\`\`\`tsx
+import type { FC } from 'react';
+const Component: FC = () => <div>Hello</div>;
+\`\`\`
+
+import { Utils } from '../utils';
+`,
+          filePath: '/src/current/advanced.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          './utils.ts': 'file:///src/utils/index.ts',
+          // Layout is not included because it doesn't exist in the mock filesystem
+        });
+
+        // Layout import is not rewritten because it doesn't exist in mock filesystem
+        expect(result.processedSource).toContain("import { Layout } from '../components/Layout'");
+        expect(result.processedSource).toContain("import ComponentA from './ComponentA'");
+        expect(result.processedSource).toContain("import { Utils } from './utils'");
+      });
+
+      it('should handle unclosed code blocks in MDX files', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+import ComponentA from '../components/ComponentA';
+
+# Example with unclosed code block
+
+\`\`\`javascript
+import { FakeComponent } from './fake';
+
+// This code block is never closed
+function example() {
+  return 'unclosed';
+}
+
+// The rest should be treated as part of the code block
+import { ShouldBeIgnored } from './should-be-ignored';
+`,
+          filePath: '/src/current/unclosed.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        // Should only process imports before the unclosed code block
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+        });
+
+        expect(result.processedSource).toContain("import ComponentA from './ComponentA'");
+        // Imports after unclosed code block should remain unchanged
+        expect(result.processedSource).toContain(
+          "import { ShouldBeIgnored } from './should-be-ignored'",
+        );
+      });
+
+      it('should not apply code block handling to non-MDX files', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+
+// This is a regular TypeScript file, not MDX
+// Triple backticks should be treated as template literals
+const codeExample = \`
+\`\`\`javascript
+import { FakeComponent } from '../components/FakeComponent';
+\`\`\`
+\`;
+
+import ComponentA from '../components/ComponentA';
+`,
+          filePath: '/src/current/regular.tsx', // Not .mdx
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        // Should process both imports since this is not an MDX file
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+        });
+
+        expect(result.processedSource).toContain("import ComponentA from './ComponentA'");
+      });
+
+      it('should preserve canonical mode without rewriting imports in MDX files', async () => {
+        const input = {
+          sourceCode: `
+import ComponentA from '../components/ComponentA';
+
+# Documentation
+
+\`\`\`javascript
+import { FakeComponent } from './fake';
+\`\`\`
+
+import { helper } from '../utils/helper';
+`,
+          filePath: '/src/current/file.mdx',
+          mode: 'canonical' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.processedSource).toBe(input.sourceCode); // No rewriting
+        expect(result.extraFiles).toEqual({
+          '../components/ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          '../utils/helper.js': 'file:///src/utils/helper.js',
+        });
+      });
+
+      it('should handle inline code spans that look like code blocks', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+
+# Example
+
+This text has inline \`\`\`code spans\`\`\` that should not be treated as code blocks.
+
+import ComponentA from '../components/ComponentA';
+
+The \`\`\`inline code\`\`\` here should not affect parsing.
+
+Here's a real code block:
+
+\`\`\`javascript
+import { ShouldBeIgnored } from './should-be-ignored';
+\`\`\`
+
+import { helper } from '../shared/helpers';
+`,
+          filePath: '/src/current/inline-code.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          './helpers.js': 'file:///src/shared/helpers.js',
+        });
+
+        expect(result.processedSource).toContain("import ComponentA from './ComponentA'");
+        expect(result.processedSource).toContain("import { helper } from './helpers'");
+        // The fake import should remain unchanged
+        expect(result.processedSource).toContain(
+          "import { ShouldBeIgnored } from './should-be-ignored'",
+        );
+      });
+
+      it('should handle empty and minimal code blocks', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+
+# Example with empty code blocks
+
+\`\`\`
+\`\`\`
+
+import ComponentA from '../components/ComponentA';
+
+\`\`\`javascript
+\`\`\`
+
+import { helper } from '../shared/helpers';
+
+\`\`\`
+// Just a comment
+\`\`\`
+
+import ComponentB from '../utils/ComponentB';
+`,
+          filePath: '/src/current/empty-blocks.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          './helpers.js': 'file:///src/shared/helpers.js',
+          './ComponentB.ts': 'file:///src/utils/ComponentB.ts',
+        });
+
+        expect(result.processedSource).toContain("import ComponentA from './ComponentA'");
+        expect(result.processedSource).toContain("import { helper } from './helpers'");
+        expect(result.processedSource).toContain("import ComponentB from './ComponentB'");
+      });
+
+      it('should work with type imports and MDX', async () => {
+        const input = {
+          sourceCode: `
+import type { MDXProps } from 'mdx/types';
+import type { TypeDef } from '../types';
+
+# Type Examples
+
+\`\`\`typescript
+import type { FakeProps } from './fake-props';
+interface Example {
+  title: string;
+}
+\`\`\`
+
+import { ComponentA } from '../components/ComponentA';
+import { helper } from '../utils/helper';
+`,
+          filePath: '/src/current/types.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './types.d.ts': 'file:///src/types.d.ts',
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          './helper.js': 'file:///src/utils/helper.js',
+        });
+
+        expect(result.processedSource).toContain("import type { TypeDef } from './types'");
+        expect(result.processedSource).toContain("import { ComponentA } from './ComponentA'");
+        expect(result.processedSource).toContain("import { helper } from './helper'");
+        // External type import should remain unchanged
+        expect(result.processedSource).toContain("import type { MDXProps } from 'mdx/types'");
+        // Fake import in code block should remain unchanged
+        expect(result.processedSource).toContain("import type { FakeProps } from './fake-props'");
+      });
+
+      it('should handle MDX files with mixed content and complex nesting', async () => {
+        const input = {
+          sourceCode: `
+import React from 'react';
+import { ComponentA } from '../components/ComponentA';
+import { Button } from '../components/Button';
+
+export const meta = {
+  title: 'Complex Example',
+};
+
+# Complex MDX Example
+
+<ComponentA>
+  <div>
+    Some JSX content with components.
+  </div>
+</ComponentA>
+
+Here's a nested example:
+
+\`\`\`jsx
+import { NestedFake } from './nested-fake';
+
+function ExampleComponent() {
+  return (
+    <div>
+      <NestedFake />
+      <Button>
+        {\`
+        // This is code inside JSX inside a code block
+        import { DoublyNested } from './doubly-nested';
+        \`}
+      </Button>
+    </div>
+  );
+}
+\`\`\`
+
+<Button language="typescript">
+  {\`import { FakeInJSX } from './fake-in-jsx';\`}
+</Button>
+
+import { ComponentB } from '../utils/ComponentB';
+
+\`\`\`
+Plain code block with no language
+import { PlainFake } from './plain-fake';
+\`\`\`
+`,
+          filePath: '/src/current/complex.mdx',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './ComponentA.tsx': 'file:///src/components/ComponentA.tsx',
+          './Button.js': 'file:///src/components/Button/index.js',
+          './ComponentB.ts': 'file:///src/utils/ComponentB.ts',
+        });
+
+        expect(result.processedSource).toContain("import { ComponentA } from './ComponentA'");
+        expect(result.processedSource).toContain("import { Button } from './Button'");
+        expect(result.processedSource).toContain("import { ComponentB } from './ComponentB'");
+
+        // Fake imports in code blocks should remain unchanged
+        expect(result.processedSource).toContain("import { NestedFake } from './nested-fake'");
+        expect(result.processedSource).toContain("import { DoublyNested } from './doubly-nested'");
+        expect(result.processedSource).toContain("import { FakeInJSX } from './fake-in-jsx'");
+        expect(result.processedSource).toContain("import { PlainFake } from './plain-fake'");
       });
     });
   });
