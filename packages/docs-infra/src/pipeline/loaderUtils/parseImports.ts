@@ -24,296 +24,354 @@ export interface ParseImportsResult {
   externals: Record<string, ExternalImport>;
 }
 
-export async function parseImports(code: string, filePath: string): Promise<ParseImportsResult> {
-  const result: Record<string, RelativeImport> = {};
-  const externals: Record<string, ExternalImport> = {};
-
-  // Check if this is a CSS file
-  const isCssFile = filePath.toLowerCase().endsWith('.css');
-
-  // Check if this is an MDX file (which can contain code blocks with triple backticks)
-  const isMdxFile = filePath.toLowerCase().endsWith('.mdx');
-
-  // Helper to check if a char starts a string
-  function isStringStart(ch: string, withinMdx?: boolean): boolean {
-    if (withinMdx) {
-      // quotes in MDX don't create strings
-      return ch === '`';
-    }
-    return ch === '"' || ch === "'" || ch === '`';
+// Helper to check if a char starts a string
+function isStringStart(ch: string, withinMdx?: boolean): boolean {
+  if (withinMdx) {
+    // quotes in MDX don't create strings
+    return ch === '`';
   }
+  return ch === '"' || ch === "'" || ch === '`';
+}
 
-  // Helper function to count consecutive backticks starting at position
-  function countBackticks(sourceText: string, startPos: number): number {
-    let count = 0;
-    let pos = startPos;
-    while (pos < sourceText.length && sourceText[pos] === '`') {
-      count += 1;
-      pos += 1;
-    }
-    return count;
+// Helper function to count consecutive backticks starting at position
+function countBackticks(sourceText: string, startPos: number): number {
+  let count = 0;
+  let pos = startPos;
+  while (pos < sourceText.length && sourceText[pos] === '`') {
+    count += 1;
+    pos += 1;
   }
+  return count;
+}
 
-  // Generic function to scan code and find import statements
-  function scanForImports(
-    sourceCode: string,
-    importDetector: (
-      code: string,
-      pos: number,
-    ) => { found: boolean; nextPos: number; statement?: any },
-  ): any[] {
-    const statements: any[] = [];
-    let i = 0;
-    const len = sourceCode.length;
-    let state:
-      | 'code'
-      | 'singleline-comment'
-      | 'multiline-comment'
-      | 'string'
-      | 'template'
-      | 'codeblock' = 'code';
-    let stringQuote: string | null = null;
-    let codeblockBacktickCount = 0; // Track how many backticks opened the current code block
+// Generic function to scan code and find import statements
+function scanForImports(
+  sourceCode: string,
+  importDetector: (
+    code: string,
+    pos: number,
+  ) => { found: boolean; nextPos: number; statement?: any },
+  isMdxFile: boolean,
+): any[] {
+  const statements: any[] = [];
+  let i = 0;
+  const len = sourceCode.length;
+  let state:
+    | 'code'
+    | 'singleline-comment'
+    | 'multiline-comment'
+    | 'string'
+    | 'template'
+    | 'codeblock' = 'code';
+  let stringQuote: string | null = null;
+  let codeblockBacktickCount = 0; // Track how many backticks opened the current code block
 
-    while (i < len) {
-      const ch = sourceCode[i];
-      const next = sourceCode[i + 1];
+  while (i < len) {
+    const ch = sourceCode[i];
+    const next = sourceCode[i + 1];
 
-      if (state === 'code') {
-        // Check for backtick sequences (3 or more backticks start code blocks in MDX)
-        if (isMdxFile && ch === '`') {
-          // Count consecutive backticks
-          const backtickCount = countBackticks(sourceCode, i);
-          if (backtickCount >= 3) {
-            state = 'codeblock';
-            codeblockBacktickCount = backtickCount;
-            i += backtickCount;
-            continue;
-          }
-        }
-        // Start of single-line comment
-        if (ch === '/' && next === '/') {
-          state = 'singleline-comment';
-          i += 2;
+    if (state === 'code') {
+      // Check for backtick sequences (3 or more backticks start code blocks in MDX)
+      if (isMdxFile && ch === '`') {
+        // Count consecutive backticks
+        const backtickCount = countBackticks(sourceCode, i);
+        if (backtickCount >= 3) {
+          state = 'codeblock';
+          codeblockBacktickCount = backtickCount;
+          i += backtickCount;
           continue;
         }
-        // Start of multi-line comment
-        if (ch === '/' && next === '*') {
-          state = 'multiline-comment';
-          i += 2;
-          continue;
-        }
-        // Start of string
-        if (isStringStart(ch, isMdxFile)) {
-          state = ch === '`' ? 'template' : 'string';
-          stringQuote = ch;
-          i += 1;
-          continue;
-        }
-
-        // Use the provided import detector
-        const detection = importDetector(sourceCode, i);
-        if (detection.found) {
-          if (detection.statement) {
-            statements.push(detection.statement);
-          }
-          i = detection.nextPos;
-          continue;
-        }
-
+      }
+      // Start of single-line comment
+      if (ch === '/' && next === '/') {
+        state = 'singleline-comment';
+        i += 2;
+        continue;
+      }
+      // Start of multi-line comment
+      if (ch === '/' && next === '*') {
+        state = 'multiline-comment';
+        i += 2;
+        continue;
+      }
+      // Start of string
+      if (isStringStart(ch, isMdxFile)) {
+        state = ch === '`' ? 'template' : 'string';
+        stringQuote = ch;
         i += 1;
         continue;
       }
-      if (state === 'singleline-comment') {
-        if (ch === '\n') {
-          state = 'code';
+
+      // Use the provided import detector
+      const detection = importDetector(sourceCode, i);
+      if (detection.found) {
+        if (detection.statement) {
+          statements.push(detection.statement);
         }
-        i += 1;
+        i = detection.nextPos;
         continue;
       }
-      if (state === 'multiline-comment') {
-        if (ch === '*' && next === '/') {
-          state = 'code';
-          i += 2;
-          continue;
-        }
-        i += 1;
-        continue;
+
+      i += 1;
+      continue;
+    }
+    if (state === 'singleline-comment') {
+      if (ch === '\n') {
+        state = 'code';
       }
-      if (state === 'string') {
-        if (ch === '\\') {
-          i += 2;
-          continue;
-        }
-        if (ch === stringQuote) {
-          state = 'code';
-          stringQuote = null;
-        }
-        i += 1;
-        continue;
-      }
-      if (state === 'template') {
-        if (ch === '`') {
-          state = 'code';
-          stringQuote = null;
-          i += 1;
-          continue;
-        }
-        if (ch === '\\') {
-          i += 2;
-          continue;
-        }
-        i += 1;
-        continue;
-      }
-      if (state === 'codeblock') {
-        // Look for closing backticks that match or exceed the opening count
-        if (ch === '`') {
-          const closingBacktickCount = countBackticks(sourceCode, i);
-          if (closingBacktickCount >= codeblockBacktickCount) {
-            state = 'code';
-            codeblockBacktickCount = 0;
-            i += closingBacktickCount;
-            continue;
-          }
-        }
-        i += 1;
+      i += 1;
+      continue;
+    }
+    if (state === 'multiline-comment') {
+      if (ch === '*' && next === '/') {
+        state = 'code';
+        i += 2;
         continue;
       }
       i += 1;
+      continue;
     }
-
-    return statements;
-  }
-
-  // Function to parse CSS @import statements
-  function parseCssImports(
-    cssCode: string,
-    cssFilePath: string,
-    cssResult: Record<string, RelativeImport>,
-    cssExternals: Record<string, ExternalImport>,
-  ): ParseImportsResult {
-    // CSS import detector function
-    function detectCssImport(sourceText: string, pos: number) {
-      const ch = sourceText[pos];
-
-      // Look for '@import' keyword
-      if (
-        ch === '@' &&
-        sourceText.slice(pos, pos + 7) === '@import' &&
-        /\s/.test(sourceText[pos + 7] || '')
-      ) {
-        // Parse the @import statement
-        const importResult = parseCssImportStatement(sourceText, pos);
-        if (importResult.modulePath) {
-          // In CSS, imports are relative unless they have a protocol/hostname
-          // Examples of external: "http://...", "https://...", "//example.com/style.css"
-          // Examples of relative: "print.css", "./local.css", "../parent.css"
-          const hasProtocol = /^https?:\/\//.test(importResult.modulePath);
-          const hasHostname = /^\/\//.test(importResult.modulePath);
-          const isExternal = hasProtocol || hasHostname;
-
-          if (isExternal) {
-            if (!cssExternals[importResult.modulePath]) {
-              cssExternals[importResult.modulePath] = { names: [] };
-            }
-          } else {
-            // Treat as relative import - normalize the path if it doesn't start with ./ or ../
-            let normalizedPath = importResult.modulePath;
-            if (!normalizedPath.startsWith('./') && !normalizedPath.startsWith('../')) {
-              normalizedPath = `./${normalizedPath}`;
-            }
-            const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
-            if (!cssResult[importResult.modulePath]) {
-              cssResult[importResult.modulePath] = { path: resolvedPath, names: [] };
-            }
-          }
-        }
-        return { found: true, nextPos: importResult.nextPos };
+    if (state === 'string') {
+      if (ch === '\\') {
+        i += 2;
+        continue;
       }
-
-      return { found: false, nextPos: pos };
+      if (ch === stringQuote) {
+        state = 'code';
+        stringQuote = null;
+      }
+      i += 1;
+      continue;
     }
-
-    // Use the generic scanner
-    scanForImports(cssCode, detectCssImport);
-
-    return { relative: cssResult, externals: cssExternals };
+    if (state === 'template') {
+      if (ch === '`') {
+        state = 'code';
+        stringQuote = null;
+        i += 1;
+        continue;
+      }
+      if (ch === '\\') {
+        i += 2;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    if (state === 'codeblock') {
+      // Look for closing backticks that match or exceed the opening count
+      if (ch === '`') {
+        const closingBacktickCount = countBackticks(sourceCode, i);
+        if (closingBacktickCount >= codeblockBacktickCount) {
+          state = 'code';
+          codeblockBacktickCount = 0;
+          i += closingBacktickCount;
+          continue;
+        }
+      }
+      i += 1;
+      continue;
+    }
+    i += 1;
   }
 
-  // Function to parse a single CSS @import statement
-  function parseCssImportStatement(
-    cssCode: string,
-    start: number,
-  ): { modulePath: string | null; nextPos: number } {
-    let pos = start + 7; // Skip '@import'
-    const len = cssCode.length;
+  return statements;
+}
 
+// Helper function to add import name if it doesn't exist
+function addImportName(
+  target: ImportName[],
+  name: string,
+  type: 'default' | 'named' | 'namespace',
+  alias?: string,
+  isType?: boolean,
+) {
+  const existing = target.find((n) => n.name === name && n.type === type && n.alias === alias);
+  if (!existing) {
+    target.push({
+      name,
+      ...(alias && { alias }),
+      type,
+      ...(isType && { isType: true }),
+    });
+  }
+}
+
+// Helper function to check if a character is a valid identifier character
+function isIdentifierChar(ch: string): boolean {
+  return /[a-zA-Z0-9_$]/.test(ch);
+}
+
+// Helper function to check if a character is whitespace
+function isWhitespace(ch: string): boolean {
+  return /\s/.test(ch);
+}
+
+// Helper function to skip whitespace and return the next non-whitespace position
+function skipWhitespace(text: string, start: number): number {
+  let pos = start;
+  while (pos < text.length && isWhitespace(text[pos])) {
+    pos += 1;
+  }
+  return pos;
+}
+
+// Helper function to read an identifier starting at position
+function readIdentifier(text: string, start: number): { name: string; nextPos: number } {
+  let pos = start;
+  let name = '';
+
+  // First character must be letter, underscore, or dollar sign
+  if (pos < text.length && /[a-zA-Z_$]/.test(text[pos])) {
+    name += text[pos];
+    pos += 1;
+
+    // Subsequent characters can be letters, digits, underscore, or dollar sign
+    while (pos < text.length && isIdentifierChar(text[pos])) {
+      name += text[pos];
+      pos += 1;
+    }
+  }
+
+  return { name, nextPos: pos };
+}
+
+// Helper function to read a quoted string starting at position
+function readQuotedString(text: string, start: number): { value: string; nextPos: number } {
+  const quote = text[start];
+  let pos = start + 1;
+  let value = '';
+
+  while (pos < text.length) {
+    const ch = text[pos];
+    if (ch === '\\' && pos + 1 < text.length) {
+      // Skip escaped character
+      pos += 2;
+      continue;
+    }
+    if (ch === quote) {
+      pos += 1;
+      break;
+    }
+    value += ch;
+    pos += 1;
+  }
+
+  return { value, nextPos: pos };
+}
+
+// Helper function to parse named imports from a brace-enclosed section
+function parseNamedImports(
+  text: string,
+  start: number,
+  end: number,
+): Array<{ name: string; alias?: string; isType?: boolean }> {
+  const imports: Array<{ name: string; alias?: string; isType?: boolean }> = [];
+  let pos = start;
+
+  while (pos < end) {
+    pos = skipWhitespace(text, pos);
+    if (pos >= end) {
+      break;
+    }
+
+    // Handle comments within named imports
+    if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '/') {
+      // Skip single-line comment
+      while (pos < end && text[pos] !== '\n') {
+        pos += 1;
+      }
+      continue;
+    }
+
+    if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '*') {
+      // Skip multi-line comment
+      pos += 2;
+      while (pos + 1 < end) {
+        if (text[pos] === '*' && text[pos + 1] === '/') {
+          pos += 2;
+          break;
+        }
+        pos += 1;
+      }
+      continue;
+    }
+
+    // Skip comma if we encounter it
+    if (text[pos] === ',') {
+      pos += 1;
+      continue;
+    }
+
+    // Check for 'type' keyword
+    let isTypeImport = false;
+    if (text.slice(pos, pos + 4) === 'type' && !isIdentifierChar(text[pos + 4] || '')) {
+      isTypeImport = true;
+      pos += 4;
+      pos = skipWhitespace(text, pos);
+    }
+
+    // Read the import name
+    const { name, nextPos } = readIdentifier(text, pos);
+    if (!name) {
+      pos += 1;
+      continue;
+    }
+    pos = nextPos;
+
+    pos = skipWhitespace(text, pos);
+
+    // Check for 'as' keyword (alias)
+    let alias: string | undefined;
+    if (text.slice(pos, pos + 2) === 'as' && !isIdentifierChar(text[pos + 2] || '')) {
+      pos += 2;
+      pos = skipWhitespace(text, pos);
+      const aliasResult = readIdentifier(text, pos);
+      alias = aliasResult.name;
+      pos = aliasResult.nextPos;
+      pos = skipWhitespace(text, pos);
+    }
+
+    imports.push({ name, ...(alias && { alias }), ...(isTypeImport && { isType: true }) });
+
+    // Skip comma if present
+    if (text[pos] === ',') {
+      pos += 1;
+    }
+  }
+
+  return imports;
+}
+
+// Function to parse a single CSS @import statement
+function parseCssImportStatement(
+  cssCode: string,
+  start: number,
+): { modulePath: string | null; nextPos: number } {
+  let pos = start + 7; // Skip '@import'
+  const len = cssCode.length;
+
+  // Skip whitespace
+  while (pos < len && /\s/.test(cssCode[pos])) {
+    pos += 1;
+  }
+
+  let modulePath: string | null = null;
+
+  // Check for url() syntax
+  if (cssCode.slice(pos, pos + 4) === 'url(') {
+    pos += 4;
     // Skip whitespace
     while (pos < len && /\s/.test(cssCode[pos])) {
       pos += 1;
     }
 
-    let modulePath: string | null = null;
-
-    // Check for url() syntax
-    if (cssCode.slice(pos, pos + 4) === 'url(') {
-      pos += 4;
-      // Skip whitespace
-      while (pos < len && /\s/.test(cssCode[pos])) {
-        pos += 1;
-      }
-
-      // Read the URL (quoted or unquoted)
-      if (pos < len && (cssCode[pos] === '"' || cssCode[pos] === "'")) {
-        const quote = cssCode[pos];
-        pos += 1;
-        let url = '';
-        while (pos < len && cssCode[pos] !== quote) {
-          // Only stop at newlines - parentheses and semicolons are valid in URLs
-          if (cssCode[pos] === '\n') {
-            break;
-          }
-          if (cssCode[pos] === '\\') {
-            pos += 2;
-            continue;
-          }
-          url += cssCode[pos];
-          pos += 1;
-        }
-        if (pos < len && cssCode[pos] === quote) {
-          pos += 1;
-          modulePath = url;
-        }
-        // If we didn't find the closing quote, don't set modulePath (malformed)
-      } else {
-        // Unquoted URL
-        let url = '';
-        while (pos < len && cssCode[pos] !== ')' && !/\s/.test(cssCode[pos])) {
-          url += cssCode[pos];
-          pos += 1;
-        }
-        modulePath = url;
-      }
-
-      // Skip to closing parenthesis - if we don't find it, the url() is malformed
-      while (pos < len && cssCode[pos] !== ')' && cssCode[pos] !== ';' && cssCode[pos] !== '\n') {
-        pos += 1;
-      }
-      if (pos < len && cssCode[pos] === ')') {
-        pos += 1;
-        // Only consider this a valid URL if we found the closing parenthesis
-      } else {
-        // Malformed url() - don't set modulePath
-        modulePath = null;
-      }
-    } else if (pos < len && (cssCode[pos] === '"' || cssCode[pos] === "'")) {
-      // Direct quoted import
+    // Read the URL (quoted or unquoted)
+    if (pos < len && (cssCode[pos] === '"' || cssCode[pos] === "'")) {
       const quote = cssCode[pos];
       pos += 1;
       let url = '';
       while (pos < len && cssCode[pos] !== quote) {
-        // Stop if we hit a newline (likely malformed), but semicolons are valid in URLs
+        // Only stop at newlines - parentheses and semicolons are valid in URLs
         if (cssCode[pos] === '\n') {
           break;
         }
@@ -328,308 +386,139 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
         pos += 1;
         modulePath = url;
       }
-      // If we didn't find the closing quote, don't set modulePath (malformed import)
-    }
-
-    // Skip to semicolon or end of statement
-    while (pos < len && cssCode[pos] !== ';' && cssCode[pos] !== '\n') {
-      pos += 1;
-    }
-    if (pos < len && cssCode[pos] === ';') {
-      pos += 1;
-    }
-
-    return { modulePath, nextPos: pos };
-  }
-
-  // If this is a CSS file, parse CSS @import statements instead
-  if (isCssFile) {
-    return parseCssImports(code, filePath, result, externals);
-  }
-
-  // JavaScript import detector function
-  function detectJavaScriptImport(sourceText: string, pos: number) {
-    const ch = sourceText[pos];
-
-    // Look for 'import' keyword (not part of an identifier, and not preceded by @)
-    if (
-      ch === 'i' &&
-      sourceText.slice(pos, pos + 6) === 'import' &&
-      (pos === 0 || /[^a-zA-Z0-9_$@]/.test(sourceText[pos - 1])) &&
-      /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
-    ) {
-      // Mark start of import statement
-      const importStart = pos;
-      const len = sourceText.length;
-
-      // Now, scan forward to find the end of the statement (semicolon or proper end for side-effect imports)
-      let j = pos + 6;
-      let importState: 'code' | 'string' | 'template' = 'code';
-      let importQuote: string | null = null;
-      let braceDepth = 0;
-      let foundFrom = false;
-      let foundModulePath = false;
-
-      while (j < len) {
-        const cj = sourceText[j];
-        if (importState === 'code') {
-          if (cj === ';') {
-            j += 1;
-            break;
-          }
-          // Check if we're at a bare import statement (no 'from')
-          if (cj === '\n' && !foundFrom && !foundModulePath && braceDepth === 0) {
-            // This might be a side-effect import or end of statement
-            // Look ahead to see if there's content that could be part of the import
-            let k = j + 1;
-            while (k < len && /\s/.test(sourceText[k])) {
-              k += 1;
-            }
-            if (k >= len || sourceText.slice(k, k + 4) === 'from' || isStringStart(sourceText[k])) {
-              // Continue, this newline is within the import
-            } else {
-              // This looks like the end of a side-effect import
-              j += 1;
-              break;
-            }
-          }
-          if (isStringStart(cj)) {
-            importState = cj === '`' ? 'template' : 'string';
-            importQuote = cj;
-            if (foundFrom) {
-              foundModulePath = true;
-            }
-            j += 1;
-            continue;
-          }
-          if (cj === '{') {
-            braceDepth += 1;
-          }
-          if (cj === '}') {
-            braceDepth -= 1;
-          }
-          if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
-            foundFrom = true;
-          }
-          // If we found a module path and we're back to normal code, we might be done
-          if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
-            // Look ahead for semicolon or end of statement
-            let k = j;
-            while (k < len && /\s/.test(sourceText[k])) {
-              k += 1;
-            }
-            if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
-              if (sourceText[k] === ';') {
-                j = k + 1;
-              } else {
-                j = k;
-              }
-              break;
-            }
-          }
-        } else if (importState === 'string') {
-          if (cj === '\\') {
-            j += 2;
-            continue;
-          }
-          if (cj === importQuote) {
-            importState = 'code';
-            importQuote = null;
-          }
-          j += 1;
-          continue;
-        } else if (importState === 'template') {
-          if (cj === '`') {
-            importState = 'code';
-            importQuote = null;
-          } else if (cj === '\\') {
-            j += 2;
-            continue;
-          }
-          j += 1;
-          continue;
-        }
-        j += 1;
+      // If we didn't find the closing quote, don't set modulePath (malformed)
+    } else {
+      // Unquoted URL
+      let url = '';
+      while (pos < len && cssCode[pos] !== ')' && !/\s/.test(cssCode[pos])) {
+        url += cssCode[pos];
+        pos += 1;
       }
-
-      const importText = sourceText.slice(importStart, j);
-      return {
-        found: true,
-        nextPos: j,
-        statement: { start: importStart, end: j, text: importText },
-      };
+      modulePath = url;
     }
 
-    return { found: false, nextPos: pos };
+    // Skip to closing parenthesis - if we don't find it, the url() is malformed
+    while (pos < len && cssCode[pos] !== ')' && cssCode[pos] !== ';' && cssCode[pos] !== '\n') {
+      pos += 1;
+    }
+    if (pos < len && cssCode[pos] === ')') {
+      pos += 1;
+      // Only consider this a valid URL if we found the closing parenthesis
+    } else {
+      // Malformed url() - don't set modulePath
+      modulePath = null;
+    }
+  } else if (pos < len && (cssCode[pos] === '"' || cssCode[pos] === "'")) {
+    // Direct quoted import
+    const quote = cssCode[pos];
+    pos += 1;
+    let url = '';
+    while (pos < len && cssCode[pos] !== quote) {
+      // Stop if we hit a newline (likely malformed), but semicolons are valid in URLs
+      if (cssCode[pos] === '\n') {
+        break;
+      }
+      if (cssCode[pos] === '\\') {
+        pos += 2;
+        continue;
+      }
+      url += cssCode[pos];
+      pos += 1;
+    }
+    if (pos < len && cssCode[pos] === quote) {
+      pos += 1;
+      modulePath = url;
+    }
+    // If we didn't find the closing quote, don't set modulePath (malformed import)
   }
 
-  // Scan code for JavaScript import statements
-  const importStatements = scanForImports(code, detectJavaScriptImport);
+  // Skip to semicolon or end of statement
+  while (pos < len && cssCode[pos] !== ';' && cssCode[pos] !== '\n') {
+    pos += 1;
+  }
+  if (pos < len && cssCode[pos] === ';') {
+    pos += 1;
+  }
 
-  // Helper function to add import name if it doesn't exist
-  function addImportName(
-    target: ImportName[],
-    name: string,
-    type: 'default' | 'named' | 'namespace',
-    alias?: string,
-    isType?: boolean,
+  return { modulePath, nextPos: pos };
+}
+
+// CSS import detector function
+function detectCssImport(
+  sourceText: string,
+  pos: number,
+  cssResult: Record<string, RelativeImport>,
+  cssExternals: Record<string, ExternalImport>,
+  cssFilePath: string,
+) {
+  const ch = sourceText[pos];
+
+  // Look for '@import' keyword
+  if (
+    ch === '@' &&
+    sourceText.slice(pos, pos + 7) === '@import' &&
+    /\s/.test(sourceText[pos + 7] || '')
   ) {
-    const existing = target.find((n) => n.name === name && n.type === type && n.alias === alias);
-    if (!existing) {
-      target.push({
-        name,
-        ...(alias && { alias }),
-        type,
-        ...(isType && { isType: true }),
-      });
-    }
-  }
+    // Parse the @import statement
+    const importResult = parseCssImportStatement(sourceText, pos);
+    if (importResult.modulePath) {
+      // In CSS, imports are relative unless they have a protocol/hostname
+      // Examples of external: "http://...", "https://...", "//example.com/style.css"
+      // Examples of relative: "print.css", "./local.css", "../parent.css"
+      const hasProtocol = /^https?:\/\//.test(importResult.modulePath);
+      const hasHostname = /^\/\//.test(importResult.modulePath);
+      const isExternal = hasProtocol || hasHostname;
 
-  // Helper function to check if a character is a valid identifier character
-  function isIdentifierChar(ch: string): boolean {
-    return /[a-zA-Z0-9_$]/.test(ch);
-  }
-
-  // Helper function to check if a character is whitespace
-  function isWhitespace(ch: string): boolean {
-    return /\s/.test(ch);
-  }
-
-  // Helper function to skip whitespace and return the next non-whitespace position
-  function skipWhitespace(text: string, start: number): number {
-    let pos = start;
-    while (pos < text.length && isWhitespace(text[pos])) {
-      pos += 1;
-    }
-    return pos;
-  }
-
-  // Helper function to read an identifier starting at position
-  function readIdentifier(text: string, start: number): { name: string; nextPos: number } {
-    let pos = start;
-    let name = '';
-
-    // First character must be letter, underscore, or dollar sign
-    if (pos < text.length && /[a-zA-Z_$]/.test(text[pos])) {
-      name += text[pos];
-      pos += 1;
-
-      // Subsequent characters can be letters, digits, underscore, or dollar sign
-      while (pos < text.length && isIdentifierChar(text[pos])) {
-        name += text[pos];
-        pos += 1;
-      }
-    }
-
-    return { name, nextPos: pos };
-  }
-
-  // Helper function to read a quoted string starting at position
-  function readQuotedString(text: string, start: number): { value: string; nextPos: number } {
-    const quote = text[start];
-    let pos = start + 1;
-    let value = '';
-
-    while (pos < text.length) {
-      const ch = text[pos];
-      if (ch === '\\' && pos + 1 < text.length) {
-        // Skip escaped character
-        pos += 2;
-        continue;
-      }
-      if (ch === quote) {
-        pos += 1;
-        break;
-      }
-      value += ch;
-      pos += 1;
-    }
-
-    return { value, nextPos: pos };
-  }
-
-  // Helper function to parse named imports from a brace-enclosed section
-  function parseNamedImports(
-    text: string,
-    start: number,
-    end: number,
-  ): Array<{ name: string; alias?: string; isType?: boolean }> {
-    const imports: Array<{ name: string; alias?: string; isType?: boolean }> = [];
-    let pos = start;
-
-    while (pos < end) {
-      pos = skipWhitespace(text, pos);
-      if (pos >= end) {
-        break;
-      }
-
-      // Handle comments within named imports
-      if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '/') {
-        // Skip single-line comment
-        while (pos < end && text[pos] !== '\n') {
-          pos += 1;
+      if (isExternal) {
+        if (!cssExternals[importResult.modulePath]) {
+          cssExternals[importResult.modulePath] = { names: [] };
         }
-        continue;
-      }
-
-      if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '*') {
-        // Skip multi-line comment
-        pos += 2;
-        while (pos + 1 < end) {
-          if (text[pos] === '*' && text[pos + 1] === '/') {
-            pos += 2;
-            break;
-          }
-          pos += 1;
+      } else {
+        // Treat as relative import - normalize the path if it doesn't start with ./ or ../
+        let normalizedPath = importResult.modulePath;
+        if (!normalizedPath.startsWith('./') && !normalizedPath.startsWith('../')) {
+          normalizedPath = `./${normalizedPath}`;
         }
-        continue;
-      }
-
-      // Skip comma if we encounter it
-      if (text[pos] === ',') {
-        pos += 1;
-        continue;
-      }
-
-      // Check for 'type' keyword
-      let isTypeImport = false;
-      if (text.slice(pos, pos + 4) === 'type' && !isIdentifierChar(text[pos + 4] || '')) {
-        isTypeImport = true;
-        pos += 4;
-        pos = skipWhitespace(text, pos);
-      }
-
-      // Read the import name
-      const { name, nextPos } = readIdentifier(text, pos);
-      if (!name) {
-        pos += 1;
-        continue;
-      }
-      pos = nextPos;
-
-      pos = skipWhitespace(text, pos);
-
-      // Check for 'as' keyword (alias)
-      let alias: string | undefined;
-      if (text.slice(pos, pos + 2) === 'as' && !isIdentifierChar(text[pos + 2] || '')) {
-        pos += 2;
-        pos = skipWhitespace(text, pos);
-        const aliasResult = readIdentifier(text, pos);
-        alias = aliasResult.name;
-        pos = aliasResult.nextPos;
-        pos = skipWhitespace(text, pos);
-      }
-
-      imports.push({ name, ...(alias && { alias }), ...(isTypeImport && { isType: true }) });
-
-      // Skip comma if present
-      if (text[pos] === ',') {
-        pos += 1;
+        const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
+        if (!cssResult[importResult.modulePath]) {
+          cssResult[importResult.modulePath] = { path: resolvedPath, names: [] };
+        }
       }
     }
-
-    return imports;
+    return { found: true, nextPos: importResult.nextPos };
   }
+
+  return { found: false, nextPos: pos };
+}
+
+// Function to parse CSS @import statements
+function parseCssImports(
+  cssCode: string,
+  cssFilePath: string,
+  cssResult: Record<string, RelativeImport>,
+  cssExternals: Record<string, ExternalImport>,
+): ParseImportsResult {
+  // Use the generic scanner with a bound detector function
+  scanForImports(
+    cssCode,
+    (sourceText: string, pos: number) =>
+      detectCssImport(sourceText, pos, cssResult, cssExternals, cssFilePath),
+    false,
+  );
+
+  return { relative: cssResult, externals: cssExternals };
+}
+
+// Function to parse JavaScript import statements
+function parseJSImports(
+  code: string,
+  filePath: string,
+  result: Record<string, RelativeImport>,
+  externals: Record<string, ExternalImport>,
+  isMdxFile: boolean,
+): ParseImportsResult {
+  // Scan code for JavaScript import statements
+  const importStatements = scanForImports(code, detectJavaScriptImport, isMdxFile);
 
   // Now, parse each import statement using character-by-character parsing
   for (const { text } of importStatements) {
@@ -819,4 +708,139 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
   }
 
   return { relative: result, externals };
+}
+
+// JavaScript import detector function
+function detectJavaScriptImport(sourceText: string, pos: number) {
+  const ch = sourceText[pos];
+
+  // Look for 'import' keyword (not part of an identifier, and not preceded by @)
+  if (
+    ch === 'i' &&
+    sourceText.slice(pos, pos + 6) === 'import' &&
+    (pos === 0 || /[^a-zA-Z0-9_$@]/.test(sourceText[pos - 1])) &&
+    /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
+  ) {
+    // Mark start of import statement
+    const importStart = pos;
+    const len = sourceText.length;
+
+    // Now, scan forward to find the end of the statement (semicolon or proper end for side-effect imports)
+    let j = pos + 6;
+    let importState: 'code' | 'string' | 'template' = 'code';
+    let importQuote: string | null = null;
+    let braceDepth = 0;
+    let foundFrom = false;
+    let foundModulePath = false;
+
+    while (j < len) {
+      const cj = sourceText[j];
+      if (importState === 'code') {
+        if (cj === ';') {
+          j += 1;
+          break;
+        }
+        // Check if we're at a bare import statement (no 'from')
+        if (cj === '\n' && !foundFrom && !foundModulePath && braceDepth === 0) {
+          // This might be a side-effect import or end of statement
+          // Look ahead to see if there's content that could be part of the import
+          let k = j + 1;
+          while (k < len && /\s/.test(sourceText[k])) {
+            k += 1;
+          }
+          if (k >= len || sourceText.slice(k, k + 4) === 'from' || isStringStart(sourceText[k])) {
+            // Continue, this newline is within the import
+          } else {
+            // This looks like the end of a side-effect import
+            j += 1;
+            break;
+          }
+        }
+        if (isStringStart(cj)) {
+          importState = cj === '`' ? 'template' : 'string';
+          importQuote = cj;
+          if (foundFrom) {
+            foundModulePath = true;
+          }
+          j += 1;
+          continue;
+        }
+        if (cj === '{') {
+          braceDepth += 1;
+        }
+        if (cj === '}') {
+          braceDepth -= 1;
+        }
+        if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
+          foundFrom = true;
+        }
+        // If we found a module path and we're back to normal code, we might be done
+        if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
+          // Look ahead for semicolon or end of statement
+          let k = j;
+          while (k < len && /\s/.test(sourceText[k])) {
+            k += 1;
+          }
+          if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
+            if (sourceText[k] === ';') {
+              j = k + 1;
+            } else {
+              j = k;
+            }
+            break;
+          }
+        }
+      } else if (importState === 'string') {
+        if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (cj === importQuote) {
+          importState = 'code';
+          importQuote = null;
+        }
+        j += 1;
+        continue;
+      } else if (importState === 'template') {
+        if (cj === '`') {
+          importState = 'code';
+          importQuote = null;
+        } else if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        j += 1;
+        continue;
+      }
+      j += 1;
+    }
+
+    const importText = sourceText.slice(importStart, j);
+    return {
+      found: true,
+      nextPos: j,
+      statement: { start: importStart, end: j, text: importText },
+    };
+  }
+
+  return { found: false, nextPos: pos };
+}
+
+export async function parseImports(code: string, filePath: string): Promise<ParseImportsResult> {
+  const result: Record<string, RelativeImport> = {};
+  const externals: Record<string, ExternalImport> = {};
+
+  // Check if this is a CSS file
+  const isCssFile = filePath.toLowerCase().endsWith('.css');
+
+  // Check if this is an MDX file (which can contain code blocks with triple backticks)
+  const isMdxFile = filePath.toLowerCase().endsWith('.mdx');
+
+  // If this is a CSS file, parse CSS @import statements instead
+  if (isCssFile) {
+    return parseCssImports(code, filePath, result, externals);
+  }
+
+  // Parse JavaScript import statements
+  return parseJSImports(code, filePath, result, externals, isMdxFile);
 }
