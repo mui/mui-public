@@ -30,7 +30,7 @@
     "@vitejs/plugin-react": "^5.0.3",
     "netlify-cli": "^23.5.1",
     "typescript": "^5.9.2",
-    "vite": "^7.1.6",
+    "vite": "^7.1.7",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "scripts": {
