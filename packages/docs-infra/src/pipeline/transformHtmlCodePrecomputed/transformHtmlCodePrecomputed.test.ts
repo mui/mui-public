@@ -42,13 +42,13 @@ describe('transformHtmlCodePrecomputed', () => {
     return tree as any;
   };
 
-  const findSemanticElement = (node: any): any => {
-    if (node.type === 'element' && (node.tagName === 'section' || node.tagName === 'dl')) {
+  const findPreElement = (node: any): any => {
+    if (node.type === 'element' && node.tagName === 'pre' && node.properties?.dataPrecompute) {
       return node;
     }
     if (node.children) {
       for (const child of node.children) {
-        const found = findSemanticElement(child);
+        const found = findPreElement(child);
         if (found) {
           return found;
         }
@@ -62,18 +62,18 @@ describe('transformHtmlCodePrecomputed', () => {
       '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">console.log("hello");</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
-    const dlElement = findSemanticElement(ast);
-    expect(dlElement).toBeTruthy();
-    expect(dlElement.properties?.dataPrecompute).toBeTruthy();
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
 
-    // Dl element should have error message
-    expect(dlElement.children).toHaveLength(1);
-    expect(dlElement.children[0].type).toBe('text');
-    expect(dlElement.children[0].value).toBe(
-      'Error: expected semantic code structure to be handled by CodeHighlighter',
+    // Pre element should have error message
+    expect(preElement.children).toHaveLength(1);
+    expect(preElement.children[0].type).toBe('text');
+    expect(preElement.children[0].value).toBe(
+      'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
     );
 
-    const precomputeData = JSON.parse(dlElement.properties.dataPrecompute);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default).toBeTruthy();
     expect(precomputeData.Default.fileName).toBe('index.js');
   });
@@ -83,11 +83,11 @@ describe('transformHtmlCodePrecomputed', () => {
       '<dl><dt><code>custom.tsx</code></dt><dd><pre><code class="language-typescript">const x: string = "test";</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
-    const dlElement = findSemanticElement(ast);
-    expect(dlElement).toBeTruthy();
-    expect(dlElement.properties?.dataPrecompute).toBeTruthy();
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
 
-    const precomputeData = JSON.parse(dlElement.properties.dataPrecompute);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.fileName).toBe('custom.tsx');
   });
 
@@ -110,8 +110,8 @@ describe('transformHtmlCodePrecomputed', () => {
     </section>`;
     const ast = await getAstFromHtml(html);
 
-    const sectionElement = findSemanticElement(ast);
-    const precomputeData = JSON.parse(sectionElement.properties.dataPrecompute);
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
 
     expect(precomputeData.JavaScript).toBeTruthy();
     expect(precomputeData.TypeScript).toBeTruthy();
@@ -124,9 +124,9 @@ describe('transformHtmlCodePrecomputed', () => {
       '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">   </code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
-    const dlElement = findSemanticElement(ast);
+    const preElement = findPreElement(ast);
     // Should still process but with empty content
-    const precomputeData = JSON.parse(dlElement.properties.dataPrecompute);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default?.source?.trim()).toBe('');
   });
 
@@ -135,8 +135,8 @@ describe('transformHtmlCodePrecomputed', () => {
       '<dl><dd><pre><code class="language-js">console.log("hello");</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
-    const dlElement = findSemanticElement(ast);
-    const precomputeData = JSON.parse(dlElement.properties.dataPrecompute);
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.fileName).toBe('index.js'); // Derived from language
   });
 
@@ -145,8 +145,8 @@ describe('transformHtmlCodePrecomputed', () => {
       '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">const <span>x</span> = <em>42</em>;</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
-    const dlElement = findSemanticElement(ast);
-    const precomputeData = JSON.parse(dlElement.properties.dataPrecompute);
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.source).toBe('const x = 42;');
   });
 
@@ -177,8 +177,8 @@ describe('transformHtmlCodePrecomputed', () => {
       testCases.map(async ({ lang, expected }) => {
         const html = `<dl><dd><pre><code class="language-${lang}">code here</code></pre></dd></dl>`;
         const ast = await getAstFromHtml(html);
-        const dlElement = findSemanticElement(ast);
-        const precomputeData = JSON.parse(dlElement.properties.dataPrecompute);
+        const preElement = findPreElement(ast);
+        const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
         return { expected, actual: precomputeData.Default.fileName };
       }),
     );
@@ -208,8 +208,8 @@ describe('transformHtmlCodePrecomputed', () => {
     </section>`;
     const ast = await getAstFromHtml(html);
 
-    const sectionElement = findSemanticElement(ast);
-    const precomputeData = JSON.parse(sectionElement.properties.dataPrecompute);
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
 
     expect(precomputeData.npm).toBeTruthy();
     expect(precomputeData.yarn).toBeTruthy();
@@ -238,8 +238,8 @@ describe('transformHtmlCodePrecomputed', () => {
     </section>`;
     const ast = await getAstFromHtml(html);
 
-    const sectionElement = findSemanticElement(ast);
-    const precomputeData = JSON.parse(sectionElement.properties.dataPrecompute);
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
 
     expect(precomputeData.Main).toBeTruthy();
     expect(precomputeData['TypeScript Version']).toBeTruthy();
@@ -251,11 +251,11 @@ describe('transformHtmlCodePrecomputed', () => {
     const html = `<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">console.log("hello");</code></pre></dd></dl>`;
     const ast = await getAstFromHtml(html);
 
-    const dlElement = findSemanticElement(ast);
-    expect(dlElement.children).toHaveLength(1);
-    expect(dlElement.children[0].type).toBe('text');
-    expect(dlElement.children[0].value).toBe(
-      'Error: expected semantic code structure to be handled by CodeHighlighter',
+    const preElement = findPreElement(ast);
+    expect(preElement.children).toHaveLength(1);
+    expect(preElement.children[0].type).toBe('text');
+    expect(preElement.children[0].value).toBe(
+      'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
     );
   });
 
@@ -283,50 +283,56 @@ console.log(msg);
 
     const ast = await getAstFromMarkdown(markdown);
 
-    // Find all semantic elements (should be 2: one dl and one section)
-    const semanticElements: any[] = [];
-    const findAllSemanticElements = (node: any) => {
-      if (node.type === 'element' && (node.tagName === 'dl' || node.tagName === 'section')) {
-        semanticElements.push(node);
+    // Find all pre elements (should be 2: one for single variant and one for multi-variant)
+    const preElements: any[] = [];
+    const findAllPreElements = (node: any) => {
+      if (node.type === 'element' && node.tagName === 'pre' && node.properties?.dataPrecompute) {
+        preElements.push(node);
       }
       if (node.children) {
         for (const child of node.children) {
-          findAllSemanticElements(child);
+          findAllPreElements(child);
         }
       }
     };
-    findAllSemanticElements(ast);
+    findAllPreElements(ast);
 
-    expect(semanticElements).toHaveLength(2);
+    expect(preElements).toHaveLength(2);
 
-    // Test first semantic element (JavaScript dl)
-    const dlElement = semanticElements.find((el) => el.tagName === 'dl');
-    expect(dlElement.properties?.dataPrecompute).toBeTruthy();
+    // Test first pre element (JavaScript - single variant)
+    const singleVariantPre = preElements.find((el) => {
+      const data = JSON.parse(el.properties.dataPrecompute);
+      return data.Default;
+    });
+    expect(singleVariantPre.properties?.dataPrecompute).toBeTruthy();
 
-    const dlPrecomputeData = JSON.parse(dlElement.properties.dataPrecompute);
-    expect(dlPrecomputeData.Default).toBeTruthy();
-    expect(dlPrecomputeData.Default.fileName).toBe('index.js');
-    expect(dlPrecomputeData.Default.source.trim()).toBe('console.log("hello from markdown");');
+    const singlePrecomputeData = JSON.parse(singleVariantPre.properties.dataPrecompute);
+    expect(singlePrecomputeData.Default).toBeTruthy();
+    expect(singlePrecomputeData.Default.fileName).toBe('index.js');
+    expect(singlePrecomputeData.Default.source.trim()).toBe('console.log("hello from markdown");');
 
-    // Test second semantic element (TypeScript section)
-    const sectionElement = semanticElements.find((el) => el.tagName === 'section');
-    expect(sectionElement.properties?.dataPrecompute).toBeTruthy();
+    // Test second pre element (TypeScript - multi-variant)
+    const multiVariantPre = preElements.find((el) => {
+      const data = JSON.parse(el.properties.dataPrecompute);
+      return data.main && data.alternative;
+    });
+    expect(multiVariantPre.properties?.dataPrecompute).toBeTruthy();
 
-    const sectionPrecomputeData = JSON.parse(sectionElement.properties.dataPrecompute);
-    expect(sectionPrecomputeData.main).toBeTruthy();
-    expect(sectionPrecomputeData.alternative).toBeTruthy();
-    expect(sectionPrecomputeData.main.fileName).toBe('index.ts');
-    expect(sectionPrecomputeData.alternative.fileName).toBe('index.ts');
+    const multiPrecomputeData = JSON.parse(multiVariantPre.properties.dataPrecompute);
+    expect(multiPrecomputeData.main).toBeTruthy();
+    expect(multiPrecomputeData.alternative).toBeTruthy();
+    expect(multiPrecomputeData.main.fileName).toBe('index.ts');
+    expect(multiPrecomputeData.alternative.fileName).toBe('index.ts');
 
     // Both should have error messages
-    expect(dlElement.children).toHaveLength(1);
-    expect(dlElement.children[0].value).toBe(
-      'Error: expected semantic code structure to be handled by CodeHighlighter',
+    expect(singleVariantPre.children).toHaveLength(1);
+    expect(singleVariantPre.children[0].value).toBe(
+      'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
     );
 
-    expect(sectionElement.children).toHaveLength(1);
-    expect(sectionElement.children[0].value).toBe(
-      'Error: expected semantic code structure to be handled by CodeHighlighter',
+    expect(multiVariantPre.children).toHaveLength(1);
+    expect(multiVariantPre.children[0].value).toBe(
+      'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
     );
   });
 
@@ -337,21 +343,21 @@ console.log(msg);
 
     // Direct HTML parsing (what we were testing before)
     const htmlAst = await getAstFromHtml(html);
-    const htmlDlElement = findSemanticElement(htmlAst);
+    const htmlPreElement = findPreElement(htmlAst);
 
     // Markdown -> HTML pipeline (realistic Next.js flow)
     const markdown = '```js transform\nconsole.log("test");\n```';
     const markdownAst = await getAstFromMarkdown(markdown);
-    const markdownDlElement = findSemanticElement(markdownAst);
+    const markdownPreElement = findPreElement(markdownAst);
 
     // Both should have the data in properties (since our plugin now sets it correctly)
-    expect(htmlDlElement.properties?.dataPrecompute).toBeTruthy();
-    expect(markdownDlElement.properties?.dataPrecompute).toBeTruthy();
+    expect(htmlPreElement.properties?.dataPrecompute).toBeTruthy();
+    expect(markdownPreElement.properties?.dataPrecompute).toBeTruthy();
 
     // If we had used data.hProperties, the HTML-only test would pass but markdown test would fail
     // This test ensures both pipelines work the same way
-    const htmlData = JSON.parse(htmlDlElement.properties.dataPrecompute);
-    const markdownData = JSON.parse(markdownDlElement.properties.dataPrecompute);
+    const htmlData = JSON.parse(htmlPreElement.properties.dataPrecompute);
+    const markdownData = JSON.parse(markdownPreElement.properties.dataPrecompute);
 
     expect(htmlData.Default.fileName).toBe('index.js');
     expect(markdownData.Default.fileName).toBe('index.js');
