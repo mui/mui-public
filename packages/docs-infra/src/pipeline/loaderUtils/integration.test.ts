@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImports } from './parseImports';
+import { parseImportsAndComments } from './parseImportsAndComments';
 import { resolveImportResult, type DirectoryEntry } from './resolveModulePath';
 import { processRelativeImports } from './processRelativeImports';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
@@ -69,7 +69,7 @@ async function mockLoader(
   mode: 'flat' | 'canonical' | 'import' = 'flat',
 ) {
   // Step 1: Parse imports from source code
-  const parseResult = await parseImports(sourceCode, filePath);
+  const parseResult = await parseImportsAndComments(sourceCode, filePath);
 
   // Convert the new format to the format expected by processRelativeImports, preserving positions
   const importResult: Record<
@@ -125,7 +125,7 @@ async function mockCssLoader(
   mode: 'flat' | 'canonical' | 'import' = 'flat',
 ) {
   // Step 1: Parse imports from CSS source code
-  const parseResult = await parseImports(sourceCode, filePath);
+  const parseResult = await parseImportsAndComments(sourceCode, filePath);
 
   // Convert the new format to the format expected by processRelativeImports, preserving positions
   const importResult: Record<
