@@ -217,7 +217,7 @@ function extractFromDl(
  * 5. Stores the combined precompute data on the root element
  * 6. Clears all code element contents and replaces with error message
  */
-export const transformHtmlCode: Plugin = () => {
+export const transformHtmlCodePrecomputed: Plugin = () => {
   return async (tree) => {
     const transformPromises: Promise<void>[] = [];
 
