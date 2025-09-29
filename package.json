@@ -18,7 +18,8 @@
     "size:why": "pnpm size:snapshot --analyze",
     "clean": "pnpm -r exec rm -rf build",
     "docs:dev": "pnpm -F \"./docs\" run dev",
-    "docs:build": "pnpm -F \"./docs\" run build"
+    "docs:build": "pnpm -F \"./docs\" run build",
+    "docs:start": "pnpm -F \"./docs\" run start"
   },
   "pnpm": {
     "packageExtensions": {
