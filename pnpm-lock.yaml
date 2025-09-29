@@ -414,8 +414,8 @@ importers:
         specifier: ^0.4.24
         version: 0.4.24
       babel-plugin-transform-remove-imports:
-        specifier: ^1.8.0
-        version: 1.8.0(@babel/core@7.28.4)
+        specifier: ^1.8.1
+        version: 1.8.1(@babel/core@7.28.4)
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -5982,8 +5982,8 @@ packages:
   babel-plugin-transform-react-remove-prop-types@0.4.24:
     resolution: {integrity: sha512-eqj0hVcJUR57/Ug2zE1Yswsw4LhuqqHhD+8v120T1cl3kjg76QwtyBrdIk4WVwK+lAhBJVYCd/v+4nc4y+8JsA==}
 
-  babel-plugin-transform-remove-imports@1.8.0:
-    resolution: {integrity: sha512-QdE5ZnIjON1pSgTPU8KzLnl/LEzdq9PLmZNuHgGKTx0LOI9PBrHBj0fz9uCg2CdssiTw7v/zVRYs8GJxbvhKnQ==}
+  babel-plugin-transform-remove-imports@1.8.1:
+    resolution: {integrity: sha512-fMasYxGNEuJGMKQX3JF8bwyPp2wwrhpVFWPywYTRNKNElKNeexNCpirKSxFEP+5GjerhpJgi56/BbN8C3+Hpag==}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
@@ -19276,7 +19276,7 @@ snapshots:
 
   babel-plugin-transform-react-remove-prop-types@0.4.24: {}
 
-  babel-plugin-transform-remove-imports@1.8.0(@babel/core@7.28.4):
+  babel-plugin-transform-remove-imports@1.8.1(@babel/core@7.28.4):
     dependencies:
       '@babel/core': 7.28.4
 
