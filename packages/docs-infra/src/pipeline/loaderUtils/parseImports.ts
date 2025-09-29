@@ -2,29 +2,60 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 
+/**
+ * Represents a single import name with its properties.
+ */
 export interface ImportName {
+  /** The imported name or identifier */
   name: string;
+  /** The alias used when importing (e.g., 'as newName') */
   alias?: string;
+  /** The type of import: default, named, or namespace (*) */
   type: 'default' | 'named' | 'namespace';
+  /** Whether this is a TypeScript type-only import */
   isType?: boolean;
 }
 
+/**
+ * Represents an import from a relative path (starts with ./ or ../).
+ */
 export interface RelativeImport {
+  /** The resolved absolute path to the imported file */
   path: string;
+  /** Array of imported names from this module */
   names: ImportName[];
+  /** Whether TypeScript type definitions should be included for this import */
   includeTypeDefs?: true;
 }
 
+/**
+ * Represents an import from an external package (node_modules).
+ */
 export interface ExternalImport {
+  /** Array of imported names from this external package */
   names: ImportName[];
 }
 
+/**
+ * The result of parsing import statements from source code.
+ */
 export interface ParseImportsResult {
+  /** Map of relative import paths to their import details */
   relative: Record<string, RelativeImport>;
+  /** Map of external package names to their import details */
   externals: Record<string, ExternalImport>;
+  /** The processed code with comments removed (if comment processing was requested) */
+  code?: string;
+  /** Map of line numbers to arrays of comment content (if comment processing was requested) */
+  comments?: Record<number, string[]>;
 }
 
-// Helper to check if a char starts a string
+/**
+ * Checks if a character starts a string literal.
+ * @param ch - The character to check
+ * @param withinMdx - Whether we're parsing within an MDX file (affects quote handling)
+ * @returns True if the character starts a string literal
+ */
 function isStringStart(ch: string, withinMdx?: boolean): boolean {
   if (withinMdx) {
     // quotes in MDX don't create strings
@@ -33,7 +64,56 @@ function isStringStart(ch: string, withinMdx?: boolean): boolean {
   return ch === '"' || ch === "'" || ch === '`';
 }
 
-// Helper function to count consecutive backticks starting at position
+/**
+ * Checks if a comment matches any of the specified prefixes for removal.
+ * @param commentText - The full comment text including comment markers
+ * @param removeCommentsWithPrefix - Array of prefixes to match against
+ * @returns True if the comment starts with any of the specified prefixes
+ */
+function matchesCommentPrefix(commentText: string, removeCommentsWithPrefix: string[]): boolean {
+  return removeCommentsWithPrefix.some((prefix) => {
+    // For single-line comments, check after the //
+    if (commentText.startsWith('//')) {
+      const content = commentText.slice(2).trim();
+      return content.startsWith(prefix);
+    }
+    // For multi-line comments, check after the /*
+    if (commentText.startsWith('/*')) {
+      const content = commentText.slice(2, -2).trim();
+      return content.startsWith(prefix);
+    }
+    return false;
+  });
+}
+
+/**
+ * Removes comment markers from comment text and returns the content as an array of lines.
+ * @param commentText - The full comment text including markers
+ * @returns Array of comment content lines with markers removed and whitespace trimmed
+ */
+function stripCommentMarkers(commentText: string): string[] {
+  // For single-line comments, remove // and trim, return as single-item array
+  if (commentText.startsWith('//')) {
+    return [commentText.slice(2).trim()];
+  }
+  // For multi-line comments, remove /* and */, split by lines, and trim each line
+  if (commentText.startsWith('/*') && commentText.endsWith('*/')) {
+    const content = commentText.slice(2, -2);
+    return content
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '');
+  }
+  // Fallback: return as single-item array if format is unexpected
+  return [commentText];
+}
+
+/**
+ * Counts consecutive backticks starting at a given position (used for MDX code blocks).
+ * @param sourceText - The source text to scan
+ * @param startPos - The position to start counting from
+ * @returns The number of consecutive backticks found
+ */
 function countBackticks(sourceText: string, startPos: number): number {
   let count = 0;
   let pos = startPos;
@@ -44,7 +124,18 @@ function countBackticks(sourceText: string, startPos: number): number {
   return count;
 }
 
-// Generic function to scan code and find import statements
+/**
+ * Generic function to scan source code character-by-character, finding import statements
+ * while correctly handling strings, comments, and template literals. Optionally processes
+ * comments for removal and collection.
+ *
+ * @param sourceCode - The source code to scan
+ * @param importDetector - Function that detects import statements at a given position
+ * @param isMdxFile - Whether this is an MDX file (affects string and code block handling)
+ * @param removeCommentsWithPrefix - Optional array of prefixes for comments to remove
+ * @param notableCommentsPrefix - Optional array of prefixes for comments to collect
+ * @returns Object containing found import statements and optionally processed code/comments
+ */
 function scanForImports(
   sourceCode: string,
   importDetector: (
@@ -52,9 +143,33 @@ function scanForImports(
     pos: number,
   ) => { found: boolean; nextPos: number; statement?: any },
   isMdxFile: boolean,
-): any[] {
+  removeCommentsWithPrefix?: string[],
+  notableCommentsPrefix?: string[],
+): { statements: any[]; code?: string; comments?: Record<number, string[]> } {
   const statements: any[] = [];
+  const comments: Record<number, string[]> = {};
+  const shouldProcessComments = !!(removeCommentsWithPrefix || notableCommentsPrefix);
+  let result = shouldProcessComments ? '' : sourceCode;
+
+  // Helper to check if a comment matches notable prefix
+  const matchesNotablePrefix = (commentText: string): boolean => {
+    if (!notableCommentsPrefix || notableCommentsPrefix.length === 0) {
+      return false; // If no notable prefix specified, don't match any comments as notable
+    }
+    return notableCommentsPrefix.some((prefix) => {
+      if (commentText.startsWith('//')) {
+        const content = commentText.slice(2).trim();
+        return content.startsWith(prefix);
+      }
+      if (commentText.startsWith('/*')) {
+        const content = commentText.slice(2, -2).trim();
+        return content.startsWith(prefix);
+      }
+      return false;
+    });
+  };
   let i = 0;
+  let outputLine = 0; // Line number in output code after comment removal
   const len = sourceCode.length;
   let state:
     | 'code'
@@ -65,12 +180,28 @@ function scanForImports(
     | 'codeblock' = 'code';
   let stringQuote: string | null = null;
   let codeblockBacktickCount = 0; // Track how many backticks opened the current code block
+  // Comment stripping variables
+  let commentStart = 0;
+  let commentStartOutputLine = 0;
+  let lineStartPos = 0;
+  let preCommentContent = '';
 
   while (i < len) {
     const ch = sourceCode[i];
     const next = sourceCode[i + 1];
 
     if (state === 'code') {
+      // Track line numbers for newlines in code
+      if (ch === '\n') {
+        if (shouldProcessComments) {
+          result += ch;
+        }
+        outputLine += 1;
+        lineStartPos = i + 1;
+        i += 1;
+        continue;
+      }
+
       // Check for backtick sequences (3 or more backticks start code blocks in MDX)
       if (isMdxFile && ch === '`') {
         // Count consecutive backticks
@@ -78,18 +209,37 @@ function scanForImports(
         if (backtickCount >= 3) {
           state = 'codeblock';
           codeblockBacktickCount = backtickCount;
+          if (shouldProcessComments) {
+            result += sourceCode.slice(i, i + backtickCount);
+          }
           i += backtickCount;
           continue;
         }
       }
       // Start of single-line comment
       if (ch === '/' && next === '/') {
+        if (shouldProcessComments) {
+          commentStart = i;
+          commentStartOutputLine = outputLine;
+          // Remove content that was already added to result for this line
+          const contentSinceLineStart = sourceCode.slice(lineStartPos, commentStart);
+          result = result.slice(0, result.length - contentSinceLineStart.length);
+          preCommentContent = contentSinceLineStart;
+        }
         state = 'singleline-comment';
         i += 2;
         continue;
       }
       // Start of multi-line comment
       if (ch === '/' && next === '*') {
+        if (shouldProcessComments) {
+          commentStart = i;
+          commentStartOutputLine = outputLine;
+          // Remove content that was already added to result for this line
+          const contentSinceLineStart = sourceCode.slice(lineStartPos, commentStart);
+          result = result.slice(0, result.length - contentSinceLineStart.length);
+          preCommentContent = contentSinceLineStart;
+        }
         state = 'multiline-comment';
         i += 2;
         continue;
@@ -98,25 +248,76 @@ function scanForImports(
       if (isStringStart(ch, isMdxFile)) {
         state = ch === '`' ? 'template' : 'string';
         stringQuote = ch;
+        if (shouldProcessComments) {
+          result += ch;
+        }
         i += 1;
         continue;
       }
 
-      // Use the provided import detector
+      // Use the provided import detector on the original source code
       const detection = importDetector(sourceCode, i);
       if (detection.found) {
         if (detection.statement) {
           statements.push(detection.statement);
         }
+        // Copy the detected import to result if we're building one
+        if (shouldProcessComments) {
+          result += sourceCode.slice(i, detection.nextPos);
+        }
         i = detection.nextPos;
         continue;
       }
 
+      if (shouldProcessComments) {
+        result += ch;
+      }
       i += 1;
       continue;
     }
     if (state === 'singleline-comment') {
       if (ch === '\n') {
+        if (shouldProcessComments) {
+          // End of single-line comment
+          const commentText = sourceCode.slice(commentStart, i);
+
+          const shouldStrip =
+            removeCommentsWithPrefix && matchesCommentPrefix(commentText, removeCommentsWithPrefix);
+          const isNotable = matchesNotablePrefix(commentText);
+
+          // Collect comments if they're notable (all stripped comments when no prefix specified, or notable comments when prefix specified)
+          const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
+
+          if (shouldCollect) {
+            if (!comments[commentStartOutputLine]) {
+              comments[commentStartOutputLine] = [];
+            }
+            comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
+          }
+
+          if (shouldStrip) {
+            // Check if comment is the only thing on its line (ignoring whitespace)
+            const isCommentOnlyLine = preCommentContent.trim() === '';
+
+            if (isCommentOnlyLine) {
+              // Don't add the pre-comment content or newline for comment-only lines
+              // Skip the newline entirely
+            } else {
+              // Comment is inline, keep the pre-comment content and newline
+              result += preCommentContent;
+              result += '\n';
+              outputLine += 1;
+            }
+          } else {
+            // Keep the comment and newline
+            result += preCommentContent;
+            result += commentText;
+            result += '\n';
+            outputLine += 1;
+          }
+          preCommentContent = '';
+          lineStartPos = i + 1;
+        }
         state = 'code';
       }
       i += 1;
@@ -124,15 +325,83 @@ function scanForImports(
     }
     if (state === 'multiline-comment') {
       if (ch === '*' && next === '/') {
+        if (shouldProcessComments) {
+          // End of multi-line comment
+          const commentText = sourceCode.slice(commentStart, i + 2);
+
+          const shouldStrip =
+            removeCommentsWithPrefix && matchesCommentPrefix(commentText, removeCommentsWithPrefix);
+          const isNotable = matchesNotablePrefix(commentText);
+
+          // Collect comments if they're notable (all stripped comments when no prefix specified, or notable comments when prefix specified)
+          const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
+
+          if (shouldCollect) {
+            if (!comments[commentStartOutputLine]) {
+              comments[commentStartOutputLine] = [];
+            }
+            comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
+          }
+
+          if (shouldStrip) {
+            // Find the end of the comment and check what's after
+            const afterCommentPos = i + 2;
+            let afterCommentContent = '';
+            let nextNewlinePos = sourceCode.indexOf('\n', afterCommentPos);
+            if (nextNewlinePos === -1) {
+              nextNewlinePos = sourceCode.length;
+            }
+            afterCommentContent = sourceCode.slice(afterCommentPos, nextNewlinePos).trim();
+
+            const isCommentOnlyLines =
+              preCommentContent.trim() === '' && afterCommentContent === '';
+
+            if (isCommentOnlyLines) {
+              // Skip the entire comment and everything up to and including the next newline
+              i = nextNewlinePos;
+              if (i < len && sourceCode[i] === '\n') {
+                // Skip the newline entirely - advance to the character after it
+                i += 1;
+                lineStartPos = i;
+              } else {
+                lineStartPos = i;
+              }
+              state = 'code';
+              preCommentContent = '';
+              continue;
+            } else {
+              // Comment is inline or mixed with code, add pre-comment content
+              result += preCommentContent;
+              i += 2;
+            }
+          } else {
+            // Keep the comment - add pre-comment content and comment
+            result += preCommentContent;
+            result += commentText;
+            // Count newlines in the kept comment to update output line
+            const newlineCount = (commentText.match(/\n/g) || []).length;
+            outputLine += newlineCount;
+            i += 2;
+          }
+          preCommentContent = '';
+        } else {
+          i += 2;
+        }
         state = 'code';
-        i += 2;
         continue;
       }
       i += 1;
       continue;
     }
     if (state === 'string') {
-      if (ch === '\\') {
+      if (ch === '\n') {
+        outputLine += 1;
+        lineStartPos = i + 1;
+      }
+      if (ch === '\\\\') {
+        if (shouldProcessComments) {
+          result += sourceCode.slice(i, i + 2);
+        }
         i += 2;
         continue;
       }
@@ -140,44 +409,108 @@ function scanForImports(
         state = 'code';
         stringQuote = null;
       }
+      if (shouldProcessComments) {
+        result += ch;
+      }
       i += 1;
       continue;
     }
     if (state === 'template') {
+      if (ch === '\n') {
+        outputLine += 1;
+        lineStartPos = i + 1;
+      }
       if (ch === '`') {
         state = 'code';
         stringQuote = null;
+        if (shouldProcessComments) {
+          result += ch;
+        }
         i += 1;
         continue;
       }
-      if (ch === '\\') {
+      if (ch === '\\\\') {
+        if (shouldProcessComments) {
+          result += sourceCode.slice(i, i + 2);
+        }
         i += 2;
         continue;
+      }
+      if (shouldProcessComments) {
+        result += ch;
       }
       i += 1;
       continue;
     }
     if (state === 'codeblock') {
+      if (ch === '\n') {
+        outputLine += 1;
+        lineStartPos = i + 1;
+      }
       // Look for closing backticks that match or exceed the opening count
       if (ch === '`') {
         const closingBacktickCount = countBackticks(sourceCode, i);
         if (closingBacktickCount >= codeblockBacktickCount) {
           state = 'code';
           codeblockBacktickCount = 0;
+          if (shouldProcessComments) {
+            result += sourceCode.slice(i, i + closingBacktickCount);
+          }
           i += closingBacktickCount;
           continue;
         }
       }
+      if (shouldProcessComments) {
+        result += ch;
+      }
       i += 1;
       continue;
+    }
+    if (shouldProcessComments) {
+      result += ch;
     }
     i += 1;
   }
 
-  return statements;
+  // Handle case where file ends with a comment
+  if (shouldProcessComments && (state === 'singleline-comment' || state === 'multiline-comment')) {
+    const commentText = sourceCode.slice(commentStart);
+    const shouldStrip =
+      removeCommentsWithPrefix && matchesCommentPrefix(commentText, removeCommentsWithPrefix);
+    const isNotable = matchesNotablePrefix(commentText);
+
+    // Collect comments if they're notable (all stripped comments when no prefix specified, or notable comments when prefix specified)
+    const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
+
+    if (shouldCollect) {
+      if (!comments[commentStartOutputLine]) {
+        comments[commentStartOutputLine] = [];
+      }
+      comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
+    }
+
+    if (!shouldStrip) {
+      result += commentText;
+    }
+  }
+
+  return {
+    statements,
+    ...(shouldProcessComments && {
+      code: result,
+      comments,
+    }),
+  };
 }
 
-// Helper function to add import name if it doesn't exist
+/**
+ * Adds an import name to the target array if it doesn't already exist.
+ * @param target - The array of import names to add to
+ * @param name - The name of the import
+ * @param type - The type of import (default, named, or namespace)
+ * @param alias - Optional alias for the import
+ * @param isType - Whether this is a TypeScript type-only import
+ */
 function addImportName(
   target: ImportName[],
   name: string,
@@ -196,17 +529,30 @@ function addImportName(
   }
 }
 
-// Helper function to check if a character is a valid identifier character
+/**
+ * Checks if a character is a valid JavaScript identifier character.
+ * @param ch - The character to check
+ * @returns True if the character can be part of a JavaScript identifier
+ */
 function isIdentifierChar(ch: string): boolean {
   return /[a-zA-Z0-9_$]/.test(ch);
 }
 
-// Helper function to check if a character is whitespace
+/**
+ * Checks if a character is whitespace.
+ * @param ch - The character to check
+ * @returns True if the character is whitespace
+ */
 function isWhitespace(ch: string): boolean {
   return /\s/.test(ch);
 }
 
-// Helper function to skip whitespace and return the next non-whitespace position
+/**
+ * Skips whitespace characters and returns the next non-whitespace position.
+ * @param text - The text to scan
+ * @param start - The starting position
+ * @returns The position of the next non-whitespace character
+ */
 function skipWhitespace(text: string, start: number): number {
   let pos = start;
   while (pos < text.length && isWhitespace(text[pos])) {
@@ -215,7 +561,12 @@ function skipWhitespace(text: string, start: number): number {
   return pos;
 }
 
-// Helper function to read an identifier starting at position
+/**
+ * Reads a JavaScript identifier starting at the given position.
+ * @param text - The text to read from
+ * @param start - The starting position
+ * @returns Object containing the identifier name and the next position
+ */
 function readIdentifier(text: string, start: number): { name: string; nextPos: number } {
   let pos = start;
   let name = '';
@@ -491,37 +842,73 @@ function detectCssImport(
   return { found: false, nextPos: pos };
 }
 
-// Function to parse CSS @import statements
+/**
+ * Parses CSS @import statements from CSS source code.
+ * @param cssCode - The CSS source code to parse
+ * @param cssFilePath - The CSS file path for resolving relative imports
+ * @param cssResult - Object to store relative CSS import results
+ * @param cssExternals - Object to store external CSS import results
+ * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
+ * @param notableCommentsPrefix - Optional prefixes for comments to collect
+ * @returns The parsed CSS import results with optional processed code and comments
+ */
 function parseCssImports(
   cssCode: string,
   cssFilePath: string,
   cssResult: Record<string, RelativeImport>,
   cssExternals: Record<string, ExternalImport>,
+  removeCommentsWithPrefix?: string[],
+  notableCommentsPrefix?: string[],
 ): ParseImportsResult {
   // Use the generic scanner with a bound detector function
-  scanForImports(
+  const scanResult = scanForImports(
     cssCode,
     (sourceText: string, pos: number) =>
       detectCssImport(sourceText, pos, cssResult, cssExternals, cssFilePath),
     false,
+    removeCommentsWithPrefix,
+    notableCommentsPrefix,
   );
 
-  return { relative: cssResult, externals: cssExternals };
+  return {
+    relative: cssResult,
+    externals: cssExternals,
+    ...(scanResult.code && { code: scanResult.code }),
+    ...(scanResult.comments && { comments: scanResult.comments }),
+  };
 }
 
-// Function to parse JavaScript import statements
+/**
+ * Parses JavaScript/TypeScript import statements from source code.
+ * @param code - The source code to parse
+ * @param filePath - The file path for resolving relative imports
+ * @param result - Object to store relative import results
+ * @param externals - Object to store external import results
+ * @param isMdxFile - Whether this is an MDX file
+ * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
+ * @param notableCommentsPrefix - Optional prefixes for comments to collect
+ * @returns The parsed import results with optional processed code and comments
+ */
 function parseJSImports(
   code: string,
   filePath: string,
   result: Record<string, RelativeImport>,
   externals: Record<string, ExternalImport>,
   isMdxFile: boolean,
+  removeCommentsWithPrefix?: string[],
+  notableCommentsPrefix?: string[],
 ): ParseImportsResult {
   // Scan code for JavaScript import statements
-  const importStatements = scanForImports(code, detectJavaScriptImport, isMdxFile);
+  const scanResult = scanForImports(
+    code,
+    detectJavaScriptImport,
+    isMdxFile,
+    removeCommentsWithPrefix,
+    notableCommentsPrefix,
+  );
 
   // Now, parse each import statement using character-by-character parsing
-  for (const { text } of importStatements) {
+  for (const { text } of scanResult.statements) {
     let pos = 0;
     const textLen = text.length;
 
@@ -707,10 +1094,20 @@ function parseJSImports(
     }
   }
 
-  return { relative: result, externals };
+  return {
+    relative: result,
+    externals,
+    ...(scanResult.code && { code: scanResult.code }),
+    ...(scanResult.comments && { comments: scanResult.comments }),
+  };
 }
 
-// JavaScript import detector function
+/**
+ * Detects JavaScript import statements at a given position in source code.
+ * @param sourceText - The source text to scan
+ * @param pos - The current position in the text
+ * @returns Object indicating if an import was found, the next position, and statement details
+ */
 function detectJavaScriptImport(sourceText: string, pos: number) {
   const ch = sourceText[pos];
 
@@ -826,7 +1223,41 @@ function detectJavaScriptImport(sourceText: string, pos: number) {
   return { found: false, nextPos: pos };
 }
 
-export async function parseImports(code: string, filePath: string): Promise<ParseImportsResult> {
+/**
+ * Parse import statements from JavaScript/TypeScript/CSS code.
+ *
+ * This function analyzes source code to extract all import statements, categorizing them
+ * as either relative imports (local files) or external imports (packages). It supports
+ * JavaScript, TypeScript, CSS, and MDX files.
+ *
+ * Comment processing (stripping/collecting) is performed during import parsing
+ * for efficiency. Since we must already parse the entire file character-by-character
+ * to correctly identify imports while avoiding false positives in strings, comments,
+ * and template literals, it's most efficient to handle comment processing in this
+ * same pass rather than requiring separate parsing steps.
+ *
+ * @param code - The source code to parse
+ * @param filePath - The file path, used to determine file type and resolve relative imports
+ * @param options - Optional configuration for comment processing
+ * @param options.removeCommentsWithPrefix - Array of prefixes; comments starting with these will be stripped from output
+ * @param options.notableCommentsPrefix - Array of prefixes; comments starting with these will be collected regardless of stripping
+ * @returns Promise resolving to parsed import data, optionally including processed code and collected comments
+ *
+ * @example
+ * ```typescript
+ * const result = await parseImports(
+ *   'import React from "react";\nimport { Button } from "./Button";',
+ *   '/src/App.tsx'
+ * );
+ * // result.externals['react'] contains the React import
+ * // result.relative['./Button'] contains the Button import
+ * ```
+ */
+export async function parseImports(
+  code: string,
+  filePath: string,
+  options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
+): Promise<ParseImportsResult> {
   const result: Record<string, RelativeImport> = {};
   const externals: Record<string, ExternalImport> = {};
 
@@ -838,9 +1269,24 @@ export async function parseImports(code: string, filePath: string): Promise<Pars
 
   // If this is a CSS file, parse CSS @import statements instead
   if (isCssFile) {
-    return parseCssImports(code, filePath, result, externals);
+    return parseCssImports(
+      code,
+      filePath,
+      result,
+      externals,
+      options?.removeCommentsWithPrefix,
+      options?.notableCommentsPrefix,
+    );
   }
 
   // Parse JavaScript import statements
-  return parseJSImports(code, filePath, result, externals, isMdxFile);
+  return parseJSImports(
+    code,
+    filePath,
+    result,
+    externals,
+    isMdxFile,
+    options?.removeCommentsWithPrefix,
+    options?.notableCommentsPrefix,
+  );
 }

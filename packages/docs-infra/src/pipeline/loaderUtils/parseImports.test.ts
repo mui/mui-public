@@ -1869,3 +1869,604 @@ export default function CheckboxBasic() {
     });
   });
 });
+
+describe('parseImports with comment stripping', () => {
+  // NOTE about line number correlation in comments:
+  // The comments object uses ZERO-BASED line numbers as keys.
+  // Each key corresponds to the line number in the OUTPUT CODE (after comment removal).
+  // For example: { 0: ['comment content'], 1: ['another comment'] } means:
+  // - A notable comment was found that would have appeared at output line 0 (first line)
+  // - Another notable comment was found that would have appeared at output line 1 (second line)
+  // This allows precise correlation between notable comments and the resulting clean code.
+
+  it('should strip single-line comments with matching prefix on their own line', async () => {
+    const code = `console.log('codeA');
+// @eslint-ignore some rule
+console.log('codeB');`;
+    // Line mapping: line 0: console.log('codeA'), line 1: comment (stripped), line 2: console.log('codeB')
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: ['@eslint-ignore some rule'], // Comment from line 1
+    });
+  });
+
+  it('should strip multi-line comments with matching prefix on their own lines', async () => {
+    const code = `console.log('codeA');
+/*
+@eslint-ignore
+some rule
+*/
+console.log('codeB');`;
+    // Line mapping: line 0: console.log('codeA'), lines 1-4: multi-line comment (stripped), line 5: console.log('codeB')
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: [
+        // Multi-line comment started on line 1 - each non-empty line becomes an array entry
+        '@eslint-ignore',
+        'some rule',
+      ],
+    });
+  });
+
+  it('should handle inline single-line comments by removing just the comment', async () => {
+    const code = `console.log('codeA'); // @eslint-ignore some rule
+console.log('codeB');`;
+    // Line mapping: line 0: console.log with inline comment (comment stripped), line 1: console.log('codeB')
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA'); 
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      0: ['@eslint-ignore some rule'], // Inline comment from line 0
+    });
+  });
+
+  it('should not strip comments that do not match whitelist prefixes', async () => {
+    const code = `console.log('codeA');
+// @other-comment
+// Regular comment
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(code);
+    expect(result.comments).toEqual({});
+  });
+
+  it('should handle multiple prefixes in whitelist', async () => {
+    const code = `console.log('codeA');
+// @eslint-ignore some rule
+// @ts-ignore
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: ['@eslint-ignore some rule', '@ts-ignore'],
+    });
+  });
+
+  it('should handle multiple comments on separate lines', async () => {
+    const code = `console.log('codeA');
+/* @eslint-ignore rule1 */
+// @ts-ignore type
+console.log('codeB');`;
+    // Line mapping: line 0: console.log('codeA'), line 1: comment (stripped), line 2: comment (stripped), line 3: console.log('codeB')
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: ['@eslint-ignore rule1', '@ts-ignore type'], // Both comments correlate to output line 1
+    });
+  });
+
+  it('should handle multi-line comments that span multiple lines', async () => {
+    const code = `console.log('before');
+/*
+@eslint-ignore
+This is a long
+multi-line comment
+*/
+console.log('after');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('before');
+console.log('after');`);
+    expect(result.comments).toEqual({
+      1: ['@eslint-ignore', 'This is a long', 'multi-line comment'],
+    });
+  });
+
+  it('should not strip comments inside strings', async () => {
+    const code = `const str1 = "// @eslint-ignore fake";
+const str2 = '/* @eslint-ignore fake */';
+// @eslint-ignore real
+console.log('test');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(`const str1 = "// @eslint-ignore fake";
+const str2 = '/* @eslint-ignore fake */';
+console.log('test');`);
+    expect(result.comments).toEqual({
+      2: ['@eslint-ignore real'],
+    });
+  });
+
+  it('should not strip comments inside template literals', async () => {
+    const code = `const template = \`
+// @eslint-ignore fake
+/* @eslint-ignore fake */
+\`;
+// @eslint-ignore real
+console.log('done');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+    });
+
+    expect(result.code).toBe(`const template = \`
+// @eslint-ignore fake
+/* @eslint-ignore fake */
+\`;
+console.log('done');`);
+    expect(result.comments).toEqual({
+      4: ['@eslint-ignore real'],
+    });
+  });
+
+  it('should handle the example scenario from the user request', async () => {
+    const code = `console.log('codeA');
+/*
+comment
+*/
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['comment'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: ['comment'],
+    });
+  });
+
+  it('should handle complex mixed scenarios with imports and comments', async () => {
+    const code = `import React from 'react';
+function test() {
+  // @eslint-ignore complexity
+  if (condition) {
+    /* @ts-ignore type issue */
+    doSomething();
+  }
+  return result;
+}`;
+    // Line mapping: line 0: import, line 1: function, line 2: comment (stripped), line 3: if, line 4: comment (stripped), line 5: doSomething, etc.
+
+    const result = await parseImports(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
+    });
+
+    expect(result.code).toBe(`import React from 'react';
+function test() {
+  if (condition) {
+    doSomething();
+  }
+  return result;
+}`);
+    expect(result.comments).toEqual({
+      2: ['@eslint-ignore complexity'], // Comment from output line 2
+      3: ['@ts-ignore type issue'], // Comment from output line 3
+    });
+    expect(result.externals).toEqual({
+      react: { names: [{ name: 'React', type: 'default' }] },
+    });
+  });
+
+  it('should handle whitespace-only lines with comments', async () => {
+    const code = `console.log('before');
+   // @eslint-ignore with leading spaces
+	// @ts-ignore with leading tab
+console.log('after');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
+    });
+
+    expect(result.code).toBe(`console.log('before');
+console.log('after');`);
+    expect(result.comments).toEqual({
+      1: ['@eslint-ignore with leading spaces', '@ts-ignore with leading tab'],
+    });
+  });
+
+  it('should parse imports and strip comments simultaneously', async () => {
+    const code = `import React from 'react';
+// @eslint-ignore import-order
+import { Button } from '@mui/material';
+import { Component } from './Component';
+// @ts-ignore missing types
+const x = 42;`;
+
+    const result = await parseImports(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
+    });
+
+    expect(result.relative).toEqual({
+      './Component': {
+        path: '/src/Component',
+        names: [{ name: 'Component', type: 'named' }],
+      },
+    });
+
+    expect(result.externals).toEqual({
+      react: { names: [{ name: 'React', type: 'default' }] },
+      '@mui/material': { names: [{ name: 'Button', type: 'named' }] },
+    });
+
+    expect(result.code).toBe(`import React from 'react';
+import { Button } from '@mui/material';
+import { Component } from './Component';
+const x = 42;`);
+
+    expect(result.comments).toEqual({
+      1: ['@eslint-ignore import-order'],
+      3: ['@ts-ignore missing types'],
+    });
+  });
+
+  it('should not return code or comments when no whitelist provided', async () => {
+    const code = `import React from 'react';
+// @eslint-ignore import-order
+import { Button } from '@mui/material';`;
+
+    const result = await parseImports(code, '/src/test.tsx');
+
+    expect(result.code).toBeUndefined();
+    expect(result.comments).toBeUndefined();
+    expect(result.externals).toEqual({
+      react: { names: [{ name: 'React', type: 'default' }] },
+      '@mui/material': { names: [{ name: 'Button', type: 'named' }] },
+    });
+  });
+});
+
+describe('parseImports CSS with comment stripping', () => {
+  it('should strip single-line CSS comments with matching prefix', async () => {
+    const code = `/* @css-ignore some rule */
+@import "styles.css";
+// @css-ignore another rule
+@import url("theme.css");`;
+    // Line mapping: line 0: comment (stripped), line 1: @import styles.css, line 2: comment (stripped), line 3: @import theme.css
+
+    const result = await parseImports(code, '/src/test.css', {
+      removeCommentsWithPrefix: ['@css-ignore'],
+    });
+
+    expect(result.code).toBe(`@import "styles.css";
+@import url("theme.css");`);
+    expect(result.comments).toEqual({
+      0: ['@css-ignore some rule'], // Comment correlates to output line 0
+      1: ['@css-ignore another rule'], // Comment correlates to output line 1
+    });
+    expect(result.relative).toEqual({
+      'styles.css': { path: '/src/styles.css', names: [] },
+      'theme.css': { path: '/src/theme.css', names: [] },
+    });
+  });
+
+  it('should strip multi-line CSS comments with matching prefix', async () => {
+    const code = `@import "base.css";
+/*
+@css-ignore
+disable this import temporarily
+*/
+/* Regular comment */
+@import "theme.css";`;
+
+    const result = await parseImports(code, '/src/test.css', {
+      removeCommentsWithPrefix: ['@css-ignore'],
+    });
+
+    expect(result.code).toBe(`@import "base.css";
+/* Regular comment */
+@import "theme.css";`);
+    expect(result.comments).toEqual({
+      1: ['@css-ignore', 'disable this import temporarily'],
+    });
+    expect(result.relative).toEqual({
+      'base.css': { path: '/src/base.css', names: [] },
+      'theme.css': { path: '/src/theme.css', names: [] },
+    });
+  });
+
+  it('should handle inline CSS comments', async () => {
+    const code = `@import "styles.css"; /* @css-ignore inline comment */
+@import "theme.css"; /* keep this comment */`;
+
+    const result = await parseImports(code, '/src/test.css', {
+      removeCommentsWithPrefix: ['@css-ignore'],
+    });
+
+    expect(result.code).toBe(`@import "styles.css"; 
+@import "theme.css"; /* keep this comment */`);
+    expect(result.comments).toEqual({
+      0: ['@css-ignore inline comment'],
+    });
+    expect(result.relative).toEqual({
+      'styles.css': { path: '/src/styles.css', names: [] },
+      'theme.css': { path: '/src/theme.css', names: [] },
+    });
+  });
+
+  it('should not strip CSS comments without matching prefix', async () => {
+    const code = `/* Regular comment */
+@import "styles.css";
+// Another regular comment
+@import url("theme.css");`;
+
+    const result = await parseImports(code, '/src/test.css', {
+      removeCommentsWithPrefix: ['@css-ignore'],
+    });
+
+    expect(result.code).toBe(code);
+    expect(result.comments).toEqual({});
+    expect(result.relative).toEqual({
+      'styles.css': { path: '/src/styles.css', names: [] },
+      'theme.css': { path: '/src/theme.css', names: [] },
+    });
+  });
+
+  it('should work without comment stripping options for CSS', async () => {
+    const code = `/* @css-ignore some rule */
+@import "styles.css";`;
+
+    const result = await parseImports(code, '/src/test.css');
+
+    expect(result.code).toBeUndefined();
+    expect(result.comments).toBeUndefined();
+    expect(result.relative).toEqual({
+      'styles.css': { path: '/src/styles.css', names: [] },
+    });
+  });
+});
+
+describe('parseImports with notableCommentsPrefix', () => {
+  it('should collect only notable comments when notableCommentsPrefix is specified', async () => {
+    const code = `console.log('codeA');
+// @important this is important
+// @eslint-ignore some rule
+// @ts-ignore type issue
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore', '@important'],
+      notableCommentsPrefix: ['@important'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    // Only the @important comment should be collected
+    expect(result.comments).toEqual({
+      1: ['@important this is important'],
+    });
+  });
+
+  it('should collect all stripped comments when notableCommentsPrefix is not specified', async () => {
+    const code = `console.log('codeA');
+// @important this is important
+// @eslint-ignore some rule
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore', '@important'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    // All stripped comments should be collected
+    expect(result.comments).toEqual({
+      1: ['@important this is important', '@eslint-ignore some rule'],
+    });
+  });
+
+  it('should handle multiple notableCommentsPrefix values', async () => {
+    const code = `console.log('codeA');
+// @todo implement this later
+// @fixme broken implementation
+// @eslint-ignore some rule
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@todo', '@fixme', '@eslint-ignore'],
+      notableCommentsPrefix: ['@todo', '@fixme'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    // Only @todo and @fixme comments should be collected
+    expect(result.comments).toEqual({
+      1: ['@todo implement this later', '@fixme broken implementation'],
+    });
+  });
+
+  it('should handle comments that match notable prefix but are not stripped', async () => {
+    const code = `console.log('codeA');
+// @important this is important
+// @eslint-ignore some rule
+// @keep this comment
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+      notableCommentsPrefix: ['@important'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+// @important this is important
+// @keep this comment
+console.log('codeB');`);
+    // Notable comments should be collected even when they're not stripped
+    expect(result.comments).toEqual({
+      1: ['@important this is important'],
+    });
+  });
+
+  it('should handle multi-line notable comments', async () => {
+    const code = `console.log('codeA');
+/*
+@todo
+implement this feature
+with proper error handling
+*/
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      removeCommentsWithPrefix: ['@todo'],
+      notableCommentsPrefix: ['@todo'],
+    });
+
+    expect(result.code).toBe(`console.log('codeA');
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: ['@todo', 'implement this feature', 'with proper error handling'],
+    });
+  });
+
+  it('should work with imports and notable comments together', async () => {
+    const code = `import React from 'react';
+// @todo add better prop types
+import { Button } from '@mui/material';
+// @fixme handle edge case
+import { Component } from './Component';`;
+
+    const result = await parseImports(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@todo', '@fixme'],
+      notableCommentsPrefix: ['@todo'],
+    });
+
+    expect(result.relative).toEqual({
+      './Component': {
+        path: '/src/Component',
+        names: [{ name: 'Component', type: 'named' }],
+      },
+    });
+
+    expect(result.externals).toEqual({
+      react: { names: [{ name: 'React', type: 'default' }] },
+      '@mui/material': { names: [{ name: 'Button', type: 'named' }] },
+    });
+
+    expect(result.code).toBe(`import React from 'react';
+import { Button } from '@mui/material';
+import { Component } from './Component';`);
+
+    // Only @todo comments should be collected
+    expect(result.comments).toEqual({
+      1: ['@todo add better prop types'],
+    });
+  });
+
+  it('should handle CSS files with notableCommentsPrefix', async () => {
+    const code = `/* @todo update colors */
+@import "base.css";
+/* @fixme broken import */
+@import "theme.css";`;
+
+    const result = await parseImports(code, '/src/test.css', {
+      removeCommentsWithPrefix: ['@todo', '@fixme'],
+      notableCommentsPrefix: ['@todo'],
+    });
+
+    expect(result.code).toBe(`@import "base.css";
+@import "theme.css";`);
+    expect(result.comments).toEqual({
+      0: ['@todo update colors'],
+    });
+    expect(result.relative).toEqual({
+      'base.css': { path: '/src/base.css', names: [] },
+      'theme.css': { path: '/src/theme.css', names: [] },
+    });
+  });
+
+  it('should not collect comments when notableCommentsPrefix is provided but removeCommentsWithPrefix is not', async () => {
+    const code = `console.log('codeA');
+// @important this is important
+// @todo implement this later
+console.log('codeB');`;
+
+    const result = await parseImports(code, '/src/test.ts', {
+      notableCommentsPrefix: ['@important', '@todo'],
+    });
+
+    // Should return processed code and collect notable comments even when not stripping
+    expect(result.code).toBe(`console.log('codeA');
+// @important this is important
+// @todo implement this later
+console.log('codeB');`);
+    expect(result.comments).toEqual({
+      1: ['@important this is important'],
+      2: ['@todo implement this later'],
+    });
+    expect(result.relative).toEqual({});
+    expect(result.externals).toEqual({});
+  });
+
+  it('should not collect CSS comments when notableCommentsPrefix is provided but removeCommentsWithPrefix is not', async () => {
+    const code = `/* @todo update colors */
+@import "base.css";
+/* @important critical fix */
+@import "theme.css";`;
+
+    const result = await parseImports(code, '/src/test.css', {
+      notableCommentsPrefix: ['@todo', '@important'],
+    });
+
+    // Should return processed code and collect notable comments even when not stripping
+    expect(result.code).toBe(`/* @todo update colors */
+@import "base.css";
+/* @important critical fix */
+@import "theme.css";`);
+    expect(result.comments).toEqual({
+      0: ['@todo update colors'],
+      2: ['@important critical fix'],
+    });
+    expect(result.relative).toEqual({
+      'base.css': { path: '/src/base.css', names: [] },
+      'theme.css': { path: '/src/theme.css', names: [] },
+    });
+    expect(result.externals).toEqual({});
+  });
+});
