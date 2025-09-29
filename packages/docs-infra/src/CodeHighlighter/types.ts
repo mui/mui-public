@@ -12,7 +12,7 @@ type CodeMeta = {
 
 export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
 
-// External import definition matching parseImports.ts
+// External import definition matching parseImportsAndComments.ts
 export interface ExternalImportItem {
   name: string;
   type: 'named' | 'default' | 'namespace';
