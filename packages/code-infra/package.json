@@ -37,7 +37,7 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/compat": "^1.3.2",
-    "@eslint/js": "^9.35.0",
+    "@eslint/js": "^9.36.0",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
@@ -48,7 +48,7 @@
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
-    "babel-plugin-transform-remove-imports": "^1.8.0",
+    "babel-plugin-transform-remove-imports": "^1.8.1",
     "chalk": "^5.6.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -59,7 +59,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^6.0.0-rc1",
-    "eslint-plugin-testing-library": "^7.8.0",
+    "eslint-plugin-testing-library": "^7.10.0",
     "execa": "^9.6.0",
     "git-url-parse": "^16.1.0",
     "globals": "^16.4.0",
@@ -70,7 +70,7 @@
     "resolve-pkg-maps": "^1.0.0",
     "semver": "^7.7.2",
     "stylelint-config-standard": "^39.0.0",
-    "typescript-eslint": "^8.44.0",
+    "typescript-eslint": "^8.44.1",
     "yargs": "^18.0.0"
   },
   "peerDependencies": {
@@ -86,11 +86,11 @@
     "@types/estree-jsx": "^1.0.5",
     "@types/regexp.escape": "^2.0.0",
     "@types/yargs": "^17.0.33",
-    "@typescript-eslint/parser": "^8.44.0",
-    "@typescript-eslint/rule-tester": "^8.44.0",
-    "eslint": "^9.35.0",
+    "@typescript-eslint/parser": "^8.44.1",
+    "@typescript-eslint/rule-tester": "^8.44.1",
+    "eslint": "^9.36.0",
     "prettier": "^3.6.2",
-    "typescript-eslint": "^8.44.0"
+    "typescript-eslint": "^8.44.1"
   },
   "files": [
     "bin",
