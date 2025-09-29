@@ -53,7 +53,7 @@ export interface ExternalImport {
 /**
  * The result of parsing import statements from source code.
  */
-export interface ParseImportsResult {
+export interface ImportsAndComments {
   /** Map of relative import paths to their import details */
   relative: Record<string, RelativeImport>;
   /** Map of external package names to their import details */
@@ -953,7 +953,7 @@ function parseCssImports(
   cssExternals: Record<string, ExternalImport>,
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
-): ParseImportsResult {
+): ImportsAndComments {
   // Use the generic scanner with a bound detector function
   const scanResult = scanForImports(
     cssCode,
@@ -991,7 +991,7 @@ function parseJSImports(
   isMdxFile: boolean,
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
-): ParseImportsResult {
+): ImportsAndComments {
   // Scan code for JavaScript import statements
   const scanResult = scanForImports(
     code,
@@ -1383,7 +1383,7 @@ function detectJavaScriptImport(
  *
  * @example
  * ```typescript
- * const result = await parseImports(
+ * const result = await parseImportsAndComments(
  *   'import React from "react";\nimport { Button } from "./Button";',
  *   '/src/App.tsx'
  * );
@@ -1391,11 +1391,11 @@ function detectJavaScriptImport(
  * // result.relative['./Button'] contains the Button import
  * ```
  */
-export async function parseImports(
+export async function parseImportsAndComments(
   code: string,
   filePath: string,
   options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
-): Promise<ParseImportsResult> {
+): Promise<ImportsAndComments> {
   const result: Record<string, RelativeImport> = {};
   const externals: Record<string, ExternalImport> = {};
 

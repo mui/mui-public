@@ -3,7 +3,7 @@
 import { readFile } from 'fs/promises';
 
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
-import { parseImports } from '../loaderUtils';
+import { parseImportsAndComments } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
@@ -55,9 +55,9 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     }
 
     // Get all relative imports from this file
-    const { relative: importResult, externals } = await parseImports(source, filePath);
+    const { relative: importResult, externals } = await parseImportsAndComments(source, filePath);
 
-    // Transform externals from parseImports format to simplified format
+    // Transform externals from parseImportsAndComments format to simplified format
     const transformedExternals: Externals = {};
     for (const [modulePath, externalImport] of Object.entries(externals)) {
       transformedExternals[modulePath] = externalImport.names.map((importName) => ({
@@ -93,7 +93,7 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
     if (isCssFile) {
       // For CSS files, we don't need complex path resolution
-      // The parseImports function already resolved paths for CSS
+      // The parseImportsAndComments function already resolved paths for CSS
       const result = processRelativeImports(source, importsCompatible, storeAt);
       processedSource = result.processedSource;
       extraFiles = result.extraFiles;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parseImports } from './parseImports';
+import { parseImportsAndComments } from './parseImportsAndComments';
 
-describe('parseImports', () => {
+describe('parseImportsAndComments', () => {
   it('should resolve relative import paths and group by import path', async () => {
     const code = `
       import Component1 from './Component1';
@@ -9,7 +9,7 @@ describe('parseImports', () => {
       import * as Utils from '../utils';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -43,7 +43,7 @@ describe('parseImports', () => {
       import Component from './Component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -69,7 +69,7 @@ describe('parseImports', () => {
   it('should handle empty code', async () => {
     const code = '';
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {},
@@ -85,7 +85,7 @@ describe('parseImports', () => {
       }
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {},
@@ -101,7 +101,7 @@ describe('parseImports', () => {
       import { NamedImport3 as AliasedImport } from './aliased';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -139,7 +139,7 @@ describe('parseImports', () => {
       import Utils from '../../utils/helpers';
     `;
     const filePath = '/src/features/demo/components/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -165,7 +165,7 @@ describe('parseImports', () => {
       import { Component } from './component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     // Type imports should have includeTypeDefs: true
     expect(result).toEqual({
@@ -198,7 +198,7 @@ describe('parseImports', () => {
       import { Component } from './Component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     // Should create separate entries for type and value imports
     expect(result).toEqual({
@@ -227,7 +227,7 @@ describe('parseImports', () => {
       import 'some-external-module/setup';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImports(code, filePath);
+    const result = await parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -262,7 +262,7 @@ describe('parseImports', () => {
         import './side-effect';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -301,7 +301,7 @@ describe('parseImports', () => {
         import * as Utils from './utils';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // This should produce mixed isType flags that the generateExternalsProvider needs to handle
       expect(result.externals.react.names).toEqual([
@@ -352,9 +352,9 @@ describe('parseImports', () => {
         import { Button, TextField } from '@mui/material';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
-      // parseImports should handle the duplicates and produce a consolidated structure
+      // parseImportsAndComments should handle the duplicates and produce a consolidated structure
       // The exact behavior depends on implementation, but it should not crash
       expect(result.externals.react).toBeDefined();
       expect(result.externals['@mui/material']).toBeDefined();
@@ -384,7 +384,7 @@ describe('parseImports', () => {
         } from '@mui/material';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // Should parse multi-line imports correctly
       expect(result.externals.react.names).toEqual([
@@ -411,7 +411,7 @@ describe('parseImports', () => {
         import './side-effect.css';
       `;
       const filePath = '/src/ServerLoadedDemo.tsx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // Should produce the exact kind of mixed data that caused issues:
       // - Type-only imports with isType: true
@@ -502,7 +502,7 @@ export default function CheckboxBasic() {
 }
       `;
       const filePath = '/src/demos/CheckboxBasic.tsx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result.externals.react.names).toEqual([{ name: 'React', type: 'namespace' }]);
 
@@ -525,7 +525,7 @@ export default function CheckboxBasic() {
         const x = 1;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -549,7 +549,7 @@ export default function CheckboxBasic() {
         const x = 1;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -570,7 +570,7 @@ export default function CheckboxBasic() {
         const fakeImport3 = "import './styles.css';";
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -593,7 +593,7 @@ export default function CheckboxBasic() {
         \`;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -614,7 +614,7 @@ export default function CheckboxBasic() {
         const template = \`This has \\\`backticks\\\` and import './fake';\`;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -642,7 +642,7 @@ export default function CheckboxBasic() {
         \`;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -674,7 +674,7 @@ export default function CheckboxBasic() {
         const string = "import { StringButton } from './string-module';"; // Fake import in string
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -708,7 +708,7 @@ export default function CheckboxBasic() {
         import './styles.css';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -760,7 +760,7 @@ export default function CheckboxBasic() {
         import { ActualComponent } from './actual'; // Real import at the end
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -795,7 +795,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './real-component';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -830,7 +830,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -871,7 +871,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -912,7 +912,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -955,7 +955,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -983,7 +983,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/components/component.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1029,7 +1029,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/Component.tsx'; // Not a CSS file
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // Should parse as JavaScript, not CSS
       expect(result).toEqual({
@@ -1046,7 +1046,7 @@ export default function CheckboxBasic() {
     it('should handle empty CSS files', async () => {
       const code = '';
       const filePath = '/src/styles/empty.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -1066,7 +1066,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/components.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -1086,7 +1086,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1134,7 +1134,7 @@ export default function CheckboxBasic() {
         body { font-family: sans-serif; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1212,7 +1212,7 @@ export default function CheckboxBasic() {
         body { margin: 0; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1310,7 +1310,7 @@ export default function CheckboxBasic() {
         body { color: black; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // Should treat both string and url() forms identically for the same file
       expect(result.relative['mystyle.css']).toEqual({
@@ -1358,7 +1358,7 @@ export default function CheckboxBasic() {
         body { margin: 0; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // Should parse the valid imports and gracefully handle the invalid ones
       expect(result.relative['valid.css']).toEqual({
@@ -1392,7 +1392,7 @@ export default function CheckboxBasic() {
         body { margin: 0; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // All external URLs should be parsed correctly regardless of special characters
       expect(result.externals).toEqual({
@@ -1447,7 +1447,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './real-component';
       `;
       const filePath = '/src/demo.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1497,7 +1497,7 @@ export default function CheckboxBasic() {
         import { ActualImport } from './actual';
       `;
       const filePath = '/src/docs/examples.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1562,7 +1562,7 @@ export default function CheckboxBasic() {
         \`\`\`
       `;
       const filePath = '/src/documentation/demo.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1617,7 +1617,7 @@ export default function CheckboxBasic() {
         import { Fake6 } from './fake6';
       `;
       const filePath = '/src/malformed.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1657,7 +1657,7 @@ export default function CheckboxBasic() {
         \`\`\`;
       `;
       const filePath = '/src/component.tsx'; // Not .mdx
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       // In .tsx files, the import inside the "code block" should be parsed
       // because it's not actually a code block, just a template literal
@@ -1725,7 +1725,7 @@ export default function CheckboxBasic() {
         import { ActualComponent } from './actual-component';
       `;
       const filePath = '/src/multi-lang.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1767,7 +1767,7 @@ export default function CheckboxBasic() {
         import { RealImport } from './real-import';
       `;
       const filePath = '/src/mixed-content.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1807,7 +1807,7 @@ export default function CheckboxBasic() {
         import { ActualImport } from './actual';
       `;
       const filePath = '/src/complex.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1852,7 +1852,7 @@ export default function CheckboxBasic() {
         import { ValidImport } from './valid';
       `;
       const filePath = '/src/empty-blocks.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1888,7 +1888,7 @@ export default function CheckboxBasic() {
         import { Actual } from './actual';
       `;
       const filePath = '/src/adjacent.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1934,7 +1934,7 @@ export default function CheckboxBasic() {
         import { RealImport } from './real-import';
       `;
       const filePath = '/src/four-plus-backticks.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1968,7 +1968,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './RealComponent';
       `;
       const filePath = '/src/demo/example.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2002,7 +2002,7 @@ export default function CheckboxBasic() {
         import { ActualImport } from './actual';
       `;
       const filePath = '/src/inline-test.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2046,7 +2046,7 @@ export default function CheckboxBasic() {
         import { RealImport } from './real';
       `;
       const filePath = '/src/mixed-blocks.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2092,7 +2092,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './real-component';
       `;
       const filePath = '/src/lang-specifiers.mdx';
-      const result = await parseImports(code, filePath);
+      const result = await parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2113,7 +2113,7 @@ export default function CheckboxBasic() {
   });
 });
 
-describe('parseImports with comment stripping', () => {
+describe('parseImportsAndComments with comment stripping', () => {
   // NOTE about line number correlation in comments:
   // The comments object uses ZERO-BASED line numbers as keys.
   // Each key corresponds to the line number in the OUTPUT CODE (after comment removal).
@@ -2128,7 +2128,7 @@ describe('parseImports with comment stripping', () => {
 console.log('codeB');`;
     // Line mapping: line 0: console.log('codeA'), line 1: comment (stripped), line 2: console.log('codeB')
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2148,7 +2148,7 @@ some rule
 console.log('codeB');`;
     // Line mapping: line 0: console.log('codeA'), lines 1-4: multi-line comment (stripped), line 5: console.log('codeB')
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2168,7 +2168,7 @@ console.log('codeB');`);
 console.log('codeB');`;
     // Line mapping: line 0: console.log with inline comment (comment stripped), line 1: console.log('codeB')
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2185,7 +2185,7 @@ console.log('codeB');`);
 // Regular comment
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2199,7 +2199,7 @@ console.log('codeB');`;
 // @ts-ignore
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2217,7 +2217,7 @@ console.log('codeB');`);
 console.log('codeB');`;
     // Line mapping: line 0: console.log('codeA'), line 1: comment (stripped), line 2: comment (stripped), line 3: console.log('codeB')
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2237,7 +2237,7 @@ multi-line comment
 */
 console.log('after');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2254,7 +2254,7 @@ const str2 = '/* @eslint-ignore fake */';
 // @eslint-ignore real
 console.log('test');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2274,7 +2274,7 @@ console.log('test');`);
 // @eslint-ignore real
 console.log('done');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2295,7 +2295,7 @@ comment
 */
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['comment'],
     });
 
@@ -2318,7 +2318,7 @@ function test() {
 }`;
     // Line mapping: line 0: import, line 1: function, line 2: comment (stripped), line 3: if, line 4: comment (stripped), line 5: doSomething, etc.
 
-    const result = await parseImports(code, '/src/test.tsx', {
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2344,7 +2344,7 @@ function test() {
 	// @ts-ignore with leading tab
 console.log('after');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2363,7 +2363,7 @@ import { Component } from './Component';
 // @ts-ignore missing types
 const x = 42;`;
 
-    const result = await parseImports(code, '/src/test.tsx', {
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2399,7 +2399,7 @@ const x = 42;`);
 // @eslint-ignore import-order
 import { Button } from '@mui/material';`;
 
-    const result = await parseImports(code, '/src/test.tsx');
+    const result = await parseImportsAndComments(code, '/src/test.tsx');
 
     expect(result.code).toBeUndefined();
     expect(result.comments).toBeUndefined();
@@ -2413,7 +2413,7 @@ import { Button } from '@mui/material';`;
   });
 });
 
-describe('parseImports CSS with comment stripping', () => {
+describe('parseImportsAndComments CSS with comment stripping', () => {
   it('should strip single-line CSS comments with matching prefix', async () => {
     const code = `/* @css-ignore some rule */
 @import "styles.css";
@@ -2421,7 +2421,7 @@ describe('parseImports CSS with comment stripping', () => {
 @import url("theme.css");`;
     // Line mapping: line 0: comment (stripped), line 1: @import styles.css, line 2: comment (stripped), line 3: @import theme.css
 
-    const result = await parseImports(code, '/src/test.css', {
+    const result = await parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2446,7 +2446,7 @@ disable this import temporarily
 /* Regular comment */
 @import "theme.css";`;
 
-    const result = await parseImports(code, '/src/test.css', {
+    const result = await parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2466,7 +2466,7 @@ disable this import temporarily
     const code = `@import "styles.css"; /* @css-ignore inline comment */
 @import "theme.css"; /* keep this comment */`;
 
-    const result = await parseImports(code, '/src/test.css', {
+    const result = await parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2487,7 +2487,7 @@ disable this import temporarily
 // Another regular comment
 @import url("theme.css");`;
 
-    const result = await parseImports(code, '/src/test.css', {
+    const result = await parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2503,7 +2503,7 @@ disable this import temporarily
     const code = `/* @css-ignore some rule */
 @import "styles.css";`;
 
-    const result = await parseImports(code, '/src/test.css');
+    const result = await parseImportsAndComments(code, '/src/test.css');
 
     expect(result.code).toBeUndefined();
     expect(result.comments).toBeUndefined();
@@ -2513,7 +2513,7 @@ disable this import temporarily
   });
 });
 
-describe('parseImports with notableCommentsPrefix', () => {
+describe('parseImportsAndComments with notableCommentsPrefix', () => {
   it('should collect only notable comments when notableCommentsPrefix is specified', async () => {
     const code = `console.log('codeA');
 // @important this is important
@@ -2521,7 +2521,7 @@ describe('parseImports with notableCommentsPrefix', () => {
 // @ts-ignore type issue
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore', '@important'],
       notableCommentsPrefix: ['@important'],
     });
@@ -2540,7 +2540,7 @@ console.log('codeB');`);
 // @eslint-ignore some rule
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@important'],
     });
 
@@ -2559,7 +2559,7 @@ console.log('codeB');`);
 // @eslint-ignore some rule
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@todo', '@fixme', '@eslint-ignore'],
       notableCommentsPrefix: ['@todo', '@fixme'],
     });
@@ -2579,7 +2579,7 @@ console.log('codeB');`);
 // @keep this comment
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
       notableCommentsPrefix: ['@important'],
     });
@@ -2603,7 +2603,7 @@ with proper error handling
 */
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@todo'],
       notableCommentsPrefix: ['@todo'],
     });
@@ -2622,7 +2622,7 @@ import { Button } from '@mui/material';
 // @fixme handle edge case
 import { Component } from './Component';`;
 
-    const result = await parseImports(code, '/src/test.tsx', {
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@todo', '@fixme'],
       notableCommentsPrefix: ['@todo'],
     });
@@ -2659,7 +2659,7 @@ import { Component } from './Component';`);
 /* @fixme broken import */
 @import "theme.css";`;
 
-    const result = await parseImports(code, '/src/test.css', {
+    const result = await parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@todo', '@fixme'],
       notableCommentsPrefix: ['@todo'],
     });
@@ -2681,7 +2681,7 @@ import { Component } from './Component';`);
 // @todo implement this later
 console.log('codeB');`;
 
-    const result = await parseImports(code, '/src/test.ts', {
+    const result = await parseImportsAndComments(code, '/src/test.ts', {
       notableCommentsPrefix: ['@important', '@todo'],
     });
 
@@ -2704,7 +2704,7 @@ console.log('codeB');`);
 /* @important critical fix */
 @import "theme.css";`;
 
-    const result = await parseImports(code, '/src/test.css', {
+    const result = await parseImportsAndComments(code, '/src/test.css', {
       notableCommentsPrefix: ['@todo', '@important'],
     });
 

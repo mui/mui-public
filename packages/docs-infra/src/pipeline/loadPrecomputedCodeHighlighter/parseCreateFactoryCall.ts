@@ -1,4 +1,4 @@
-import { parseImports, type ParseImportsResult } from '../loaderUtils';
+import { parseImportsAndComments, type ImportsAndComments } from '../loaderUtils';
 import {
   parseFunctionArguments,
   type SplitArguments,
@@ -273,11 +273,11 @@ function parseVariantsObjectFromObject(
 }
 
 /**
- * Helper function to convert the new parseImports format to a Map
+ * Helper function to convert the new parseImportsAndComments format to a Map
  * that maps import names to their resolved paths
  */
 function buildImportMap(
-  importResult: ParseImportsResult,
+  importResult: ImportsAndComments,
   allowExternalVariants?: boolean,
 ): Map<string, string> {
   const importMap = new Map<string, string>();
@@ -314,7 +314,7 @@ function buildImportMap(
  * Helper function to build a mapping from import aliases to their original named exports
  */
 function buildNamedExportsMap(
-  importResult: ParseImportsResult,
+  importResult: ImportsAndComments,
   allowExternalVariants?: boolean,
 ): Map<string, string | undefined> {
   const namedExportsMap = new Map<string, string | undefined>();
@@ -387,7 +387,7 @@ export interface ParsedCreateFactory {
   structuredGenerics?: Record<string, any>; // Parsed generic type definitions
   // Remaining content after the function call
   remaining?: string;
-  parseImportsResult?: ParseImportsResult;
+  importsAndComments?: ImportsAndComments;
 }
 
 /**
@@ -646,8 +646,8 @@ export async function parseCreateFactoryCall(
   code: string,
   filePath: string,
   parseOptions: ParseOptions = {},
-  parseImportsResult?: ParseImportsResult,
-): Promise<(ParsedCreateFactory & { parseImportsResult?: ParseImportsResult }) | null> {
+  importsAndComments?: ImportsAndComments,
+): Promise<(ParsedCreateFactory & { importsAndComments?: ImportsAndComments }) | null> {
   // Find the first create* call in the code
   const match = findFirstCreateFactoryCall(code, filePath, parseOptions);
 
@@ -671,7 +671,7 @@ export async function parseCreateFactoryCall(
     }
   }
   // Get import mappings from precomputed imports or parse them
-  parseImportsResult = parseImportsResult || (await parseImports(code, filePath));
+  importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
 
   // Process the match using shared logic
   const parsed = await processCreateFactoryMatch(
@@ -679,7 +679,7 @@ export async function parseCreateFactoryCall(
     code,
     filePath,
     parseOptions,
-    parseImportsResult,
+    importsAndComments,
   );
 
   // Calculate remaining content after the function call
@@ -688,7 +688,7 @@ export async function parseCreateFactoryCall(
   return {
     ...parsed,
     remaining,
-    parseImportsResult, // Include import data for reuse
+    importsAndComments, // Include import data for reuse
   };
 }
 
@@ -702,7 +702,7 @@ export async function parseAllCreateFactoryCalls(
   parseOptions: Omit<ParseOptions, 'allowMultipleFactories'> = {},
 ): Promise<Record<string, ParsedCreateFactory>> {
   const results: Record<string, ParsedCreateFactory> = {};
-  let parseImportsResult: ParseImportsResult | undefined;
+  let importsAndComments: ImportsAndComments | undefined;
   let searchIndex = 0;
 
   // Process the code using single-pass approach
@@ -722,7 +722,7 @@ export async function parseAllCreateFactoryCalls(
 
     // Get import mappings from precomputed imports or parse them
     // eslint-disable-next-line no-await-in-loop
-    parseImportsResult = parseImportsResult || (await parseImports(code, filePath));
+    importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
 
     // Process the match using shared logic
     // eslint-disable-next-line no-await-in-loop
@@ -731,7 +731,7 @@ export async function parseAllCreateFactoryCalls(
       code,
       filePath,
       parseOptions,
-      parseImportsResult,
+      importsAndComments,
     );
 
     results[exportName] = parsedFactory;
@@ -765,7 +765,7 @@ async function processCreateFactoryMatch(
   code: string,
   filePath: string,
   parseOptions: ParseOptions,
-  parseImportsResult: ParseImportsResult,
+  importsAndComments: ImportsAndComments,
 ): Promise<ParsedCreateFactory> {
   const {
     functionName,
@@ -779,9 +779,9 @@ async function processCreateFactoryMatch(
   } = match;
 
   const allowExternalVariants = parseOptions.allowExternalVariants || false;
-  const importMap = buildImportMap(parseImportsResult, allowExternalVariants);
-  const namedExportsMap = buildNamedExportsMap(parseImportsResult, allowExternalVariants);
-  const externals = parseImportsResult.externals;
+  const importMap = buildImportMap(importsAndComments, allowExternalVariants);
+  const namedExportsMap = buildNamedExportsMap(importsAndComments, allowExternalVariants);
+  const externals = importsAndComments.externals;
 
   // Validate URL argument
   validateUrlArgument(urlArg, functionName, filePath);
@@ -861,7 +861,7 @@ async function processCreateFactoryMatch(
     }
   }
 
-  // Transform externals from parseImports format to simplified format
+  // Transform externals from parseImportsAndComments format to simplified format
   // Only include side-effect imports (where names array is empty)
   const transformedExternals: Externals = {};
   for (const [modulePath, externalImport] of Object.entries(externals)) {
