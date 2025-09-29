@@ -329,15 +329,17 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                 codeElement.children = [];
               });
 
-              // Replace root element children with error message for CodeHighlighter
+              // Replace the semantic structure with a <pre> element
+              node.tagName = 'pre';
               node.children = [
                 {
                   type: 'text',
-                  value: 'Error: expected semantic code structure to be handled by CodeHighlighter',
+                  value:
+                    'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
                 } as Text,
               ];
 
-              // Set the precompute data on the root element directly on properties for immediate HTML serialization
+              // Set the precompute data on the pre element directly on properties for immediate HTML serialization
               if (!node.properties) {
                 (node as any).properties = {};
               }
