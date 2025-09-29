@@ -205,8 +205,8 @@ importers:
         specifier: ^2.18.1
         version: 2.18.1
       mysql2:
-        specifier: ^3.14.5
-        version: 3.14.5
+        specifier: ^3.15.1
+        version: 3.15.1
       ssh2-promise:
         specifier: ^1.0.3
         version: 1.0.3
@@ -9476,8 +9476,8 @@ packages:
     resolution: {integrity: sha512-M6DIQjTqKeqXH5HLbLMxwcK5XfXHw30u5ap6EZmu7QVmcF/gnh2wS/EOiQ4MTbXz/vQeoXrmycPlVRM00WSslg==}
     engines: {node: '>= 8.0'}
 
-  mysql2@3.14.5:
-    resolution: {integrity: sha512-40hDf8LPUsuuJ2hFq+UgOuPwt2IFLIRDvMv6ez9hKbXeYuZPxDDwiJW7KdknvOsQqKznaKczOT1kELgFkhDvFg==}
+  mysql2@3.15.1:
+    resolution: {integrity: sha512-WZMIRZstT2MFfouEaDz/AGFnGi1A2GwaDe7XvKTdRJEYiAHbOrh4S3d8KFmQeh11U85G+BFjIvS1Di5alusZsw==}
     engines: {node: '>= 8.0'}
 
   mysql@2.18.1:
@@ -23447,7 +23447,7 @@ snapshots:
       seq-queue: 0.0.5
       sqlstring: 2.3.3
 
-  mysql2@3.14.5:
+  mysql2@3.15.1:
     dependencies:
       aws-ssl-profiles: 1.1.2
       denque: 2.1.0
