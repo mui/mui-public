@@ -22,7 +22,7 @@ export const ERRORS = {
  * Gets all stored credentials from the registry
  * @returns {Promise<Record<string, string>>} Object containing all credentials
  */
-async function getCredentialData() {
+export async function getCredentialData() {
   try {
     const registryEntry = new AsyncEntry(KEYRING_SERVICE, REGISTRY_KEY);
     const registryData = await registryEntry.getPassword();

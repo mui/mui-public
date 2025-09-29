@@ -18,7 +18,7 @@ import open from 'open';
 
 import {
   ERRORS as CREDENTIAL_ERRORS,
-  getCredential,
+  getCredentialData,
   removeCredential,
   setCredential,
 } from './credentials.mjs';
@@ -37,6 +37,30 @@ export const ERRORS = {
 };
 
 export function peristentAuthStrategy() {
+  function createCachedToken() {
+    /**
+     * @type {string}
+     */
+    let token = '';
+    let timeSinceAccess = 0;
+    let lastAccess = Date.now();
+
+    return async function getToken() {
+      if (!token) {
+        token = await endToEndGhAuthGetToken(true);
+      }
+      const now = Date.now();
+      timeSinceAccess += now - lastAccess;
+      lastAccess = now;
+      // Reset token if it has been more than 5 minutes since last access
+      if (timeSinceAccess > 1 * 60 * 1000) {
+        timeSinceAccess = 0;
+        token = '';
+      }
+      return token;
+    };
+  }
+  const getToken = createCachedToken();
   /**
    * Request hook to add authentication token to requests.
    * Automatically handles token refresh on 401 errors.
@@ -47,7 +71,7 @@ export function peristentAuthStrategy() {
    * @returns
    */
   async function hook(request, route, parameters) {
-    const token = await endToEndGhAuthGetToken();
+    const token = await getToken();
     const endpoint = request.endpoint.merge(route, parameters);
     endpoint.headers.authorization = `token ${token}`;
     try {
@@ -99,13 +123,14 @@ async function logAuthInformation(data, { openInBrowser = true, copyToCliboard =
 
 /**
  * Checks if the stored access token is expired
+ * @param {Record<string, string>} credentials
  * @returns {Promise<boolean>}
  */
-async function isTokenExpired() {
+async function isTokenExpired(credentials) {
   try {
-    const expiryStr = await getCredential(KEY_ACCESS_TOKEN_EXPIRY);
+    const expiryStr = credentials[KEY_ACCESS_TOKEN_EXPIRY];
     const expiry = parseInt(expiryStr, 10);
-    const refreshExpiryStr = await getCredential(KEY_REFRESH_TOKEN_EXPIRY);
+    const refreshExpiryStr = credentials[KEY_REFRESH_TOKEN_EXPIRY];
     if (refreshExpiryStr) {
       const refreshExpiry = parseInt(refreshExpiryStr, 10);
       if (Date.now() > refreshExpiry) {
@@ -142,25 +167,30 @@ async function storeGitHubTokens(tokens) {
 
 /**
  * Gets stored GitHub access token (if valid and not expired)
+ * @param {Record<string, string>} credentials
  * @returns {Promise<string>} Valid GitHub access token
  * @throws {Error} If no valid token exists
  */
-async function getStoredGitHubToken() {
-  const existingToken = await getCredential(KEY_ACCESS_TOKEN);
+async function getStoredGitHubToken(credentials) {
+  const existingToken = credentials[KEY_ACCESS_TOKEN];
 
-  if (await isTokenExpired()) {
+  if (await isTokenExpired(credentials)) {
     throw new Error(ERRORS.TOKEN_EXPIRED);
   }
 
   return existingToken;
 }
 
-async function refreshAccessToken() {
-  const refreshToken = await getCredential(KEY_REFRESH_TOKEN);
+/**
+ * @param {Record<string, string>} credentials
+ * @returns {Promise<string>} Refreshed GitHub access token
+ */
+async function refreshAccessToken(credentials) {
+  const refreshToken = credentials[KEY_REFRESH_TOKEN];
   if (!refreshToken) {
     throw new Error(ERRORS.REFRESH_FAILED);
   }
-  const refreshTokenExpiry = await getCredential(KEY_REFRESH_TOKEN_EXPIRY);
+  const refreshTokenExpiry = credentials[KEY_REFRESH_TOKEN_EXPIRY];
   if (refreshTokenExpiry && Date.now() > parseInt(refreshTokenExpiry, 10)) {
     // Refresh token has also expired. Need to re-authenticate
     await clearGitHubAuth();
@@ -231,12 +261,13 @@ async function exchangeDeviceCodeWithRetry(deviceCode, { delay = 5000, retries =
  * @returns {Promise<string>} Valid GitHub access token
  */
 export async function endToEndGhAuthGetToken(log = false) {
+  const credentials = await getCredentialData();
   try {
-    const res = await getStoredGitHubToken();
-    if (log) {
-      console.warn('Existing valid GitHub token found.');
+    const token = await getStoredGitHubToken(credentials);
+    if (!token) {
+      throw new Error(CREDENTIAL_ERRORS.NOT_FOUND);
     }
-    return res;
+    return token;
   } catch (ex) {
     switch (/** @type {Error} */ (ex).message) {
       case CREDENTIAL_ERRORS.NOT_FOUND: {
@@ -256,7 +287,7 @@ export async function endToEndGhAuthGetToken(log = false) {
         if (log) {
           console.warn('GitHub token expired. Attempting to refresh...');
         }
-        return refreshAccessToken();
+        return refreshAccessToken(credentials);
       default:
         throw ex; // Some other error
     }
