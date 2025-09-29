@@ -1,434 +1,420 @@
 import { describe, it, expect } from 'vitest';
-import { rewriteJsImports, rewriteCssImports } from './rewriteImports';
+import { rewriteImports } from './rewriteImports.js';
 
-describe('rewriteJsImports', () => {
-  it('should rewrite relative imports based on mapping', () => {
-    const source = `
-      import Component1 from './Component1';
-      import Component2 from '../utils/Component2';
-      import { Helper } from '../../shared/helpers';
-    `;
-    const importPathMapping = new Map([
-      ['./Component1', './Component1'],
-      ['../utils/Component2', './Component2'],
-      ['../../shared/helpers', './helpers'],
-    ]);
+describe('rewriteImports', () => {
+  describe('basic functionality', () => {
+    it('should rewrite a single import path', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }], // Position of "'./bar'"
+        },
+      };
 
-    const result = rewriteJsImports(source, importPathMapping);
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './new-bar';`);
+    });
 
-    expect(result).toContain("import Component1 from './Component1'");
-    expect(result).toContain("import Component2 from './Component2'");
-    expect(result).toContain("import { Helper } from './helpers'");
+    it('should rewrite multiple import paths', () => {
+      const source = `import { foo } from './bar';
+import { baz } from './qux';`;
+      const importPathMapping = new Map([
+        ['./bar', './new-bar'],
+        ['./qux', './new-qux'],
+      ]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }], // Position of "'./bar'"
+        },
+        './qux': {
+          positions: [{ start: 49, end: 56 }], // Position of "'./qux'"
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './new-bar';
+import { baz } from './new-qux';`);
+    });
+
+    it('should handle imports not in the mapping', () => {
+      const source = `import { foo } from './bar';
+import { baz } from './unchanged';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+        './unchanged': {
+          positions: [{ start: 49, end: 62 }],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './new-bar';
+import { baz } from './unchanged';`);
+    });
   });
 
-  it('should handle different file extensions in mappings', () => {
-    const source = `
-      import Component from './Component.tsx';
-      import Helper from '../utils/helper.js';
-      import Config from '../../config/config.json';
-    `;
-    const importPathMapping = new Map([
-      ['./Component.tsx', './Component'],
-      ['../utils/helper.js', './helper'],
-      ['../../config/config.json', './config.json'], // .json files keep their extension
-    ]);
+  describe('different length replacements', () => {
+    it('should handle shorter replacement strings', () => {
+      const source = `import { foo } from './very-long-path';
+import { bar } from './short';`;
+      const importPathMapping = new Map([
+        ['./very-long-path', './x'],
+        ['./short', './new-short'],
+      ]);
+      const importResult = {
+        './very-long-path': {
+          positions: [{ start: 20, end: 38 }], // Position of "'./very-long-path'"
+        },
+        './short': {
+          positions: [{ start: 60, end: 69 }], // Position of "'./short'"
+        },
+      };
 
-    const result = rewriteJsImports(source, importPathMapping);
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './x';
+import { bar } from './new-short';`);
+    });
 
-    expect(result).toContain("import Component from './Component'");
-    expect(result).toContain("import Helper from './helper'");
-    // .json files are not stripped of their extension
-    expect(result).toContain("import Config from './config.json'");
+    it('should handle longer replacement strings', () => {
+      const source = `import { foo } from './x';
+import { bar } from './y';`;
+      const importPathMapping = new Map([
+        ['./x', './very-long-replacement-path'],
+        ['./y', './another-long-path'],
+      ]);
+      const importResult = {
+        './x': {
+          positions: [{ start: 20, end: 25 }], // Position of "'./x'"
+        },
+        './y': {
+          positions: [{ start: 47, end: 52 }], // Position of "'./y'"
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './very-long-replacement-path';
+import { bar } from './another-long-path';`);
+    });
+
+    it('should handle mixed length changes', () => {
+      const source = `import { a } from './long-path-name';
+import { b } from './x';
+import { c } from './medium-path';`;
+      const importPathMapping = new Map([
+        ['./long-path-name', './short'], // Shorter
+        ['./x', './extremely-long-replacement-path'], // Much longer
+        ['./medium-path', './new-medium'], // Similar length
+      ]);
+      const importResult = {
+        './long-path-name': {
+          positions: [{ start: 18, end: 36 }],
+        },
+        './x': {
+          positions: [{ start: 56, end: 61 }],
+        },
+        './medium-path': {
+          positions: [{ start: 81, end: 96 }],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { a } from './short';
+import { b } from './extremely-long-replacement-path';
+import { c } from './new-medium';`);
+    });
   });
 
-  it('should preserve non-relative imports', () => {
-    const source = `
-      import React from 'react';
-      import { Button } from '@mui/material';
-      import Component from './Component';
-    `;
-    const importPathMapping = new Map([['./Component', './FlatComponent']]);
+  describe('quote preservation', () => {
+    it('should preserve single quotes', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+      };
 
-    const result = rewriteJsImports(source, importPathMapping);
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './new-bar';`);
+    });
 
-    expect(result).toContain("import React from 'react'");
-    expect(result).toContain("import { Button } from '@mui/material'");
-    expect(result).toContain("import Component from './FlatComponent'");
+    it('should preserve double quotes', () => {
+      const source = `import { foo } from "./bar";`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from "./new-bar";`);
+    });
+
+    it('should handle mixed quote styles', () => {
+      const source = `import { foo } from './bar';
+import { baz } from "./qux";`;
+      const importPathMapping = new Map([
+        ['./bar', './new-bar'],
+        ['./qux', './new-qux'],
+      ]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+        './qux': {
+          positions: [{ start: 49, end: 56 }],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './new-bar';
+import { baz } from "./new-qux";`);
+    });
   });
 
-  it('should handle imports not in mapping', () => {
-    const source = `
-      import Component1 from './Component1';
-      import Component2 from './Component2';
-      import UnknownComponent from './UnknownComponent';
-    `;
-    const importPathMapping = new Map([
-      ['./Component1', './FlatComponent1'],
-      ['./Component2', './FlatComponent2'],
-      // ./UnknownComponent not in mapping
-    ]);
+  describe('multiple occurrences', () => {
+    it('should handle same import path appearing multiple times', () => {
+      const source = `import { foo } from './shared';
+import { bar } from './shared';
+const dynamicImport = import('./shared');`;
+      const importPathMapping = new Map([['./shared', './new-shared']]);
+      const importResult = {
+        './shared': {
+          positions: [
+            { start: 20, end: 30 }, // First import
+            { start: 52, end: 62 }, // Second import
+            { start: 93, end: 103 }, // Dynamic import
+          ],
+        },
+      };
 
-    const result = rewriteJsImports(source, importPathMapping);
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './new-shared';
+import { bar } from './new-shared';
+const dynamicImport = import('./new-shared');`);
+    });
 
-    expect(result).toContain("import Component1 from './FlatComponent1'");
-    expect(result).toContain("import Component2 from './FlatComponent2'");
-    expect(result).toContain("import UnknownComponent from './UnknownComponent'"); // unchanged
+    it('should handle multiple occurrences with different length replacements', () => {
+      const source = `import './css-file';
+import './css-file';
+const url = './css-file';`;
+      const importPathMapping = new Map([['./css-file', './styles/very-long-css-filename']]);
+      const importResult = {
+        './css-file': {
+          positions: [
+            { start: 7, end: 19 }, // First import
+            { start: 28, end: 40 }, // Second import
+            { start: 54, end: 66 }, // String literal
+          ],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import './styles/very-long-css-filename';
+import './styles/very-long-css-filename';
+const url = './styles/very-long-css-filename';`);
+    });
   });
 
-  it('should handle named imports', () => {
-    const source = `
-      import { Component1, Component2 } from '../utils/components';
-      import * as Utils from '../../helpers/utils';
-    `;
-    const importPathMapping = new Map([
-      ['../utils/components', './components'],
-      ['../../helpers/utils', './utils'],
-    ]);
+  describe('CSS imports', () => {
+    it('should handle CSS import syntax', () => {
+      const source = `@import './styles.css';
+@import url('./theme.css');`;
+      const importPathMapping = new Map([
+        ['./styles.css', './new-styles.css'],
+        ['./theme.css', './new-theme.css'],
+      ]);
+      const importResult = {
+        './styles.css': {
+          positions: [{ start: 8, end: 22 }],
+        },
+        './theme.css': {
+          positions: [{ start: 36, end: 49 }],
+        },
+      };
 
-    const result = rewriteJsImports(source, importPathMapping);
-
-    expect(result).toContain("import { Component1, Component2 } from './components'");
-    expect(result).toContain("import * as Utils from './utils'");
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`@import './new-styles.css';
+@import url('./new-theme.css');`);
+    });
   });
 
-  it('should handle multiline imports', () => {
-    const source = `
-      import {
-        Component1,
-        Component2,
-        Component3
-      } from '../components/index';
-    `;
-    const importPathMapping = new Map([['../components/index', './index']]);
+  describe('edge cases', () => {
+    it('should handle empty source', () => {
+      const source = '';
+      const importPathMapping = new Map();
+      const importResult = {};
 
-    const result = rewriteJsImports(source, importPathMapping);
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe('');
+    });
 
-    expect(result).toContain("from './index'");
+    it('should handle empty mappings', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map();
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './bar';`);
+    });
+
+    it('should handle missing position data', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {}; // No position data
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './bar';`); // Unchanged
+    });
+
+    it('should handle invalid position bounds', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [
+            { start: -1, end: 5 }, // Invalid start
+            { start: 5, end: 1000 }, // Invalid end
+            { start: 10, end: 5 }, // Start > end
+          ],
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './bar';`); // Unchanged due to invalid positions
+    });
+
+    it('should handle empty positions array', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [], // Empty array
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './bar';`); // Unchanged
+    });
+
+    it('should handle position with empty text', () => {
+      const source = `import { foo } from './bar';`;
+      const importPathMapping = new Map([['./bar', './new-bar']]);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 20 }], // Zero-length position
+        },
+      };
+
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import { foo } from './bar';`); // Unchanged due to zero-length position
+    });
   });
 
-  it('should handle empty mapping', () => {
-    const source = `
-      import Component from './Component';
-    `;
-    const importPathMapping = new Map<string, string>();
+  describe('complex scenarios', () => {
+    it('should handle a realistic file with multiple import types', () => {
+      const source = `import React from 'react';
+import { Component } from './components/Component';
+import './styles.css';
+import type { Props } from './types/Props';
+const LazyComponent = React.lazy(() => import('./components/LazyComponent'));
+export { default as Utils } from './utils/index';`;
 
-    const result = rewriteJsImports(source, importPathMapping);
+      const importPathMapping = new Map([
+        ['./components/Component', '@/components/Component'],
+        ['./styles.css', '@/styles/main.css'],
+        ['./types/Props', '@/types/Props'],
+        ['./components/LazyComponent', '@/components/LazyComponent'],
+        ['./utils/index', '@/utils'],
+      ]);
 
-    expect(result).toBe(source); // unchanged
-  });
+      const importResult = {
+        './components/Component': {
+          positions: [{ start: 53, end: 77 }],
+        },
+        './styles.css': {
+          positions: [{ start: 86, end: 100 }],
+        },
+        './types/Props': {
+          positions: [{ start: 129, end: 144 }],
+        },
+        './components/LazyComponent': {
+          positions: [{ start: 192, end: 220 }],
+        },
+        './utils/index': {
+          positions: [{ start: 257, end: 272 }],
+        },
+      };
 
-  it('should handle empty source', () => {
-    const source = '';
-    const importPathMapping = new Map([['./Component', './FlatComponent']]);
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(`import React from 'react';
+import { Component } from '@/components/Component';
+import '@/styles/main.css';
+import type { Props } from '@/types/Props';
+const LazyComponent = React.lazy(() => import('@/components/LazyComponent'));
+export { default as Utils } from '@/utils';`);
+    });
 
-    const result = rewriteJsImports(source, importPathMapping);
+    it('should handle overlapping position scenarios gracefully', () => {
+      // This tests the right-to-left replacement strategy
+      const source = `import a from './path1'; import b from './path2'; import c from './path3';`;
+      const importPathMapping = new Map([
+        ['./path1', './very-long-new-path1'],
+        ['./path2', './x'],
+        ['./path3', './medium-path3'],
+      ]);
+      const importResult = {
+        './path1': {
+          positions: [{ start: 14, end: 23 }],
+        },
+        './path2': {
+          positions: [{ start: 39, end: 48 }],
+        },
+        './path3': {
+          positions: [{ start: 64, end: 73 }],
+        },
+      };
 
-    expect(result).toBe('');
-  });
-});
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(
+        `import a from './very-long-new-path1'; import b from './x'; import c from './medium-path3';`,
+      );
+    });
 
-describe('rewriteCssImports', () => {
-  it('should rewrite CSS @import statements based on mapping', () => {
-    const source = `
-      @import './base.css';
-      @import '../components/button.css';
-      @import '../../theme/colors.css';
-    `;
-    const importPathMapping = new Map([
-      ['./base.css', 'base.css'],
-      ['../components/button.css', 'button.css'],
-      ['../../theme/colors.css', 'colors.css'],
-    ]);
+    it('should demonstrate right-to-left replacement prevents position corruption', () => {
+      // This test specifically verifies that when the first import is replaced with
+      // a much longer string, it doesn't affect the replacement of subsequent imports
+      // because replacements are applied from right to left (highest position first)
+      const source = `import './a'; import './b'; import './c';`;
+      const importPathMapping = new Map([
+        ['./a', './this-is-a-very-very-very-long-replacement-path'],
+        ['./b', './short'],
+        ['./c', './medium-length-path'],
+      ]);
+      const importResult = {
+        './a': {
+          positions: [{ start: 7, end: 12 }], // Position of "'./a'"
+        },
+        './b': {
+          positions: [{ start: 21, end: 26 }], // Position of "'./b'"
+        },
+        './c': {
+          positions: [{ start: 35, end: 40 }], // Position of "'./c'"
+        },
+      };
 
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'base.css'");
-    expect(result).toContain("@import 'button.css'");
-    expect(result).toContain("@import 'colors.css'");
-  });
-
-  it('should handle CSS @import with media queries', () => {
-    const source = `
-      @import './print.css' print;
-      @import '../mobile.css' screen and (max-width: 768px);
-      @import '../../dark.css' (prefers-color-scheme: dark);
-    `;
-    const importPathMapping = new Map([
-      ['./print.css', 'print.css'],
-      ['../mobile.css', 'mobile.css'],
-      ['../../dark.css', 'dark.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'print.css' print");
-    expect(result).toContain("@import 'mobile.css' screen and (max-width: 768px)");
-    expect(result).toContain("@import 'dark.css' (prefers-color-scheme: dark)");
-  });
-
-  it('should handle CSS @import with layers and supports', () => {
-    const source = `
-      @import './base.css' layer(base);
-      @import '../theme.css' layer(theme) supports(display: grid);
-      @import '../../utilities.css' layer(utilities) supports(color: color(display-p3 1 0 0));
-    `;
-    const importPathMapping = new Map([
-      ['./base.css', 'base.css'],
-      ['../theme.css', 'theme.css'],
-      ['../../utilities.css', 'utilities.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'base.css' layer(base)");
-    expect(result).toContain("@import 'theme.css' layer(theme) supports(display: grid)");
-    expect(result).toContain(
-      "@import 'utilities.css' layer(utilities) supports(color: color(display-p3 1 0 0))",
-    );
-  });
-
-  it('should handle CSS @import with url() function', () => {
-    const source = `
-      @import url('./reset.css');
-      @import url("../components/layout.css");
-      @import url('../../fonts/typography.css');
-    `;
-    const importPathMapping = new Map([
-      ['./reset.css', 'reset.css'],
-      ['../components/layout.css', 'layout.css'],
-      ['../../fonts/typography.css', 'typography.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import url('reset.css')");
-    expect(result).toContain('@import url("layout.css")'); // Preserves double quotes
-    expect(result).toContain("@import url('typography.css')");
-  });
-
-  it('should preserve external URLs in CSS imports', () => {
-    const source = `
-      @import 'https://fonts.googleapis.com/css2?family=Roboto';
-      @import url('https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css');
-      @import './local.css';
-    `;
-    const importPathMapping = new Map([['./local.css', 'local.css']]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'https://fonts.googleapis.com/css2?family=Roboto'");
-    expect(result).toContain(
-      "@import url('https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css')",
-    );
-    expect(result).toContain("@import 'local.css'");
-  });
-
-  it('should handle CSS imports not in mapping', () => {
-    const source = `
-      @import './mapped.css';
-      @import './unmapped.css';
-      @import '../another-unmapped.scss';
-    `;
-    const importPathMapping = new Map([['./mapped.css', 'flat-mapped.css']]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'flat-mapped.css'");
-    expect(result).toContain("@import './unmapped.css'"); // unchanged
-    expect(result).toContain("@import '../another-unmapped.scss'"); // unchanged
-  });
-
-  it('should handle different CSS file extensions', () => {
-    const source = `
-      @import './styles.css';
-      @import '../theme.scss';
-      @import '../../variables.less';
-      @import '../../../mixins.sass';
-    `;
-    const importPathMapping = new Map([
-      ['./styles.css', 'styles.css'],
-      ['../theme.scss', 'theme.scss'],
-      ['../../variables.less', 'variables.less'],
-      ['../../../mixins.sass', 'mixins.sass'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'styles.css'");
-    expect(result).toContain("@import 'theme.scss'");
-    expect(result).toContain("@import 'variables.less'");
-    expect(result).toContain("@import 'mixins.sass'");
-  });
-
-  it('should handle multiline CSS imports', () => {
-    const source = `
-      @import 
-        './base.css'
-        layer(base)
-        supports(display: grid);
-    `;
-    const importPathMapping = new Map([['./base.css', 'base.css']]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("'base.css'");
-  });
-
-  it('should handle empty CSS mapping', () => {
-    const source = `
-      @import './styles.css';
-    `;
-    const importPathMapping = new Map<string, string>();
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toBe(source); // unchanged
-  });
-
-  it('should handle empty CSS source', () => {
-    const source = '';
-    const importPathMapping = new Map([['./styles.css', 'flat-styles.css']]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toBe('');
-  });
-
-  it('should handle CSS with mixed content', () => {
-    const source = `
-      /* Base styles */
-      @import './reset.css';
-      
-      body {
-        font-family: Arial, sans-serif;
-      }
-      
-      @import '../components/button.css';
-      
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-      }
-    `;
-    const importPathMapping = new Map([
-      ['./reset.css', 'reset.css'],
-      ['../components/button.css', 'button.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain("@import 'reset.css'");
-    expect(result).toContain("@import 'button.css'");
-    expect(result).toContain('font-family: Arial, sans-serif;');
-    expect(result).toContain('max-width: 1200px;');
-  });
-
-  it('should preserve complex CSS import metadata combinations', () => {
-    const source = `
-      @import './base.css' layer(base) supports(display: grid) screen and (min-width: 768px);
-      @import url('./theme.css') layer(theme) supports(color: oklch(0.5 0.2 180)) print;
-      @import "../components.css" layer(components) (prefers-color-scheme: dark);
-    `;
-    const importPathMapping = new Map([
-      ['./base.css', 'base.css'],
-      ['./theme.css', 'theme.css'],
-      ['../components.css', 'components.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain(
-      "@import 'base.css' layer(base) supports(display: grid) screen and (min-width: 768px)",
-    );
-    expect(result).toContain(
-      "@import url('theme.css') layer(theme) supports(color: oklch(0.5 0.2 180)) print",
-    );
-    expect(result).toContain(
-      '@import "components.css" layer(components) (prefers-color-scheme: dark)',
-    );
-  });
-
-  it('should preserve whitespace and formatting in CSS imports with metadata', () => {
-    const source = `
-      @import   './base.css'   layer(base)   screen;
-      @import url(  './theme.css'  )  layer( theme )  print ;
-      @import
-        '../utilities.css'
-        layer(utilities)
-        supports(display: flex)
-        (max-width: 1024px);
-    `;
-    const importPathMapping = new Map([
-      ['./base.css', 'base.css'],
-      ['./theme.css', 'theme.css'],
-      ['../utilities.css', 'utilities.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    // Should preserve the spacing and formatting
-    expect(result).toContain("'base.css'");
-    expect(result).toContain("'theme.css'");
-    expect(result).toContain("'utilities.css'");
-    expect(result).toContain('layer(base)');
-    expect(result).toContain('layer( theme )');
-    expect(result).toContain('layer(utilities)');
-    expect(result).toContain('supports(display: flex)');
-  });
-
-  it('should handle edge cases with quoted layer names and complex supports', () => {
-    const source = `
-      @import './modern.css' layer("base-layer") supports(display: grid and color: color(display-p3 1 0 0));
-      @import '../legacy.css' layer('compatibility-layer') supports(not (display: grid));
-      @import url("./experimental.css") layer(experimental) supports((display: flex) or (display: grid));
-    `;
-    const importPathMapping = new Map([
-      ['./modern.css', 'modern.css'],
-      ['../legacy.css', 'legacy.css'],
-      ['./experimental.css', 'experimental.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    expect(result).toContain(
-      '\'modern.css\' layer("base-layer") supports(display: grid and color: color(display-p3 1 0 0))',
-    );
-    expect(result).toContain(
-      "'legacy.css' layer('compatibility-layer') supports(not (display: grid))",
-    );
-    expect(result).toContain(
-      'url("experimental.css") layer(experimental) supports((display: flex) or (display: grid))',
-    );
-  });
-
-  it('should handle full CSS import specification metadata', () => {
-    const source = `
-      @import './base.css' layer(foundation) supports(display: grid) screen and (min-width: 320px) and (max-width: 1200px);
-      @import url('./theme.css') layer("theme-layer") supports(color: oklch(0.5 0.2 180) and (display: flex)) print and (color-gamut: p3);
-      @import "../animations.css" layer(animations) supports((animation-timeline: scroll()) or (animation-range: entry)) (prefers-reduced-motion: no-preference);
-      @import './utilities.css' layer(utilities) supports(container-type: inline-size) screen and (hover: hover) and (pointer: fine);
-    `;
-    const importPathMapping = new Map([
-      ['./base.css', 'base.css'],
-      ['./theme.css', 'theme.css'],
-      ['../animations.css', 'animations.css'],
-      ['./utilities.css', 'utilities.css'],
-    ]);
-
-    const result = rewriteCssImports(source, importPathMapping);
-
-    // Verify each complex import preserves all metadata
-    expect(result).toContain(
-      "@import 'base.css' layer(foundation) supports(display: grid) screen and (min-width: 320px) and (max-width: 1200px)",
-    );
-    expect(result).toContain(
-      '@import url(\'theme.css\') layer("theme-layer") supports(color: oklch(0.5 0.2 180) and (display: flex)) print and (color-gamut: p3)',
-    );
-    expect(result).toContain(
-      '@import "animations.css" layer(animations) supports((animation-timeline: scroll()) or (animation-range: entry)) (prefers-reduced-motion: no-preference)',
-    );
-    expect(result).toContain(
-      "@import 'utilities.css' layer(utilities) supports(container-type: inline-size) screen and (hover: hover) and (pointer: fine)",
-    );
+      const result = rewriteImports(source, importPathMapping, importResult);
+      expect(result).toBe(
+        `import './this-is-a-very-very-very-long-replacement-path'; import './short'; import './medium-length-path';`,
+      );
+    });
   });
 });

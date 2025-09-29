@@ -1,94 +1,66 @@
 /**
- * Rewrites relative imports in source code based on a provided mapping.
- * Converts imports like '../utils/helper' or './components/Button' to their mapped equivalents
- *
- * @param source - The source code to process
- * @param importPathMapping - Map from original import paths to new import paths (without extensions)
- * @returns The source code with rewritten imports
+ * Interface for rewrite replacement operations.
  */
-export function rewriteJsImports(source: string, importPathMapping: Map<string, string>): string {
-  // Handle both types of imports:
-  // 1. import [something] from 'path' (including import type)
-  // 2. import 'path' (side-effect imports like CSS)
-
-  return source
-    .replace(
-      /import\s+((?:type\s+)?(?:\w+|\*\s+as\s+\w+|{[^}]+})\s+from\s+)['"]([^'"]+)['"]/g,
-      (match, importPart, modulePath) => {
-        // Only process relative imports
-        if (modulePath.startsWith('.')) {
-          // Check if we have a mapping for this import path
-          if (importPathMapping.has(modulePath)) {
-            const newPath = importPathMapping.get(modulePath)!;
-            return `import ${importPart}'${newPath}'`;
-          }
-        }
-        return match;
-      },
-    )
-    .replace(/import\s+['"]([^'"]+)['"]/g, (match, modulePath) => {
-      // Only process relative imports
-      if (modulePath.startsWith('.')) {
-        // Check if we have a mapping for this import path
-        if (importPathMapping.has(modulePath)) {
-          const newPath = importPathMapping.get(modulePath)!;
-          return `import '${newPath}'`;
-        }
-      }
-      return match;
-    });
+interface RewriteReplacement {
+  /** Start position of the text to replace */
+  start: number;
+  /** End position of the text to replace */
+  end: number;
+  /** New text to replace with */
+  newText: string;
 }
 
 /**
- * Rewrites CSS @import statements in source code based on a provided mapping.
- * Converts imports like @import './styles.css' or @import url('./styles.css') to their mapped equivalents
- * while preserving all CSS import metadata (layers, supports, media queries).
+ * Efficiently rewrites import paths using position data.
+ * This avoids regex parsing and uses precise position information for replacement.
+ * Works for both JavaScript/TypeScript and CSS imports.
  *
- * @param source - The CSS source code to process
+ * @param source - The source code to process
  * @param importPathMapping - Map from original import paths to new import paths
- * @returns The CSS source code with rewritten @import statements
+ * @param importResult - Import result with position data
+ * @returns The source code with rewritten import paths
  */
-export function rewriteCssImports(source: string, importPathMapping: Map<string, string>): string {
-  return (
-    source
-      // Handle @import 'path' with optional metadata
-      .replace(/@import\s+(['"])([^'"]+)\1([^;]*);?/g, (match, quote, modulePath, metadata) => {
-        // Only process relative imports
-        if (modulePath.startsWith('.')) {
-          // Check if we have a mapping for this import path
-          if (importPathMapping.has(modulePath)) {
-            const newPath = importPathMapping.get(modulePath)!;
-            return `@import ${quote}${newPath}${quote}${metadata}${match.endsWith(';') ? ';' : ''}`;
+export function rewriteImports(
+  source: string,
+  importPathMapping: Map<string, string>,
+  importResult: Record<string, { positions: Array<{ start: number; end: number }> }>,
+): string {
+  const replacements: RewriteReplacement[] = [];
+
+  // Use precise position-based replacement
+  importPathMapping.forEach((newPath, originalPath) => {
+    const positions = importResult[originalPath]?.positions;
+    if (positions && positions.length > 0) {
+      // Process all positions where this import path appears
+      for (const position of positions) {
+        // Validate position bounds
+        if (position.start >= 0 && position.end <= source.length && position.start < position.end) {
+          // The positions include the quotes, so we need to preserve them
+          const originalText = source.slice(position.start, position.end);
+          if (originalText.length > 0) {
+            const quote = originalText.charAt(0); // Get the original quote character
+            const newText = `${quote}${newPath}${quote}`;
+
+            replacements.push({
+              start: position.start,
+              end: position.end,
+              newText,
+            });
           }
         }
-        return match;
-      })
-      // Handle @import url('path') with optional metadata
-      .replace(
-        /@import\s+url\(\s*(['"])([^'"]+)\1\s*\)([^;]*);?/g,
-        (match, quote, modulePath, metadata) => {
-          // Only process relative imports
-          if (modulePath.startsWith('.')) {
-            // Check if we have a mapping for this import path
-            if (importPathMapping.has(modulePath)) {
-              const newPath = importPathMapping.get(modulePath)!;
-              return `@import url(${quote}${newPath}${quote})${metadata}${match.endsWith(';') ? ';' : ''}`;
-            }
-          }
-          return match;
-        },
-      )
-      // Handle @import url(unquoted-path) with optional metadata
-      .replace(/@import\s+url\(\s*([^'")[^)]*)\s*\)([^;]*);?/g, (match, modulePath, metadata) => {
-        // Handle unquoted url() - only process relative imports
-        if (modulePath.startsWith('.')) {
-          // Check if we have a mapping for this import path
-          if (importPathMapping.has(modulePath)) {
-            const newPath = importPathMapping.get(modulePath)!;
-            return `@import url(${newPath})${metadata}${match.endsWith(';') ? ';' : ''}`;
-          }
-        }
-        return match;
-      })
-  );
+      }
+    }
+  });
+
+  // Sort replacements by position (descending) to avoid position shifts
+  replacements.sort((a, b) => b.start - a.start);
+
+  // Apply replacements from right to left
+  let result = source;
+  for (const replacement of replacements) {
+    result =
+      result.slice(0, replacement.start) + replacement.newText + result.slice(replacement.end);
+  }
+
+  return result;
 }

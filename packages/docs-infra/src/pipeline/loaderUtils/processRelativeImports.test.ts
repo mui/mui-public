@@ -279,14 +279,10 @@ describe('processCssImports', () => {
   const mockCssImportResult = {
     './base.css': { path: '/src/styles/base.css', names: [] },
     './components/button.css': { path: '/src/styles/components/button.css', names: [] },
-    'https://fonts.googleapis.com/css2?family=Roboto': {
-      path: 'https://fonts.googleapis.com/css2?family=Roboto',
-      names: [],
-    },
   };
 
   it('should handle CSS imports in canonical mode', () => {
-    const source = `@import './base.css';\n@import './components/button.css';\n@import url('https://fonts.googleapis.com/css2?family=Roboto');`;
+    const source = `@import './base.css';\n@import './components/button.css';`;
 
     const result = processRelativeImports(source, mockCssImportResult, 'canonical');
 
@@ -294,45 +290,64 @@ describe('processCssImports', () => {
     expect(result.extraFiles).toEqual({
       './base.css': 'file:///src/styles/base.css',
       './components/button.css': 'file:///src/styles/components/button.css',
-      'https://fonts.googleapis.com/css2?family=Roboto':
-        'https://fonts.googleapis.com/css2?family=Roboto',
     });
   });
 
   it('should handle CSS imports in import mode', () => {
     const source = `@import './base.css';\n@import './components/button.css';`;
+    const cssImportResultWithPositions = {
+      './base.css': { path: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
+      './components/button.css': {
+        path: '/src/styles/components/button.css',
+        names: [],
+        positions: [{ start: 30, end: 55 }],
+      },
+    };
 
-    const result = processRelativeImports(source, mockCssImportResult, 'import');
+    const result = processRelativeImports(source, cssImportResultWithPositions, 'import');
 
     // Source should be rewritten to normalize ./ paths
     expect(result.processedSource).toBe(`@import 'base.css';\n@import 'components/button.css';`);
     expect(result.extraFiles).toEqual({
       './base.css': 'file:///src/styles/base.css',
       './components/button.css': 'file:///src/styles/components/button.css',
-      'https://fonts.googleapis.com/css2?family=Roboto':
-        'https://fonts.googleapis.com/css2?family=Roboto',
     });
   });
 
   it('should handle CSS imports in flat mode with simple conflict resolution', () => {
     const source = `@import './base.css';\n@import './components/button.css';`;
+    const cssImportResultWithPositions = {
+      './base.css': { path: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
+      './components/button.css': {
+        path: '/src/styles/components/button.css',
+        names: [],
+        positions: [{ start: 30, end: 55 }],
+      },
+    };
 
-    const result = processRelativeImports(source, mockCssImportResult, 'flat');
+    const result = processRelativeImports(source, cssImportResultWithPositions, 'flat');
 
     // Source should be rewritten with flattened paths
     expect(result.processedSource).toBe(`@import 'base.css';\n@import 'button.css';`);
     expect(result.extraFiles).toEqual({
       './base.css': 'file:///src/styles/base.css',
       './button.css': 'file:///src/styles/components/button.css',
-      './css2': 'https://fonts.googleapis.com/css2?family=Roboto',
     });
   });
 
   it('should handle CSS imports with naming conflicts in flat mode', () => {
     const source = `@import './theme/base.css';\n@import './layout/base.css';`;
     const importResult = {
-      './theme/base.css': { path: '/src/styles/theme/base.css', names: [] },
-      './layout/base.css': { path: '/src/styles/layout/base.css', names: [] },
+      './theme/base.css': {
+        path: '/src/styles/theme/base.css',
+        names: [],
+        positions: [{ start: 8, end: 26 }],
+      },
+      './layout/base.css': {
+        path: '/src/styles/layout/base.css',
+        names: [],
+        positions: [{ start: 36, end: 55 }],
+      },
     };
 
     const result = processRelativeImports(source, importResult, 'flat');
@@ -358,9 +373,17 @@ describe('processCssImports', () => {
   it('should handle CSS imports with different file extensions', () => {
     const source = `@import './base.css';\n@import './theme.scss';\n@import './variables.less';`;
     const importResult = {
-      './base.css': { path: '/src/styles/base.css', names: [] },
-      './theme.scss': { path: '/src/styles/theme.scss', names: [] },
-      './variables.less': { path: '/src/styles/variables.less', names: [] },
+      './base.css': { path: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
+      './theme.scss': {
+        path: '/src/styles/theme.scss',
+        names: [],
+        positions: [{ start: 30, end: 44 }],
+      },
+      './variables.less': {
+        path: '/src/styles/variables.less',
+        names: [],
+        positions: [{ start: 54, end: 72 }],
+      },
     };
 
     const result = processRelativeImports(source, importResult, 'flat');
@@ -419,9 +442,21 @@ describe('processCssImports', () => {
   it('should handle CSS imports with media queries and conditions', () => {
     const source = `@import './print.css' print;\n@import './mobile.css' screen and (max-width: 768px);\n@import './dark.css' (prefers-color-scheme: dark);`;
     const importResult = {
-      './print.css': { path: '/src/styles/print.css', names: [] },
-      './mobile.css': { path: '/src/styles/mobile.css', names: [] },
-      './dark.css': { path: '/src/styles/dark.css', names: [] },
+      './print.css': {
+        path: '/src/styles/print.css',
+        names: [],
+        positions: [{ start: 8, end: 21 }],
+      },
+      './mobile.css': {
+        path: '/src/styles/mobile.css',
+        names: [],
+        positions: [{ start: 37, end: 51 }],
+      },
+      './dark.css': {
+        path: '/src/styles/dark.css',
+        names: [],
+        positions: [{ start: 91, end: 103 }],
+      },
     };
 
     const result = processRelativeImports(source, importResult, 'flat');
@@ -455,8 +490,16 @@ describe('processCssImports', () => {
   it('should demonstrate difference between canonical and import modes', () => {
     const source = `@import './styles/base.css';\n@import '../shared/utils.css';`;
     const importResult = {
-      './styles/base.css': { path: '/src/components/styles/base.css', names: [] },
-      '../shared/utils.css': { path: '/src/shared/utils.css', names: [] },
+      './styles/base.css': {
+        path: '/src/components/styles/base.css',
+        names: [],
+        positions: [{ start: 8, end: 27 }],
+      },
+      '../shared/utils.css': {
+        path: '/src/shared/utils.css',
+        names: [],
+        positions: [{ start: 37, end: 58 }],
+      },
     };
 
     // Canonical mode: returns exact paths as provided, no source rewriting

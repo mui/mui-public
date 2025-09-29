@@ -17,6 +17,16 @@ export interface ImportName {
 }
 
 /**
+ * Represents the position of an import path in the source code.
+ */
+export interface ImportPathPosition {
+  /** The start index of the import path (including quotes) */
+  start: number;
+  /** The end index of the import path (including quotes) */
+  end: number;
+}
+
+/**
  * Represents an import from a relative path (starts with ./ or ../).
  */
 export interface RelativeImport {
@@ -26,6 +36,8 @@ export interface RelativeImport {
   names: ImportName[];
   /** Whether TypeScript type definitions should be included for this import */
   includeTypeDefs?: true;
+  /** Array of positions where this import path appears in the source code */
+  positions: ImportPathPosition[];
 }
 
 /**
@@ -34,6 +46,8 @@ export interface RelativeImport {
 export interface ExternalImport {
   /** Array of imported names from this external package */
   names: ImportName[];
+  /** Array of positions where this import path appears in the source code */
+  positions: ImportPathPosition[];
 }
 
 /**
@@ -141,15 +155,25 @@ function scanForImports(
   importDetector: (
     code: string,
     pos: number,
+    positionMapper: (originalPos: number) => number,
   ) => { found: boolean; nextPos: number; statement?: any },
   isMdxFile: boolean,
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
-): { statements: any[]; code?: string; comments?: Record<number, string[]> } {
+): {
+  statements: any[];
+  code?: string;
+  comments?: Record<number, string[]>;
+  positionMapper?: (originalPos: number) => number;
+} {
   const statements: any[] = [];
   const comments: Record<number, string[]> = {};
   const shouldProcessComments = !!(removeCommentsWithPrefix || notableCommentsPrefix);
   let result = shouldProcessComments ? '' : sourceCode;
+
+  // Position mapping from original source to processed source (after comment removal)
+  const positionMapping = new Map<number, number>();
+  let processedPos = 0;
 
   // Helper to check if a comment matches notable prefix
   const matchesNotablePrefix = (commentText: string): boolean => {
@@ -195,6 +219,7 @@ function scanForImports(
       if (ch === '\n') {
         if (shouldProcessComments) {
           result += ch;
+          processedPos += 1;
         }
         outputLine += 1;
         lineStartPos = i + 1;
@@ -255,15 +280,38 @@ function scanForImports(
         continue;
       }
 
+      // Update position mapping for current position
+      if (shouldProcessComments) {
+        positionMapping.set(i, processedPos);
+      }
+
+      // Create position mapper function
+      const positionMapper = (originalPos: number): number => {
+        if (!shouldProcessComments) {
+          return originalPos; // No comment processing, positions are unchanged
+        }
+        // Find the closest mapped position
+        let closest = 0;
+        positionMapping.forEach((procPos, origPos) => {
+          if (origPos <= originalPos && origPos > closest) {
+            closest = origPos;
+          }
+        });
+        const offset = originalPos - closest;
+        return (positionMapping.get(closest) || 0) + offset;
+      };
+
       // Use the provided import detector on the original source code
-      const detection = importDetector(sourceCode, i);
+      const detection = importDetector(sourceCode, i, positionMapper);
       if (detection.found) {
         if (detection.statement) {
           statements.push(detection.statement);
         }
         // Copy the detected import to result if we're building one
         if (shouldProcessComments) {
-          result += sourceCode.slice(i, detection.nextPos);
+          const importText = sourceCode.slice(i, detection.nextPos);
+          result += importText;
+          processedPos += importText.length;
         }
         i = detection.nextPos;
         continue;
@@ -271,6 +319,7 @@ function scanForImports(
 
       if (shouldProcessComments) {
         result += ch;
+        processedPos += 1;
       }
       i += 1;
       continue;
@@ -494,11 +543,28 @@ function scanForImports(
     }
   }
 
+  // Create the final position mapper for return
+  const finalPositionMapper = (originalPos: number): number => {
+    if (!shouldProcessComments) {
+      return originalPos; // No comment processing, positions are unchanged
+    }
+    // Find the closest mapped position
+    let closest = 0;
+    positionMapping.forEach((procPos, origPos) => {
+      if (origPos <= originalPos && origPos > closest) {
+        closest = origPos;
+      }
+    });
+    const offset = originalPos - closest;
+    return (positionMapping.get(closest) || 0) + offset;
+  };
+
   return {
     statements,
     ...(shouldProcessComments && {
       code: result,
       comments,
+      positionMapper: finalPositionMapper,
     }),
   };
 }
@@ -587,10 +653,14 @@ function readIdentifier(text: string, start: number): { name: string; nextPos: n
 }
 
 // Helper function to read a quoted string starting at position
-function readQuotedString(text: string, start: number): { value: string; nextPos: number } {
+function readQuotedString(
+  text: string,
+  start: number,
+): { value: string; nextPos: number; pathStart: number; pathEnd: number } {
   const quote = text[start];
   let pos = start + 1;
   let value = '';
+  const pathStart = start; // Start at the opening quote
 
   while (pos < text.length) {
     const ch = text[pos];
@@ -600,14 +670,16 @@ function readQuotedString(text: string, start: number): { value: string; nextPos
       continue;
     }
     if (ch === quote) {
+      const pathEnd = pos + 1; // End after the closing quote
       pos += 1;
-      break;
+      return { value, nextPos: pos, pathStart, pathEnd };
     }
     value += ch;
     pos += 1;
   }
 
-  return { value, nextPos: pos };
+  // If we reach here, no closing quote was found - fallback
+  return { value, nextPos: pos, pathStart, pathEnd: pos };
 }
 
 // Helper function to parse named imports from a brace-enclosed section
@@ -697,7 +769,7 @@ function parseNamedImports(
 function parseCssImportStatement(
   cssCode: string,
   start: number,
-): { modulePath: string | null; nextPos: number } {
+): { modulePath: string | null; nextPos: number; pathStart?: number; pathEnd?: number } {
   let pos = start + 7; // Skip '@import'
   const len = cssCode.length;
 
@@ -707,6 +779,8 @@ function parseCssImportStatement(
   }
 
   let modulePath: string | null = null;
+  let pathStart: number | undefined;
+  let pathEnd: number | undefined;
 
   // Check for url() syntax
   if (cssCode.slice(pos, pos + 4) === 'url(') {
@@ -719,6 +793,7 @@ function parseCssImportStatement(
     // Read the URL (quoted or unquoted)
     if (pos < len && (cssCode[pos] === '"' || cssCode[pos] === "'")) {
       const quote = cssCode[pos];
+      pathStart = pos; // Start at the opening quote
       pos += 1;
       let url = '';
       while (pos < len && cssCode[pos] !== quote) {
@@ -734,17 +809,20 @@ function parseCssImportStatement(
         pos += 1;
       }
       if (pos < len && cssCode[pos] === quote) {
+        pathEnd = pos + 1; // End after the closing quote
         pos += 1;
         modulePath = url;
       }
       // If we didn't find the closing quote, don't set modulePath (malformed)
     } else {
       // Unquoted URL
+      pathStart = pos;
       let url = '';
       while (pos < len && cssCode[pos] !== ')' && !/\s/.test(cssCode[pos])) {
         url += cssCode[pos];
         pos += 1;
       }
+      pathEnd = pos;
       modulePath = url;
     }
 
@@ -758,10 +836,13 @@ function parseCssImportStatement(
     } else {
       // Malformed url() - don't set modulePath
       modulePath = null;
+      pathStart = undefined;
+      pathEnd = undefined;
     }
   } else if (pos < len && (cssCode[pos] === '"' || cssCode[pos] === "'")) {
     // Direct quoted import
     const quote = cssCode[pos];
+    pathStart = pos; // Start at the opening quote
     pos += 1;
     let url = '';
     while (pos < len && cssCode[pos] !== quote) {
@@ -777,6 +858,7 @@ function parseCssImportStatement(
       pos += 1;
     }
     if (pos < len && cssCode[pos] === quote) {
+      pathEnd = pos + 1; // End after the closing quote
       pos += 1;
       modulePath = url;
     }
@@ -791,7 +873,7 @@ function parseCssImportStatement(
     pos += 1;
   }
 
-  return { modulePath, nextPos: pos };
+  return { modulePath, nextPos: pos, pathStart, pathEnd };
 }
 
 // CSS import detector function
@@ -801,6 +883,7 @@ function detectCssImport(
   cssResult: Record<string, RelativeImport>,
   cssExternals: Record<string, ExternalImport>,
   cssFilePath: string,
+  positionMapper: (originalPos: number) => number,
 ) {
   const ch = sourceText[pos];
 
@@ -812,7 +895,11 @@ function detectCssImport(
   ) {
     // Parse the @import statement
     const importResult = parseCssImportStatement(sourceText, pos);
-    if (importResult.modulePath) {
+    if (
+      importResult.modulePath &&
+      importResult.pathStart !== undefined &&
+      importResult.pathEnd !== undefined
+    ) {
       // In CSS, imports are relative unless they have a protocol/hostname
       // Examples of external: "http://...", "https://...", "//example.com/style.css"
       // Examples of relative: "print.css", "./local.css", "../parent.css"
@@ -820,10 +907,16 @@ function detectCssImport(
       const hasHostname = /^\/\//.test(importResult.modulePath);
       const isExternal = hasProtocol || hasHostname;
 
+      const position: ImportPathPosition = {
+        start: positionMapper(importResult.pathStart),
+        end: positionMapper(importResult.pathEnd),
+      };
+
       if (isExternal) {
         if (!cssExternals[importResult.modulePath]) {
-          cssExternals[importResult.modulePath] = { names: [] };
+          cssExternals[importResult.modulePath] = { names: [], positions: [] };
         }
+        cssExternals[importResult.modulePath].positions.push(position);
       } else {
         // Treat as relative import - normalize the path if it doesn't start with ./ or ../
         let normalizedPath = importResult.modulePath;
@@ -832,8 +925,9 @@ function detectCssImport(
         }
         const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
         if (!cssResult[importResult.modulePath]) {
-          cssResult[importResult.modulePath] = { path: resolvedPath, names: [] };
+          cssResult[importResult.modulePath] = { path: resolvedPath, names: [], positions: [] };
         }
+        cssResult[importResult.modulePath].positions.push(position);
       }
     }
     return { found: true, nextPos: importResult.nextPos };
@@ -863,8 +957,8 @@ function parseCssImports(
   // Use the generic scanner with a bound detector function
   const scanResult = scanForImports(
     cssCode,
-    (sourceText: string, pos: number) =>
-      detectCssImport(sourceText, pos, cssResult, cssExternals, cssFilePath),
+    (sourceText: string, pos: number, positionMapper: (originalPos: number) => number) =>
+      detectCssImport(sourceText, pos, cssResult, cssExternals, cssFilePath, positionMapper),
     false,
     removeCommentsWithPrefix,
     notableCommentsPrefix,
@@ -908,7 +1002,7 @@ function parseJSImports(
   );
 
   // Now, parse each import statement using character-by-character parsing
-  for (const { text } of scanResult.statements) {
+  for (const { start, text } of scanResult.statements) {
     let pos = 0;
     const textLen = text.length;
 
@@ -926,16 +1020,34 @@ function parseJSImports(
 
     // Check if this is a side-effect import (starts with quote)
     if (pos < textLen && (text[pos] === '"' || text[pos] === "'")) {
-      const { value: modulePath } = readQuotedString(text, pos);
+      const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
       if (modulePath) {
+        // Calculate the position in the original source code
+        const originalPathStart = start + pathStart;
+        const originalPathEnd = start + pathEnd;
+
+        // Apply position mapping if available (for comment-stripped positions)
+        let mappedStart = originalPathStart;
+        let mappedEnd = originalPathEnd;
+        if (scanResult.positionMapper) {
+          mappedStart = scanResult.positionMapper(originalPathStart);
+          mappedEnd = scanResult.positionMapper(originalPathEnd);
+        }
+
+        const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
+
         const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
         if (isRelative) {
           const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
           if (!result[modulePath]) {
-            result[modulePath] = { path: resolvedPath, names: [] };
+            result[modulePath] = { path: resolvedPath, names: [], positions: [] };
           }
-        } else if (!externals[modulePath]) {
-          externals[modulePath] = { names: [] };
+          result[modulePath].positions.push(position);
+        } else {
+          if (!externals[modulePath]) {
+            externals[modulePath] = { names: [], positions: [] };
+          }
+          externals[modulePath].positions.push(position);
         }
       }
       continue;
@@ -1027,12 +1139,26 @@ function parseJSImports(
       continue; // No quoted module path found
     }
 
-    const { value: modulePath } = readQuotedString(text, pos);
+    const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
     if (!modulePath) {
       continue;
     }
 
+    // Calculate the position in the original source code
+    const originalPathStart = start + pathStart;
+    const originalPathEnd = start + pathEnd;
+
     const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
+
+    // Apply position mapping if available (for comment-stripped positions)
+    let mappedStart = originalPathStart;
+    let mappedEnd = originalPathEnd;
+    if (scanResult.positionMapper) {
+      mappedStart = scanResult.positionMapper(originalPathStart);
+      mappedEnd = scanResult.positionMapper(originalPathEnd);
+    }
+
+    const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
 
     if (isRelative) {
       const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
@@ -1040,11 +1166,15 @@ function parseJSImports(
         result[modulePath] = {
           path: resolvedPath,
           names: [],
+          positions: [],
           ...(isTypeImport && { includeTypeDefs: true as const }),
         };
       } else if (isTypeImport && !result[modulePath].includeTypeDefs) {
         result[modulePath].includeTypeDefs = true as const;
       }
+
+      // Add position information
+      result[modulePath].positions.push(position);
 
       if (defaultImport) {
         addImportName(result[modulePath].names, defaultImport, 'default', undefined, isTypeImport);
@@ -1065,8 +1195,11 @@ function parseJSImports(
       });
     } else {
       if (!externals[modulePath]) {
-        externals[modulePath] = { names: [] };
+        externals[modulePath] = { names: [], positions: [] };
       }
+
+      // Add position information
+      externals[modulePath].positions.push(position);
 
       if (defaultImport) {
         addImportName(
@@ -1106,9 +1239,14 @@ function parseJSImports(
  * Detects JavaScript import statements at a given position in source code.
  * @param sourceText - The source text to scan
  * @param pos - The current position in the text
+ * @param positionMapper - Function to map original positions to processed positions
  * @returns Object indicating if an import was found, the next position, and statement details
  */
-function detectJavaScriptImport(sourceText: string, pos: number) {
+function detectJavaScriptImport(
+  sourceText: string,
+  pos: number,
+  _positionMapper: (originalPos: number) => number,
+) {
   const ch = sourceText[pos];
 
   // Look for 'import' keyword (not part of an identifier, and not preceded by @)

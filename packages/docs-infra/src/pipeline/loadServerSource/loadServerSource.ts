@@ -78,12 +78,16 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     let extraFiles: Record<string, string>;
     let extraDependencies: string[];
 
-    // Convert import result to the format expected by processImports
-    const importsCompatible: Record<string, { path: string; names: string[] }> = {};
-    for (const [importPath, { path, names }] of Object.entries(importResult)) {
+    // Convert import result to the format expected by processImports, preserving position data
+    const importsCompatible: Record<
+      string,
+      { path: string; names: string[]; positions: Array<{ start: number; end: number }> }
+    > = {};
+    for (const [importPath, { path, names, positions }] of Object.entries(importResult)) {
       importsCompatible[importPath] = {
         path,
         names: names.map(({ name, alias }) => alias || name),
+        positions,
       };
     }
 
@@ -100,12 +104,20 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
       // For JavaScript/TypeScript files, resolve paths first
       const relativeImportsCompatible: Record<
         string,
-        { path: string; names: string[]; includeTypeDefs?: true }
+        {
+          path: string;
+          names: string[];
+          includeTypeDefs?: true;
+          positions: Array<{ start: number; end: number }>;
+        }
       > = {};
-      for (const [importPath, { path, names, includeTypeDefs }] of Object.entries(importResult)) {
+      for (const [importPath, { path, names, includeTypeDefs, positions }] of Object.entries(
+        importResult,
+      )) {
         relativeImportsCompatible[importPath] = {
           path,
           names: names.map(({ name, alias }) => alias || name), // Use alias if available
+          positions,
           ...(includeTypeDefs && { includeTypeDefs }),
         };
       }

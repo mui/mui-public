@@ -1,4 +1,4 @@
-import { rewriteJsImports, rewriteCssImports } from './rewriteImports';
+import { rewriteImports } from './rewriteImports';
 import { isJavaScriptModule } from './resolveModulePath';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
 
@@ -13,7 +13,10 @@ export interface ProcessImportsResult {
  * Processes flat mode with intelligent conflict resolution
  */
 function processFlatMode(
-  importResult: Record<string, { path: string; names: string[] }>,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
   resolvedPathsMap: Map<string, string>,
 ): ProcessImportsResult {
   const extraFiles: Record<string, string> = {};
@@ -237,7 +240,10 @@ function processFlatMode(
  */
 function processBasicImports(
   source: string,
-  importResult: Record<string, { path: string; names: string[] }>,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
   storeAt: StoreAtMode,
 ): ProcessImportsResult {
   const extraFiles: Record<string, string> = {};
@@ -282,8 +288,21 @@ function processBasicImports(
       extraFiles[`./${finalName}`] = fileUrl;
     });
 
+    // Apply import path replacements using position-based rewriting
+    // Only rewrite if positions are available
+    const hasPositions = Object.values(importResult).some(
+      (imp) => imp.positions && imp.positions.length > 0,
+    );
+    const processedSource = hasPositions
+      ? rewriteImports(
+          source,
+          importPathMapping,
+          importResult as Record<string, { positions: Array<{ start: number; end: number }> }>,
+        )
+      : source;
+
     return {
-      processedSource: rewriteCssImports(source, importPathMapping),
+      processedSource,
       extraFiles,
     };
   }
@@ -305,8 +324,21 @@ function processBasicImports(
       extraFiles[relativePath] = fileUrl; // Always use original path for extraFiles
     });
 
+    // Apply import path replacements using position-based rewriting
+    // Only rewrite if positions are available
+    const hasPositions = Object.values(importResult).some(
+      (imp) => imp.positions && imp.positions.length > 0,
+    );
+    const processedSource = hasPositions
+      ? rewriteImports(
+          source,
+          importModeMapping,
+          importResult as Record<string, { positions: Array<{ start: number; end: number }> }>,
+        )
+      : source;
+
     return {
-      processedSource: rewriteCssImports(source, importModeMapping),
+      processedSource,
       extraFiles,
     };
   }
@@ -329,7 +361,10 @@ function processBasicImports(
  */
 function processJsImports(
   source: string,
-  importResult: Record<string, { path: string; names: string[] }>,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
   storeAt: StoreAtMode,
   resolvedPathsMap: Map<string, string>,
 ): ProcessImportsResult {
@@ -371,8 +406,15 @@ function processJsImports(
       }
     });
 
+    // Apply import path replacements using position-based rewriting
+    const processedSource = rewriteImports(
+      source,
+      importPathMapping,
+      importResult as Record<string, { positions: Array<{ start: number; end: number }> }>,
+    );
+
     return {
-      processedSource: rewriteJsImports(source, importPathMapping),
+      processedSource,
       extraFiles: result.extraFiles,
     };
   }
@@ -431,7 +473,10 @@ function processJsImports(
  */
 export function processRelativeImports(
   source: string,
-  importResult: Record<string, { path: string; names: string[] }>,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
   storeAt: StoreAtMode,
   isJsFile: boolean = false,
   resolvedPathsMap?: Map<string, string>,

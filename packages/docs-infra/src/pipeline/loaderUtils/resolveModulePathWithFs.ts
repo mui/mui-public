@@ -77,7 +77,15 @@ export async function resolveModulePathsWithFs(
  * @returns Promise<Map<string, string>> - Map from import path to resolved file path
  */
 export async function resolveImportResultWithFs(
-  importResult: Record<string, { path: string; names: string[]; includeTypeDefs?: true }>,
+  importResult: Record<
+    string,
+    {
+      path: string;
+      names: string[];
+      includeTypeDefs?: true;
+      positions?: Array<{ start: number; end: number }>;
+    }
+  >,
   options: ResolveModulePathOptions = {},
 ): Promise<Map<string, string>> {
   return resolveImportResult(importResult, nodeDirectoryReader, options);

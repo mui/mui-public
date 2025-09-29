@@ -71,13 +71,21 @@ async function mockLoader(
   // Step 1: Parse imports from source code
   const parseResult = await parseImports(sourceCode, filePath);
 
-  // Convert the new format to the old format expected by the integration test functions
-  const importResult: Record<string, { path: string; names: string[]; includeTypeDefs?: true }> =
-    {};
+  // Convert the new format to the format expected by processRelativeImports, preserving positions
+  const importResult: Record<
+    string,
+    {
+      path: string;
+      names: string[];
+      includeTypeDefs?: true;
+      positions: Array<{ start: number; end: number }>;
+    }
+  > = {};
   for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
     importResult[path] = {
       path: relativeImport.path,
       names: relativeImport.names.map((name) => name.name), // Extract just the name string
+      positions: relativeImport.positions,
       includeTypeDefs: relativeImport.includeTypeDefs,
     };
   }
@@ -119,30 +127,21 @@ async function mockCssLoader(
   // Step 1: Parse imports from CSS source code
   const parseResult = await parseImports(sourceCode, filePath);
 
-  // Convert the new format to the old format expected by the integration test functions
-  const importResult: Record<string, { path: string; names: string[] }> = {};
+  // Convert the new format to the format expected by processRelativeImports, preserving positions
+  const importResult: Record<
+    string,
+    { path: string; names: string[]; positions: Array<{ start: number; end: number }> }
+  > = {};
   for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
     importResult[path] = {
       path: relativeImport.path,
       names: [], // CSS imports don't have named imports
+      positions: relativeImport.positions,
     };
   }
 
-  // Step 2: For CSS files, we don't need complex path resolution like JS files
-  // CSS imports are typically direct file references
-  const resolvedPathsMap = new Map<string, string>();
-  for (const [, importInfo] of Object.entries(importResult)) {
-    resolvedPathsMap.set(importInfo.path, importInfo.path);
-  }
-
-  // Step 3: Process CSS imports (isJsFile = false)
-  const processedResult = processRelativeImports(
-    sourceCode,
-    importResult,
-    mode,
-    false,
-    resolvedPathsMap,
-  );
+  // Step 2: Process CSS imports (isJsFile = false)
+  const processedResult = processRelativeImports(sourceCode, importResult, mode);
 
   return {
     // Input
@@ -151,7 +150,6 @@ async function mockCssLoader(
     mode,
     // Intermediate results
     importResult,
-    resolvedPathsMap,
     // Final output
     processedSource: processedResult.processedSource,
     extraFiles: processedResult.extraFiles,
