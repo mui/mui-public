@@ -50,7 +50,7 @@ jobs:
       - run: pnpm install
       - run: pnpm release:build
       - name: Publish packages to pkg.pr.new
-        uses: mui/mui-public/.github/actions/ci-publish
+        uses: ./.github/actions/ci-publish
         with:
           pr-comment: ${{ inputs.pr-comment }}
           use-compact-url: ${{ inputs.use-compact-url }}
