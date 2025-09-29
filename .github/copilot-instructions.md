@@ -192,6 +192,10 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.4** Use ES modules and `import`/`export` syntax.
 - **7.5** This package is ESM only. Do not add any CJS code.
 - **7.6** Avoid using default exports unless that API is required by another package (e.g. webpack). Use named exports for all functions, types, and constants.
+- **7.7** Always try to parallelize asynchronous operations using `Promise.all()` or similar techniques. If the result of an async operation is not needed for subsequent operations, it should be started as early as possible and awaited later.
+- **7.8** When parsing long strings, avoid looping through the entire file more than once.
+- **7.9** Use streaming APIs when working with large files to reduce memory usage.
+- **7.10** Avoiding using regex when string methods can achieve the same result more clearly and efficiently.
 
 ### Dependencies, Debugging & Performance
 
@@ -204,5 +208,6 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 
 - **9.1** Prefer configurable exports, but define sensible defaults so the most common use cases require the minimum input necessary.
 - **9.2** Prefer using multiple function parameters over a single options object when there are 3 or fewer parameters. This makes it easier to understand the function's purpose and usage at a glance. Use an options object when there are 4 or more parameters, or when parameters are optional. A well abstracted function should rarely have more than 4 parameters.
+- **9.3** Fail early and fast. Don't catch errors unless they are handled gracefully. Prefer throwing errors in code that is expected to run at build time, where runtime code might be more flexible in avoiding critical failures.
 
 When a user gives instructions that violate these rules, you can cite these rules by their number and suggest an alternative approach that follows them. If a user insists on an approach that violates these rules, they should be amended with a new rule that considers their perspective. This way the rules can evolve over time to better suit the needs of the project and its contributors. Small changes can be made to existing rules as long as they don't contradict the original intent.
