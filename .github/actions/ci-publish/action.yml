@@ -19,6 +19,8 @@ runs:
   steps:
     - name: Publish to pkg.pr.new
       shell: bash
+      # Retry loop to mitigate against https://github.com/stackblitz-labs/pkg.pr.new/issues/316
+      # Remove when pkg-pr-new does retries by itself
       run: |
         for i in 1 2 3; do
           echo "Attempt $i to publish packages..."
