@@ -81,6 +81,10 @@
       "matchPackageNames": ["eslint-plugin-*"]
     },
     {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/eslint/*"]
+    },
+    {
       "groupName": "playwright monorepo",
       "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
