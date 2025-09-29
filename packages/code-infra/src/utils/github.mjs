@@ -13,7 +13,6 @@ import {
   exchangeDeviceCode,
   refreshToken as ghRefreshToken,
 } from '@octokit/oauth-methods';
-import { Octokit } from '@octokit/rest';
 import clipboardy from 'clipboardy';
 import open from 'open';
 
@@ -37,26 +36,7 @@ export const ERRORS = {
   TIMEOUT: 'TIMEOUT',
 };
 
-/**
- * Get Octokit instance authenticated via provided token, GITHUB_TOKEN env var, or device flow.
- *
- * @param {string} [token]
- * @returns {import('@octokit/rest').Octokit}
- */
-export function getOctokitInstance(token) {
-  if (token) {
-    return new Octokit({
-      auth: token,
-    });
-  }
-
-  const octokit = new Octokit({
-    authStrategy: createPeristentAuthStrategy,
-  });
-  return octokit;
-}
-
-function createPeristentAuthStrategy() {
+export function peristentAuthStrategy() {
   /**
    * Request hook to add authentication token to requests.
    * Automatically handles token refresh on 401 errors.
@@ -279,26 +259,6 @@ export async function endToEndGhAuthGetToken(log = false) {
         return refreshAccessToken();
       default:
         throw ex; // Some other error
-    }
-  }
-}
-
-/**
- * Gets a valid GitHub access token for API usage.
- *
- * @returns {Promise<string>} Valid GitHub access token
- * @throws {Error} If no valid token exists and authentication is required
- */
-export async function getGitHubToken() {
-  try {
-    // Try to get existing valid token
-    return await getStoredGitHubToken();
-  } catch (error) {
-    // Try refresh if token is expired
-    try {
-      return await refreshAccessToken();
-    } catch (refreshError) {
-      throw new Error(ERRORS.AUTH_REQUIRED);
     }
   }
 }
