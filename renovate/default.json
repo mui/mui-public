@@ -78,7 +78,7 @@
     },
     {
       "groupName": "eslint",
-      "matchPackageNames": ["eslint-plugin-*"]
+      "matchPackageNames": ["eslint-plugin-*", "*/eslint-plugin-*"]
     },
     {
       "groupName": "eslint",
