@@ -24,6 +24,7 @@
   "prHourlyLimit": 0,
   "rangeStrategy": "bump",
   "timezone": "UTC",
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
@@ -38,7 +39,8 @@
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "followTag": "canary",
       "schedule": null,
-      "additionalReviewers": ["mui/infra"]
+      "additionalReviewers": ["mui/infra"],
+      "minimumReleaseAge": null
     },
     {
       "groupName": "GitHub Actions",
@@ -76,7 +78,11 @@
     },
     {
       "groupName": "eslint",
-      "matchPackageNames": ["eslint-plugin-*"]
+      "matchPackageNames": ["eslint-plugin-*", "*/eslint-plugin-*"]
+    },
+    {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/eslint/*"]
     },
     {
       "groupName": "playwright monorepo",
