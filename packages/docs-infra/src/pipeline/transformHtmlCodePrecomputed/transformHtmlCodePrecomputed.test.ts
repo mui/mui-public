@@ -259,6 +259,53 @@ describe('transformHtmlCodePrecomputed', () => {
     );
   });
 
+  it('should handle basic pre > code structure from standard markdown', async () => {
+    const html = '<pre><code class="language-js">console.log("hello world");</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
+
+    // Pre element should have error message
+    expect(preElement.children).toHaveLength(1);
+    expect(preElement.children[0].type).toBe('text');
+    expect(preElement.children[0].value).toBe(
+      'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
+    );
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default).toBeTruthy();
+    expect(precomputeData.Default.fileName).toBe('index.js');
+    expect(precomputeData.Default.source.trim()).toBe('console.log("hello world");');
+  });
+
+  it('should handle basic pre > code with custom data-filename', async () => {
+    const html =
+      '<pre><code class="language-typescript" data-filename="custom.ts">const x: string = "test";</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.fileName).toBe('custom.ts');
+    expect(precomputeData.Default.source.trim()).toBe('const x: string = "test";');
+  });
+
+  it('should handle basic pre > code without language class', async () => {
+    const html = '<pre><code>plain text code</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default).toBeTruthy();
+    expect(precomputeData.Default.fileName).toBeUndefined(); // No language means no derived filename
+    expect(precomputeData.Default.source.trim()).toBe('plain text code');
+  });
+
   // Test with realistic Next.js MDX pipeline
   it('should work with markdown-to-HTML pipeline (realistic Next.js flow)', async () => {
     const markdown = `
