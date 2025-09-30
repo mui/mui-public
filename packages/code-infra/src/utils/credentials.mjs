@@ -10,129 +10,77 @@
 
 import { AsyncEntry } from '@napi-rs/keyring';
 
-const KEYRING_SERVICE = 'mui-code-infra';
-const REGISTRY_KEY = '__credential_registry__';
+export const KEYRING_SERVICE = 'mui-code-infra';
 
 export const ERRORS = {
   NOT_FOUND: 'CREDENTIAL_NOT_FOUND',
   STORAGE_FAILURE: 'CREDENTIAL_STORAGE_FAILURE',
 };
 
-/**
- * Gets all stored credentials from the registry
- * @returns {Promise<Record<string, string>>} Object containing all credentials
- */
-export async function getCredentialData() {
-  try {
-    const registryEntry = new AsyncEntry(KEYRING_SERVICE, REGISTRY_KEY);
-    const registryData = await registryEntry.getPassword();
-    return registryData ? JSON.parse(registryData) : {};
-  } catch (error) {
-    return {}; // Registry doesn't exist yet
+class CredentialManager {
+  /**
+   * @type {Map<string, AsyncEntry>}
+   */
+  #credentials = new Map();
+
+  /**
+   * @type {Map<string, string>} In-memory cache for credentials that have been accessed.
+   * This is used to avoid multiple prompts for the same credential during a single run.
+   * Note: This cache is not persisted and will be cleared when the process exits
+   */
+  #accessedCredentials = new Map();
+
+  constructor(serviceName = KEYRING_SERVICE) {
+    this.serviceName = serviceName;
   }
-}
 
-/**
- * Updates the registry with all credential data
- * @param {Record<string, string>} credentials - Object containing all credentials
- * @returns {Promise<void>}
- */
-async function updateCredentialData(credentials) {
-  try {
-    const registryEntry = new AsyncEntry(KEYRING_SERVICE, REGISTRY_KEY);
-    await registryEntry.setPassword(JSON.stringify(credentials));
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to update credential data: ${error.message}`);
-  }
-}
-
-/**
- * Gets a credential from the stored JSON data
- * @param {string} key - The credential key to retrieve
- * @returns {Promise<string>} The credential value
- * @throws {Error} If credential doesn't exist
- */
-export async function getCredential(key) {
-  try {
-    const credentials = await getCredentialData();
-
-    if (!(key in credentials)) {
-      throw new Error(ERRORS.NOT_FOUND);
+  /**
+   * @param {string} key
+   * @returns {Promise<string | undefined>}
+   */
+  async getPassword(key) {
+    if (this.#accessedCredentials.has(key)) {
+      return this.#accessedCredentials.get(key);
     }
-
-    return credentials[key];
-  } catch (/** @type {any} */ error) {
-    if (error.message === ERRORS.NOT_FOUND) {
-      throw error;
+    let credential = this.#credentials.get(key);
+    if (!credential) {
+      credential = new AsyncEntry(this.serviceName, key);
+      this.#credentials.set(key, credential);
     }
-    throw new Error(`Failed to get credential '${key}': ${error.message}`);
+    const res = await credential.getPassword();
+    if (res) {
+      this.#accessedCredentials.set(key, res);
+    }
+    return res;
+  }
+
+  /**
+   * @param {string} key
+   * @param {string} password
+   * @returns {Promise<void>}
+   */
+  async setPassword(key, password) {
+    this.#accessedCredentials.set(key, password);
+    let credential = this.#credentials.get(key);
+    if (!credential) {
+      credential = new AsyncEntry(this.serviceName, key);
+      this.#credentials.set(key, credential);
+    }
+    await credential.setPassword(password);
+  }
+
+  /**
+   * @param {string} key
+   * @returns {Promise<void>}
+   */
+  async deleteKey(key) {
+    this.#accessedCredentials.delete(key);
+    const credential = this.#credentials.get(key);
+    if (credential) {
+      await credential.deletePassword();
+      this.#credentials.delete(key);
+    }
   }
 }
 
-/**
- * Clears all stored credentials from keychain
- * @returns {Promise<void>}
- */
-export async function clearCredentials() {
-  try {
-    const registryEntry = new AsyncEntry(KEYRING_SERVICE, REGISTRY_KEY);
-    await registryEntry.deletePassword();
-  } catch (error) {
-    // Registry might not exist, ignore error
-  }
-}
-
-/**
- * Lists all stored credential keys (without showing the values)
- * @returns {Promise<string[]>} Array of credential keys
- */
-export async function listCredentials() {
-  try {
-    const credentials = await getCredentialData();
-    return Object.keys(credentials);
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to list credentials: ${error.message}`);
-  }
-}
-
-/**
- * Removes a specific credential by key
- * @param {string[]} keys - The credential key to remove
- * @returns {Promise<void>} True if credential was found and removed, false if not found
- */
-export async function removeCredential(...keys) {
-  try {
-    const credentials = await getCredentialData();
-
-    keys.forEach((key) => {
-      if (key in credentials) {
-        delete credentials[key];
-      }
-    });
-
-    // Update the stored data
-    await updateCredentialData(credentials);
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to remove credential(s) '${keys.join(', ')}': ${error.message}`);
-  }
-}
-
-/**
- * Stores a credential directly without prompting (for programmatic use)
- * @param {string} key - The credential key
- * @param {string} value - The credential value
- * @returns {Promise<void>}
- */
-export async function setCredential(key, value) {
-  try {
-    const credentials = await getCredentialData();
-
-    // Update the credential in the object
-    credentials[key] = value;
-
-    // Update the stored data
-    await updateCredentialData(credentials);
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to set credential '${key}': ${error.message}`);
-  }
-}
+export const credentialManager = new CredentialManager();
