@@ -226,25 +226,81 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
     const sourceTransformers = [TypescriptToJavascriptTransformer];
 
     visit(tree, 'element', (node: Element) => {
-      // Look for section elements (multi-variant) or dl elements (single variant)
+      let extractedElements: Array<{
+        codeElement: Element;
+        filename?: string;
+        variantName?: string;
+      }> = [];
+
+      // Handle basic pre > code structure from standard markdown
       if (
+        node.tagName === 'pre' &&
+        node.children &&
+        node.children.length > 0 &&
+        !node.properties?.dataPrecompute // Don't process if already processed
+      ) {
+        // Look for direct code element in pre
+        const codeElement = node.children.find(
+          (child): child is Element => child.type === 'element' && child.tagName === 'code',
+        );
+
+        if (codeElement) {
+          // Extract filename from data-filename or derive from language class
+          const filename = getFileName(codeElement);
+
+          extractedElements = [
+            {
+              codeElement,
+              filename,
+              variantName: undefined, // Basic pre > code doesn't have variants
+            },
+          ];
+        }
+      }
+      // Look for section elements (multi-variant) or dl elements (single variant)
+      else if (
         (node.tagName === 'section' || node.tagName === 'dl') &&
         node.children &&
         node.children.length > 0
       ) {
         // Extract code elements from semantic structure
-        const extractedElements = extractCodeFromSemanticStructure(node);
+        extractedElements = extractCodeFromSemanticStructure(node);
+      }
 
-        if (extractedElements.length > 0) {
-          const transformPromise = (async () => {
-            try {
-              // Create variants from extracted elements
-              const variants: Code = {};
+      if (extractedElements.length > 0) {
+        const transformPromise = (async () => {
+          try {
+            // Create variants from extracted elements
+            const variants: Code = {};
 
-              if (extractedElements.length === 1) {
-                // Single element - use "Default" as variant name
-                const { codeElement, filename } = extractedElements[0];
+            if (extractedElements.length === 1) {
+              // Single element - use "Default" as variant name
+              const { codeElement, filename } = extractedElements[0];
+              const sourceCode = extractTextContent(codeElement);
+
+              const variant: any = {
+                source: sourceCode,
+                skipTransforms: !codeElement.properties?.dataTransform,
+              };
+
+              // Add filename if available (prefer explicit filename over derived)
+              if (filename) {
+                variant.fileName = filename;
+              } else {
+                const derivedFilename = getFileName(codeElement);
+                if (derivedFilename) {
+                  variant.fileName = derivedFilename;
+                }
+              }
+
+              variants.Default = variant;
+            } else {
+              // Multiple elements - use variant names
+              extractedElements.forEach(({ codeElement, filename, variantName }, index) => {
                 const sourceCode = extractTextContent(codeElement);
+
+                // Determine variant name
+                const finalVariantName = variantName || `Variant ${index + 1}`;
 
                 const variant: any = {
                   source: sourceCode,
@@ -261,96 +317,71 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                   }
                 }
 
-                variants.Default = variant;
-              } else {
-                // Multiple elements - use variant names
-                extractedElements.forEach(({ codeElement, filename, variantName }, index) => {
-                  const sourceCode = extractTextContent(codeElement);
-
-                  // Determine variant name
-                  const finalVariantName = variantName || `Variant ${index + 1}`;
-
-                  const variant: any = {
-                    source: sourceCode,
-                    skipTransforms: !codeElement.properties?.dataTransform,
-                  };
-
-                  // Add filename if available (prefer explicit filename over derived)
-                  if (filename) {
-                    variant.fileName = filename;
-                  } else {
-                    const derivedFilename = getFileName(codeElement);
-                    if (derivedFilename) {
-                      variant.fileName = derivedFilename;
-                    }
-                  }
-
-                  variants[finalVariantName] = variant;
-                });
-              }
-
-              // Process each variant with loadVariant
-              const processedCode: Code = {};
-
-              const variantPromises = Object.entries(variants).map(
-                async ([variantName, variantData]) => {
-                  if (variantData && typeof variantData === 'object') {
-                    const result = await loadVariant(
-                      undefined, // url - not needed for inline code
-                      variantName,
-                      variantData,
-                      {
-                        sourceParser,
-                        loadSource: undefined, // loadSource - not needed since we have the data
-                        loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
-                        sourceTransformers,
-                        disableTransforms: variantData.skipTransforms || false,
-                        // TODO: output option
-                        output: 'hastGzip',
-                      },
-                    );
-
-                    return { variantName, processedVariant: result.code };
-                  }
-                  return null;
-                },
-              );
-
-              const variantResults = await Promise.all(variantPromises);
-
-              for (const result of variantResults) {
-                if (result) {
-                  processedCode[result.variantName] = result.processedVariant;
-                }
-              }
-
-              // Clear all code element contents
-              extractedElements.forEach(({ codeElement }) => {
-                codeElement.children = [];
+                variants[finalVariantName] = variant;
               });
-
-              // Replace the semantic structure with a <pre> element
-              node.tagName = 'pre';
-              node.children = [
-                {
-                  type: 'text',
-                  value:
-                    'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
-                } as Text,
-              ];
-
-              // Set the precompute data on the pre element directly on properties for immediate HTML serialization
-              if (!node.properties) {
-                (node as any).properties = {};
-              }
-              (node as any).properties.dataPrecompute = JSON.stringify(processedCode);
-            } catch (error) {
-              console.warn('Failed to transform code block:', error);
             }
-          })();
 
-          transformPromises.push(transformPromise);
-        }
+            // Process each variant with loadVariant
+            const processedCode: Code = {};
+
+            const variantPromises = Object.entries(variants).map(
+              async ([variantName, variantData]) => {
+                if (variantData && typeof variantData === 'object') {
+                  const result = await loadVariant(
+                    undefined, // url - not needed for inline code
+                    variantName,
+                    variantData,
+                    {
+                      sourceParser,
+                      loadSource: undefined, // loadSource - not needed since we have the data
+                      loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
+                      sourceTransformers,
+                      disableTransforms: variantData.skipTransforms || false,
+                      // TODO: output option
+                      output: 'hastGzip',
+                    },
+                  );
+
+                  return { variantName, processedVariant: result.code };
+                }
+                return null;
+              },
+            );
+
+            const variantResults = await Promise.all(variantPromises);
+
+            for (const result of variantResults) {
+              if (result) {
+                processedCode[result.variantName] = result.processedVariant;
+              }
+            }
+
+            // Clear all code element contents
+            extractedElements.forEach(({ codeElement }) => {
+              codeElement.children = [];
+            });
+
+            // Replace the semantic structure with a <pre> element
+            node.tagName = 'pre';
+            node.children = [
+              {
+                type: 'text',
+                value:
+                  'Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component',
+              } as Text,
+            ];
+
+            // Set the precompute data on the pre element directly on properties for immediate HTML serialization
+            if (!node.properties) {
+              (node as any).properties = {};
+            }
+            (node as any).properties.dataPrecompute = JSON.stringify(processedCode);
+          } catch (error) {
+            console.warn('Failed to transform code block:', error);
+          }
+        })();
+
+        transformPromises.push(transformPromise);
       }
     });
 
