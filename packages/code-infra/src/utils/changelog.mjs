@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 
-import { peristentAuthStrategy } from './github.mjs';
+import { persistentAuthStrategy } from './github.mjs';
 
 /**
  * @typedef {'team' | 'first_timer' | 'contributor'} AuthorAssociation
@@ -66,7 +66,7 @@ export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
 async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
   const octokit = token
     ? new Octokit({ auth: token })
-    : new Octokit({ authStrategy: peristentAuthStrategy });
+    : new Octokit({ authStrategy: persistentAuthStrategy });
   /**
    * @typedef {import('@octokit/rest').Octokit} Octokit
    */

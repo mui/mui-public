@@ -16,18 +16,19 @@ import {
 import clipboardy from 'clipboardy';
 import open from 'open';
 
-import {
-  ERRORS as CREDENTIAL_ERRORS,
-  getCredentialData,
-  removeCredential,
-  setCredential,
-} from './credentials.mjs';
+import { credentialManager } from './credentials.mjs';
 
 const GITHUB_APP_CLIENT_ID = 'Iv23lilHsGU3i1tIARsT'; // MUI Code Infra Oauth App
-const KEY_ACCESS_TOKEN = 'github.access-token';
-const KEY_ACCESS_TOKEN_EXPIRY = 'github.access-token-expiry';
-const KEY_REFRESH_TOKEN = 'github.refresh-token';
-const KEY_REFRESH_TOKEN_EXPIRY = 'github.refresh-token-expiry';
+// Use the client id as the key so that if it changes, we don't conflict with old tokens
+const GITHUB_APP_CREDENTIAL_KEY = GITHUB_APP_CLIENT_ID;
+
+/**
+ * @typedef {Object} GitHubAppAuthenticationWithRefreshToken
+ * @property {string} token - The access token
+ * @property {string} [expiresAt] - ISO string when the access token expires
+ * @property {string} [refreshToken] - The refresh token
+ * @property {string} [refreshTokenExpiresAt] - ISO string when the refresh token expires
+ */
 
 export const ERRORS = {
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
@@ -36,7 +37,7 @@ export const ERRORS = {
   TIMEOUT: 'TIMEOUT',
 };
 
-export function peristentAuthStrategy() {
+export function persistentAuthStrategy() {
   function createCachedToken() {
     /**
      * @type {string}
@@ -123,24 +124,37 @@ async function logAuthInformation(data, { openInBrowser = true, copyToCliboard =
 
 /**
  * Checks if the stored access token is expired
- * @param {Record<string, string>} credentials
  * @returns {Promise<boolean>}
  */
-async function isTokenExpired(credentials) {
+async function isTokenExpired() {
   try {
-    const expiryStr = credentials[KEY_ACCESS_TOKEN_EXPIRY];
-    const expiry = parseInt(expiryStr, 10);
-    const refreshExpiryStr = credentials[KEY_REFRESH_TOKEN_EXPIRY];
-    if (refreshExpiryStr) {
-      const refreshExpiry = parseInt(refreshExpiryStr, 10);
-      if (Date.now() > refreshExpiry) {
-        return true; // Refresh token expired
-      }
+    const credentials = await getCredentialData();
+
+    if (credentials.expiresAt) {
+      return Date.now() > new Date(credentials.expiresAt).getTime();
     }
-    return Date.now() > expiry;
+
+    if (credentials.refreshTokenExpiresAt) {
+      return Date.now() > new Date(credentials.refreshTokenExpiresAt).getTime();
+    }
+    return false;
   } catch (error) {
     return true; // If we can't get expiry, assume expired
   }
+}
+
+/**
+ *
+ * @returns {Promise<GitHubAppAuthenticationWithRefreshToken>} Stored GitHub authentication tokens
+ */
+async function getCredentialData() {
+  const data = await credentialManager.getPassword(GITHUB_APP_CREDENTIAL_KEY);
+  if (!data) {
+    return {
+      token: '',
+    };
+  }
+  return /** @type {GitHubAppAuthenticationWithRefreshToken} */ (JSON.parse(data));
 }
 
 /**
@@ -149,56 +163,38 @@ async function isTokenExpired(credentials) {
  * @returns {Promise<void>}
  */
 async function storeGitHubTokens(tokens) {
-  const expiryTime = tokens.expiresAt
-    ? new Date(tokens.expiresAt).getTime()
-    : Date.now() + 30 * 24 * 3600 * 1000; // Token doesn't expire, set arbitrary 30 days expiry
+  /**
+   * @type {GitHubAppAuthenticationWithRefreshToken}
+   */
+  const newTokens = {
+    token: tokens.token,
+    expiresAt: tokens.expiresAt,
+    refreshToken: tokens.refreshToken,
+    refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
+  };
 
-  // Store tokens using setCredential
-  await setCredential(KEY_ACCESS_TOKEN, tokens.token);
-  if (tokens.refreshToken) {
-    await setCredential(KEY_REFRESH_TOKEN, tokens.refreshToken);
-  }
-  if (tokens.refreshTokenExpiresAt) {
-    const refreshExpiryTime = new Date(tokens.refreshTokenExpiresAt).getTime();
-    await setCredential(KEY_REFRESH_TOKEN_EXPIRY, refreshExpiryTime.toString());
-  }
-  await setCredential(KEY_ACCESS_TOKEN_EXPIRY, expiryTime.toString());
+  await credentialManager.setPassword(GITHUB_APP_CREDENTIAL_KEY, JSON.stringify(newTokens));
 }
 
 /**
- * Gets stored GitHub access token (if valid and not expired)
- * @param {Record<string, string>} credentials
- * @returns {Promise<string>} Valid GitHub access token
- * @throws {Error} If no valid token exists
- */
-async function getStoredGitHubToken(credentials) {
-  const existingToken = credentials[KEY_ACCESS_TOKEN];
-
-  if (await isTokenExpired(credentials)) {
-    throw new Error(ERRORS.TOKEN_EXPIRED);
-  }
-
-  return existingToken;
-}
-
-/**
- * @param {Record<string, string>} credentials
  * @returns {Promise<string>} Refreshed GitHub access token
  */
-async function refreshAccessToken(credentials) {
-  const refreshToken = credentials[KEY_REFRESH_TOKEN];
-  if (!refreshToken) {
+async function refreshAccessToken() {
+  const credentials = await getCredentialData();
+  if (!credentials.refreshToken) {
     throw new Error(ERRORS.REFRESH_FAILED);
   }
-  const refreshTokenExpiry = credentials[KEY_REFRESH_TOKEN_EXPIRY];
-  if (refreshTokenExpiry && Date.now() > parseInt(refreshTokenExpiry, 10)) {
+  if (
+    credentials.refreshTokenExpiresAt &&
+    Date.now() > new Date(credentials.refreshTokenExpiresAt).getTime()
+  ) {
     // Refresh token has also expired. Need to re-authenticate
     await clearGitHubAuth();
     throw new Error(ERRORS.AUTH_REQUIRED);
   }
   const { authentication } = await ghRefreshToken({
     clientId: GITHUB_APP_CLIENT_ID,
-    refreshToken,
+    refreshToken: credentials.refreshToken,
     clientType: 'github-app',
     clientSecret: '',
   });
@@ -261,24 +257,26 @@ async function exchangeDeviceCodeWithRetry(deviceCode, { delay = 5000, retries =
  * @returns {Promise<string>} Valid GitHub access token
  */
 export async function endToEndGhAuthGetToken(log = false) {
-  const credentials = await getCredentialData();
   try {
-    const token = await getStoredGitHubToken(credentials);
-    if (!token) {
-      throw new Error(CREDENTIAL_ERRORS.NOT_FOUND);
+    const credentials = await getCredentialData();
+    if (!credentials.token) {
+      throw new Error(ERRORS.AUTH_REQUIRED);
     }
-    return token;
+
+    if (await isTokenExpired()) {
+      throw new Error(ERRORS.TOKEN_EXPIRED);
+    }
+
+    return credentials.token;
   } catch (ex) {
     switch (/** @type {Error} */ (ex).message) {
-      case CREDENTIAL_ERRORS.NOT_FOUND: {
+      case ERRORS.AUTH_REQUIRED: {
         if (log) {
           console.warn("🔍 GitHub token doesn't exist. Starting authentication flow...");
         }
         const data = await getAuthInformation();
-
         await logAuthInformation(data);
         const tokens = await exchangeDeviceCodeWithRetry(data.deviceCode);
-
         await storeGitHubTokens(tokens);
 
         return tokens.token;
@@ -287,7 +285,7 @@ export async function endToEndGhAuthGetToken(log = false) {
         if (log) {
           console.warn('GitHub token expired. Attempting to refresh...');
         }
-        return refreshAccessToken(credentials);
+        return refreshAccessToken();
       default:
         throw ex; // Some other error
     }
@@ -299,14 +297,5 @@ export async function endToEndGhAuthGetToken(log = false) {
  * @returns {Promise<void>}
  */
 export async function clearGitHubAuth() {
-  try {
-    await removeCredential(
-      KEY_ACCESS_TOKEN,
-      KEY_REFRESH_TOKEN,
-      KEY_ACCESS_TOKEN_EXPIRY,
-      KEY_REFRESH_TOKEN_EXPIRY,
-    );
-  } catch (error) {
-    // Ignore errors if credentials don't exist
-  }
+  return credentialManager.deleteKey(GITHUB_APP_CREDENTIAL_KEY);
 }
