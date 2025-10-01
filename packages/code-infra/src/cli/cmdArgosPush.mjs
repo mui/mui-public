@@ -99,6 +99,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           commit: circleSha1,
           branch: circleBranch,
           token: argosToken,
+          threshold: process.env.ARGOS_THRESHOLD ? parseFloat(process.env.ARGOS_THRESHOLD) : 0.5,
           parallel: {
             total: batches.length,
             nonce: circleBuildNum,
