@@ -2,7 +2,7 @@ import * as React from 'react';
 import { decompressSync, strFromU8 } from 'fflate';
 import type { Root as HastRoot } from 'hast';
 import { decode } from 'uint8-to-base64';
-import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
+import type { VariantCode, VariantSource, Code } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import type { TransformedFiles } from './useCodeUtils';
@@ -74,6 +74,7 @@ interface UseFileNavigationProps {
   initialVariant?: string;
   preClassName?: string;
   preRef?: React.Ref<HTMLPreElement>;
+  effectiveCode?: Code;
 }
 
 export interface UseFileNavigationResult {
@@ -83,7 +84,7 @@ export interface UseFileNavigationResult {
   selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
-  allFilesSlugs: Array<{ fileName: string; slug: string }>;
+  allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
 }
 
 /**
@@ -99,6 +100,7 @@ export function useFileNavigation({
   shouldHighlight,
   preClassName,
   preRef,
+  effectiveCode,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -573,44 +575,51 @@ export function useFileNavigation({
     ],
   );
 
-  // Memoized array of all file slugs for the current variant
+  // Memoized array of all file slugs for all variants
   const allFilesSlugs = React.useMemo(() => {
-    const result: Array<{ fileName: string; slug: string }> = [];
+    const result: Array<{ fileName: string; slug: string; variantName: string }> = [];
 
-    if (!selectedVariant || !selectedVariantKey) {
+    if (!effectiveCode || !variantKeys.length) {
       return result;
     }
 
-    // Determine if this is the initial variant
-    const isInitialVariant = initialVariant
-      ? selectedVariantKey === initialVariant
-      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+    // Iterate through all variants
+    for (const variantKey of variantKeys) {
+      const variant = effectiveCode[variantKey];
 
-    // Add main file if it exists
-    if (selectedVariant.fileName) {
-      result.push({
-        fileName: selectedVariant.fileName,
-        slug: generateFileSlug(
-          mainSlug,
-          selectedVariant.fileName,
-          selectedVariantKey,
-          isInitialVariant,
-        ),
-      });
-    }
+      // Skip invalid variants
+      if (!variant || typeof variant === 'string') {
+        continue;
+      }
 
-    // Add extra files
-    if (selectedVariant.extraFiles) {
-      Object.keys(selectedVariant.extraFiles).forEach((fileName) => {
+      // Determine if this is the initial variant
+      const isInitialVariant = initialVariant
+        ? variantKey === initialVariant
+        : variantKeys.length === 0 || variantKey === variantKeys[0];
+
+      // Add main file if it exists
+      if (variant.fileName) {
         result.push({
-          fileName,
-          slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
+          fileName: variant.fileName,
+          slug: generateFileSlug(mainSlug, variant.fileName, variantKey, isInitialVariant),
+          variantName: variantKey,
         });
-      });
+      }
+
+      // Add extra files
+      if (variant.extraFiles) {
+        Object.keys(variant.extraFiles).forEach((fileName) => {
+          result.push({
+            fileName,
+            slug: generateFileSlug(mainSlug, fileName, variantKey, isInitialVariant),
+            variantName: variantKey,
+          });
+        });
+      }
     }
 
     return result;
-  }, [selectedVariant, selectedVariantKey, variantKeys, initialVariant, mainSlug]);
+  }, [effectiveCode, variantKeys, initialVariant, mainSlug]);
 
   return {
     selectedFileName,

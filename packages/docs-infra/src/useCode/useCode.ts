@@ -133,6 +133,7 @@ export function useCode<T extends {} = {}>(
     shouldHighlight,
     preClassName,
     preRef,
+    effectiveCode,
   });
 
   // Sub-hook: Copy Functionality

@@ -898,8 +898,8 @@ describe('useFileNavigation', () => {
   });
 
   describe('allFilesSlugs', () => {
-    it('should return correct slugs for all files in initial variant', () => {
-      const selectedVariant = {
+    it('should return correct slugs for all files across all variants', () => {
+      const defaultVariant = {
         fileName: 'checkbox-basic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',
         extraFiles: {
@@ -908,27 +908,7 @@ describe('useFileNavigation', () => {
         },
       };
 
-      const { result } = renderHook(() =>
-        useFileNavigation({
-          selectedVariant,
-          transformedFiles: undefined,
-          mainSlug: 'Basic',
-          selectedVariantKey: 'Default',
-          variantKeys: ['Default', 'Tailwind'],
-          initialVariant: 'Default',
-          shouldHighlight: true,
-        }),
-      );
-
-      expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'checkbox-basic.tsx', slug: 'basic:checkbox-basic.tsx' },
-        { fileName: 'styles.css', slug: 'basic:styles.css' },
-        { fileName: 'helper.ts', slug: 'basic:helper.ts' },
-      ]);
-    });
-
-    it('should return correct slugs for all files in non-initial variant', () => {
-      const selectedVariant = {
+      const tailwindVariant = {
         fileName: 'checkbox-tailwind.tsx',
         source: 'const TailwindCheckbox = () => <div className="p-4">Tailwind</div>;',
         extraFiles: {
@@ -937,27 +917,54 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Default: defaultVariant,
+        Tailwind: tailwindVariant,
+      };
+
       const { result } = renderHook(() =>
         useFileNavigation({
-          selectedVariant,
+          selectedVariant: defaultVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
-          selectedVariantKey: 'Tailwind',
+          selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Tailwind'],
           initialVariant: 'Default',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'checkbox-tailwind.tsx', slug: 'basic:tailwind:checkbox-tailwind.tsx' },
-        { fileName: 'tailwind.config.js', slug: 'basic:tailwind:tailwind.config.js' },
-        { fileName: 'postcss.config.js', slug: 'basic:tailwind:postcss.config.js' },
+        // Default variant files (initial variant)
+        {
+          fileName: 'checkbox-basic.tsx',
+          slug: 'basic:checkbox-basic.tsx',
+          variantName: 'Default',
+        },
+        { fileName: 'styles.css', slug: 'basic:styles.css', variantName: 'Default' },
+        { fileName: 'helper.ts', slug: 'basic:helper.ts', variantName: 'Default' },
+        // Tailwind variant files (non-initial variant)
+        {
+          fileName: 'checkbox-tailwind.tsx',
+          slug: 'basic:tailwind:checkbox-tailwind.tsx',
+          variantName: 'Tailwind',
+        },
+        {
+          fileName: 'tailwind.config.js',
+          slug: 'basic:tailwind:tailwind.config.js',
+          variantName: 'Tailwind',
+        },
+        {
+          fileName: 'postcss.config.js',
+          slug: 'basic:tailwind:postcss.config.js',
+          variantName: 'Tailwind',
+        },
       ]);
     });
 
-    it('should handle complex file names with kebab-case conversion', () => {
-      const selectedVariant = {
+    it('should handle single variant with complex file names', () => {
+      const testingVariant = {
         fileName: 'MyComplexComponent.test.tsx',
         source: 'test content',
         extraFiles: {
@@ -967,32 +974,44 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Testing: testingVariant,
+      };
+
       const { result } = renderHook(() =>
         useFileNavigation({
-          selectedVariant,
+          selectedVariant: testingVariant,
           transformedFiles: undefined,
           mainSlug: 'Advanced Component Demo',
           selectedVariantKey: 'Testing',
-          variantKeys: ['Default', 'Testing'],
-          initialVariant: 'Default',
+          variantKeys: ['Testing'],
+          initialVariant: 'Testing',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([
         {
           fileName: 'MyComplexComponent.test.tsx',
-          slug: 'advanced-component-demo:testing:my-complex-component.test.tsx',
+          slug: 'advanced-component-demo:my-complex-component.test.tsx',
+          variantName: 'Testing',
         },
         {
           fileName: 'utilityHelpers.js',
-          slug: 'advanced-component-demo:testing:utility-helpers.js',
+          slug: 'advanced-component-demo:utility-helpers.js',
+          variantName: 'Testing',
         },
         {
           fileName: 'ComponentStyles.module.css',
-          slug: 'advanced-component-demo:testing:component-styles.module.css',
+          slug: 'advanced-component-demo:component-styles.module.css',
+          variantName: 'Testing',
         },
-        { fileName: 'APIUtils.d.ts', slug: 'advanced-component-demo:testing:apiutils.d.ts' },
+        {
+          fileName: 'APIUtils.d.ts',
+          slug: 'advanced-component-demo:apiutils.d.ts',
+          variantName: 'Testing',
+        },
       ]);
     });
 
@@ -1000,6 +1019,10 @@ describe('useFileNavigation', () => {
       const selectedVariant = {
         fileName: 'simple-component.tsx',
         source: 'const SimpleComponent = () => <div>Simple</div>;',
+      };
+
+      const effectiveCode = {
+        Default: selectedVariant,
       };
 
       const { result } = renderHook(() =>
@@ -1011,11 +1034,16 @@ describe('useFileNavigation', () => {
           variantKeys: ['Default'],
           initialVariant: 'Default',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'simple-component.tsx', slug: 'simple:simple-component.tsx' },
+        {
+          fileName: 'simple-component.tsx',
+          slug: 'simple:simple-component.tsx',
+          variantName: 'Default',
+        },
       ]);
     });
 
@@ -1027,6 +1055,10 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Default: selectedVariant,
+      };
+
       const { result } = renderHook(() =>
         useFileNavigation({
           selectedVariant,
@@ -1036,16 +1068,17 @@ describe('useFileNavigation', () => {
           variantKeys: ['Default'],
           initialVariant: 'Default',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'config.json', slug: 'config:config.json' },
-        { fileName: 'README.md', slug: 'config:readme.md' },
+        { fileName: 'config.json', slug: 'config:config.json', variantName: 'Default' },
+        { fileName: 'README.md', slug: 'config:readme.md', variantName: 'Default' },
       ]);
     });
 
-    it('should return empty array when no variant is selected', () => {
+    it('should return empty array when no effectiveCode is provided', () => {
       const { result } = renderHook(() =>
         useFileNavigation({
           selectedVariant: null,
@@ -1055,16 +1088,21 @@ describe('useFileNavigation', () => {
           variantKeys: [],
           initialVariant: undefined,
           shouldHighlight: true,
+          effectiveCode: undefined,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([]);
     });
 
-    it('should return empty array when variant key is missing', () => {
+    it('should return empty array when variantKeys is empty', () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
+      };
+
+      const effectiveCode = {
+        Default: selectedVariant,
       };
 
       const { result } = renderHook(() =>
@@ -1072,18 +1110,19 @@ describe('useFileNavigation', () => {
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Test',
-          selectedVariantKey: '',
-          variantKeys: ['Default'],
+          selectedVariantKey: 'Default',
+          variantKeys: [],
           initialVariant: 'Default',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([]);
     });
 
-    it('should update when variant changes', () => {
-      const selectedVariant = {
+    it('should include all variants in allFilesSlugs regardless of selected variant', () => {
+      const defaultVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
         extraFiles: {
@@ -1091,39 +1130,76 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const styledVariant = {
+        fileName: 'styled-component.tsx',
+        source: 'const StyledComponent = () => <div>Styled Test</div>;',
+        extraFiles: {
+          'styled.css': '.styled { color: blue; }',
+        },
+      };
+
+      const effectiveCode = {
+        Default: defaultVariant,
+        Styled: styledVariant,
+      };
+
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
           useFileNavigation({
-            selectedVariant,
+            selectedVariant: selectedVariantKey === 'Default' ? defaultVariant : styledVariant,
             transformedFiles: undefined,
             mainSlug: 'Test',
             selectedVariantKey,
             variantKeys: ['Default', 'Styled'],
             initialVariant: 'Default',
             shouldHighlight: true,
+            effectiveCode,
           }),
         {
           initialProps: { selectedVariantKey: 'Default' },
         },
       );
 
-      // Initial variant (no variant name in slugs)
-      expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'component.tsx', slug: 'test:component.tsx' },
-        { fileName: 'styles.css', slug: 'test:styles.css' },
-      ]);
+      // Should always return all files from all variants
+      const expectedSlugs = [
+        // Default variant files (initial variant)
+        { fileName: 'component.tsx', slug: 'test:component.tsx', variantName: 'Default' },
+        { fileName: 'styles.css', slug: 'test:styles.css', variantName: 'Default' },
+        // Styled variant files (non-initial variant)
+        {
+          fileName: 'styled-component.tsx',
+          slug: 'test:styled:styled-component.tsx',
+          variantName: 'Styled',
+        },
+        { fileName: 'styled.css', slug: 'test:styled:styled.css', variantName: 'Styled' },
+      ];
 
-      // Change to non-initial variant (variant name included in slugs)
+      expect(result.current.allFilesSlugs).toEqual(expectedSlugs);
+
+      // Change to non-initial variant - should still return the same all files
       rerender({ selectedVariantKey: 'Styled' });
 
-      expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'component.tsx', slug: 'test:styled:component.tsx' },
-        { fileName: 'styles.css', slug: 'test:styled:styles.css' },
-      ]);
+      expect(result.current.allFilesSlugs).toEqual(expectedSlugs);
     });
 
     it('should respect explicit initialVariant parameter', () => {
-      const selectedVariant = {
+      const defaultVariant = {
+        fileName: 'default-component.tsx',
+        source: 'const DefaultComponent = () => <div>Default</div>;',
+        extraFiles: {
+          'default.css': '.default { color: black; }',
+        },
+      };
+
+      const tailwindVariant = {
+        fileName: 'tailwind-component.tsx',
+        source: 'const TailwindComponent = () => <div>Tailwind</div>;',
+        extraFiles: {
+          'tailwind.css': '.tailwind { color: green; }',
+        },
+      };
+
+      const specialVariant = {
         fileName: 'special-component.tsx',
         source: 'const SpecialComponent = () => <div>Special</div>;',
         extraFiles: {
@@ -1131,22 +1207,48 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Default: defaultVariant,
+        Tailwind: tailwindVariant,
+        Special: specialVariant,
+      };
+
       const { result } = renderHook(() =>
         useFileNavigation({
-          selectedVariant,
+          selectedVariant: specialVariant,
           transformedFiles: undefined,
           mainSlug: 'Demo',
           selectedVariantKey: 'Special',
           variantKeys: ['Default', 'Tailwind', 'Special'],
           initialVariant: 'Special', // Special is the initial variant, not Default
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
-      // Since Special is the initialVariant, slugs should not include variant name
+      // Since Special is the initialVariant, its files should not include variant name in slug
       expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'special-component.tsx', slug: 'demo:special-component.tsx' },
-        { fileName: 'special.css', slug: 'demo:special.css' },
+        // Default variant files (non-initial)
+        {
+          fileName: 'default-component.tsx',
+          slug: 'demo:default:default-component.tsx',
+          variantName: 'Default',
+        },
+        { fileName: 'default.css', slug: 'demo:default:default.css', variantName: 'Default' },
+        // Tailwind variant files (non-initial)
+        {
+          fileName: 'tailwind-component.tsx',
+          slug: 'demo:tailwind:tailwind-component.tsx',
+          variantName: 'Tailwind',
+        },
+        { fileName: 'tailwind.css', slug: 'demo:tailwind:tailwind.css', variantName: 'Tailwind' },
+        // Special variant files (initial variant - no variant name in slug)
+        {
+          fileName: 'special-component.tsx',
+          slug: 'demo:special-component.tsx',
+          variantName: 'Special',
+        },
+        { fileName: 'special.css', slug: 'demo:special.css', variantName: 'Special' },
       ]);
     });
 
@@ -1159,6 +1261,10 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Default: selectedVariant,
+      };
+
       const { result } = renderHook(() =>
         useFileNavigation({
           selectedVariant,
@@ -1168,12 +1274,13 @@ describe('useFileNavigation', () => {
           variantKeys: ['Default'],
           initialVariant: 'Default',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
       expect(result.current.allFilesSlugs).toEqual([
-        { fileName: 'component.tsx', slug: 'component.tsx' },
-        { fileName: 'helper.js', slug: 'helper.js' },
+        { fileName: 'component.tsx', slug: 'component.tsx', variantName: 'Default' },
+        { fileName: 'helper.js', slug: 'helper.js', variantName: 'Default' },
       ]);
     });
 
@@ -1186,6 +1293,10 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Default: selectedVariant,
+      };
+
       const { result, rerender } = renderHook(() =>
         useFileNavigation({
           selectedVariant,
@@ -1195,6 +1306,7 @@ describe('useFileNavigation', () => {
           variantKeys: ['Default'],
           initialVariant: 'Default',
           shouldHighlight: true,
+          effectiveCode,
         }),
       );
 
@@ -1219,6 +1331,10 @@ describe('useFileNavigation', () => {
         },
       };
 
+      const effectiveCode = {
+        Default: selectedVariant,
+      };
+
       const { result, rerender } = renderHook(
         ({ mainSlug }) =>
           useFileNavigation({
@@ -1229,6 +1345,7 @@ describe('useFileNavigation', () => {
             variantKeys: ['Default'],
             initialVariant: 'Default',
             shouldHighlight: true,
+            effectiveCode,
           }),
         {
           initialProps: { mainSlug: 'Test' },
@@ -1247,8 +1364,8 @@ describe('useFileNavigation', () => {
 
       // But content should be updated
       expect(secondRender).toEqual([
-        { fileName: 'component.tsx', slug: 'new-test:component.tsx' },
-        { fileName: 'styles.css', slug: 'new-test:styles.css' },
+        { fileName: 'component.tsx', slug: 'new-test:component.tsx', variantName: 'Default' },
+        { fileName: 'styles.css', slug: 'new-test:styles.css', variantName: 'Default' },
       ]);
     });
   });
