@@ -14,6 +14,9 @@ import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
 
+const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
+const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
+
 function useInitialData({
   variants,
   variantName,
@@ -359,10 +362,10 @@ function useCodeParsing({
 
   React.useEffect(() => {
     if (highlightAfter === 'idle') {
-      const idleRequest = window.requestIdleCallback(() => {
+      const idleRequest = requestIdleCallback(() => {
         setIsHighlightAllowed(true);
       });
-      return () => window.cancelIdleCallback(idleRequest);
+      return () => cancelIdleCallback(idleRequest);
     }
     return undefined;
   }, [highlightAfter]);
