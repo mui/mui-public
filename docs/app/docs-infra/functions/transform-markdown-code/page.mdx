@@ -1,0 +1,473 @@
+# transformMarkdownCode
+
+A remark plugin that transforms markdown code blocks into HTML structures with enhanced metadata support. This plugin handles both individual code blocks with options and multi-variant code examples. It's the **first stage** in a processing pipeline, typically followed by [`transformHtmlCode`](/functions/transformHtmlCode) for final rendering.
+
+## Overview
+
+Use this plugin to enhance markdown code blocks with custom data attributes for highlighting, transformations, and other features. It also supports creating multi-variant code examples to show the same code in different languages, package managers, or configurations.
+
+## Key Features
+
+- **Individual code blocks**: Transform single code blocks with options (e.g., `fileName=test.ts`, `highlight=2-3`)
+- **Multiple variant formats**: Support for `variant=name` and `variant-group=name` syntax
+- **Automatic grouping**: Adjacent code blocks with variants are combined into single examples
+- **Language detection**: Preserves syntax highlighting with `class="language-*"` attributes
+- **Label support**: Extract labels from text between code blocks
+- **Clean HTML output**: Generates semantic HTML structure for further processing
+
+## Installation & Usage
+
+```typescript
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import { transformMarkdownCode } from '@mui/internal-docs-infra/transformMarkdownCode';
+
+const processor = unified().use(remarkParse).use(transformMarkdownCode);
+```
+
+### With Next.js and MDX
+
+```javascript
+// next.config.js
+const withMDX = require('@next/mdx')({
+  options: {
+    remarkPlugins: [transformMarkdownCode],
+    rehypePlugins: [transformHtmlCode], // For final processing
+  },
+});
+
+module.exports = withMDX({
+  // your Next.js config
+});
+```
+
+## Syntax Examples
+
+### Individual Code Blocks with Options
+
+The simplest usage - transform single code blocks by adding options directly:
+
+**Basic Example:**
+
+````markdown
+```ts fileName=greeting.ts
+const greeting: string = 'Hello, world!';
+console.log(greeting);
+```
+````
+
+**HTML Output:**
+
+```html
+<pre><code class="language-ts" data-file-name="greeting.ts">const greeting: string = "Hello, world!";
+console.log(greeting);</code></pre>
+```
+
+**Multiple Options:**
+
+````markdown
+```javascript fileName=test.js transform
+function test() {
+  console.log('line 2');
+  console.log('line 3');
+}
+```
+````
+
+**HTML Output:**
+
+```html
+<pre><code class="language-javascript" data-file-name="test.js" data-transform="true">function test() {
+console.log('line 2');
+console.log('line 3');
+}</code></pre>
+```
+
+Individual code blocks with options are processed immediately and don't require grouping with other blocks.
+
+### Basic Variants (variant=name)
+
+Show the same task across different package managers. This style is ideal when the variant names are self-evident from the code content and don't need explicit labeling:
+
+**Markdown Input:**
+
+````markdown
+```bash variant=npm
+npm install package
+```
+
+```bash variant=pnpm
+pnpm install package
+```
+
+```bash variant=yarn
+yarn add package
+```
+````
+
+**HTML Output:**
+
+```html
+<pre>
+  <code class="language-bash" data-variant="npm">npm install package</code>
+  <code class="language-bash" data-variant="pnpm">pnpm install package</code>  
+  <code class="language-bash" data-variant="yarn">yarn add package</code>
+</pre>
+```
+
+### Labeled Variants (variant-group=name)
+
+Add descriptive labels for each variant when the differences aren't obvious from the code alone. This is particularly useful for implementation approaches, configuration strategies, or conceptual differences:
+
+**Markdown Input:**
+
+````markdown
+Production Environment
+
+```javascript variant-group=deployment
+const config = {
+  apiUrl: process.env.PROD_API_URL,
+  cache: { ttl: 3600 },
+  logging: { level: 'error' },
+};
+```
+
+Development Environment
+
+```javascript variant-group=deployment
+const config = {
+  apiUrl: 'http://localhost:3000',
+  cache: { ttl: 0 },
+  logging: { level: 'debug' },
+};
+```
+
+Testing Environment
+
+```javascript variant-group=deployment
+const config = {
+  apiUrl: 'http://test-api.example.com',
+  cache: { ttl: 300 },
+  logging: { level: 'warn' },
+};
+```
+````
+
+**HTML Output:**
+
+```html
+<pre>
+  <code class="language-javascript" data-variant="Production Environment">const config = {
+  apiUrl: process.env.PROD_API_URL,
+  cache: { ttl: 3600 },
+  logging: { level: 'error' }
+};</code>
+  <code class="language-javascript" data-variant="Development Environment">const config = {
+  apiUrl: 'http://localhost:3000',
+  cache: { ttl: 0 },
+  logging: { level: 'debug' }
+};</code>
+  <code class="language-javascript" data-variant="Testing Environment">const config = {
+  apiUrl: 'http://test-api.example.com',
+  cache: { ttl: 300 },
+  logging: { level: 'warn' }
+};</code>
+</pre>
+```
+
+### Different Languages
+
+Show examples across multiple programming languages:
+
+**Markdown Input:**
+
+````markdown
+```javascript variant=client
+fetch('/api/data').then((res) => res.json());
+```
+
+```python variant=server
+import requests
+response = requests.get('/api/data')
+```
+
+```go variant=cli
+resp, err := http.Get("/api/data")
+```
+````
+
+**HTML Output:**
+
+```html
+<pre>
+  <code class="language-javascript" data-variant="client">fetch('/api/data').then(res => res.json())</code>
+  <code class="language-python" data-variant="server">import requests
+response = requests.get('/api/data')</code>
+  <code class="language-go" data-variant="cli">resp, err := http.Get("/api/data")</code>
+</pre>
+```
+
+### Custom Properties
+
+Add extra metadata using additional properties:
+
+**Markdown Input:**
+
+````markdown
+```bash variant=npm filename=install.sh
+npm install package
+```
+
+```bash variant=pnpm filename=install.sh
+pnpm install package
+```
+````
+
+**HTML Output:**
+
+```html
+<pre>
+  <code class="language-bash" data-variant="npm" data-filename="install.sh">npm install package</code>
+  <code class="language-bash" data-variant="pnpm" data-filename="install.sh">pnpm install package</code>
+</pre>
+```
+
+## Plugin Behavior
+
+### Individual Code Block Processing
+
+Code blocks with options (but no `variant` or `variant-group`) are processed immediately:
+
+- **Single transformation**: Creates a `<pre><code>` element with data attributes
+- **No grouping required**: Works with standalone code blocks
+- **Option handling**: Converts options to HTML data attributes (e.g., `fileName=test.ts` → `data-file-name="test.ts"`)
+- **Language preservation**: Maintains syntax highlighting classes
+
+### Grouping Rules
+
+- **Adjacent blocks**: Code blocks must be consecutive (blank lines allowed)
+- **Minimum size**: Groups require at least 2 code blocks
+- **Same format**: All blocks must use either `variant=` or `variant-group=`
+- **Single blocks**: Code blocks with variants that don't form groups remain unchanged
+
+### Label Extraction (variant-group only)
+
+For `variant-group` format, paragraphs between code blocks become variant names:
+
+````markdown
+Client-side
+
+```js variant-group=implementation
+fetch('/api/data');
+```
+
+Server-side
+
+```js variant-group=implementation
+const data = await db.query();
+```
+````
+
+Creates variants named "Client-side" and "Server-side".
+
+### Language Support
+
+All markdown code block languages are supported:
+
+- `js`, `javascript`, `ts`, `typescript`
+- `python`, `go`, `rust`, `java`, `c`, `cpp`
+- `bash`, `shell`, `zsh`, `fish`
+- `html`, `css`, `json`, `yaml`, `xml`
+- And any other language identifier
+
+## Integration with transformHtmlCode
+
+This plugin works seamlessly with [`transformHtmlCode`](../transform-html-code/page.mdx):
+
+1. **transformMarkdownCode** converts markdown to HTML
+2. **transformHtmlCode** processes HTML for rendering components
+
+### Complete Pipeline Example
+
+**Step 1 - Markdown:**
+
+````markdown
+npm
+
+```bash variant-group=install
+npm install package
+```
+
+pnpm
+
+```bash variant-group=install
+pnpm install package
+```
+````
+
+**Step 2 - After transformMarkdownCode:**
+
+```html
+<pre>
+  <code class="language-bash" data-variant="npm">npm install package</code>
+  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
+</pre>
+```
+
+**Step 3 - After transformHtmlCode:**
+
+```html
+<pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
+  Error: expected pre tag to be handled by CodeHighlighter
+</pre>
+```
+
+## Common Use Cases
+
+### Individual Code Enhancement
+
+Add metadata to single code blocks for transformations, highlighting, or special processing.
+
+### Package Manager Examples
+
+Show installation instructions for different package managers.
+
+### Framework Comparisons
+
+Display the same functionality in React, Vue, Angular, etc.
+
+### Configuration Files
+
+Show different formats (JSON, YAML, TOML) for the same configuration.
+
+### API Examples
+
+Demonstrate requests in different programming languages or tools (curl, fetch, axios).
+
+## Configuration
+
+This plugin works out-of-the-box with no configuration required. It automatically:
+
+- Detects options in code block metadata for individual blocks
+- Detects variant syntax in code block metadata for grouping
+- Groups adjacent code blocks with variants
+- Extracts labels from paragraphs (variant-group format)
+- Preserves all code block languages and properties
+- Generates clean, semantic HTML output
+
+## Troubleshooting
+
+### Individual Code Blocks Not Processing
+
+**Problem**: Code blocks with options aren't getting transformed.
+
+**Solutions**:
+
+- Ensure options are in the code block metadata: ` ```js transform` not ` ```js`
+- Check that options don't include `variant` or `variant-group` (those trigger grouping behavior)
+- Verify the code block has a language specified
+
+### Code Blocks Not Grouping
+
+**Problem**: Adjacent code blocks with variants aren't combining into a single `<pre>` element.
+
+**Solutions**:
+
+- Ensure all blocks use the same format (`variant=` or `variant-group=`)
+- Check that blocks are truly adjacent (only blank lines allowed between)
+- Verify you have at least 2 code blocks with variant metadata
+
+### Labels Not Working
+
+**Problem**: Using `variant-group` but variant names aren't extracted from paragraphs.
+
+**Solutions**:
+
+- Ensure paragraphs are directly between code blocks
+- Use simple text paragraphs (no complex markdown)
+- Check that all code blocks use `variant-group=samename`
+
+### Missing Language Classes
+
+**Problem**: Generated HTML doesn't have `class="language-*"` attributes.
+
+**Solutions**:
+
+- Ensure code blocks specify a language: ` ```javascript ` not just ` ``` `
+- Check that the language comes before the variant metadata
+- Verify your markdown processor supports language specification
+
+## Technical Details
+
+### HTML Structure
+
+Generated HTML follows this pattern:
+
+```html
+<pre>
+  <code class="language-{lang}" data-variant="{name}" data-{prop}="{value}">
+    {escaped code content}
+  </code>
+  <!-- additional code elements -->
+</pre>
+```
+
+### Data Attributes
+
+- `data-variant`: The variant name (from `variant=` or extracted label)
+- `data-*`: Any additional properties from code block metadata
+- `class="language-*"`: Preserved for syntax highlighting compatibility
+
+### Performance
+
+- Single-pass processing of the markdown AST
+- Efficient adjacent node grouping algorithm
+- Minimal memory overhead for typical document sizes
+
+## Implementation Details
+
+### AST Transformation
+
+The plugin uses `unist-util-visit` to traverse the markdown AST and identify code blocks with metadata. It then:
+
+1. **Parses metadata**: Extracts options and variant information from code block metadata
+2. **Determines processing type**: Individual blocks vs. variant groups
+3. **Groups adjacent blocks**: Collects consecutive code blocks with variants that belong together
+4. **Generates MDX JSX**: Creates proper `mdxJsxFlowElement` nodes with `pre` and `code` elements
+5. **Sets attributes**: Adds `data-variant`, `className`, and custom data attributes
+6. **Replaces nodes**: Substitutes the original code blocks with the generated MDX JSX elements
+
+### Language Detection
+
+The plugin handles language information in two ways:
+
+- **With explicit language**: `````javascript variant=npm` - language is `javascript`, meta is `variant=npm`
+- **Without explicit language**: `````variant=npm` - meta information is in the language field
+
+### Metadata Parsing
+
+The `parseMeta` function splits metadata strings by spaces and parses key=value pairs:
+
+- `transform` - Boolean flag that becomes `data-transform="true"`
+- `highlight=2-3` - Becomes `data-highlight="2-3"`
+- `variant=name` - Sets the variant for grouping
+- `variant-group=name` - Sets the variant group for label-based grouping
+- `filename=package.json` - Becomes `data-filename="package.json"`
+- Any other properties become data attributes
+
+## Error Handling
+
+The plugin is designed to be robust and graceful:
+
+- Invalid metadata is ignored
+- Individual code blocks with options are processed immediately
+- Single code blocks with variants are left unchanged
+- Non-adjacent code blocks are not grouped
+- Generates proper MDX JSX elements that integrate seamlessly
+
+## Performance Considerations
+
+- Uses `Set` data structures for efficient duplicate tracking
+- Processes nodes in a single AST traversal
+- Minimal memory overhead for metadata parsing
+- Parallel-friendly (no global state dependencies)
