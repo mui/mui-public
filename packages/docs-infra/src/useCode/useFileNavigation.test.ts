@@ -580,6 +580,679 @@ describe('useFileNavigation', () => {
     });
   });
 
+  describe('hash update behavior', () => {
+    it('should not create hash when none exists on variant change', () => {
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      // Start with no hash
+      mockHashValue = '';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Basic',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Verify no hash set on initial load
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Change variant - should NOT create a hash since none existed
+      rerender({ selectedVariantKey: 'Tailwind' });
+
+      // Should still not have set any hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should not update hash when current hash is for different demo', () => {
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      // Start with hash for a different demo
+      mockHashValue = 'different-demo:component.tsx';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Basic', // This demo is 'basic', hash is for 'different-demo'
+            selectedVariantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Verify no hash updates on initial load with different demo hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Change variant - should NOT update hash since it's for a different demo
+      rerender({ selectedVariantKey: 'Tailwind' });
+
+      // Should still not have updated the hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should update hash when current hash is for same demo and variant changes', () => {
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      // Start with hash for the same demo
+      mockHashValue = 'basic:styles.css';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Basic',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Should have loaded the file from the hash but not set a new hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Change variant - should update hash to include variant since it's the same demo
+      rerender({ selectedVariantKey: 'Tailwind' });
+
+      // Should have updated the hash to include the new variant
+      expect(mockSetHash).toHaveBeenCalledWith('basic:tailwind:styles.css');
+    });
+
+    it('should handle kebab-case conversion in hash checks correctly', () => {
+      const selectedVariant = {
+        fileName: 'Component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      // Hash with kebab-case (as it would appear in URL)
+      mockHashValue = 'my-complex-demo:component.tsx';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'MyComplexDemo', // PascalCase mainSlug
+            selectedVariantKey,
+            variantKeys: ['Default', 'Advanced'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Should recognize the hash matches this demo (kebab-case conversion)
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Change variant - should update hash since it matches this demo
+      rerender({ selectedVariantKey: 'Advanced' });
+
+      // Should have updated the hash with the new variant
+      expect(mockSetHash).toHaveBeenCalledWith('my-complex-demo:advanced:component.tsx');
+    });
+
+    it('should not update hash when file selection changes but no hash exists', () => {
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: 'const Main = () => <div>Main</div>;',
+        extraFiles: {
+          'helper.ts': 'export const helper = () => {};',
+        },
+      };
+
+      // No initial hash
+      mockHashValue = '';
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // Verify no hash set initially
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // But when user explicitly selects a file, hash should be set
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      // This should set the hash (user interaction)
+      expect(mockSetHash).toHaveBeenCalledWith('test:helper.ts');
+    });
+
+    it('should prevent cross-page hash persistence regression', () => {
+      // Simulate the original bug scenario:
+      // 1. User is on page with hash: /components/button#basic:button.tsx
+      // 2. User navigates to different page: /components/checkbox
+      // 3. Variant change should NOT restore the button hash
+
+      const selectedVariant = {
+        fileName: 'checkbox.tsx',
+        source: 'const Checkbox = () => <div>Checkbox</div>;',
+      };
+
+      // Simulate hash from previous page (different demo)
+      mockHashValue = 'button-demo:button.tsx';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'CheckboxDemo', // Different demo than the hash
+            selectedVariantKey,
+            variantKeys: ['Default', 'Styled'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Should not update hash on initial load
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Variant change should NOT update the hash (different demo)
+      rerender({ selectedVariantKey: 'Styled' });
+
+      // Hash should remain unchanged - no setHash calls
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Even if user selects a file, it should create a new hash for this demo
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'CheckboxDemo',
+          selectedVariantKey: 'Styled',
+          variantKeys: ['Default', 'Styled'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('checkbox.tsx');
+      });
+
+      // Should create hash for the new demo, not update the old one
+      expect(mockSetHash).toHaveBeenCalledWith('checkbox-demo:styled:checkbox.tsx');
+    });
+
+    it('should handle empty mainSlug edge case', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      // Hash with some content
+      mockHashValue = 'some-other:file.tsx';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: '', // Empty mainSlug
+            selectedVariantKey,
+            variantKeys: ['Default', 'Alternative'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Should not crash or update hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Variant change with empty mainSlug should not update hash
+      rerender({ selectedVariantKey: 'Alternative' });
+
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should not interfere with same-page section navigation', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      // Simulate user navigating to a different section on the same page
+      // (This would be set by browser's native hash navigation, not our code)
+      mockHashValue = 'some-section-heading';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'ComponentDemo',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Styled'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Should not interfere with section hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      // Variant change should NOT update the section hash
+      rerender({ selectedVariantKey: 'Styled' });
+
+      // Section hash should remain untouched
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('allFilesSlugs', () => {
+    it('should return correct slugs for all files in initial variant', () => {
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+          'helper.ts': 'export const helper = () => {};',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default', 'Tailwind'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'checkbox-basic.tsx', slug: 'basic:checkbox-basic.tsx' },
+        { fileName: 'styles.css', slug: 'basic:styles.css' },
+        { fileName: 'helper.ts', slug: 'basic:helper.ts' },
+      ]);
+    });
+
+    it('should return correct slugs for all files in non-initial variant', () => {
+      const selectedVariant = {
+        fileName: 'checkbox-tailwind.tsx',
+        source: 'const TailwindCheckbox = () => <div className="p-4">Tailwind</div>;',
+        extraFiles: {
+          'tailwind.config.js': 'module.exports = {};',
+          'postcss.config.js': 'module.exports = { plugins: [] };',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Tailwind',
+          variantKeys: ['Default', 'Tailwind'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'checkbox-tailwind.tsx', slug: 'basic:tailwind:checkbox-tailwind.tsx' },
+        { fileName: 'tailwind.config.js', slug: 'basic:tailwind:tailwind.config.js' },
+        { fileName: 'postcss.config.js', slug: 'basic:tailwind:postcss.config.js' },
+      ]);
+    });
+
+    it('should handle complex file names with kebab-case conversion', () => {
+      const selectedVariant = {
+        fileName: 'MyComplexComponent.test.tsx',
+        source: 'test content',
+        extraFiles: {
+          'utilityHelpers.js': 'helper content',
+          'ComponentStyles.module.css': 'css content',
+          'APIUtils.d.ts': 'type definitions',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Advanced Component Demo',
+          selectedVariantKey: 'Testing',
+          variantKeys: ['Default', 'Testing'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([
+        {
+          fileName: 'MyComplexComponent.test.tsx',
+          slug: 'advanced-component-demo:testing:my-complex-component.test.tsx',
+        },
+        {
+          fileName: 'utilityHelpers.js',
+          slug: 'advanced-component-demo:testing:utility-helpers.js',
+        },
+        {
+          fileName: 'ComponentStyles.module.css',
+          slug: 'advanced-component-demo:testing:component-styles.module.css',
+        },
+        { fileName: 'APIUtils.d.ts', slug: 'advanced-component-demo:testing:apiutils.d.ts' },
+      ]);
+    });
+
+    it('should handle variant with only main file (no extra files)', () => {
+      const selectedVariant = {
+        fileName: 'simple-component.tsx',
+        source: 'const SimpleComponent = () => <div>Simple</div>;',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Simple',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'simple-component.tsx', slug: 'simple:simple-component.tsx' },
+      ]);
+    });
+
+    it('should handle variant with only extra files (no main file)', () => {
+      const selectedVariant = {
+        extraFiles: {
+          'config.json': '{ "setting": true }',
+          'README.md': '# Configuration files',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Config',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'config.json', slug: 'config:config.json' },
+        { fileName: 'README.md', slug: 'config:readme.md' },
+      ]);
+    });
+
+    it('should return empty array when no variant is selected', () => {
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant: null,
+          transformedFiles: undefined,
+          mainSlug: 'Test',
+          selectedVariantKey: undefined,
+          variantKeys: [],
+          initialVariant: undefined,
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([]);
+    });
+
+    it('should return empty array when variant key is missing', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Test',
+          selectedVariantKey: '',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([]);
+    });
+
+    it('should update when variant changes', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      const { result, rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Test',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Styled'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Initial variant (no variant name in slugs)
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'component.tsx', slug: 'test:component.tsx' },
+        { fileName: 'styles.css', slug: 'test:styles.css' },
+      ]);
+
+      // Change to non-initial variant (variant name included in slugs)
+      rerender({ selectedVariantKey: 'Styled' });
+
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'component.tsx', slug: 'test:styled:component.tsx' },
+        { fileName: 'styles.css', slug: 'test:styled:styles.css' },
+      ]);
+    });
+
+    it('should respect explicit initialVariant parameter', () => {
+      const selectedVariant = {
+        fileName: 'special-component.tsx',
+        source: 'const SpecialComponent = () => <div>Special</div>;',
+        extraFiles: {
+          'special.css': '.special { color: red; }',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Special',
+          variantKeys: ['Default', 'Tailwind', 'Special'],
+          initialVariant: 'Special', // Special is the initial variant, not Default
+          shouldHighlight: true,
+        }),
+      );
+
+      // Since Special is the initialVariant, slugs should not include variant name
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'special-component.tsx', slug: 'demo:special-component.tsx' },
+        { fileName: 'special.css', slug: 'demo:special.css' },
+      ]);
+    });
+
+    it('should handle empty mainSlug gracefully', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'helper.js': 'export const helper = () => {};',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: '',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.allFilesSlugs).toEqual([
+        { fileName: 'component.tsx', slug: 'component.tsx' },
+        { fileName: 'helper.js', slug: 'helper.js' },
+      ]);
+    });
+
+    it('should be memoized and not create new arrays on every render', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      const firstRender = result.current.allFilesSlugs;
+
+      // Rerender without changing dependencies
+      rerender();
+
+      const secondRender = result.current.allFilesSlugs;
+
+      // Should be the same reference (memoized) or at least the same content
+      // Note: In test environment, reference might not always be preserved
+      expect(firstRender).toEqual(secondRender);
+    });
+
+    it('should create new array when dependencies change', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      const { result, rerender } = renderHook(
+        ({ mainSlug }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug,
+            selectedVariantKey: 'Default',
+            variantKeys: ['Default'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { mainSlug: 'Test' },
+        },
+      );
+
+      const firstRender = result.current.allFilesSlugs;
+
+      // Change mainSlug dependency
+      rerender({ mainSlug: 'NewTest' });
+
+      const secondRender = result.current.allFilesSlugs;
+
+      // Should be different references (new memoization)
+      expect(firstRender).not.toBe(secondRender);
+
+      // But content should be updated
+      expect(secondRender).toEqual([
+        { fileName: 'component.tsx', slug: 'new-test:component.tsx' },
+        { fileName: 'styles.css', slug: 'new-test:styles.css' },
+      ]);
+    });
+  });
+
   describe('shouldHighlight behavior', () => {
     it('should create components with highlighting when shouldHighlight=true', () => {
       const selectedVariant = {

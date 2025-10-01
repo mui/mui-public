@@ -83,6 +83,7 @@ export interface UseFileNavigationResult {
   selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
+  allFilesSlugs: Array<{ fileName: string; slug: string }>;
 }
 
 /**
@@ -245,7 +246,14 @@ export function useFileNavigation({
 
     // Only update the URL hash if it's different from current hash
     if (fileSlug && hash !== fileSlug) {
-      setHash(fileSlug); // Use the new URL hash hook
+      // Only update if current hash is for the same demo (starts with mainSlug)
+      // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
+      const expectedBaseSlug = toKebabCase(mainSlug);
+
+      if (hash && hash.startsWith(`${expectedBaseSlug}:`)) {
+        setHash(fileSlug);
+      }
+      // Otherwise, don't update - either no hash exists or hash is for a different demo
     }
   }, [
     selectedVariant,
@@ -565,12 +573,52 @@ export function useFileNavigation({
     ],
   );
 
+  // Memoized array of all file slugs for the current variant
+  const allFilesSlugs = React.useMemo(() => {
+    const result: Array<{ fileName: string; slug: string }> = [];
+
+    if (!selectedVariant || !selectedVariantKey) {
+      return result;
+    }
+
+    // Determine if this is the initial variant
+    const isInitialVariant = initialVariant
+      ? selectedVariantKey === initialVariant
+      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+
+    // Add main file if it exists
+    if (selectedVariant.fileName) {
+      result.push({
+        fileName: selectedVariant.fileName,
+        slug: generateFileSlug(
+          mainSlug,
+          selectedVariant.fileName,
+          selectedVariantKey,
+          isInitialVariant,
+        ),
+      });
+    }
+
+    // Add extra files
+    if (selectedVariant.extraFiles) {
+      Object.keys(selectedVariant.extraFiles).forEach((fileName) => {
+        result.push({
+          fileName,
+          slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
+        });
+      });
+    }
+
+    return result;
+  }, [selectedVariant, selectedVariantKey, variantKeys, initialVariant, mainSlug]);
+
   return {
     selectedFileName,
     selectedFile,
     selectedFileComponent,
     selectedFileLines,
     files,
+    allFilesSlugs,
     selectFileName,
   };
 }
