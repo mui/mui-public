@@ -63,6 +63,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       const screenshots = await globby(`${folder}/**/*`, {
         onlyFiles: true,
       });
+      const threshold = process.env.ARGOS_THRESHOLD ? parseFloat(process.env.ARGOS_THRESHOLD) : 0.5;
 
       console.log(`Found ${screenshots.length} screenshots.`);
       if (verbose) {
@@ -99,15 +100,22 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           commit: circleSha1,
           branch: circleBranch,
           token: argosToken,
-          threshold: process.env.ARGOS_THRESHOLD ? parseFloat(process.env.ARGOS_THRESHOLD) : 0.5,
+          threshold,
           parallel: {
             total: batches.length,
             nonce: circleBuildNum,
           },
         });
 
+        if (verbose) {
+          console.log('Screenshots uploaded:');
+          for (const screenshot of result.screenshots) {
+            console.log(`- ${screenshot.name}. Threshold: ${screenshot.threshold}.`);
+          }
+        }
+
         console.log(
-          `Batch of ${batches[i].length} screenshots uploaded. Build URL: ${result.build.url}`,
+          `Batch of ${batches[i].length} screenshots uploaded. Threshold: ${threshold}. Build URL: ${result.build.url}`,
         );
       }
     } finally {
