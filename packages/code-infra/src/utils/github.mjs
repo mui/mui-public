@@ -37,6 +37,8 @@ export const ERRORS = {
   TIMEOUT: 'TIMEOUT',
 };
 
+const ONE_MINUTE = 60 * 1000;
+
 export function persistentAuthStrategy() {
   function createCachedToken() {
     /**
@@ -53,8 +55,8 @@ export function persistentAuthStrategy() {
       const now = Date.now();
       timeSinceAccess += now - lastAccess;
       lastAccess = now;
-      // Reset token if it has been more than 5 minutes since last access
-      if (timeSinceAccess > 1 * 60 * 1000) {
+      // Reset token if it has been more than a minute since last access
+      if (timeSinceAccess > ONE_MINUTE) {
         timeSinceAccess = 0;
         token = '';
       }
@@ -104,11 +106,11 @@ export function persistentAuthStrategy() {
  * @param {string} data.code
  * @param {Object} options
  * @param {boolean} [options.openInBrowser=true] - Whether to open the URL in the default browser
- * @param {boolean} [options.copyToCliboard=true] - Whether to copy the code to clipboard
+ * @param {boolean} [options.copyToClipboard=true] - Whether to copy the code to clipboard
  * @returns {Promise<void>}
  */
-async function logAuthInformation(data, { openInBrowser = true, copyToCliboard = true } = {}) {
-  if (copyToCliboard) {
+async function logAuthInformation(data, { openInBrowser = true, copyToClipboard = true } = {}) {
+  if (copyToClipboard) {
     await clipboardy.write(data.code);
     console.warn(`Pasted authentication code ${data.code} to system clipboard...`);
   } else {

@@ -25,12 +25,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const gh = await import('../utils/github.mjs');
     if (args.clear) {
       await gh.clearGitHubAuth();
-      console.log('✅ GitHub authentication cleared');
+      console.log('✅ GitHub auth tokens cleared.');
       return;
     }
     if (args.authorize) {
       await gh.endToEndGhAuthGetToken(true);
-      console.log('✅ GitHub authentication successful');
+      console.log('✅ GitHub auth tokens successfully retrieved.');
     }
   },
 });
