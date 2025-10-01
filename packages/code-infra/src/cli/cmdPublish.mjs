@@ -47,7 +47,7 @@ async function parseChangelog(changelogPath, version) {
     const lines = content.split('\n');
 
     const startIndex = lines.findIndex(
-      (line) => line.startsWith(`## ${version}`) || line.startsWith(`v${version}`),
+      (line) => line.startsWith(`## ${version}`) || line.startsWith(`## v${version}`),
     );
 
     if (startIndex === -1) {
