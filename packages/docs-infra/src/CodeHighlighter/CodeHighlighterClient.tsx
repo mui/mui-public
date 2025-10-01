@@ -14,9 +14,6 @@ import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
 
-const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
-const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
-
 function useInitialData({
   variants,
   variantName,
@@ -362,6 +359,9 @@ function useCodeParsing({
 
   React.useEffect(() => {
     if (highlightAfter === 'idle') {
+      const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
+      const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
+
       const idleRequest = requestIdleCallback(() => {
         setIsHighlightAllowed(true);
       });
@@ -865,6 +865,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   React.useEffect(() => {
     if (enhanceAfter === 'idle') {
+      const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
+      const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
+
       const idleRequest = requestIdleCallback(() => {
         setIsEnhanceAllowed(true);
       });
