@@ -865,10 +865,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   React.useEffect(() => {
     if (enhanceAfter === 'idle') {
-      const idleRequest = window.requestIdleCallback(() => {
+      const idleRequest = requestIdleCallback(() => {
         setIsEnhanceAllowed(true);
       });
-      return () => window.cancelIdleCallback(idleRequest);
+      return () => cancelIdleCallback(idleRequest);
     }
     return undefined;
   }, [enhanceAfter]);
