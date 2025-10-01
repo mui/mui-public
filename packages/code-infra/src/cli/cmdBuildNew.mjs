@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
 
 /**
- * @typedef {import('./cmdBuild.mjs').Args & {watch?: boolean}} BaseArgs
+ * @typedef {Omit<import('./cmdBuild.mjs').Args, 'hasLargeFiles' | 'skipBundlePackageJson' | 'skipMainCheck' | 'cjsOutDir' | 'skipBabelRuntimeCheck' | 'skipTsc'> & {watch?: boolean; sourceMap?: boolean}} BaseArgs
  */
 
 /**
@@ -45,22 +45,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         description: 'Bundles to output',
         default: ['esm', 'cjs'],
       })
-      .option('hasLargeFiles', {
-        type: 'boolean',
-        default: false,
-        describe: 'Set to `true` if you know you are transpiling large files.',
-      })
-      .option('skipBundlePackageJson', {
-        type: 'boolean',
-        default: false,
-        describe:
-          "Set to `true` if you don't want to generate a package.json file in the bundle output.",
-      })
-      .option('cjsOutDir', {
-        default: '.',
-        type: 'string',
-        description: 'The directory to output the cjs files to.',
-      })
       .option('verbose', {
         type: 'boolean',
         default: false,
@@ -71,21 +55,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: true,
         description: 'Whether to build types for the package.',
       })
-      .option('skipTsc', {
+      .option('sourceMap', {
         type: 'boolean',
         default: false,
-        description: 'Skip running TypeScript compiler (tsc) for building types.',
-      })
-      .option('ignore', {
-        type: 'string',
-        array: true,
-        description: 'Extra globs to be ignored by Babel.',
-        default: [],
-      })
-      .option('skipBabelRuntimeCheck', {
-        type: 'boolean',
-        default: false,
-        description: 'Skip checking for Babel runtime dependencies in the package.',
+        description: 'Enable source maps for the build.',
       })
       .option('skipPackageJson', {
         type: 'boolean',

@@ -5,7 +5,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "tsBuildInfoFile": "${configDir}/node_modules/.cache/tsconfig.build.tsbuildinfo",
-    "declarationDir": "build"
+    "declarationDir": "build",
+    "removeComments": true
   },
   "include": ["src", "package.json"],
   "exclude": ["**/*.spec.*", "**/*.test.*", "src/setupVitest.ts"]
