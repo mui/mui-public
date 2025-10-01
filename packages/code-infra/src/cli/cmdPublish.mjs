@@ -42,57 +42,51 @@ async function getReleaseVersion() {
  * @returns {Promise<string>} Changelog content for the version
  */
 async function parseChangelog(changelogPath, version) {
-  try {
-    const content = await fs.readFile(changelogPath, 'utf8');
-    const lines = content.split('\n');
+  const content = await fs.readFile(changelogPath, 'utf8');
+  const lines = content.split('\n');
 
-    const versionHeader = `## ${version}`;
-    const startIndex = lines.findIndex((line) => line.startsWith(versionHeader));
+  const startIndex = lines.findIndex(
+    (line) => line.startsWith(`## ${version}`) || line.startsWith(`v${`## v${version}`}`),
+  );
 
-    if (startIndex === -1) {
-      throw new Error(`Version ${version} not found in changelog`);
-    }
-
-    // Skip the version header and find content start
-    let contentStartIndex = startIndex + 1;
-
-    // Skip whitespace and comment lines
-    while (contentStartIndex < lines.length) {
-      const line = lines[contentStartIndex].trim();
-      if (line === '' || line.startsWith('<!--')) {
-        contentStartIndex += 1;
-      } else {
-        break;
-      }
-    }
-
-    // Check if first content line is a date line
-    if (contentStartIndex < lines.length) {
-      const line = lines[contentStartIndex].trim();
-      // Remove leading/trailing underscores if present
-      const cleanLine = line.replace(/^_+|_+$/g, '');
-      // Try to parse as date
-      if (cleanLine && !Number.isNaN(Date.parse(cleanLine))) {
-        contentStartIndex += 1; // Skip date line
-      }
-    }
-
-    // Find the end of this version's content (next ## header)
-    let endIndex = lines.length;
-    for (let i = contentStartIndex; i < lines.length; i += 1) {
-      if (lines[i].startsWith('## ')) {
-        endIndex = i;
-        break;
-      }
-    }
-
-    return lines.slice(contentStartIndex, endIndex).join('\n').trim();
-  } catch (/** @type {any} */ error) {
-    if (error.code === 'ENOENT') {
-      throw new Error('CHANGELOG.md not found');
-    }
-    throw error;
+  if (startIndex === -1) {
+    throw new Error(`Version ${version} not found in changelog`);
   }
+
+  // Skip the version header and find content start
+  let contentStartIndex = startIndex + 1;
+
+  // Skip whitespace and comment lines
+  while (contentStartIndex < lines.length) {
+    const line = lines[contentStartIndex].trim();
+    if (line === '' || line.startsWith('<!--')) {
+      contentStartIndex += 1;
+    } else {
+      break;
+    }
+  }
+
+  // Check if first content line is a date line
+  if (contentStartIndex < lines.length) {
+    const line = lines[contentStartIndex].trim();
+    // Remove leading/trailing underscores if present
+    const cleanLine = line.replace(/^_+|_+$/g, '');
+    // Try to parse as date
+    if (cleanLine && !Number.isNaN(Date.parse(cleanLine))) {
+      contentStartIndex += 1; // Skip date line
+    }
+  }
+
+  // Find the end of this version's content (next ## header)
+  let endIndex = lines.length;
+  for (let i = contentStartIndex; i < lines.length; i += 1) {
+    if (lines[i].startsWith('## ')) {
+      endIndex = i;
+      break;
+    }
+  }
+
+  return lines.slice(contentStartIndex, endIndex).join('\n').trim();
 }
 
 /**
