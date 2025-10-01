@@ -129,7 +129,7 @@ export function useCode<T extends {} = {}>(
     transformedFiles: transformManagement.transformedFiles,
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
-    selectVariant: variantSelection.selectVariant,
+    selectVariant: variantSelection.selectVariantProgrammatic,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,

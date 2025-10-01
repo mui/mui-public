@@ -2562,4 +2562,146 @@ describe('useFileNavigation', () => {
       expect(result.current.selectedFileLines).toBe(3);
     });
   });
+
+  describe('stability and re-render behavior', () => {
+    it('should not cause excessive re-renders when selectFileName is called multiple times with same value', () => {
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: 'const Main = () => <div>Main</div>;',
+        extraFiles: {
+          'helper.ts': 'export const helper = () => {};',
+          'config.js': 'export const config = {};',
+        },
+      };
+
+      let callCount = 0;
+      const { result } = renderHook(() => {
+        callCount += 1;
+        return useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        });
+      });
+
+      // Select a file first
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      expect(result.current.selectedFileName).toBe('helper.ts');
+
+      // Clear the count after initial selection
+      const afterFirstSelection = callCount;
+
+      // Call selectFileName multiple times with the same value
+      // This could happen with URL hash changes or user interactions
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      // Should not cause excessive re-renders when setting the same value repeatedly
+      const totalNewCalls = callCount - afterFirstSelection;
+      // Allow some re-renders for the hash updates, but not hundreds
+      expect(totalNewCalls).toBeLessThan(10);
+
+      // Verify state is still correct
+      expect(result.current.selectedFileName).toBe('helper.ts');
+    });
+
+    it('should not cause excessive re-renders when hash changes trigger same file selection', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Component</div>;',
+        extraFiles: {
+          'utils.ts': 'export const utils = {};',
+        },
+      };
+
+      // Start with a hash pointing to utils.ts
+      mockHashValue = 'test:utils.ts';
+
+      let callCount = 0;
+      const { rerender } = renderHook(() => {
+        callCount += 1;
+        return useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        });
+      });
+
+      // Initial render should select the file from hash
+      const initialCalls = callCount;
+
+      // Simulate multiple hash changes to the same file
+      // This could happen with browser back/forward navigation
+      rerender();
+      rerender();
+      rerender();
+
+      const totalNewCalls = callCount - initialCalls;
+      // Should not cause excessive re-renders
+      expect(totalNewCalls).toBeLessThan(10);
+    });
+
+    it('should handle rapid file selection changes without excessive re-renders', () => {
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: 'const Main = () => <div>Main</div>;',
+        extraFiles: {
+          'file1.ts': 'export const file1 = {};',
+          'file2.ts': 'export const file2 = {};',
+          'file3.ts': 'export const file3 = {};',
+        },
+      };
+
+      let callCount = 0;
+      const { result } = renderHook(() => {
+        callCount += 1;
+        return useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        });
+      });
+
+      const initialCalls = callCount;
+
+      // Rapidly switch between files
+      act(() => {
+        result.current.selectFileName('file1.ts');
+        result.current.selectFileName('file2.ts');
+        result.current.selectFileName('file3.ts');
+        result.current.selectFileName('file1.ts');
+      });
+
+      const totalNewCalls = callCount - initialCalls;
+      // Should handle rapid changes efficiently
+      expect(totalNewCalls).toBeLessThan(15);
+
+      // Should end up with the last selected file
+      expect(result.current.selectedFileName).toBe('file1.ts');
+    });
+  });
 });

@@ -120,6 +120,10 @@ export function useFileNavigation({
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
 
+  // Track if we're waiting for a variant switch to complete, and which file to select after
+  const pendingFileSelection = React.useRef<string | null>(null);
+  const justCompletedPendingSelection = React.useRef(false);
+
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
     if (!hash) {
@@ -233,12 +237,15 @@ export function useFileNavigation({
     if (matchingFileName && matchingVariantKey) {
       // If the matching file is in a different variant, switch to that variant first
       if (matchingVariantKey !== selectedVariantKey && selectVariant) {
+        // Remember which file to select after variant switch
+        pendingFileSelection.current = matchingFileName;
         selectVariant(matchingVariantKey);
-        // Note: Don't set the file here - let the variant change trigger this function again
+        // Don't set the file here - it will be set after variant changes
         return;
       }
 
       // Set the file if we're in the correct variant
+      pendingFileSelection.current = null;
       setSelectedFileNameInternal(matchingFileName);
       markUserInteraction();
     }
@@ -255,13 +262,34 @@ export function useFileNavigation({
     markUserInteraction,
   ]);
 
-  // On hydration/variant change, check URL hash and switch to matching file
+  // Run hash check when URL hash changes to select the matching file
+  // Only depends on hash to avoid re-running when the callback recreates due to variant state changes
   React.useEffect(() => {
     checkUrlHashAndSelectFile();
-  }, [checkUrlHashAndSelectFile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash]);
+
+  // When variant switches with a pending file selection, complete the file selection
+  React.useEffect(() => {
+    if (pendingFileSelection.current && selectedVariant) {
+      const fileToSelect = pendingFileSelection.current;
+      pendingFileSelection.current = null;
+      justCompletedPendingSelection.current = true;
+      setSelectedFileNameInternal(fileToSelect);
+      markUserInteraction();
+    } else {
+      justCompletedPendingSelection.current = false;
+    }
+  }, [selectedVariantKey, selectedVariant, markUserInteraction]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
+    // Skip reset if we have a pending file selection from hash navigation
+    // OR if we just completed a pending file selection
+    if (pendingFileSelection.current || justCompletedPendingSelection.current) {
+      return;
+    }
+
     if (selectedVariant && selectedFileNameInternal !== selectedVariant.fileName) {
       // Only reset if current selectedFileName doesn't exist in the new variant
       const hasFile =
