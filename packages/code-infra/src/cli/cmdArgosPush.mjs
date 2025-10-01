@@ -65,7 +65,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
       const threshold = process.env.ARGOS_THRESHOLD ? parseFloat(process.env.ARGOS_THRESHOLD) : 0.5;
 
-      console.log(`Found ${screenshots.length} screenshots.`);
+      console.log(
+        `Found ${screenshots.length} screenshots. Uploading with threshold ${threshold}.`,
+      );
       if (verbose) {
         console.log('Screenshots found:');
         screenshots.forEach((screenshot) => {
