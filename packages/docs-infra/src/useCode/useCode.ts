@@ -35,7 +35,7 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedFileLines: number;
   selectedFileName: string | undefined;
   selectFileName: (fileName: string) => void;
-  allFilesSlugs: { slug: string; fileName: string; variantName: string }[];
+  allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
   expanded: boolean;
   expand: () => void;
   setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -129,6 +129,7 @@ export function useCode<T extends {} = {}>(
     transformedFiles: transformManagement.transformedFiles,
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
+    selectVariant: variantSelection.selectVariant,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,

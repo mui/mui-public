@@ -75,6 +75,7 @@ interface UseFileNavigationProps {
   preClassName?: string;
   preRef?: React.Ref<HTMLPreElement>;
   effectiveCode?: Code;
+  selectVariant?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export interface UseFileNavigationResult {
@@ -101,6 +102,7 @@ export function useFileNavigation({
   preClassName,
   preRef,
   effectiveCode,
+  selectVariant,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -120,70 +122,136 @@ export function useFileNavigation({
 
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
-    if (!selectedVariant || !hash) {
+    if (!hash) {
       return;
     }
 
-    // Check if hash matches any file slug
+    // Try to find matching file - check current variant first
     let matchingFileName: string | undefined;
+    let matchingVariantKey: string | undefined;
 
-    // Determine if this is the initial variant
-    const isInitialVariant = initialVariant
-      ? selectedVariantKey === initialVariant
-      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+    // Step 1: Check current variant (if we have one)
+    if (selectedVariant) {
+      const isInitialVariant = initialVariant
+        ? selectedVariantKey === initialVariant
+        : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
 
-    // Check main file
-    if (selectedVariant.fileName) {
-      const mainFileSlug = generateFileSlug(
-        mainSlug,
-        selectedVariant.fileName,
-        selectedVariantKey,
-        isInitialVariant,
-      );
-      if (hash === mainFileSlug) {
-        matchingFileName = selectedVariant.fileName;
-      }
-    }
-
-    // Check extra files
-    if (!matchingFileName && selectedVariant.extraFiles) {
-      for (const fileName of Object.keys(selectedVariant.extraFiles)) {
-        const fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
-        if (hash === fileSlug) {
-          matchingFileName = fileName;
-          break;
-        }
-      }
-    }
-
-    // Check transformed files if available
-    if (!matchingFileName && transformedFiles) {
-      for (const file of transformedFiles.files) {
-        const fileSlug = generateFileSlug(
+      // Check main file
+      if (selectedVariant.fileName) {
+        const mainFileSlug = generateFileSlug(
           mainSlug,
-          file.originalName,
+          selectedVariant.fileName,
           selectedVariantKey,
           isInitialVariant,
         );
-        if (hash === fileSlug) {
-          matchingFileName = file.originalName;
+        if (hash === mainFileSlug) {
+          matchingFileName = selectedVariant.fileName;
+          matchingVariantKey = selectedVariantKey;
+        }
+      }
+
+      // Check extra files
+      if (!matchingFileName && selectedVariant.extraFiles) {
+        for (const fileName of Object.keys(selectedVariant.extraFiles)) {
+          const fileSlug = generateFileSlug(
+            mainSlug,
+            fileName,
+            selectedVariantKey,
+            isInitialVariant,
+          );
+          if (hash === fileSlug) {
+            matchingFileName = fileName;
+            matchingVariantKey = selectedVariantKey;
+            break;
+          }
+        }
+      }
+
+      // Check transformed files
+      if (!matchingFileName && transformedFiles) {
+        for (const file of transformedFiles.files) {
+          const fileSlug = generateFileSlug(
+            mainSlug,
+            file.originalName,
+            selectedVariantKey,
+            isInitialVariant,
+          );
+          if (hash === fileSlug) {
+            matchingFileName = file.originalName;
+            matchingVariantKey = selectedVariantKey;
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 2: If no match and we can switch variants, search other variants
+    if (!matchingFileName && effectiveCode && selectVariant) {
+      for (const [variantKey, variant] of Object.entries(effectiveCode)) {
+        // Skip current variant (already checked) and invalid variants
+        if (variantKey === selectedVariantKey || !variant || typeof variant === 'string') {
+          continue;
+        }
+
+        const isInitialVariant = initialVariant
+          ? variantKey === initialVariant
+          : variantKeys.length === 0 || variantKey === variantKeys[0];
+
+        // Check main file
+        if (variant.fileName) {
+          const mainFileSlug = generateFileSlug(
+            mainSlug,
+            variant.fileName,
+            variantKey,
+            isInitialVariant,
+          );
+          if (hash === mainFileSlug) {
+            matchingFileName = variant.fileName;
+            matchingVariantKey = variantKey;
+            break;
+          }
+        }
+
+        // Check extra files
+        if (!matchingFileName && variant.extraFiles) {
+          for (const fileName of Object.keys(variant.extraFiles)) {
+            const fileSlug = generateFileSlug(mainSlug, fileName, variantKey, isInitialVariant);
+            if (hash === fileSlug) {
+              matchingFileName = fileName;
+              matchingVariantKey = variantKey;
+              break;
+            }
+          }
+        }
+
+        if (matchingFileName) {
           break;
         }
       }
     }
 
-    if (matchingFileName) {
+    if (matchingFileName && matchingVariantKey) {
+      // If the matching file is in a different variant, switch to that variant first
+      if (matchingVariantKey !== selectedVariantKey && selectVariant) {
+        selectVariant(matchingVariantKey);
+        // Note: Don't set the file here - let the variant change trigger this function again
+        return;
+      }
+
+      // Set the file if we're in the correct variant
       setSelectedFileNameInternal(matchingFileName);
-      markUserInteraction(); // Mark that user has made a selection via URL
+      markUserInteraction();
     }
   }, [
-    selectedVariant,
     hash,
-    transformedFiles,
-    mainSlug,
+    selectedVariant,
     selectedVariantKey,
     variantKeys,
     initialVariant,
+    mainSlug,
+    transformedFiles,
+    effectiveCode,
+    selectVariant,
     markUserInteraction,
   ]);
 
