@@ -274,7 +274,7 @@ export async function writePkgJson(basePkgJson, chunks, nullEntries = [], option
     if (chunk.isBin) {
       newBin = newBin || {};
       newBin[key.substring('bin/'.length)] =
-        `./${isModule ? chunk.paths.find((p) => p.endsWith('.mjs')) : chunk.paths.find((p) => p.endsWith('.cjs'))}`;
+        `./${isModule ? chunk.paths.find((p) => p.endsWith('.mjs') || p.endsWith('.js')) : chunk.paths.find((p) => p.endsWith('.cjs') || p.endsWith('.js'))}`;
     } else {
       const pathKey =
         key === 'index'

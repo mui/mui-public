@@ -94,7 +94,7 @@ export async function build(args, pkgJson) {
   externalsArray.push(/^node:/);
   externalsArray.push(...builtinModules);
 
-  const tsconfigPath = await getTsConfigPath(cwd);
+  const tsconfigPath = args.buildTypes ? await getTsConfigPath(cwd) : null;
   const bannerText = `/**
  * ${pkgJson.name} v${pkgJson.version}
  *
@@ -125,7 +125,7 @@ export async function build(args, pkgJson) {
     },
     logLevel: args.verbose ? 'info' : 'silent',
     tsconfig: tsconfigPath ?? undefined,
-    sourcemap: false,
+    sourcemap: args.sourceMap || false,
     banner: {
       js: bannerText,
       css: bannerText,
@@ -162,11 +162,11 @@ export async function build(args, pkgJson) {
             ? {
                 cwd,
                 tsconfig: tsconfigPath,
-                emitJs: false,
                 compilerOptions: {
                   jsx: 'react-jsx',
                   outDir,
                 },
+                sourcemap: args.sourceMap ?? false,
               }
             : false,
           outputOptions: {
@@ -206,6 +206,15 @@ export async function build(args, pkgJson) {
         outputOptions: {
           plugins: [
             {
+              name: 'bin-shebang',
+              // eslint-disable-next-line consistent-return
+              renderChunk(code, chunk) {
+                if (chunk.isEntry && !code.startsWith('#!')) {
+                  return `#!/usr/bin/env node\n${code}`;
+                }
+              },
+            },
+            {
               name: 'get-output-chunks-bin',
               writeBundle(_ctx, chunks) {
                 Object.entries(chunks).forEach(([fileName, chunk]) => {
@@ -224,16 +233,20 @@ export async function build(args, pkgJson) {
     );
   }
   await Promise.all(promises);
-  if (exportEntrySet.size) {
-    console.log(
-      `+ Added ${exportEntrySet.size} export${exportEntrySet.size > 1 ? 's' : ''} to package.json.`,
-    );
+
+  if (exportEntrySet.size || binEntrySet.size) {
+    const messages = [];
+    if (exportEntrySet.size > 0) {
+      messages.push(`${exportEntrySet.size} export${exportEntrySet.size > 1 ? 's' : ''}`);
+    }
+    if (binEntrySet.size > 0) {
+      messages.push(`${binEntrySet.size} bin ${binEntrySet.size > 1 ? 'entries' : 'entry'}`);
+    }
+    if (messages.length > 0) {
+      console.log(`+ Added ${messages.join(' and ')} to package.json.`);
+    }
   }
-  if (binEntrySet.size) {
-    console.log(
-      `+ Added ${binEntrySet.size} bin ${binEntrySet.size > 1 ? 'entries' : 'entry'} to package.json.`,
-    );
-  }
+
   await writePkgJson(pkgJson, outChunks, nullEntries, {
     usePkgType: true,
   });
