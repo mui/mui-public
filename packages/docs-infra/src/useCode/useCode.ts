@@ -35,6 +35,7 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedFileLines: number;
   selectedFileName: string | undefined;
   selectFileName: (fileName: string) => void;
+  allFilesSlugs: { slug: string; fileName: string; variantName: string }[];
   expanded: boolean;
   expand: () => void;
   setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -159,6 +160,7 @@ export function useCode<T extends {} = {}>(
     selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
     selectFileName: fileNavigation.selectFileName,
+    allFilesSlugs: fileNavigation.allFilesSlugs,
     expanded: uiState.expanded,
     expand: uiState.expand,
     setExpanded: uiState.setExpanded,
