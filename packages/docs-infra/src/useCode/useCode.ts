@@ -35,6 +35,7 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedFileLines: number;
   selectedFileName: string | undefined;
   selectFileName: (fileName: string) => void;
+  allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
   expanded: boolean;
   expand: () => void;
   setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -128,11 +129,13 @@ export function useCode<T extends {} = {}>(
     transformedFiles: transformManagement.transformedFiles,
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
+    selectVariant: variantSelection.selectVariantProgrammatic,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,
     preClassName,
     preRef,
+    effectiveCode,
   });
 
   // Sub-hook: Copy Functionality
@@ -158,6 +161,7 @@ export function useCode<T extends {} = {}>(
     selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
     selectFileName: fileNavigation.selectFileName,
+    allFilesSlugs: fileNavigation.allFilesSlugs,
     expanded: uiState.expanded,
     expand: uiState.expand,
     setExpanded: uiState.setExpanded,

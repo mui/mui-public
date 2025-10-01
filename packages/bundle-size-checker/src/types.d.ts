@@ -32,6 +32,7 @@ interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
   comment?: boolean; // Whether to post PR comments (defaults to true)
+  replace?: Record<string, string>; // String replacements to apply during bundling
 }
 
 type BundleSizeCheckerConfig =
@@ -44,6 +45,7 @@ interface NormalizedBundleSizeCheckerConfig {
   entrypoints: ObjectEntry[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
   comment: boolean; // Whether to post PR comments
+  replace: Record<string, string>; // String replacements to apply during bundling
 }
 
 // Command line argument types

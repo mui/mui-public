@@ -6,8 +6,6 @@ import * as module from 'node:module';
 import { byteSizeFormatter } from './formatUtils.js';
 import { getBundleSizes } from './builder.js';
 
-const require = module.createRequire(import.meta.url);
-
 const rootDir = process.cwd();
 
 /**
@@ -20,11 +18,14 @@ async function getPeerDependencies(packageName) {
     /** @type {string | undefined} */
     let packageJsonPath;
 
+    const rootDirUrl = pathToFileURL(rootDir);
+
     if (module.findPackageJSON) {
       // findPackageJSON was added in: v23.2.0, v22.14.0
-      packageJsonPath = module.findPackageJSON(packageName, `${rootDir}/_.js`);
+      packageJsonPath = module.findPackageJSON(packageName, `${rootDirUrl}/index.mjs`);
     } else {
       // Try to resolve packageName/package.json
+      const require = module.createRequire(`${rootDirUrl}/index.mjs`);
       packageJsonPath = require.resolve(`${packageName}/package.json`, {
         paths: [rootDir],
       });
@@ -56,10 +57,10 @@ async function getPeerDependencies(packageName) {
 
 /**
  * Get sizes for a bundle
- * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number }} options
+ * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number, replace?: Record<string, string> }} options
  * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
  */
-export default async function getSizes({ entry, args, index, total }) {
+export default async function getSizes({ entry, args, index, total, replace }) {
   // eslint-disable-next-line no-console -- process monitoring
   console.log(chalk.blue(`Compiling ${index + 1}/${total}: ${chalk.bold(`[${entry.id}]`)}`));
 
@@ -82,7 +83,7 @@ export default async function getSizes({ entry, args, index, total }) {
   }
 
   try {
-    const sizeMap = await getBundleSizes(entry, args);
+    const sizeMap = await getBundleSizes(entry, args, replace);
 
     // Create a concise log message showing import details
     let entryDetails = '';
