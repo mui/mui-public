@@ -46,8 +46,9 @@ async function parseChangelog(changelogPath, version) {
     const content = await fs.readFile(changelogPath, 'utf8');
     const lines = content.split('\n');
 
-    const versionHeader = `## ${version}`;
-    const startIndex = lines.findIndex((line) => line.startsWith(versionHeader));
+    const startIndex = lines.findIndex(
+      (line) => line.startsWith(`## ${version}`) || line.startsWith(`## v${version}`),
+    );
 
     if (startIndex === -1) {
       throw new Error(`Version ${version} not found in changelog`);

@@ -139,11 +139,11 @@ export function starryNightGutter(
         frame.type === 'element' &&
         frame.tagName === 'span' &&
         frame.properties?.className === 'frame' &&
-        typeof frame.properties.frameStartLine === 'number' &&
-        typeof frame.properties.frameEndLine === 'number'
+        typeof frame.properties.dataFrameStartLine === 'number' &&
+        typeof frame.properties.dataFrameEndLine === 'number'
       ) {
-        const startLine = frame.properties.frameStartLine - 1; // Convert to 0-based index
-        const endLine = frame.properties.frameEndLine; // This is already inclusive
+        const startLine = frame.properties.dataFrameStartLine - 1; // Convert to 0-based index
+        const endLine = frame.properties.dataFrameEndLine; // This is already inclusive
         frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
       }
     }
@@ -183,8 +183,8 @@ function createFrame(
 
   // Store line range information if provided (for dataAsString generation)
   if (sourceLines && startLine !== undefined && endLine !== undefined) {
-    properties.frameStartLine = startLine;
-    properties.frameEndLine = endLine;
+    properties.dataFrameStartLine = startLine;
+    properties.dataFrameEndLine = endLine;
   }
 
   return {

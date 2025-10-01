@@ -276,18 +276,15 @@ describe('useVariantSelection', () => {
       // Should fall back to first variant without crashing
       expect(result.current.selectedVariantKey).toBe('Default');
 
-      // New implementation handles errors silently without warnings
-      // This is the expected behavior for better user experience
-
-      // Changing selection should handle error gracefully but state won't change
-      // since the new implementation is driven by localStorage via useSyncExternalStore
+      // With React state as source of truth, variant selection works even when localStorage fails
+      // localStorage is only used for persistence across sessions
       act(() => {
         result.current.selectVariant('Alternative');
       });
 
-      // State remains the same when localStorage fails since useSyncExternalStore
-      // doesn't update when the external store (localStorage) fails to change
-      expect(result.current.selectedVariantKey).toBe('Default');
+      // State changes successfully even though localStorage persistence fails
+      // This provides better UX - variant switching works, just won't persist
+      expect(result.current.selectedVariantKey).toBe('Alternative');
     });
   });
 
@@ -477,6 +474,46 @@ describe('useVariantSelection', () => {
 
       // Should use the variantType even with single variant
       expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:singleType');
+      expect(result.current.selectedVariantKey).toBe('Default');
+    });
+  });
+
+  describe('stability and re-render behavior', () => {
+    it('should not cause excessive re-renders when selectVariant is called multiple times with same value', () => {
+      const effectiveCode = {
+        Default: { source: 'const x = 1;', fileName: 'test.js' },
+        Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+      };
+
+      let callCount = 0;
+      const { result } = renderHook(() => {
+        callCount += 1;
+        return useVariantSelection({ effectiveCode });
+      });
+
+      expect(result.current.selectedVariantKey).toBe('Default');
+      const initialCalls = callCount;
+
+      // Call selectVariant multiple times with the same value
+      // This could happen with URL hash changes or user interactions
+      act(() => {
+        result.current.selectVariant('Default');
+      });
+
+      act(() => {
+        result.current.selectVariant('Default');
+      });
+
+      act(() => {
+        result.current.selectVariant('Default');
+      });
+
+      // Should not cause excessive re-renders when setting the same value repeatedly
+      const totalNewCalls = callCount - initialCalls;
+      // Allow some re-renders for the localStorage updates, but not hundreds
+      expect(totalNewCalls).toBeLessThan(10);
+
+      // Verify state is still correct
       expect(result.current.selectedVariantKey).toBe('Default');
     });
   });
