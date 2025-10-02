@@ -158,7 +158,13 @@ async function createGitTag(version, dryRun = false) {
   const tagName = `v${version}`;
 
   try {
-    await $`git tag -a ${tagName} -m ${`Version ${version}`}`;
+    await $({
+      env: {
+        ...process.env,
+        GIT_COMMITTER_NAME: 'Code infra',
+        GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
+      },
+    })`git tag -a ${tagName} -m ${`Version ${version}`}`;
     const pushArgs = dryRun ? ['--dry-run'] : [];
     await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
 
