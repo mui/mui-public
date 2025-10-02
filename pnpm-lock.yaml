@@ -2911,22 +2911,6 @@ packages:
       '@emotion/styled':
         optional: true
 
-  '@mui/x-charts@8.13.1':
-    resolution: {integrity: sha512-JGlrdBuVplT0Xf8vZRByFJTLdLY/zf0w5sFIc0PWdm8Z/nvbcASUKU8wsBvIPZVjEAX4Z1XxNB16VAhdMboEZg==}
-    engines: {node: '>=14.0.0'}
-    peerDependencies:
-      '@emotion/react': ^11.9.0
-      '@emotion/styled': ^11.8.1
-      '@mui/material': ^5.15.14 || ^6.0.0 || ^7.0.0
-      '@mui/system': ^5.15.14 || ^6.0.0 || ^7.0.0
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@emotion/react':
-        optional: true
-      '@emotion/styled':
-        optional: true
-
   '@mui/x-data-grid-premium@7.27.3':
     resolution: {integrity: sha512-3s4r23o5nCyD+ncqAV5fvV9F/6wab9qdf89rQmmLj+Cvn6warNG5CzjrHf0KgE7KzoJzCcJRRnlwOpEcFmiWKw==}
     engines: {node: '>=14.0.0'}
@@ -3048,9 +3032,6 @@ packages:
         optional: true
       moment-jalaali:
         optional: true
-
-  '@mui/x-internal-gestures@0.3.2':
-    resolution: {integrity: sha512-c4DItm2b/HZVIZaiMgoaLPGHfhfdDnsNxt7MedEDBGlLTeDLFSRKkEMtS3Uob2Vwwjn482oXnEWnrxv9pm2hPA==}
 
   '@mui/x-internal-gestures@0.3.2':
     resolution: {integrity: sha512-c4DItm2b/HZVIZaiMgoaLPGHfhfdDnsNxt7MedEDBGlLTeDLFSRKkEMtS3Uob2Vwwjn482oXnEWnrxv9pm2hPA==}
@@ -15674,28 +15655,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@mui/x-charts@8.13.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@mui/material@7.3.2(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(@mui/system@7.3.2(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
-    dependencies:
-      '@babel/runtime': 7.28.4
-      '@mui/material': 7.3.2(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@mui/system': 7.3.2(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1)
-      '@mui/utils': 7.3.2(@types/react@19.1.13)(react@19.1.1)
-      '@mui/x-charts-vendor': 8.12.0
-      '@mui/x-internal-gestures': 0.3.2
-      '@mui/x-internals': 8.13.1(@types/react@19.1.13)(react@19.1.1)
-      bezier-easing: 2.1.0
-      clsx: 2.1.1
-      prop-types: 15.8.1
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
-      reselect: 5.1.1
-      use-sync-external-store: 1.5.0(react@19.1.1)
-    optionalDependencies:
-      '@emotion/react': 11.14.0(@types/react@19.1.13)(react@19.1.1)
-      '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1)
-    transitivePeerDependencies:
-      - '@types/react'
-
   '@mui/x-data-grid-premium@7.27.3(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@mui/material@6.4.7(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(@mui/system@6.4.7(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react@19.1.1))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
       '@babel/runtime': 7.28.4
@@ -15845,10 +15804,6 @@ snapshots:
       luxon: 3.7.1
     transitivePeerDependencies:
       - '@types/react'
-
-  '@mui/x-internal-gestures@0.3.2':
-    dependencies:
-      '@babel/runtime': 7.28.4
 
   '@mui/x-internal-gestures@0.3.2':
     dependencies:
