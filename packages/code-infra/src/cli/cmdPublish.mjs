@@ -157,7 +157,7 @@ async function createGitTag(version, dryRun = false) {
   const tagName = `v${version}`;
 
   try {
-    await $`git tag ${tagName}`;
+    await $`git tag -a ${tagName} -m "Version ${version}"`;
     const pushArgs = dryRun ? ['--dry-run'] : [];
     await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
 
@@ -169,7 +169,7 @@ async function createGitTag(version, dryRun = false) {
 
 /**
  * Validate GitHub release requirements
- * @param {string | null} version - Version to validate
+ * @param {string} version - Version to validate
  * @returns {Promise<{changelogContent: string, version: string, repoInfo: {owner: string, repo: string}}>}
  */
 async function validateGitHubRelease(version) {
@@ -283,6 +283,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get version from root package.json
     const version = await getReleaseVersion();
 
+    if (!version) {
+      throw new Error('No valid version found in root package.json');
+    }
+
     // Early validation for GitHub release (before any publishing)
     let githubReleaseData = null;
     if (githubRelease) {
@@ -293,6 +297,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
     await publishToNpm(allPackages, { dryRun, noGitChecks: true });
+
+    // Create git tag when not doing GitHub release
+    await createGitTag(version, dryRun);
 
     // Create GitHub release or git tag after successful npm publishing
     if (githubRelease && githubReleaseData) {
@@ -306,9 +313,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           githubReleaseData.repoInfo,
         );
       }
-    } else if (version) {
-      // Create git tag when not doing GitHub release
-      await createGitTag(version, dryRun);
     }
 
     console.log('\n🏁 Publishing complete!');
