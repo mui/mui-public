@@ -40,7 +40,10 @@ export function useVariantSelection({
   // Check if there's a URL hash present that's relevant to this demo
   // Only override localStorage if hash starts with this demo's slug
   const [urlHash] = useUrlHashState();
-  const hasRelevantUrlHash = React.useMemo(() => isHashRelevantToDemo(urlHash, mainSlug), [urlHash, mainSlug]);
+  const hasRelevantUrlHash = React.useMemo(
+    () => isHashRelevantToDemo(urlHash, mainSlug),
+    [urlHash, mainSlug],
+  );
 
   // Use localStorage hook for variant persistence
   const [storedValue, setStoredValue] = usePreference('variant', variantType || variantKeys, () => {
