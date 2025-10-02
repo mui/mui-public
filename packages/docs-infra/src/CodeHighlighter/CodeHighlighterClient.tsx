@@ -359,10 +359,13 @@ function useCodeParsing({
 
   React.useEffect(() => {
     if (highlightAfter === 'idle') {
-      const idleRequest = window.requestIdleCallback(() => {
+      const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
+      const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
+
+      const idleRequest = requestIdleCallback(() => {
         setIsHighlightAllowed(true);
       });
-      return () => window.cancelIdleCallback(idleRequest);
+      return () => cancelIdleCallback(idleRequest);
     }
     return undefined;
   }, [highlightAfter]);
@@ -862,10 +865,13 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   React.useEffect(() => {
     if (enhanceAfter === 'idle') {
-      const idleRequest = window.requestIdleCallback(() => {
+      const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
+      const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
+
+      const idleRequest = requestIdleCallback(() => {
         setIsEnhanceAllowed(true);
       });
-      return () => window.cancelIdleCallback(idleRequest);
+      return () => cancelIdleCallback(idleRequest);
     }
     return undefined;
   }, [enhanceAfter]);
