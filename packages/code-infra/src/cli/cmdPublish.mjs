@@ -305,7 +305,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // No git checks, we'll do our own
     await publishToNpm(allPackages, { dryRun, noGitChecks: true });
 
-    // Create git tag when not doing GitHub release
     await createGitTag(version, dryRun);
 
     // Create GitHub release or git tag after successful npm publishing
