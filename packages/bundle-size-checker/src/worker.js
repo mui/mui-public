@@ -1,5 +1,4 @@
 import { pathToFileURL } from 'node:url';
-import path from 'node:path';
 import fs from 'node:fs/promises';
 import chalk from 'chalk';
 import * as module from 'node:module';
@@ -83,7 +82,7 @@ export default async function getSizes({ entry, args, index, total, replace }) {
   }
 
   try {
-    const sizeMap = await getBundleSizes(entry, args, replace);
+    const { sizes: sizeMap, treemapPath } = await getBundleSizes(entry, args, replace);
 
     // Create a concise log message showing import details
     let entryDetails = '';
@@ -108,7 +107,7 @@ ${chalk.green('✓')} ${chalk.green.bold(`Completed ${index + 1}/${total}: [${en
   ${chalk.cyan('Import:')}    ${entryDetails}
   ${chalk.cyan('Externals:')} ${entry.externals.join(', ')}
   ${chalk.cyan('Sizes:')}     ${chalk.yellow(byteSizeFormatter.format(entrySize.parsed))} (${chalk.yellow(byteSizeFormatter.format(entrySize.gzip))} gzipped)
-${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(pathToFileURL(path.join(rootDir, 'build', `${entry.id}.html`)).href)}` : ''}
+${args.analyze ? `  ${chalk.cyan('Analysis:')}  ${chalk.underline(pathToFileURL(treemapPath).href)}` : ''}
 `.trim(),
     );
 
