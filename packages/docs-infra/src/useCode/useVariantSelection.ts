@@ -13,11 +13,12 @@ export interface UseVariantSelectionResult {
   selectedVariantKey: string;
   selectedVariant: VariantCode | null;
   selectVariant: React.Dispatch<React.SetStateAction<string>>;
+  selectVariantProgrammatic: React.Dispatch<React.SetStateAction<string>>;
 }
 
 /**
  * Hook for managing variant selection and providing variant-related data
- * Uses the useLocalStorage hook for local storage persistence of variant preferences
+ * Uses React state as source of truth, with localStorage for persistence
  */
 export function useVariantSelection({
   effectiveCode,
@@ -32,42 +33,60 @@ export function useVariantSelection({
     });
   }, [effectiveCode]);
 
-  // Use localStorage hook for variant persistence - this is our single source of truth
+  // Use localStorage hook for variant persistence
   const [storedValue, setStoredValue] = usePreference('variant', variantType || variantKeys, () => {
-    // Don't use initialVariant as the fallback - localStorage should take precedence
-    // We'll handle the initial variant separately in the selectedVariantKey logic
     return null;
   });
 
-  // Handle validation manually - localStorage should take precedence over initialVariant
-  const selectedVariantKey = React.useMemo(() => {
+  // Initialize state from localStorage or initialVariant
+  const [selectedVariantKey, setSelectedVariantKeyState] = React.useState(() => {
     // First priority: use stored value if it exists and is valid
     if (storedValue && variantKeys.includes(storedValue)) {
       return storedValue;
     }
 
-    // Second priority: use initial variant if provided and valid (only when no localStorage value)
+    // Second priority: use initial variant if provided and valid
     if (initialVariant && variantKeys.includes(initialVariant)) {
       return initialVariant;
     }
 
     // Final fallback: use first available variant
     return variantKeys[0] || '';
-  }, [storedValue, variantKeys, initialVariant]);
+  });
 
-  const setSelectedVariantKey = React.useCallback(
-    (value: string) => {
-      setStoredValue(value);
+  // Sync with localStorage changes (but don't override programmatic changes)
+  // Only sync when storedValue changes, not when selectedVariantKey changes
+  const prevStoredValue = React.useRef(storedValue);
+  React.useEffect(() => {
+    if (storedValue !== prevStoredValue.current) {
+      prevStoredValue.current = storedValue;
+      if (storedValue && variantKeys.includes(storedValue) && storedValue !== selectedVariantKey) {
+        setSelectedVariantKeyState(storedValue);
+      }
+    }
+  }, [storedValue, variantKeys, selectedVariantKey]);
+
+  const setSelectedVariantKeyProgrammatic = React.useCallback(
+    (value: React.SetStateAction<string>) => {
+      const resolvedValue = typeof value === 'function' ? value(selectedVariantKey) : value;
+      if (variantKeys.includes(resolvedValue)) {
+        // Only update React state, not localStorage
+        // This prevents conflicts with hash-driven navigation
+        setSelectedVariantKeyState(resolvedValue);
+      }
     },
-    [setStoredValue],
+    [selectedVariantKey, variantKeys],
   );
 
   const setSelectedVariantKeyAsUser = React.useCallback(
     (value: React.SetStateAction<string>) => {
       const resolvedValue = typeof value === 'function' ? value(selectedVariantKey) : value;
-      setStoredValue(resolvedValue);
+      if (variantKeys.includes(resolvedValue)) {
+        setSelectedVariantKeyState(resolvedValue);
+        setStoredValue(resolvedValue);
+      }
     },
-    [setStoredValue, selectedVariantKey],
+    [setStoredValue, selectedVariantKey, variantKeys],
   );
 
   const selectedVariant = React.useMemo(() => {
@@ -82,15 +101,16 @@ export function useVariantSelection({
   React.useEffect(() => {
     if (!selectedVariant && variantKeys.length > 0) {
       // Don't mark this as a user selection - it's just a fallback
-      // Use setValue instead of setValueAsUserSelection to avoid localStorage save
-      setSelectedVariantKey(variantKeys[0]);
+      // Use programmatic setter to avoid localStorage save
+      setSelectedVariantKeyProgrammatic(variantKeys[0]);
     }
-  }, [selectedVariant, variantKeys, setSelectedVariantKey]);
+  }, [selectedVariant, variantKeys, setSelectedVariantKeyProgrammatic]);
 
   return {
     variantKeys,
     selectedVariantKey,
     selectedVariant,
     selectVariant: setSelectedVariantKeyAsUser,
+    selectVariantProgrammatic: setSelectedVariantKeyProgrammatic,
   };
 }
