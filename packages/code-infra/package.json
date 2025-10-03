@@ -22,7 +22,7 @@
     "code-infra": "./src/bin/code-infra.mjs"
   },
   "scripts": {
-    "build-tsdown": "node ./src/bin/code-infra.mjs build-new",
+    "build-tsdown": "node ./src/bin/code-infra.mjs build-new --bundle esm",
     "build-rslib": "node ./src/bin/code-infra.mjs build-new --bundler rslib",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
@@ -81,7 +81,7 @@
     "eslint": "^9.0.0",
     "prettier": "^3.5.3",
     "@rslib/core": "^0.14.0",
-    "tsdown": "^0.15.5",
+    "tsdown": "^0.15.6",
     "typescript": "^5.0.0"
   },
   "peerDependenciesMeta": {
@@ -104,6 +104,7 @@
     "@typescript-eslint/rule-tester": "^8.45.0",
     "eslint": "^9.36.0",
     "prettier": "^3.6.2",
+    "tsdown": "^0.15.6",
     "typescript-eslint": "^8.45.0"
   },
   "publishConfig": {

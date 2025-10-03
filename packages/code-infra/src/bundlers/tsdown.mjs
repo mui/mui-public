@@ -124,7 +124,7 @@ export async function build(args, pkgJson) {
       '.js': 'jsx',
     },
     logLevel: args.verbose ? 'info' : 'silent',
-    tsconfig: tsconfigPath ?? undefined,
+    tsconfig: tsconfigPath ?? false,
     sourcemap: args.sourceMap || false,
     banner: {
       js: bannerText,
