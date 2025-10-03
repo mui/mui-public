@@ -7,7 +7,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { getWorkspacePackages } from '../cli/pnpm.mjs';
+import { getWorkspacePackages } from './pnpm.mjs';
 import { BASE_IGNORES, mapConcurrently } from './build.mjs';
 
 /**
@@ -20,7 +20,7 @@ import { BASE_IGNORES, mapConcurrently } from './build.mjs';
 /**
  * Gets all relevant files for a package to parse.
  *
- * @param {import('../cli/pnpm.mjs').PublicPackage} pkg
+ * @param {import('./pnpm.mjs').PublicPackage} pkg
  * @returns {Promise<string[]>} An array of file paths.
  */
 async function getFilesForPackage(pkg) {

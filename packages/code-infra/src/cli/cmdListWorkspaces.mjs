@@ -3,12 +3,12 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
+ * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
  */
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getWorkspacePackages } from './pnpm.mjs';
+import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
