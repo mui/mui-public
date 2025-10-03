@@ -23,6 +23,7 @@ function getOctokit() {
  * @typedef {Object} Args
  * @property {boolean} dry-run Run in dry-run mode without publishing
  * @property {boolean} github-release Create a GitHub draft release after publishing
+ * @property {string} tag NPM dist tag to publish to
  */
 
 /**
@@ -221,7 +222,7 @@ async function publishToNpm(packages, options) {
   });
 
   // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  await publishPackages(packages, 'latest', options);
+  await publishPackages(packages, options);
   console.log('✅ Successfully published to npm');
 }
 
@@ -268,10 +269,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Create a GitHub draft release after publishing',
+      })
+      .option('tag', {
+        type: 'string',
+        default: 'latest',
+        description: 'NPM dist tag to publish to',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false } = argv;
+    const { dryRun = false, githubRelease = false, tag = 'latest' } = argv;
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
@@ -303,7 +309,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
-    await publishToNpm(allPackages, { dryRun, noGitChecks: true });
+    await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
 
     await createGitTag(version, dryRun);
 
