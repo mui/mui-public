@@ -19,9 +19,11 @@
     "./markdownlint": "./src/markdownlint/index.mjs"
   },
   "bin": {
-    "code-infra": "./bin/code-infra.mjs"
+    "code-infra": "./src/bin/code-infra.mjs"
   },
   "scripts": {
+    "build-tsdown": "node ./src/bin/code-infra.mjs build-new --bundle esm",
+    "build-rslib": "node ./src/bin/code-infra.mjs build-new --bundler rslib",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
@@ -45,6 +47,7 @@
     "@octokit/auth-action": "^6.0.1",
     "@octokit/rest": "^22.0.0",
     "@pnpm/find-workspace-dir": "^1000.1.3",
+    "@swc/helpers": "^0.5.17",
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
@@ -68,6 +71,7 @@
     "postcss-styled-syntax": "^0.7.1",
     "regexp.escape": "^2.0.1",
     "resolve-pkg-maps": "^1.0.0",
+    "rsbuild-plugin-dts": "^0.14.0",
     "semver": "^7.7.2",
     "stylelint-config-standard": "^39.0.0",
     "typescript-eslint": "^8.44.1",
@@ -76,7 +80,17 @@
   "peerDependencies": {
     "eslint": "^9.0.0",
     "prettier": "^3.5.3",
+    "@rslib/core": "^0.14.0",
+    "tsdown": "^0.15.5",
     "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@rslib/core": {
+      "optional": true
+    },
+    "tsdown": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
@@ -90,15 +104,9 @@
     "@typescript-eslint/rule-tester": "^8.44.1",
     "eslint": "^9.36.0",
     "prettier": "^3.6.2",
+    "tsdown": "^0.15.6",
     "typescript-eslint": "^8.44.1"
   },
-  "files": [
-    "bin",
-    "build",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
   "publishConfig": {
     "access": "public"
   }
