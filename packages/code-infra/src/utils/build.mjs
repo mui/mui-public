@@ -322,11 +322,38 @@ export async function writePkgJson(basePkgJson, chunks, nullEntries = [], option
   if (Object.keys(newExports).length) {
     const dotExport = newExports['.'];
     delete newExports['.'];
-    basePkgJson.exports = {
-      './package.json': './package.json',
-      ...(dotExport ? { '.': dotExport } : {}),
-      ...newExports,
-    };
+    // stringify and parse to remove undefined values
+    basePkgJson.exports = JSON.parse(
+      JSON.stringify({
+        './package.json': './package.json',
+        ...(dotExport ? { '.': dotExport } : {}),
+        ...newExports,
+      }),
+    );
+
+    Object.keys(basePkgJson.exports).forEach((key) => {
+      const value = basePkgJson.exports[key];
+      if (typeof value === 'string') {
+        return;
+      }
+      // clean up entries with only one option
+      if (value && typeof value === 'object') {
+        const objKeys = Object.keys(value);
+        if (objKeys.length === 1) {
+          const exportValue = value[objKeys[0]];
+          if (
+            exportValue &&
+            typeof exportValue === 'object' &&
+            Object.keys(exportValue).length === 1 &&
+            exportValue.default
+          ) {
+            basePkgJson.exports[key] = exportValue.default;
+            return;
+          }
+          basePkgJson.exports[key] = value[objKeys[0]];
+        }
+      }
+    });
 
     if (dotExport) {
       const mainExport = dotExport;
