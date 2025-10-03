@@ -6,21 +6,6 @@ const windowsReservedRe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
 const windowsTrailingRe = /[. ]+$/;
 
 /**
- * @param {string} input
- * @param {string} replacement
- * @returns {string}
- */
-function sanitize(input, replacement) {
-  const sanitized = input
-    .replace(illegalRe, replacement)
-    .replace(controlRe, replacement)
-    .replace(reservedRe, replacement)
-    .replace(windowsReservedRe, replacement)
-    .replace(windowsTrailingRe, replacement);
-  return sanitized;
-}
-
-/**
  * Inspired by https://github.com/parshap/node-sanitize-filename
  *
  * Replaces characters in strings that are illegal/unsafe for filenames.
@@ -42,6 +27,12 @@ function sanitize(input, replacement) {
  * "LPT9") case-insesitively and with or without filename extensions.
  * @param {string} input
  */
-export function escapeFilepathSegment(input) {
-  return sanitize(input, '_');
+export function escapeFilename(input, replacement = '_') {
+  const sanitized = input
+    .replace(illegalRe, replacement)
+    .replace(controlRe, replacement)
+    .replace(reservedRe, replacement)
+    .replace(windowsReservedRe, replacement)
+    .replace(windowsTrailingRe, replacement);
+  return sanitized;
 }
