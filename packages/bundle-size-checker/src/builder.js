@@ -4,6 +4,7 @@ import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { escapeFilepathSegment } from './strings.js';
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -78,7 +79,7 @@ async function createViteConfig(entry, args, replacements = {}) {
   const externalsArray = entry.externals || ['react', 'react-dom'];
 
   // Ensure build directory exists
-  const outDir = path.join(rootDir, 'build', entryName.replaceAll(path.sep, '_'));
+  const outDir = path.join(rootDir, 'build', escapeFilepathSegment(entryName));
   await fs.mkdir(outDir, { recursive: true });
 
   const treemapPath = path.join(outDir, 'treemap.html');
