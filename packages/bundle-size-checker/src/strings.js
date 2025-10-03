@@ -21,6 +21,8 @@ function sanitize(input, replacement) {
 }
 
 /**
+ * Inspired by https://github.com/parshap/node-sanitize-filename
+ *
  * Replaces characters in strings that are illegal/unsafe for filenames.
  * Unsafe characters are either removed or replaced by a substitute set
  * in the optional `options` object.
