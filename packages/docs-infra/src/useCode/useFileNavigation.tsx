@@ -429,6 +429,18 @@ export function useFileNavigation({
       return;
     }
 
+    // When we're still resolving a hash-driven navigation, let that process finish first.
+    if (hashNavigationInProgressRef.current || pendingFileSelection.current) {
+      if (DEBUG_FILE_NAVIGATION) {
+        // eslint-disable-next-line no-console
+        console.log('[useFileNavigation] ⏭️  Skipping hash update (navigation in progress)', {
+          hashNavigationInProgress: hashNavigationInProgressRef.current,
+          pendingFileSelection: pendingFileSelection.current,
+        });
+      }
+      return;
+    }
+
     // Check if variant or file actually changed
     const variantChanged = prevVariantKeyRef.current !== selectedVariantKey;
     const fileChanged = prevSelectedFileRef.current !== selectedFileNameInternal;
@@ -446,9 +458,6 @@ export function useFileNavigation({
       });
     }
 
-    prevVariantKeyRef.current = selectedVariantKey;
-    prevSelectedFileRef.current = selectedFileNameInternal;
-
     // Only update hash when variant or file changes, not on every render
     // This prevents infinite loops when hash is manually edited
     if (!variantChanged && !fileChanged) {
@@ -460,6 +469,29 @@ export function useFileNavigation({
       }
       return;
     }
+
+    const isMainFile = selectedVariant.fileName === selectedFileNameInternal;
+    const isExtraFile = Boolean(
+      selectedVariant.extraFiles &&
+        selectedVariant.extraFiles[selectedFileNameInternal] !== undefined,
+    );
+    const isTransformedFile = Boolean(
+      transformedFiles?.files.some((file) => file.originalName === selectedFileNameInternal),
+    );
+
+    if (!isMainFile && !isExtraFile && !isTransformedFile) {
+      if (DEBUG_FILE_NAVIGATION) {
+        // eslint-disable-next-line no-console
+        console.log('[useFileNavigation] ⏭️  Skipping hash update (file not in current variant)', {
+          currentVariant: selectedVariantKey,
+          attemptedFile: selectedFileNameInternal,
+        });
+      }
+      return;
+    }
+
+    prevVariantKeyRef.current = selectedVariantKey;
+    prevSelectedFileRef.current = selectedFileNameInternal;
 
     // Determine if this is the initial variant
     const isInitialVariant = initialVariant

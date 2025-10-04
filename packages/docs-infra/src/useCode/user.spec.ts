@@ -790,6 +790,8 @@ describe('useCode integration tests', () => {
         { timeout: 1000 },
       );
 
+      expect(window.location.hash).toBe('#hero:index.module.css');
+
       const historyCalls = (window.history.replaceState as any).mock.calls.map(
         (call: any[]) => call[2],
       );
