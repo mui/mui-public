@@ -142,6 +142,7 @@ export function useFileNavigation({
   // Track if we're waiting for a variant switch to complete, and which file to select after
   const pendingFileSelection = React.useRef<string | null>(null);
   const justCompletedPendingSelection = React.useRef(false);
+  const hashNavigationInProgressRef = React.useRef(false);
 
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
@@ -264,6 +265,7 @@ export function useFileNavigation({
     }
 
     if (matchingFileName && matchingVariantKey) {
+      hashNavigationInProgressRef.current = true;
       if (DEBUG_FILE_NAVIGATION) {
         // eslint-disable-next-line no-console
         console.log('[useFileNavigation] ✅ Found matching file:', {
@@ -292,15 +294,22 @@ export function useFileNavigation({
 
       // Set the file if we're in the correct variant
       pendingFileSelection.current = null;
+      const isHashNavigation = hashNavigationInProgressRef.current;
       setSelectedFileNameInternal(matchingFileName);
-      markUserInteraction();
+      if (!isHashNavigation) {
+        markUserInteraction();
+      }
+      hashNavigationInProgressRef.current = false;
       if (DEBUG_FILE_NAVIGATION) {
         // eslint-disable-next-line no-console
         console.log('[useFileNavigation] 📄 Set file directly:', matchingFileName);
       }
-    } else if (DEBUG_FILE_NAVIGATION) {
-      // eslint-disable-next-line no-console
-      console.log('[useFileNavigation] ❌ No matching file found for hash:', hash);
+    } else {
+      if (DEBUG_FILE_NAVIGATION) {
+        // eslint-disable-next-line no-console
+        console.log('[useFileNavigation] ❌ No matching file found for hash:', hash);
+      }
+      hashNavigationInProgressRef.current = false;
     }
   }, [
     hash,
@@ -329,8 +338,12 @@ export function useFileNavigation({
       const fileToSelect = pendingFileSelection.current;
       pendingFileSelection.current = null;
       justCompletedPendingSelection.current = true;
+      const wasHashNavigation = hashNavigationInProgressRef.current;
       setSelectedFileNameInternal(fileToSelect);
-      markUserInteraction();
+      if (!wasHashNavigation) {
+        markUserInteraction();
+      }
+      hashNavigationInProgressRef.current = false;
       if (DEBUG_FILE_NAVIGATION) {
         // eslint-disable-next-line no-console
         console.log('[useFileNavigation] ✨ Completed pending file selection:', {
@@ -340,6 +353,9 @@ export function useFileNavigation({
       }
     } else {
       justCompletedPendingSelection.current = false;
+      if (!pendingFileSelection.current) {
+        hashNavigationInProgressRef.current = false;
+      }
     }
   }, [selectedVariantKey, selectedVariant, markUserInteraction]);
 
@@ -801,6 +817,7 @@ export function useFileNavigation({
         setHash(fileSlug); // Use the new URL hash hook
       }
 
+      hashNavigationInProgressRef.current = false;
       markUserInteraction(); // Mark that user has made an explicit selection
       setSelectedFileNameInternal(targetFileName);
     },

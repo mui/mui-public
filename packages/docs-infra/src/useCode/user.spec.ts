@@ -739,6 +739,64 @@ describe('useCode integration tests', () => {
       // Allow up to 15 updates (variant switch may trigger multiple effects)
       expect(historyCallCountAfter - historyCallCountBefore).toBeLessThan(15);
     });
+
+    it('should not create infinite loop when hash is manually edited to trigger variant switch with extra file', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'Hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="css-modules" />',
+            extraFiles: {
+              'index.module.css': '.hero { color: red; }',
+            },
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="tailwind" />',
+            extraFiles: {
+              'index.ts': 'export const styles = {};',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      let hookCallCount = 0;
+      const { result } = renderHook(() => {
+        hookCallCount += 1;
+        return useCode(contentProps);
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      act(() => {
+        window.location.hash = '#hero:index.module.css';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('CssModules');
+          expect(result.current.selectedFileName).toBe('index.module.css');
+        },
+        { timeout: 1000 },
+      );
+
+      const historyCalls = (window.history.replaceState as any).mock.calls.map(
+        (call: any[]) => call[2],
+      );
+      expect(historyCalls.some((url: string) => url.endsWith('#hero:index.tsx'))).toBe(false);
+
+      expect(hookCallCount).toBeLessThan(50);
+    });
   });
 
   describe('edge cases', () => {
