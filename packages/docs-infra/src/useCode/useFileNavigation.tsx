@@ -17,7 +17,7 @@ const DEBUG_FILE_NAVIGATION =
  * @param str - The string to convert
  * @returns kebab-case string
  */
-function toKebabCase(str: string): string {
+export function toKebabCase(str: string): string {
   return (
     str
       // Insert a dash before any uppercase letter that follows a lowercase letter or digit
@@ -26,6 +26,21 @@ function toKebabCase(str: string): string {
       .replace(/[^a-z0-9.]+/g, '-')
       .replace(/^-+|-+$/g, '')
   );
+}
+
+/**
+ * Checks if the URL hash is relevant to a specific demo
+ * Hash format is: {mainSlug}:{variantName}:{fileName} or {mainSlug}:{fileName}
+ * @param urlHash - The URL hash (without '#')
+ * @param mainSlug - The main slug for the demo
+ * @returns true if the hash starts with the demo's slug
+ */
+export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string): boolean {
+  if (!urlHash || !mainSlug) {
+    return false;
+  }
+  const kebabSlug = toKebabCase(mainSlug);
+  return urlHash.startsWith(`${kebabSlug}:`);
 }
 
 /**
@@ -461,15 +476,13 @@ export function useFileNavigation({
     if (fileSlug && hash !== fileSlug) {
       // Only update if current hash is for the same demo (starts with mainSlug)
       // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
-      const expectedBaseSlug = toKebabCase(mainSlug);
-
-      if (hash && hash.startsWith(`${expectedBaseSlug}:`)) {
+      if (isHashRelevantToDemo(hash, mainSlug)) {
         if (DEBUG_FILE_NAVIGATION) {
           // eslint-disable-next-line no-console
           console.log('[useFileNavigation] 🔗 Updating hash:', {
             from: hash,
             to: fileSlug,
-            reason: 'variant changed',
+            reason: 'variant or file changed',
           });
         }
         setHash(fileSlug);
@@ -478,7 +491,7 @@ export function useFileNavigation({
         console.log('[useFileNavigation] ⏭️  Not updating hash (wrong demo or no existing hash):', {
           hash,
           fileSlug,
-          expectedBase: expectedBaseSlug,
+          mainSlug,
         });
       }
       // Otherwise, don't update - either no hash exists or hash is for a different demo

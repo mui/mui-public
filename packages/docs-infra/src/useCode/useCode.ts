@@ -111,6 +111,7 @@ export function useCode<T extends {} = {}>(
     effectiveCode,
     initialVariant,
     variantType: contentProps.variantType,
+    mainSlug: userProps.slug,
   });
 
   // Sub-hook: Transform Management
