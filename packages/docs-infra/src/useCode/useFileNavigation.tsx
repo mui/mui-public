@@ -144,6 +144,16 @@ export function useFileNavigation({
   const justCompletedPendingSelection = React.useRef(false);
   const hashNavigationInProgressRef = React.useRef(false);
 
+  // Cleanup effect: ensure hashNavigationInProgressRef is cleared when hash changes
+  // This prevents the flag from getting stuck if hash-driven navigation completes
+  React.useEffect(() => {
+    // Clear the flag when hash changes - this ensures we don't block future updates
+    // if the flag was set from a previous hash-driven navigation
+    return () => {
+      hashNavigationInProgressRef.current = false;
+    };
+  }, [hash]);
+
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
     if (!hash) {
@@ -432,21 +442,27 @@ export function useFileNavigation({
       return;
     }
 
-    // When we're still resolving a hash-driven navigation, let that process finish first.
+    // Check if variant or file actually changed (do this early to clear flags appropriately)
+    const variantChanged = prevVariantKeyRef.current !== selectedVariantKey;
+    const fileChanged = prevSelectedFileRef.current !== selectedFileNameInternal;
+
+    // Clear the flag when hash-driven navigation completes (variant or file changed).
+    // Don't update the hash during hash navigation to avoid infinite loops.
     if (hashNavigationInProgressRef.current || pendingFileSelection.current) {
+      if (variantChanged || fileChanged) {
+        hashNavigationInProgressRef.current = false;
+      }
       if (DEBUG_FILE_NAVIGATION) {
         // eslint-disable-next-line no-console
         console.log('[useFileNavigation] ⏭️  Skipping hash update (navigation in progress)', {
           hashNavigationInProgress: hashNavigationInProgressRef.current,
           pendingFileSelection: pendingFileSelection.current,
+          variantChanged,
+          fileChanged,
         });
       }
       return;
     }
-
-    // Check if variant or file actually changed
-    const variantChanged = prevVariantKeyRef.current !== selectedVariantKey;
-    const fileChanged = prevSelectedFileRef.current !== selectedFileNameInternal;
 
     if (DEBUG_FILE_NAVIGATION) {
       // eslint-disable-next-line no-console

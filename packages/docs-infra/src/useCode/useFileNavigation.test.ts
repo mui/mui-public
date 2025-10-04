@@ -3073,5 +3073,68 @@ describe('useFileNavigation', () => {
       // At most, there might be 1-2 calls for stabilization
       expect(mockSetHash.mock.calls.length).toBeLessThanOrEqual(2);
     });
+
+    it('should clear hashNavigationInProgressRef flag after hash-driven navigation completes', async () => {
+      const selectedVariant = {
+        fileName: 'index.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'index.module.css': '.test { color: red; }',
+          'theme.css': ':root { --color: blue; }',
+        },
+      };
+
+      // Start with an initial hash for the Tailwind variant
+      mockHashValue = 'hero:tailwind:index.tsx';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'hero',
+            selectedVariantKey,
+            variantKeys: ['CssModules', 'Tailwind'],
+            initialVariant: 'CssModules',
+            shouldHighlight: true,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Tailwind' },
+        },
+      );
+
+      // Clear any initial calls
+      mockSetHash.mockClear();
+
+      // User manually edits hash to go to a different file
+      // This sets hashNavigationInProgressRef to true
+      mockHashValue = 'hero:tailwind:theme.css';
+      rerender({ selectedVariantKey: 'Tailwind' });
+
+      // Wait for effect to complete
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 0);
+        });
+      });
+
+      mockSetHash.mockClear();
+
+      // Now user changes variant - this should update the hash
+      // If hashNavigationInProgressRef is stuck at true, the early return
+      // at line 436 will block this update
+      rerender({ selectedVariantKey: 'CssModules' });
+
+      // Wait for effect to complete
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 0);
+        });
+      });
+
+      // The hash should be updated to include the new variant
+      // If hashNavigationInProgressRef is stuck, this will fail
+      expect(mockSetHash).toHaveBeenCalledWith('hero:theme.css');
+    });
   });
 });

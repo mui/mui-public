@@ -799,6 +799,88 @@ describe('useCode integration tests', () => {
 
       expect(hookCallCount).toBeLessThan(50);
     });
+
+    it('should update hash when variant changes after rapid hash-driven navigation', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="css-modules" />',
+            extraFiles: {
+              'index.module.css': '.hero { color: red; }',
+              'theme.css': ':root { --color: blue; }',
+            },
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="tailwind" />',
+          },
+        },
+      };
+
+      // Start with Tailwind variant
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      // Simulate rapid hash changes (user clicking through files or browser history)
+      act(() => {
+        window.location.hash = '#hero:tailwind:index.tsx';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('index.tsx');
+      });
+
+      act(() => {
+        window.location.hash = '#hero:theme.css';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('CssModules');
+          expect(result.current.selectedFileName).toBe('theme.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Clear history calls to track only the variant change
+      (window.history.replaceState as any).mockClear();
+
+      // Now user changes variant - this should update the hash
+      // Bug: hashNavigationInProgressRef stays true and blocks this update
+      act(() => {
+        result.current.selectVariant('Tailwind');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+        },
+        { timeout: 1000 },
+      );
+
+      // The hash should be updated to reflect the new variant
+      // If hashNavigationInProgressRef is stuck, this will fail
+      const historyCalls = (window.history.replaceState as any).mock.calls;
+      const hashUpdates = historyCalls
+        .map((call: any[]) => call[2])
+        .filter((url: string) => url && url.includes('#'));
+
+      // Should have updated the hash to include tailwind variant
+      expect(hashUpdates.some((url: string) => url.includes('tailwind'))).toBe(true);
+    });
   });
 
   describe('edge cases', () => {
