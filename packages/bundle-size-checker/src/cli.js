@@ -7,6 +7,8 @@ import yargs from 'yargs';
 import { Piscina } from 'piscina';
 import micromatch from 'micromatch';
 import envCi from 'env-ci';
+import { pathToFileURL } from 'node:url';
+import chalk from 'chalk';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
@@ -229,7 +231,9 @@ async function run(argv) {
   await fs.writeFile(snapshotDestPath, JSON.stringify(sortedBundleSizes, null, 2));
 
   // eslint-disable-next-line no-console
-  console.log(`Bundle size snapshot written to ${snapshotDestPath}`);
+  console.log(
+    `Bundle size snapshot written to ${chalk.underline(pathToFileURL(snapshotDestPath))}`,
+  );
 
   // Upload the snapshot if upload configuration is provided and not null
   if (config && config.upload) {

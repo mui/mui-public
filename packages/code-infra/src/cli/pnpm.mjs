@@ -31,6 +31,7 @@ import * as semver from 'semver';
  * @typedef {Object} PublishOptions
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [noGitChecks] - Whether to skip git checks
+ * @property {string} [tag] - NPM dist tag to publish to
  */
 
 /**
@@ -129,12 +130,12 @@ export async function getPackageVersionInfo(packageName, baseVersion) {
 /**
  * Publish packages with the given options
  * @param {PublicPackage[]} packages - Packages to publish
- * @param {string} tag - npm tag to publish with
  * @param {PublishOptions} [options={}] - Publishing options
  * @returns {Promise<void>}
  */
-export async function publishPackages(packages, tag, options = {}) {
+export async function publishPackages(packages, options = {}) {
   const args = [];
+  const tag = options.tag ?? 'latest';
 
   // Add package filters
   packages.forEach((pkg) => {

@@ -329,6 +329,51 @@ describe('useCode integration tests', () => {
       );
     });
 
+    it('should not switch URL when hash specifies default variant file but localStorage has different variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Mock localStorage to have TypeScript preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'TypeScript';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Hash specifies JavaScript file (default variant)
+      window.location.hash = '#test-slug:demo.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          // Should recognize file is in JavaScript variant and stay there
+          expect(result.current.selectedVariant).toBe('JavaScript');
+          expect(result.current.selectedFileName).toBe('demo.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // URL should NOT have been changed to include TypeScript variant
+      expect(window.location.hash).toBe('#test-slug:demo.js');
+
+      Storage.prototype.getItem = originalGetItem;
+    });
+
     it('should respect localStorage variant preference on initial load', async () => {
       const contentProps: ContentProps<{}> = {
         code: {
