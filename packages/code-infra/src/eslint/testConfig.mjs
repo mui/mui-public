@@ -47,7 +47,6 @@ export const baseSpecRules = {
 export function createTestConfig(options = {}) {
   const { useMocha = true } = options;
   return defineConfig(
-    // @ts-expect-error The types don't make sense here.
     useMocha ? mochaPlugin.configs.recommended : {},
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
