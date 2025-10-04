@@ -144,32 +144,6 @@ export function useFileNavigation({
   const justCompletedPendingSelection = React.useRef(false);
   const hashNavigationInProgressRef = React.useRef(false);
 
-  // Track effectiveCode object reference to detect page/demo navigation
-  // The code object changes when navigating to a different demo, even if the slug is the same
-  const prevCodeRef = React.useRef(effectiveCode);
-
-  // Reset file selection when navigating to a different demo (page navigation)
-  React.useEffect(() => {
-    if (prevCodeRef.current !== effectiveCode && prevCodeRef.current !== undefined) {
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] 🔄 Page navigation detected, resetting file selection:', {
-          resettingTo: selectedVariant?.fileName,
-        });
-      }
-      prevCodeRef.current = effectiveCode;
-      // Reset to the main file of the current variant
-      setSelectedFileNameInternal(selectedVariant?.fileName);
-      // Clear any pending selections and flags
-      pendingFileSelection.current = null;
-      justCompletedPendingSelection.current = false;
-      hashNavigationInProgressRef.current = false;
-    } else if (prevCodeRef.current === undefined && effectiveCode !== undefined) {
-      // Initial mount
-      prevCodeRef.current = effectiveCode;
-    }
-  }, [effectiveCode, selectedVariant?.fileName]);
-
   // Cleanup effect: ensure hashNavigationInProgressRef is cleared when hash changes
   // This prevents the flag from getting stuck if hash-driven navigation completes
   React.useEffect(() => {
