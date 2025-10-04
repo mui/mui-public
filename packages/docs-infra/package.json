@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "exports": {
