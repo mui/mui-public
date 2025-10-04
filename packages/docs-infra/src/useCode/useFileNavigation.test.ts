@@ -2704,4 +2704,374 @@ describe('useFileNavigation', () => {
       expect(result.current.selectedFileName).toBe('file1.ts');
     });
   });
+
+  describe('manual hash editing edge cases', () => {
+    it('should not cause infinite loop when hash is manually edited to malformed value', () => {
+      const selectedVariant = {
+        fileName: 'BasicCode.tsx',
+        source: 'const BasicCode = () => <div>Basic</div>;',
+        extraFiles: {
+          'helperUtils.js': 'export const helper = () => {};',
+        },
+      };
+
+      // Start with a valid hash
+      mockHashValue = 'basic:basic-code.tsx';
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // Should correctly select the file from the hash
+      expect(result.current.selectedFileName).toBe('BasicCode.tsx');
+
+      // Clear mock to track new calls
+      mockSetHash.mockClear();
+
+      // Manually edit hash to a malformed value (simulating user editing URL)
+      mockHashValue = 'basic:invalid-file-that-does-not-exist.tsx';
+
+      // Force re-render to trigger hash change effect
+      rerender();
+
+      // Should fall back to main file when hash doesn't match
+      expect(result.current.selectedFileName).toBe('BasicCode.tsx');
+
+      // Should NOT call setHash in a loop - verify limited calls
+      // Allow up to 1 call for potential normalization, but not continuous calls
+      expect(mockSetHash.mock.calls.length).toBeLessThanOrEqual(1);
+    });
+
+    it('should not cause infinite loop when hash is manually edited with wrong demo prefix', () => {
+      const selectedVariant = {
+        fileName: 'BasicCode.tsx',
+        source: 'const BasicCode = () => <div>Basic</div>;',
+        extraFiles: {
+          'helperUtils.js': 'export const helper = () => {};',
+        },
+      };
+
+      // Start with a valid hash for this demo
+      mockHashValue = 'basic:basic-code.tsx';
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileName).toBe('BasicCode.tsx');
+
+      // Clear mock
+      mockSetHash.mockClear();
+
+      // Manually edit hash to point to a different demo entirely
+      mockHashValue = 'different-demo:some-file.tsx';
+
+      // Force re-render
+      rerender();
+
+      // Should stay on current file and not match the invalid hash
+      expect(result.current.selectedFileName).toBe('BasicCode.tsx');
+
+      // Should NOT call setHash since hash is for a different demo
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should not cause infinite loop when hash is manually edited after user interaction', () => {
+      const selectedVariant = {
+        fileName: 'BasicCode.tsx',
+        source: 'const BasicCode = () => <div>Basic</div>;',
+        extraFiles: {
+          'helperUtils.js': 'export const helper = () => {};',
+        },
+      };
+
+      mockHashValue = '';
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // User selects a file
+      act(() => {
+        result.current.selectFileName('helperUtils.js');
+      });
+
+      // This should set the hash
+      expect(mockSetHash).toHaveBeenCalledWith('basic:helper-utils.js');
+
+      // Simulate the hash being updated by the setHash call
+      mockHashValue = 'basic:helper-utils.js';
+      mockSetHash.mockClear();
+
+      // Force re-render to process the new hash
+      rerender();
+
+      expect(result.current.selectedFileName).toBe('helperUtils.js');
+
+      // Now manually edit the hash to something invalid
+      mockHashValue = 'basic:nonexistent.tsx';
+
+      // Track setHash calls before the manual hash change
+      const callsBeforeInvalidHash = mockSetHash.mock.calls.length;
+
+      // Force re-render
+      rerender();
+
+      // The hook should not find a match for the invalid hash
+      // so it should stay on the currently selected file (helperUtils.js)
+      // This is actually correct behavior - don't reset to main file on invalid hash
+      expect(result.current.selectedFileName).toBe('helperUtils.js');
+
+      // Track calls after this point
+      const callCountAfterInvalidHash = mockSetHash.mock.calls.length;
+
+      // Force multiple re-renders to check for infinite loop
+      rerender();
+      rerender();
+      rerender();
+
+      // Should not have made additional setHash calls in a loop
+      // This is the critical test - if there's an infinite loop, this will fail
+      expect(mockSetHash.mock.calls.length).toBe(callCountAfterInvalidHash);
+
+      // Also verify we didn't call setHash when we got the invalid hash
+      expect(callCountAfterInvalidHash - callsBeforeInvalidHash).toBeLessThanOrEqual(1);
+    });
+
+    it('should not cause infinite loop with rapid hash changes', () => {
+      const selectedVariant = {
+        fileName: 'BasicCode.tsx',
+        source: 'const BasicCode = () => <div>Basic</div>;',
+        extraFiles: {
+          'helperUtils.js': 'export const helper = () => {};',
+          'types.ts': 'export type Helper = () => void;',
+        },
+      };
+
+      mockHashValue = 'basic:basic-code.tsx';
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileName).toBe('BasicCode.tsx');
+
+      mockSetHash.mockClear();
+
+      // Rapidly change hash multiple times (simulating manual editing or browser back/forward)
+      const hashSequence = [
+        'basic:helper-utils.js',
+        'basic:types.ts',
+        'basic:basic-code.tsx',
+        'basic:invalid.tsx',
+        'basic:helper-utils.js',
+      ];
+
+      for (const newHash of hashSequence) {
+        mockHashValue = newHash;
+        rerender();
+      }
+
+      // Should have stabilized without infinite loop
+      expect(result.current.selectedFileName).toBe('helperUtils.js');
+
+      // Track the number of setHash calls - should be reasonable, not hundreds
+      expect(mockSetHash.mock.calls.length).toBeLessThan(10);
+    });
+
+    it('should handle hash edits that trigger variant switches without infinite loop', () => {
+      const effectiveCode = {
+        Default: {
+          fileName: 'checkbox-basic.tsx',
+          source: 'const BasicCheckbox = () => <div>Basic</div>;',
+          extraFiles: {
+            'styles.css': 'body { margin: 0; }',
+          },
+        },
+        Tailwind: {
+          fileName: 'checkbox-tailwind.tsx',
+          source: 'const TailwindCheckbox = () => <div>Tailwind</div>;',
+          extraFiles: {
+            'tailwind.config.js': 'module.exports = {};',
+          },
+        },
+      };
+
+      let currentVariant = 'Default';
+      const mockSelectVariant = vi.fn((variant: string | ((prev: string) => string)) => {
+        currentVariant = typeof variant === 'function' ? variant(currentVariant) : variant;
+      });
+
+      mockHashValue = 'basic:checkbox-basic.tsx';
+
+      const { result, rerender } = renderHook(
+        ({ variantKey }) =>
+          useFileNavigation({
+            selectedVariant: effectiveCode[variantKey as keyof typeof effectiveCode],
+            transformedFiles: undefined,
+            mainSlug: 'Basic',
+            selectedVariantKey: variantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            initialVariant: 'Default',
+            shouldHighlight: true,
+            effectiveCode,
+            selectVariant: mockSelectVariant,
+          }),
+        {
+          initialProps: { variantKey: 'Default' },
+        },
+      );
+
+      expect(result.current.selectedFileName).toBe('checkbox-basic.tsx');
+
+      mockSetHash.mockClear();
+      mockSelectVariant.mockClear();
+
+      // Manually edit hash to point to Tailwind variant file
+      mockHashValue = 'basic:tailwind:tailwind.config.js';
+
+      // Force re-render to trigger hash check
+      rerender({ variantKey: currentVariant });
+
+      // Should have triggered variant switch
+      expect(mockSelectVariant).toHaveBeenCalledWith('Tailwind');
+
+      // Simulate the variant switch completing
+      rerender({ variantKey: 'Tailwind' });
+
+      // Should now be on the Tailwind file
+      expect(result.current.selectedFileName).toBe('tailwind.config.js');
+
+      // Track setHash calls after variant switch
+      const setHashCallsAfterSwitch = mockSetHash.mock.calls.length;
+
+      // Force more re-renders to check for loops
+      rerender({ variantKey: 'Tailwind' });
+      rerender({ variantKey: 'Tailwind' });
+
+      // Should not keep calling setHash
+      expect(mockSetHash.mock.calls.length).toBe(setHashCallsAfterSwitch);
+    });
+
+    it('should detect infinite loop when setHash is called excessively', () => {
+      const selectedVariant = {
+        fileName: 'BasicCode.tsx',
+        source: 'const BasicCode = () => <div>Basic</div>;',
+        extraFiles: {
+          'helperUtils.js': 'export const helper = () => {};',
+        },
+      };
+
+      // Start with a hash that triggers file selection
+      mockHashValue = 'basic:helper-utils.js';
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // Should select the file from hash
+      expect(result.current.selectedFileName).toBe('helperUtils.js');
+
+      // Clear the mock to start tracking
+      mockSetHash.mockClear();
+
+      // Simulate a scenario that could cause a loop:
+      // Change hash to something that causes the hook to try to "correct" it
+      mockHashValue = 'basic:HelperUtils.js'; // Wrong case
+
+      // Re-render multiple times to simulate React's render cycles
+      const MAX_RENDERS = 20;
+      for (let i = 0; i < MAX_RENDERS; i += 1) {
+        rerender();
+      }
+
+      // If there's an infinite loop, setHash would be called many times
+      // In a healthy implementation, it should be called very few times or not at all
+      expect(mockSetHash.mock.calls.length).toBeLessThan(5);
+    });
+
+    it('should handle hash correction without creating infinite loops', () => {
+      const selectedVariant = {
+        fileName: 'BasicCode.tsx',
+        source: 'const BasicCode = () => <div>Basic</div>;',
+        extraFiles: {
+          'helperUtils.js': 'export const helper = () => {};',
+        },
+      };
+
+      mockHashValue = '';
+
+      const { result, rerender } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Basic',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          shouldHighlight: true,
+        }),
+      );
+
+      // Simulate user selecting a file
+      act(() => {
+        result.current.selectFileName('helperUtils.js');
+      });
+
+      // Simulate the URL being updated
+      mockHashValue = 'basic:helper-utils.js';
+
+      // Clear to track new calls
+      mockSetHash.mockClear();
+
+      // Many re-renders in quick succession (like React strict mode or fast state updates)
+      for (let i = 0; i < 10; i += 1) {
+        rerender();
+      }
+
+      // Should not keep calling setHash in every render
+      // At most, there might be 1-2 calls for stabilization
+      expect(mockSetHash.mock.calls.length).toBeLessThanOrEqual(2);
+    });
+  });
 });

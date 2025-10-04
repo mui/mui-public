@@ -304,6 +304,9 @@ export function useFileNavigation({
     }
   }, [selectedVariant, selectedFileNameInternal]);
 
+  // Track the previous variant to detect actual variant changes
+  const prevVariantKeyRef = React.useRef<string>(selectedVariantKey);
+
   // Update URL when variant changes (to reflect new slug for current file)
   React.useEffect(() => {
     if (
@@ -312,6 +315,16 @@ export function useFileNavigation({
       !selectedFileNameInternal ||
       !hasUserInteraction
     ) {
+      return;
+    }
+
+    // Check if variant actually changed
+    const variantChanged = prevVariantKeyRef.current !== selectedVariantKey;
+    prevVariantKeyRef.current = selectedVariantKey;
+
+    // Only update hash when variant changes, not on every render
+    // This prevents infinite loops when hash is manually edited
+    if (!variantChanged) {
       return;
     }
 
