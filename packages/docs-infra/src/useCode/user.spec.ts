@@ -523,6 +523,62 @@ describe('useCode integration tests', () => {
         expect(result2.current.selectedFileName).toBe('demo2.js');
       });
     });
+
+    it('should reset file selection when navigating to different demo even with same slug', async () => {
+      const demo1Props: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          Default: {
+            fileName: 'Hero.tsx',
+            source: '<Hero />',
+            extraFiles: {
+              'Hero.module.css': '.hero { color: red; }',
+            },
+          },
+        },
+      };
+
+      const { result, rerender } = renderHook((props: ContentProps<{}>) => useCode(props), {
+        initialProps: demo1Props,
+      });
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('Hero.tsx');
+      });
+
+      // User selects an extra file
+      act(() => {
+        result.current.selectFileName('Hero.module.css');
+      });
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('Hero.module.css');
+      });
+
+      // Navigate to a completely different demo on another page
+      // Both demos have the same slug but different code objects (different pages)
+      const demo2Props: ContentProps<{}> = {
+        slug: 'hero', // Same slug as demo1, but different code object
+        code: {
+          Default: {
+            fileName: 'Button.tsx',
+            source: '<Button />',
+            extraFiles: {
+              'Button.module.css': '.button { color: blue; }',
+            },
+          },
+        },
+      };
+
+      rerender(demo2Props);
+
+      await waitFor(() => {
+        // Should reset to the main file of the new demo, not keep the old file selection
+        expect(result.current.selectedFileName).toBe('Button.tsx');
+        // Should NOT still have the old demo's file selected
+        expect(result.current.selectedFileName).not.toBe('Hero.module.css');
+      });
+    });
   });
 
   describe('file selection within current variant', () => {
