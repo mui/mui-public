@@ -287,7 +287,8 @@ export function useFileNavigation({
 
       // If the matching file is in a different variant, switch to that variant first
       if (matchingVariantKey !== selectedVariantKey && selectVariant) {
-        // Remember which file to select after variant switch
+        // Set pending file selection and switch variant
+        // The pending file will be selected in the next render via useEffect
         pendingFileSelection.current = matchingFileName;
         selectVariant(matchingVariantKey);
         if (DEBUG_FILE_NAVIGATION) {
@@ -298,7 +299,6 @@ export function useFileNavigation({
             pendingFile: matchingFileName,
           });
         }
-        // Don't set the file here - it will be set after variant changes
         return;
       }
 
@@ -344,14 +344,16 @@ export function useFileNavigation({
   }, [hash]);
 
   // When variant switches with a pending file selection, complete the file selection
-  React.useEffect(() => {
+  // Use useLayoutEffect to set file synchronously during the commit phase
+  React.useLayoutEffect(() => {
     if (pendingFileSelection.current && selectedVariant) {
       const fileToSelect = pendingFileSelection.current;
       pendingFileSelection.current = null;
       justCompletedPendingSelection.current = true;
       hashNavigationInProgressRef.current = true;
+
       setSelectedFileNameInternal(fileToSelect);
-      // Don't mark as user interaction - this is hash-driven
+
       if (DEBUG_FILE_NAVIGATION) {
         // eslint-disable-next-line no-console
         console.log('[useFileNavigation] ✨ Completed pending file selection:', {
@@ -365,7 +367,7 @@ export function useFileNavigation({
         hashNavigationInProgressRef.current = false;
       }
     }
-  }, [selectedVariantKey, selectedVariant, markUserInteraction]);
+  }, [selectedVariantKey, selectedVariant]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
