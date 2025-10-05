@@ -63,7 +63,7 @@
     "execa": "^9.6.0",
     "git-url-parse": "^16.1.0",
     "globals": "^16.4.0",
-    "globby": "^14.1.0",
+    "globby": "^15.0.0",
     "minimatch": "^10.0.3",
     "postcss-styled-syntax": "^0.7.1",
     "regexp.escape": "^2.0.1",
