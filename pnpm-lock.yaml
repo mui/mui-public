@@ -565,7 +565,7 @@ importers:
         specifier: ^0.1.2
         version: 0.1.2
       prettier:
-        specifier: ^3.5.3
+        specifier: ^3.6.2
         version: 3.6.2
       uint8-to-base64:
         specifier: ^0.2.1
