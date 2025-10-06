@@ -22,6 +22,7 @@ runs:
       # Retry loop to mitigate against https://github.com/stackblitz-labs/pkg.pr.new/issues/316
       # Remove when pkg-pr-new does retries by itself
       run: |
+        set +e
         for i in 1 2 3; do
           echo "Attempt $i to publish packages..."
           
