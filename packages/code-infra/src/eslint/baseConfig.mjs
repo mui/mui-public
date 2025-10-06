@@ -6,14 +6,14 @@ import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
-import { configs as reactHookConfigs } from 'eslint-plugin-react-hooks';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
-
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
+
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether the config is for spec files.
@@ -43,7 +43,8 @@ export function createBaseConfig(
     importPlugin.flatConfigs.react,
     jsxA11yPlugin.flatConfigs.recommended,
     reactPlugin.configs.flat.recommended,
-    reactHookConfigs.recommended,
+    // @ts-expect-error Types are messed up https://github.com/facebook/react/issues/34705
+    reactHooks.configs['flat/recommended'],
     tseslint.configs.recommended,
     importPlugin.flatConfigs.typescript,
     enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
