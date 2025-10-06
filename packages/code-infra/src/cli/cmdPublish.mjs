@@ -307,6 +307,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
+    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+
+    if (newPackages.length > 0) {
+      throw new Error(
+        `The following packages are new and need to be published manually first: ${newPackages.join(
+          ', ',
+        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+      );
+    }
+
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
     await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
