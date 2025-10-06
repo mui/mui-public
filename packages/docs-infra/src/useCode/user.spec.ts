@@ -793,6 +793,57 @@ describe('useCode integration tests', () => {
       );
     });
 
+    it('should update hash when user manually changes variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-demo',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with a hash pointing to the main file of the default variant
+      // This simulates a user who navigated to this page with a specific file
+      window.location.hash = '#test-demo:demo.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('JavaScript');
+        expect(result.current.selectedFileName).toBe('demo.js');
+      });
+
+      // User manually selects a different variant
+      act(() => {
+        result.current.selectVariant('TypeScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('demo.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be updated to reflect the new variant
+      // Since we started with a hash, variant changes should update it
+      const historyCalls = (window.history.replaceState as any).mock.calls;
+      const hashUpdates = historyCalls
+        .map((call: any[]) => call[2])
+        .filter((url: string) => url && url.includes('#'));
+
+      // Should have updated the hash to include the new variant
+      expect(hashUpdates.length).toBeGreaterThan(0);
+      expect(hashUpdates.some((url: string) => url.includes('type-script'))).toBe(true);
+    });
+
     it('should handle malformed hash gracefully', async () => {
       const contentProps: ContentProps<{}> = {
         code: {

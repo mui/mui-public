@@ -140,6 +140,10 @@ export function useFileNavigation({
   const justCompletedPendingSelection = React.useRef(false);
   const hashNavigationInProgressRef = React.useRef(false);
 
+  // Track the previous variant and file to detect actual changes
+  const prevVariantKeyRef = React.useRef<string | undefined>(undefined);
+  const prevSelectedFileRef = React.useRef<string | undefined>(undefined);
+
   // Cleanup effect: ensure hashNavigationInProgressRef is cleared when hash changes
   // This prevents the flag from getting stuck if hash-driven navigation completes
   React.useEffect(() => {
@@ -354,28 +358,30 @@ export function useFileNavigation({
     }
   }, [selectedVariant, selectedFileNameInternal, selectedVariantKey]);
 
-  // Track the previous variant and file to detect actual changes
-  const prevVariantKeyRef = React.useRef<string>(selectedVariantKey);
-  const prevSelectedFileRef = React.useRef<string | undefined>(selectedFileNameInternal);
-
   // Update URL when variant or file changes (to reflect new slug for current file)
   // This effect handles hash updates for:
   // 1. Variant changes (e.g., user switches from TypeScript to JavaScript)
   // 2. File changes that don't go through selectFileName (e.g., pending file selections after variant switch)
   // NOTE: selectFileName() has its own hash update logic, so direct file selections are covered
   React.useEffect(() => {
-    if (
-      !selectedVariant ||
-      typeof window === 'undefined' ||
-      !selectedFileNameInternal ||
-      !hasUserInteraction
-    ) {
+    if (!selectedVariant || typeof window === 'undefined' || !selectedFileNameInternal) {
       return;
     }
 
     // Check if variant or file actually changed (do this early to clear flags appropriately)
     const variantChanged = prevVariantKeyRef.current !== selectedVariantKey;
     const fileChanged = prevSelectedFileRef.current !== selectedFileNameInternal;
+
+    // Allow hash updates only if:
+    // 1. User has explicitly interacted (file selection, etc.), OR
+    // 2. There's already a relevant hash present (user is navigating with URL hashes)
+    // Don't update hash for programmatic changes (localStorage sync, initial load, etc.)
+    const hasRelevantHash = isHashRelevantToDemo(hash, mainSlug);
+    const shouldAllowHashUpdate = hasUserInteraction || hasRelevantHash;
+
+    if (!shouldAllowHashUpdate) {
+      return;
+    }
 
     // Clear the flag when hash-driven navigation completes (variant or file changed).
     // Don't update the hash during hash navigation to avoid infinite loops.
@@ -416,6 +422,7 @@ export function useFileNavigation({
       transformedFiles?.files.some((file) => file.originalName === selectedFileNameInternal),
     );
 
+    // Only proceed if the selected file exists in the variant
     if (!isMainFile && !isExtraFile && !isTransformedFile) {
       return;
     }
