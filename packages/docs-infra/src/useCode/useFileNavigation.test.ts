@@ -434,8 +434,9 @@ describe('useFileNavigation', () => {
       // Should fall back to the main file when hash points to nonexistent file
       expect(result.current.selectedFileName).toBe('BasicCode.tsx');
 
-      // Should not have called setHash during initialization
-      expect(mockSetHash).not.toHaveBeenCalled();
+      // Should correct the hash to point to the actual selected file
+      // Since there's a relevant hash present (starts with 'basic:'), we update it
+      expect(mockSetHash).toHaveBeenCalledWith('basic:basic-code.tsx');
     });
 
     it('should update URL hash when variant changes', () => {
