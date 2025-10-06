@@ -607,6 +607,154 @@ describe('useCode integration tests', () => {
   });
 
   describe('hash synchronization', () => {
+    it('should update selected file when hash is updated via hashchange event', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+              'config.js': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#test-slug:demo.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('demo.js');
+      });
+
+      // Update hash to point to utils.js
+      act(() => {
+        window.location.hash = '#test-slug:utils.js';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('utils.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Update hash again to point to config.js
+      act(() => {
+        window.location.hash = '#test-slug:config.js';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('config.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Verify final state
+      expect(result.current.selectedFileName).toBe('config.js');
+      expect(window.location.hash).toBe('#test-slug:config.js');
+    });
+
+    it('should reset to main file when hash is completely removed', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+              'config.js': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash pointing to utils.js
+      window.location.hash = '#test-slug:utils.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('utils.js');
+      });
+
+      // Remove hash completely (user clears URL or navigates back)
+      act(() => {
+        window.location.hash = '';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          // Should reset to main file when hash is removed
+          expect(result.current.selectedFileName).toBe('demo.js');
+        },
+        { timeout: 1000 },
+      );
+
+      expect(result.current.selectedFileName).toBe('demo.js');
+      expect(window.location.hash).toBe('');
+    });
+
+    it('should reset to main file when hash is removed after being on extra file in different variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'console.log("main");',
+            extraFiles: {
+              'helper.js': 'export const help = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'console.log("main");',
+            extraFiles: {
+              'helper.ts': 'export const help = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash pointing to TypeScript variant's helper file
+      window.location.hash = '#demo:type-script:helper.ts';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('helper.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Remove hash completely
+      act(() => {
+        window.location.hash = '';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          // Should reset to main file when hash is removed
+          // Variant stays the same (TypeScript due to localStorage preference)
+          expect(result.current.selectedFileName).toBe('index.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      expect(result.current.selectedFileName).toBe('index.ts');
+    });
+
     it('should update hash when user manually selects file', async () => {
       const contentProps: ContentProps<{}> = {
         code: {

@@ -8,10 +8,6 @@ import { countLines } from '../pipeline/parseSource/addLineGutters';
 import type { TransformedFiles } from './useCodeUtils';
 import { Pre } from './Pre';
 
-// Debug flag - add ?debugFileNav to URL to enable detailed logging
-const DEBUG_FILE_NAVIGATION =
-  typeof window !== 'undefined' && window.location.search.includes('debugFileNav');
-
 /**
  * Converts a string to kebab-case
  * @param str - The string to convert
@@ -156,18 +152,13 @@ export function useFileNavigation({
 
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
+    // If hash is empty/removed, reset to main file
     if (!hash) {
+      if (selectedVariant?.fileName && selectedFileNameInternal !== selectedVariant.fileName) {
+        setSelectedFileNameInternal(selectedVariant.fileName);
+        setHasUserInteraction(true);
+      }
       return;
-    }
-
-    if (DEBUG_FILE_NAVIGATION) {
-      // eslint-disable-next-line no-console
-      console.log('[useFileNavigation] 🔍 checkUrlHashAndSelectFile:', {
-        hash,
-        currentVariant: selectedVariantKey,
-        currentFile: selectedFileNameInternal,
-        mainSlug,
-      });
     }
 
     // Try to find matching file - check current variant first
@@ -276,14 +267,6 @@ export function useFileNavigation({
 
     if (matchingFileName && matchingVariantKey) {
       hashNavigationInProgressRef.current = true;
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ✅ Found matching file:', {
-          matchingFileName,
-          matchingVariantKey,
-          needsVariantSwitch: matchingVariantKey !== selectedVariantKey,
-        });
-      }
 
       // If the matching file is in a different variant, switch to that variant first
       if (matchingVariantKey !== selectedVariantKey && selectVariant) {
@@ -291,14 +274,6 @@ export function useFileNavigation({
         // The pending file will be selected in the next render via useEffect
         pendingFileSelection.current = matchingFileName;
         selectVariant(matchingVariantKey);
-        if (DEBUG_FILE_NAVIGATION) {
-          // eslint-disable-next-line no-console
-          console.log('[useFileNavigation] 🔄 Switching variant:', {
-            from: selectedVariantKey,
-            to: matchingVariantKey,
-            pendingFile: matchingFileName,
-          });
-        }
         return;
       }
 
@@ -307,28 +282,20 @@ export function useFileNavigation({
       hashNavigationInProgressRef.current = true;
       setSelectedFileNameInternal(matchingFileName);
       // Don't mark as user interaction - this is hash-driven
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] 📄 Set file directly:', matchingFileName);
-      }
     } else {
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ❌ No matching file found for hash:', hash);
-      }
       hashNavigationInProgressRef.current = false;
     }
   }, [
     hash,
     selectedVariant,
     selectedVariantKey,
-    selectedFileNameInternal,
     variantKeys,
     initialVariant,
     mainSlug,
     transformedFiles,
     effectiveCode,
     selectVariant,
+    selectedFileNameInternal,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
@@ -353,14 +320,6 @@ export function useFileNavigation({
       hashNavigationInProgressRef.current = true;
 
       setSelectedFileNameInternal(fileToSelect);
-
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ✨ Completed pending file selection:', {
-          file: fileToSelect,
-          variant: selectedVariantKey,
-        });
-      }
     } else {
       justCompletedPendingSelection.current = false;
       if (!pendingFileSelection.current) {
@@ -374,13 +333,6 @@ export function useFileNavigation({
     // Skip reset if we have a pending file selection from hash navigation
     // OR if we just completed a pending file selection
     if (pendingFileSelection.current || justCompletedPendingSelection.current) {
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ⏭️  Skipping reset (pending or just completed):', {
-          pending: pendingFileSelection.current,
-          justCompleted: justCompletedPendingSelection.current,
-        });
-      }
       return;
     }
 
@@ -393,26 +345,11 @@ export function useFileNavigation({
           selectedVariant.extraFiles[selectedFileNameInternal]);
 
       if (!hasFile) {
-        if (DEBUG_FILE_NAVIGATION) {
-          // eslint-disable-next-line no-console
-          console.log('[useFileNavigation] 🔄 Resetting file (not found in new variant):', {
-            oldFile: selectedFileNameInternal,
-            newFile: selectedVariant.fileName,
-            variant: selectedVariantKey,
-          });
-        }
         setSelectedFileNameInternal(selectedVariant.fileName);
       } else {
         // File exists in new variant - clear hash navigation flag so hash can be updated
         // for the new variant in the next effect
         hashNavigationInProgressRef.current = false;
-        if (DEBUG_FILE_NAVIGATION) {
-          // eslint-disable-next-line no-console
-          console.log('[useFileNavigation] ✅ File exists in new variant, keeping:', {
-            file: selectedFileNameInternal,
-            variant: selectedVariantKey,
-          });
-        }
       }
     }
   }, [selectedVariant, selectedFileNameInternal, selectedVariantKey]);
@@ -433,14 +370,6 @@ export function useFileNavigation({
       !selectedFileNameInternal ||
       !hasUserInteraction
     ) {
-      if (DEBUG_FILE_NAVIGATION && typeof window !== 'undefined') {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ⏭️  Skipping hash update (preconditions not met):', {
-          hasVariant: !!selectedVariant,
-          hasFile: !!selectedFileNameInternal,
-          hasUserInteraction,
-        });
-      }
       return;
     }
 
@@ -454,29 +383,7 @@ export function useFileNavigation({
       if (variantChanged || fileChanged) {
         hashNavigationInProgressRef.current = false;
       }
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ⏭️  Skipping hash update (navigation in progress)', {
-          hashNavigationInProgress: hashNavigationInProgressRef.current,
-          pendingFileSelection: pendingFileSelection.current,
-          variantChanged,
-          fileChanged,
-        });
-      }
       return;
-    }
-
-    if (DEBUG_FILE_NAVIGATION) {
-      // eslint-disable-next-line no-console
-      console.log('[useFileNavigation] 🔍 Hash update effect running:', {
-        variantChanged,
-        fileChanged,
-        prevVariant: prevVariantKeyRef.current,
-        currentVariant: selectedVariantKey,
-        prevFile: prevSelectedFileRef.current,
-        currentFile: selectedFileNameInternal,
-        currentHash: hash,
-      });
     }
 
     // Only update hash when variant or file changes, not on every render
@@ -484,12 +391,6 @@ export function useFileNavigation({
     if (!variantChanged && !fileChanged) {
       // Clear hash navigation flag - we're done processing
       hashNavigationInProgressRef.current = false;
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[useFileNavigation] ⏭️  Neither variant nor file changed, skipping hash update',
-        );
-      }
       return;
     }
 
@@ -498,12 +399,6 @@ export function useFileNavigation({
     // But if variant changed, we DO want to update the hash to include the new variant.
     if (hashNavigationInProgressRef.current && !variantChanged) {
       hashNavigationInProgressRef.current = false;
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[useFileNavigation] ⏭️  Skipping hash update (file change was hash-driven, no variant change)',
-        );
-      }
       return;
     }
 
@@ -522,13 +417,6 @@ export function useFileNavigation({
     );
 
     if (!isMainFile && !isExtraFile && !isTransformedFile) {
-      if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ⏭️  Skipping hash update (file not in current variant)', {
-          currentVariant: selectedVariantKey,
-          attemptedFile: selectedFileNameInternal,
-        });
-      }
       return;
     }
 
@@ -567,27 +455,9 @@ export function useFileNavigation({
       // Only update if current hash is for the same demo (starts with mainSlug)
       // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
       if (isHashRelevantToDemo(hash, mainSlug)) {
-        if (DEBUG_FILE_NAVIGATION) {
-          // eslint-disable-next-line no-console
-          console.log('[useFileNavigation] 🔗 Updating hash:', {
-            from: hash,
-            to: fileSlug,
-            reason: 'variant or file changed',
-          });
-        }
         setHash(fileSlug);
-      } else if (DEBUG_FILE_NAVIGATION) {
-        // eslint-disable-next-line no-console
-        console.log('[useFileNavigation] ⏭️  Not updating hash (wrong demo or no existing hash):', {
-          hash,
-          fileSlug,
-          mainSlug,
-        });
       }
       // Otherwise, don't update - either no hash exists or hash is for a different demo
-    } else if (DEBUG_FILE_NAVIGATION) {
-      // eslint-disable-next-line no-console
-      console.log('[useFileNavigation] ℹ️  Hash already matches file slug:', fileSlug);
     }
   }, [
     selectedVariant,
