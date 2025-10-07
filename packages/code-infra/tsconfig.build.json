@@ -7,8 +7,7 @@
     "emitDeclarationOnly": true,
     "outDir": "./build",
     "rootDir": "./src",
-    "noEmit": false,
-    "removeComments": true
+    "noEmit": false
   },
   "include": ["src/**/*"],
   // removing "cli" since its going to run directly and not really imported anywhere
