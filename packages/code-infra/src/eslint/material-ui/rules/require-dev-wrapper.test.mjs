@@ -10,10 +10,18 @@ const ruleTester = new eslint.RuleTester({
 
 ruleTester.run('require-dev-wrapper', rule, {
   valid: [
-    // Should pass: Function wrapped with correct production check
+    // Should pass: Function wrapped with !== production check
     {
       code: `
 if (process.env.NODE_ENV !== 'production') {
+  checkSlot(key, overrides[k]);
+}
+      `,
+    },
+    // Should pass: Function wrapped with === production check
+    {
+      code: `
+if (process.env.NODE_ENV === 'production') {
   checkSlot(key, overrides[k]);
 }
       `,
@@ -42,10 +50,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
       `,
     },
-    // Should pass: warn wrapped correctly
+    // Should pass: warn wrapped correctly with ===
     {
       code: `
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'production') {
   warn('Some warning message');
 }
       `,
@@ -70,6 +78,14 @@ if (process.env.NODE_ENV !== 'production') {
 }
       `,
     },
+    // Should pass: Reversed comparison (literal on left)
+    {
+      code: `
+if ('production' !== process.env.NODE_ENV) {
+  checkSlot(key, value);
+}
+      `,
+    },
   ],
   invalid: [
     // Should fail: checkSlot without production check
@@ -84,16 +100,45 @@ checkSlot(key, overrides[k]);
         },
       ],
     },
-    // Should fail: Wrong condition (=== instead of !==)
+    // Should fail: Comparing with 'development' instead of 'production'
     {
       code: `
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'development') {
   checkSlot(key, overrides[k]);
 }
       `,
       errors: [
         {
-          messageId: 'wrongCondition',
+          messageId: 'invalidCondition',
+          data: { functionName: 'checkSlot', comparedValue: 'development' },
+        },
+      ],
+    },
+    // Should fail: Comparing with 'test' instead of 'production'
+    {
+      code: `
+if (process.env.NODE_ENV !== 'test') {
+  checkSlot(key, overrides[k]);
+}
+      `,
+      errors: [
+        {
+          messageId: 'invalidCondition',
+          data: { functionName: 'checkSlot', comparedValue: 'test' },
+        },
+      ],
+    },
+    // Should fail: Non-static condition (variable)
+    {
+      code: `
+const env = 'production';
+if (process.env.NODE_ENV !== env) {
+  checkSlot(key, overrides[k]);
+}
+      `,
+      errors: [
+        {
+          messageId: 'nonStaticCondition',
           data: { functionName: 'checkSlot' },
         },
       ],
