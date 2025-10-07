@@ -6,32 +6,34 @@
 
 **CodeHighlighter Props:**
 
-| Prop                    | Type                                          | Default    | Description                                                                                                      |
-| :---------------------- | :-------------------------------------------- | :--------- | :--------------------------------------------------------------------------------------------------------------- |
-| name                    | `string`                                      | -          | Display name for the code example, used for identification and titles                                            |
-| Content                 | `ComponentType<ContentProps<{}>>`             | -          | Component to render the code content and preview                                                                 |
-| ContentLoading          | `ComponentType<ContentLoadingProps<{}>>`      | -          | Component to show while code is being loaded or processed                                                        |
-| code                    | `Code`                                        | -          | Static code content with variants and metadata                                                                   |
-| components              | `Components`                                  | -          | React components for live preview alongside code                                                                 |
-| contentProps            | `{}`                                          | -          | Additional props passed to the Content component                                                                 |
-| controlled              | `boolean`                                     | -          | Enable controlled mode for external code state management                                                        |
-| defaultVariant          | `string`                                      | -          | Fallback variant when the requested variant is not available                                                     |
-| fallbackUsesAllVariants | `boolean`                                     | -          | Whether fallback content should include all variants                                                             |
-| fallbackUsesExtraFiles  | `boolean`                                     | -          | Whether fallback content should include extra files                                                              |
-| fileName                | `string`                                      | -          | Currently selected file name                                                                                     |
-| forceClient             | `boolean`                                     | -          | Force client-side rendering even when server rendering is available                                              |
-| globalsCode             | `(string \| Code)[]`                          | -          | Global static code snippets to inject, typically for styling or tooling                                          |
-| highlightAt             | `'init' \| 'stream' \| 'hydration' \| 'idle'` | `'stream'` | When to perform syntax highlighting and code processing                                                          |
-| initialVariant          | `string`                                      | -          | Default variant to show on first load                                                                            |
-| loadCodeMeta            | `LoadCodeMeta`                                | -          | Function to load code metadata from a URL                                                                        |
-| loadSource              | `LoadSource`                                  | -          | Function to load raw source code and dependencies                                                                |
-| loadVariantMeta         | `LoadVariantMeta`                             | -          | Function to load specific variant metadata                                                                       |
-| precompute              | `Code`                                        | -          | Pre-computed code data from build-time optimization                                                              |
-| slug                    | `string`                                      | -          | URL-friendly identifier for deep linking and navigation                                                          |
-| sourceParser            | `Promise<ParseSource>`                        | -          | Promise resolving to a source parser for syntax highlighting                                                     |
-| sourceTransformers      | `SourceTransformer[]`                         | -          | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                |
-| url                     | `string`                                      | -          | Source URL where the code content originates from                                                                |
-| variant                 | `string`                                      | -          | Currently selected variant name                                                                                  |
-| variantType             | `string`                                      | -          | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) |
-| variants                | `string[]`                                    | -          | Static variant names that should be fetched at runtime                                                           |
-| children                | `string`                                      | -          | Raw code string for simple use cases                                                                             |
+| Prop                    | Type                                          | Default  | Description                                                                                                                 |
+| :---------------------- | :-------------------------------------------- | :------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| name                    | `string`                                      | -        | Display name for the code example, used for identification and titles                                                       |
+| Content                 | `ComponentType<ContentProps<{}>>`             | -        | Component to render the code content and preview                                                                            |
+| ContentLoading          | `ComponentType<ContentLoadingProps<{}>>`      | -        | Component to show while code is being loaded or processed                                                                   |
+| code                    | `Code`                                        | -        | Static code content with variants and metadata                                                                              |
+| components              | `Components`                                  | -        | React components for live preview alongside code                                                                            |
+| contentProps            | `{}`                                          | -        | Additional props passed to the Content component                                                                            |
+| controlled              | `boolean`                                     | -        | Enable controlled mode for external code state management                                                                   |
+| defaultVariant          | `string`                                      | -        | Fallback variant when the requested variant is not available                                                                |
+| deferParsing            | `'none' \| 'json' \| 'gzip'`                  | `'gzip'` | Defer parsing and populating the AST into memory until the code is enhanced&#xA;Applies only in production when RSC loading |
+| enhanceAfter            | `'init' \| 'stream' \| 'hydration' \| 'idle'` | `'idle'` | When to enhance the code display with interactivity                                                                         |
+| fallbackUsesAllVariants | `boolean`                                     | -        | Whether fallback content should include all variants                                                                        |
+| fallbackUsesExtraFiles  | `boolean`                                     | -        | Whether fallback content should include extra files                                                                         |
+| fileName                | `string`                                      | -        | Currently selected file name                                                                                                |
+| forceClient             | `boolean`                                     | -        | Force client-side rendering even when server rendering is available                                                         |
+| globalsCode             | `(string \| Code)[]`                          | -        | Global static code snippets to inject, typically for styling or tooling                                                     |
+| highlightAfter          | `'init' \| 'stream' \| 'hydration' \| 'idle'` | `'idle'` | When to perform syntax highlighting and code processing                                                                     |
+| initialVariant          | `string`                                      | -        | Default variant to show on first load                                                                                       |
+| loadCodeMeta            | `LoadCodeMeta`                                | -        | Function to load code metadata from a URL                                                                                   |
+| loadSource              | `LoadSource`                                  | -        | Function to load raw source code and dependencies                                                                           |
+| loadVariantMeta         | `LoadVariantMeta`                             | -        | Function to load specific variant metadata                                                                                  |
+| precompute              | `Code`                                        | -        | Pre-computed code data from build-time optimization                                                                         |
+| slug                    | `string`                                      | -        | URL-friendly identifier for deep linking and navigation                                                                     |
+| sourceParser            | `Promise<ParseSource>`                        | -        | Promise resolving to a source parser for syntax highlighting                                                                |
+| sourceTransformers      | `SourceTransformer[]`                         | -        | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                           |
+| url                     | `string`                                      | -        | Source URL where the code content originates from                                                                           |
+| variant                 | `string`                                      | -        | Currently selected variant name                                                                                             |
+| variantType             | `string`                                      | -        | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available)            |
+| variants                | `string[]`                                    | -        | Static variant names that should be fetched at runtime                                                                      |
+| children                | `string`                                      | -        | Raw code string for simple use cases                                                                                        |

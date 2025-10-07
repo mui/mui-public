@@ -1,6 +1,7 @@
+import * as React from 'react';
 import { TypesComponentPart, TypesComponentRoot } from './types';
 
-export const TypesComponent = () => {
+export function TypesComponent() {
   return (
     <div>
       <h3>ComponentRoot</h3>
@@ -9,4 +10,4 @@ export const TypesComponent = () => {
       <TypesComponentPart />
     </div>
   );
-};
+}

@@ -223,6 +223,7 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
       fences: true,
       listItemIndent: 'one',
       rule: '-',
+      quote: "'",
     })
     .stringify(root);
 }

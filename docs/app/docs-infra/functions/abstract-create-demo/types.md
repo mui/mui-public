@@ -28,7 +28,12 @@
       components: {}
     }[]
     variantTypes?: Record<string, string>
-    highlightAt?: 'init' | 'stream' | 'hydration' | 'idle'
+    highlightAfter?:
+      | 'init'
+      | 'stream'
+      | 'hydration'
+      | 'idle'
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
     fallbackUsesExtraFiles?: boolean
     fallbackUsesAllVariants?: boolean
     loadCodeMeta?: (url: string) => Promise<Code>
@@ -55,7 +60,12 @@
         displayName?: string
         variantType?: string
         skipPrecompute?: boolean
-        highlightAt?:
+        highlightAfter?:
+          | 'init'
+          | 'stream'
+          | 'hydration'
+          | 'idle'
+        enhanceAfter?:
           | 'init'
           | 'stream'
           | 'hydration'
@@ -90,7 +100,8 @@
     components: {}
   }[]
   variantTypes?: Record<string, string>
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle'
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle'
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
   fallbackUsesExtraFiles?: boolean
   fallbackUsesAllVariants?: boolean
   loadCodeMeta?: (url: string) => Promise<Code>
@@ -117,7 +128,12 @@
         displayName?: string
         variantType?: string
         skipPrecompute?: boolean
-        highlightAt?:
+        highlightAfter?:
+          | 'init'
+          | 'stream'
+          | 'hydration'
+          | 'idle'
+        enhanceAfter?:
           | 'init'
           | 'stream'
           | 'hydration'
@@ -152,7 +168,8 @@
     components: {}
   }[]
   variantTypes?: Record<string, string>
-  highlightAt?: 'init' | 'stream' | 'hydration' | 'idle'
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle'
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
   fallbackUsesExtraFiles?: boolean
   fallbackUsesAllVariants?: boolean
   loadCodeMeta?: (url: string) => Promise<Code>
@@ -179,7 +196,12 @@
         displayName?: string
         variantType?: string
         skipPrecompute?: boolean
-        highlightAt?:
+        highlightAfter?:
+          | 'init'
+          | 'stream'
+          | 'hydration'
+          | 'idle'
+        enhanceAfter?:
           | 'init'
           | 'stream'
           | 'hydration'

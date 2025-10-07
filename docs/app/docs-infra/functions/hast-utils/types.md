@@ -15,17 +15,28 @@
 ```
 
 ```typescript
-  hastOrJson: HastNodes | { hastJson: string },
+  hastOrJson:
+    | HastNodes
+    | { hastJson: string }
+    | { hastGzip: string },
 ) => ReactNode
 ```
 
 ```typescript
-  source: string | HastNodes | { hastJson: string },
+  source:
+    | string
+    | HastNodes
+    | { hastJson: string }
+    | { hastGzip: string },
 ) => string
 ```
 
 ```typescript
-  source: string | HastNodes | { hastJson: string },
+  source:
+    | string
+    | HastNodes
+    | { hastJson: string }
+    | { hastGzip: string },
   highlighted: boolean | undefined,
 ) => ReactNode
 ```
