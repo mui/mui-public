@@ -29,7 +29,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
     if (args.authorize) {
-      await gh.endToEndGhAuthGetToken(true);
+      await gh.endToEndGhAuthGetToken({ log: true });
       console.log('✅ GitHub auth tokens successfully retrieved.');
     }
   },

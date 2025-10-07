@@ -7,9 +7,10 @@
     "emitDeclarationOnly": true,
     "outDir": "./build",
     "rootDir": "./src",
-    "noEmit": false
+    "noEmit": false,
+    "removeComments": false
   },
   "include": ["src/**/*"],
   // removing "cli" since its going to run directly and not really imported anywhere
-  "exclude": ["**/*.spec.*", "**/*.test.*", "**/cli", "**/setupVitest.ts"]
+  "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts"]
 }

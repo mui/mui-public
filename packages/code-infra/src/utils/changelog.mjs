@@ -4,8 +4,13 @@ import { $ } from 'execa';
 import { persistentAuthStrategy } from './github.mjs';
 
 /**
+ * @typedef {import('@octokit/rest').Octokit} OctokitType
+ */
+
+/**
  * @typedef {'team' | 'first_timer' | 'contributor'} AuthorAssociation
  */
+
 /**
  * @typedef {Object} FetchedCommitDetails
  * @property {string} sha
@@ -13,6 +18,14 @@ import { persistentAuthStrategy } from './github.mjs';
  * @property {string[]} labels
  * @property {number} prNumber
  * @property {{login: string; association: AuthorAssociation} | null} author
+ */
+
+/**
+ * @typedef {Object} FetchCommitsOptions
+ * @property {string} repo
+ * @property {string} lastRelease
+ * @property {string} release
+ * @property {string} [org='mui'] - GitHub organization name, defaults to 'mui'
  */
 
 /**
@@ -33,25 +46,36 @@ export async function findLatestTaggedVersion(opts) {
 }
 
 /**
- * @typedef {Object} FetchCommitsOptions
- * @property {string} repo
- * @property {string} lastRelease
- * @property {string} release
- * @property {string} [token]
- * @property {string} [org="mui"]
- */
-
-/**
  * Fetches commits between two refs (lastRelease..release) including PR details.
- * Automatically handles GitHub OAuth authentication.
+ * Automatically handles GitHub OAuth authentication if none provided.
  *
- * @param {FetchCommitsOptions} param0
+ * @overload
+ * @param {FetchCommitsOptions & {token: string}} opts
+ * @returns {Promise<FetchedCommitDetails[]>}
+ *
+ * @overload
+ * @param {FetchCommitsOptions & {octokit: OctokitType}} opts
+ * @returns {Promise<FetchedCommitDetails[]>}
+ *
+ * @param {FetchCommitsOptions & ({token: string} | {octokit: OctokitType})} opts
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
-  const opts = { ...options, org };
+export async function fetchCommitsBetweenRefs(opts) {
+  const octokit =
+    // eslint-disable-next-line no-nested-ternary
+    'octokit' in opts && opts.octokit
+      ? opts.octokit
+      : 'token' in opts && opts.token
+        ? new Octokit({ auth: opts.token })
+        : new Octokit({ authStrategy: persistentAuthStrategy });
 
-  return await fetchCommitsRest(opts);
+  return fetchCommitsRest({
+    octokit,
+    repo: opts.repo,
+    lastRelease: opts.lastRelease,
+    release: opts.release,
+    org: opts.org ?? 'mui',
+  });
 }
 
 /**
@@ -59,17 +83,11 @@ export async function fetchCommitsBetweenRefs({ org = 'mui', ...options }) {
  * It is more reliable than the GraphQL API but requires multiple network calls (1 + n).
  * One to list all commits between the two refs and then one for each commit to get the PR details.
  *
- * @param {FetchCommitsOptions & { org: string }} param0
+ * @param {FetchCommitsOptions & { octokit: OctokitType}} param0
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-async function fetchCommitsRest({ token, repo, lastRelease, release, org }) {
-  const octokit = token
-    ? new Octokit({ auth: token })
-    : new Octokit({ authStrategy: persistentAuthStrategy });
-  /**
-   * @typedef {import('@octokit/rest').Octokit} Octokit
-   */
+async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui' }) {
   /**
    * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
    */
