@@ -1,9 +1,7 @@
-import type { TypesMeta } from '../pipeline/loadPrecomputedTypesMeta/loadPrecomputedTypesMeta';
+import type { TypesContentProps } from '../abstractCreateTypes';
 
-export type Types = {
-  types?: TypesMeta[];
-};
+export function useTypes<T extends {}>(contentProps: TypesContentProps<T>): TypesContentProps<T> {
+  // We can add client side logic here if needed
 
-export function useTypes(props: Types): Types {
-  return { types: props.types };
+  return contentProps;
 }

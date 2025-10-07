@@ -17,6 +17,7 @@ export type TypesTableMeta = {
 
 export type TypesContentProps<T extends {}> = T & {
   types?: TypesMeta[];
+  multiple?: boolean;
 };
 
 type AbstractCreateTypesOptions<T extends {}> = {
@@ -26,9 +27,8 @@ type AbstractCreateTypesOptions<T extends {}> = {
 export function abstractCreateTypes<T extends {}>(
   options: AbstractCreateTypesOptions<T>,
   url: string,
-  typeDef: object,
-  exportName: string,
   meta: TypesTableMeta | undefined,
+  exportName?: string,
 ): React.ComponentType<T> {
   if (!url.startsWith('file:')) {
     throw new Error(
@@ -43,7 +43,7 @@ export function abstractCreateTypes<T extends {}>(
   const types = meta?.precompute?.[exportName || 'Default']?.types;
 
   function TypesComponent(props: T) {
-    return <options.TypesContent {...props} types={types} />;
+    return <options.TypesContent {...props} types={types} multiple={Boolean(exportName)} />;
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -62,7 +62,7 @@ export function createTypesFactory<T extends {}>(options: AbstractCreateTypesOpt
    * @param meta Additional meta for the types table.
    */
   const createTypes = (url: string, typeDef: object, meta?: TypesTableMeta | undefined) => {
-    return abstractCreateTypes(options, url, typeDef, '', meta);
+    return abstractCreateTypes(options, url, meta);
   };
 
   return createTypes;
@@ -76,14 +76,14 @@ export function createMultipleTypesFactory<T extends {}>(options: AbstractCreate
    * @param typeDef The type definition object with multiple exports to extract types from.
    * @param meta Additional meta for the types tables.
    */
-  const createMultipleTypes = <TD extends Record<string, any>>(
+  const createMultipleTypes = <K extends Record<string, any>>(
     url: string,
-    typeDef: TD,
+    typeDef: K,
     meta?: TypesTableMeta | undefined,
   ) => {
-    const components = {} as Record<keyof TD, React.ComponentType<T>>;
-    (Object.keys(typeDef) as (keyof TD)[]).forEach((key) => {
-      components[key] = abstractCreateTypes(options, url, typeDef, String(key), meta);
+    const components = {} as Record<keyof K, React.ComponentType<T>>;
+    (Object.keys(typeDef) as (keyof K)[]).forEach((key) => {
+      components[key] = abstractCreateTypes(options, url, meta, String(key));
     });
 
     return components;
