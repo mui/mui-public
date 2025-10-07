@@ -10,6 +10,7 @@ import cmdJsonLint from './cmdJsonLint.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
 import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
+import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 
 const pkgJson = createRequire(import.meta.url)('../../package.json');
@@ -25,6 +26,7 @@ yargs()
   .command(cmdListWorkspaces)
   .command(cmdPublish)
   .command(cmdPublishCanary)
+  .command(cmdPublishNewPackage)
   .command(cmdSetVersionOverrides)
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()

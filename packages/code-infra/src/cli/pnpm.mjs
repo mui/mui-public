@@ -46,6 +46,7 @@ import * as semver from 'semver';
  * @typedef {Object} GetWorkspacePackagesOptions
  * @property {string|null} [sinceRef] - Git reference to filter changes since
  * @property {boolean} [publicOnly=false] - Whether to filter to only public packages
+ * @property {boolean} [nonPublishedOnly=false] - Whether to filter to only non-published packages. It by default means public packages yet to be published.
  */
 
 /**
@@ -53,6 +54,10 @@ import * as semver from 'semver';
  *
  * @overload
  * @param {{ publicOnly: true } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
+ * @returns {Promise<PublicPackage[]>} Array of packages
+ *
+ * @overload
+ * @param {{ nonPublishedOnly: true } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
  * @returns {Promise<PublicPackage[]>} Array of packages
  *
  * @overload
@@ -67,7 +72,7 @@ import * as semver from 'semver';
  * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
  */
 export async function getWorkspacePackages(options = {}) {
-  const { sinceRef = null, publicOnly = false } = options;
+  const { sinceRef = null, publicOnly = false, nonPublishedOnly = false } = options;
 
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
@@ -90,6 +95,19 @@ export async function getWorkspacePackages(options = {}) {
       }),
     ];
   });
+
+  if (nonPublishedOnly) {
+    // Check if any of the packages are new/need manual publishing first.
+    const filteredPublicPackages = filteredPackages.filter((pkg) => !pkg.isPrivate);
+
+    const results = await Promise.all(
+      filteredPublicPackages.map(async (pkg) => {
+        const url = `${process.env.npm_config_registry || 'https://registry.npmjs.org'}/${pkg.name}`;
+        return fetch(url).then((res) => res.status === 404);
+      }),
+    );
+    return filteredPublicPackages.filter((_pkg, index) => !!results[index]);
+  }
 
   return filteredPackages;
 }
