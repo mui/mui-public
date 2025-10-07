@@ -137,6 +137,7 @@ export function parseReExports(
         for (const recursiveResult of recursiveResults) {
           if (reExportInfo.aliasMap.size > 0) {
             // Apply alias mappings to individual exports by mutating the name property
+            // Only include exports that are explicitly re-exported (in the aliasMap)
             const aliasedExports: ExportNode[] = [];
             for (const exportNode of recursiveResult.exports) {
               if (reExportInfo.aliasMap.has(exportNode.name)) {
@@ -144,9 +145,8 @@ export function parseReExports(
                 const aliasedName = reExportInfo.aliasMap.get(exportNode.name)!;
                 exportNode.name = aliasedName;
                 aliasedExports.push(exportNode);
-              } else {
-                aliasedExports.push(exportNode);
               }
+              // If not in aliasMap, skip this export (don't include it)
             }
             allResults.push({
               name: recursiveResult.name,
