@@ -26,6 +26,7 @@ import {
 } from './formatComponent';
 import { formatHookData, HookTypeMeta as HookType, isPublicHook } from './formatHook';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
+import { parseReExports } from './parseReExports';
 
 export type LoaderOptions = {
   performance?: {
@@ -41,14 +42,17 @@ export type HookTypeMeta = HookType;
 export type TypesMeta =
   | {
       type: 'component';
+      name: string;
       data: ComponentTypeMeta;
     }
   | {
       type: 'hook';
+      name: string;
       data: HookTypeMeta;
     }
   | {
       type: 'other';
+      name: string;
       data: ExportNode;
     };
 
@@ -95,7 +99,6 @@ export async function loadPrecomputedTypesMeta(
 
   try {
     // Parse the source to find a single createTypesMeta call
-    // TODO: our create factory parser doesn't appear to support external imports
     const typesMetaCall = await parseCreateFactoryCall(source, this.resourcePath, {
       allowExternalVariants: true,
     });
@@ -342,6 +345,7 @@ export async function loadPrecomputedTypesMeta(
       shouldInclude: ({ depth }) => depth <= 10, // Limit depth
       shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
     };
+    const checker = program.getTypeChecker();
 
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
@@ -372,7 +376,17 @@ export async function loadPrecomputedTypesMeta(
 
           // Pass parser options with proper configuration
           const parsed = parseFromProgram(entrypoint, program, parserOptions);
-          const { exports } = parsed;
+          let { exports } = parsed;
+
+          let namespaces: string[] = [];
+          if (exports.length === 0) {
+            const reExportResults = parseReExports(sourceFile, checker, program, parserOptions);
+            namespaces = reExportResults.map((result) => result.name).filter(Boolean);
+            if (reExportResults && reExportResults.length > 0) {
+              // Flatten all exports from the re-export results
+              exports = reExportResults.flatMap((result) => result.exports);
+            }
+          }
 
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...config.dependencies, entrypoint];
@@ -423,18 +437,20 @@ export async function loadPrecomputedTypesMeta(
           const types: TypesMeta[] = await Promise.all(
             exports.map(async (exportNode) => {
               if (isPublicComponent(exportNode)) {
-                const componentApiReference = await formatComponentData(exportNode, allTypes, [
-                  'Component',
-                ]);
-                return { type: 'component', data: componentApiReference };
+                const componentApiReference = await formatComponentData(
+                  exportNode,
+                  allTypes,
+                  namespaces,
+                );
+                return { type: 'component', name: exportNode.name, data: componentApiReference };
               }
 
               if (isPublicHook(exportNode)) {
                 const hookApiReference = await formatHookData(exportNode, []);
-                return { type: 'hook', data: hookApiReference };
+                return { type: 'hook', name: exportNode.name, data: hookApiReference };
               }
 
-              return { type: 'other', data: exportNode };
+              return { type: 'other', name: exportNode.name, data: exportNode };
             }),
           );
 
@@ -457,6 +473,7 @@ export async function loadPrecomputedTypesMeta(
               importedFrom: namedExport || 'default',
             },
             dependencies,
+            namespaces,
           };
         } catch (error) {
           throw new Error(
@@ -469,12 +486,27 @@ export async function loadPrecomputedTypesMeta(
     const variantResults = await Promise.all(variantPromises);
 
     // Process results and collect dependencies
-    for (const result of variantResults) {
-      if (result) {
-        variantData[result.variantName] = result.variantData;
-        result.dependencies.forEach((file: string) => {
-          allDependencies.push(file);
-        });
+    if (
+      variantResults.length === 1 &&
+      variantResults[0]?.variantName === 'Default' &&
+      variantResults[0]?.namespaces.length > 0
+    ) {
+      const defaultVariant = variantResults[0];
+      const data = defaultVariant?.variantData;
+      data.types.forEach((type) => {
+        variantData[type.data.name] = { types: [type], importedFrom: data.importedFrom };
+      });
+      defaultVariant.dependencies.forEach((file: string) => {
+        allDependencies.push(file);
+      });
+    } else {
+      for (const result of variantResults) {
+        if (result) {
+          variantData[result.variantName] = result.variantData;
+          result.dependencies.forEach((file: string) => {
+            allDependencies.push(file);
+          });
+        }
       }
     }
 

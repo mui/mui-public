@@ -8,7 +8,7 @@ import {
 } from '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta';
 import styles from './TypesTable.module.css';
 
-export type TypesTableProps = Types;
+export type TypesTableProps = Types & {};
 
 export function TypeDoc(props: {
   type: AnyType;
@@ -406,11 +406,11 @@ function HookDoc(props: { type: HookTypeMeta }) {
             </tr>
           </thead>
           <tbody>
-            {Object.keys(parameters).map((key) => {
+            {Object.keys(parameters).map((key, i) => {
               const param = type.parameters[key];
               return (
-                <tr key={param.name}>
-                  <td>{param.name}</td>
+                <tr key={param.name || i}>
+                  <td>{param.name || i}</td>
                   <td>
                     <code>{param.type}</code>
                   </td>

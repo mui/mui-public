@@ -6,6 +6,7 @@
   "exports": {
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
     "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
+    "./abstractCreateTypes": "./src/abstractCreateTypes/index.ts",
     "./CodeControllerContext": "./src/CodeControllerContext/index.ts",
     "./CodeExternalsContext": "./src/CodeExternalsContext/index.ts",
     "./CodeHighlighter": "./src/CodeHighlighter/index.ts",
