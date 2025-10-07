@@ -3,7 +3,11 @@
   // Actual .ts source files are transpiled via babel
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "paths": {}
+    "rootDir": "src",
+    "tsBuildInfoFile": "${configDir}/node_modules/.cache/tsconfig.build.tsbuildinfo",
+    "declarationDir": "build",
+    "removeComments": true
   },
-  "exclude": ["**/*.spec.*", "**/*.test.*"]
+  "include": ["src", "package.json"],
+  "exclude": ["**/*.spec.*", "**/*.test.*", "src/setupVitest.ts"]
 }
