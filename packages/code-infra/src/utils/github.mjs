@@ -16,7 +16,7 @@ import {
 import clipboardy from 'clipboardy';
 import open from 'open';
 
-import { credentialManager } from './credentials.mjs';
+import * as credentials from './credentials.mjs';
 
 const GITHUB_APP_CLIENT_ID = 'Iv23lilHsGU3i1tIARsT'; // MUI Code Infra Oauth App
 // Use the client id as the key so that if it changes, we don't conflict with old tokens
@@ -130,14 +130,14 @@ async function logAuthInformation(data, { openInBrowser = true, copyToClipboard 
  */
 async function isTokenExpired() {
   try {
-    const credentials = await getCredentialData();
+    const tokens = await getCredentialData();
 
-    if (credentials.expiresAt) {
-      return Date.now() > new Date(credentials.expiresAt).getTime();
+    if (tokens.expiresAt) {
+      return Date.now() > new Date(tokens.expiresAt).getTime();
     }
 
-    if (credentials.refreshTokenExpiresAt) {
-      return Date.now() > new Date(credentials.refreshTokenExpiresAt).getTime();
+    if (tokens.refreshTokenExpiresAt) {
+      return Date.now() > new Date(tokens.refreshTokenExpiresAt).getTime();
     }
     return false;
   } catch (error) {
@@ -150,7 +150,7 @@ async function isTokenExpired() {
  * @returns {Promise<GitHubAppAuthenticationWithRefreshToken>} Stored GitHub authentication tokens
  */
 async function getCredentialData() {
-  const data = await credentialManager.getPassword(GITHUB_APP_CREDENTIAL_KEY);
+  const data = await credentials.getPassword(GITHUB_APP_CREDENTIAL_KEY);
   if (!data) {
     return {
       token: '',
@@ -175,20 +175,20 @@ async function storeGitHubTokens(tokens) {
     refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
   };
 
-  await credentialManager.setPassword(GITHUB_APP_CREDENTIAL_KEY, JSON.stringify(newTokens));
+  await credentials.setPassword(GITHUB_APP_CREDENTIAL_KEY, JSON.stringify(newTokens));
 }
 
 /**
  * @returns {Promise<string>} Refreshed GitHub access token
  */
 async function refreshAccessToken() {
-  const credentials = await getCredentialData();
-  if (!credentials.refreshToken) {
+  const tokenData = await getCredentialData();
+  if (!tokenData.refreshToken) {
     throw new Error(ERRORS.REFRESH_FAILED);
   }
   if (
-    credentials.refreshTokenExpiresAt &&
-    Date.now() > new Date(credentials.refreshTokenExpiresAt).getTime()
+    tokenData.refreshTokenExpiresAt &&
+    Date.now() > new Date(tokenData.refreshTokenExpiresAt).getTime()
   ) {
     // Refresh token has also expired. Need to re-authenticate
     await clearGitHubAuth();
@@ -196,7 +196,7 @@ async function refreshAccessToken() {
   }
   const { authentication } = await ghRefreshToken({
     clientId: GITHUB_APP_CLIENT_ID,
-    refreshToken: credentials.refreshToken,
+    refreshToken: tokenData.refreshToken,
     clientType: 'github-app',
     clientSecret: '',
   });
@@ -260,8 +260,8 @@ async function exchangeDeviceCodeWithRetry(deviceCode, { delay = 5000, retries =
  */
 export async function endToEndGhAuthGetToken(log = false) {
   try {
-    const credentials = await getCredentialData();
-    if (!credentials.token) {
+    const tokenData = await getCredentialData();
+    if (!tokenData.token) {
       throw new Error(ERRORS.AUTH_REQUIRED);
     }
 
@@ -269,7 +269,7 @@ export async function endToEndGhAuthGetToken(log = false) {
       throw new Error(ERRORS.TOKEN_EXPIRED);
     }
 
-    return credentials.token;
+    return tokenData.token;
   } catch (ex) {
     switch (/** @type {Error} */ (ex).message) {
       case ERRORS.AUTH_REQUIRED: {
@@ -299,5 +299,5 @@ export async function endToEndGhAuthGetToken(log = false) {
  * @returns {Promise<void>}
  */
 export async function clearGitHubAuth() {
-  return credentialManager.deleteKey(GITHUB_APP_CREDENTIAL_KEY);
+  return credentials.deleteKey(GITHUB_APP_CREDENTIAL_KEY);
 }
