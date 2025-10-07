@@ -65,10 +65,6 @@ export function parseReExports(
             const originalName = declaration.propertyName?.getText() || declaration.name.getText();
             const exportedName = symbol.name;
 
-            console.log(
-              `${exportedName} is re-exported from: ${moduleSpecifier.text} (original: ${originalName}) -> ${importedSourceFile.fileName}`,
-            );
-
             // Find or create the reExportInfo for this source file
             let reExportInfo = reExportInfos.find((info) => info.sourceFile === importedSourceFile);
             if (!reExportInfo) {
@@ -100,9 +96,6 @@ export function parseReExports(
 
           if (importedSourceFile) {
             const namespaceName = symbol.name;
-            console.log(
-              `${namespaceName} is a namespace re-export from: ${moduleSpecifier.text} -> ${importedSourceFile.fileName}`,
-            );
 
             // For namespace exports, store the namespace name
             reExportInfos.push({
@@ -169,7 +162,6 @@ export function parseReExports(
   } else {
     // No re-exports found, parse actual exports from this file
     const { exports } = parseFromProgram(fileName, program, parserOptions);
-    console.log(`Found ${exports.length} actual exports in ${fileName}`);
     allResults.push({
       name: '',
       exports,
