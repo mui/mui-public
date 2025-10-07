@@ -33,13 +33,18 @@ export async function formatComponentData(
   // Find data attributes and CSS variables in a single loop
   let dataAttributes: tae.ExportNode | undefined;
   let cssVariables: tae.ExportNode | undefined;
-  const dataAttributesName = `${component.name}${dataAttributesSuffix}`;
-  const cssVariablesName = `${component.name}${cssVariablesSuffix}`;
+  const prefixes = exportNames && exportNames.length > 0 ? exportNames : [''];
+  const dataAttributesName = prefixes.map(
+    (prefix) => `${prefix}${component.name}${dataAttributesSuffix}`,
+  );
+  const cssVariablesName = prefixes.map(
+    (prefix) => `${prefix}${component.name}${cssVariablesSuffix}`,
+  );
 
   for (const node of allExports) {
-    if (node.name === dataAttributesName) {
+    if (dataAttributesName.includes(node.name)) {
       dataAttributes = node;
-    } else if (node.name === cssVariablesName) {
+    } else if (cssVariablesName.includes(node.name)) {
       cssVariables = node;
     }
 

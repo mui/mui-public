@@ -6,12 +6,10 @@
 
 **useTypes Parameters:**
 
-| Parameter | Type                      | Default | Description |
-| :-------- | :------------------------ | :------ | :---------- |
-| props     | `{ types?: TypesMeta[] }` | -       | -           |
+| Parameter    | Type                    | Default | Description |
+| :----------- | :---------------------- | :------ | :---------- |
+| contentProps | `TypesContentProps<{}>` | -       | -           |
 
 **useTypes Return Value:**
 
-| Property | Type          | Description |
-| :------- | :------------ | :---------- |
-| types    | `TypesMeta[]` | -           |
+`TypesContentProps<{}>`
