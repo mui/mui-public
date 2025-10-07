@@ -1,4 +1,33 @@
 /**
+ * ESLint rule that enforces certain function calls to be wrapped with
+ * a production check to prevent them from ending up in production bundles.
+ *
+ * @example
+ * // Valid - function wrapped with production check
+ * if (process.env.NODE_ENV !== 'production') {
+ *   checkSlot(key, overrides[k]);
+ * }
+ *
+ * @example
+ * // Invalid - function not wrapped
+ * checkSlot(key, overrides[k]); // Will trigger error
+ *
+ * @example
+ * // Invalid - wrong condition (=== instead of !==)
+ * if (process.env.NODE_ENV === 'production') {
+ *   checkSlot(key, overrides[k]); // Will trigger error
+ * }
+ *
+ * @example
+ * // Usage in ESLint config
+ * {
+ *   rules: {
+ *     'material-ui/require-dev-wrapper': ['error', {
+ *       functionNames: ['warnOnce', 'warn', 'checkSlot']
+ *     }]
+ *   }
+ * }
+ *
  * @type {import('eslint').Rule.RuleModule}
  */
 const rule = {
