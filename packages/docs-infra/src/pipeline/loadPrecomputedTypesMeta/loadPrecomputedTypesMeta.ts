@@ -27,6 +27,7 @@ import {
 import { formatHookData, HookTypeMeta as HookType, isPublicHook } from './formatHook';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { parseReExports } from './parseReExports';
+import { findMetaFiles } from './findMetaFiles';
 
 export type LoaderOptions = {
   performance?: {
@@ -299,9 +300,15 @@ export async function loadPrecomputedTypesMeta(
     }
 
     // Collect all entrypoints for optimized program creation
-    const allEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
+    const resolvedEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
       url.replace('file://', ''),
     );
+
+    const allEntrypoints = await Promise.all(
+      resolvedEntrypoints.map(async (entrypoint) => {
+        return [entrypoint, ...(await findMetaFiles(entrypoint))];
+      }),
+    ).then((pairs) => pairs.flat());
 
     // Create optimized TypeScript program
     // This provides 70%+ performance improvement by reducing file loading
