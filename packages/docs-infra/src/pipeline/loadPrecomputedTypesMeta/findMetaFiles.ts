@@ -7,7 +7,6 @@ function hasSuffix(suffixes: string[], filename: string): boolean {
   return suffixes.some(
     (suffix) =>
       filename.endsWith(`${suffix}.ts`) ||
-      filename.endsWith(`${suffix}.d.ts`) ||
       filename.endsWith(`${suffix}.js`) ||
       filename.endsWith(`${suffix}.tsx`) ||
       filename.endsWith(`${suffix}.jsx`),
