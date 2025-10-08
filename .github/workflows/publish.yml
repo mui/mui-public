@@ -61,12 +61,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Build common flags
-          ARGS=""
+          ARGS="--github-release"
           if [ "${{ inputs.dry-run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
 
-          pnpm code-infra publish-canary $ARGS --github-release
+          pnpm code-infra publish-canary $ARGS
 
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.preview != true

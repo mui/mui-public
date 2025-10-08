@@ -8,11 +8,11 @@
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
-import { $ } from 'execa';
-import * as semver from 'semver';
 import { Octokit } from '@octokit/rest';
 import { createActionAuth } from '@octokit/auth-action';
+import { $ } from 'execa';
 import gitUrlParse from 'git-url-parse';
+import * as semver from 'semver';
 
 /**
  * @typedef {Object} Args
@@ -37,12 +37,7 @@ const CANARY_TAG = 'canary';
  * @returns {Octokit} Authenticated Octokit instance
  */
 function getOctokit() {
-  // Check if we have a GitHub token, otherwise use unauthenticated instance
-  if (process.env.GITHUB_TOKEN) {
-    return new Octokit({ authStrategy: createActionAuth });
-  }
-  // For dry-run or local testing without token
-  return new Octokit();
+  return new Octokit({ authStrategy: createActionAuth });
 }
 
 /**
@@ -204,36 +199,79 @@ function generateChangelogForPackage(packageName, allPRs) {
 }
 
 /**
- * Create GitHub releases and tags for published packages
- * @param {PublicPackage[]} publishedPackages - Packages that were published
+ * Prepare changelog data for packages
+ * @param {PublicPackage[]} packagesToPublish - Packages that will be published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
  * @param {string|null} sinceTag - Git tag to get PRs since
- * @param {boolean} dryRun - Whether to run in dry-run mode
- * @returns {Promise<void>}
+ * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
  */
-async function createGitHubReleasesForPackages(
-  publishedPackages,
-  canaryVersions,
-  sinceTag,
-  dryRun,
-) {
-  console.log('\n🚀 Creating GitHub releases for published packages...');
+async function prepareChangelogsForPackages(packagesToPublish, canaryVersions, sinceTag) {
+  console.log('\n📝 Preparing changelogs for packages...');
 
   const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
-
-  // Check if GITHUB_TOKEN is available when not in dry-run mode
-  if (!dryRun && !process.env.GITHUB_TOKEN) {
-    console.error('❌ GITHUB_TOKEN environment variable is not set');
-    console.error('   GitHub releases require authentication');
-    throw new Error('GITHUB_TOKEN is required to create GitHub releases');
-  }
 
   // Fetch merged PRs since the last canary tag
   console.log('🔍 Fetching merged PRs...');
   const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo, sinceTag);
   console.log(`📋 Found ${allPRs.length} merged PRs since last canary tag`);
 
+  const changelogs = new Map();
+
+  for (const pkg of packagesToPublish) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      console.log(`⚠️  No version found for ${pkg.name}, skipping...`);
+      continue;
+    }
+
+    const packageLabel = extractPackageNameForLabel(pkg.name);
+    const changelog = generateChangelogForPackage(packageLabel, allPRs);
+    changelogs.set(pkg.name, changelog);
+
+    console.log(`📦 ${pkg.name}@${version}`);
+    console.log(
+      `   Changelog:\n${changelog
+        .split('\n')
+        .map((line) => `   ${line}`)
+        .join('\n')}`,
+    );
+  }
+
+  console.log('\n✅ Changelogs prepared successfully');
+  return changelogs;
+}
+
+/**
+ * Create GitHub releases and tags for published packages
+ * @param {PublicPackage[]} publishedPackages - Packages that were published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {Map<string, string>} changelogs - Map of package names to their changelogs
+ * @param {boolean} dryRun - Whether to run in dry-run mode
+ * @returns {Promise<void>}
+ */
+async function createGitHubReleasesForPackages(
+  publishedPackages,
+  canaryVersions,
+  changelogs,
+  dryRun,
+) {
+  console.log('\n🚀 Creating GitHub releases and tags for published packages...');
+
+  if (dryRun) {
+    console.log('🧪 Dry-run mode: Would create releases and tags for:');
+    for (const pkg of publishedPackages) {
+      const version = canaryVersions.get(pkg.name);
+      if (!version) {
+        continue;
+      }
+      const tagName = `${pkg.name}@${version}`;
+      console.log(`   • ${tagName}`);
+    }
+    return;
+  }
+
+  const repoInfo = await getRepositoryInfo();
   const gitSha = await getCurrentGitSha();
   const octokit = getOctokit();
 
@@ -244,19 +282,11 @@ async function createGitHubReleasesForPackages(
       continue;
     }
 
-    const packageLabel = extractPackageNameForLabel(pkg.name);
-    const changelog = generateChangelogForPackage(packageLabel, allPRs);
+    const changelog = changelogs.get(pkg.name) || 'No changelog available';
     const tagName = `${pkg.name}@${version}`;
     const releaseName = tagName;
 
     console.log(`\n📦 Processing ${pkg.name}@${version}...`);
-
-    if (dryRun) {
-      console.log(`🏷️  Would create git tag: ${tagName}`);
-      console.log(`📝 Would create GitHub release: ${releaseName}`);
-      console.log(`📄 Changelog content:\n${changelog}`);
-      continue;
-    }
 
     try {
       // Create git tag
@@ -414,6 +444,12 @@ async function publishCanaryVersions(
     originalPackageJsons.set(pkg.name, originalPackageJson);
   }
 
+  // Prepare changelogs before building and publishing (so it can error out early if there are issues)
+  let changelogs = new Map();
+  if (githubRelease) {
+    changelogs = await prepareChangelogsForPackages(packagesToPublish, canaryVersions, sinceTag);
+  }
+
   // Run release build after updating package.json files
   console.log('\n🔨 Running release build...');
   await $({ stdio: 'inherit' })`pnpm release:build`;
@@ -450,7 +486,7 @@ async function publishCanaryVersions(
       await createGitHubReleasesForPackages(
         packagesToPublish,
         canaryVersions,
-        sinceTag,
+        changelogs,
         options.dryRun || false,
       );
     }
