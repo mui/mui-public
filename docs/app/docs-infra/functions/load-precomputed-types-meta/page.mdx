@@ -37,14 +37,14 @@ const nextConfig = {
     rules: {
       './app/**/types.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/loadPrecomputedTypesMeta'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
       },
     },
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/types\.ts$/,
-      use: [defaultLoaders.babel, '@mui/internal-docs-infra/loadPrecomputedTypesMeta'],
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
     });
 
     return config;
