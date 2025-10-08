@@ -61,15 +61,17 @@ export async function formatComponentData(
       await formatProperties((component.type as tae.ComponentNode).props, exportNames, allExports),
       memberOrder.props,
     ),
-    dataAttributes: dataAttributes
-      ? sortObjectByKeys(
-          formatEnum(dataAttributes.type as tae.EnumNode),
-          memberOrder.dataAttributes,
-        )
-      : {},
-    cssVariables: cssVariables
-      ? sortObjectByKeys(formatEnum(cssVariables.type as tae.EnumNode), memberOrder.cssVariables)
-      : {},
+    dataAttributes:
+      dataAttributes && dataAttributes.type.kind === 'enum'
+        ? sortObjectByKeys(
+            formatEnum(dataAttributes.type as tae.EnumNode),
+            memberOrder.dataAttributes,
+          )
+        : {},
+    cssVariables:
+      cssVariables && cssVariables.type.kind === 'enum'
+        ? sortObjectByKeys(formatEnum(cssVariables.type as tae.EnumNode), memberOrder.cssVariables)
+        : {},
   };
 
   // Post-process type strings to align naming across re-exports and hide internal suffixes.

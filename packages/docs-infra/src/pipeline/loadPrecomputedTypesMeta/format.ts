@@ -4,11 +4,6 @@ import { uniq, sortBy } from 'es-toolkit';
 import * as prettier from 'prettier';
 
 async function prettyFormat(type: string, typeName?: string) {
-  // Guard against undefined, null, or empty types
-  if (!type) {
-    return 'unknown';
-  }
-
   const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
     parser: 'typescript',
     singleQuote: true,
@@ -20,7 +15,7 @@ async function prettyFormat(type: string, typeName?: string) {
   // Prettier either formats the type on a single line or multiple lines.
   // If it's on a single line, we remove the `type _ = ` prefix.
   // If it's on multiple lines, we remove the first line (`type _ =`) and de-indent the rest.
-  const lines = formattedType?.trimEnd().split('\n') ?? [];
+  const lines = formattedType.trimEnd().split('\n');
   if (lines.length === 1) {
     type = lines[0].replace(/^type _ = /, '');
   } else {
