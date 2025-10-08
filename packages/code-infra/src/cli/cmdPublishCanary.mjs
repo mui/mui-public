@@ -166,9 +166,14 @@ function generateChangelogFromCommits(packageName, commits) {
 
   // Generate changelog content - remove the package labels from the title
   const changelogLines = relevantCommits.map((commit) => {
+    // Check if title contains [breaking] (case-insensitive)
+    const isBreaking = /\[breaking\]/i.test(commit.title);
+
     // Remove all [package] labels from the title
     const cleanTitle = commit.title.replace(/\[[^\]]+\]\s*/g, '').trim();
-    return `- ${cleanTitle}`;
+
+    // Add "Breaking: " prefix if breaking change
+    return isBreaking ? `- Breaking: ${cleanTitle}` : `- ${cleanTitle}`;
   });
 
   return changelogLines.join('\n');
@@ -293,7 +298,17 @@ function generateChangelogForPackage(packageName, allPRs) {
   }
 
   // Generate changelog content
-  const changelogLines = relevantPRs.map((pr) => `- ${pr.title} (#${pr.number})`);
+  const changelogLines = relevantPRs.map((pr) => {
+    // Check if PR has 'breaking' label (case-insensitive)
+    const hasBreakingLabel = pr.labels.some((label) => label.toLowerCase() === 'breaking');
+    // Check if title contains [breaking] (case-insensitive)
+    const hasBreakingInTitle = /\[breaking\]/i.test(pr.title);
+    const isBreaking = hasBreakingLabel || hasBreakingInTitle;
+
+    // Add "Breaking: " prefix if breaking change
+    const prefix = isBreaking ? 'Breaking: ' : '';
+    return `- ${prefix}${pr.title} (#${pr.number})`;
+  });
 
   return changelogLines.join('\n');
 }
@@ -467,7 +482,7 @@ async function createGitHubReleasesForPackages(
   console.log('\n🚀 Creating GitHub releases and tags for published packages...');
 
   if (dryRun) {
-    console.log('🧪 Dry-run mode: Would create releases and tags for:');
+    console.log('🧪 Dry-run mode: Would create release(s) and tag(s) for:');
     for (const pkg of publishedPackages) {
       const version = canaryVersions.get(pkg.name);
       if (!version) {
