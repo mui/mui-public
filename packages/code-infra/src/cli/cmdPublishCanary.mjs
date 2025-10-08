@@ -37,7 +37,12 @@ const CANARY_TAG = 'canary';
  * @returns {Octokit} Authenticated Octokit instance
  */
 function getOctokit() {
-  return new Octokit({ authStrategy: createActionAuth });
+  // Check if we have a GitHub token, otherwise use unauthenticated instance
+  if (process.env.GITHUB_TOKEN) {
+    return new Octokit({ authStrategy: createActionAuth });
+  }
+  // For dry-run or local testing without token
+  return new Octokit();
 }
 
 /**
@@ -216,6 +221,13 @@ async function createGitHubReleasesForPackages(
 
   const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
+
+  // Check if GITHUB_TOKEN is available when not in dry-run mode
+  if (!dryRun && !process.env.GITHUB_TOKEN) {
+    console.error('❌ GITHUB_TOKEN environment variable is not set');
+    console.error('   GitHub releases require authentication');
+    throw new Error('GITHUB_TOKEN is required to create GitHub releases');
+  }
 
   // Fetch merged PRs since the last canary tag
   console.log('🔍 Fetching merged PRs...');
