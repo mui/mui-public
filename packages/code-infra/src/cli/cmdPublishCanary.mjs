@@ -18,6 +18,7 @@ import * as semver from 'semver';
  * @typedef {Object} Args
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
+ * @property {string} [changelogFrom] - Source for changelog generation: 'both', 'gitcli', or 'github'
  */
 
 import {
@@ -79,6 +80,101 @@ function extractPackageNameForLabel(npmPackageName) {
     }
   }
   return npmPackageName;
+}
+
+/**
+ * Extract package names from commit title
+ * @param {string} title - Commit title (e.g., "[code-infra][docs-infra] Commit message")
+ * @returns {string[]} Array of package names
+ */
+function extractPackageNamesFromCommitTitle(title) {
+  const matches = title.matchAll(/\[([^\]]+)\]/g);
+  const packageNames = [];
+  for (const match of matches) {
+    packageNames.push(match[1]);
+  }
+  return packageNames;
+}
+
+/**
+ * Get commits since a tag using git CLI
+ * @param {string|null} sinceTag - Git tag to get commits since
+ * @returns {Promise<Array<{title: string, packageNames: string[]}>>} List of commits with extracted package names
+ */
+async function getCommitsSinceTag(sinceTag) {
+  const commits = [];
+
+  try {
+    let gitCommand;
+    if (sinceTag) {
+      // Get commits since the tag
+      gitCommand = $`git log ${sinceTag}..HEAD --oneline --no-merges`;
+    } else {
+      // Get recent commits (last 100)
+      gitCommand = $`git log -100 --oneline --no-merges`;
+    }
+
+    const { stdout } = await gitCommand;
+    const lines = stdout.trim().split('\n');
+
+    for (const line of lines) {
+      if (!line) {
+        continue;
+      }
+
+      // Format: "hash commit title"
+      const spaceIndex = line.indexOf(' ');
+      if (spaceIndex === -1) {
+        continue;
+      }
+
+      const title = line.substring(spaceIndex + 1);
+
+      // Skip commits starting with "Bump"
+      if (title.startsWith('Bump ')) {
+        continue;
+      }
+
+      const packageNames = extractPackageNamesFromCommitTitle(title);
+
+      // Only include commits with package labels
+      if (packageNames.length > 0) {
+        commits.push({
+          title,
+          packageNames,
+        });
+      }
+    }
+  } catch (error) {
+    console.log('⚠️  Could not fetch commits from git CLI, falling back to GitHub API');
+  }
+
+  return commits;
+}
+
+/**
+ * Generate changelog from git commits
+ * @param {string} packageName - Package name (e.g., 'code-infra')
+ * @param {Array<{title: string, packageNames: string[]}>} commits - List of commits
+ * @returns {string} Generated changelog content
+ */
+function generateChangelogFromCommits(packageName, commits) {
+  const relevantCommits = commits.filter((commit) =>
+    commit.packageNames.some((name) => name.toLowerCase() === packageName.toLowerCase()),
+  );
+
+  if (relevantCommits.length === 0) {
+    return '';
+  }
+
+  // Generate changelog content - remove the package labels from the title
+  const changelogLines = relevantCommits.map((commit) => {
+    // Remove all [package] labels from the title
+    const cleanTitle = commit.title.replace(/\[[^\]]+\]\s*/g, '').trim();
+    return `- ${cleanTitle}`;
+  });
+
+  return changelogLines.join('\n');
 }
 
 /**
@@ -206,20 +302,43 @@ function generateChangelogForPackage(packageName, allPRs) {
 }
 
 /**
- * Prepare changelog data for packages
+ * Prepare changelog data for packages using git CLI
+ * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {string|null} sinceTag - Git tag to get commits since
+ * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
+ */
+async function prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag) {
+  console.log('🔍 Fetching commits from git CLI...');
+  const commits = await getCommitsSinceTag(sinceTag);
+  console.log(`📋 Found ${commits.length} commits with package labels`);
+
+  const changelogs = new Map();
+
+  for (const pkg of packagesToPublish) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      continue;
+    }
+
+    const packageLabel = extractPackageNameForLabel(pkg.name);
+    const changelog = generateChangelogFromCommits(packageLabel, commits);
+    changelogs.set(pkg.name, changelog);
+  }
+
+  return changelogs;
+}
+
+/**
+ * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
  * @param {string|null} sinceTag - Git tag to get PRs since
+ * @param {{owner: string, repo: string}} repoInfo - Repository information
  * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
  */
-async function prepareChangelogsForPackages(packagesToPublish, canaryVersions, sinceTag) {
-  console.log('\n📝 Preparing changelogs for packages...');
-
-  const repoInfo = await getRepositoryInfo();
-  console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
-
-  // Fetch merged PRs since the last canary tag
-  console.log('🔍 Fetching merged PRs...');
+async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, sinceTag, repoInfo) {
+  console.log('🔍 Fetching merged PRs from GitHub API...');
   const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo, sinceTag);
   console.log(`📋 Found ${allPRs.length} merged PRs since last canary tag`);
 
@@ -228,21 +347,97 @@ async function prepareChangelogsForPackages(packagesToPublish, canaryVersions, s
   for (const pkg of packagesToPublish) {
     const version = canaryVersions.get(pkg.name);
     if (!version) {
-      console.log(`⚠️  No version found for ${pkg.name}, skipping...`);
       continue;
     }
 
     const packageLabel = extractPackageNameForLabel(pkg.name);
     const changelog = generateChangelogForPackage(packageLabel, allPRs);
     changelogs.set(pkg.name, changelog);
+  }
 
-    console.log(`📦 ${pkg.name}@${version}`);
-    console.log(
-      `   Changelog:\n${changelog
-        .split('\n')
-        .map((line) => `   ${line}`)
-        .join('\n')}`,
+  return changelogs;
+}
+
+/**
+ * Prepare changelog data for packages
+ * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {string|null} sinceTag - Git tag to get PRs since
+ * @param {string} changelogFrom - Source for changelog: 'both', 'gitcli', or 'github'
+ * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
+ */
+async function prepareChangelogsForPackages(
+  packagesToPublish,
+  canaryVersions,
+  sinceTag,
+  changelogFrom = 'both',
+) {
+  console.log('\n📝 Preparing changelogs for packages...');
+
+  const repoInfo = await getRepositoryInfo();
+  console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
+
+  let changelogs = new Map();
+
+  if (changelogFrom === 'gitcli') {
+    // Use only git CLI
+    changelogs = await prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag);
+  } else if (changelogFrom === 'github') {
+    // Use only GitHub API
+    changelogs = await prepareChangelogsFromGitHub(
+      packagesToPublish,
+      canaryVersions,
+      sinceTag,
+      repoInfo,
     );
+  } else {
+    // Use both and pick the one with more content
+    const [gitCLIChangelogs, githubChangelogs] = await Promise.all([
+      prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag),
+      prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, sinceTag, repoInfo),
+    ]);
+
+    // Merge, preferring the changelog with more content for each package
+    for (const pkg of packagesToPublish) {
+      const gitCLIChangelog = gitCLIChangelogs.get(pkg.name) || '';
+      const githubChangelog = githubChangelogs.get(pkg.name) || '';
+
+      // Use the one with more content (more lines)
+      const gitCLILines = gitCLIChangelog.split('\n').filter((line) => line.trim()).length;
+      const githubLines = githubChangelog.split('\n').filter((line) => line.trim()).length;
+
+      if (gitCLILines > githubLines) {
+        changelogs.set(pkg.name, gitCLIChangelog);
+        console.log(`📦 ${pkg.name}: Using git CLI changelog (${gitCLILines} entries)`);
+      } else if (githubLines > 0) {
+        changelogs.set(pkg.name, githubChangelog);
+        console.log(`📦 ${pkg.name}: Using GitHub API changelog (${githubLines} entries)`);
+      } else {
+        changelogs.set(pkg.name, gitCLIChangelog || githubChangelog);
+        console.log(`📦 ${pkg.name}: No changes found`);
+      }
+    }
+  }
+
+  // Log changelog content for each package
+  for (const pkg of packagesToPublish) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      continue;
+    }
+
+    const changelog = changelogs.get(pkg.name) || '';
+    console.log(`\n📦 ${pkg.name}@${version}`);
+    if (changelog) {
+      console.log(
+        `   Changelog:\n${changelog
+          .split('\n')
+          .map((line) => `   ${line}`)
+          .join('\n')}`,
+      );
+    } else {
+      console.log('   Changelog: No changes with scope labels found for this package.');
+    }
   }
 
   console.log('\n✅ Changelogs prepared successfully');
@@ -378,6 +573,7 @@ async function createCanaryTag(dryRun = false) {
  * @param {PublishOptions} [options={}] - Publishing options
  * @param {boolean} [githubRelease=false] - Whether to create GitHub releases
  * @param {string|null} [sinceTag=null] - Git tag to get PRs since
+ * @param {string} [changelogFrom='both'] - Source for changelog: 'both', 'gitcli', or 'github'
  * @returns {Promise<void>}
  */
 async function publishCanaryVersions(
@@ -387,6 +583,7 @@ async function publishCanaryVersions(
   options = {},
   githubRelease = false,
   sinceTag = null,
+  changelogFrom = 'both',
 ) {
   console.log('\n🔥 Publishing canary versions...');
 
@@ -454,7 +651,12 @@ async function publishCanaryVersions(
   // Prepare changelogs before building and publishing (so it can error out early if there are issues)
   let changelogs = new Map();
   if (githubRelease) {
-    changelogs = await prepareChangelogsForPackages(packagesToPublish, canaryVersions, sinceTag);
+    changelogs = await prepareChangelogsForPackages(
+      packagesToPublish,
+      canaryVersions,
+      sinceTag,
+      changelogFrom,
+    );
   }
 
   // Run release build after updating package.json files
@@ -516,10 +718,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Create GitHub releases for published packages',
+      })
+      .option('changelog-from', {
+        type: 'string',
+        default: 'both',
+        choices: ['both', 'gitcli', 'github'],
+        description: 'Source for changelog generation',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false } = argv;
+    const { dryRun = false, githubRelease = false, changelogFrom = 'both' } = argv;
 
     const options = { dryRun };
 
@@ -578,6 +786,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       options,
       githubRelease,
       canaryTag,
+      changelogFrom,
     );
 
     console.log('\n🏁 Publishing complete!');
