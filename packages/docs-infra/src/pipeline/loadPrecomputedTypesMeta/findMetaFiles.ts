@@ -6,10 +6,9 @@ import fs from 'fs/promises';
 function hasSuffix(suffixes: string[], filename: string): boolean {
   return suffixes.some(
     (suffix) =>
+      filename.endsWith(`${suffix}.d.ts`) ||
       filename.endsWith(`${suffix}.ts`) ||
-      filename.endsWith(`${suffix}.js`) ||
-      filename.endsWith(`${suffix}.tsx`) ||
-      filename.endsWith(`${suffix}.jsx`),
+      filename.endsWith(`${suffix}.tsx`),
   );
 }
 
