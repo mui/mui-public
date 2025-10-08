@@ -57,6 +57,8 @@ jobs:
       - name: Prepare for publishing
         uses: ./.github/actions/publish-prepare
       - name: Publish packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Build common flags
           ARGS=""
@@ -64,7 +66,7 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
-          pnpm code-infra publish-canary $ARGS
+          pnpm code-infra publish-canary $ARGS --github-release
 
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.preview != true
