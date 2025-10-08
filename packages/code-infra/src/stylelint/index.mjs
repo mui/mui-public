@@ -40,7 +40,7 @@ export default {
   overrides: [
     {
       files: ['**/*.?(c|m)[jt]s?(x)'],
-      customSyntax: postcssStylesSyntax,
+      customSyntax: /** @type {any} */ (postcssStylesSyntax),
     },
   ],
 };
