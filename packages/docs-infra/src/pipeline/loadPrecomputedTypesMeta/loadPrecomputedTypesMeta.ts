@@ -600,7 +600,7 @@ export async function loadPrecomputedTypesMeta(
           };
         } catch (error) {
           throw new Error(
-            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}\n \n${error && typeof error === 'object' && 'stack' in error && error.stack}`,
+            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}`,
           );
         }
       },
@@ -684,7 +684,7 @@ export async function loadPrecomputedTypesMeta(
       generatedTypesMdMark,
     );
     currentMark = generatedTypesMdMark;
-
+    console.log(allDependencies);
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
       // Strip 'file://' prefix if present before adding to webpack's dependency tracking
