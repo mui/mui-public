@@ -14,13 +14,6 @@ import { $ } from 'execa';
 import gitUrlParse from 'git-url-parse';
 import * as semver from 'semver';
 
-/**
- * @typedef {Object} Args
- * @property {boolean} [dryRun] - Whether to run in dry-run mode
- * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
- * @property {string} [changelogFrom] - Source for changelog generation: 'both', 'gitcli', or 'github'
- */
-
 import {
   getWorkspacePackages,
   getPackageVersionInfo,
@@ -30,6 +23,13 @@ import {
   getCurrentGitSha,
   semverMax,
 } from '../utils/pnpm.mjs';
+
+/**
+ * @typedef {Object} Args
+ * @property {boolean} [dryRun] - Whether to run in dry-run mode
+ * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
+ * @property {string} [changelogFrom] - Source for changelog generation: 'both', 'gitcli', or 'github'
+ */
 
 const CANARY_TAG = 'canary';
 
@@ -114,10 +114,7 @@ async function getCommitsSinceTag(sinceTag) {
       gitCommand = $`git log -100 --oneline --no-merges`;
     }
 
-    const { stdout } = await gitCommand;
-    const lines = stdout.trim().split('\n');
-
-    for (const line of lines) {
+    for await (const line of gitCommand) {
       if (!line) {
         continue;
       }
@@ -292,7 +289,7 @@ function generateChangelogForPackage(packageName, allPRs) {
   );
 
   if (relevantPRs.length === 0) {
-    return 'No changes with scope labels found for this package.';
+    return '';
   }
 
   // Generate changelog content
@@ -313,6 +310,9 @@ async function prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, si
   const commits = await getCommitsSinceTag(sinceTag);
   console.log(`📋 Found ${commits.length} commits with package labels`);
 
+  /**
+   * @type {Map<string, string>}
+   */
   const changelogs = new Map();
 
   for (const pkg of packagesToPublish) {
@@ -342,6 +342,9 @@ async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, si
   const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo, sinceTag);
   console.log(`📋 Found ${allPRs.length} merged PRs since last canary tag`);
 
+  /**
+   * @type {Map<string, string>}
+   */
   const changelogs = new Map();
 
   for (const pkg of packagesToPublish) {
@@ -377,6 +380,9 @@ async function prepareChangelogsForPackages(
   const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
 
+  /**
+   * @type {Map<string, string>}
+   */
   let changelogs = new Map();
 
   if (changelogFrom === 'gitcli') {
@@ -432,7 +438,7 @@ async function prepareChangelogsForPackages(
       console.log(
         `   Changelog:\n${changelog
           .split('\n')
-          .map((line) => `   ${line}`)
+          .map((/** @type {string} */ line) => `   ${line}`)
           .join('\n')}`,
       );
     } else {
@@ -467,8 +473,22 @@ async function createGitHubReleasesForPackages(
       if (!version) {
         continue;
       }
-      const tagName = `${pkg.name}@${version}`;
+      const changelog = changelogs.get(pkg.name);
+      const tagName = `${pkg.name}@${version}${changelog ? ' (with changelog) :' : ' (no changelog)'}`;
       console.log(`   • ${tagName}`);
+      if (changelog) {
+        // Draw changelog in an ASCII rectangle
+        const lines = changelog.split('\n');
+        const maxLength = Math.max(Math.max(...lines.map((line) => line.length)), 60);
+        const border = `┌${'─'.repeat(maxLength + 2)}┐`;
+        const footer = `└${'─'.repeat(maxLength + 2)}┘`;
+        console.log('     Changelog:');
+        console.log(`     ${border}`);
+        lines.forEach((line) => {
+          console.log(`     │ ${line.padEnd(maxLength)} │`);
+        });
+        console.log(`     ${footer}`);
+      }
     }
     return;
   }
@@ -507,7 +527,7 @@ async function createGitHubReleasesForPackages(
 
       // Create GitHub release
       // eslint-disable-next-line no-await-in-loop
-      await octokit.repos.createRelease({
+      const res = await octokit.repos.createRelease({
         owner: repoInfo.owner,
         repo: repoInfo.repo,
         tag_name: tagName,
@@ -518,7 +538,7 @@ async function createGitHubReleasesForPackages(
         prerelease: true, // Mark as prerelease since these are canary versions
       });
 
-      console.log(`✅ Created GitHub release: ${releaseName}`);
+      console.log(`✅ Created GitHub release: ${releaseName} at ${res.data.html_url}`);
     } catch (/** @type {any} */ error) {
       console.error(`❌ Failed to create release for ${pkg.name}: ${error.message}`);
       // Continue with other packages even if one fails
@@ -760,7 +780,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
       : allPackages;
 
-    console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
+    console.log(`📋 Found ${packages.length} packages(s) for canary publishing:`);
     packages.forEach((pkg) => {
       console.log(`   • ${pkg.name}@${pkg.version}`);
     });
