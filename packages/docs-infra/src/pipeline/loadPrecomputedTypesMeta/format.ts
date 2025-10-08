@@ -4,6 +4,11 @@ import { uniq, sortBy } from 'es-toolkit';
 import * as prettier from 'prettier';
 
 async function prettyFormat(type: string, typeName?: string) {
+  // Guard against undefined, null, or empty types
+  if (!type) {
+    return 'unknown';
+  }
+
   const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
     parser: 'typescript',
     singleQuote: true,

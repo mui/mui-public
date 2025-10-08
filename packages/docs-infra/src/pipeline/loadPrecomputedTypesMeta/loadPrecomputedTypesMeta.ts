@@ -443,7 +443,6 @@ export async function loadPrecomputedTypesMeta(
 
           const types: TypesMeta[] = await Promise.all(
             exports.map(async (exportNode) => {
-              console.log(JSON.stringify({ exportNode, allTypes, namespaces }));
               if (isPublicComponent(exportNode)) {
                 const componentApiReference = await formatComponentData(
                   exportNode,
