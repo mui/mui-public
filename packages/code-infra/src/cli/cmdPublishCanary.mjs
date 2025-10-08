@@ -148,10 +148,17 @@ async function getMergedPRsSinceTag(owner, repo, sinceTag) {
         return prs;
       }
 
+      const labels = pr.labels.map((label) => (typeof label === 'string' ? label : label.name));
+
+      // Skip PRs that have only one label and that label is 'dependency'
+      if (labels.length === 1 && labels[0].toLowerCase() === 'dependency') {
+        continue;
+      }
+
       prs.push({
         number: pr.number,
         title: pr.title,
-        labels: pr.labels.map((label) => (typeof label === 'string' ? label : label.name)),
+        labels,
         html_url: pr.html_url,
         merged_at: pr.merged_at,
       });
