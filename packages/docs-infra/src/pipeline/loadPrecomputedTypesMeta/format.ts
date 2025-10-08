@@ -1,10 +1,13 @@
 /* eslint-disable no-await-in-loop */
 import * as tae from 'typescript-api-extractor';
 import { uniq, sortBy } from 'es-toolkit';
-import * as prettier from 'prettier';
+import prettier from 'prettier/standalone';
+import prettierPluginEstree from 'prettier/plugins/estree';
+import prettierPluginTypescript from 'prettier/plugins/typescript';
 
 async function prettyFormat(type: string, typeName?: string) {
   const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
+    plugins: [prettierPluginEstree, prettierPluginTypescript],
     parser: 'typescript',
     singleQuote: true,
     semi: false,
