@@ -1,4 +1,5 @@
 import * as React from 'react';
+import './ComponentPartDataAttributes';
 
 interface Props {
   /** The title to display */

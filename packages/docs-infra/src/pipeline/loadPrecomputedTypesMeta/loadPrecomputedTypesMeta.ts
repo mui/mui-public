@@ -7,7 +7,6 @@ import fs from 'fs/promises';
 import { resolve } from 'import-meta-resolve';
 import type { LoaderContext } from 'webpack';
 import { ExportNode, parseFromProgram, ParserOptions } from 'typescript-api-extractor';
-import type { Program } from 'typescript';
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
@@ -380,141 +379,21 @@ export async function loadPrecomputedTypesMeta(
           let { exports } = parsed;
 
           let namespaces: string[] = [];
-          const internalDirectories: Record<
-            string,
-            { name: string; parts: Record<string, boolean> } | undefined
-          > = {};
           if (exports.length === 0) {
             const reExportResults = parseReExports(sourceFile, checker, program, parserOptions);
             namespaces = reExportResults.map((result) => result.name).filter(Boolean);
             if (reExportResults && reExportResults.length > 0) {
               // Flatten all exports from the re-export results
-              // Each result has an array of export groups (with directory info), so we need to flatten twice
-              //
-              // Also build a map of directories to their namespace names and exported parts
-              // This is used to find additional type files (DataAttributes, CssVars) in the correct directories
-              // For example: export { ComponentRoot as Root } from './Root/ComponentRoot'
-              // will map '/Component/Root/' -> { name: 'Component', parts: { 'Root': true } }
-              exports = reExportResults.flatMap((result) =>
-                result.exports.flatMap((exportGroup) => {
-                  if (exportGroup.directory) {
-                    const parts = { ...internalDirectories[exportGroup.directory]?.parts };
-                    exportGroup.exports.forEach((exp) => {
-                      if (!parts[exp.name]) {
-                        parts[exp.name] = true;
-                      }
-                    });
-                    internalDirectories[exportGroup.directory] = { name: result.name, parts };
-                  }
-
-                  return exportGroup.exports;
-                }),
-              );
+              exports = reExportResults.flatMap((result) => result.exports);
             }
-          }
-
-          const dataAttributesFileSuffix = 'DataAttributes';
-          const cssVariablesFileSuffix = 'CssVars';
-          // Find additional internal type files (DataAttributes, CssVars) in the directories
-          // where the re-exported components are located
-          const internalEntrypointGroups = await Promise.all(
-            Object.keys(internalDirectories).map(async (dirPath) => {
-              const dir = internalDirectories[dirPath];
-              if (!dir) {
-                return undefined;
-              }
-
-              const parts = Object.keys(dir.parts);
-              const files = await fs.readdir(dirPath);
-              const entrypoints: string[] = [];
-
-              for (const file of files) {
-                parts.forEach((part) => {
-                  let entrypointPath: string | undefined;
-                  // Look for files like ComponentRootDataAttributes.ts or ComponentRootCssVars.ts
-                  // Pattern: {namespaceName}{partName}{suffix}.{ext}
-                  if (file.startsWith(`${dir.name}${part}${dataAttributesFileSuffix}.`)) {
-                    entrypointPath = new URL(file, `file://${dirPath}/`).pathname;
-                  }
-                  if (file.startsWith(`${dir.name}${part}${cssVariablesFileSuffix}.`)) {
-                    entrypointPath = new URL(file, `file://${dirPath}/`).pathname;
-                  }
-                  // Only add if not already in the main program (avoid duplicates)
-                  if (entrypointPath && !program.getSourceFile(entrypointPath)) {
-                    entrypoints.push(entrypointPath);
-                  }
-                });
-              }
-
-              return entrypoints;
-            }),
-          );
-          const internalEntrypoints = internalEntrypointGroups.filter(Boolean).flat() as string[];
-
-          // Create a separate TypeScript program for internal type files if any were found
-          // These files (DataAttributes, CssVars) may not be in the main program
-          // We can avoid the internal program creation if DataAttributes/CssVars files are exported publicly
-          let internalProgram: Program | undefined;
-          if (internalEntrypoints.length > 0) {
-            try {
-              internalProgram = createOptimizedProgram(
-                config.projectPath,
-                config.options,
-                internalEntrypoints,
-                {
-                  globalTypes,
-                },
-              );
-            } catch (error) {
-              if (error instanceof MissingGlobalTypesError) {
-                // Enhance the error message with context about the createTypesMeta call
-                throw new Error(
-                  `${error.message}\n\n` +
-                    `To fix this, update your createTypesMeta call:\n` +
-                    `export default createTypesMeta(import.meta.url, YourComponent, {\n` +
-                    `  globalTypes: [${error.suggestions.map((s) => `'${s}'`).join(', ')}],\n` +
-                    `});\n\n` +
-                    `Common globalTypes values:\n` +
-                    `- 'react' for React components\n` +
-                    `- 'react-dom' for React DOM types\n` +
-                    `- 'node' for Node.js globals\n` +
-                    `- 'dom' for browser/DOM globals`,
-                );
-              }
-              throw error;
-            }
-
-            const internalProgramCreatedMark = nameMark(functionName, 'internal program created', [
-              relativePath,
-            ]);
-            performance.mark(internalProgramCreatedMark);
-            performance.measure(
-              nameMark(functionName, 'internal program creation', [relativePath]),
-              currentMark,
-              internalProgramCreatedMark,
-            );
-            currentMark = internalProgramCreatedMark;
           }
 
           // Get all source files that are dependencies of this entrypoint
-          const dependencies = [...config.dependencies, ...internalEntrypoints, entrypoint];
+          const dependencies = [...config.dependencies, entrypoint];
 
           // Get all imported files from the TypeScript program
           // This includes all transitively imported files (imports within imports)
-          const sourceFiles = program.getSourceFiles();
-          const internalSourceFiles = internalProgram?.getSourceFiles() || [];
-          const allSourceFiles = [...sourceFiles, ...internalSourceFiles];
-
-          // Build a map of file paths to their programs for efficient lookup
-          // This avoids calling getSourceFile() repeatedly when processing internal types
-          // Files from the main program use 'program', files from internal program use 'internalProgram'
-          const fileProgramMap = new Map<string, Program>();
-          sourceFiles.forEach((sf) => fileProgramMap.set(sf.fileName, program));
-          if (internalProgram) {
-            internalSourceFiles.forEach((sf) => fileProgramMap.set(sf.fileName, internalProgram));
-          }
-
-          // Filter out TypeScript lib files
+          const allSourceFiles = program.getSourceFiles();
           const dependantFiles = allSourceFiles
             .map((sf) => sf.fileName)
             .filter((fileName) => !fileName.includes('node_modules/typescript/lib'));
@@ -530,9 +409,7 @@ export async function loadPrecomputedTypesMeta(
               return internalTypesCache[file];
             }
 
-            // Use the correct program for this file from our pre-built map
-            const fileProgram = fileProgramMap.get(file) || program;
-            const { exports: internalExport } = parseFromProgram(file, fileProgram, parserOptions);
+            const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
 
             internalTypesCache[file] = internalExport;
             return internalExport;
@@ -600,7 +477,7 @@ export async function loadPrecomputedTypesMeta(
           };
         } catch (error) {
           throw new Error(
-            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}`,
+            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}\n \n${error && typeof error === 'object' && 'stack' in error && error.stack}`,
           );
         }
       },
@@ -684,7 +561,7 @@ export async function loadPrecomputedTypesMeta(
       generatedTypesMdMark,
     );
     currentMark = generatedTypesMdMark;
-    console.log(allDependencies);
+
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
       // Strip 'file://' prefix if present before adding to webpack's dependency tracking
