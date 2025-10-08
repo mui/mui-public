@@ -8,13 +8,11 @@
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
+import { Octokit } from '@octokit/rest';
+import { createActionAuth } from '@octokit/auth-action';
 import { $ } from 'execa';
+import gitUrlParse from 'git-url-parse';
 import * as semver from 'semver';
-
-/**
- * @typedef {Object} Args
- * @property {boolean} [dryRun] - Whether to run in dry-run mode
- */
 
 import {
   getWorkspacePackages,
@@ -26,7 +24,546 @@ import {
   semverMax,
 } from '../utils/pnpm.mjs';
 
+/**
+ * @typedef {Object} Args
+ * @property {boolean} [dryRun] - Whether to run in dry-run mode
+ * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
+ * @property {string} [changelogFrom] - Source for changelog generation: 'both', 'gitcli', or 'github'
+ */
+
 const CANARY_TAG = 'canary';
+
+/**
+ * Get Octokit instance with authentication
+ * @returns {Octokit} Authenticated Octokit instance
+ */
+function getOctokit() {
+  return new Octokit({ authStrategy: createActionAuth });
+}
+
+/**
+ * Get current repository info from git remote
+ * @returns {Promise<{owner: string, repo: string}>} Repository owner and name
+ */
+async function getRepositoryInfo() {
+  try {
+    const result = await $`git remote get-url origin`;
+    const url = result.stdout.trim();
+
+    const parsed = gitUrlParse(url);
+    if (parsed.source !== 'github.com') {
+      throw new Error('Repository is not hosted on GitHub');
+    }
+
+    return {
+      owner: parsed.owner,
+      repo: parsed.name,
+    };
+  } catch (/** @type {any} */ error) {
+    throw new Error(`Failed to get repository info: ${error.message}`);
+  }
+}
+
+/**
+ * Extract package name from npm package name for label matching
+ * @param {string} npmPackageName - npm package name (e.g., '@mui/internal-code-infra')
+ * @returns {string} Package name for label (e.g., 'code-infra')
+ */
+function extractPackageNameForLabel(npmPackageName) {
+  // For scoped packages like @mui/internal-code-infra, extract the last part after 'internal-'
+  if (npmPackageName.startsWith('@')) {
+    const parts = npmPackageName.split('/');
+    if (parts.length >= 2) {
+      const packageName = parts[1];
+      // Remove 'internal-' prefix if present
+      return packageName.replace(/^internal-/, '');
+    }
+  }
+  return npmPackageName;
+}
+
+/**
+ * Extract package names from commit title
+ * @param {string} title - Commit title (e.g., "[code-infra][docs-infra] Commit message")
+ * @returns {string[]} Array of package names
+ */
+function extractPackageNamesFromCommitTitle(title) {
+  const matches = title.matchAll(/\[([^\]]+)\]/g);
+  const packageNames = [];
+  for (const match of matches) {
+    packageNames.push(match[1]);
+  }
+  return packageNames;
+}
+
+/**
+ * Get commits since a tag using git CLI
+ * @param {string|null} sinceTag - Git tag to get commits since
+ * @returns {Promise<Array<{title: string, packageNames: string[]}>>} List of commits with extracted package names
+ */
+async function getCommitsSinceTag(sinceTag) {
+  const commits = [];
+
+  try {
+    let gitCommand;
+    if (sinceTag) {
+      // Get commits since the tag
+      gitCommand = $`git log ${sinceTag}..HEAD --oneline --no-merges`;
+    } else {
+      // Get recent commits (last 100)
+      gitCommand = $`git log -100 --oneline --no-merges`;
+    }
+
+    for await (const line of gitCommand) {
+      if (!line) {
+        continue;
+      }
+
+      // Format: "hash commit title"
+      const spaceIndex = line.indexOf(' ');
+      if (spaceIndex === -1) {
+        continue;
+      }
+
+      const title = line.substring(spaceIndex + 1);
+
+      // Skip commits starting with "Bump"
+      if (title.startsWith('Bump ')) {
+        continue;
+      }
+
+      const packageNames = extractPackageNamesFromCommitTitle(title);
+
+      // Only include commits with package labels
+      if (packageNames.length > 0) {
+        commits.push({
+          title,
+          packageNames,
+        });
+      }
+    }
+  } catch (error) {
+    console.log('⚠️  Could not fetch commits from git CLI, falling back to GitHub API');
+  }
+
+  return commits;
+}
+
+/**
+ * Generate changelog from git commits
+ * @param {string} packageName - Package name (e.g., 'code-infra')
+ * @param {Array<{title: string, packageNames: string[]}>} commits - List of commits
+ * @returns {string} Generated changelog content
+ */
+function generateChangelogFromCommits(packageName, commits) {
+  const relevantCommits = commits.filter((commit) =>
+    commit.packageNames.some((name) => name.toLowerCase() === packageName.toLowerCase()),
+  );
+
+  if (relevantCommits.length === 0) {
+    return '';
+  }
+
+  // Generate changelog content - remove the package labels from the title
+  const changelogLines = relevantCommits.map((commit) => {
+    // Check if title contains [breaking|breaking-change|breaking change] (case-insensitive)
+    const isBreaking = /\[(breaking(\s|-)?(change)?)\]/i.test(commit.title);
+
+    // Remove all [package] labels from the title
+    const cleanTitle = commit.title.replace(/\[[^\]]+\]\s*/g, '').trim();
+
+    // Add "Breaking: " prefix if breaking change
+    return isBreaking ? `- Breaking: ${cleanTitle}` : `- ${cleanTitle}`;
+  });
+
+  return changelogLines.join('\n');
+}
+
+/**
+ * Get merged PRs since the last canary tag
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string|null} sinceTag - Git tag to get PRs since
+ * @returns {Promise<Array<{number: number, title: string, labels: string[], html_url: string, merged_at: string}>>} List of merged PRs
+ */
+async function getMergedPRsSinceTag(owner, repo, sinceTag) {
+  const octokit = getOctokit();
+
+  // Get the commit SHA of the tag if it exists
+  let sinceDate = null;
+  if (sinceTag) {
+    try {
+      const { data: refData } = await octokit.git.getRef({
+        owner,
+        repo,
+        ref: `tags/${sinceTag}`,
+      });
+      const tagSha = refData.object.sha;
+
+      // Get the commit date
+      const { data: commitData } = await octokit.git.getCommit({
+        owner,
+        repo,
+        commit_sha: tagSha,
+      });
+      sinceDate = commitData.committer.date;
+    } catch (error) {
+      console.log(`⚠️  Could not find tag ${sinceTag}, will fetch all recent PRs`);
+    }
+  }
+
+  // Fetch merged PRs
+  const prs = [];
+  let page = 1;
+  const perPage = 100;
+  let hasMore = true;
+
+  while (hasMore) {
+    // eslint-disable-next-line no-await-in-loop
+    const { data } = await octokit.pulls.list({
+      owner,
+      repo,
+      state: 'closed',
+      sort: 'updated',
+      direction: 'desc',
+      per_page: perPage,
+      page,
+    });
+
+    if (data.length === 0) {
+      break;
+    }
+
+    for (const pr of data) {
+      // Only include merged PRs
+      if (!pr.merged_at) {
+        continue;
+      }
+
+      // If we have a sinceDate, only include PRs merged after that date
+      if (sinceDate && new Date(pr.merged_at) <= new Date(sinceDate)) {
+        // Since PRs are sorted by updated date, we can stop here
+        return prs;
+      }
+
+      const labels = pr.labels.map((label) => (typeof label === 'string' ? label : label.name));
+
+      // Skip PRs by Renovate that only update dependencies
+      if (labels.length === 1 && labels[0].toLowerCase() === 'dependencies') {
+        continue;
+      }
+
+      prs.push({
+        number: pr.number,
+        title: pr.title,
+        labels,
+        html_url: pr.html_url,
+        merged_at: pr.merged_at,
+      });
+    }
+
+    // If we got fewer results than requested, we've reached the end
+    if (data.length < perPage) {
+      hasMore = false;
+    }
+
+    page += 1;
+
+    // Safety limit to avoid infinite loops
+    if (page > 10) {
+      console.log('⚠️  Reached page limit (10) when fetching PRs');
+      break;
+    }
+  }
+
+  return prs;
+}
+
+/**
+ * Generate changelog for a package based on PRs
+ * @param {string} packageName - Package name (e.g., 'code-infra')
+ * @param {Array<{number: number, title: string, labels: string[], html_url: string}>} allPRs - All merged PRs
+ * @returns {string} Generated changelog content
+ */
+function generateChangelogForPackage(packageName, allPRs) {
+  const scopeLabel = `scope: ${packageName}`;
+
+  // Filter PRs that have the matching scope label
+  const relevantPRs = allPRs.filter((pr) =>
+    pr.labels.some((label) => label.toLowerCase() === scopeLabel.toLowerCase()),
+  );
+
+  if (relevantPRs.length === 0) {
+    return '';
+  }
+
+  // Generate changelog content
+  const changelogLines = relevantPRs.map((pr) => {
+    // Check if PR has 'breaking' label (case-insensitive)
+    const hasBreakingLabel = pr.labels.some((label) =>
+      ['breaking', 'breaking change', 'breaking-change'].includes(label.toLowerCase()),
+    );
+    // Check if title contains [breaking] (case-insensitive)
+    const hasBreakingInTitle = /\[(breaking(?:\s|-)?(?:change)?)\]/i.test(pr.title);
+    const isBreaking = hasBreakingLabel || hasBreakingInTitle;
+
+    // Add "Breaking: " prefix if breaking change
+    const prefix = isBreaking ? 'Breaking: ' : '';
+    return `- ${prefix}${pr.title} (#${pr.number})`;
+  });
+
+  return changelogLines.join('\n');
+}
+
+/**
+ * Prepare changelog data for packages using git CLI
+ * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {string|null} sinceTag - Git tag to get commits since
+ * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
+ */
+async function prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag) {
+  console.log('🔍 Fetching commits from git CLI...');
+  const commits = await getCommitsSinceTag(sinceTag);
+  console.log(`📋 Found ${commits.length} commits with package labels`);
+
+  /**
+   * @type {Map<string, string>}
+   */
+  const changelogs = new Map();
+
+  for (const pkg of packagesToPublish) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      continue;
+    }
+
+    const packageLabel = extractPackageNameForLabel(pkg.name);
+    const changelog = generateChangelogFromCommits(packageLabel, commits);
+    changelogs.set(pkg.name, changelog);
+  }
+
+  return changelogs;
+}
+
+/**
+ * Prepare changelog data for packages using GitHub API
+ * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {string|null} sinceTag - Git tag to get PRs since
+ * @param {{owner: string, repo: string}} repoInfo - Repository information
+ * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
+ */
+async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, sinceTag, repoInfo) {
+  console.log('🔍 Fetching merged PRs from GitHub API...');
+  const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo, sinceTag);
+  console.log(`📋 Found ${allPRs.length} merged PRs since last canary tag`);
+
+  /**
+   * @type {Map<string, string>}
+   */
+  const changelogs = new Map();
+
+  for (const pkg of packagesToPublish) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      continue;
+    }
+
+    const packageLabel = extractPackageNameForLabel(pkg.name);
+    const changelog = generateChangelogForPackage(packageLabel, allPRs);
+    changelogs.set(pkg.name, changelog);
+  }
+
+  return changelogs;
+}
+
+/**
+ * Prepare changelog data for packages
+ * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {string|null} sinceTag - Git tag to get PRs since
+ * @param {string} changelogFrom - Source for changelog: 'both', 'gitcli', or 'github'
+ * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
+ */
+async function prepareChangelogsForPackages(
+  packagesToPublish,
+  canaryVersions,
+  sinceTag,
+  changelogFrom = 'both',
+) {
+  console.log('\n📝 Preparing changelogs for packages...');
+
+  const repoInfo = await getRepositoryInfo();
+  console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
+
+  /**
+   * @type {Map<string, string>}
+   */
+  let changelogs = new Map();
+
+  if (changelogFrom === 'gitcli') {
+    // Use only git CLI
+    changelogs = await prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag);
+  } else if (changelogFrom === 'github') {
+    // Use only GitHub API
+    changelogs = await prepareChangelogsFromGitHub(
+      packagesToPublish,
+      canaryVersions,
+      sinceTag,
+      repoInfo,
+    );
+  } else {
+    // Use both and pick the one with more content
+    const [gitCLIChangelogs, githubChangelogs] = await Promise.all([
+      prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag),
+      prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, sinceTag, repoInfo),
+    ]);
+
+    // Merge, preferring the changelog with more content for each package
+    for (const pkg of packagesToPublish) {
+      const gitCLIChangelog = gitCLIChangelogs.get(pkg.name) || '';
+      const githubChangelog = githubChangelogs.get(pkg.name) || '';
+
+      // Use the one with more content (more lines)
+      const gitCLILines = gitCLIChangelog.split('\n').filter((line) => line.trim()).length;
+      const githubLines = githubChangelog.split('\n').filter((line) => line.trim()).length;
+
+      if (gitCLILines > githubLines) {
+        changelogs.set(pkg.name, gitCLIChangelog);
+        console.log(`📦 ${pkg.name}: Using git CLI changelog (${gitCLILines} entries)`);
+      } else if (githubLines > 0) {
+        changelogs.set(pkg.name, githubChangelog);
+        console.log(`📦 ${pkg.name}: Using GitHub API changelog (${githubLines} entries)`);
+      } else {
+        changelogs.set(pkg.name, gitCLIChangelog || githubChangelog);
+        console.log(`📦 ${pkg.name}: No changes found`);
+      }
+    }
+  }
+
+  // Log changelog content for each package
+  for (const pkg of packagesToPublish) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      continue;
+    }
+
+    const changelog = changelogs.get(pkg.name) || '';
+    console.log(`\n📦 ${pkg.name}@${version}`);
+    if (changelog) {
+      console.log(
+        `   Changelog:\n${changelog
+          .split('\n')
+          .map((/** @type {string} */ line) => `   ${line}`)
+          .join('\n')}`,
+      );
+    } else {
+      console.log('   Changelog: No changes with scope labels found for this package.');
+    }
+  }
+
+  console.log('\n✅ Changelogs prepared successfully');
+  return changelogs;
+}
+
+/**
+ * Create GitHub releases and tags for published packages
+ * @param {PublicPackage[]} publishedPackages - Packages that were published
+ * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
+ * @param {Map<string, string>} changelogs - Map of package names to their changelogs
+ * @param {boolean} dryRun - Whether to run in dry-run mode
+ * @returns {Promise<void>}
+ */
+async function createGitHubReleasesForPackages(
+  publishedPackages,
+  canaryVersions,
+  changelogs,
+  dryRun,
+) {
+  console.log('\n🚀 Creating GitHub releases and tags for published packages...');
+
+  if (dryRun) {
+    console.log('🧪 Dry-run mode: Would create release(s) and tag(s) for:');
+    for (const pkg of publishedPackages) {
+      const version = canaryVersions.get(pkg.name);
+      if (!version) {
+        continue;
+      }
+      const changelog = changelogs.get(pkg.name);
+      const tagName = `${pkg.name}@${version}${changelog ? ' (with changelog):' : ' (no changelog)'}`;
+      console.log(`   • ${tagName}`);
+      if (changelog) {
+        // Draw changelog in an ASCII rectangle
+        const lines = changelog.split('\n');
+        const maxLength = Math.max(Math.max(...lines.map((line) => line.length)), 60);
+        const border = `┌${'─'.repeat(maxLength + 2)}┐`;
+        const footer = `└${'─'.repeat(maxLength + 2)}┘`;
+        console.log('     Changelog:');
+        console.log(`     ${border}`);
+        lines.forEach((line) => {
+          console.log(`     │ ${line.padEnd(maxLength)} │`);
+        });
+        console.log(`     ${footer}`);
+      }
+    }
+    return;
+  }
+
+  const repoInfo = await getRepositoryInfo();
+  const gitSha = await getCurrentGitSha();
+  const octokit = getOctokit();
+
+  for (const pkg of publishedPackages) {
+    const version = canaryVersions.get(pkg.name);
+    if (!version) {
+      console.log(`⚠️  No version found for ${pkg.name}, skipping...`);
+      continue;
+    }
+
+    const changelog = changelogs.get(pkg.name) || 'No changelog available';
+    const tagName = `${pkg.name}@${version}`;
+    const releaseName = tagName;
+
+    console.log(`\n📦 Processing ${pkg.name}@${version}...`);
+
+    try {
+      // Create git tag
+      // eslint-disable-next-line no-await-in-loop
+      await $({
+        env: {
+          ...process.env,
+          GIT_COMMITTER_NAME: 'Code infra',
+          GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
+        },
+      })`git tag -a ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
+
+      // eslint-disable-next-line no-await-in-loop
+      await $`git push origin ${tagName}`;
+      console.log(`✅ Created and pushed git tag: ${tagName}`);
+
+      // Create GitHub release
+      // eslint-disable-next-line no-await-in-loop
+      const res = await octokit.repos.createRelease({
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        tag_name: tagName,
+        target_commitish: gitSha,
+        name: releaseName,
+        body: changelog,
+        draft: false,
+        prerelease: true, // Mark as prerelease since these are canary versions
+      });
+
+      console.log(`✅ Created GitHub release: ${releaseName} at ${res.data.html_url}`);
+    } catch (/** @type {any} */ error) {
+      console.error(`❌ Failed to create release for ${pkg.name}: ${error.message}`);
+      // Continue with other packages even if one fails
+    }
+  }
+
+  console.log('\n✅ Finished creating GitHub releases');
+}
 
 /**
  * Check if the canary git tag exists
@@ -71,6 +608,9 @@ async function createCanaryTag(dryRun = false) {
  * @param {PublicPackage[]} allPackages - All workspace packages
  * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
  * @param {PublishOptions} [options={}] - Publishing options
+ * @param {boolean} [githubRelease=false] - Whether to create GitHub releases
+ * @param {string|null} [sinceTag=null] - Git tag to get PRs since
+ * @param {string} [changelogFrom='both'] - Source for changelog: 'both', 'gitcli', or 'github'
  * @returns {Promise<void>}
  */
 async function publishCanaryVersions(
@@ -78,6 +618,9 @@ async function publishCanaryVersions(
   allPackages,
   packageVersionInfo,
   options = {},
+  githubRelease = false,
+  sinceTag = null,
+  changelogFrom = 'both',
 ) {
   console.log('\n🔥 Publishing canary versions...');
 
@@ -142,6 +685,17 @@ async function publishCanaryVersions(
     originalPackageJsons.set(pkg.name, originalPackageJson);
   }
 
+  // Prepare changelogs before building and publishing (so it can error out early if there are issues)
+  let changelogs = new Map();
+  if (githubRelease) {
+    changelogs = await prepareChangelogsForPackages(
+      packagesToPublish,
+      canaryVersions,
+      sinceTag,
+      changelogFrom,
+    );
+  }
+
   // Run release build after updating package.json files
   console.log('\n🔨 Running release build...');
   await $({ stdio: 'inherit' })`pnpm release:build`;
@@ -172,6 +726,17 @@ async function publishCanaryVersions(
   if (publishSuccess) {
     // Create/update the canary tag after successful publish
     await createCanaryTag(options.dryRun);
+
+    // Create GitHub releases if requested
+    if (githubRelease) {
+      await createGitHubReleasesForPackages(
+        packagesToPublish,
+        canaryVersions,
+        changelogs,
+        options.dryRun || false,
+      );
+    }
+
     console.log('\n🎉 All canary versions published successfully!');
   }
 }
@@ -180,19 +745,35 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'publish-canary',
   describe: 'Publish canary packages to npm',
   builder: (yargs) => {
-    return yargs.option('dry-run', {
-      type: 'boolean',
-      default: false,
-      description: 'Run in dry-run mode without publishing',
-    });
+    return yargs
+      .option('dry-run', {
+        type: 'boolean',
+        default: false,
+        description: 'Run in dry-run mode without publishing',
+      })
+      .option('github-release', {
+        type: 'boolean',
+        default: false,
+        description: 'Create GitHub releases for published packages',
+      })
+      .option('changelog-from', {
+        type: 'string',
+        default: 'both',
+        choices: ['both', 'gitcli', 'github'],
+        description: 'Source for changelog generation',
+      });
   },
   handler: async (argv) => {
-    const { dryRun = false } = argv;
+    const { dryRun = false, githubRelease = false, changelogFrom = 'both' } = argv;
 
     const options = { dryRun };
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
+    }
+
+    if (githubRelease) {
+      console.log('📝 GitHub releases will be created for published packages\n');
     }
 
     // Always get all packages first
@@ -216,7 +797,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
       : allPackages;
 
-    console.log(`📋 Found ${packages.length} packages that need canary publishing:`);
+    console.log(`📋 Found ${packages.length} packages(s) for canary publishing:`);
     packages.forEach((pkg) => {
       console.log(`   • ${pkg.name}@${pkg.version}`);
     });
@@ -235,7 +816,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       packageVersionInfo.set(packageName, versionInfo);
     }
 
-    await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
+    await publishCanaryVersions(
+      packages,
+      allPackages,
+      packageVersionInfo,
+      options,
+      githubRelease,
+      canaryTag,
+      changelogFrom,
+    );
 
     console.log('\n🏁 Publishing complete!');
   },
