@@ -150,8 +150,8 @@ async function getMergedPRsSinceTag(owner, repo, sinceTag) {
 
       const labels = pr.labels.map((label) => (typeof label === 'string' ? label : label.name));
 
-      // Skip PRs that have only one label and that label is 'dependency'
-      if (labels.length === 1 && labels[0].toLowerCase() === 'dependency') {
+      // Skip PRs by Renovate that only update dependencies
+      if (labels.length === 1 && labels[0].toLowerCase() === 'dependencies') {
         continue;
       }
 
