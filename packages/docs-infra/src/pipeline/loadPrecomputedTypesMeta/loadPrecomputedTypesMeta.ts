@@ -441,12 +441,6 @@ export async function loadPrecomputedTypesMeta(
           );
           currentMark = parsedFromProgramMark;
 
-          fs.writeFile(
-            '/tmp/tsparser-debug-exports.json',
-            JSON.stringify(exports, null, 2),
-            'utf-8',
-          );
-
           const types: TypesMeta[] = await Promise.all(
             exports.map(async (exportNode) => {
               if (isPublicComponent(exportNode)) {
@@ -490,7 +484,7 @@ export async function loadPrecomputedTypesMeta(
           };
         } catch (error) {
           throw new Error(
-            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}\n \n${error && typeof error === 'object' && 'stack' in error && error.stack}`,
+            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}`,
           );
         }
       },
