@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { AnyType } from 'typescript-api-extractor';
-import { Types, useTypes } from '@mui/internal-docs-infra/useTypes';
+import { useTypes } from '@mui/internal-docs-infra/useTypes';
+import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
 import {
   TypesMeta,
   ComponentTypeMeta,
@@ -8,7 +9,7 @@ import {
 } from '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta';
 import styles from './TypesTable.module.css';
 
-export type TypesTableProps = Types & {};
+export type TypesTableProps = TypesContentProps<{}>;
 
 export function TypeDoc(props: {
   type: AnyType;
