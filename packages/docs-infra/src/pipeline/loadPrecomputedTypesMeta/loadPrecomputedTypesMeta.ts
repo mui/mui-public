@@ -221,9 +221,11 @@ export async function loadPrecomputedTypesMeta(
                   replacedPath = replacedPath.replace(`$${i}`, pathMatch[i]);
                 }
                 if (replacedPath.startsWith('.')) {
+                  let basePath = String(config.options.pathsBasePath || projectRoot);
+                  basePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
                   relativeVariants[variantName] = new URL(
                     replacedPath,
-                    `file://${config.options.pathsBasePath || projectRoot}`,
+                    `file://${basePath}`,
                   ).pathname;
                 } else {
                   externalVariants[variantName] = replacedPath;
