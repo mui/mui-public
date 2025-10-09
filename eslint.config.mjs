@@ -10,7 +10,7 @@ import nPlugin from 'eslint-plugin-n';
 export default defineConfig(
   createBaseConfig({ baseDirectory: import.meta.dirname }),
   {
-    files: [`**/*.${EXTENSION_TS}`],
+    files: [`**/*${EXTENSION_TS}`],
     plugins: {
       n: nPlugin,
     },
@@ -35,24 +35,24 @@ export default defineConfig(
   {
     files: [
       // matching the pattern of the test runner
-      `**/*.${EXTENSION_TEST_FILE}`,
+      `**/*${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig(),
   },
   {
-    files: [`apps/**/*.${EXTENSION_TS}`],
+    files: [`apps/**/*${EXTENSION_TS}`],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {
-    files: [`packages/babel-*/**/*.${EXTENSION_TS}`],
+    files: [`packages/babel-*/**/*${EXTENSION_TS}`],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
   },
   {
-    files: [`packages/bundle-size-checker/**/*.${EXTENSION_TS}`],
+    files: [`packages/bundle-size-checker/**/*${EXTENSION_TS}`],
     rules: {
       // Allow .js file extensions in import statements for ESM compatibility
       'import/extensions': [
