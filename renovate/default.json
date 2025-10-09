@@ -107,6 +107,11 @@
     {
       "matchPackageNames": ["eslint-config-prettier"],
       "allowedVersions": ">=10.1.8"
+    },
+    {
+      "groupName": "globby",
+      "description": "Fix issue in X where globby is both a dependency and a devdependency",
+      "matchSourceUrls": ["https://github.com/sindresorhus/globby"]
     }
   ]
 }
