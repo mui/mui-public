@@ -37,10 +37,14 @@
     {
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
-      "followTag": "canary",
       "schedule": null,
       "additionalReviewers": ["mui/infra"],
       "minimumReleaseAge": null
+    },
+    {
+      "matchPackageNames": ["@mui/internal-*"],
+      "matchCurrentVersion": "/-canary\\./",
+      "followTag": "canary"
     },
     {
       "groupName": "GitHub Actions",
