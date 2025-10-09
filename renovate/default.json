@@ -42,8 +42,7 @@
       "minimumReleaseAge": null
     },
     {
-      "matchPackageNames": ["@mui/internal-*"],
-      "matchCurrentVersion": "/-canary\\./",
+      "matchSourceUrls": ["github.com/mui/mui-public"],
       "followTag": "canary"
     },
     {
