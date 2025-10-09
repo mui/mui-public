@@ -46,45 +46,15 @@ export function parseReExports(
       return;
     }
 
-    const declaration = declarations[0];
-
-    // Check if it's an ExportSpecifier (like `export { X as Y } from './file'`)
-    if (ts.isExportSpecifier(declaration)) {
-      const exportDecl = declaration.parent.parent;
-
-      if (ts.isExportDeclaration(exportDecl) && exportDecl.moduleSpecifier) {
-        const moduleSpecifier = exportDecl.moduleSpecifier;
-
-        if (ts.isStringLiteral(moduleSpecifier)) {
-          // Resolve the imported module to get its source file
-          const resolvedModule = checker.getSymbolAtLocation(moduleSpecifier);
-          const importedSourceFile = resolvedModule?.declarations?.[0]?.getSourceFile();
-
-          if (importedSourceFile) {
-            // Get the original name (before 'as') and the exported name (after 'as' or same if no alias)
-            const originalName = declaration.propertyName?.getText() || declaration.name.getText();
-            const exportedName = symbol.name;
-
-            // Find or create the reExportInfo for this source file
-            let reExportInfo = reExportInfos.find((info) => info.sourceFile === importedSourceFile);
-            if (!reExportInfo) {
-              reExportInfo = {
-                sourceFile: importedSourceFile,
-                aliasMap: new Map(),
-              };
-              reExportInfos.push(reExportInfo);
-            }
-
-            // Store the alias mapping
-            reExportInfo.aliasMap.set(originalName, exportedName);
-          }
-        }
-      }
-    }
+    // Look for a NamespaceExport in any of the declarations
+    const namespaceExportDecl = declarations.find((d) => ts.isNamespaceExport(d));
+    const exportSpecifierDecl = declarations.find((d) => ts.isExportSpecifier(d));
 
     // Check if it's a NamespaceExport (like `export * as Component from './index.parts'`)
-    if (ts.isNamespaceExport(declaration)) {
-      const exportDecl = declaration.parent;
+    // This should be checked FIRST because TypeScript creates synthetic ExportSpecifiers
+    // for namespace exports, which don't have a moduleSpecifier
+    if (namespaceExportDecl) {
+      const exportDecl = namespaceExportDecl.parent;
 
       if (ts.isExportDeclaration(exportDecl) && exportDecl.moduleSpecifier) {
         const moduleSpecifier = exportDecl.moduleSpecifier;
@@ -102,6 +72,62 @@ export function parseReExports(
               sourceFile: importedSourceFile,
               aliasMap: new Map(),
               namespaceName,
+            });
+          }
+        }
+      }
+    }
+    // Check if it's an ExportSpecifier (like `export { X as Y } from './file'`)
+    // Note: NamespaceExports create synthetic ExportSpecifiers, so we check NamespaceExport first
+    else if (exportSpecifierDecl) {
+      const exportDecl = exportSpecifierDecl.parent.parent;
+      if (ts.isExportDeclaration(exportDecl) && exportDecl.moduleSpecifier) {
+        const moduleSpecifier = exportDecl.moduleSpecifier;
+
+        if (ts.isStringLiteral(moduleSpecifier)) {
+          // Resolve the imported module to get its source file
+          const resolvedModule = checker.getSymbolAtLocation(moduleSpecifier);
+          const importedSourceFile = resolvedModule?.declarations?.[0]?.getSourceFile();
+
+          if (importedSourceFile) {
+            // Get the original name (before 'as') and the exported name (after 'as' or same if no alias)
+            const originalName =
+              exportSpecifierDecl.propertyName?.getText() || exportSpecifierDecl.name.getText();
+            const exportedName = symbol.name;
+
+            // Find or create the reExportInfo for this source file
+            let reExportInfo = reExportInfos.find((info) => info.sourceFile === importedSourceFile);
+            if (!reExportInfo) {
+              reExportInfo = {
+                sourceFile: importedSourceFile,
+                aliasMap: new Map(),
+              };
+              reExportInfos.push(reExportInfo);
+            }
+
+            // Store the alias mapping
+            reExportInfo.aliasMap.set(originalName, exportedName);
+          }
+        }
+      } else {
+        // When we have an ExportSpecifier without a moduleSpecifier, it could be from:
+        // 1. A transformed namespace export (export * as X) compiled to JS
+        // 2. A regular export from the same file
+        // We need to trace the symbol to find its actual source
+
+        // Try to find the actual source by looking at the aliased symbol
+        const aliasedSymbol = checker.getAliasedSymbol(symbol);
+        if (aliasedSymbol && aliasedSymbol !== symbol) {
+          const aliasedDeclarations = aliasedSymbol.declarations;
+          if (aliasedDeclarations && aliasedDeclarations.length > 0) {
+            const aliasedSourceFile = aliasedDeclarations[0].getSourceFile();
+
+            // This is likely a namespace import that was re-exported
+            // We should process the aliased source file
+            reExportInfos.push({
+              sourceFile: aliasedSourceFile,
+              aliasMap: new Map(),
+              namespaceName: symbol.name,
             });
           }
         }

@@ -388,7 +388,16 @@ export async function loadPrecomputedTypesMeta(
           let { exports } = parsed;
 
           let namespaces: string[] = [];
-          if (exports.length === 0) {
+          const exportName = typesMetaCall.namedExports?.[variantName];
+          if (exportName) {
+            namespaces.push(exportName);
+          }
+
+          const emptyNamespaceExport =
+            exports.length === 1 &&
+            exports[0].type.kind === 'object' &&
+            exports[0].type.properties.length === 0;
+          if (emptyNamespaceExport || exports.length === 0) {
             const reExportResults = parseReExports(sourceFile, checker, program, parserOptions);
             namespaces = reExportResults.map((result) => result.name).filter(Boolean);
             if (reExportResults && reExportResults.length > 0) {
