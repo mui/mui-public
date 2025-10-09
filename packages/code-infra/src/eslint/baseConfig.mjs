@@ -57,6 +57,27 @@ export function createBaseConfig({
           },
           extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
         },
+        // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
+        //   * Creates non-portable types in base ui. [1]
+        //   * This pattern [2] leads to broken bundling in codesandbox [3].
+        // Gauging the ecosystem it also looks like support for namespaces in tooling is poor and tends to
+        // be treated as a deprecated feature.
+        // [1] https://github.com/mui/base-ui/pull/2324
+        // [2] https://github.com/mui/mui-x/blob/1cf853ed45cf301211ece1c0ca21981ea208edfb/packages/x-virtualizer/src/models/core.ts#L4-L10
+        // [3] https://codesandbox.io/embed/kgylpd?module=/src/Demo.tsx&fontsize=12
+        {
+          rules: {
+            '@typescript-eslint/no-namespace': 'error',
+          },
+        },
+        // Part of the migration away from airbnb config. Turned of initially.
+        {
+          rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-unsafe-function-type': 'off',
+            '@typescript-eslint/no-empty-object-type': 'off',
+          },
+        },
       ]),
     },
     {
@@ -70,27 +91,6 @@ export function createBaseConfig({
             mjs: 'always',
           },
         ],
-      },
-    },
-    // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
-    //   * Creates non-portable types in base ui. [1]
-    //   * This pattern [2] leads to broken bundling in codesandbox [3].
-    // Gauging the ecosystem it also looks like support for namespaces in tooling is poor and tends to
-    // be treated as a deprecated feature.
-    // [1] https://github.com/mui/base-ui/pull/2324
-    // [2] https://github.com/mui/mui-x/blob/1cf853ed45cf301211ece1c0ca21981ea208edfb/packages/x-virtualizer/src/models/core.ts#L4-L10
-    // [3] https://codesandbox.io/embed/kgylpd?module=/src/Demo.tsx&fontsize=12
-    {
-      rules: {
-        '@typescript-eslint/no-namespace': 'error',
-      },
-    },
-    // Part of the migration away from airbnb config. Turned of initially.
-    {
-      rules: {
-        '@typescript-eslint/no-explicit-any': 'off',
-        '@typescript-eslint/no-unsafe-function-type': 'off',
-        '@typescript-eslint/no-empty-object-type': 'off',
       },
     },
   ]);
