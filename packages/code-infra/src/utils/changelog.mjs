@@ -49,25 +49,14 @@ export async function findLatestTaggedVersion(opts) {
  * Fetches commits between two refs (lastRelease..release) including PR details.
  * Automatically handles GitHub OAuth authentication if none provided.
  *
- * @overload
- * @param {FetchCommitsOptions & {token: string}} opts
- * @returns {Promise<FetchedCommitDetails[]>}
- *
- * @overload
- * @param {FetchCommitsOptions & {octokit: OctokitType}} opts
- * @returns {Promise<FetchedCommitDetails[]>}
- *
- * @param {FetchCommitsOptions & ({token: string} | {octokit: OctokitType})} opts
+ * @param {FetchCommitsOptions & {octokit?: OctokitType}} opts
  * @returns {Promise<FetchedCommitDetails[]>}
  */
 export async function fetchCommitsBetweenRefs(opts) {
   const octokit =
-    // eslint-disable-next-line no-nested-ternary
     'octokit' in opts && opts.octokit
       ? opts.octokit
-      : 'token' in opts && opts.token
-        ? new Octokit({ auth: opts.token })
-        : new Octokit({ authStrategy: persistentAuthStrategy });
+      : new Octokit({ authStrategy: persistentAuthStrategy });
 
   return fetchCommitsRest({
     octokit,
