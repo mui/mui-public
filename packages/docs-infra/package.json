@@ -1,8 +1,38 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
+  "exports": {
+    "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
+    "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
+    "./CodeControllerContext": "./src/CodeControllerContext/index.ts",
+    "./CodeExternalsContext": "./src/CodeExternalsContext/index.ts",
+    "./CodeHighlighter": "./src/CodeHighlighter/index.ts",
+    "./CodeHighlighter/types": "./src/CodeHighlighter/types.ts",
+    "./CodeHighlighter/errors": "./src/CodeHighlighter/errors.ts",
+    "./CodeProvider": "./src/CodeProvider/index.ts",
+    "./createDemoData": "./src/createDemoData/index.ts",
+    "./createDemoData/types": "./src/createDemoData/types.ts",
+    "./useCode": "./src/useCode/index.ts",
+    "./useCopier": "./src/useCopier/index.ts",
+    "./useDemo": "./src/useDemo/index.ts",
+    "./useErrors": "./src/useErrors/index.ts",
+    "./useLocalStorageState": "./src/useLocalStorageState/index.ts",
+    "./usePreference": "./src/usePreference/index.ts",
+    "./useUrlHashState": "./src/useUrlHashState/index.ts",
+    "./withDocsInfra": "./src/withDocsInfra/index.ts",
+    "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
+    "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
+    "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
+    "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
+    "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
+    "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
+    "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
+    "./pipeline/transformHtmlCodePrecomputed": "./src/pipeline/transformHtmlCodePrecomputed/index.ts",
+    "./pipeline/transformMarkdownCode": "./src/pipeline/transformMarkdownCode/index.ts",
+    "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts"
+  },
   "keywords": [
     "react",
     "react-component",
@@ -22,23 +52,44 @@
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
     "build": "code-infra build --bundle esm",
-    "test": "exit 0",
+    "release": "pnpm build && pnpm publish --no-git-checks",
+    "test": "pnpm -w test --project @mui/internal-docs-infra",
+    "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
+    "test:coverage": "pnpm -w test --project @mui/internal-docs-infra --coverage --coverage.include=packages/docs-infra --coverage.exclude=packages/docs-infra/build --coverage.exclude=packages/docs-infra/scripts",
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
-    "@types/hast": "^3.0.4",
+    "@babel/standalone": "^7.28.4",
+    "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
-    "hast": "^1.0.0",
+    "fflate": "^0.8.2",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "hast-util-to-text": "^4.0.2",
-    "kebab-case": "^2.0.2"
+    "jsondiffpatch": "^0.7.3",
+    "kebab-case": "^2.0.2",
+    "lz-string": "^1.5.0",
+    "path-module": "^0.1.2",
+    "prettier": "^3.6.2",
+    "uint8-to-base64": "^0.2.1",
+    "unist-util-visit": "^5.0.0",
+    "vscode-oniguruma": "^2.0.1"
   },
   "devDependencies": {
-    "@types/node": "^22.18.6",
-    "@types/react": "^19.1.13",
-    "csstype": "^3.1.3",
-    "react": "^19.1.1"
+    "@testing-library/react": "^16.3.0",
+    "@types/babel__standalone": "^7.1.9",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^24.6.2",
+    "@types/react": "^19.2.0",
+    "@types/webpack": "^5.28.5",
+    "react": "^19.2.0",
+    "rehype-parse": "^9.0.1",
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "unified": "^11.0.5"
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
@@ -55,9 +106,6 @@
     "directory": "build"
   },
   "engines": {
-    "node": ">=14.0.0"
-  },
-  "exports": {
-    "./*": "./src/*/index.ts"
+    "node": ">=22.12.0"
   }
 }

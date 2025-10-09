@@ -29,6 +29,8 @@ export default defineConfig(async () => {
       { id: '@base-ui-components/react', track: true, expand: true },
       '@base-ui-components/react/checkbox#Checkbox',
       '@mui/x-charts-pro/BarChartPro',
+      '@mui/x-charts-pro',
+      '@mui/internal-docs-infra/useDemo',
     ],
     upload: !!process.env.CI,
     comment: true,
