@@ -42,7 +42,7 @@
       "minimumReleaseAge": null
     },
     {
-      "matchSourceUrls": ["github.com/mui/mui-public"],
+      "matchSourceUrls": ["https://github.com/mui/mui-public"],
       "followTag": "canary"
     },
     {
