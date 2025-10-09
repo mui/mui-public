@@ -55,7 +55,7 @@ export function createBaseConfig({
           plugins: {
             'material-ui': muiPlugin,
           },
-          extends: createCoreConfig({ reactCompilerEnabled: enableReactCompiler }),
+          extends: createCoreConfig({ enableReactCompiler }),
         },
         // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
         //   * Creates non-portable types in base ui. [1]
@@ -70,7 +70,7 @@ export function createBaseConfig({
             '@typescript-eslint/no-namespace': 'error',
           },
         },
-        // Part of the migration away from airbnb config. Turned of initially.
+        // Part of the migration away from airbnb config. Turned off initially.
         {
           rules: {
             '@typescript-eslint/no-explicit-any': 'off',

@@ -3,12 +3,13 @@ import testingLibrary from 'eslint-plugin-testing-library';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
+import { EXTENSION_TS } from './extensions.mjs';
 
 /**
  * @type {import('eslint').Linter.Config}
  */
 export const baseSpecRules = {
-  files: ['**/*.spec.*'],
+  files: [`**/*.spec${EXTENSION_TS}`],
   rules: {
     'no-alert': 'off',
     'no-console': 'off',
