@@ -43,6 +43,7 @@
     },
     {
       "matchSourceUrls": ["https://github.com/mui/mui-public"],
+      "matchDatasources": ["npm"],
       "followTag": "canary"
     },
     {
