@@ -30,7 +30,7 @@ export function createBaseConfig({
     createJsonConfig(),
     prettier,
     {
-      files: [`**/*.${EXTENSION_TS}`],
+      files: [`**/*${EXTENSION_TS}`],
       extends: defineConfig([
         eslintJs.configs.recommended,
         importPlugin.flatConfigs.recommended,
