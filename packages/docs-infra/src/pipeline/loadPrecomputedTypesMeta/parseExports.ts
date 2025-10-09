@@ -13,7 +13,7 @@ export type ParsedReExports = {
   exports: ExportNode[];
 };
 
-export function parseReExports(
+export function parseExports(
   sourceFile: SourceFile,
   checker: TypeChecker,
   program: Program,
@@ -138,7 +138,7 @@ export function parseReExports(
   // If there are re-exports, recursively process them
   if (reExportInfos.length > 0) {
     for (const reExportInfo of reExportInfos) {
-      const recursiveResults = parseReExports(
+      const recursiveResults = parseExports(
         reExportInfo.sourceFile,
         checker,
         program,

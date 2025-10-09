@@ -26,7 +26,7 @@ import {
 } from './formatComponent';
 import { formatHookData, HookTypeMeta as HookType, isPublicHook } from './formatHook';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
-import { parseReExports } from './parseReExports';
+import { parseExports } from './parseExports';
 import { findMetaFiles } from './findMetaFiles';
 
 export type LoaderOptions = {
@@ -383,28 +383,19 @@ export async function loadPrecomputedTypesMeta(
             );
           }
 
-          // Pass parser options with proper configuration
-          const parsed = parseFromProgram(entrypoint, program, parserOptions);
-          let { exports } = parsed;
-
           let namespaces: string[] = [];
           const exportName = typesMetaCall.namedExports?.[variantName];
           if (exportName) {
             namespaces.push(exportName);
           }
 
-          const emptyNamespaceExport =
-            exports.length === 1 &&
-            exports[0].type.kind === 'object' &&
-            exports[0].type.properties.length === 0;
-          if (emptyNamespaceExport || exports.length === 0) {
-            const reExportResults = parseReExports(sourceFile, checker, program, parserOptions);
+          const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
+          if (reExportResults && reExportResults.length > 0) {
             namespaces = reExportResults.map((result) => result.name).filter(Boolean);
-            if (reExportResults && reExportResults.length > 0) {
-              // Flatten all exports from the re-export results
-              exports = reExportResults.flatMap((result) => result.exports);
-            }
           }
+
+          // Flatten all exports from the re-export results
+          const exports = reExportResults.flatMap((result) => result.exports);
 
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...config.dependencies, entrypoint];
