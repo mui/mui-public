@@ -166,8 +166,8 @@ function generateChangelogFromCommits(packageName, commits) {
 
   // Generate changelog content - remove the package labels from the title
   const changelogLines = relevantCommits.map((commit) => {
-    // Check if title contains [breaking] (case-insensitive)
-    const isBreaking = /\[breaking\]/i.test(commit.title);
+    // Check if title contains [breaking|breaking-change|breaking change] (case-insensitive)
+    const isBreaking = /\[(breaking(\s|-)?(change)?)\]/i.test(commit.title);
 
     // Remove all [package] labels from the title
     const cleanTitle = commit.title.replace(/\[[^\]]+\]\s*/g, '').trim();
@@ -300,9 +300,11 @@ function generateChangelogForPackage(packageName, allPRs) {
   // Generate changelog content
   const changelogLines = relevantPRs.map((pr) => {
     // Check if PR has 'breaking' label (case-insensitive)
-    const hasBreakingLabel = pr.labels.some((label) => label.toLowerCase() === 'breaking');
+    const hasBreakingLabel = pr.labels.some((label) =>
+      ['breaking', 'breaking change', 'breaking-change'].includes(label.toLowerCase()),
+    );
     // Check if title contains [breaking] (case-insensitive)
-    const hasBreakingInTitle = /\[breaking\]/i.test(pr.title);
+    const hasBreakingInTitle = /\[(breaking(?:\s|-)?(?:change)?)\]/i.test(pr.title);
     const isBreaking = hasBreakingLabel || hasBreakingInTitle;
 
     // Add "Breaking: " prefix if breaking change
@@ -489,7 +491,7 @@ async function createGitHubReleasesForPackages(
         continue;
       }
       const changelog = changelogs.get(pkg.name);
-      const tagName = `${pkg.name}@${version}${changelog ? ' (with changelog) :' : ' (no changelog)'}`;
+      const tagName = `${pkg.name}@${version}${changelog ? ' (with changelog):' : ' (no changelog)'}`;
       console.log(`   • ${tagName}`);
       if (changelog) {
         // Draw changelog in an ASCII rectangle
