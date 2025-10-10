@@ -53,10 +53,10 @@ export function useVariantSelection({
   // Initialize state - will be updated by effect if localStorage should be used
   const [selectedVariantKey, setSelectedVariantKeyState] = React.useState(() => {
     // Use initial variant if provided and valid
+    // (localStorage will be applied in an effect if no relevant hash exists)
     if (initialVariant && variantKeys.includes(initialVariant)) {
       return initialVariant;
     }
-
     // Final fallback: use first available variant
     return variantKeys[0] || '';
   });
@@ -135,7 +135,7 @@ export function useVariantSelection({
       // Use programmatic setter to avoid localStorage save
       setSelectedVariantKeyProgrammatic(variantKeys[0]);
     }
-  }, [selectedVariant, variantKeys, setSelectedVariantKeyProgrammatic]);
+  }, [selectedVariant, variantKeys, setSelectedVariantKeyProgrammatic, selectedVariantKey]);
 
   return {
     variantKeys,
