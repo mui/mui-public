@@ -43,6 +43,7 @@ export function createBaseConfig({
     createJsonConfig(),
     prettier,
     {
+      name: 'Base config',
       files: [`**/*${EXTENSION_TS}`],
       extends: defineConfig([
         eslintJs.configs.recommended,
@@ -94,6 +95,7 @@ export function createBaseConfig({
       ]),
     },
     {
+      name: 'ESM JS files',
       files: ['**/*.mjs'],
       rules: {
         'import/extensions': [

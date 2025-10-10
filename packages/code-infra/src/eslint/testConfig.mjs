@@ -9,6 +9,7 @@ import { EXTENSION_TS } from './extensions.mjs';
  * @type {import('eslint').Linter.Config}
  */
 export const baseSpecRules = {
+  name: 'Spec files rules',
   files: [`**/*.spec${EXTENSION_TS}`],
   rules: {
     'no-alert': 'off',
@@ -52,6 +53,7 @@ export function createTestConfig(options = {}) {
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
+      name: 'Test files',
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: {
