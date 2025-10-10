@@ -62,6 +62,7 @@
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/compat": "^1.4.0",
     "@eslint/js": "^9.36.0",
+    "@eslint/json": "^0.13.2",
     "@inquirer/confirm": "^5.1.18",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",

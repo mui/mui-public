@@ -1,6 +1,4 @@
 import { defineConfig } from 'eslint/config';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   createBaseConfig,
   createTestConfig,
@@ -9,15 +7,10 @@ import {
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
 
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
-
 export default defineConfig(
+  createBaseConfig({ baseDirectory: import.meta.dirname }),
   {
-    name: 'Base config',
-    extends: createBaseConfig({
-      baseDirectory: dirname,
-    }),
+    files: [`**/*${EXTENSION_TS}`],
     plugins: {
       n: nPlugin,
     },
@@ -47,19 +40,19 @@ export default defineConfig(
     extends: createTestConfig(),
   },
   {
-    files: [`apps/**/*.${EXTENSION_TS}`],
+    files: [`apps/**/*${EXTENSION_TS}`],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {
-    files: [`packages/babel-*/**/*.${EXTENSION_TS}`],
+    files: [`packages/babel-*/**/*${EXTENSION_TS}`],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
   },
   {
-    files: ['packages/bundle-size-checker/**/*'],
+    files: [`packages/bundle-size-checker/**/*${EXTENSION_TS}`],
     rules: {
       // Allow .js file extensions in import statements for ESM compatibility
       'import/extensions': [
