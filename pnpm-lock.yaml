@@ -642,6 +642,8 @@ importers:
         version: 11.0.5
     publishDirectory: build
 
+  packages/netlify-cache: {}
+
   test/bundle-size:
     dependencies:
       '@base-ui-components/react':
