@@ -33,9 +33,9 @@ function generateAbsolutePaths({ constants }) {
 /**
  *
  * @param {string} dirPath
- * @returns Promise<boolean> True if the directory exists, false otherwise
+ * @returns {Promise<boolean>} True if the directory exists, false otherwise
  */
-function dirExists(dirPath) {
+async function dirExists(dirPath) {
   return fs
     .stat(dirPath)
     .then((stat) => stat.isDirectory())

@@ -307,7 +307,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('ci', {
         type: 'boolean',
-        default: isCI,
         description:
           'Runs in CI environment. On local environments, it triggers the GitHub publish workflow instead of publishing directly.',
       })
@@ -318,6 +317,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   },
   handler: async (argv) => {
     const { dryRun = false, githubRelease = false, tag = 'latest', sha } = argv;
+
+    if (isCI && !argv.ci) {
+      console.error(
+        chalk.yellow(
+          '❌ Error: CI environment detected but the "--ci" flag was not passed. Pass it explicitly to run in CI.',
+        ),
+      );
+      return;
+    }
+    argv.ci = argv.ci ?? isCI;
 
     if (argv.ci && sha) {
       throw new Error('The --sha option can only be used in non-CI environments');
@@ -511,6 +520,7 @@ async function determineGitSha(octokit, repoInfo) {
     message: 'Select the commit to release from:',
     choices: relevantData,
     default: relevantData[0].value,
+    pageSize: 10,
   });
   return result;
 }
