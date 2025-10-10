@@ -79,7 +79,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .map((pkg) => `https://www.npmjs.com/package/${pkg.name}/access`)
       .join('\n');
     console.log(`
-📝 Please ensure that the ${chalk.underline(chalk.bold('Trusted Publishers'))} settings are configured for the new packages:
+📝 Please ensure that the ${chalk.underline(chalk.bold('Trusted Publishers'))} settings are configured for the new package(s):
 ${trustedPublisherLinks}
 Read how to do that here - https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`);
   },
