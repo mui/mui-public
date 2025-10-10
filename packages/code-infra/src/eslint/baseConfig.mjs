@@ -10,10 +10,22 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
+import fs from 'node:fs';
 import { createCoreConfig } from './material-ui/config.mjs';
 import muiPlugin from './material-ui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
+
+/**
+ * @param {string} filePath
+ * @param {string | undefined} description
+ */
+function includeIgnoreIfExists(filePath, description) {
+  if (fs.existsSync(filePath)) {
+    return includeIgnoreFile(filePath, description);
+  }
+  return [];
+}
 
 /**
  * @param {Object} [params]
@@ -26,7 +38,8 @@ export function createBaseConfig({
   baseDirectory = process.cwd(),
 } = {}) {
   return defineConfig([
-    includeIgnoreFile(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
+    includeIgnoreIfExists(path.join(baseDirectory, '.gitignore'), `Ignore rules from .gitignore`),
+    includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
     prettier,
     {
