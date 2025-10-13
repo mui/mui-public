@@ -1,6 +1,6 @@
 # Renovate
 
-The `packageRules` is a hard to understand beast. In this READMNE we'll document all of our findings on how to do effective grouping of packages.
+The `packageRules` is a hard to understand beast. In this README we'll document all of our findings on how to do effective grouping of packages.
 
 ## How does it work
 

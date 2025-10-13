@@ -9,6 +9,13 @@
     "helpers:pinGitHubActionDigests",
     "npm:unpublishSafe"
   ],
+  "ignorePresets": [":ignoreModulesAndTests"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/__fixtures__/**"
+  ],
   "automerge": false,
   "commitMessageAction": "Bump",
   "commitMessageExtra": "to {{newValue}}",
