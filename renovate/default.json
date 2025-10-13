@@ -5,17 +5,7 @@
     "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
     "group:definitelyTyped",
-
-    // From config:recommended:
-    ":dependencyDashboard",
-    ":semanticPrefixFixDepsChoreOthers",
-    // ":ignoreModulesAndTests" (removed as it is way too eager)
-    "group:monorepos",
-    "group:recommended",
-    "mergeConfidence:age-confidence-badges",
-    "replacements:all",
-    "workarounds:all",
-
+    "config:recommended",
     "helpers:pinGitHubActionDigests",
     "npm:unpublishSafe"
   ],
@@ -35,6 +25,15 @@
   "rangeStrategy": "bump",
   "timezone": "UTC",
   "internalChecksFilter": "strict",
+  "ignorePaths": [
+    // adjusted from :ignoreModulesAndTests preset
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/__fixtures__/**"
+  ],
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
