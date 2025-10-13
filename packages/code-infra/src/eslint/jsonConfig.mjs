@@ -17,7 +17,13 @@ export function createJsonConfig() {
 
     {
       name: 'JSONC files',
-      files: ['**/*.jsonc', '**/tsconfig.json', '**/tsconfig.*.json', '.vscode/**/*.json'],
+      files: [
+        '**/*.jsonc',
+        '**/tsconfig.json',
+        '**/tsconfig.*.json',
+        '.vscode/**/*.json',
+        'renovate.json',
+      ],
       plugins: { json },
       language: 'json/jsonc',
       extends: [json.configs.recommended],

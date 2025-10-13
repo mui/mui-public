@@ -1,3 +1,7 @@
 {
-  "eslint.useFlatConfig": true
+  "eslint.useFlatConfig": true,
+  "files.associations": {
+    "renovate.json": "jsonc",
+    "renovate/**/*.json": "jsonc"
+  }
 }
