@@ -28,7 +28,6 @@
   "ignorePaths": [
     // adjusted from :ignoreModulesAndTests preset
     "**/node_modules/**",
-    "**/bower_components/**",
     "**/examples/**",
     "**/__tests__/**",
     "**/__fixtures__/**"
