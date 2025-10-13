@@ -614,8 +614,8 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
       '@types/node':
-        specifier: ^24.7.1
-        version: 24.7.2
+        specifier: ^22.18.9
+        version: 22.18.10
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.2
@@ -18610,7 +18610,7 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/braces@3.0.5': {}
 
@@ -18620,23 +18620,23 @@ snapshots:
 
   '@types/clean-css@4.2.11':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       source-map: 0.6.1
 
   '@types/connect-history-api-fallback@1.5.4':
     dependencies:
       '@types/express-serve-static-core': 5.0.7
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/cookie@0.6.0': {}
 
   '@types/cors@2.8.17':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/d3-color@3.1.3': {}
 
@@ -18705,11 +18705,11 @@ snapshots:
 
   '@types/etag@1.8.4':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/express-serve-static-core@5.0.7':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       '@types/qs': 6.14.0
       '@types/range-parser': 1.2.7
       '@types/send': 0.17.5
@@ -18722,7 +18722,7 @@ snapshots:
 
   '@types/find-package-json@1.2.6':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/format-util@1.0.4': {}
 
@@ -18750,7 +18750,7 @@ snapshots:
 
   '@types/http-proxy@1.17.16':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/json-schema@7.0.15': {}
 
@@ -18789,6 +18789,7 @@ snapshots:
   '@types/node@24.7.2':
     dependencies:
       undici-types: 7.14.0
+    optional: true
 
   '@types/normalize-package-data@2.4.4': {}
 
@@ -18811,7 +18812,7 @@ snapshots:
       '@types/eslint': eslint@9.36.0(jiti@2.5.1)
       '@types/express': 5.0.3
       '@types/html-webpack-plugin': 3.2.9
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       '@types/webpack': 4.41.40
       '@types/webpack-dev-server': 3.11.6
     transitivePeerDependencies:
@@ -18844,12 +18845,12 @@ snapshots:
   '@types/send@0.17.5':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
 
   '@types/serve-static@1.15.8':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       '@types/send': 0.17.5
 
   '@types/source-list-map@0.1.6': {}
@@ -18882,13 +18883,13 @@ snapshots:
 
   '@types/webpack-sources@3.2.3':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       '@types/source-list-map': 0.1.6
       source-map: 0.7.6
 
   '@types/webpack@4.41.40':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       '@types/tapable': 1.0.12
       '@types/uglify-js': 3.17.5
       '@types/webpack-sources': 3.2.3
@@ -18897,7 +18898,7 @@ snapshots:
 
   '@types/webpack@5.28.5(jiti@2.5.1)':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       tapable: 2.2.3
       webpack: 5.101.3(jiti@2.5.1)
     transitivePeerDependencies:
@@ -18916,7 +18917,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
     optional: true
 
   '@typescript-eslint/eslint-plugin@8.45.0(@typescript-eslint/parser@8.45.0(eslint@9.36.0(jiti@2.5.1))(typescript@5.9.3))(eslint@9.36.0(jiti@2.5.1))(typescript@5.9.3)':
@@ -23115,7 +23116,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 24.7.2
+      '@types/node': 22.18.10
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -26952,7 +26953,8 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici-types@7.14.0: {}
+  undici-types@7.14.0:
+    optional: true
 
   undici@5.29.0:
     dependencies:
