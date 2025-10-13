@@ -25,13 +25,8 @@
   "rangeStrategy": "bump",
   "timezone": "UTC",
   "internalChecksFilter": "strict",
-  "ignorePaths": [
-    // adjusted from :ignoreModulesAndTests preset
-    "**/node_modules/**",
-    "**/examples/**",
-    "**/__tests__/**",
-    "**/__fixtures__/**"
-  ],
+  "ignorePresets": [":ignoreModulesAndTests"],
+  "ignorePaths": ["**/node_modules/**", "**/examples/**", "**/__tests__/**", "**/__fixtures__/**"],
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
