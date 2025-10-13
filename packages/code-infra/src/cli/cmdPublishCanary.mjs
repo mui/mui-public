@@ -28,7 +28,6 @@ import {
  * @typedef {Object} Args
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
- * @property {string} [changelogFrom] - Source for changelog generation: 'both', 'gitcli', or 'github'
  */
 
 const CANARY_TAG = 'canary';
@@ -83,134 +82,30 @@ function extractPackageNameForLabel(npmPackageName) {
 }
 
 /**
- * Extract package names from commit title
- * @param {string} title - Commit title (e.g., "[code-infra][docs-infra] Commit message")
- * @returns {string[]} Array of package names
- */
-function extractPackageNamesFromCommitTitle(title) {
-  const matches = title.matchAll(/\[([^\]]+)\]/g);
-  const packageNames = [];
-  for (const match of matches) {
-    packageNames.push(match[1]);
-  }
-  return packageNames;
-}
-
-/**
- * Get commits since a tag using git CLI
- * @param {string|null} sinceTag - Git tag to get commits since
- * @returns {Promise<Array<{title: string, packageNames: string[]}>>} List of commits with extracted package names
- */
-async function getCommitsSinceTag(sinceTag) {
-  const commits = [];
-
-  try {
-    let gitCommand;
-    if (sinceTag) {
-      // Get commits since the tag
-      gitCommand = $`git log ${sinceTag}..HEAD --oneline --no-merges`;
-    } else {
-      // Get recent commits (last 100)
-      gitCommand = $`git log -100 --oneline --no-merges`;
-    }
-
-    for await (const line of gitCommand) {
-      if (!line) {
-        continue;
-      }
-
-      // Format: "hash commit title"
-      const spaceIndex = line.indexOf(' ');
-      if (spaceIndex === -1) {
-        continue;
-      }
-
-      const title = line.substring(spaceIndex + 1);
-
-      // Skip commits starting with "Bump"
-      if (title.startsWith('Bump ')) {
-        continue;
-      }
-
-      const packageNames = extractPackageNamesFromCommitTitle(title);
-
-      // Only include commits with package labels
-      if (packageNames.length > 0) {
-        commits.push({
-          title,
-          packageNames,
-        });
-      }
-    }
-  } catch (error) {
-    console.log('⚠️  Could not fetch commits from git CLI, falling back to GitHub API');
-  }
-
-  return commits;
-}
-
-/**
- * Generate changelog from git commits
- * @param {string} packageName - Package name (e.g., 'code-infra')
- * @param {Array<{title: string, packageNames: string[]}>} commits - List of commits
- * @returns {string} Generated changelog content
- */
-function generateChangelogFromCommits(packageName, commits) {
-  const relevantCommits = commits.filter((commit) =>
-    commit.packageNames.some((name) => name.toLowerCase() === packageName.toLowerCase()),
-  );
-
-  if (relevantCommits.length === 0) {
-    return '';
-  }
-
-  // Generate changelog content - remove the package labels from the title
-  const changelogLines = relevantCommits.map((commit) => {
-    // Check if title contains [breaking|breaking-change|breaking change] (case-insensitive)
-    const isBreaking = /\[(breaking(\s|-)?(change)?)\]/i.test(commit.title);
-
-    // Remove all [package] labels from the title
-    const cleanTitle = commit.title.replace(/\[[^\]]+\]\s*/g, '').trim();
-
-    // Add "Breaking: " prefix if breaking change
-    return isBreaking ? `- Breaking: ${cleanTitle}` : `- ${cleanTitle}`;
-  });
-
-  return changelogLines.join('\n');
-}
-
-/**
  * Get merged PRs since the last canary tag
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string|null} sinceTag - Git tag to get PRs since
  * @returns {Promise<Array<{number: number, title: string, labels: string[], html_url: string, merged_at: string}>>} List of merged PRs
  */
-async function getMergedPRsSinceTag(owner, repo, sinceTag) {
+async function getMergedPRsSinceTag(owner, repo) {
   const octokit = getOctokit();
 
   // Get the commit SHA of the tag if it exists
   let sinceDate = null;
-  if (sinceTag) {
-    try {
-      const { data: refData } = await octokit.git.getRef({
-        owner,
-        repo,
-        ref: `tags/${sinceTag}`,
-      });
-      const tagSha = refData.object.sha;
+  const { data: refData } = await octokit.git.getRef({
+    owner,
+    repo,
+    ref: `tags/${CANARY_TAG}`,
+  });
+  const tagSha = refData.object.sha;
 
-      // Get the commit date
-      const { data: commitData } = await octokit.git.getCommit({
-        owner,
-        repo,
-        commit_sha: tagSha,
-      });
-      sinceDate = commitData.committer.date;
-    } catch (error) {
-      console.log(`⚠️  Could not find tag ${sinceTag}, will fetch all recent PRs`);
-    }
-  }
+  // Get the commit date
+  const { data: commitData } = await octokit.git.getCommit({
+    owner,
+    repo,
+    commit_sha: tagSha,
+  });
+  sinceDate = commitData.committer.date;
 
   // Fetch merged PRs
   const prs = [];
@@ -316,47 +211,15 @@ function generateChangelogForPackage(packageName, allPRs) {
 }
 
 /**
- * Prepare changelog data for packages using git CLI
- * @param {PublicPackage[]} packagesToPublish - Packages that will be published
- * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
- * @param {string|null} sinceTag - Git tag to get commits since
- * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
- */
-async function prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag) {
-  console.log('🔍 Fetching commits from git CLI...');
-  const commits = await getCommitsSinceTag(sinceTag);
-  console.log(`📋 Found ${commits.length} commits with package labels`);
-
-  /**
-   * @type {Map<string, string>}
-   */
-  const changelogs = new Map();
-
-  for (const pkg of packagesToPublish) {
-    const version = canaryVersions.get(pkg.name);
-    if (!version) {
-      continue;
-    }
-
-    const packageLabel = extractPackageNameForLabel(pkg.name);
-    const changelog = generateChangelogFromCommits(packageLabel, commits);
-    changelogs.set(pkg.name, changelog);
-  }
-
-  return changelogs;
-}
-
-/**
  * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
- * @param {string|null} sinceTag - Git tag to get PRs since
  * @param {{owner: string, repo: string}} repoInfo - Repository information
  * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
  */
-async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, sinceTag, repoInfo) {
+async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, repoInfo) {
   console.log('🔍 Fetching merged PRs from GitHub API...');
-  const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo, sinceTag);
+  const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo);
   console.log(`📋 Found ${allPRs.length} merged PRs since last canary tag`);
 
   /**
@@ -382,16 +245,9 @@ async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, si
  * Prepare changelog data for packages
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
- * @param {string|null} sinceTag - Git tag to get PRs since
- * @param {string} changelogFrom - Source for changelog: 'both', 'gitcli', or 'github'
  * @returns {Promise<Map<string, string>>} Map of package names to their changelogs
  */
-async function prepareChangelogsForPackages(
-  packagesToPublish,
-  canaryVersions,
-  sinceTag,
-  changelogFrom = 'both',
-) {
+async function prepareChangelogsForPackages(packagesToPublish, canaryVersions) {
   console.log('\n📝 Preparing changelogs for packages...');
 
   const repoInfo = await getRepositoryInfo();
@@ -402,45 +258,7 @@ async function prepareChangelogsForPackages(
    */
   let changelogs = new Map();
 
-  if (changelogFrom === 'gitcli') {
-    // Use only git CLI
-    changelogs = await prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag);
-  } else if (changelogFrom === 'github') {
-    // Use only GitHub API
-    changelogs = await prepareChangelogsFromGitHub(
-      packagesToPublish,
-      canaryVersions,
-      sinceTag,
-      repoInfo,
-    );
-  } else {
-    // Use both and pick the one with more content
-    const [gitCLIChangelogs, githubChangelogs] = await Promise.all([
-      prepareChangelogsFromGitCLI(packagesToPublish, canaryVersions, sinceTag),
-      prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, sinceTag, repoInfo),
-    ]);
-
-    // Merge, preferring the changelog with more content for each package
-    for (const pkg of packagesToPublish) {
-      const gitCLIChangelog = gitCLIChangelogs.get(pkg.name) || '';
-      const githubChangelog = githubChangelogs.get(pkg.name) || '';
-
-      // Use the one with more content (more lines)
-      const gitCLILines = gitCLIChangelog.split('\n').filter((line) => line.trim()).length;
-      const githubLines = githubChangelog.split('\n').filter((line) => line.trim()).length;
-
-      if (gitCLILines > githubLines) {
-        changelogs.set(pkg.name, gitCLIChangelog);
-        console.log(`📦 ${pkg.name}: Using git CLI changelog (${gitCLILines} entries)`);
-      } else if (githubLines > 0) {
-        changelogs.set(pkg.name, githubChangelog);
-        console.log(`📦 ${pkg.name}: Using GitHub API changelog (${githubLines} entries)`);
-      } else {
-        changelogs.set(pkg.name, gitCLIChangelog || githubChangelog);
-        console.log(`📦 ${pkg.name}: No changes found`);
-      }
-    }
-  }
+  changelogs = await prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, repoInfo);
 
   // Log changelog content for each package
   for (const pkg of packagesToPublish) {
@@ -472,18 +290,18 @@ async function prepareChangelogsForPackages(
  * @param {PublicPackage[]} publishedPackages - Packages that were published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
  * @param {Map<string, string>} changelogs - Map of package names to their changelogs
- * @param {boolean} dryRun - Whether to run in dry-run mode
+ * @param {{dryRun?: boolean}} options - Publishing options
  * @returns {Promise<void>}
  */
 async function createGitHubReleasesForPackages(
   publishedPackages,
   canaryVersions,
   changelogs,
-  dryRun,
+  options,
 ) {
   console.log('\n🚀 Creating GitHub releases and tags for published packages...');
 
-  if (dryRun) {
+  if (options.dryRun) {
     console.log('🧪 Dry-run mode: Would create release(s) and tag(s) for:');
     for (const pkg of publishedPackages) {
       const version = canaryVersions.get(pkg.name);
@@ -521,45 +339,44 @@ async function createGitHubReleasesForPackages(
       continue;
     }
 
-    const changelog = changelogs.get(pkg.name) || 'No changelog available';
+    const changelog = changelogs.get(pkg.name);
+    if (!changelog) {
+      console.log(`⚠️  No changelog found for ${pkg.name}, skipping release creation...`);
+      continue;
+    }
     const tagName = `${pkg.name}@${version}`;
     const releaseName = tagName;
 
     console.log(`\n📦 Processing ${pkg.name}@${version}...`);
 
-    try {
-      // Create git tag
-      // eslint-disable-next-line no-await-in-loop
-      await $({
-        env: {
-          ...process.env,
-          GIT_COMMITTER_NAME: 'Code infra',
-          GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
-        },
-      })`git tag -a ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
+    // Create git tag
+    // eslint-disable-next-line no-await-in-loop
+    await $({
+      env: {
+        ...process.env,
+        GIT_COMMITTER_NAME: 'Code infra',
+        GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
+      },
+    })`git tag -a ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
 
-      // eslint-disable-next-line no-await-in-loop
-      await $`git push origin ${tagName}`;
-      console.log(`✅ Created and pushed git tag: ${tagName}`);
+    // eslint-disable-next-line no-await-in-loop
+    await $`git push origin ${tagName}`;
+    console.log(`✅ Created and pushed git tag: ${tagName}`);
 
-      // Create GitHub release
-      // eslint-disable-next-line no-await-in-loop
-      const res = await octokit.repos.createRelease({
-        owner: repoInfo.owner,
-        repo: repoInfo.repo,
-        tag_name: tagName,
-        target_commitish: gitSha,
-        name: releaseName,
-        body: changelog,
-        draft: false,
-        prerelease: true, // Mark as prerelease since these are canary versions
-      });
+    // Create GitHub release
+    // eslint-disable-next-line no-await-in-loop
+    const res = await octokit.repos.createRelease({
+      owner: repoInfo.owner,
+      repo: repoInfo.repo,
+      tag_name: tagName,
+      target_commitish: gitSha,
+      name: releaseName,
+      body: changelog,
+      draft: false,
+      prerelease: true, // Mark as prerelease since these are canary versions
+    });
 
-      console.log(`✅ Created GitHub release: ${releaseName} at ${res.data.html_url}`);
-    } catch (/** @type {any} */ error) {
-      console.error(`❌ Failed to create release for ${pkg.name}: ${error.message}`);
-      // Continue with other packages even if one fails
-    }
+    console.log(`✅ Created GitHub release: ${releaseName} at ${res.data.html_url}`);
   }
 
   console.log('\n✅ Finished creating GitHub releases');
@@ -607,10 +424,7 @@ async function createCanaryTag(dryRun = false) {
  * @param {PublicPackage[]} packagesToPublish - Packages that need canary publishing
  * @param {PublicPackage[]} allPackages - All workspace packages
  * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
- * @param {PublishOptions} [options={}] - Publishing options
- * @param {boolean} [githubRelease=false] - Whether to create GitHub releases
- * @param {string|null} [sinceTag=null] - Git tag to get PRs since
- * @param {string} [changelogFrom='both'] - Source for changelog: 'both', 'gitcli', or 'github'
+ * @param {PublishOptions & {githubRelease?: boolean}} [options={}] - Publishing options
  * @returns {Promise<void>}
  */
 async function publishCanaryVersions(
@@ -618,9 +432,6 @@ async function publishCanaryVersions(
   allPackages,
   packageVersionInfo,
   options = {},
-  githubRelease = false,
-  sinceTag = null,
-  changelogFrom = 'both',
 ) {
   console.log('\n🔥 Publishing canary versions...');
 
@@ -687,13 +498,8 @@ async function publishCanaryVersions(
 
   // Prepare changelogs before building and publishing (so it can error out early if there are issues)
   let changelogs = new Map();
-  if (githubRelease) {
-    changelogs = await prepareChangelogsForPackages(
-      packagesToPublish,
-      canaryVersions,
-      sinceTag,
-      changelogFrom,
-    );
+  if (options.githubRelease) {
+    changelogs = await prepareChangelogsForPackages(packagesToPublish, canaryVersions);
   }
 
   // Run release build after updating package.json files
@@ -728,13 +534,8 @@ async function publishCanaryVersions(
     await createCanaryTag(options.dryRun);
 
     // Create GitHub releases if requested
-    if (githubRelease) {
-      await createGitHubReleasesForPackages(
-        packagesToPublish,
-        canaryVersions,
-        changelogs,
-        options.dryRun || false,
-      );
+    if (options.githubRelease) {
+      await createGitHubReleasesForPackages(packagesToPublish, canaryVersions, changelogs, options);
     }
 
     console.log('\n🎉 All canary versions published successfully!');
@@ -755,18 +556,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Create GitHub releases for published packages',
-      })
-      .option('changelog-from', {
-        type: 'string',
-        default: 'both',
-        choices: ['both', 'gitcli', 'github'],
-        description: 'Source for changelog generation',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, changelogFrom = 'both' } = argv;
+    const { dryRun = false, githubRelease = false } = argv;
 
-    const options = { dryRun };
+    const options = { dryRun, githubRelease };
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
@@ -788,11 +583,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Check for canary tag to determine selective publishing
     const canaryTag = await getLastCanaryTag();
 
-    console.log(
-      canaryTag
-        ? '🔍 Checking for packages changed since canary tag...'
-        : '🔍 No canary tag found, will publish all packages',
-    );
+    console.log('🔍 Checking for packages changed since canary tag...');
     const packages = canaryTag
       ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
       : allPackages;
@@ -816,15 +607,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       packageVersionInfo.set(packageName, versionInfo);
     }
 
-    await publishCanaryVersions(
-      packages,
-      allPackages,
-      packageVersionInfo,
-      options,
-      githubRelease,
-      canaryTag,
-      changelogFrom,
-    );
+    await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
 
     console.log('\n🏁 Publishing complete!');
   },
