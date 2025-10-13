@@ -56,6 +56,9 @@ jobs:
           fetch-depth: 0 # Fetch full history for proper git operations
       - name: Prepare for publishing
         uses: ./.github/actions/publish-prepare
+        with:
+          # No need to build for canary releases, as they are built via the publish-canary cli.
+          skip-build: true
       - name: Publish packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
