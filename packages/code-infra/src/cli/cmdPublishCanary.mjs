@@ -8,20 +8,21 @@
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
-import { Octokit } from '@octokit/rest';
 import { createActionAuth } from '@octokit/auth-action';
+import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 import gitUrlParse from 'git-url-parse';
 import * as semver from 'semver';
 
+import { fetchCommitsBetweenRefs } from '../utils/changelog.mjs';
 import {
-  getWorkspacePackages,
+  getCurrentGitSha,
   getPackageVersionInfo,
+  getWorkspacePackages,
   publishPackages,
   readPackageJson,
-  writePackageJson,
-  getCurrentGitSha,
   semverMax,
+  writePackageJson,
 } from '../utils/pnpm.mjs';
 
 /**
@@ -85,99 +86,24 @@ function extractPackageNameForLabel(npmPackageName) {
  * Get merged PRs since the last canary tag
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @returns {Promise<Array<{number: number, title: string, labels: string[], html_url: string, merged_at: string}>>} List of merged PRs
+ * @returns {Promise<Array<import('../utils/changelog.mjs').FetchedCommitDetails>>} List of merged PRs
  */
 async function getMergedPRsSinceTag(owner, repo) {
   const octokit = getOctokit();
-
-  // Get the commit SHA of the tag if it exists
-  let sinceDate = null;
-  const { data: refData } = await octokit.git.getRef({
-    owner,
+  const changelogs = await fetchCommitsBetweenRefs({
+    octokit,
+    lastRelease: CANARY_TAG,
+    release: 'master',
     repo,
-    ref: `tags/${CANARY_TAG}`,
+    org: owner,
   });
-  const tagSha = refData.object.sha;
-
-  // Get the commit date
-  const { data: commitData } = await octokit.git.getCommit({
-    owner,
-    repo,
-    commit_sha: tagSha,
-  });
-  sinceDate = commitData.committer.date;
-
-  // Fetch merged PRs
-  const prs = [];
-  let page = 1;
-  const perPage = 100;
-  let hasMore = true;
-
-  while (hasMore) {
-    // eslint-disable-next-line no-await-in-loop
-    const { data } = await octokit.pulls.list({
-      owner,
-      repo,
-      state: 'closed',
-      sort: 'updated',
-      direction: 'desc',
-      per_page: perPage,
-      page,
-    });
-
-    if (data.length === 0) {
-      break;
-    }
-
-    for (const pr of data) {
-      // Only include merged PRs
-      if (!pr.merged_at) {
-        continue;
-      }
-
-      // If we have a sinceDate, only include PRs merged after that date
-      if (sinceDate && new Date(pr.merged_at) <= new Date(sinceDate)) {
-        // Since PRs are sorted by updated date, we can stop here
-        return prs;
-      }
-
-      const labels = pr.labels.map((label) => (typeof label === 'string' ? label : label.name));
-
-      // Skip PRs by Renovate that only update dependencies
-      if (labels.length === 1 && labels[0].toLowerCase() === 'dependencies') {
-        continue;
-      }
-
-      prs.push({
-        number: pr.number,
-        title: pr.title,
-        labels,
-        html_url: pr.html_url,
-        merged_at: pr.merged_at,
-      });
-    }
-
-    // If we got fewer results than requested, we've reached the end
-    if (data.length < perPage) {
-      hasMore = false;
-    }
-
-    page += 1;
-
-    // Safety limit to avoid infinite loops
-    if (page > 10) {
-      console.log('⚠️  Reached page limit (10) when fetching PRs');
-      break;
-    }
-  }
-
-  return prs;
+  return changelogs;
 }
 
 /**
  * Generate changelog for a package based on PRs
  * @param {string} packageName - Package name (e.g., 'code-infra')
- * @param {Array<{number: number, title: string, labels: string[], html_url: string}>} allPRs - All merged PRs
+ * @param {Array<import('../utils/changelog.mjs').FetchedCommitDetails>} allPRs - All merged PRs
  * @returns {string} Generated changelog content
  */
 function generateChangelogForPackage(packageName, allPRs) {
@@ -199,12 +125,12 @@ function generateChangelogForPackage(packageName, allPRs) {
       ['breaking', 'breaking change', 'breaking-change'].includes(label.toLowerCase()),
     );
     // Check if title contains [breaking] (case-insensitive)
-    const hasBreakingInTitle = /\[(breaking(?:\s|-)?(?:change)?)\]/i.test(pr.title);
+    const hasBreakingInTitle = /\[(breaking(?:\s|-)?(?:change)?)\]/i.test(pr.message);
     const isBreaking = hasBreakingLabel || hasBreakingInTitle;
 
     // Add "Breaking: " prefix if breaking change
     const prefix = isBreaking ? 'Breaking: ' : '';
-    return `- ${prefix}${pr.title} (#${pr.number})`;
+    return `- ${prefix}${pr.message} (#${pr.prNumber})`;
   });
 
   return changelogLines.join('\n');
@@ -219,8 +145,8 @@ function generateChangelogForPackage(packageName, allPRs) {
  */
 async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, repoInfo) {
   console.log('🔍 Fetching merged PRs from GitHub API...');
-  const allPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo);
-  console.log(`📋 Found ${allPRs.length} merged PRs since last canary tag`);
+  const allCommitPRs = await getMergedPRsSinceTag(repoInfo.owner, repoInfo.repo);
+  console.log(`📋 Found ${allCommitPRs.length} merged PRs since last canary tag`);
 
   /**
    * @type {Map<string, string>}
@@ -234,7 +160,7 @@ async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, re
     }
 
     const packageLabel = extractPackageNameForLabel(pkg.name);
-    const changelog = generateChangelogForPackage(packageLabel, allPRs);
+    const changelog = generateChangelogForPackage(packageLabel, allCommitPRs);
     changelogs.set(pkg.name, changelog);
   }
 
