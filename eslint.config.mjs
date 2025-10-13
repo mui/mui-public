@@ -46,6 +46,10 @@ export default defineConfig(
     },
   },
   {
+    files: ['renovate/**/*.json'],
+    language: 'json/jsonc',
+  },
+  {
     files: [`packages/babel-*/**/*${EXTENSION_TS}`],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',

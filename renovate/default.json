@@ -5,7 +5,17 @@
     "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
     "group:definitelyTyped",
-    "config:recommended",
+
+    // From config:recommended:
+    ":dependencyDashboard",
+    ":semanticPrefixFixDepsChoreOthers",
+    // ":ignoreModulesAndTests" (removed as it is way too eager)
+    "group:monorepos",
+    "group:recommended",
+    "mergeConfidence:age-confidence-badges",
+    "replacements:all",
+    "workarounds:all",
+
     "helpers:pinGitHubActionDigests",
     "npm:unpublishSafe"
   ],
