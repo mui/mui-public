@@ -41,7 +41,7 @@ export function CodeContent(props: ContentProps<object>) {
 
   return (
     <div>
-      {code.files.map(({ slug }) => (
+      {code.allFilesSlugs.map(({ slug }) => (
         <span key={slug} id={slug} />
       ))}
       <div className={styles.container}>

@@ -739,7 +739,9 @@ describe('getDocsInfraMdxOptions', () => {
       ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
     ]);
 
-    expect(result.rehypePlugins).toEqual([['@mui/internal-docs-infra/pipeline/transformHtmlCode']]);
+    expect(result.rehypePlugins).toEqual([
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
+    ]);
   });
 
   it('should add additional plugins to defaults', () => {
@@ -758,7 +760,7 @@ describe('getDocsInfraMdxOptions', () => {
     ]);
 
     expect(result.rehypePlugins).toEqual([
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCode'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
       ['rehype-highlight'],
     ]);
   });
@@ -790,7 +792,7 @@ describe('getDocsInfraMdxOptions', () => {
 
     // rehypePlugins should be defaults + additional
     expect(result.rehypePlugins).toEqual([
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCode'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
       ['rehype-highlight'],
     ]);
   });

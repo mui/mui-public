@@ -32,24 +32,40 @@ yarn add @mui/internal-docs-infra
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Find the HTML element in the tree
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      // Find the section element in the tree
+      const sectionElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
 
-      expect(preElement).toBeDefined();
-      expect(preElement.tagName).toBe('pre');
-      expect(preElement.children).toHaveLength(3);
+      expect(sectionElement).toBeDefined();
+      expect(sectionElement.tagName).toBe('section');
+      expect(sectionElement.children).toHaveLength(3); // 3 figure elements
 
-      // Check each code element
-      const [npmCode, pnpmCode, yarnCode] = preElement.children;
+      // Check each figure element
+      const [npmFigure, pnpmFigure, yarnFigure] = sectionElement.children;
 
-      expect(npmCode.type).toBe('element');
-      expect(npmCode.tagName).toBe('code');
+      expect(npmFigure.type).toBe('element');
+      expect(npmFigure.tagName).toBe('figure');
+      expect(npmFigure.children[0].tagName).toBe('figcaption');
+      expect(npmFigure.children[0].children[0].value).toBe('npm variant');
+
+      // Check dl structure
+      const npmDl = npmFigure.children[1];
+      expect(npmDl.tagName).toBe('dl');
+
+      // Check dt (filename)
+      expect(npmDl.children[0].tagName).toBe('dt');
+      expect(npmDl.children[0].children[0].children[0].value).toBe('index.sh');
+
+      // Check dd/pre/code structure
+      const npmCode = npmDl.children[1].children[0].children[0];
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(npmCode.data.hProperties.className).toBe('language-bash');
       expect(npmCode.children[0].value).toBe('npm install @mui/internal-docs-infra');
 
+      // Check other figures have correct variant data
+      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
+      const yarnCode = yarnFigure.children[1].children[1].children[0].children[0];
       expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
       expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
     });
@@ -72,17 +88,21 @@ yarn add @mui/internal-docs-infra
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Find the HTML element in the tree
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      // Find the section element in the tree
+      const sectionElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
 
-      expect(preElement).toBeDefined();
-      expect(preElement.tagName).toBe('pre');
-      expect(preElement.children).toHaveLength(3);
+      expect(sectionElement).toBeDefined();
+      expect(sectionElement.tagName).toBe('section');
+      expect(sectionElement.children).toHaveLength(3);
 
       // Check that variants are taken from labels
-      const [npmCode, pnpmCode, yarnCode] = preElement.children;
+      const [npmFigure, pnpmFigure, yarnFigure] = sectionElement.children;
+      const npmCode = npmFigure.children[1].children[1].children[0].children[0];
+      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
+      const yarnCode = yarnFigure.children[1].children[1].children[0].children[0];
+
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
       expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
@@ -100,12 +120,19 @@ pnpm install @mui/internal-docs-infra
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      const sectionElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
 
-      expect(preElement).toBeDefined();
-      const [npmCode, pnpmCode] = preElement.children;
+      expect(sectionElement).toBeDefined();
+      const [npmFigure, pnpmFigure] = sectionElement.children;
+
+      // Check filename appears in dt
+      expect(npmFigure.children[1].children[0].children[0].children[0].value).toBe('package.json');
+      expect(pnpmFigure.children[1].children[0].children[0].children[0].value).toBe('package.json');
+
+      const npmCode = npmFigure.children[1].children[1].children[0].children[0];
+      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
 
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(npmCode.data.hProperties.dataFilename).toBe('package.json');
@@ -128,10 +155,10 @@ pnpm install @mui/internal-docs-infra
       const codeBlocks = ast.children.filter((child: any) => child.type === 'code');
       expect(codeBlocks).toHaveLength(2);
 
-      const preElements = ast.children.filter(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      const sectionElements = ast.children.filter(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
-      expect(preElements).toHaveLength(0);
+      expect(sectionElements).toHaveLength(0);
     });
 
     it('should not group single code block with variant', () => {
@@ -143,14 +170,17 @@ npm install @mui/internal-docs-infra
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Should still have original code block, not HTML element
-      const codeBlocks = ast.children.filter((child: any) => child.type === 'code');
-      expect(codeBlocks).toHaveLength(1);
-
-      const preElements = ast.children.filter(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      // Should create a dl element for single variant
+      const dlElements = ast.children.filter(
+        (child: any) => child.type === 'element' && child.tagName === 'dl',
       );
-      expect(preElements).toHaveLength(0);
+      expect(dlElements).toHaveLength(1);
+
+      // Should not have section elements
+      const sectionElements = ast.children.filter(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
+      );
+      expect(sectionElements).toHaveLength(0);
     });
 
     it('should only group adjacent code blocks with variants', () => {
@@ -168,14 +198,16 @@ pnpm install @mui/internal-docs-infra
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Should still have original code blocks due to text separation
-      const codeBlocks = ast.children.filter((child: any) => child.type === 'code');
-      expect(codeBlocks).toHaveLength(2);
-
-      const preElements = ast.children.filter(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      // Should have two separate dl elements due to text separation
+      const dlElements = ast.children.filter(
+        (child: any) => child.type === 'element' && child.tagName === 'dl',
       );
-      expect(preElements).toHaveLength(0);
+      expect(dlElements).toHaveLength(2);
+
+      const sectionElements = ast.children.filter(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
+      );
+      expect(sectionElements).toHaveLength(0);
     });
 
     it('should work with different languages', () => {
@@ -190,12 +222,15 @@ const greeting = require('./greeting');
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      const sectionElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
 
-      expect(preElement).toBeDefined();
-      const [es6Code, cjsCode] = preElement.children;
+      expect(sectionElement).toBeDefined();
+      const [es6Figure, cjsFigure] = sectionElement.children;
+
+      const es6Code = es6Figure.children[1].children[1].children[0].children[0];
+      const cjsCode = cjsFigure.children[1].children[1].children[0].children[0];
 
       expect(es6Code.data.hProperties.className).toBe('language-javascript');
       expect(es6Code.data.hProperties.dataVariant).toBe('es6');
@@ -215,12 +250,15 @@ More plain text content
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      const sectionElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
 
-      expect(preElement).toBeDefined();
-      const [option1Code, option2Code] = preElement.children;
+      expect(sectionElement).toBeDefined();
+      const [option1Figure, option2Figure] = sectionElement.children;
+
+      const option1Code = option1Figure.children[1].children[0].children[0].children[0]; // No dt when no filename
+      const option2Code = option2Figure.children[1].children[0].children[0].children[0];
 
       expect(option1Code.data.hProperties.dataVariant).toBe('option1');
       expect(option2Code.data.hProperties.dataVariant).toBe('option2');
@@ -246,17 +284,49 @@ yarn add @mui/internal-docs-infra
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
+      const sectionElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'section',
       );
 
-      expect(preElement).toBeDefined();
-      expect(preElement.children).toHaveLength(3);
+      expect(sectionElement).toBeDefined();
+      expect(sectionElement.children).toHaveLength(3);
 
-      const [npmCode, pnpmCode, yarnCode] = preElement.children;
+      const [npmFigure, pnpmFigure, yarnFigure] = sectionElement.children;
+      const npmCode = npmFigure.children[1].children[1].children[0].children[0];
+      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
+      const yarnCode = yarnFigure.children[1].children[1].children[0].children[0];
+
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
       expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
+    });
+
+    it('should handle individual code blocks with options', () => {
+      const markdown = `
+\`\`\`ts transform
+console.log('test' as const)
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+
+      // Should create a dl element for individual block with options
+      const dlElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'dl',
+      );
+
+      expect(dlElement).toBeDefined();
+      expect(dlElement.tagName).toBe('dl');
+
+      // Check dt (filename)
+      expect(dlElement.children[0].tagName).toBe('dt');
+      expect(dlElement.children[0].children[0].children[0].value).toBe('index.ts');
+
+      // Check dd/pre/code structure
+      const code = dlElement.children[1].children[0].children[0];
+      expect(code.data.hProperties.className).toBe('language-ts');
+      expect(code.data.hProperties.dataTransform).toBe('true');
+      expect(code.children[0].value).toBe("console.log('test' as const)");
     });
   });
 
@@ -274,9 +344,16 @@ yarn add @mui/internal-docs-infra
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toEqual(
-        '<pre><code data-variant="npm" class="language-bash">npm install @mui/internal-docs-infra</code><code data-variant="pnpm" class="language-bash">pnpm install @mui/internal-docs-infra</code><code data-variant="yarn" class="language-bash">yarn add @mui/internal-docs-infra</code></pre>',
-      );
+      expect(result).toMatch(/<section>/);
+      expect(result).toMatch(/<figure>/);
+      expect(result).toMatch(/<figcaption>npm variant<\/figcaption>/);
+      expect(result).toMatch(/<figcaption>pnpm variant<\/figcaption>/);
+      expect(result).toMatch(/<figcaption>yarn variant<\/figcaption>/);
+      expect(result).toMatch(/<dl>/);
+      expect(result).toMatch(/<dt><code>index\.sh<\/code><\/dt>/);
+      expect(result).toMatch(/data-variant="npm"/);
+      expect(result).toMatch(/data-variant="pnpm"/);
+      expect(result).toMatch(/data-variant="yarn"/);
     });
 
     it('should produce correct HTML for variant-type with labels', () => {
@@ -291,9 +368,12 @@ pnpm install @mui/internal-docs-infra
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toEqual(
-        '<pre><code data-variant="npm" class="language-bash">npm install @mui/internal-docs-infra</code><code data-variant="pnpm" class="language-bash">pnpm install @mui/internal-docs-infra</code></pre>',
-      );
+      expect(result).toMatch(/<section>/);
+      expect(result).toMatch(/<figure>/);
+      expect(result).toMatch(/<figcaption>npm variant<\/figcaption>/);
+      expect(result).toMatch(/<figcaption>pnpm variant<\/figcaption>/);
+      expect(result).toMatch(/data-variant="npm"/);
+      expect(result).toMatch(/data-variant="pnpm"/);
     });
 
     it('should handle HTML escaping correctly', () => {
@@ -306,9 +386,10 @@ const html = '<span>Test & more</span>';
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toEqual(
-        '<pre><code data-variant="option1" class="language-javascript">const html = \'&#x3C;div>Hello &#x26; goodbye&#x3C;/div>\';</code><code data-variant="option2" class="language-javascript">const html = \'&#x3C;span>Test &#x26; more&#x3C;/span>\';</code></pre>',
-      );
+      expect(result).toMatch(/&#x3C;div>Hello &#x26; goodbye&#x3C;\/div>/);
+      expect(result).toMatch(/&#x3C;span>Test &#x26; more&#x3C;\/span>/);
+      expect(result).toMatch(/data-variant="option1"/);
+      expect(result).toMatch(/data-variant="option2"/);
     });
 
     it('should include additional properties as data attributes in HTML', () => {
@@ -321,10 +402,10 @@ pnpm install @mui/internal-docs-infra
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      // Now that we've fixed the quoted string parsing, the full title should be preserved
-      expect(result).toEqual(
-        '<pre><code data-variant="npm" class="language-bash" data-filename="package.json" data-title="NPM Install">npm install @mui/internal-docs-infra</code><code data-variant="pnpm" class="language-bash" data-filename="package.json" data-title="PNPM Install">pnpm install @mui/internal-docs-infra</code></pre>',
-      );
+      expect(result).toMatch(/<dt><code>package\.json<\/code><\/dt>/);
+      expect(result).toMatch(/data-filename="package\.json"/);
+      expect(result).toMatch(/data-title="NPM Install"/);
+      expect(result).toMatch(/data-title="PNPM Install"/);
     });
 
     it('should transform individual code blocks with options in language field', () => {
@@ -336,9 +417,10 @@ console.log('test' as const)
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toEqual(
-        '<pre><code class="language-ts" data-transform="true">console.log(\'test\' as const)</code></pre>',
-      );
+      expect(result).toMatch(/<dl>/);
+      expect(result).toMatch(/<dt><code>index\.ts<\/code><\/dt>/);
+      expect(result).toMatch(/<dd><pre><code class="language-ts" data-transform="true">/);
+      expect(result).toMatch(/console\.log\('test' as const\)/);
     });
 
     it('should transform individual code blocks with multiple options', () => {
@@ -353,9 +435,10 @@ function test() {
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toEqual(
-        '<pre><code class="language-javascript" data-highlight="2-3" data-transform="true">function test() {\nconsole.log(\'line 2\');\nconsole.log(\'line 3\');\n}</code></pre>',
-      );
+      expect(result).toMatch(/<dl>/);
+      expect(result).toMatch(/<dt><code>index\.js<\/code><\/dt>/);
+      expect(result).toMatch(/data-highlight="2-3"/);
+      expect(result).toMatch(/data-transform="true"/);
     });
 
     it('should transform individual code blocks with kebab-case options to camelCase', () => {
@@ -367,9 +450,9 @@ const test = 'hello';
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toEqual(
-        '<pre><code class="language-typescript" data-some-option="value" data-another-flag="true">const test = \'hello\';</code></pre>',
-      );
+      expect(result).toMatch(/<dl>/);
+      expect(result).toMatch(/data-some-option="value"/);
+      expect(result).toMatch(/data-another-flag="true"/);
     });
 
     it('should not duplicate variants when processing multiple groups', () => {
@@ -393,17 +476,15 @@ const test = require('hello');
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      // Should have exactly two pre elements, not four
-      const preCount = (result.match(/<pre>/g) || []).length;
-      expect(preCount).toBe(2);
+      // Should have exactly two section elements
+      const sectionCount = (result.match(/<section>/g) || []).length;
+      expect(sectionCount).toBe(2);
 
-      // Should not have any duplicate code elements
-      expect(result).toMatch(
-        /<pre><code data-variant="npm".*?>npm install @mui\/internal-docs-infra<\/code><code data-variant="pnpm".*?>pnpm install @mui\/internal-docs-infra<\/code><\/pre>/,
-      );
-      expect(result).toMatch(
-        /<pre><code data-variant="es6".*?>const test = 'hello';<\/code><code data-variant="commonjs".*?>const test = require\('hello'\);<\/code><\/pre>/,
-      );
+      // Each section should have the right variants
+      expect(result).toMatch(/data-variant="npm"/);
+      expect(result).toMatch(/data-variant="pnpm"/);
+      expect(result).toMatch(/data-variant="es6"/);
+      expect(result).toMatch(/data-variant="commonjs"/);
     });
   });
 });

@@ -4,6 +4,7 @@ import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { escapeFilename } from './strings.js';
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -26,12 +27,31 @@ const rootDir = process.cwd();
  */
 
 /**
+ * Creates a simple string replacement plugin
+ * @param {Record<string, string>} replacements - Object with string replacements
+ * @returns {import('vite').Plugin}
+ */
+function createReplacePlugin(replacements) {
+  return {
+    name: 'string-replace',
+    transform(code) {
+      let transformedCode = code;
+      for (const [search, replace] of Object.entries(replacements)) {
+        transformedCode = transformedCode.replaceAll(search, replace);
+      }
+      return transformedCode !== code ? transformedCode : null;
+    },
+  };
+}
+
+/**
  * Creates vite configuration for bundle size checking
  * @param {ObjectEntry} entry - Entry point (string or object)
  * @param {CommandLineArgs} args
- * @returns {Promise<import('vite').InlineConfig>}
+ * @param {Record<string, string>} [replacements] - String replacements to apply
+ * @returns {Promise<{ config:import('vite').InlineConfig, treemapPath: string }>}
  */
-async function createViteConfig(entry, args) {
+async function createViteConfig(entry, args, replacements = {}) {
   const entryName = entry.id;
   let entryContent;
 
@@ -59,12 +79,15 @@ async function createViteConfig(entry, args) {
   const externalsArray = entry.externals || ['react', 'react-dom'];
 
   // Ensure build directory exists
-  const outDir = path.join(rootDir, 'build', entryName);
+  const outDir = path.join(rootDir, 'build', escapeFilename(entryName));
   await fs.mkdir(outDir, { recursive: true });
+
+  const treemapPath = path.join(outDir, 'treemap.html');
+
   /**
    * @type {import('vite').InlineConfig}
    */
-  const configuration = {
+  const config = {
     configFile: false,
     root: rootDir,
 
@@ -73,15 +96,26 @@ async function createViteConfig(entry, args) {
       minify: args.debug ? 'esbuild' : true,
       outDir,
       emptyOutDir: true,
+      modulePreload: false,
       rollupOptions: {
-        input: '/index.tsx',
+        input: {
+          ignore: '/ignore.ts',
+          bundle: '/entry.tsx',
+        },
+        output: {
+          // The output is for debugging purposes only. Remove all hashes to make it easier to compare two folders
+          // of build output.
+          entryFileNames: `assets/[name].js`,
+          chunkFileNames: `assets/[name].js`,
+          assetFileNames: `assets/[name].[ext]`,
+        },
         external: (id) => externalsArray.some((ext) => id === ext || id.startsWith(`${ext}/`)),
         plugins: [
           ...(args.analyze
             ? [
                 // File sizes are not accurate, use it only for relative comparison
                 visualizer({
-                  filename: `${outDir}.html`,
+                  filename: treemapPath,
                   title: `Bundle Size Analysis: ${entryName}`,
                   projectRoot: rootDir,
                   open: false,
@@ -113,11 +147,12 @@ async function createViteConfig(entry, args) {
     logLevel: args.verbose ? 'info' : 'silent',
     // Add plugins to handle virtual entry points
     plugins: [
+      createReplacePlugin(replacements),
       {
         name: 'virtual-entry',
         resolveId(id) {
-          if (id === '/index.tsx') {
-            return `\0virtual:index.tsx`;
+          if (id === '/ignore.ts') {
+            return `\0virtual:ignore.ts`;
           }
           if (id === '/entry.tsx') {
             return `\0virtual:entry.tsx`;
@@ -125,7 +160,9 @@ async function createViteConfig(entry, args) {
           return null;
         },
         load(id) {
-          if (id === `\0virtual:index.tsx`) {
+          if (id === `\0virtual:ignore.ts`) {
+            // ignore chunk will contain the vite preload code, we can ignore this chunk in the output
+            // See https://github.com/vitejs/vite/issues/18551
             return transformWithEsbuild(`import('/entry.tsx').then(console.log)`, id);
           }
           if (id === `\0virtual:entry.tsx`) {
@@ -137,7 +174,7 @@ async function createViteConfig(entry, args) {
     ],
   };
 
-  return configuration;
+  return { config, treemapPath };
 }
 
 /**
@@ -200,7 +237,7 @@ async function processBundleSizes(output, entryName) {
   const manifest = JSON.parse(manifestContent);
 
   // Find the main entry point JS file in the manifest
-  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === '_virtual_entry');
+  const mainEntry = Object.entries(manifest).find(([_, entry]) => entry.name === 'bundle');
 
   if (!mainEntry) {
     throw new Error(`No main entry found in manifest for ${entryName}`);
@@ -217,18 +254,18 @@ async function processBundleSizes(output, entryName) {
       throw new Error(`Output chunk not found for ${chunk.file}`);
     }
     const fileContent = outputChunk.code;
+    if (chunk.name === 'preload-helper') {
+      // Skip the preload-helper chunk as it is not relevant for bundle size
+      return null;
+    }
 
     // Calculate sizes
     const parsed = Buffer.byteLength(fileContent);
     const gzipBuffer = await gzipAsync(fileContent, { level: zlib.constants.Z_BEST_COMPRESSION });
     const gzipSize = Buffer.byteLength(gzipBuffer);
 
-    if (chunk.isEntry) {
-      return null;
-    }
-
     // Use chunk key as the name, or fallback to entry name for main chunk
-    const chunkName = chunk.name === '_virtual_entry' ? entryName : chunk.name || chunkKey;
+    const chunkName = chunk.name === 'bundle' ? entryName : chunk.name || chunkKey;
     return /** @type {const} */ ([chunkName, { parsed, gzip: gzipSize }]);
   });
 
@@ -240,19 +277,22 @@ async function processBundleSizes(output, entryName) {
  * Get sizes for a vite bundle
  * @param {ObjectEntry} entry - The entry configuration
  * @param {CommandLineArgs} args - Command line arguments
- * @returns {Promise<Map<string, SizeSnapshotEntry>>}
+ * @param {Record<string, string>} [replacements] - String replacements to apply
+ * @returns {Promise<{ sizes: Map<string, SizeSnapshotEntry>, treemapPath: string }>}
  */
-export async function getBundleSizes(entry, args) {
+export async function getBundleSizes(entry, args, replacements) {
   // Create vite configuration
-  const configuration = await createViteConfig(entry, args);
+  const { config, treemapPath } = await createViteConfig(entry, args, replacements);
 
   // Run vite build
-  const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(configuration));
+  const { output } = /** @type {import('vite').Rollup.RollupOutput} */ (await build(config));
   const manifestChunk = output.find((chunk) => chunk.fileName === '.vite/manifest.json');
   if (!manifestChunk) {
     throw new Error(`Manifest file not found in output for entry: ${entry.id}`);
   }
 
   // Process the output to get bundle sizes
-  return processBundleSizes(output, entry.id);
+  const sizes = await processBundleSizes(output, entry.id);
+
+  return { sizes, treemapPath };
 }

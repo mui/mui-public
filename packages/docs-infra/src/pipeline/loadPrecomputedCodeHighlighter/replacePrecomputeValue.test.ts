@@ -1193,6 +1193,97 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
     });
   });
 
+  describe('TypeScript generics support', () => {
+    it('should handle generics with 1 argument (generics as variants)', async () => {
+      const source = `import ComponentA from './ComponentA';
+import ComponentB from './ComponentB';
+
+export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(
+  import.meta.url
+);`;
+
+      const data = {
+        VariantA: { fileName: 'ComponentA.tsx' },
+        VariantB: { fileName: 'ComponentB.tsx' },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+      expect(demoCall).not.toBeNull();
+
+      const result = replacePrecomputeValue(source, data, demoCall!);
+
+      const expected = `import ComponentA from './ComponentA';
+import ComponentB from './ComponentB';
+
+export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(import.meta.url, { precompute: {
+  "VariantA": {
+    "fileName": "ComponentA.tsx"
+  },
+  "VariantB": {
+    "fileName": "ComponentB.tsx"
+  }
+} });`;
+
+      expect(result).toBe(expected);
+    });
+
+    it('should handle generics with 2 arguments (generics as variants + options)', async () => {
+      const source = `import ComponentA from './ComponentA';
+import ComponentB from './ComponentB';
+
+export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(
+  import.meta.url,
+  { name: 'Snippet Demo', skipPrecompute: false }
+);`;
+
+      const data = {
+        VariantA: { fileName: 'ComponentA.tsx' },
+        VariantB: { fileName: 'ComponentB.tsx' },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+      expect(demoCall).not.toBeNull();
+
+      const result = replacePrecomputeValue(source, data, demoCall!);
+
+      const expected = `import ComponentA from './ComponentA';
+import ComponentB from './ComponentB';
+
+export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(import.meta.url, { name: 'Snippet Demo', skipPrecompute: false, precompute: {
+  "VariantA": {
+    "fileName": "ComponentA.tsx"
+  },
+  "VariantB": {
+    "fileName": "ComponentB.tsx"
+  }
+} });`;
+
+      expect(result).toBe(expected);
+    });
+
+    it('should handle single component typeof syntax', async () => {
+      const source = `import Component from './Component';
+
+export const demo = createSnippet<typeof Component>(import.meta.url);`;
+
+      const data = {
+        Default: { fileName: 'Component.tsx' },
+      };
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
+      expect(demoCall).not.toBeNull();
+
+      const result = replacePrecomputeValue(source, data, demoCall!);
+
+      const expected = `import Component from './Component';
+
+export const demo = createSnippet<typeof Component>(import.meta.url, { precompute: {
+  "Default": {
+    "fileName": "Component.tsx"
+  }
+} });`;
+
+      expect(result).toBe(expected);
+    });
+  });
+
   describe('handling cases with undefined/missing structuredVariants', () => {
     it('should handle createDemoClient with only URL argument', async () => {
       const source = `import { createDemoClient } from './createDemoClient';

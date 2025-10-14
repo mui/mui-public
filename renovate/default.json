@@ -24,6 +24,9 @@
   "prHourlyLimit": 0,
   "rangeStrategy": "bump",
   "timezone": "UTC",
+  "internalChecksFilter": "strict",
+  "ignorePresets": [":ignoreModulesAndTests"],
+  "ignorePaths": ["**/node_modules/**", "**/examples/**", "**/__tests__/**", "**/__fixtures__/**"],
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
@@ -36,9 +39,14 @@
     {
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
-      "followTag": "canary",
       "schedule": null,
-      "additionalReviewers": ["mui/infra"]
+      "additionalReviewers": ["mui/infra"],
+      "minimumReleaseAge": null
+    },
+    {
+      "matchSourceUrls": ["https://github.com/mui/mui-public"],
+      "matchDatasources": ["npm"],
+      "followTag": "canary"
     },
     {
       "groupName": "GitHub Actions",
@@ -76,7 +84,11 @@
     },
     {
       "groupName": "eslint",
-      "matchPackageNames": ["eslint-plugin-*"]
+      "matchPackageNames": ["eslint-plugin-*", "*/eslint-plugin-*"]
+    },
+    {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/eslint/*"]
     },
     {
       "groupName": "playwright monorepo",

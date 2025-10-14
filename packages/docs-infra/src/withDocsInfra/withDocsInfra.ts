@@ -107,7 +107,7 @@ export function getDocsInfraMdxOptions(
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
-    ['@mui/internal-docs-infra/pipeline/transformHtmlCode'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
   ];
 
   // Build final plugin arrays
