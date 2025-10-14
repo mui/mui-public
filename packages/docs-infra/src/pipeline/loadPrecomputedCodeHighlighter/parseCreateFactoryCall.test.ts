@@ -873,6 +873,7 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.namedExports).toBeUndefined();
       expect(result!.options).toEqual({});
       expect(result!.hasOptions).toBe(false);
+      expect(result!.hasGenerics).toBe(false);
       expect(result!.structuredVariants).toBeUndefined();
     });
 
@@ -896,6 +897,7 @@ describe('parseCreateFactoryCall', () => {
         name: 'Test Client',
       });
       expect(result!.hasOptions).toBe(true);
+      expect(result!.hasGenerics).toBe(false);
       expect(result!.structuredVariants).toBeUndefined();
     });
 
@@ -1114,6 +1116,485 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.namedExports).toEqual({
         Button: 'Button',
         TextField: 'TextField',
+      });
+    });
+  });
+
+  describe('TypeScript generics support', () => {
+    it('should handle simple generic object syntax', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import { ComponentB } from './ComponentB';
+        
+        export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        VariantA: 'ComponentA',
+        VariantB: 'ComponentB',
+      });
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
+      });
+      expect(result!.namedExports).toEqual({
+        VariantA: undefined, // default import
+        VariantB: 'ComponentB', // named import
+      });
+    });
+
+    it('should handle generic with single variant', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<{ Default: Component }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+    });
+
+    it('should handle single component generic syntax', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<Component>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: undefined, // default import
+      });
+    });
+
+    it('should handle single named component generic syntax', async () => {
+      const code = `
+        import { Component } from './Component';
+        
+        export const demo = createSnippet<Component>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: 'Component', // named import
+      });
+    });
+
+    it('should handle single component with simple type annotations', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<Component>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+    });
+
+    it('should handle generics with TypeScript type annotations', async () => {
+      const code = `
+        import { ComponentA } from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createSnippet<{
+          WithProps: ComponentA as React.ComponentType<{ title: string }>,
+          SimpleComp: ComponentB
+        }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.variants).toEqual({
+        WithProps: '/src/ComponentA',
+        SimpleComp: '/src/ComponentB',
+      });
+    });
+
+    it('should handle generics with options argument', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(
+          import.meta.url,
+          { name: 'Snippet Demo', skipPrecompute: true }
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
+      });
+      expect(result!.options).toEqual({
+        name: 'Snippet Demo',
+        skipPrecompute: true,
+      });
+    });
+
+    it('should handle single component generic with options', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<Component>(
+          import.meta.url,
+          { name: 'Single Component Demo', skipPrecompute: true }
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+      expect(result!.options).toEqual({
+        name: 'Single Component Demo',
+        skipPrecompute: true,
+      });
+    });
+
+    it('should handle single component typeof syntax', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<typeof Component>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'typeof Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: undefined, // default import
+      });
+    });
+
+    it('should handle single named component typeof syntax', async () => {
+      const code = `
+        import { Component } from './Component';
+        
+        export const demo = createSnippet<typeof Component>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'typeof Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: 'Component', // named import
+      });
+    });
+
+    it('should handle typeof syntax in object generics', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import { ComponentB } from './ComponentB';
+        
+        export const demo = createSnippet<{ VariantA: typeof ComponentA, VariantB: typeof ComponentB }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        VariantA: 'typeof ComponentA',
+        VariantB: 'typeof ComponentB',
+      });
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
+      });
+      expect(result!.namedExports).toEqual({
+        VariantA: undefined, // default import
+        VariantB: 'ComponentB', // named import
+      });
+    });
+
+    it('should handle mixed typeof and direct component references', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createSnippet<{ VariantA: typeof ComponentA, VariantB: ComponentB }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        VariantA: 'typeof ComponentA',
+        VariantB: 'ComponentB',
+      });
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
+      });
+    });
+
+    it('should handle typeof syntax with options', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<typeof Component>(
+          import.meta.url,
+          { name: 'Typeof Component Demo' }
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        Default: 'typeof Component',
+      });
+      expect(result!.variants).toEqual({
+        Default: '/src/Component',
+      });
+      expect(result!.options).toEqual({
+        name: 'Typeof Component Demo',
+      });
+    });
+
+    it('should handle generics with 2 arguments (generics as variants + second arg as options)', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }>(
+          import.meta.url,
+          { VariantA: ComponentA }
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      // With generics + 2 args, second arg is treated as options, so use generics as variants
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
+      });
+      // Second argument should be parsed as options
+      expect(result!.hasOptions).toBe(true);
+      expect(result!.options).toEqual({
+        VariantA: 'ComponentA', // This is now treated as an option, not a variant override
+      });
+      // Generics should still be preserved
+      expect(result!.structuredGenerics).toEqual({
+        VariantA: 'ComponentA',
+        VariantB: 'ComponentB',
+      });
+    });
+
+    it('should handle generics without variants (metadata-only mode)', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createSnippetClient<{ VariantA: ComponentA, VariantB: ComponentB }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({
+        VariantA: 'ComponentA',
+        VariantB: 'ComponentB',
+      });
+      expect(result!.variants).toBeUndefined(); // No variants in metadata-only mode
+    });
+
+    it('should validate generics components are imported', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        
+        export const demo = createSnippet<{ VariantA: ComponentA, UnknownVariant: UnknownComponent }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+
+      await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+        "Invalid variants argument in createSnippet call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
+      );
+    });
+
+    it('should handle empty generics', async () => {
+      const code = `
+        import Component from './Component';
+        
+        export const demo = createSnippet<{}>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.structuredGenerics).toEqual({});
+      expect(result!.variants).toBeUndefined();
+    });
+
+    it('should handle generics with whitespace and comments', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createSnippet<{
+          // Primary variant
+          VariantA: ComponentA /* with comment */,
+          VariantB: ComponentB // secondary variant
+        }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
+      });
+    });
+
+    it('should handle multiple create* functions with generics', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        import ComponentC from './ComponentC';
+        
+        export const demo1 = createSnippet<{ VariantA: ComponentA }>(
+          import.meta.url
+        );
+        
+        export const demo2 = createSnippet<{ VariantB: ComponentB, VariantC: ComponentC }>(
+          import.meta.url,
+          { name: 'Second Demo' }
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const results = await parseAllCreateFactoryCalls(code, filePath);
+
+      expect(Object.keys(results)).toHaveLength(2);
+      expect(results.demo1.hasGenerics).toBe(true);
+      expect(results.demo1.variants).toEqual({
+        VariantA: '/src/ComponentA',
+      });
+      expect(results.demo2.hasGenerics).toBe(true);
+      expect(results.demo2.variants).toEqual({
+        VariantB: '/src/ComponentB',
+        VariantC: '/src/ComponentC',
+      });
+      expect(results.demo2.options).toEqual({
+        name: 'Second Demo',
+      });
+    });
+
+    it('should work with different create* function names', async () => {
+      const code = `
+        import ComponentA from './ComponentA';
+        import ComponentB from './ComponentB';
+        
+        export const demo = createDemo<{ VariantA: ComponentA, VariantB: ComponentB }>(
+          import.meta.url
+        );
+      `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createDemo');
+      expect(result!.hasGenerics).toBe(true);
+      expect(result!.variants).toEqual({
+        VariantA: '/src/ComponentA',
+        VariantB: '/src/ComponentB',
       });
     });
   });

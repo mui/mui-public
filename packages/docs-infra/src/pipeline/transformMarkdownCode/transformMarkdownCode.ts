@@ -3,7 +3,7 @@ import type { Plugin } from 'unified';
 import type { Code, Parent } from 'mdast';
 
 /**
- * Remark plugin that transforms code blocks with variants into HTML pre/code structures.
+ * Remark plugin that transforms code blocks with variants into semantic HTML structures.
  *
  * Transforms consecutive code blocks with variant metadata like:
  *
@@ -38,18 +38,95 @@ import type { Code, Parent } from 'mdast';
  * console.log('test' as const)
  * ```
  *
- * Into HTML that the existing rehype plugin can process:
- * <pre>
- *   <code data-variant="npm">npm install @mui/internal-docs-infra</code>
- *   <code data-variant="pnpm">pnpm install @mui/internal-docs-infra</code>
- *   <code data-variant="yarn">yarn add @mui/internal-docs-infra</code>
- * </pre>
+ * Into semantic HTML that the existing rehype plugin can process:
+ * <section>
+ *   <figure>
+ *     <figcaption>npm variant</figcaption>
+ *     <dl>
+ *       <dt><code>index.js</code></dt>
+ *       <dd>
+ *         <pre><code class="language-bash">npm install @mui/internal-docs-infra</code></pre>
+ *       </dd>
+ *     </dl>
+ *   </figure>
+ *   <figure>
+ *     <figcaption>pnpm variant</figcaption>
+ *     <dl>
+ *       <dt><code>index.js</code></dt>
+ *       <dd>
+ *         <pre><code class="language-bash">pnpm install @mui/internal-docs-infra</code></pre>
+ *       </dd>
+ *     </dl>
+ *   </figure>
+ * </section>
  *
- * Or for individual blocks:
- * <pre>
- *   <code data-transform="true">console.log('test' as const)</code>
- * </pre>
+ * Or for individual blocks (no figure/figcaption needed):
+ * <dl>
+ *   <dt><code>index.ts</code></dt>
+ *   <dd>
+ *     <pre><code class="language-ts" data-transform="true">console.log('test' as const)</code></pre>
+ *   </dd>
+ * </dl>
  */
+
+/**
+ * Maps common language names to file extensions
+ */
+const LANGUAGE_TO_EXTENSION: Record<string, string> = {
+  // JavaScript
+  javascript: 'js',
+  js: 'js',
+
+  // TypeScript
+  typescript: 'ts',
+  ts: 'ts',
+
+  // TSX/JSX
+  tsx: 'tsx',
+  jsx: 'jsx',
+
+  // JSON
+  json: 'json',
+
+  // Markdown
+  markdown: 'md',
+  md: 'md',
+
+  // MDX
+  mdx: 'mdx',
+
+  // HTML
+  html: 'html',
+
+  // CSS
+  css: 'css',
+
+  // Shell
+  shell: 'sh',
+  bash: 'sh',
+  sh: 'sh',
+
+  // YAML
+  yaml: 'yaml',
+  yml: 'yaml',
+};
+
+/**
+ * Gets filename from language or explicit filename prop
+ */
+function getFileName(language: string | null, props: Record<string, string>): string | null {
+  // Check for explicit filename
+  if (props.filename) {
+    return props.filename;
+  }
+
+  // Derive from language
+  if (language && LANGUAGE_TO_EXTENSION[language]) {
+    return `index.${LANGUAGE_TO_EXTENSION[language]}`;
+  }
+
+  return null;
+}
 
 /**
  * Parse meta string to extract variant and other properties
@@ -156,12 +233,12 @@ export const transformMarkdownCode: Plugin = () => {
 
         // Handle individual code blocks with options (but no variants)
         if (!metaData.variant && !metaData.variantType && Object.keys(allProps).length > 0) {
-          // Create a simple pre/code element for individual blocks with options
-          const hProperties: Record<string, any> = {};
+          // Create a dl element for individual blocks with options
+          const codeHProperties: Record<string, any> = {};
 
           // Add language class if available
           if (langFromMeta) {
-            hProperties.className = `language-${langFromMeta}`;
+            codeHProperties.className = `language-${langFromMeta}`;
           }
 
           // Add all props as data attributes (in camelCase)
@@ -173,28 +250,61 @@ export const transformMarkdownCode: Plugin = () => {
                   .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
                   .join('')}`
               : `data${key.charAt(0).toUpperCase() + key.slice(1)}`;
-            hProperties[camelKey] = value;
+            codeHProperties[camelKey] = value;
           });
 
-          const preElement = {
+          const fileName = getFileName(langFromMeta, allProps);
+
+          const dlElement = {
             type: 'element',
-            tagName: 'pre',
+            tagName: 'dl',
             data: {
-              hName: 'pre',
+              hName: 'dl',
               hProperties: {},
             },
             children: [
+              ...(fileName
+                ? [
+                    {
+                      type: 'element',
+                      tagName: 'dt',
+                      data: { hName: 'dt', hProperties: {} },
+                      children: [
+                        {
+                          type: 'element',
+                          tagName: 'code',
+                          data: { hName: 'code', hProperties: {} },
+                          children: [{ type: 'text', value: fileName }],
+                        },
+                      ],
+                    },
+                  ]
+                : []),
               {
                 type: 'element',
-                tagName: 'code',
-                data: {
-                  hName: 'code',
-                  hProperties,
-                },
+                tagName: 'dd',
+                data: { hName: 'dd', hProperties: {} },
                 children: [
                   {
-                    type: 'text',
-                    value: codeNode.value,
+                    type: 'element',
+                    tagName: 'pre',
+                    data: { hName: 'pre', hProperties: {} },
+                    children: [
+                      {
+                        type: 'element',
+                        tagName: 'code',
+                        data: {
+                          hName: 'code',
+                          hProperties: codeHProperties,
+                        },
+                        children: [
+                          {
+                            type: 'text',
+                            value: codeNode.value,
+                          },
+                        ],
+                      },
+                    ],
                   },
                 ],
               },
@@ -202,7 +312,7 @@ export const transformMarkdownCode: Plugin = () => {
           };
 
           // Replace this individual code block immediately
-          (parentNode.children as any)[index] = preElement;
+          (parentNode.children as any)[index] = dlElement;
           processedIndices.add(index);
           return;
         }
@@ -424,23 +534,21 @@ export const transformMarkdownCode: Plugin = () => {
 
           // Only process if we have multiple blocks
           if (codeBlocks.length > 1) {
-            // Create proper HTML elements with hProperties for remark-rehype compatibility
-            const preElement = {
+            // Create section with figure elements for each variant
+            const sectionElement = {
               type: 'element',
-              tagName: 'pre',
+              tagName: 'section',
               data: {
-                hName: 'pre',
+                hName: 'section',
                 hProperties: {},
               },
               children: codeBlocks.map((block) => {
                 // Build hProperties for HTML attributes
-                const hProperties: Record<string, any> = {
-                  dataVariant: block.variant,
-                };
+                const codeHProperties: Record<string, any> = {};
 
                 // Add language class if available
                 if (block.actualLang) {
-                  hProperties.className = `language-${block.actualLang}`;
+                  codeHProperties.className = `language-${block.actualLang}`;
                 }
 
                 // Add additional props as data attributes (in camelCase)
@@ -452,23 +560,84 @@ export const transformMarkdownCode: Plugin = () => {
                         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
                         .join('')}`
                     : `data${key.charAt(0).toUpperCase() + key.slice(1)}`;
-                  hProperties[camelKey] = value;
+                  codeHProperties[camelKey] = value;
                 });
+
+                // Add data-variant to track the variant
+                codeHProperties.dataVariant = block.variant;
+
+                const fileName = getFileName(block.actualLang, block.props);
 
                 return {
                   type: 'element',
-                  tagName: 'code',
-                  data: {
-                    hName: 'code',
-                    hProperties,
-                    meta: `variant=${block.variant}${Object.entries(block.props)
-                      .map(([key, value]) => ` ${key}=${value}`)
-                      .join('')}`,
-                  },
+                  tagName: 'figure',
+                  data: { hName: 'figure', hProperties: {} },
                   children: [
                     {
-                      type: 'text',
-                      value: block.node.value,
+                      type: 'element',
+                      tagName: 'figcaption',
+                      data: { hName: 'figcaption', hProperties: {} },
+                      children: [
+                        {
+                          type: 'text',
+                          value: `${block.variant} variant`,
+                        },
+                      ],
+                    },
+                    {
+                      type: 'element',
+                      tagName: 'dl',
+                      data: { hName: 'dl', hProperties: {} },
+                      children: [
+                        ...(fileName
+                          ? [
+                              {
+                                type: 'element',
+                                tagName: 'dt',
+                                data: { hName: 'dt', hProperties: {} },
+                                children: [
+                                  {
+                                    type: 'element',
+                                    tagName: 'code',
+                                    data: { hName: 'code', hProperties: {} },
+                                    children: [{ type: 'text', value: fileName }],
+                                  },
+                                ],
+                              },
+                            ]
+                          : []),
+                        {
+                          type: 'element',
+                          tagName: 'dd',
+                          data: { hName: 'dd', hProperties: {} },
+                          children: [
+                            {
+                              type: 'element',
+                              tagName: 'pre',
+                              data: { hName: 'pre', hProperties: {} },
+                              children: [
+                                {
+                                  type: 'element',
+                                  tagName: 'code',
+                                  data: {
+                                    hName: 'code',
+                                    hProperties: codeHProperties,
+                                    meta: `variant=${block.variant}${Object.entries(block.props)
+                                      .map(([key, value]) => ` ${key}=${value}`)
+                                      .join('')}`,
+                                  },
+                                  children: [
+                                    {
+                                      type: 'text',
+                                      value: block.node.value,
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
                     },
                   ],
                 };
@@ -476,7 +645,7 @@ export const transformMarkdownCode: Plugin = () => {
             };
 
             // Replace the first block with the group and mark others for removal
-            (parentNode.children as any)[codeBlocks[0].index] = preElement;
+            (parentNode.children as any)[codeBlocks[0].index] = sectionElement;
 
             // Remove all other code blocks and their labels (in reverse order to maintain indices)
             const indicesToRemove = codeBlocks
@@ -537,6 +706,95 @@ export const transformMarkdownCode: Plugin = () => {
                 });
               }
             }
+          } else if (codeBlocks.length === 1) {
+            // Single code block with variant - create a simple dl without figure wrapper
+            const block = codeBlocks[0];
+
+            const codeHProperties: Record<string, any> = {};
+
+            // Add language class if available
+            if (block.actualLang) {
+              codeHProperties.className = `language-${block.actualLang}`;
+            }
+
+            // Add additional props as data attributes (in camelCase)
+            Object.entries(block.props).forEach(([key, value]) => {
+              // Convert kebab-case to camelCase for data attributes
+              const camelKey = key.includes('-')
+                ? `data${key
+                    .split('-')
+                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                    .join('')}`
+                : `data${key.charAt(0).toUpperCase() + key.slice(1)}`;
+              codeHProperties[camelKey] = value;
+            });
+
+            // Add data-variant to track the variant
+            codeHProperties.dataVariant = block.variant;
+
+            const fileName = getFileName(block.actualLang, block.props);
+
+            const dlElement = {
+              type: 'element',
+              tagName: 'dl',
+              data: {
+                hName: 'dl',
+                hProperties: {},
+              },
+              children: [
+                ...(fileName
+                  ? [
+                      {
+                        type: 'element',
+                        tagName: 'dt',
+                        data: { hName: 'dt', hProperties: {} },
+                        children: [
+                          {
+                            type: 'element',
+                            tagName: 'code',
+                            data: { hName: 'code', hProperties: {} },
+                            children: [{ type: 'text', value: fileName }],
+                          },
+                        ],
+                      },
+                    ]
+                  : []),
+                {
+                  type: 'element',
+                  tagName: 'dd',
+                  data: { hName: 'dd', hProperties: {} },
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      data: { hName: 'pre', hProperties: {} },
+                      children: [
+                        {
+                          type: 'element',
+                          tagName: 'code',
+                          data: {
+                            hName: 'code',
+                            hProperties: codeHProperties,
+                            meta: `variant=${block.variant}${Object.entries(block.props)
+                              .map(([key, value]) => ` ${key}=${value}`)
+                              .join('')}`,
+                          },
+                          children: [
+                            {
+                              type: 'text',
+                              value: block.node.value,
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            };
+
+            // Replace this single code block
+            (parentNode.children as any)[codeBlocks[0].index] = dlElement;
           }
         }
       }

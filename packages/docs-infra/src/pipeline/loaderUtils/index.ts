@@ -1,4 +1,4 @@
-export * from './parseImports';
+export * from './parseImportsAndComments';
 export * from './resolveModulePath';
 export * from './rewriteImports';
 export * from './processRelativeImports';

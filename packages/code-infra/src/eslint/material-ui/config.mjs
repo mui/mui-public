@@ -304,7 +304,7 @@ const airbnbJsxA11y = {
 
 /**
  * @param {Object} [options]
- * @param {boolean} [options.reactCompilerEnabled] - Whether the config is for spec files.
+ * @param {boolean} [options.enableReactCompiler] - Whether the config is for spec files.
  */
 export function createCoreConfig(options = {}) {
   return defineConfig([
@@ -502,7 +502,7 @@ export function createCoreConfig(options = {}) {
 
         'react/jsx-no-useless-fragment': ['error', { allowExpressions: true }],
         'lines-around-directive': 'off',
-        ...(options.reactCompilerEnabled ? { 'react-compiler/react-compiler': 'error' } : {}),
+        ...(options.enableReactCompiler ? { 'react-compiler/react-compiler': 'error' } : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
