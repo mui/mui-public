@@ -9,6 +9,11 @@ import { formatComponentData, isPublicComponent } from './formatComponent';
 import { formatHookData, isPublicHook } from './formatHook';
 import { parseExports } from './parseExports';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
+import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketClient';
+import { SocketServer } from './socketServer';
+
+console.warn('[Worker] Worker thread module loaded - Process ID:', process.pid);
 
 export type TypesMeta =
   | {
@@ -57,10 +62,14 @@ export interface WorkerResponse {
 
 async function processTypesInWorker(request: WorkerRequest): Promise<WorkerResponse> {
   const tracker = new PerformanceTracker();
+  const functionName = '[Worker] Process Types';
 
   try {
     // Create optimized TypeScript program
-    const programStart = tracker.mark('program creation start');
+    const programWrapperStart = tracker.mark(
+      nameMark(functionName, 'Program Creation Start', [request.relativePath], true),
+    );
+
     let program;
     try {
       program = createOptimizedProgram(
@@ -70,6 +79,9 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
         {
           globalTypes: request.globalTypes,
         },
+        tracker,
+        functionName,
+        [request.relativePath],
       );
     } catch (error) {
       if (error instanceof MissingGlobalTypesError) {
@@ -90,8 +102,15 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
       }
       throw error;
     }
-    const programEnd = tracker.mark('program creation end');
-    tracker.measure('program creation', programStart, programEnd);
+
+    const programWrapperEnd = tracker.mark(
+      nameMark(functionName, 'Program Creation End', [request.relativePath], true),
+    );
+    tracker.measure(
+      nameMark(functionName, 'Program Creation', [request.relativePath], true),
+      programWrapperStart,
+      programWrapperEnd,
+    );
 
     const internalTypesCache: Record<string, ExportNode[]> = {};
     const parserOptions: ParserOptions = {
@@ -105,7 +124,9 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
     const resolvedVariantMap = new Map(request.resolvedVariantMap);
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
-        const variantStart = tracker.mark(`variant ${variantName} start`);
+        const variantStart = tracker.mark(
+          nameMark(functionName, `Variant ${variantName} Start`, [request.relativePath]),
+        );
 
         const namedExport = request.namedExports?.[variantName];
         const entrypoint = fileUrl.replace('file://', '');
@@ -127,7 +148,9 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
             namespaces.push(exportName);
           }
 
-          const parseStart = tracker.mark(`variant ${variantName} parse start`);
+          const parseStart = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Parse Start`, [request.relativePath]),
+          );
           const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
           if (reExportResults && reExportResults.length > 0) {
             namespaces = reExportResults.map((result) => result.name).filter(Boolean);
@@ -168,10 +191,18 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
           }, []);
           const allTypes = [...exports, ...internalTypes];
 
-          const parseEnd = tracker.mark(`variant ${variantName} parse end`);
-          tracker.measure(`variant ${variantName} parsing`, parseStart, parseEnd);
+          const parseEnd = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Parsed`, [request.relativePath]),
+          );
+          tracker.measure(
+            nameMark(functionName, `Variant ${variantName} Parsing`, [request.relativePath]),
+            parseStart,
+            parseEnd,
+          );
 
-          const formatStart = tracker.mark(`variant ${variantName} format start`);
+          const formatStart = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Format Start`, [request.relativePath]),
+          );
           const types: TypesMeta[] = await Promise.all(
             exports.map(async (exportNode) => {
               if (isPublicComponent(exportNode)) {
@@ -191,11 +222,23 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
               return { type: 'other', name: exportNode.name, data: exportNode };
             }),
           );
-          const formatEnd = tracker.mark(`variant ${variantName} format end`);
-          tracker.measure(`variant ${variantName} formatting`, formatStart, formatEnd);
+          const formatEnd = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Formatted`, [request.relativePath]),
+          );
+          tracker.measure(
+            nameMark(functionName, `Variant ${variantName} Formatting`, [request.relativePath]),
+            formatStart,
+            formatEnd,
+          );
 
-          const variantEnd = tracker.mark(`variant ${variantName} end`);
-          tracker.measure(`variant ${variantName} total`, variantStart, variantEnd);
+          const variantEnd = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Complete`, [request.relativePath]),
+          );
+          tracker.measure(
+            nameMark(functionName, `Variant ${variantName} Total`, [request.relativePath]),
+            variantStart,
+            variantEnd,
+          );
 
           return {
             variantName,
@@ -266,14 +309,100 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
 }
 
 // Worker message handler
+let socketClient: SocketClient | null = null;
+let socketServer: SocketServer | null = null;
+
+// Initialize socket connection
+const initSocket = async () => {
+  console.warn('[Worker] Initializing socket connection...');
+  console.warn('[Worker] Process ID:', process.pid);
+
+  // Try to acquire the server lock (only one worker will succeed)
+  let shouldBeServer = await tryAcquireServerLock();
+
+  if (shouldBeServer) {
+    // This is the first worker - create a socket server
+    console.warn('[Worker] This worker will act as the socket server');
+
+    socketServer = new SocketServer(processTypesInWorker);
+    await socketServer.start();
+  } else {
+    // Another worker is already running - wait a bit for it to start, then connect
+    console.warn('[Worker] Another worker is the server, connecting as client...');
+
+    // Wait for server to be ready
+    await new Promise((resolve) => {
+      setTimeout(resolve, 200);
+    });
+
+    socketClient = new SocketClient();
+    try {
+      await socketClient.connect();
+    } catch (error) {
+      console.error('[Worker] Failed to connect to socket:', error);
+
+      // Retry: Maybe no server exists yet, try to become the server ourselves
+      console.warn('[Worker] Retrying lock acquisition in case no server exists...');
+      shouldBeServer = await tryAcquireServerLock();
+
+      if (shouldBeServer) {
+        console.warn('[Worker] Successfully acquired lock on retry, becoming server');
+        socketClient = null;
+        socketServer = new SocketServer(processTypesInWorker);
+        await socketServer.start();
+      } else {
+        console.warn(
+          '[Worker] Lock still held by another worker, falling back to local processing',
+        );
+        // Fall back to processing locally
+        socketClient = null;
+      }
+    }
+  }
+};
+
+// Start initialization
+const socketReady = initSocket();
+
 if (parentPort) {
   parentPort.on('message', async (request: WorkerRequest) => {
-    const response = await processTypesInWorker(request);
+    // Wait for socket initialization to complete
+    await socketReady;
+
+    let response: WorkerResponse;
+
+    // If we have a socket client connection, forward the request
+    if (socketClient) {
+      try {
+        response = await socketClient.sendRequest(request);
+      } catch (error) {
+        console.error('[Worker] Socket request failed, falling back to local processing:', error);
+        socketClient = null; // Disconnect on error
+        response = await processTypesInWorker(request);
+      }
+    } else {
+      // Process locally (either server worker or standalone worker)
+      response = await processTypesInWorker(request);
+    }
 
     // Echo back the requestId for the worker manager to match responses
     parentPort?.postMessage({
       ...response,
       requestId: request.requestId,
     });
+  });
+
+  // Clean up on worker termination
+  parentPort.on('close', () => {
+    if (socketClient) {
+      socketClient.close();
+    }
+    if (socketServer) {
+      socketServer.shutdown();
+      // Release lock asynchronously (fire and forget since worker is closing)
+      releaseServerLock().catch((error) => {
+        console.error('[Worker] Failed to release lock on close:', error);
+      });
+    }
   });
 }

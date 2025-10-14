@@ -30,6 +30,8 @@ class TypesMetaWorkerManager {
 
   private ensureWorker(): Worker {
     if (!this.worker) {
+      // eslint-disable-next-line no-console
+      console.log('[TypesMetaWorker] Creating new worker instance');
       this.worker = new Worker(this.workerPath);
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
@@ -55,11 +57,16 @@ class TypesMetaWorkerManager {
       });
 
       this.worker.on('exit', (code) => {
+        // eslint-disable-next-line no-console
+        console.log(`[TypesMetaWorker] Worker exited with code ${code}`);
         if (code !== 0) {
           console.error(`[TypesMetaWorker] Worker stopped with exit code ${code}`);
         }
         this.worker = null;
       });
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[TypesMetaWorker] Reusing existing worker instance');
     }
 
     return this.worker;
@@ -89,26 +96,52 @@ class TypesMetaWorkerManager {
   }
 }
 
-// Use globalThis to ensure singleton persists across all webpack module contexts
-// Symbol key prevents naming conflicts with other global properties
-const GLOBAL_KEY = Symbol.for('@mui/docs-infra/types-meta-worker-manager');
+// Use process global to ensure singleton persists across all Turbopack module contexts
+// In Turbopack dev mode, each compilation can have separate globalThis contexts,
+// but they all share the same Node.js process object
+const WORKER_MANAGER_KEY = Symbol.for('@mui/docs-infra/types-meta-worker-manager');
 
-interface GlobalWithWorkerManager {
-  [GLOBAL_KEY]?: TypesMetaWorkerManager;
+interface ProcessWithWorkerManager {
+  [WORKER_MANAGER_KEY]?: TypesMetaWorkerManager;
 }
 
+// Debug tracking
+let accessCount = 0;
+const moduleId = Math.random().toString(36).substring(2, 9);
+
 export function getWorkerManager(): TypesMetaWorkerManager {
-  const globalObj = globalThis as GlobalWithWorkerManager;
-  if (!globalObj[GLOBAL_KEY]) {
-    globalObj[GLOBAL_KEY] = new TypesMetaWorkerManager();
+  accessCount += 1;
+  const processObj = process as ProcessWithWorkerManager;
+
+  if (!processObj[WORKER_MANAGER_KEY]) {
+    processObj[WORKER_MANAGER_KEY] = new TypesMetaWorkerManager();
+
+    // eslint-disable-next-line no-console
+    console.log(`[WorkerManager] Creating NEW manager instance`);
+    // eslint-disable-next-line no-console
+    console.log(`  Module ID: ${moduleId}`);
+    // eslint-disable-next-line no-console
+    console.log(`  Access count in this module: ${accessCount}`);
+    // eslint-disable-next-line no-console
+    console.log(`  Process ID: ${process.pid}`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[WorkerManager] Reusing EXISTING manager instance`);
+    // eslint-disable-next-line no-console
+    console.log(`  Module ID: ${moduleId}`);
+    // eslint-disable-next-line no-console
+    console.log(`  Access count in this module: ${accessCount}`);
+    // eslint-disable-next-line no-console
+    console.log(`  Process ID: ${process.pid}`);
   }
-  return globalObj[GLOBAL_KEY];
+
+  return processObj[WORKER_MANAGER_KEY];
 }
 
 export function terminateWorkerManager(): void {
-  const globalObj = globalThis as GlobalWithWorkerManager;
-  if (globalObj[GLOBAL_KEY]) {
-    globalObj[GLOBAL_KEY].terminate();
-    globalObj[GLOBAL_KEY] = undefined;
+  const processObj = process as ProcessWithWorkerManager;
+  if (processObj[WORKER_MANAGER_KEY]) {
+    processObj[WORKER_MANAGER_KEY].terminate();
+    processObj[WORKER_MANAGER_KEY] = undefined;
   }
 }

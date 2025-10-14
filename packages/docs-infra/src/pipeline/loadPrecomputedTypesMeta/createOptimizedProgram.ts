@@ -1,4 +1,6 @@
 import ts, { CompilerOptions } from 'typescript';
+import type { PerformanceTracker } from './performanceTracking';
+import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 export interface TypesMetaOptions {
   /**
@@ -360,6 +362,9 @@ function analyzeMissingTypes(diagnostics: readonly ts.Diagnostic[]): {
  * @param compilerOptions - TypeScript compiler options
  * @param entrypoints - Array of TypeScript files to analyze
  * @param options - Additional configuration options
+ * @param tracker - Performance tracker for measurements
+ * @param functionName - Name for performance markers
+ * @param context - Context for performance markers
  * @returns Optimized TypeScript program
  */
 export function createOptimizedProgram(
@@ -367,15 +372,34 @@ export function createOptimizedProgram(
   compilerOptions: CompilerOptions,
   entrypoints: string[],
   options: TypesMetaOptions = {},
+  tracker?: PerformanceTracker,
+  functionName?: string,
+  context?: string[],
 ): ts.Program {
   const { globalTypes = [] } = options;
 
   // Get or create the global language service instance
+  const getServiceStart = tracker?.mark(
+    nameMark(functionName!, 'Get Language Service Start', context!),
+  );
   const instance = getOrCreateLanguageService(projectPath, compilerOptions, globalTypes);
+  const getServiceEnd = tracker?.mark(
+    nameMark(functionName!, 'Language Service Retrieved', context!),
+  );
+  if (tracker && getServiceStart && getServiceEnd) {
+    tracker.measure(
+      nameMark(functionName!, 'Language Service Retrieval', context!),
+      getServiceStart,
+      getServiceEnd,
+    );
+  }
 
   console.warn(`[TypesMeta] Processing ${entrypoints.length} entrypoint(s)`);
 
   // Add all entrypoint files to the language service
+  const processFilesStart = tracker?.mark(
+    nameMark(functionName!, 'Process Entrypoints Start', context!),
+  );
   const filesAdded: string[] = [];
   const filesUpdated: string[] = [];
   const filesSkipped: string[] = [];
@@ -407,12 +431,32 @@ export function createOptimizedProgram(
   // Update all tracked indirect dependencies (imports of entrypoints)
   // This ensures we detect changes in files that were loaded by previous program runs
   // Skip in production as files won't change during the build
+  const processFilesEnd = tracker?.mark(nameMark(functionName!, 'Entrypoints Processed', context!));
+  if (tracker && processFilesStart && processFilesEnd) {
+    tracker.measure(
+      nameMark(functionName!, 'Entrypoint Processing', context!),
+      processFilesStart,
+      processFilesEnd,
+    );
+  }
+
+  const updateDepsStart = tracker?.mark(
+    nameMark(functionName!, 'Update Dependencies Start', context!),
+  );
   let dependencyChanges: { updated: string[]; unchanged: string[] } = {
     updated: [],
     unchanged: [],
   };
   if (process.env.NODE_ENV !== 'production') {
     dependencyChanges = instance.host.updateTrackedFiles();
+  }
+  const updateDepsEnd = tracker?.mark(nameMark(functionName!, 'Dependencies Updated', context!));
+  if (tracker && updateDepsStart && updateDepsEnd) {
+    tracker.measure(
+      nameMark(functionName!, 'Dependency Updates', context!),
+      updateDepsStart,
+      updateDepsEnd,
+    );
   }
 
   if (filesAdded.length > 0) {
@@ -436,10 +480,19 @@ export function createOptimizedProgram(
   console.warn(`[TypesMeta] Total files in service: ${instance.host.getScriptFileNames().length}`);
 
   // Get the current program from the language service
+  const getProgramStart = tracker?.mark(nameMark(functionName!, 'Get Program Start', context!));
   instance.host.resetCallCounts();
-  const getProgramStart = performance.now();
+  const getProgramStartTime = performance.now();
   const program = instance.service.getProgram();
-  const getProgramTime = performance.now() - getProgramStart;
+  const getProgramTime = performance.now() - getProgramStartTime;
+  const getProgramEnd = tracker?.mark(nameMark(functionName!, 'Program Retrieved', context!));
+  if (tracker && getProgramStart && getProgramEnd) {
+    tracker.measure(
+      nameMark(functionName!, 'Program Retrieval', context!),
+      getProgramStart,
+      getProgramEnd,
+    );
+  }
   const { version: versionCalls, snapshot: snapshotCalls } = instance.host.getCallCounts();
   console.warn(
     `[TypesMeta] getProgram() took ${getProgramTime.toFixed(2)}ms (getScriptVersion: ${versionCalls} calls, getScriptSnapshot: ${snapshotCalls} calls)`,
@@ -449,9 +502,16 @@ export function createOptimizedProgram(
     throw new Error('Failed to create TypeScript program from language service');
   }
 
-  // Check for compilation errors that might indicate missing global types
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  if (diagnostics.length > 0) {
+  // Only check diagnostics if the program has syntax errors
+  // This catches missing global types without the performance cost on successful builds
+  const syntacticDiagnostics = program.getSyntacticDiagnostics();
+
+  if (syntacticDiagnostics.length > 0) {
+    // We have syntax errors - run full diagnostics to detect missing global types
+    const diagnosticsStart = tracker?.mark(
+      nameMark(functionName!, 'Check Diagnostics Start', context!),
+    );
+    const diagnostics = ts.getPreEmitDiagnostics(program);
     const { missingTypes, suggestions } = analyzeMissingTypes(diagnostics);
 
     if (suggestions.length > 0) {
@@ -460,6 +520,15 @@ export function createOptimizedProgram(
         .join('\n');
 
       throw new MissingGlobalTypesError(missingTypes, suggestions, errorMessages);
+    }
+
+    const diagnosticsEnd = tracker?.mark(nameMark(functionName!, 'Diagnostics Checked', context!));
+    if (tracker && diagnosticsStart && diagnosticsEnd) {
+      tracker.measure(
+        nameMark(functionName!, 'Diagnostic Checking', context!),
+        diagnosticsStart,
+        diagnosticsEnd,
+      );
     }
   }
 

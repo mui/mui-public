@@ -49,14 +49,10 @@ export class PerformanceTracker {
 /**
  * Reconstruct performance measures in the main thread from worker logs
  */
-export function reconstructPerformanceLogs(
-  logs: PerformanceLog[],
-  timeOffset: number,
-  prefix = '[Worker]',
-): void {
+export function reconstructPerformanceLogs(logs: PerformanceLog[], timeOffset: number): void {
   logs.forEach((log) => {
     if (log.type === 'measure' && log.duration !== undefined) {
-      performance.measure(`${prefix} ${log.name}`, {
+      performance.measure(log.name, {
         start: timeOffset + log.startTime,
         duration: log.duration,
       });

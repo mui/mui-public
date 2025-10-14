@@ -29,6 +29,7 @@ export type LoaderOptions = {
     logging?: boolean;
     notableMs?: number;
     showWrapperMeasures?: boolean;
+    significantDependencyCountThreshold?: number;
   };
 };
 
@@ -389,7 +390,10 @@ export async function loadPrecomputedTypesMeta(
     });
 
     if (options.performance?.logging) {
-      if (allDependencies.length > 25) {
+      if (
+        options.performance?.significantDependencyCountThreshold &&
+        allDependencies.length > options.performance.significantDependencyCountThreshold
+      ) {
         // eslint-disable-next-line no-console
         console.log(
           `[${functionName}] ${relativePath} - added ${allDependencies.length} dependencies to watch:\n\n${allDependencies.map((dep) => `- ${path.relative(config.projectPath, dep)}`).join('\n')}\n`,
