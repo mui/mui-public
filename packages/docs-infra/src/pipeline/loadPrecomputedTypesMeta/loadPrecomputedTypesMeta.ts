@@ -6,12 +6,8 @@ import fs from 'fs/promises';
 
 import { resolve } from 'import-meta-resolve';
 import type { LoaderContext } from 'webpack';
-import { ExportNode, parseFromProgram, ParserOptions } from 'typescript-api-extractor';
-import type { VariantCode } from '../../CodeHighlighter/types';
-import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { extractNameAndSlugFromUrl, getFileNameFromUrl } from '../loaderUtils';
-import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
+import type { ExportNode } from 'typescript-api-extractor';
+import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import {
   createPerformanceLogger,
   logPerformance,
@@ -19,15 +15,14 @@ import {
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
-import {
-  ComponentTypeMeta as ComponentType,
-  formatComponentData,
-  isPublicComponent,
-} from './formatComponent';
-import { formatHookData, HookTypeMeta as HookType, isPublicHook } from './formatHook';
+import { ComponentTypeMeta as ComponentType } from './formatComponent';
+import { HookTypeMeta as HookType } from './formatHook';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
-import { parseExports } from './parseExports';
 import { findMetaFiles } from './findMetaFiles';
+import { getWorkerManager } from './workerManager';
+import { reconstructPerformanceLogs } from './performanceTracking';
+import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 
 export type LoaderOptions = {
   performance?: {
@@ -181,16 +176,6 @@ export async function loadPrecomputedTypesMeta(
     );
     currentMark = tsconfigLoadedMark;
 
-    // Load variant data for all variants
-    const variantData: Record<
-      string,
-      {
-        types: TypesMeta[];
-        importedFrom: string;
-      }
-    > = {};
-    const allDependencies: string[] = [];
-
     // Resolve all variant entry point paths using import.meta.resolve
     let globalTypes = typesMetaCall?.structuredOptions?.globalTypes?.[0].map((s: any) =>
       s.replace(/['"]/g, ''),
@@ -321,226 +306,43 @@ export async function loadPrecomputedTypesMeta(
     );
     currentMark = metaFilesResolvedMark;
 
-    // Create optimized TypeScript program
-    // This provides 70%+ performance improvement by reducing file loading
-    // from ~700+ files to ~80-100 files while maintaining type accuracy
-    let program;
-    try {
-      program = createOptimizedProgram(config.projectPath, config.options, allEntrypoints, {
-        globalTypes,
-      });
-    } catch (error) {
-      if (error instanceof MissingGlobalTypesError) {
-        // Enhance the error message with context about the createTypesMeta call
-        throw new Error(
-          `${error.message}\n\n` +
-            `To fix this, update your createTypesMeta call:\n` +
-            `export default createTypesMeta(import.meta.url, YourComponent, {\n` +
-            `  globalTypes: [${error.suggestions.map((s) => `'${s}'`).join(', ')}],\n` +
-            `});\n\n` +
-            `Common globalTypes values:\n` +
-            `- 'react' for React components\n` +
-            `- 'react-dom' for React DOM types\n` +
-            `- 'node' for Node.js globals\n` +
-            `- 'dom' for browser/DOM globals`,
-        );
-      }
-      throw error;
+    // Process types in worker thread
+    // This offloads TypeScript operations to a worker while keeping the singleton cache
+    const workerManager = getWorkerManager();
+    const workerStartTime = performance.now();
+
+    const workerResult = await workerManager.processTypes({
+      projectPath: config.projectPath,
+      compilerOptions: config.options,
+      allEntrypoints,
+      globalTypes,
+      resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
+      namedExports: typesMetaCall.namedExports as Record<string, string> | undefined,
+      dependencies: config.dependencies,
+      rootContext: this.rootContext || process.cwd(),
+      relativePath,
+    });
+
+    if (!workerResult.success) {
+      throw new Error(workerResult.error || 'Worker failed to process types');
     }
 
-    const programCreatedMark = nameMark(functionName, 'program created', [relativePath]);
-    performance.mark(programCreatedMark);
+    // Reconstruct worker performance logs in main thread
+    if (workerResult.performanceLogs) {
+      reconstructPerformanceLogs(workerResult.performanceLogs, workerStartTime);
+    }
+
+    const workerProcessedMark = nameMark(functionName, 'worker processed', [relativePath], true);
+    performance.mark(workerProcessedMark);
     performance.measure(
-      nameMark(functionName, 'program creation', [relativePath]),
+      nameMark(functionName, 'worker processing', [relativePath], true),
       currentMark,
-      programCreatedMark,
+      workerProcessedMark,
     );
-    currentMark = programCreatedMark;
+    currentMark = workerProcessedMark;
 
-    const internalTypesCache: Record<string, ExportNode[]> = {};
-    const parserOptions: ParserOptions = {
-      includeExternalTypes: false, // Only include project types
-      shouldInclude: ({ depth }) => depth <= 10, // Limit depth
-      shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
-    };
-    const checker = program.getTypeChecker();
-
-    // Process variants in parallel
-    const variantPromises = Array.from(resolvedVariantMap.entries()).map(
-      async ([variantName, fileUrl]) => {
-        const namedExport = typesMetaCall.namedExports?.[variantName];
-        const variant: VariantCode | string = fileUrl;
-        if (namedExport) {
-          const { fileName } = getFileNameFromUrl(variant);
-          if (!fileName) {
-            throw new Error(
-              `Cannot determine fileName from URL "${variant}" for variant "${variantName}". ` +
-                `Please ensure the URL has a valid file extension.`,
-            );
-          }
-        }
-
-        const entrypoint = fileUrl.replace('file://', '');
-        const entrypointDir = new URL('.', fileUrl).pathname;
-        try {
-          // Ensure the entrypoint exists and is accessible to the TypeScript program
-          const sourceFile = program.getSourceFile(entrypoint);
-          if (!sourceFile) {
-            throw new Error(
-              `Source file not found in TypeScript program: ${entrypoint}\n` +
-                `Make sure the file exists and is included in the TypeScript compilation.`,
-            );
-          }
-
-          let namespaces: string[] = [];
-          const exportName = typesMetaCall.namedExports?.[variantName];
-          if (exportName) {
-            namespaces.push(exportName);
-          }
-
-          const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
-          if (reExportResults && reExportResults.length > 0) {
-            namespaces = reExportResults.map((result) => result.name).filter(Boolean);
-          }
-
-          // Flatten all exports from the re-export results
-          const exports = reExportResults.flatMap((result) => result.exports);
-
-          // Get all source files that are dependencies of this entrypoint
-          const dependencies = [...config.dependencies, entrypoint];
-
-          // Get all imported files from the TypeScript program
-          // This includes all transitively imported files (imports within imports)
-          const allSourceFiles = program.getSourceFiles();
-          const dependantFiles = allSourceFiles
-            .map((sf) => sf.fileName)
-            .filter((fileName) => !fileName.includes('node_modules/typescript/lib'));
-
-          dependencies.push(...dependantFiles);
-
-          const adjacentFiles = dependantFiles.filter(
-            (fileName) => fileName !== entrypoint && fileName.startsWith(entrypointDir),
-          );
-
-          const allInternalTypes = adjacentFiles.map((file) => {
-            if (internalTypesCache[file]) {
-              return internalTypesCache[file];
-            }
-
-            const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
-
-            internalTypesCache[file] = internalExport;
-            return internalExport;
-          });
-
-          const internalTypes = allInternalTypes.reduce((acc, cur) => {
-            acc.push(...cur);
-            return acc;
-          }, []);
-          const allTypes = [...exports, ...internalTypes];
-
-          const relativeEntrypoint = path.relative(this.rootContext || process.cwd(), entrypoint);
-          const parsedFromProgramMark = nameMark(functionName, 'parsed from program', [
-            relativeEntrypoint,
-            relativePath,
-          ]);
-          performance.mark(parsedFromProgramMark);
-          performance.measure(
-            nameMark(functionName, 'program parsing', [relativeEntrypoint, relativePath]),
-            currentMark,
-            parsedFromProgramMark,
-          );
-          currentMark = parsedFromProgramMark;
-
-          const types: TypesMeta[] = await Promise.all(
-            exports.map(async (exportNode) => {
-              if (isPublicComponent(exportNode)) {
-                const componentApiReference = await formatComponentData(
-                  exportNode,
-                  allTypes,
-                  namespaces,
-                );
-                return { type: 'component', name: exportNode.name, data: componentApiReference };
-              }
-
-              if (isPublicHook(exportNode)) {
-                const hookApiReference = await formatHookData(exportNode, []);
-                return { type: 'hook', name: exportNode.name, data: hookApiReference };
-              }
-
-              return { type: 'other', name: exportNode.name, data: exportNode };
-            }),
-          );
-
-          const formattedTypesMark = nameMark(functionName, 'formatted types', [
-            relativeEntrypoint,
-            relativePath,
-          ]);
-          performance.mark(formattedTypesMark);
-          performance.measure(
-            nameMark(functionName, 'types formatting', [relativeEntrypoint, relativePath]),
-            currentMark,
-            formattedTypesMark,
-          );
-          currentMark = formattedTypesMark;
-
-          return {
-            variantName,
-            variantData: {
-              types,
-              importedFrom: namedExport || 'default',
-            },
-            dependencies,
-            namespaces,
-          };
-        } catch (error) {
-          throw new Error(
-            `Failed to parse variant ${variantName} (${fileUrl}): \n${error && typeof error === 'object' && 'message' in error && error.message}`,
-          );
-        }
-      },
-    );
-
-    const variantResults = await Promise.all(variantPromises);
-
-    // Process results and collect dependencies
-    if (
-      variantResults.length === 1 &&
-      variantResults[0]?.variantName === 'Default' &&
-      variantResults[0]?.namespaces.length > 0
-    ) {
-      const defaultVariant = variantResults[0];
-      const data = defaultVariant?.variantData;
-      data.types.forEach((type) => {
-        variantData[type.data.name] = { types: [type], importedFrom: data.importedFrom };
-      });
-      defaultVariant.dependencies.forEach((file: string) => {
-        allDependencies.push(file);
-      });
-    } else {
-      for (const result of variantResults) {
-        if (result) {
-          variantData[result.variantName] = result.variantData;
-          result.dependencies.forEach((file: string) => {
-            allDependencies.push(file);
-          });
-        }
-      }
-    }
-
-    const parsedFromProgramMark = nameMark(
-      functionName,
-      'parsed all entrypoints',
-      [relativePath],
-      true,
-    );
-    performance.mark(parsedFromProgramMark);
-    performance.measure(
-      nameMark(functionName, 'entrypoint parsing', [relativePath], true),
-      programCreatedMark,
-      parsedFromProgramMark,
-    );
-    currentMark = parsedFromProgramMark;
+    const variantData = workerResult.variantData || {};
+    const allDependencies = workerResult.allDependencies || [];
 
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);
