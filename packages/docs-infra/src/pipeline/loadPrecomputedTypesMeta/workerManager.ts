@@ -30,8 +30,6 @@ class TypesMetaWorkerManager {
 
   private ensureWorker(): Worker {
     if (!this.worker) {
-      // eslint-disable-next-line no-console
-      console.log('[TypesMetaWorker] Creating new worker instance');
       this.worker = new Worker(this.workerPath);
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
@@ -57,16 +55,11 @@ class TypesMetaWorkerManager {
       });
 
       this.worker.on('exit', (code) => {
-        // eslint-disable-next-line no-console
-        console.log(`[TypesMetaWorker] Worker exited with code ${code}`);
         if (code !== 0) {
           console.error(`[TypesMetaWorker] Worker stopped with exit code ${code}`);
         }
         this.worker = null;
       });
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('[TypesMetaWorker] Reusing existing worker instance');
     }
 
     return this.worker;
@@ -105,34 +98,11 @@ interface ProcessWithWorkerManager {
   [WORKER_MANAGER_KEY]?: TypesMetaWorkerManager;
 }
 
-// Debug tracking
-let accessCount = 0;
-const moduleId = Math.random().toString(36).substring(2, 9);
-
 export function getWorkerManager(): TypesMetaWorkerManager {
-  accessCount += 1;
   const processObj = process as ProcessWithWorkerManager;
 
   if (!processObj[WORKER_MANAGER_KEY]) {
     processObj[WORKER_MANAGER_KEY] = new TypesMetaWorkerManager();
-
-    // eslint-disable-next-line no-console
-    console.log(`[WorkerManager] Creating NEW manager instance`);
-    // eslint-disable-next-line no-console
-    console.log(`  Module ID: ${moduleId}`);
-    // eslint-disable-next-line no-console
-    console.log(`  Access count in this module: ${accessCount}`);
-    // eslint-disable-next-line no-console
-    console.log(`  Process ID: ${process.pid}`);
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(`[WorkerManager] Reusing EXISTING manager instance`);
-    // eslint-disable-next-line no-console
-    console.log(`  Module ID: ${moduleId}`);
-    // eslint-disable-next-line no-console
-    console.log(`  Access count in this module: ${accessCount}`);
-    // eslint-disable-next-line no-console
-    console.log(`  Process ID: ${process.pid}`);
   }
 
   return processObj[WORKER_MANAGER_KEY];

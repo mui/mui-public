@@ -123,7 +123,7 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
         const variantStart = tracker.mark(
-          nameMark(functionName, `Variant ${variantName} Start`, [request.relativePath]),
+          nameMark(functionName, `Variant ${variantName} Start`, [request.relativePath], true),
         );
 
         const namedExport = request.namedExports?.[variantName];
@@ -230,10 +230,10 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
           );
 
           const variantEnd = tracker.mark(
-            nameMark(functionName, `Variant ${variantName} Complete`, [request.relativePath]),
+            nameMark(functionName, `Variant ${variantName} Complete`, [request.relativePath], true),
           );
           tracker.measure(
-            nameMark(functionName, `Variant ${variantName} Total`, [request.relativePath]),
+            nameMark(functionName, `Variant ${variantName} Total`, [request.relativePath], true),
             variantStart,
             variantEnd,
           );
