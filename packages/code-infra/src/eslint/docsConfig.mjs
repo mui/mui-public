@@ -11,6 +11,7 @@ export function createDocsConfig() {
         rootDir: 'docs',
       },
     },
+    files: ['**/*.js', '**/*.mjs', '**/*.jsx', '**/*.ts', '**/*.tsx'],
     rules: {
       'jsx-a11y/anchor-is-valid': 'off',
       'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
