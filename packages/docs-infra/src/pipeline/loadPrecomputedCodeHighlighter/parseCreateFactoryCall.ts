@@ -1,4 +1,4 @@
-import { parseImports, type ParseImportsResult } from '../loaderUtils';
+import { parseImportsAndComments, type ImportsAndComments } from '../loaderUtils';
 import {
   parseFunctionArguments,
   type SplitArguments,
@@ -215,9 +215,17 @@ function parseVariantsObjectFromObject(
       const { expression } = typeAssertion;
       importName = typeof expression === 'string' ? expression : String(expression);
     } else if (typeof value === 'string') {
-      // Simple string value - strip TypeScript type assertions
-      const asIndex = value.indexOf(' as ');
-      importName = asIndex !== -1 ? value.substring(0, asIndex).trim() : value.trim();
+      // Simple string value - strip TypeScript type assertions and typeof expressions
+      let processedValue = value.trim();
+      const asIndex = processedValue.indexOf(' as ');
+      if (asIndex !== -1) {
+        processedValue = processedValue.substring(0, asIndex).trim();
+      }
+      // Handle typeof expressions
+      if (processedValue.startsWith('typeof ')) {
+        processedValue = processedValue.substring(7).trim();
+      }
+      importName = processedValue;
     } else {
       // Handle other structured types (functions, generics, arrays)
       const functionCall = isFunction(value);
@@ -265,11 +273,11 @@ function parseVariantsObjectFromObject(
 }
 
 /**
- * Helper function to convert the new parseImports format to a Map
+ * Helper function to convert the new parseImportsAndComments format to a Map
  * that maps import names to their resolved paths
  */
 function buildImportMap(
-  importResult: ParseImportsResult,
+  importResult: ImportsAndComments,
   allowExternalVariants?: boolean,
 ): Map<string, string> {
   const importMap = new Map<string, string>();
@@ -306,7 +314,7 @@ function buildImportMap(
  * Helper function to build a mapping from import aliases to their original named exports
  */
 function buildNamedExportsMap(
-  importResult: ParseImportsResult,
+  importResult: ImportsAndComments,
   allowExternalVariants?: boolean,
 ): Map<string, string | undefined> {
   const namedExportsMap = new Map<string, string | undefined>();
@@ -374,9 +382,12 @@ export interface ParsedCreateFactory {
   structuredUrl: string;
   structuredVariants: string | SplitArguments | Record<string, string> | undefined;
   structuredOptions?: Record<string, any>;
+  // TypeScript generic definitions
+  hasGenerics: boolean;
+  structuredGenerics?: Record<string, any>; // Parsed generic type definitions
   // Remaining content after the function call
   remaining?: string;
-  parseImportsResult?: ParseImportsResult;
+  importsAndComments?: ImportsAndComments;
 }
 
 /**
@@ -477,7 +488,19 @@ function parseVariantsArgumentFromStructured(
 
   // If it's a single identifier string
   if (typeof structuredVariants === 'string') {
-    const componentName = structuredVariants.trim();
+    let componentName = structuredVariants.trim();
+
+    // Handle TypeScript type assertions in single component syntax
+    const asIndex = componentName.indexOf(' as ');
+    if (asIndex !== -1) {
+      componentName = componentName.substring(0, asIndex).trim();
+    }
+
+    // Handle typeof expressions in single component syntax
+    if (componentName.startsWith('typeof ')) {
+      componentName = componentName.substring(7).trim();
+    }
+
     if (importMap.has(componentName)) {
       return {
         variants: {
@@ -501,6 +524,55 @@ function parseVariantsArgumentFromStructured(
     `Unexpected structured variants format in ${functionName} call in ${filePath}. ` +
       `Expected string, array, or object but got: ${typeof structuredVariants}`,
   );
+}
+
+/**
+ * Parse TypeScript generic definitions to extract variants mapping
+ * e.g., "{ VariantA: ComponentA, VariantB: ComponentB }" -> { VariantA: "ComponentA", VariantB: "ComponentB" }
+ * e.g., "Component" -> { Default: "Component" }
+ */
+function parseGenericDefinitions(genericContent: string): Record<string, any> {
+  if (!genericContent.trim()) {
+    return {};
+  }
+
+  // Handle object literals directly (most common case)
+  const trimmed = genericContent.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    // Parse as object literal using the existing parser
+    const parsed = parseFunctionArguments(trimmed);
+    if (parsed.length === 1 && typeof parsed[0] === 'object' && !Array.isArray(parsed[0])) {
+      return parsed[0] as Record<string, any>;
+    }
+  }
+
+  // Parse the generic content using the existing parser
+  const parsed = parseFunctionArguments(genericContent);
+
+  // If it's a single object, return it
+  if (parsed.length === 1 && typeof parsed[0] === 'object' && !Array.isArray(parsed[0])) {
+    return parsed[0] as Record<string, any>;
+  }
+
+  // If it's a single string (single component), treat as Default variant
+  if (parsed.length === 1 && typeof parsed[0] === 'string') {
+    return { Default: parsed[0] };
+  }
+
+  // If it's multiple elements, try to interpret as an object
+  if (parsed.length > 1) {
+    const result: Record<string, any> = {};
+    parsed.forEach((item, index) => {
+      if (typeof item === 'string') {
+        result[`Variant${index + 1}`] = item;
+      } else if (typeof item === 'object' && item !== null) {
+        Object.assign(result, item);
+      }
+    });
+    return result;
+  }
+
+  return {};
 }
 
 /**
@@ -574,24 +646,127 @@ export async function parseCreateFactoryCall(
   code: string,
   filePath: string,
   parseOptions: ParseOptions = {},
-  parseImportsResult?: ParseImportsResult,
-): Promise<(ParsedCreateFactory & { parseImportsResult?: ParseImportsResult }) | null> {
-  // Find all create* calls in the code
-  const createFactoryMatches = findCreateFactoryCalls(code, filePath, parseOptions);
-
-  // Enforce single create* call per file unless allowMultipleFactories is true
-  if (!parseOptions.allowMultipleFactories && createFactoryMatches.length > 1) {
-    throw new Error(
-      `Multiple create* factory calls found in ${filePath}. Only one create* call per file is supported. Found ${createFactoryMatches.length} calls.`,
-    );
-  }
+  importsAndComments?: ImportsAndComments,
+): Promise<(ParsedCreateFactory & { importsAndComments?: ImportsAndComments }) | null> {
+  // Find the first create* call in the code
+  const match = findFirstCreateFactoryCall(code, filePath, parseOptions);
 
   // Return null if no create* call found
-  if (createFactoryMatches.length === 0) {
+  if (!match) {
     return null;
   }
 
-  const match = createFactoryMatches[0];
+  // Check for multiple create* calls if allowMultipleFactories is false
+  if (!parseOptions.allowMultipleFactories) {
+    const secondMatch = findFirstCreateFactoryCall(
+      code,
+      filePath,
+      parseOptions,
+      match.functionEndIndex + 1,
+    );
+    if (secondMatch) {
+      throw new Error(
+        `Multiple create* factory calls found in ${filePath}. Only one create* call per file is supported. Found 2 calls.`,
+      );
+    }
+  }
+  // Get import mappings from precomputed imports or parse them
+  importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
+
+  // Process the match using shared logic
+  const parsed = await processCreateFactoryMatch(
+    match,
+    code,
+    filePath,
+    parseOptions,
+    importsAndComments,
+  );
+
+  // Calculate remaining content after the function call
+  const remaining = code.substring(match.functionEndIndex + 1);
+
+  return {
+    ...parsed,
+    remaining,
+    importsAndComments, // Include import data for reuse
+  };
+}
+
+/**
+ * Parses all create* factory calls in a file sequentially
+ * Returns a record of export names mapped to their parsed factory calls
+ */
+export async function parseAllCreateFactoryCalls(
+  code: string,
+  filePath: string,
+  parseOptions: Omit<ParseOptions, 'allowMultipleFactories'> = {},
+): Promise<Record<string, ParsedCreateFactory>> {
+  const results: Record<string, ParsedCreateFactory> = {};
+  let importsAndComments: ImportsAndComments | undefined;
+  let searchIndex = 0;
+
+  // Process the code using single-pass approach
+  while (searchIndex < code.length) {
+    // Find the next create* call
+    const match = findFirstCreateFactoryCall(code, filePath, parseOptions, searchIndex);
+
+    if (!match) {
+      // No more create* calls found
+      break;
+    }
+
+    // Extract export name from the function call context
+    const beforeMatch = code.substring(0, match.functionStartIndex);
+    const exportMatch = beforeMatch.match(/export\s+const\s+(\w+)\s*=\s*$/m);
+    const exportName = exportMatch?.[1] || 'unknown';
+
+    // Get import mappings from precomputed imports or parse them
+    // eslint-disable-next-line no-await-in-loop
+    importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
+
+    // Process the match using shared logic
+    // eslint-disable-next-line no-await-in-loop
+    const parsedFactory = await processCreateFactoryMatch(
+      match,
+      code,
+      filePath,
+      parseOptions,
+      importsAndComments,
+    );
+
+    results[exportName] = parsedFactory;
+
+    // Continue searching from after this function call
+    searchIndex = match.functionEndIndex + 1;
+  }
+
+  return results;
+}
+
+/**
+ * Processes a matched create* factory call into a ParsedCreateFactory object
+ * Handles all the common logic for validation, parsing, and transformation
+ */
+async function processCreateFactoryMatch(
+  match: {
+    functionName: string;
+    fullMatch: string;
+    urlArg: string;
+    structuredVariants: string | SplitArguments | Record<string, string> | undefined;
+    optionsStructured?: Record<string, any>;
+    hasOptions: boolean;
+    hasGenerics: boolean;
+    structuredGenerics?: Record<string, any>;
+    functionStartIndex: number;
+    functionEndIndex: number;
+    argumentsStartIndex: number;
+    argumentsEndIndex: number;
+  },
+  code: string,
+  filePath: string,
+  parseOptions: ParseOptions,
+  importsAndComments: ImportsAndComments,
+): Promise<ParsedCreateFactory> {
   const {
     functionName,
     fullMatch,
@@ -603,13 +778,10 @@ export async function parseCreateFactoryCall(
     argumentsEndIndex,
   } = match;
 
-  // Get import mappings from precomputed imports or parse them
-  parseImportsResult = parseImportsResult || (await parseImports(code, filePath));
-
   const allowExternalVariants = parseOptions.allowExternalVariants || false;
-  const importMap = buildImportMap(parseImportsResult, allowExternalVariants);
-  const namedExportsMap = buildNamedExportsMap(parseImportsResult, allowExternalVariants);
-  const externals = parseImportsResult.externals;
+  const importMap = buildImportMap(importsAndComments, allowExternalVariants);
+  const namedExportsMap = buildNamedExportsMap(importsAndComments, allowExternalVariants);
+  const externals = importsAndComments.externals;
 
   // Validate URL argument
   validateUrlArgument(urlArg, functionName, filePath);
@@ -627,16 +799,34 @@ export async function parseCreateFactoryCall(
   let variants: Record<string, string> | undefined;
   let namedExports: Record<string, string | undefined> | undefined;
 
-  if (!metadataOnly && structuredVariants !== undefined) {
-    const variantsResult = parseVariantsArgumentFromStructured(
-      structuredVariants,
-      importMap,
-      namedExportsMap,
-      functionName,
-      filePath,
-    );
-    variants = variantsResult.variants;
-    namedExports = variantsResult.namedExports;
+  if (!metadataOnly) {
+    if (structuredVariants !== undefined) {
+      // Use regular variants argument
+      const variantsResult = parseVariantsArgumentFromStructured(
+        structuredVariants,
+        importMap,
+        namedExportsMap,
+        functionName,
+        filePath,
+      );
+      variants = variantsResult.variants;
+      namedExports = variantsResult.namedExports;
+    } else if (
+      match.hasGenerics &&
+      match.structuredGenerics &&
+      Object.keys(match.structuredGenerics).length > 0
+    ) {
+      // Use generics as variants when no variants argument is provided and generics are not empty
+      const variantsResult = parseVariantsArgumentFromStructured(
+        match.structuredGenerics,
+        importMap,
+        namedExportsMap,
+        functionName,
+        filePath,
+      );
+      variants = variantsResult.variants;
+      namedExports = variantsResult.namedExports;
+    }
   }
 
   // Parse options object
@@ -671,7 +861,7 @@ export async function parseCreateFactoryCall(
     }
   }
 
-  // Transform externals from parseImports format to simplified format
+  // Transform externals from parseImportsAndComments format to simplified format
   // Only include side-effect imports (where names array is empty)
   const transformedExternals: Externals = {};
   for (const [modulePath, externalImport] of Object.entries(externals)) {
@@ -681,10 +871,7 @@ export async function parseCreateFactoryCall(
     }
   }
 
-  // Calculate remaining content after the function call
-  const remaining = code.substring(match.functionEndIndex + 1);
-
-  const parsed: ParsedCreateFactory = {
+  return {
     functionName,
     url,
     variants,
@@ -699,261 +886,315 @@ export async function parseCreateFactoryCall(
     structuredUrl: urlArg,
     structuredVariants,
     structuredOptions: optionsStructured, // Use original structured data, not cleaned options
-    remaining,
-    parseImportsResult, // Include import data for reuse
+    hasGenerics: match.hasGenerics,
+    structuredGenerics: match.structuredGenerics,
   };
-
-  return parsed;
 }
 
 /**
- * Parses all create* factory calls in a file sequentially
- * Returns a record of export names mapped to their parsed factory calls
+ * Finds the first create* factory call in code, starting from a given index
+ * Returns null if no create* call is found
  */
-export async function parseAllCreateFactoryCalls(
-  code: string,
-  filePath: string,
-  parseOptions: Omit<ParseOptions, 'allowMultipleFactories'> = {},
-): Promise<Record<string, ParsedCreateFactory>> {
-  const results: Record<string, ParsedCreateFactory> = {};
-
-  // Process the code sequentially, reusing import data from the first call
-  let currentCode = code;
-  let parseImportsResult: ParseImportsResult | undefined;
-
-  // Keep processing while there's code remaining
-  while (currentCode.trim()) {
-    // eslint-disable-next-line no-await-in-loop
-    const result = await parseCreateFactoryCall(
-      currentCode,
-      filePath,
-      { ...parseOptions, allowMultipleFactories: true }, // Allow multiple factories for this function
-      parseImportsResult, // undefined for first call, reused for subsequent calls
-    );
-
-    if (!result) {
-      // No create* call found in remaining code
-      break;
-    }
-
-    // Extract export name from the function call context
-    const exportMatch = currentCode.match(/export\s+const\s+(\w+)\s*=/);
-    const exportName = exportMatch?.[1] || 'unknown';
-
-    // Capture import data from the first successful call for reuse
-    parseImportsResult = result.parseImportsResult || parseImportsResult;
-
-    // Remove the parseImportsResult before storing (we don't need it in the final result)
-    const {
-      parseImportsResult: unusedResult,
-      remaining: unusedRemaining,
-      ...parsedFactory
-    } = result;
-    results[exportName] = parsedFactory;
-
-    // Move to the remaining code after this export
-    if (!result.remaining) {
-      currentCode = '';
-      break; // No remaining code
-    }
-
-    currentCode = result.remaining;
-  }
-
-  return results;
-}
-
-/**
- * Finds create* factory calls in code, handling multiline cases
- */
-function findCreateFactoryCalls(
+function findFirstCreateFactoryCall(
   code: string,
   filePath: string,
   parseOptions: ParseOptions = {},
-): Array<{
+  startIndex: number = 0,
+): {
   functionName: string;
   fullMatch: string;
   urlArg: string;
   structuredVariants: string | SplitArguments | Record<string, string> | undefined;
   optionsStructured?: Record<string, any>;
   hasOptions: boolean;
+  hasGenerics: boolean;
+  structuredGenerics?: Record<string, any>;
   // Position information in original source
   functionStartIndex: number;
   functionEndIndex: number;
   argumentsStartIndex: number;
   argumentsEndIndex: number;
-}> {
-  const results: Array<{
-    functionName: string;
-    fullMatch: string;
-    urlArg: string;
-    structuredVariants: string | SplitArguments | Record<string, string> | undefined;
-    optionsStructured?: Record<string, any>;
-    hasOptions: boolean;
-    // Position information in original source
-    functionStartIndex: number;
-    functionEndIndex: number;
-    argumentsStartIndex: number;
-    argumentsEndIndex: number;
-  }> = [];
+} | null {
+  const createFunctionRegex = /\b(create\w*)\s*/g;
+  createFunctionRegex.lastIndex = startIndex;
 
-  // Find all create* function calls
-  const createFactoryRegex = /\b(create\w*)\s*\(/g;
-  let match = createFactoryRegex.exec(code);
+  const match = createFunctionRegex.exec(code);
+  if (!match) {
+    return null;
+  }
 
-  while (match !== null) {
-    const functionName = match[1];
-    const startIndex = match.index;
-    const parenIndex = match.index + match[0].length - 1; // Position of opening parenthesis
+  const functionName = match[1];
+  const matchStartIndex = match.index;
+  let currentIndex = match.index + match[0].length;
 
-    // Find the matching closing parenthesis
-    let parenCount = 0;
-    let endIndex = -1;
-    for (let i = parenIndex; i < code.length; i += 1) {
-      if (code[i] === '(') {
-        parenCount += 1;
-      } else if (code[i] === ')') {
-        parenCount -= 1;
-        if (parenCount === 0) {
-          endIndex = i;
+  // Skip any whitespace after function name
+  while (currentIndex < code.length && /\s/.test(code[currentIndex])) {
+    currentIndex += 1;
+  }
+
+  if (currentIndex >= code.length) {
+    // No opening parenthesis found, try to find the next create* call
+    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
+  }
+
+  let genericContent = '';
+  let hasGenerics = false;
+
+  // Check if we have generics (starts with <)
+  if (code[currentIndex] === '<') {
+    hasGenerics = true;
+    let angleCount = 1;
+    let genericEndIndex = -1;
+
+    // Find the matching closing angle bracket, handling nesting
+    for (let i = currentIndex + 1; i < code.length; i += 1) {
+      const char = code[i];
+      if (char === '<') {
+        angleCount += 1;
+      } else if (char === '>') {
+        angleCount -= 1;
+        if (angleCount === 0) {
+          genericEndIndex = i;
           break;
         }
       }
     }
 
-    if (endIndex === -1) {
-      match = createFactoryRegex.exec(code);
-      continue;
-    }
-
-    const fullMatch = code.substring(startIndex, endIndex + 1);
-    const content = code.substring(parenIndex + 1, endIndex);
-
-    // Split by commas at the top level, handling nested structures and comments
-    const structured = parseFunctionArguments(content);
-
-    // Validate the function follows the convention
-    const { metadataOnly = false } = parseOptions;
-
-    if (metadataOnly) {
-      // For metadata-only mode: expect 1-2 arguments (url, options?)
-      if (structured.length < 1 || structured.length > 2) {
-        throw new Error(
-          `Invalid ${functionName} call in ${filePath}. ` +
-            `Expected 1-2 arguments (url, options?) but got ${structured.length} arguments. ` +
-            `In metadata-only mode, functions should follow: create*(url, options?)`,
-        );
-      }
-    } else if (structured.length < 2 || structured.length > 3) {
-      // Normal mode: expect 2-3 arguments (url, variants, options?)
-      throw new Error(
-        `Invalid ${functionName} call in ${filePath}. ` +
-          `Expected 2-3 arguments (url, variants, options?) but got ${structured.length} arguments. ` +
-          `Functions starting with 'create' must follow the convention: create*(url, variants, options?)`,
+    if (genericEndIndex === -1) {
+      // Unmatched angle brackets, try to find the next create* call
+      return findFirstCreateFactoryCall(
+        code,
+        filePath,
+        parseOptions,
+        match.index + match[0].length,
       );
     }
 
-    // Handle different argument patterns based on mode
-    if (metadataOnly) {
-      // Metadata-only mode: expect 1-2 arguments (url, options?)
-      if (structured.length === 1) {
-        const [urlArg] = structured;
+    genericContent = code.substring(currentIndex + 1, genericEndIndex);
+    currentIndex = genericEndIndex + 1;
 
-        results.push({
-          functionName,
-          fullMatch,
-          urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-          structuredVariants: undefined, // No variants in metadata-only mode
-          optionsStructured: undefined,
-          hasOptions: false,
-          functionStartIndex: startIndex,
-          functionEndIndex: endIndex,
-          argumentsStartIndex: parenIndex + 1,
-          argumentsEndIndex: endIndex,
-        });
-      } else if (structured.length === 2) {
-        const [urlArg, optionsStructured] = structured;
-
-        // Options should be an object
-        if (
-          typeof optionsStructured === 'string' ||
-          (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
-        ) {
-          throw new Error(
-            `Invalid options argument in ${functionName} call in ${filePath}. ` +
-              `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
-          );
-        }
-
-        results.push({
-          functionName,
-          fullMatch,
-          urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-          structuredVariants: undefined, // No variants in metadata-only mode
-          optionsStructured:
-            typeof optionsStructured === 'object' && optionsStructured !== null
-              ? optionsStructured
-              : undefined,
-          hasOptions: true,
-          functionStartIndex: startIndex,
-          functionEndIndex: endIndex,
-          argumentsStartIndex: parenIndex + 1,
-          argumentsEndIndex: endIndex,
-        });
-      }
+    // Skip whitespace after generics
+    while (currentIndex < code.length && /\s/.test(code[currentIndex])) {
+      currentIndex += 1;
     }
-
-    // Normal mode: expect 2-3 arguments (url, variants, options?)
-    if (!metadataOnly) {
-      if (structured.length === 2) {
-        const [urlArg, variantsStructured] = structured;
-
-        results.push({
-          functionName,
-          fullMatch,
-          urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-          structuredVariants: variantsStructured,
-          optionsStructured: undefined,
-          hasOptions: false, // No options argument was provided
-          functionStartIndex: startIndex,
-          functionEndIndex: endIndex,
-          argumentsStartIndex: parenIndex + 1,
-          argumentsEndIndex: endIndex,
-        });
-      } else if (structured.length === 3) {
-        const [urlArg, variantsStructured, optionsStructured] = structured;
-
-        // Options should be an object (Record<string, any>) or an empty object
-        if (
-          typeof optionsStructured === 'string' ||
-          (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
-        ) {
-          throw new Error(
-            `Invalid options argument in ${functionName} call in ${filePath}. ` +
-              `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
-          );
-        }
-
-        results.push({
-          functionName,
-          fullMatch,
-          urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-          structuredVariants: variantsStructured,
-          optionsStructured:
-            typeof optionsStructured === 'object' && optionsStructured !== null
-              ? optionsStructured
-              : undefined,
-          hasOptions: true, // Options argument was provided
-          functionStartIndex: startIndex,
-          functionEndIndex: endIndex,
-          argumentsStartIndex: parenIndex + 1,
-          argumentsEndIndex: endIndex,
-        });
-      }
-    }
-
-    match = createFactoryRegex.exec(code);
   }
 
-  return results;
+  // Now look for the opening parenthesis
+  if (currentIndex >= code.length || code[currentIndex] !== '(') {
+    // No opening parenthesis found, try to find the next create* call
+    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
+  }
+
+  const parenIndex = currentIndex;
+
+  // Find the matching closing parenthesis
+  let parenCount = 0;
+  let endIndex = -1;
+  for (let i = parenIndex; i < code.length; i += 1) {
+    if (code[i] === '(') {
+      parenCount += 1;
+    } else if (code[i] === ')') {
+      parenCount -= 1;
+      if (parenCount === 0) {
+        endIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (endIndex === -1) {
+    // Unmatched parentheses, try to find the next create* call
+    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
+  }
+
+  const fullMatch = code.substring(matchStartIndex, endIndex + 1);
+  const content = code.substring(parenIndex + 1, endIndex);
+
+  // Parse generic content if present
+  let structuredGenerics: Record<string, any> | undefined;
+
+  if (hasGenerics) {
+    // Parse the generic content as TypeScript type definitions
+    structuredGenerics = parseGenericDefinitions(genericContent);
+  }
+
+  // Split by commas at the top level, handling nested structures and comments
+  const structured = parseFunctionArguments(content);
+
+  // Validate the function follows the convention
+  const { metadataOnly = false } = parseOptions;
+
+  if (metadataOnly) {
+    // For metadata-only mode: expect 1-2 arguments (url, options?)
+    if (structured.length < 1 || structured.length > 2) {
+      throw new Error(
+        `Invalid ${functionName} call in ${filePath}. ` +
+          `Expected 1-2 arguments (url, options?) but got ${structured.length} arguments. ` +
+          `In metadata-only mode, functions should follow: create*(url, options?)`,
+      );
+    }
+  } else if (hasGenerics && structured.length <= 2) {
+    // When generics are present AND we have 1-2 arguments, expect (url, options?)
+    if (structured.length < 1 || structured.length > 2) {
+      throw new Error(
+        `Invalid ${functionName} call in ${filePath}. ` +
+          `Expected 1-2 arguments (url, options?) but got ${structured.length} arguments. ` +
+          `Functions with TypeScript generics should follow: create*<variants>(url, options?)`,
+      );
+    }
+  } else if (!hasGenerics && (structured.length < 2 || structured.length > 3)) {
+    // Normal mode: expect 2-3 arguments (url, variants, options?)
+    throw new Error(
+      `Invalid ${functionName} call in ${filePath}. ` +
+        `Expected 2-3 arguments (url, variants, options?) but got ${structured.length} arguments. ` +
+        `Functions starting with 'create' must follow the convention: create*(url, variants, options?)`,
+    );
+  }
+
+  // Handle different argument patterns based on mode
+  if (metadataOnly) {
+    // Metadata-only mode: expect 1-2 arguments (url, options?)
+    if (structured.length === 1) {
+      const [urlArg] = structured;
+
+      return {
+        functionName,
+        fullMatch,
+        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+        structuredVariants: hasGenerics ? structuredGenerics : undefined, // Use generics as variants in metadata-only mode
+        optionsStructured: undefined,
+        hasOptions: false,
+        hasGenerics,
+        structuredGenerics,
+        functionStartIndex: matchStartIndex,
+        functionEndIndex: endIndex,
+        argumentsStartIndex: parenIndex + 1,
+        argumentsEndIndex: endIndex,
+      };
+    }
+    if (structured.length === 2) {
+      const [urlArg, optionsStructured] = structured;
+
+      // Options should be an object
+      if (
+        typeof optionsStructured === 'string' ||
+        (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
+      ) {
+        throw new Error(
+          `Invalid options argument in ${functionName} call in ${filePath}. ` +
+            `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
+        );
+      }
+
+      return {
+        functionName,
+        fullMatch,
+        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+        structuredVariants: hasGenerics ? structuredGenerics : undefined, // Use generics as variants in metadata-only mode
+        optionsStructured:
+          typeof optionsStructured === 'object' && optionsStructured !== null
+            ? optionsStructured
+            : undefined,
+        hasOptions: true,
+        hasGenerics,
+        structuredGenerics,
+        functionStartIndex: matchStartIndex,
+        functionEndIndex: endIndex,
+        argumentsStartIndex: parenIndex + 1,
+        argumentsEndIndex: endIndex,
+      };
+    }
+  } else if (!metadataOnly && hasGenerics && structured.length === 1) {
+    // Generics-only mode (non-metadata): expect 1 argument (url) - use generics as variants
+    const [urlArg] = structured;
+
+    return {
+      functionName,
+      fullMatch,
+      urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+      structuredVariants: undefined, // No explicit variants, will use generics later
+      optionsStructured: undefined,
+      hasOptions: false,
+      hasGenerics,
+      structuredGenerics,
+      functionStartIndex: matchStartIndex,
+      functionEndIndex: endIndex,
+      argumentsStartIndex: parenIndex + 1,
+      argumentsEndIndex: endIndex,
+    };
+  } else if (!metadataOnly && structured.length >= 2) {
+    // Normal mode: expect 2-3 arguments (url, variants, options?)
+    if (structured.length === 2) {
+      const [urlArg, secondArg] = structured;
+
+      if (hasGenerics) {
+        // With generics: 2 arguments means (url, options) - use generics as variants
+        return {
+          functionName,
+          fullMatch,
+          urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+          structuredVariants: undefined, // Use generics
+          optionsStructured:
+            typeof secondArg === 'object' && secondArg !== null ? secondArg : undefined,
+          hasOptions: true,
+          hasGenerics,
+          structuredGenerics,
+          functionStartIndex: matchStartIndex,
+          functionEndIndex: endIndex,
+          argumentsStartIndex: parenIndex + 1,
+          argumentsEndIndex: endIndex,
+        };
+      }
+      // Without generics: 2 arguments means (url, variants) - use second arg as variants
+      return {
+        functionName,
+        fullMatch,
+        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+        structuredVariants: secondArg,
+        optionsStructured: undefined,
+        hasOptions: false,
+        hasGenerics,
+        structuredGenerics,
+        functionStartIndex: matchStartIndex,
+        functionEndIndex: endIndex,
+        argumentsStartIndex: parenIndex + 1,
+        argumentsEndIndex: endIndex,
+      };
+    }
+    if (structured.length === 3) {
+      const [urlArg, variantsStructured, optionsStructured] = structured;
+
+      // Options should be an object (Record<string, any>) or an empty object
+      if (
+        typeof optionsStructured === 'string' ||
+        (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
+      ) {
+        throw new Error(
+          `Invalid options argument in ${functionName} call in ${filePath}. ` +
+            `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
+        );
+      }
+
+      return {
+        functionName,
+        fullMatch,
+        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+        structuredVariants: variantsStructured,
+        optionsStructured:
+          typeof optionsStructured === 'object' && optionsStructured !== null
+            ? optionsStructured
+            : undefined,
+        hasOptions: true, // Options argument was provided
+        hasGenerics,
+        structuredGenerics,
+        functionStartIndex: matchStartIndex,
+        functionEndIndex: endIndex,
+        argumentsStartIndex: parenIndex + 1,
+        argumentsEndIndex: endIndex,
+      };
+    }
+  }
+
+  // Should not reach here due to validation above
+  return null;
 }

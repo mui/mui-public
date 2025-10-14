@@ -1,4 +1,4 @@
-import { rewriteImportsToSameDirectory } from './rewriteImports';
+import { rewriteImports } from './rewriteImports';
 import { isJavaScriptModule } from './resolveModulePath';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
 
@@ -10,126 +10,13 @@ export interface ProcessImportsResult {
 }
 
 /**
- * Processes imports based on the specified storage mode, automatically handling
- * source rewriting when needed (e.g., for 'flat' mode).
- *
- * @param source - The original source code
- * @param importResult - The result from parseImports
- * @param resolvedPathsMap - Map from import paths to resolved file paths
- * @param storeAt - How to process the imports
- * @returns Object with processed source and extraFiles mapping
- */
-export function processRelativeImports(
-  source: string,
-  importResult: Record<string, { path: string; names: string[] }>,
-  resolvedPathsMap: Map<string, string>,
-  storeAt: StoreAtMode,
-): ProcessImportsResult {
-  const extraFiles: Record<string, string> = {};
-
-  // For flat mode, we need to handle naming conflicts intelligently
-  if (storeAt === 'flat') {
-    const result = processFlatMode(importResult, resolvedPathsMap);
-
-    // Create import path mapping for rewriting
-    const importPathMapping = new Map<string, string>();
-
-    // Build a reverse mapping from resolved paths to extraFiles keys
-    const resolvedToExtraFile = new Map<string, string>();
-    Object.entries(result.extraFiles).forEach(([extraFileKey, fileUrl]) => {
-      const resolvedPath = fileUrl.replace('file://', '');
-      resolvedToExtraFile.set(resolvedPath, extraFileKey);
-    });
-
-    // For each import, find its resolved path and map to the corresponding extraFile key
-    Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-      const resolvedPath = resolvedPathsMap.get(importInfo.path);
-      if (resolvedPath) {
-        const extraFileKey = resolvedToExtraFile.get(resolvedPath);
-        if (extraFileKey) {
-          // For JavaScript modules, remove the extension; for other files (CSS, JSON, etc.), keep it
-          const isJavascriptModule = isJavaScriptModule(relativePath);
-          let newPath = extraFileKey;
-
-          if (isJavascriptModule) {
-            // Handle TypeScript declaration files (.d.ts) properly
-            if (newPath.endsWith('.d.ts')) {
-              newPath = newPath.replace(/\.d\.ts$/, '');
-            } else {
-              newPath = newPath.replace(/\.[^/.]+$/, '');
-            }
-          }
-          // For non-JS modules (CSS, JSON, etc.), keep the full path with extension
-
-          importPathMapping.set(relativePath, newPath);
-        }
-      }
-    });
-
-    // Rewrite the source with the mapping
-    const rewrittenSource = rewriteImportsToSameDirectory(source, importPathMapping);
-
-    return {
-      processedSource: rewrittenSource,
-      extraFiles: result.extraFiles,
-    };
-  }
-
-  // Process each import and generate extraFiles for non-flat modes
-  Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-    const resolvedPath = resolvedPathsMap.get(importInfo.path);
-    if (resolvedPath) {
-      const fileExtension = getFileNameFromUrl(resolvedPath).extension;
-      const isJavascriptModule = isJavaScriptModule(relativePath);
-      let keyPath: string;
-
-      if (!isJavascriptModule) {
-        // For static assets (CSS, JSON, etc.), use the original import path as-is since it already has the extension
-        switch (storeAt) {
-          case 'canonical':
-          case 'import':
-            keyPath = relativePath;
-            break;
-          default:
-            keyPath = relativePath;
-        }
-      } else {
-        // For JS/TS modules, apply the existing logic
-        switch (storeAt) {
-          case 'canonical':
-            // Show the full resolved path including index files when they exist
-            // e.g., import '../Component' resolved to '/src/Component/index.js'
-            // becomes extraFiles: { '../Component/index.js': 'file:///src/Component/index.js' }
-            keyPath = `${relativePath}${resolvedPath.endsWith(`/index${fileExtension}`) ? `/index${fileExtension}` : fileExtension}`;
-            break;
-
-          case 'import':
-            // Use the original import path with the actual file extension
-            // e.g., import '../Component' with '/src/Component/index.js'
-            // becomes extraFiles: { '../Component.js': 'file:///src/Component/index.js' }
-            keyPath = `${relativePath}${fileExtension}`;
-            break;
-
-          default:
-            keyPath = `${relativePath}${fileExtension}`;
-        }
-      }
-
-      extraFiles[keyPath] = `file://${resolvedPath}`;
-    }
-  });
-
-  return {
-    processedSource: source,
-    extraFiles,
-  };
-}
-
-/**
  * Processes flat mode with intelligent conflict resolution
  */
 function processFlatMode(
-  importResult: Record<string, { path: string; names: string[] }>,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
   resolvedPathsMap: Map<string, string>,
 ): ProcessImportsResult {
   const extraFiles: Record<string, string> = {};
@@ -345,4 +232,264 @@ function processFlatMode(
     processedSource: '', // Will be set by caller after rewriting
     extraFiles,
   };
+}
+
+/**
+ * Processes imports with basic conflict resolution based on filenames.
+ * Used for CSS, JSON, and other simple file types that don't require complex module resolution.
+ */
+function processBasicImports(
+  source: string,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
+  storeAt: StoreAtMode,
+): ProcessImportsResult {
+  const extraFiles: Record<string, string> = {};
+
+  if (storeAt === 'flat') {
+    const finalNames = new Map<string, string>();
+    const usedNames = new Set<string>();
+
+    // Process each import to determine final names with simple conflict resolution
+    Object.entries(importResult).forEach(([_relativePath, importInfo]) => {
+      const resolvedPath = importInfo.path; // For CSS, this is already resolved by parseImports
+      const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
+      const { fileName, extension } = getFileNameFromUrl(fileUrl);
+
+      let finalName = fileName;
+      let counter = 1;
+
+      // Handle naming conflicts by appending numbers
+      while (usedNames.has(finalName)) {
+        const baseName = fileName.replace(extension, '');
+        finalName = `${baseName}-${counter}${extension}`;
+        counter += 1;
+      }
+
+      usedNames.add(finalName);
+      finalNames.set(resolvedPath, finalName);
+    });
+
+    // Create the import path mapping for rewriting
+    const importPathMapping = new Map<string, string>();
+    Object.entries(importResult).forEach(([relativePath, importInfo]) => {
+      const resolvedPath = importInfo.path;
+      const finalName = finalNames.get(resolvedPath);
+      if (finalName) {
+        importPathMapping.set(relativePath, finalName);
+      }
+    });
+
+    // Create extraFiles entries
+    finalNames.forEach((finalName, resolvedPath) => {
+      const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
+      extraFiles[`./${finalName}`] = fileUrl;
+    });
+
+    // Apply import path replacements using position-based rewriting
+    // Only rewrite if positions are available
+    const hasPositions = Object.values(importResult).some(
+      (imp) => imp.positions && imp.positions.length > 0,
+    );
+    const processedSource = hasPositions
+      ? rewriteImports(
+          source,
+          importPathMapping,
+          importResult as Record<string, { positions: Array<{ start: number; end: number }> }>,
+        )
+      : source;
+
+    return {
+      processedSource,
+      extraFiles,
+    };
+  }
+
+  if (storeAt === 'import') {
+    // Create a mapping for import mode: remove ./ prefix from relative paths
+    const importModeMapping = new Map<string, string>();
+    Object.keys(importResult).forEach((relativePath) => {
+      if (relativePath.startsWith('./')) {
+        importModeMapping.set(relativePath, relativePath.slice(2));
+      }
+      // Keep other paths (../, absolute URLs) unchanged
+    });
+
+    // Process each import for extraFiles
+    Object.entries(importResult).forEach(([relativePath, importInfo]) => {
+      const resolvedPath = importInfo.path;
+      const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
+      extraFiles[relativePath] = fileUrl; // Always use original path for extraFiles
+    });
+
+    // Apply import path replacements using position-based rewriting
+    // Only rewrite if positions are available
+    const hasPositions = Object.values(importResult).some(
+      (imp) => imp.positions && imp.positions.length > 0,
+    );
+    const processedSource = hasPositions
+      ? rewriteImports(
+          source,
+          importModeMapping,
+          importResult as Record<string, { positions: Array<{ start: number; end: number }> }>,
+        )
+      : source;
+
+    return {
+      processedSource,
+      extraFiles,
+    };
+  }
+
+  // Canonical mode - no rewriting needed
+  Object.entries(importResult).forEach(([relativePath, importInfo]) => {
+    const resolvedPath = importInfo.path;
+    const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
+    extraFiles[relativePath] = fileUrl; // Use original import path
+  });
+
+  return {
+    processedSource: source, // No rewriting needed for canonical mode
+    extraFiles,
+  };
+}
+
+/**
+ * Processes JavaScript imports with complex conflict resolution and module handling
+ */
+function processJsImports(
+  source: string,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
+  storeAt: StoreAtMode,
+  resolvedPathsMap: Map<string, string>,
+): ProcessImportsResult {
+  const extraFiles: Record<string, string> = {};
+
+  if (storeAt === 'flat') {
+    const result = processFlatMode(importResult, resolvedPathsMap);
+
+    // Build a reverse mapping from resolved paths to extraFiles keys
+    const resolvedToExtraFile = new Map<string, string>();
+    Object.entries(result.extraFiles).forEach(([extraFileKey, fileUrl]) => {
+      const resolvedPath = fileUrl.replace('file://', '');
+      resolvedToExtraFile.set(resolvedPath, extraFileKey);
+    });
+
+    // For each import, find its resolved path and map to the corresponding extraFile key
+    const importPathMapping = new Map<string, string>();
+    Object.entries(importResult).forEach(([relativePath, importInfo]) => {
+      const resolvedPath = resolvedPathsMap.get(importInfo.path);
+      if (resolvedPath) {
+        const extraFileKey = resolvedToExtraFile.get(resolvedPath);
+        if (extraFileKey) {
+          // For JavaScript modules, remove the extension; for other files (CSS, JSON, etc.), keep it
+          const isJavascriptModule = isJavaScriptModule(relativePath);
+          let newPath = extraFileKey;
+
+          if (isJavascriptModule) {
+            // Handle TypeScript declaration files (.d.ts) properly
+            if (newPath.endsWith('.d.ts')) {
+              newPath = newPath.replace(/\.d\.ts$/, '');
+            } else {
+              newPath = newPath.replace(/\.[^/.]+$/, '');
+            }
+          }
+          // For non-JS modules (CSS, JSON, etc.), keep the full path with extension
+
+          importPathMapping.set(relativePath, newPath);
+        }
+      }
+    });
+
+    // Apply import path replacements using position-based rewriting
+    const processedSource = rewriteImports(
+      source,
+      importPathMapping,
+      importResult as Record<string, { positions: Array<{ start: number; end: number }> }>,
+    );
+
+    return {
+      processedSource,
+      extraFiles: result.extraFiles,
+    };
+  }
+
+  // Non-flat modes (canonical and import)
+  Object.entries(importResult).forEach(([relativePath, importInfo]) => {
+    const resolved = resolvedPathsMap.get(importInfo.path);
+    if (!resolved) {
+      return;
+    }
+
+    const resolvedPath = resolved;
+    const fileExtension = getFileNameFromUrl(resolvedPath).extension;
+    const isJavascriptModule = isJavaScriptModule(relativePath);
+
+    let keyPath: string;
+    if (!isJavascriptModule) {
+      // For static assets (CSS, JSON, etc.), use the original import path as-is
+      keyPath = relativePath;
+    } else {
+      // For JS/TS modules, apply the existing logic
+      switch (storeAt) {
+        case 'canonical':
+          // Show the full resolved path including index files when they exist
+          keyPath = `${relativePath}${resolvedPath.endsWith(`/index${fileExtension}`) ? `/index${fileExtension}` : fileExtension}`;
+          break;
+        case 'import':
+          // Use the original import path with the actual file extension
+          keyPath = `${relativePath}${fileExtension}`;
+          break;
+        default:
+          keyPath = `${relativePath}${fileExtension}`;
+      }
+    }
+
+    const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
+    extraFiles[keyPath] = fileUrl;
+  });
+
+  return {
+    processedSource: source, // No rewriting needed for non-flat modes
+    extraFiles,
+  };
+}
+
+/**
+ * Processes imports based on the specified storage mode, automatically handling
+ * source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
+ *
+ * @param source - The original source code
+ * @param importResult - The result from parseImports
+ * @param storeAt - How to process the imports
+ * @param isJsFile - Whether this is a JavaScript file (false = basic processing for CSS/JSON/etc.)
+ * @param resolvedPathsMap - Map from import paths to resolved file paths (only needed for JavaScript files)
+ * @returns Object with processed source and extraFiles mapping
+ */
+export function processRelativeImports(
+  source: string,
+  importResult: Record<
+    string,
+    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+  >,
+  storeAt: StoreAtMode,
+  isJsFile: boolean = false,
+  resolvedPathsMap?: Map<string, string>,
+): ProcessImportsResult {
+  if (!isJsFile) {
+    // Use basic processing mode for CSS, JSON, and other simple file types
+    return processBasicImports(source, importResult, storeAt);
+  }
+
+  // Use complex JavaScript processing mode
+  if (!resolvedPathsMap) {
+    throw new Error('resolvedPathsMap is required for JavaScript files');
+  }
+
+  return processJsImports(source, importResult, storeAt, resolvedPathsMap);
 }

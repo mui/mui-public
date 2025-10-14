@@ -4,7 +4,8 @@
   "packageRules": [
     {
       "groupName": "code-infra:devDependencies",
-      "matchDepTypes": ["devDependencies"]
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"]
     }
   ]
 }

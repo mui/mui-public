@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build && docs-infra post-build",
-    "build-exp": "next build --turbopack && docs-infra post-build",
-    "start": "next start"
+    "build-exp": "next build --turbopack",
+    "start": "serve ./out"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-beta.1",
@@ -30,6 +30,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@wooorm/starry-night": "^3.8.0",
+    "serve": "^14.2.5",
     "typescript": "^5"
   }
 }

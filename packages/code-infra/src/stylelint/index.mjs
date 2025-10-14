@@ -5,6 +5,9 @@ import standardConfig from 'stylelint-config-standard';
 export default {
   extends: standardConfig,
   rules: {
+    // Too opinionated?
+    'no-descending-specificity': null,
+
     // Adopted from mui/material-ui repo
     'alpha-value-notation': null,
     'custom-property-pattern': null,
@@ -37,7 +40,7 @@ export default {
   overrides: [
     {
       files: ['**/*.?(c|m)[jt]s?(x)'],
-      customSyntax: postcssStylesSyntax,
+      customSyntax: /** @type {any} */ (postcssStylesSyntax),
     },
   ],
 };

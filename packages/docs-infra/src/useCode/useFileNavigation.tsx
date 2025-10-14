@@ -2,7 +2,7 @@ import * as React from 'react';
 import { decompressSync, strFromU8 } from 'fflate';
 import type { Root as HastRoot } from 'hast';
 import { decode } from 'uint8-to-base64';
-import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
+import type { VariantCode, VariantSource, Code } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import type { TransformedFiles } from './useCodeUtils';
@@ -13,7 +13,7 @@ import { Pre } from './Pre';
  * @param str - The string to convert
  * @returns kebab-case string
  */
-function toKebabCase(str: string): string {
+export function toKebabCase(str: string): string {
   return (
     str
       // Insert a dash before any uppercase letter that follows a lowercase letter or digit
@@ -22,6 +22,21 @@ function toKebabCase(str: string): string {
       .replace(/[^a-z0-9.]+/g, '-')
       .replace(/^-+|-+$/g, '')
   );
+}
+
+/**
+ * Checks if the URL hash is relevant to a specific demo
+ * Hash format is: {mainSlug}:{variantName}:{fileName} or {mainSlug}:{fileName}
+ * @param urlHash - The URL hash (without '#')
+ * @param mainSlug - The main slug for the demo
+ * @returns true if the hash starts with the demo's slug
+ */
+export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string): boolean {
+  if (!urlHash || !mainSlug) {
+    return false;
+  }
+  const kebabSlug = toKebabCase(mainSlug);
+  return urlHash.startsWith(`${kebabSlug}:`);
 }
 
 /**
@@ -74,6 +89,8 @@ interface UseFileNavigationProps {
   initialVariant?: string;
   preClassName?: string;
   preRef?: React.Ref<HTMLPreElement>;
+  effectiveCode?: Code;
+  selectVariant?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export interface UseFileNavigationResult {
@@ -83,6 +100,7 @@ export interface UseFileNavigationResult {
   selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
+  allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
 }
 
 /**
@@ -98,6 +116,8 @@ export function useFileNavigation({
   shouldHighlight,
   preClassName,
   preRef,
+  effectiveCode,
+  selectVariant,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -115,82 +135,176 @@ export function useFileNavigation({
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
 
+  // Track if we're waiting for a variant switch to complete, and which file to select after
+  const pendingFileSelection = React.useRef<string | null>(null);
+  const justCompletedPendingSelection = React.useRef(false);
+
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
-    if (!selectedVariant || !hash) {
+    if (!hash) {
       return;
     }
 
-    // Check if hash matches any file slug
+    // Try to find matching file - check current variant first
     let matchingFileName: string | undefined;
+    let matchingVariantKey: string | undefined;
 
-    // Determine if this is the initial variant
-    const isInitialVariant = initialVariant
-      ? selectedVariantKey === initialVariant
-      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+    // Step 1: Check current variant (if we have one)
+    if (selectedVariant) {
+      const isInitialVariant = initialVariant
+        ? selectedVariantKey === initialVariant
+        : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
 
-    // Check main file
-    if (selectedVariant.fileName) {
-      const mainFileSlug = generateFileSlug(
-        mainSlug,
-        selectedVariant.fileName,
-        selectedVariantKey,
-        isInitialVariant,
-      );
-      if (hash === mainFileSlug) {
-        matchingFileName = selectedVariant.fileName;
-      }
-    }
-
-    // Check extra files
-    if (!matchingFileName && selectedVariant.extraFiles) {
-      for (const fileName of Object.keys(selectedVariant.extraFiles)) {
-        const fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
-        if (hash === fileSlug) {
-          matchingFileName = fileName;
-          break;
-        }
-      }
-    }
-
-    // Check transformed files if available
-    if (!matchingFileName && transformedFiles) {
-      for (const file of transformedFiles.files) {
-        const fileSlug = generateFileSlug(
+      // Check main file
+      if (selectedVariant.fileName) {
+        const mainFileSlug = generateFileSlug(
           mainSlug,
-          file.originalName,
+          selectedVariant.fileName,
           selectedVariantKey,
           isInitialVariant,
         );
-        if (hash === fileSlug) {
-          matchingFileName = file.originalName;
+        if (hash === mainFileSlug) {
+          matchingFileName = selectedVariant.fileName;
+          matchingVariantKey = selectedVariantKey;
+        }
+      }
+
+      // Check extra files
+      if (!matchingFileName && selectedVariant.extraFiles) {
+        for (const fileName of Object.keys(selectedVariant.extraFiles)) {
+          const fileSlug = generateFileSlug(
+            mainSlug,
+            fileName,
+            selectedVariantKey,
+            isInitialVariant,
+          );
+          if (hash === fileSlug) {
+            matchingFileName = fileName;
+            matchingVariantKey = selectedVariantKey;
+            break;
+          }
+        }
+      }
+
+      // Check transformed files
+      if (!matchingFileName && transformedFiles) {
+        for (const file of transformedFiles.files) {
+          const fileSlug = generateFileSlug(
+            mainSlug,
+            file.originalName,
+            selectedVariantKey,
+            isInitialVariant,
+          );
+          if (hash === fileSlug) {
+            matchingFileName = file.originalName;
+            matchingVariantKey = selectedVariantKey;
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 2: If no match and we can switch variants, search other variants
+    if (!matchingFileName && effectiveCode && selectVariant) {
+      for (const [variantKey, variant] of Object.entries(effectiveCode)) {
+        // Skip current variant (already checked) and invalid variants
+        if (variantKey === selectedVariantKey || !variant || typeof variant === 'string') {
+          continue;
+        }
+
+        const isInitialVariant = initialVariant
+          ? variantKey === initialVariant
+          : variantKeys.length === 0 || variantKey === variantKeys[0];
+
+        // Check main file
+        if (variant.fileName) {
+          const mainFileSlug = generateFileSlug(
+            mainSlug,
+            variant.fileName,
+            variantKey,
+            isInitialVariant,
+          );
+          if (hash === mainFileSlug) {
+            matchingFileName = variant.fileName;
+            matchingVariantKey = variantKey;
+            break;
+          }
+        }
+
+        // Check extra files
+        if (!matchingFileName && variant.extraFiles) {
+          for (const fileName of Object.keys(variant.extraFiles)) {
+            const fileSlug = generateFileSlug(mainSlug, fileName, variantKey, isInitialVariant);
+            if (hash === fileSlug) {
+              matchingFileName = fileName;
+              matchingVariantKey = variantKey;
+              break;
+            }
+          }
+        }
+
+        if (matchingFileName) {
           break;
         }
       }
     }
 
-    if (matchingFileName) {
+    if (matchingFileName && matchingVariantKey) {
+      // If the matching file is in a different variant, switch to that variant first
+      if (matchingVariantKey !== selectedVariantKey && selectVariant) {
+        // Remember which file to select after variant switch
+        pendingFileSelection.current = matchingFileName;
+        selectVariant(matchingVariantKey);
+        // Don't set the file here - it will be set after variant changes
+        return;
+      }
+
+      // Set the file if we're in the correct variant
+      pendingFileSelection.current = null;
       setSelectedFileNameInternal(matchingFileName);
-      markUserInteraction(); // Mark that user has made a selection via URL
+      markUserInteraction();
     }
   }, [
-    selectedVariant,
     hash,
-    transformedFiles,
-    mainSlug,
+    selectedVariant,
     selectedVariantKey,
     variantKeys,
     initialVariant,
+    mainSlug,
+    transformedFiles,
+    effectiveCode,
+    selectVariant,
     markUserInteraction,
   ]);
 
-  // On hydration/variant change, check URL hash and switch to matching file
+  // Run hash check when URL hash changes to select the matching file
+  // Only depends on hash to avoid re-running when the callback recreates due to variant state changes
   React.useEffect(() => {
     checkUrlHashAndSelectFile();
-  }, [checkUrlHashAndSelectFile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash]);
+
+  // When variant switches with a pending file selection, complete the file selection
+  React.useEffect(() => {
+    if (pendingFileSelection.current && selectedVariant) {
+      const fileToSelect = pendingFileSelection.current;
+      pendingFileSelection.current = null;
+      justCompletedPendingSelection.current = true;
+      setSelectedFileNameInternal(fileToSelect);
+      markUserInteraction();
+    } else {
+      justCompletedPendingSelection.current = false;
+    }
+  }, [selectedVariantKey, selectedVariant, markUserInteraction]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
+    // Skip reset if we have a pending file selection from hash navigation
+    // OR if we just completed a pending file selection
+    if (pendingFileSelection.current || justCompletedPendingSelection.current) {
+      return;
+    }
+
     if (selectedVariant && selectedFileNameInternal !== selectedVariant.fileName) {
       // Only reset if current selectedFileName doesn't exist in the new variant
       const hasFile =
@@ -245,7 +359,12 @@ export function useFileNavigation({
 
     // Only update the URL hash if it's different from current hash
     if (fileSlug && hash !== fileSlug) {
-      setHash(fileSlug); // Use the new URL hash hook
+      // Only update if current hash is for the same demo (starts with mainSlug)
+      // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
+      if (isHashRelevantToDemo(hash, mainSlug)) {
+        setHash(fileSlug);
+      }
+      // Otherwise, don't update - either no hash exists or hash is for a different demo
     }
   }, [
     selectedVariant,
@@ -565,12 +684,59 @@ export function useFileNavigation({
     ],
   );
 
+  // Memoized array of all file slugs for all variants
+  const allFilesSlugs = React.useMemo(() => {
+    const result: Array<{ fileName: string; slug: string; variantName: string }> = [];
+
+    if (!effectiveCode || !variantKeys.length) {
+      return result;
+    }
+
+    // Iterate through all variants
+    for (const variantKey of variantKeys) {
+      const variant = effectiveCode[variantKey];
+
+      // Skip invalid variants
+      if (!variant || typeof variant === 'string') {
+        continue;
+      }
+
+      // Determine if this is the initial variant
+      const isInitialVariant = initialVariant
+        ? variantKey === initialVariant
+        : variantKeys.length === 0 || variantKey === variantKeys[0];
+
+      // Add main file if it exists
+      if (variant.fileName) {
+        result.push({
+          fileName: variant.fileName,
+          slug: generateFileSlug(mainSlug, variant.fileName, variantKey, isInitialVariant),
+          variantName: variantKey,
+        });
+      }
+
+      // Add extra files
+      if (variant.extraFiles) {
+        Object.keys(variant.extraFiles).forEach((fileName) => {
+          result.push({
+            fileName,
+            slug: generateFileSlug(mainSlug, fileName, variantKey, isInitialVariant),
+            variantName: variantKey,
+          });
+        });
+      }
+    }
+
+    return result;
+  }, [effectiveCode, variantKeys, initialVariant, mainSlug]);
+
   return {
     selectedFileName,
     selectedFile,
     selectedFileComponent,
     selectedFileLines,
     files,
+    allFilesSlugs,
     selectFileName,
   };
 }
