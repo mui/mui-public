@@ -19,9 +19,9 @@ And object syntax: createTypesMeta(import.meta.url, { Component1, Component2 })
 Automatically skips processing if skipPrecompute: true is set.
 
 ```typescript
-(source: string) => Promise<void>
+(source: string) => Promise<void>;
 ```
 
 ```typescript
-(source: string) => Promise<void>
+(source: string) => Promise<void>;
 ```

@@ -32,9 +32,9 @@ It returns a Code object mapping variant names to their resolved file URLs.
 ```
 
 ```typescript
-type CreateLoadCodeMetaOptions = {}
+type CreateLoadCodeMetaOptions = {};
 ```
 
 ```typescript
-(url: string) => Promise<Code>
+(url: string) => Promise<Code>;
 ```

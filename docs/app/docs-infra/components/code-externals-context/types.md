@@ -14,6 +14,6 @@
 
 ```typescript
 type CodeExternalsContext = {
-  externals?: Record<string, {}>
-}
+  externals?: Record<string, {}>;
+};
 ```

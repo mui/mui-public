@@ -32,7 +32,7 @@ Represents an import from a relative path (starts with ./ or ../).
 
 ### ExternalImport
 
-Represents an import from an external package (node\_modules).
+Represents an import from an external package (node_modules).
 
 ### ImportsAndComments
 
@@ -70,15 +70,15 @@ Resolves variant paths from a variants object mapping variant names to their fil
 This function extracts the paths, resolves them using resolveModulePaths, and returns
 a map from variant name to resolved file URL.
 
-### JAVASCRIPT\_MODULE\_EXTENSIONS
+### JAVASCRIPT_MODULE_EXTENSIONS
 
 Default file extensions for JavaScript/TypeScript modules that can be resolved
 
-### TYPE\_IMPORT\_EXTENSIONS
+### TYPE_IMPORT_EXTENSIONS
 
 Extension priority for type-only imports - prioritize .d.ts first
 
-### VALUE\_IMPORT\_EXTENSIONS
+### VALUE_IMPORT_EXTENSIONS
 
 Extension priority for value imports - standard priority with .d.ts last
 
@@ -127,54 +127,54 @@ Extracts and formats a name and slug from a URL path
 
 ```typescript
 type ImportName = {
-  name: string
-  alias?: string
-  type: 'default' | 'named' | 'namespace'
-  isType?: boolean
-}
+  name: string;
+  alias?: string;
+  type: 'default' | 'named' | 'namespace';
+  isType?: boolean;
+};
 ```
 
 ```typescript
-type ImportPathPosition = { start: number; end: number }
+type ImportPathPosition = { start: number; end: number };
 ```
 
 ```typescript
 type RelativeImport = {
-  path: string
+  path: string;
   names: {
-    name: string
-    alias?: string
-    type: 'default' | 'named' | 'namespace'
-    isType?: boolean
-  }[]
-  includeTypeDefs?: true
-  positions: { start: number; end: number }[]
-}
+    name: string;
+    alias?: string;
+    type: 'default' | 'named' | 'namespace';
+    isType?: boolean;
+  }[];
+  includeTypeDefs?: true;
+  positions: { start: number; end: number }[];
+};
 ```
 
 ```typescript
 type ExternalImport = {
   names: {
-    name: string
-    alias?: string
-    type: 'default' | 'named' | 'namespace'
-    isType?: boolean
-  }[]
-  positions: { start: number; end: number }[]
-}
+    name: string;
+    alias?: string;
+    type: 'default' | 'named' | 'namespace';
+    isType?: boolean;
+  }[];
+  positions: { start: number; end: number }[];
+};
 ```
 
 ```typescript
 type ImportsAndComments = {
-  relative: Record<string, RelativeImport>
-  externals: Record<string, ExternalImport>
-  code?: string
-  comments?: Record<number, string[]>
-}
+  relative: Record<string, RelativeImport>;
+  externals: Record<string, ExternalImport>;
+  code?: string;
+  comments?: Record<number, string[]>;
+};
 ```
 
 ```typescript
-(path: string) => boolean
+(path: string) => boolean;
 ```
 
 ```typescript
@@ -223,34 +223,34 @@ type ImportsAndComments = {
 ```
 
 ```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts']
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
 
 ```typescript
-['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx']
+['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
 ```
 
 ```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts']
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
 
 ```typescript
 type DirectoryEntry = {
-  name: string
-  isFile: boolean
-  isDirectory: boolean
-}
+  name: string;
+  isFile: boolean;
+  isDirectory: boolean;
+};
 ```
 
 ```typescript
-type ResolveModulePathOptions = { extensions?: string[] }
+type ResolveModulePathOptions = { extensions?: string[] };
 ```
 
 ```typescript
 type TypeAwareResolveResult = {
-  import: string
-  typeImport?: string
-}
+  import: string;
+  typeImport?: string;
+};
 ```
 
 ```typescript
@@ -284,9 +284,9 @@ type TypeAwareResolveResult = {
 
 ```typescript
 type ProcessImportsResult = {
-  processedSource: string
-  extraFiles: Record<string, string>
-}
+  processedSource: string;
+  extraFiles: Record<string, string>;
+};
 ```
 
 ```typescript
@@ -296,9 +296,12 @@ type ProcessImportsResult = {
 ```
 
 ```typescript
-(url: string) => { name: string; slug: string }
+(url: string) => {
+  name: string;
+  slug: string;
+};
 ```
 
 ```typescript
-(externals: string[]) => Record<string, true>
+(externals: string[]) => Record<string, true>;
 ```

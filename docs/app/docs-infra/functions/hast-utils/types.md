@@ -13,7 +13,7 @@
 ### stringOrHastToJsx
 
 ```typescript
-(hast: HastNodes) => ReactNode
+(hast: HastNodes) => ReactNode;
 ```
 
 ```typescript

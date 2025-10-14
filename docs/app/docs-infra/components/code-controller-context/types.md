@@ -32,16 +32,14 @@ event fires.
 
 ```typescript
 type CodeControllerContext = {
-  code?: {}
+  code?: {};
   selection?: {
-    variant: string
-    fileName?: string
-    transformKey?: string
-  }
-  setCode?: Dispatch<
-    SetStateAction<ControlledCode | undefined>
-  >
-  setSelection?: Dispatch<SetStateAction<Selection>>
-  components?: Record<string, ReactNode>
-}
+    variant: string;
+    fileName?: string;
+    transformKey?: string;
+  };
+  setCode?: Dispatch<SetStateAction<ControlledCode | undefined>>;
+  setSelection?: Dispatch<SetStateAction<Selection>>;
+  components?: Record<string, ReactNode>;
+};
 ```
