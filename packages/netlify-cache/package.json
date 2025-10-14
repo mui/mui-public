@@ -1,0 +1,26 @@
+{
+  "name": "@mui/internal-netlify-cache",
+  "version": "0.0.1",
+  "description": "Netlify plugin to cache Next.js output cache for MUI repos.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.mjs",
+  "module": "./src/index.mjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/netlify-cache"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/netlify-cache.mjs"
+  },
+  "files": [
+    "src",
+    "manifest.yml"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

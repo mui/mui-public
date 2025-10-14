@@ -16,6 +16,7 @@
     { "path": "packages/bundle-size-checker" },
     { "path": "packages/code-infra" },
     { "path": "packages/docs-infra" },
+    { "path": "packages/netlify-cache" },
     { "path": "tsconfig.node.json" },
     { "path": "scripts" },
     { "path": "docs" }
