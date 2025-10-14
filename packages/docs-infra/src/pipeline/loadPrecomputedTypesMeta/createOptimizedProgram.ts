@@ -388,7 +388,14 @@ export function createOptimizedProgram(
 
   // Update all tracked indirect dependencies (imports of entrypoints)
   // This ensures we detect changes in files that were loaded by previous program runs
-  const dependencyChanges = instance.host.updateTrackedFiles();
+  // Skip in production as files won't change during the build
+  let dependencyChanges: { updated: string[]; unchanged: string[] } = {
+    updated: [],
+    unchanged: [],
+  };
+  if (process.env.NODE_ENV !== 'production') {
+    dependencyChanges = instance.host.updateTrackedFiles();
+  }
 
   if (filesAdded.length > 0) {
     console.warn(`[TypesMeta] Added ${filesAdded.length} new file(s):`);
