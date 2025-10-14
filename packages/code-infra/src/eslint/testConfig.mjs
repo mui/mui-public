@@ -3,12 +3,14 @@ import testingLibrary from 'eslint-plugin-testing-library';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
+import { EXTENSION_TS } from './extensions.mjs';
 
 /**
  * @type {import('eslint').Linter.Config}
  */
 export const baseSpecRules = {
-  files: ['**/*.spec.*'],
+  name: 'Spec files rules',
+  files: [`**/*.spec${EXTENSION_TS}`],
   rules: {
     'no-alert': 'off',
     'no-console': 'off',
@@ -47,11 +49,11 @@ export const baseSpecRules = {
 export function createTestConfig(options = {}) {
   const { useMocha = true } = options;
   return defineConfig(
-    // @ts-expect-error The types don't make sense here.
     useMocha ? mochaPlugin.configs.recommended : {},
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
+      name: 'Test files',
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: {

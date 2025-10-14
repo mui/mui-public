@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "exports": {
@@ -70,7 +70,7 @@
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
-    "prettier": "^3.5.3",
+    "prettier": "^3.6.2",
     "uint8-to-base64": "^0.2.1",
     "unist-util-visit": "^5.0.0",
     "vscode-oniguruma": "^2.0.1"
@@ -78,13 +78,13 @@
   "devDependencies": {
     "@testing-library/react": "^16.3.0",
     "@types/babel__standalone": "^7.1.9",
-    "@types/babel__traverse": "^7.20.7",
+    "@types/babel__traverse": "^7.28.0",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^24.5.2",
-    "@types/react": "^19.1.13",
+    "@types/node": "^22.18.9",
+    "@types/react": "^19.2.2",
     "@types/webpack": "^5.28.5",
-    "react": "^19.1.1",
+    "react": "^19.2.0",
     "rehype-parse": "^9.0.1",
     "rehype-stringify": "^10.0.1",
     "remark-parse": "^11.0.0",

@@ -3,9 +3,9 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
- * @typedef {import('./pnpm.mjs').VersionInfo} VersionInfo
- * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
+ * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
+ * @typedef {import('../utils/pnpm.mjs').VersionInfo} VersionInfo
+ * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
 import { $ } from 'execa';
@@ -24,7 +24,7 @@ import {
   writePackageJson,
   getCurrentGitSha,
   semverMax,
-} from './pnpm.mjs';
+} from '../utils/pnpm.mjs';
 
 const CANARY_TAG = 'canary';
 
@@ -151,7 +151,7 @@ async function publishCanaryVersions(
   let publishSuccess = false;
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, 'canary', { ...options, noGitChecks: true });
+    await publishPackages(packagesToPublish, { ...options, noGitChecks: true, tag: 'canary' });
 
     packagesToPublish.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);
