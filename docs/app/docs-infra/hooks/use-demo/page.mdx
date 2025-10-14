@@ -1,0 +1,609 @@
+# useDemo Hook
+
+The `useDemo` hook extends `useCode` functionality to provide a complete demo rendering solution that combines component previews with code display. It's specifically designed for creating interactive demonstrations where users can see both working React components and their source code.
+
+Like `useCode`, it implements the [Props Context Layering pattern](../../patterns/props-context-layering/page.mdx) for seamless server-client compatibility.
+
+## Overview
+
+Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality like name and slug management while inheriting all code management capabilities. This makes it the go-to choice for creating rich interactive demos within the `CodeHighlighter` ecosystem.
+
+**Inheritance**: Since `useDemo` extends `useCode`, it automatically includes all URL management and file navigation features, including URL hash routing for deep-linking to specific files.
+
+## Key Features
+
+- **Complete code management** via `useCode` integration with URL hash routing
+- **Component rendering** alongside code display
+- **Demo identification** with automatic name and slug generation from URLs
+- **Variant switching** for different implementation approaches
+- **Transform support** for language conversions (TypeScript to JavaScript)
+- **File navigation** with deep-linking support for multi-file demos
+
+## Basic Usage
+
+```tsx
+import { useDemo } from '@mui/internal-docs-infra';
+
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  return (
+    <div className={styles.container} ref={demo.ref}>
+      {/* Component Preview Section */}
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      {/* Code Section */}
+      <div className={styles.codeSection}>
+        <div className={styles.code}>{demo.selectedFile}</div>
+      </div>
+    </div>
+  );
+}
+```
+
+## Advanced Usage
+
+### Full Interactive Demo Interface
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const labels = { false: 'TS', true: 'JS' };
+  const toggleJs = React.useCallback(
+    (checked: boolean) => {
+      demo.selectTransform(checked ? 'js' : null);
+    },
+    [demo],
+  );
+
+  const tabs = React.useMemo(
+    () => demo.files.map(({ name }) => ({ id: name, name })),
+    [demo.files],
+  );
+
+  const variants = React.useMemo(
+    () =>
+      demo.variants.map((variant) => ({
+        value: variant,
+        label: variantNames[variant] || variant,
+      })),
+    [demo.variants],
+  );
+
+  return (
+    <div className={styles.container}>
+      {/* Demo Preview */}
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      {/* Code Section */}
+      <div className={styles.codeSection}>
+        <div className={styles.header}>
+          <div className={styles.headerContainer}>
+            {/* File Tabs */}
+            <div className={styles.tabContainer}>
+              {demo.files.length > 1 ? (
+                <Tabs
+                  tabs={tabs}
+                  selectedTabId={demo.selectedFileName}
+                  onTabSelect={demo.selectFileName}
+                />
+              ) : (
+                <span className={styles.fileName}>{demo.selectedFileName}</span>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className={styles.headerActions}>
+              <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
+
+              {/* Variant Selector */}
+              {demo.variants.length > 1 && (
+                <Select
+                  items={variants}
+                  value={demo.selectedVariant}
+                  onValueChange={demo.selectVariant}
+                />
+              )}
+
+              {/* Transform Toggle */}
+              {hasJsTransform && (
+                <div className={styles.switchContainer}>
+                  <LabeledSwitch
+                    checked={isJsSelected}
+                    onCheckedChange={toggleJs}
+                    labels={labels}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Code Display */}
+        <div className={styles.code}>{demo.selectedFile}</div>
+      </div>
+    </div>
+  );
+}
+```
+
+### Editable Demo (Live Editing)
+
+```tsx
+export function DemoLiveContent(props) {
+  const preRef = React.useRef<HTMLPreElement | null>(null);
+  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
+
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const labels = { false: 'TS', true: 'JS' };
+  const toggleJs = React.useCallback(
+    (checked: boolean) => {
+      demo.selectTransform(checked ? 'js' : null);
+    },
+    [demo],
+  );
+
+  const tabs = React.useMemo(
+    () => demo.files.map(({ name }) => ({ id: name, name })),
+    [demo.files],
+  );
+
+  const variants = React.useMemo(
+    () =>
+      demo.variants.map((variant) => ({
+        value: variant,
+        label: variantNames[variant] || variant,
+      })),
+    [demo.variants],
+  );
+
+  // Set up editable functionality
+  const onChange = React.useCallback((text: string) => {
+    demo.setSource?.(text);
+  }, []);
+  useEditable(preRef, onChange, {
+    indentation: 2,
+    disabled: !demo.setSource,
+  });
+
+  return (
+    <div className={styles.container}>
+      {/* Live Demo Preview */}
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      {/* Editable Code Section */}
+      <div className={styles.codeSection}>
+        <div className={styles.header}>
+          <div className={styles.headerContainer}>
+            <div className={styles.tabContainer}>
+              {demo.files.length > 1 ? (
+                <Tabs
+                  tabs={tabs}
+                  selectedTabId={demo.selectedFileName}
+                  onTabSelect={demo.selectFileName}
+                />
+              ) : (
+                <span className={styles.fileName}>{demo.selectedFileName}</span>
+              )}
+            </div>
+            <div className={styles.headerActions}>
+              {demo.variants.length > 1 && (
+                <Select
+                  items={variants}
+                  value={demo.selectedVariant}
+                  onValueChange={demo.selectVariant}
+                />
+              )}
+              {hasJsTransform && (
+                <div className={styles.switchContainer}>
+                  <LabeledSwitch
+                    checked={isJsSelected}
+                    onCheckedChange={toggleJs}
+                    labels={labels}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Editable Code Block */}
+        <div className={styles.code}>{demo.selectedFile}</div>
+      </div>
+    </div>
+  );
+}
+```
+
+## API Reference
+
+### Parameters
+
+#### `contentProps: ContentProps<T>`
+
+The content properties passed from your parent component - these should always be passed directly to `useDemo()` without accessing them directly:
+
+```tsx
+export function DemoContent(props: ContentProps<{}>) {
+  const demo = useDemo(props); // Pass props directly to useDemo
+
+  // Never access props.name, props.code, etc. directly
+  // Use demo.name, demo.selectedFile, etc. instead
+}
+```
+
+#### `opts?: UseDemoOpts`
+
+Optional configuration object:
+
+```tsx
+interface UseDemoOpts {
+  defaultOpen?: boolean; // Whether to start expanded
+  copy?: UseCopierOpts; // Copy functionality options
+  githubUrlPrefix?: string; // GitHub URL prefix for links
+  codeSandboxUrlPrefix?: string; // CodeSandbox URL prefix
+  stackBlitzPrefix?: string; // StackBlitz URL prefix
+  initialVariant?: string; // Initially selected variant
+  initialTransform?: string; // Initially selected transform
+}
+```
+
+### Return Value
+
+The hook returns all `useCode` properties plus demo-specific additions:
+
+#### Demo Properties
+
+- **`component: React.ReactNode`** - The React component for the current variant (for live preview)
+- **`ref: React.RefObject<HTMLDivElement | null>`** - Ref for the demo container element
+- **`resetFocus: () => void`** - Function to reset focus to the demo container
+- **`name: string | undefined`** - Display name for the demo (auto-generated from URL if not provided)
+- **`slug: string | undefined`** - URL-friendly identifier (auto-generated from URL if not provided)
+
+#### Inherited from useCode
+
+All properties from `useCode` are available with exact types:
+
+- **`variants: string[]`**, **`selectedVariant: string`**, **`selectVariant: React.Dispatch<React.SetStateAction<string>>`**
+- **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Files with URL hash slugs for deep-linking
+- **`selectedFile: React.ReactNode`**, **`selectedFileName: string | undefined`**, **`selectFileName: (fileName: string) => void`** - File selection with automatic URL hash updates
+- **`expanded: boolean`**, **`expand: () => void`**, **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`**
+- **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`**
+- **`availableTransforms: string[]`**, **`selectedTransform: string | null | undefined`**, **`selectTransform: (transformName: string | null) => void`**
+- **`setSource?: (source: string) => void`** (when editing is available)
+- **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
+
+See [useCode documentation](../use-code/page.mdx) for detailed information about inherited functionality.
+
+## URL Management and Deep-Linking
+
+Since `useDemo` extends `useCode`, it automatically inherits all URL hash management capabilities. This enables powerful deep-linking features for demos with multiple files:
+
+### Automatic URL Hash Generation
+
+```tsx
+// Demo with URL-based name/slug generation
+const ButtonDemo = createDemo({
+  url: 'file:///components/demos/interactive-button/index.ts',
+  code: buttonCode,
+  components: { Default: ButtonComponent },
+  Content: DemoContent,
+});
+
+// Automatically generates:
+// - name: "Interactive Button"
+// - slug: "interactive-button"
+// - File URLs: #interactive-button:button.tsx, #interactive-button:styles.css
+```
+
+### Deep-Linking to Specific Files
+
+Users can bookmark and share links to specific files within your demos:
+
+```
+# Links to main file in default variant
+https://yoursite.com/demos/button#interactive-button:button.tsx
+
+# Links to specific file in TypeScript variant
+https://yoursite.com/demos/button#interactive-button:typescript:button.tsx
+
+# Links to styling file
+https://yoursite.com/demos/button#interactive-button:styles.css
+```
+
+### URL Management Behavior
+
+- **Initial Load**: If URL hash matches a file, that file is auto-selected
+- **File Selection**: Clicking file tabs updates URL without browser history pollution
+- **Variant Changes**: URL automatically updates to reflect current variant
+- **Component Integration**: Works seamlessly with demo component rendering
+
+For complete URL hash patterns and troubleshooting, see the [useCode URL Hash Patterns](../use-code/page.mdx#url-hash-patterns) section.
+
+## Integration Patterns
+
+### Standard Usage Pattern
+
+The most common pattern is to use `useDemo` in a content component that receives props from the demo factory:
+
+```tsx
+// In your demo's Content component
+export function DemoContent(props: ContentProps<{}>) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock }); // Always pass props directly
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
+    </div>
+  );
+}
+```
+
+### Demo Factory Integration
+
+This content component is used with the demo factory pattern, not as a direct child of `CodeHighlighter`:
+
+```tsx
+// [✓] Correct - Demo factory usage
+const ButtonDemo = createDemo({
+  name: 'Button Demo',
+  code: buttonCode,
+  components: { Default: ButtonComponent },
+  Content: DemoContent,
+});
+
+// [x] Incorrect - Never use DemoContent as a direct child
+<CodeHighlighter>
+  <DemoContent /> {/* This won't work */}
+</CodeHighlighter>;
+```
+
+## Best Practices
+
+### 1. Always Pass Props Directly
+
+```tsx
+export function DemoContent(props: ContentProps<{}>) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock }); // [✓] Pass props directly
+
+  // [x] Never access props.name, props.code, etc.
+  // [✓] Use demo.name, demo.selectedFile, etc.
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
+    </div>
+  );
+}
+```
+
+### 2. Conditional UI Elements
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  return (
+    <div className={styles.container}>
+      {demo.component}
+
+      {/* Only show file tabs if multiple files */}
+      {demo.files.length > 1 ? (
+        <Tabs
+          tabs={demo.files.map((f) => ({ id: f.name, name: f.name }))}
+          selectedTabId={demo.selectedFileName}
+          onTabSelect={demo.selectFileName}
+        />
+      ) : (
+        <span>{demo.selectedFileName}</span>
+      )}
+
+      {demo.selectedFile}
+    </div>
+  );
+}
+```
+
+### 3. Simple Transform Toggle
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  const hasTransforms = demo.availableTransforms.length > 0;
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  return (
+    <div className={styles.container}>
+      {demo.component}
+
+      {hasTransforms && (
+        <button onClick={() => demo.selectTransform(isJsSelected ? null : 'js')}>
+          {isJsSelected ? 'Show TS' : 'Show JS'}
+        </button>
+      )}
+
+      {demo.selectedFile}
+    </div>
+  );
+}
+```
+
+### 4. Leverage URL-Based Demo Properties
+
+```tsx
+// Recommended: Let useDemo generate name/slug from URL
+const ButtonDemo = createDemo({
+  url: 'file:///components/demos/advanced-button/index.ts',
+  code: buttonCode,
+  components: { Default: ButtonComponent },
+  Content: DemoContent,
+});
+
+function DemoContent(props) {
+  const demo = useDemo(props);
+
+  return (
+    <div>
+      <h2>{demo.name}</h2> {/* "Advanced Button" */}
+      <div data-demo-slug={demo.slug}>
+        {' '}
+        {/* "advanced-button" */}
+        {demo.component}
+      </div>
+      {/* File navigation with automatic URL hash management */}
+      {demo.files.map((file) => (
+        <button
+          key={file.name}
+          onClick={() => demo.selectFileName(file.name)}
+          data-file-slug={file.slug} // For analytics/debugging
+        >
+          {file.name}
+        </button>
+      ))}
+      {demo.selectedFile}
+    </div>
+  );
+}
+```
+
+## Common Patterns
+
+### Simple Demo Display
+
+The most basic pattern for showing a component with its code:
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
+    </div>
+  );
+}
+```
+
+### Demo with File Navigation
+
+When you have multiple files to show (includes automatic URL hash management):
+
+```tsx
+export function MultiFileDemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      <div className={styles.codeSection}>
+        {demo.files.length > 1 && (
+          <div className={styles.fileNav}>
+            {/* File selection automatically updates URL hash for deep-linking */}
+            {demo.files.map((file) => (
+              <button
+                key={file.name}
+                onClick={() => demo.selectFileName(file.name)} // Updates URL hash
+                className={demo.selectedFileName === file.name ? styles.active : ''}
+                title={`View ${file.name} (URL: #${file.slug})`}
+              >
+                {file.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {demo.selectedFile}
+      </div>
+    </div>
+  );
+}
+```
+
+### Demo with Language Toggle
+
+For demos that support TypeScript/JavaScript switching:
+
+```tsx
+export function DemoWithLanguageToggle(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  const canToggleJs = demo.availableTransforms.includes('js');
+  const showingJs = demo.selectedTransform === 'js';
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      <div className={styles.codeSection}>
+        {canToggleJs && (
+          <div className={styles.languageToggle}>
+            <button onClick={() => demo.selectTransform(showingJs ? null : 'js')}>
+              {showingJs ? 'TypeScript' : 'JavaScript'}
+            </button>
+          </div>
+        )}
+
+        {demo.selectedFile}
+      </div>
+    </div>
+  );
+}
+```
+
+## Performance Considerations
+
+- **Component memoization**: Components are automatically memoized by the demo factory
+- **Code lazy loading**: Inherited from `useCode` - syntax highlighting can be deferred
+- **Transform caching**: Transform results are cached for quick switching
+- **File switching**: File navigation is optimized for instant switching
+
+## Error Handling
+
+`useDemo` inherits error handling from `useCode` and adds demo-specific safeguards:
+
+- **Missing components**: Gracefully handles when components aren't available for a variant
+- **Invalid names/slugs**: Provides fallback values for missing identification
+- **Component render errors**: Use React Error Boundaries to catch component-specific issues
+
+## Troubleshooting
+
+### Component Not Rendering
+
+- Verify the component is passed in the `components` prop
+- Check that the variant name matches between `code` and `components`
+- Ensure the component doesn't have render-blocking errors
+
+### Code Not Showing
+
+- See [useCode troubleshooting](../use-code/page.mdx#troubleshooting) for code-related issues
+- Verify `contentProps` contains the expected code structure
+
+### Name/Slug Not Generated
+
+- Ensure a valid `url` property is provided in demo creation or available in context
+- Provide explicit `name` or `slug` properties as fallbacks if URL parsing fails
+- Check that the URL follows a recognizable pattern for automatic generation
+
+### URL Hash Issues
+
+- **Deep-linking not working**: See [useCode URL troubleshooting](../use-code/page.mdx#url-hash-not-working) for detailed debugging steps
+- **File navigation not updating URL**: Ensure component is running in browser environment (not SSR)
+- **Hash conflicts**: Check that demo slugs are unique across your application
+
+## Related
+
+- **[useCode](../use-code/page.mdx)**: The underlying hook for code management (see [useCode documentation](../use-code/page.mdx))
+- **[CodeHighlighter](../../components/code-highlighter/page.mdx)**: The main component that provides context for demos
+- **[abstractCreateDemo](../../functions/abstract-create-demo/page.mdx)**: Factory function for creating precomputed demos
