@@ -42,9 +42,8 @@ export class SocketServer {
     if (existsSync(this.socketPath)) {
       try {
         unlinkSync(this.socketPath);
-        console.warn('[SocketServer] Cleaned up stale socket file');
       } catch (error) {
-        console.warn('[SocketServer] Failed to remove existing socket:', error);
+        // Ignore cleanup errors
       }
     }
 
@@ -63,8 +62,6 @@ export class SocketServer {
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server.listen(this.socketPath, () => {
-        console.warn('[SocketServer] Server started on socket:', this.socketPath);
-        console.warn('[SocketServer] Process ID:', process.pid);
         resolve();
       });
 
@@ -77,7 +74,6 @@ export class SocketServer {
    */
   private handleConnection(socket: Socket): void {
     this.connections.add(socket);
-    console.warn('[SocketServer] Client connected. Total connections:', this.connections.size);
 
     let buffer = '';
 
@@ -112,10 +108,6 @@ export class SocketServer {
 
     socket.on('end', () => {
       this.connections.delete(socket);
-      console.warn(
-        '[SocketServer] Client disconnected. Remaining connections:',
-        this.connections.size,
-      );
     });
 
     socket.on('error', (error) => {
@@ -160,22 +152,18 @@ export class SocketServer {
    * Shutdown the server
    */
   shutdown(): void {
-    console.warn('[SocketServer] Shutting down...');
-
     // Close all connections
     this.connections.forEach((socket) => {
       socket.end();
     });
 
     this.server.close(() => {
-      console.warn('[SocketServer] Server closed');
-
       // Clean up socket file
       if (existsSync(this.socketPath)) {
         try {
           unlinkSync(this.socketPath);
         } catch (error) {
-          console.warn('[SocketServer] Failed to remove socket file:', error);
+          // Ignore cleanup errors
         }
       }
     });

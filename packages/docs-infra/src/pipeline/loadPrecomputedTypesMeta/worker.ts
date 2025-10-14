@@ -13,8 +13,6 @@ import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketClient';
 import { SocketServer } from './socketServer';
 
-console.warn('[Worker] Worker thread module loaded - Process ID:', process.pid);
-
 export type TypesMeta =
   | {
       type: 'component';
@@ -314,21 +312,15 @@ let socketServer: SocketServer | null = null;
 
 // Initialize socket connection
 const initSocket = async () => {
-  console.warn('[Worker] Initializing socket connection...');
-  console.warn('[Worker] Process ID:', process.pid);
-
   // Try to acquire the server lock (only one worker will succeed)
   let shouldBeServer = await tryAcquireServerLock();
 
   if (shouldBeServer) {
     // This is the first worker - create a socket server
-    console.warn('[Worker] This worker will act as the socket server');
-
     socketServer = new SocketServer(processTypesInWorker);
     await socketServer.start();
   } else {
     // Another worker is already running - wait a bit for it to start, then connect
-    console.warn('[Worker] Another worker is the server, connecting as client...');
 
     // Wait for server to be ready
     await new Promise((resolve) => {
@@ -339,21 +331,14 @@ const initSocket = async () => {
     try {
       await socketClient.connect();
     } catch (error) {
-      console.error('[Worker] Failed to connect to socket:', error);
-
       // Retry: Maybe no server exists yet, try to become the server ourselves
-      console.warn('[Worker] Retrying lock acquisition in case no server exists...');
       shouldBeServer = await tryAcquireServerLock();
 
       if (shouldBeServer) {
-        console.warn('[Worker] Successfully acquired lock on retry, becoming server');
         socketClient = null;
         socketServer = new SocketServer(processTypesInWorker);
         await socketServer.start();
       } else {
-        console.warn(
-          '[Worker] Lock still held by another worker, falling back to local processing',
-        );
         // Fall back to processing locally
         socketClient = null;
       }
@@ -376,7 +361,6 @@ if (parentPort) {
       try {
         response = await socketClient.sendRequest(request);
       } catch (error) {
-        console.error('[Worker] Socket request failed, falling back to local processing:', error);
         socketClient = null; // Disconnect on error
         response = await processTypesInWorker(request);
       }

@@ -45,15 +45,13 @@ export async function tryAcquireServerLock(): Promise<boolean> {
       realpath: false, // Don't resolve symlinks (file doesn't need to exist)
     });
 
-    console.warn('[Worker] Acquired server lock');
     return true;
   } catch (error: any) {
     // Lock is already held by another worker
     if (error.code === 'ELOCKED') {
       return false;
     }
-    // Other errors should be logged
-    console.warn('[Worker] Failed to acquire lock:', error);
+    // Other errors should be logged but still return false
     return false;
   }
 }
@@ -66,9 +64,8 @@ export async function releaseServerLock(): Promise<void> {
     try {
       await lockReleaseFunction();
       lockReleaseFunction = null;
-      console.warn('[Worker] Released server lock');
     } catch (error) {
-      console.warn('[Worker] Failed to release server lock:', error);
+      // Ignore errors during cleanup
     }
   }
 }
@@ -131,7 +128,6 @@ export class SocketClient {
       this.socket = connect(socketPath);
 
       this.socket.on('connect', () => {
-        console.warn('[SocketClient] Connected to existing worker');
         // Remove error listener after successful connection
         this.socket?.removeAllListeners('error');
         resolve();
@@ -149,7 +145,6 @@ export class SocketClient {
       });
 
       this.socket.on('end', () => {
-        console.warn('[SocketClient] Connection closed');
         this.socket = null;
       });
     });

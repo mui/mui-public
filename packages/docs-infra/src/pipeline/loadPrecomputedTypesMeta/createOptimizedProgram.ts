@@ -223,22 +223,7 @@ function getOrCreateLanguageService(
     existing.projectPath === projectPath &&
     JSON.stringify(existing.globalTypes.sort()) === JSON.stringify(globalTypes.sort())
   ) {
-    console.warn('[TypesMeta] Reusing existing language service instance');
-    console.warn(`  Project: ${projectPath}`);
-    console.warn(`  Files loaded: ${existing.host.getScriptFileNames().length}`);
     return existing;
-  }
-
-  if (existing) {
-    console.warn('[TypesMeta] Creating new language service instance (config changed)');
-    console.warn(`  Old project: ${existing.projectPath}`);
-    console.warn(`  New project: ${projectPath}`);
-    console.warn(`  Old globalTypes: [${existing.globalTypes.join(', ')}]`);
-    console.warn(`  New globalTypes: [${globalTypes.join(', ')}]`);
-  } else {
-    console.warn('[TypesMeta] Creating first language service instance');
-    console.warn(`  Project: ${projectPath}`);
-    console.warn(`  GlobalTypes: [${globalTypes.join(', ')}]`);
   }
 
   // Create optimized compiler options
@@ -394,15 +379,10 @@ export function createOptimizedProgram(
     );
   }
 
-  console.warn(`[TypesMeta] Processing ${entrypoints.length} entrypoint(s)`);
-
   // Add all entrypoint files to the language service
   const processFilesStart = tracker?.mark(
     nameMark(functionName!, 'Process Entrypoints Start', context!),
   );
-  const filesAdded: string[] = [];
-  const filesUpdated: string[] = [];
-  const filesSkipped: string[] = [];
 
   for (const entrypoint of entrypoints) {
     const content = ts.sys.readFile(entrypoint);
@@ -413,18 +393,14 @@ export function createOptimizedProgram(
     if (!instance.host.hasFile(entrypoint)) {
       // File doesn't exist in service - add it
       instance.host.addFile(entrypoint, content);
-      filesAdded.push(entrypoint);
     } else {
       // File exists - check if content has changed
       const existingContent = instance.host.getFileContent(entrypoint);
       if (existingContent !== content) {
         // Content changed - update it (this will increment the version)
         instance.host.addFile(entrypoint, content);
-        filesUpdated.push(entrypoint);
-      } else {
-        // Content unchanged - skip it
-        filesSkipped.push(entrypoint);
       }
+      // Otherwise content is unchanged - no action needed
     }
   }
 
@@ -443,12 +419,8 @@ export function createOptimizedProgram(
   const updateDepsStart = tracker?.mark(
     nameMark(functionName!, 'Update Dependencies Start', context!),
   );
-  let dependencyChanges: { updated: string[]; unchanged: string[] } = {
-    updated: [],
-    unchanged: [],
-  };
   if (process.env.NODE_ENV !== 'production') {
-    dependencyChanges = instance.host.updateTrackedFiles();
+    instance.host.updateTrackedFiles();
   }
   const updateDepsEnd = tracker?.mark(nameMark(functionName!, 'Dependencies Updated', context!));
   if (tracker && updateDepsStart && updateDepsEnd) {
@@ -459,32 +431,9 @@ export function createOptimizedProgram(
     );
   }
 
-  if (filesAdded.length > 0) {
-    console.warn(`[TypesMeta] Added ${filesAdded.length} new file(s):`);
-    filesAdded.forEach((file) => console.warn(`  + ${file}`));
-  }
-  if (filesUpdated.length > 0) {
-    console.warn(`[TypesMeta] Updated ${filesUpdated.length} changed file(s):`);
-    filesUpdated.forEach((file) => console.warn(`  ~ ${file}`));
-  }
-  if (dependencyChanges.updated.length > 0) {
-    console.warn(
-      `[TypesMeta] Updated ${dependencyChanges.updated.length} changed indirect dependency(ies):`,
-    );
-    dependencyChanges.updated.forEach((file) => console.warn(`  ~ ${file}`));
-  }
-  if (filesSkipped.length > 0) {
-    console.warn(`[TypesMeta] Skipped ${filesSkipped.length} unchanged file(s):`);
-    filesSkipped.forEach((file) => console.warn(`  = ${file}`));
-  }
-  console.warn(`[TypesMeta] Total files in service: ${instance.host.getScriptFileNames().length}`);
-
   // Get the current program from the language service
   const getProgramStart = tracker?.mark(nameMark(functionName!, 'Get Program Start', context!));
-  instance.host.resetCallCounts();
-  const getProgramStartTime = performance.now();
   const program = instance.service.getProgram();
-  const getProgramTime = performance.now() - getProgramStartTime;
   const getProgramEnd = tracker?.mark(nameMark(functionName!, 'Program Retrieved', context!));
   if (tracker && getProgramStart && getProgramEnd) {
     tracker.measure(
@@ -493,10 +442,6 @@ export function createOptimizedProgram(
       getProgramEnd,
     );
   }
-  const { version: versionCalls, snapshot: snapshotCalls } = instance.host.getCallCounts();
-  console.warn(
-    `[TypesMeta] getProgram() took ${getProgramTime.toFixed(2)}ms (getScriptVersion: ${versionCalls} calls, getScriptSnapshot: ${snapshotCalls} calls)`,
-  );
 
   if (!program) {
     throw new Error('Failed to create TypeScript program from language service');
