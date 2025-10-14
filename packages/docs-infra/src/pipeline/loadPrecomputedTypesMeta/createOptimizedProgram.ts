@@ -203,7 +203,22 @@ function getOrCreateLanguageService(
     existing.projectPath === projectPath &&
     JSON.stringify(existing.globalTypes.sort()) === JSON.stringify(globalTypes.sort())
   ) {
+    console.warn('[TypesMeta] Reusing existing language service instance');
+    console.warn(`  Project: ${projectPath}`);
+    console.warn(`  Files loaded: ${existing.host.getScriptFileNames().length}`);
     return existing;
+  }
+
+  if (existing) {
+    console.warn('[TypesMeta] Creating new language service instance (config changed)');
+    console.warn(`  Old project: ${existing.projectPath}`);
+    console.warn(`  New project: ${projectPath}`);
+    console.warn(`  Old globalTypes: [${existing.globalTypes.join(', ')}]`);
+    console.warn(`  New globalTypes: [${globalTypes.join(', ')}]`);
+  } else {
+    console.warn('[TypesMeta] Creating first language service instance');
+    console.warn(`  Project: ${projectPath}`);
+    console.warn(`  GlobalTypes: [${globalTypes.join(', ')}]`);
   }
 
   // Create optimized compiler options
@@ -340,7 +355,13 @@ export function createOptimizedProgram(
   // Get or create the global language service instance
   const instance = getOrCreateLanguageService(projectPath, compilerOptions, globalTypes);
 
+  console.warn(`[TypesMeta] Processing ${entrypoints.length} entrypoint(s)`);
+
   // Add all entrypoint files to the language service
+  const filesAdded: string[] = [];
+  const filesUpdated: string[] = [];
+  const filesSkipped: string[] = [];
+
   for (const entrypoint of entrypoints) {
     const content = ts.sys.readFile(entrypoint);
     if (content === undefined) {
@@ -350,20 +371,44 @@ export function createOptimizedProgram(
     if (!instance.host.hasFile(entrypoint)) {
       // File doesn't exist in service - add it
       instance.host.addFile(entrypoint, content);
+      filesAdded.push(entrypoint);
     } else {
       // File exists - check if content has changed
       const existingContent = instance.host.getFileContent(entrypoint);
       if (existingContent !== content) {
         // Content changed - update it (this will increment the version)
         instance.host.addFile(entrypoint, content);
+        filesUpdated.push(entrypoint);
+      } else {
+        // Content unchanged - skip it
+        filesSkipped.push(entrypoint);
       }
-      // Content unchanged - skip it
     }
   }
 
   // Update all tracked indirect dependencies (imports of entrypoints)
   // This ensures we detect changes in files that were loaded by previous program runs
-  instance.host.updateTrackedFiles();
+  const dependencyChanges = instance.host.updateTrackedFiles();
+
+  if (filesAdded.length > 0) {
+    console.warn(`[TypesMeta] Added ${filesAdded.length} new file(s):`);
+    filesAdded.forEach((file) => console.warn(`  + ${file}`));
+  }
+  if (filesUpdated.length > 0) {
+    console.warn(`[TypesMeta] Updated ${filesUpdated.length} changed file(s):`);
+    filesUpdated.forEach((file) => console.warn(`  ~ ${file}`));
+  }
+  if (dependencyChanges.updated.length > 0) {
+    console.warn(
+      `[TypesMeta] Updated ${dependencyChanges.updated.length} changed indirect dependency(ies):`,
+    );
+    dependencyChanges.updated.forEach((file) => console.warn(`  ~ ${file}`));
+  }
+  if (filesSkipped.length > 0) {
+    console.warn(`[TypesMeta] Skipped ${filesSkipped.length} unchanged file(s):`);
+    filesSkipped.forEach((file) => console.warn(`  = ${file}`));
+  }
+  console.warn(`[TypesMeta] Total files in service: ${instance.host.getScriptFileNames().length}`);
 
   // Get the current program from the language service
   const program = instance.service.getProgram();
