@@ -2,6 +2,8 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
+// eslint-disable-next-line n/prefer-node-protocol
 import { Worker } from 'worker_threads';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
@@ -21,7 +23,9 @@ class TypesMetaWorkerManager {
 
   constructor() {
     // Worker file must be compiled JS, not TS
-    this.workerPath = path.join(__dirname, 'worker.js');
+    // Use import.meta.url to get current directory in ESM
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    this.workerPath = path.join(currentDir, 'worker.js');
   }
 
   private ensureWorker(): Worker {
@@ -85,19 +89,26 @@ class TypesMetaWorkerManager {
   }
 }
 
-// Global singleton instance
-let workerManagerInstance: TypesMetaWorkerManager | null = null;
+// Use globalThis to ensure singleton persists across all webpack module contexts
+// Symbol key prevents naming conflicts with other global properties
+const GLOBAL_KEY = Symbol.for('@mui/docs-infra/types-meta-worker-manager');
+
+interface GlobalWithWorkerManager {
+  [GLOBAL_KEY]?: TypesMetaWorkerManager;
+}
 
 export function getWorkerManager(): TypesMetaWorkerManager {
-  if (!workerManagerInstance) {
-    workerManagerInstance = new TypesMetaWorkerManager();
+  const globalObj = globalThis as GlobalWithWorkerManager;
+  if (!globalObj[GLOBAL_KEY]) {
+    globalObj[GLOBAL_KEY] = new TypesMetaWorkerManager();
   }
-  return workerManagerInstance;
+  return globalObj[GLOBAL_KEY];
 }
 
 export function terminateWorkerManager(): void {
-  if (workerManagerInstance) {
-    workerManagerInstance.terminate();
-    workerManagerInstance = null;
+  const globalObj = globalThis as GlobalWithWorkerManager;
+  if (globalObj[GLOBAL_KEY]) {
+    globalObj[GLOBAL_KEY].terminate();
+    globalObj[GLOBAL_KEY] = undefined;
   }
 }

@@ -28,6 +28,7 @@ export type TypesMeta =
     };
 
 export interface WorkerRequest {
+  requestId?: number; // Added by worker manager for request tracking
   projectPath: string;
   compilerOptions: CompilerOptions;
   allEntrypoints: string[];
@@ -40,6 +41,7 @@ export interface WorkerRequest {
 }
 
 export interface WorkerResponse {
+  requestId?: number; // Echoed back from request for tracking
   success: boolean;
   variantData?: Record<
     string,
@@ -267,6 +269,11 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
 if (parentPort) {
   parentPort.on('message', async (request: WorkerRequest) => {
     const response = await processTypesInWorker(request);
-    parentPort?.postMessage(response);
+
+    // Echo back the requestId for the worker manager to match responses
+    parentPort?.postMessage({
+      ...response,
+      requestId: request.requestId,
+    });
   });
 }

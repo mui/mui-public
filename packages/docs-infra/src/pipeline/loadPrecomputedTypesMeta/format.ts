@@ -5,6 +5,51 @@ import prettier from 'prettier/standalone';
 import prettierPluginEstree from 'prettier/plugins/estree';
 import prettierPluginTypescript from 'prettier/plugins/typescript';
 
+// Helper functions to check type kind (works with both class instances and serialized objects)
+export function isExternalType(type: any): type is tae.ExternalTypeNode {
+  return type.kind === 'external';
+}
+
+export function isIntrinsicType(type: any): type is tae.IntrinsicNode {
+  return type.kind === 'intrinsic';
+}
+
+export function isUnionType(type: any): type is tae.UnionNode {
+  return type.kind === 'union';
+}
+
+export function isIntersectionType(type: any): type is tae.IntersectionNode {
+  return type.kind === 'intersection';
+}
+
+export function isObjectType(type: any): type is tae.ObjectNode {
+  return type.kind === 'object';
+}
+
+export function isArrayType(type: any): type is tae.ArrayNode {
+  return type.kind === 'array';
+}
+
+export function isFunctionType(type: any): type is tae.FunctionNode {
+  return type.kind === 'function';
+}
+
+export function isLiteralType(type: any): type is tae.LiteralNode {
+  return type.kind === 'literal';
+}
+
+export function isEnumType(type: any): type is tae.EnumNode {
+  return type.kind === 'enum';
+}
+
+export function isTupleType(type: any): type is tae.TupleNode {
+  return type.kind === 'tuple';
+}
+
+export function isTypeParameterType(type: any): type is tae.TypeParameterNode {
+  return type.kind === 'typeParameter';
+}
+
 async function prettyFormat(type: string, typeName?: string) {
   const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
     plugins: [prettierPluginEstree, prettierPluginTypescript],
@@ -121,7 +166,7 @@ export function formatDetailedType(
   visited = new Set<string>(),
 ): string {
   // Prevent infinite recursion
-  if (type instanceof tae.ExternalTypeNode) {
+  if (isExternalType(type)) {
     const qualifiedName = getFullyQualifiedName(type.typeName, exportNames);
     if (visited.has(qualifiedName)) {
       return qualifiedName;
@@ -147,14 +192,14 @@ export function formatDetailedType(
     }
   }
 
-  if (type instanceof tae.UnionNode) {
+  if (isUnionType(type)) {
     const memberTypes = type.types.map((t) =>
       formatDetailedType(t, allExports, exportNames, visited),
     );
     return uniq(memberTypes).join(' | ');
   }
 
-  if (type instanceof tae.IntersectionNode) {
+  if (isIntersectionType(type)) {
     const memberTypes = type.types.map((t) =>
       formatDetailedType(t, allExports, exportNames, visited),
     );
@@ -191,7 +236,7 @@ export function formatType(
     return typeValue;
   }
 
-  if (type instanceof tae.ExternalTypeNode) {
+  if (isExternalType(type)) {
     if (/^ReactElement(<.*>)?/.test(type.typeName.name || '')) {
       return 'ReactElement';
     }
@@ -203,11 +248,11 @@ export function formatType(
     return getFullyQualifiedName(type.typeName, exportNames);
   }
 
-  if (type instanceof tae.IntrinsicNode) {
+  if (isIntrinsicType(type)) {
     return type.typeName ? getFullyQualifiedName(type.typeName, exportNames) : type.intrinsic;
   }
 
-  if (type instanceof tae.UnionNode) {
+  if (isUnionType(type)) {
     if (type.typeName) {
       return getFullyQualifiedName(type.typeName, exportNames);
     }
@@ -215,20 +260,18 @@ export function formatType(
     let memberTypes = type.types;
 
     if (removeUndefined) {
-      memberTypes = memberTypes.filter(
-        (t) => !(t instanceof tae.IntrinsicNode && t.intrinsic === 'undefined'),
-      );
+      memberTypes = memberTypes.filter((t) => !(isIntrinsicType(t) && t.intrinsic === 'undefined'));
     }
 
     // Deduplicates types in unions.
     // Plain unions are handled by TypeScript API Extractor, but we also display unions in type parameters constraints,
     // so we need to merge those here.
     const flattenedMemberTypes = memberTypes.flatMap((t) => {
-      if (t instanceof tae.UnionNode) {
+      if (isUnionType(t)) {
         return t.typeName ? t : t.types;
       }
 
-      if (t instanceof tae.TypeParameterNode && t.constraint instanceof tae.UnionNode) {
+      if (isTypeParameterType(t) && isUnionType(t.constraint)) {
         return t.constraint.types;
       }
 
@@ -244,7 +287,7 @@ export function formatType(
     return formattedMemeberTypes.join(' | ');
   }
 
-  if (type instanceof tae.IntersectionNode) {
+  if (isIntersectionType(type)) {
     if (type.typeName) {
       return getFullyQualifiedName(type.typeName, exportNames);
     }
@@ -254,7 +297,7 @@ export function formatType(
       .join(' & ');
   }
 
-  if (type instanceof tae.ObjectNode) {
+  if (isObjectType(type)) {
     if (type.typeName && !expandObjects) {
       return getFullyQualifiedName(type.typeName, exportNames);
     }
@@ -271,11 +314,11 @@ export function formatType(
       .join(', ')} }`;
   }
 
-  if (type instanceof tae.LiteralNode) {
+  if (isLiteralType(type)) {
     return normalizeQuotes(type.value as string);
   }
 
-  if (type instanceof tae.ArrayNode) {
+  if (isArrayType(type)) {
     const formattedMemberType = formatType(
       type.elementType,
       false,
@@ -291,7 +334,7 @@ export function formatType(
     return `${formattedMemberType}[]`;
   }
 
-  if (type instanceof tae.FunctionNode) {
+  if (isFunctionType(type)) {
     // If object expansion is requested, we want to fully expand the function signature instead
     // of returning the aliased type name (e.g., OffsetFunction).
     if (!expandObjects && type.typeName && !type.typeName.name?.startsWith('ComponentRenderFn')) {
@@ -318,7 +361,7 @@ export function formatType(
     return `(${functionSignature})`;
   }
 
-  if (type instanceof tae.TupleNode) {
+  if (isTupleType(type)) {
     if (type.typeName) {
       return getFullyQualifiedName(type.typeName, exportNames);
     }
@@ -326,7 +369,7 @@ export function formatType(
     return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, expandObjects, exportNames)).join(', ')}]`;
   }
 
-  if (type instanceof tae.TypeParameterNode) {
+  if (isTypeParameterType(type)) {
     return type.constraint !== undefined
       ? formatType(type.constraint, removeUndefined, undefined, expandObjects, exportNames)
       : type.name;
@@ -391,7 +434,7 @@ function orderMembers(members: readonly tae.AnyType[]): readonly tae.AnyType[] {
 
 function pushToEnd(members: readonly tae.AnyType[], name: string): readonly tae.AnyType[] {
   const index = members.findIndex((member: tae.AnyType) => {
-    return member instanceof tae.IntrinsicNode && member.intrinsic === name;
+    return isIntrinsicType(member) && member.intrinsic === name;
   });
 
   if (index !== -1) {
