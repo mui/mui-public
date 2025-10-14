@@ -38,9 +38,25 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
 
   private projectPath: string;
 
+  private getVersionCallCount = 0;
+
+  private getSnapshotCallCount = 0;
+
   constructor(projectPath: string, options: ts.CompilerOptions) {
     this.projectPath = projectPath;
     this.options = options;
+  }
+
+  resetCallCounts(): void {
+    this.getVersionCallCount = 0;
+    this.getSnapshotCallCount = 0;
+  }
+
+  getCallCounts(): { version: number; snapshot: number } {
+    return {
+      version: this.getVersionCallCount,
+      snapshot: this.getSnapshotCallCount,
+    };
   }
 
   addFile(fileName: string, content: string): void {
@@ -64,6 +80,7 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
   }
 
   getScriptVersion(fileName: string): string {
+    this.getVersionCallCount += 1;
     const file = this.files.get(fileName);
     if (file) {
       return file.version.toString();
@@ -84,6 +101,7 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
   }
 
   getScriptSnapshot(fileName: string): ts.IScriptSnapshot | undefined {
+    this.getSnapshotCallCount += 1;
     const file = this.files.get(fileName);
     if (file) {
       return ts.ScriptSnapshot.fromString(file.content);
@@ -418,7 +436,14 @@ export function createOptimizedProgram(
   console.warn(`[TypesMeta] Total files in service: ${instance.host.getScriptFileNames().length}`);
 
   // Get the current program from the language service
+  instance.host.resetCallCounts();
+  const getProgramStart = performance.now();
   const program = instance.service.getProgram();
+  const getProgramTime = performance.now() - getProgramStart;
+  const { version: versionCalls, snapshot: snapshotCalls } = instance.host.getCallCounts();
+  console.warn(
+    `[TypesMeta] getProgram() took ${getProgramTime.toFixed(2)}ms (getScriptVersion: ${versionCalls} calls, getScriptSnapshot: ${snapshotCalls} calls)`,
+  );
 
   if (!program) {
     throw new Error('Failed to create TypeScript program from language service');
