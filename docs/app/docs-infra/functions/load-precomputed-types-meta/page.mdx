@@ -1,29 +1,30 @@
 # Types Meta Loader
 
-The types meta loader is a Webpack/Turbopack loader that enables build-time TypeScript type extraction and analysis. It processes demo files using the `createTypesMeta` factory pattern, automatically extracting comprehensive type information from components at build time rather than runtime.
+The types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
 
 ---
 
 ## Overview
 
-The loader processes demo files that use the `createTypesMeta` factory pattern, automatically analyzing TypeScript components and extracting detailed type metadata including props, exports, and method signatures. The factory returns a React component that wraps your original component and displays comprehensive type documentation.
+The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. The factory returns a React component that displays interactive type documentation alongside your component.
 
 > [!NOTE]
 > The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You could have custom factory functions like `createApiReference()` or `createTypeDocs()` that return documentation components.
 
-### Key Features
+## Features
 
-- **Build-time type extraction**: Uses TypeScript compiler API and [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) for comprehensive type analysis
-- **Performance optimization**: 70%+ faster compilation with optimized TypeScript programs (reduces file loading from ~700+ to ~80-100 files)
-- **Automatic error detection**: Suggests missing global types with helpful error messages
-- **Dependency tracking**: Resolves and tracks all file dependencies for hot reloading
-- **Flexible options**: Support for custom global types and additional configuration
+- **Automatic type extraction**: Analyzes TypeScript components and generates comprehensive API documentation
+- **Build-time processing**: Type analysis happens during compilation for zero runtime overhead
+- **Fast incremental builds**: Process-based singleton ensures language service persists across all compilations
+- **Hot reloading**: Tracks all dependencies and updates documentation when types change
+- **Error detection**: Suggests missing global types with helpful error messages
+- **Flexible configuration**: Support for custom global types and multiple components per file
 
 ---
 
 ## Configuration
 
-### Next.js Setup
+### Recommended: Next.js Setup
 
 Add the loader to your `next.config.mjs`:
 
@@ -54,7 +55,7 @@ const nextConfig = {
 
 ### File Structure
 
-The loader processes `types.ts` files that contain `createTypesMeta` factory functions. Each component also has a `page.tsx` or `page.mdx` that references the types:
+The loader processes `types.ts` files that contain `createTypesMeta` factory functions:
 
 ```
 app/
@@ -65,7 +66,7 @@ app/
 │   │   ├── Button.tsx
 │   │   └── demos/
 │   │       └── basic/
-│   │           └── page.tsx
+│   │           └── index.ts
 │   └── input/
 │       ├── types.ts          # ← And here
 │       ├── page.mdx          # ← Or MDX page that uses the types
@@ -73,7 +74,7 @@ app/
 │       ├── InputLabel.tsx
 │       └── demos/
 │           └── advanced/
-│               └── page.tsx
+│               └── index.ts
 ```
 
 ---
@@ -154,19 +155,6 @@ export const TypesAdvancedComponent = createTypesMeta(import.meta.url, Component
 });
 ```
 
-### Skip Processing
-
-Disable build-time processing for development or debugging:
-
-```typescript
-import { createTypesMeta } from '../createTypesMeta';
-import Component from './Component';
-
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
-  skipPrecompute: true, // Loader will skip processing this file
-});
-```
-
 ---
 
 ## Global Types
@@ -217,66 +205,6 @@ export const TypesComponent = createTypesMeta(import.meta.url, Component, {
 
 ---
 
-## Processing Pipeline
-
-The loader follows these steps to extract type metadata:
-
-### 1. Parse Factory Call
-
-Finds your `createTypesMeta` function call and extracts the components and options.
-
-### 2. Create Optimized Program
-
-Creates an optimized TypeScript program that:
-
-- Loads only necessary files (70%+ performance improvement)
-- Includes specified global types
-- Respects your project's `tsconfig.json` settings
-
-### 3. Extract Type Information
-
-For each component variant:
-
-- Analyzes the TypeScript AST
-- Extracts props, methods, and type signatures
-- Resolves complex type relationships
-- Tracks all dependencies
-
-### 4. Insert Precomputed Data
-
-Replaces the factory function call with extracted type metadata and returns a React component:
-
-```typescript
-// Your source before processing
-export const TypesComponent = createTypesMeta(import.meta.url, Component);
-
-// After processing (simplified)
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
-  precompute: {
-    Default: {
-      types: {
-        default: {
-          props: {
-            /* detailed prop types */
-          },
-          exports: {
-            /* component exports */
-          },
-          // ... comprehensive type metadata
-        },
-      },
-    },
-  },
-});
-
-// The factory function returns a React component that:
-// 1. Renders your original Component
-// 2. Displays the extracted type information
-// 3. Provides interactive documentation UI
-```
-
----
-
 ## Options Reference
 
 ### Factory Function Options
@@ -285,21 +213,11 @@ export const TypesComponent = createTypesMeta(import.meta.url, Component, {
 interface FactoryOptions {
   name?: string; // Display name for the types meta
   slug?: string; // URL slug override
-  skipPrecompute?: boolean; // Skip build-time processing
-  globalTypes?: string[]; // Global type packages to include
+  skipPrecompute?: boolean; // Skip build-time processing (useful for debugging)
+  globalTypes?: string[]; // Global type packages to include (see Global Types section)
   [customOption: string]: any; // Additional custom options
 }
 ```
-
-### Global Types
-
-| Type               | Description          | Use Cases                    |
-| ------------------ | -------------------- | ---------------------------- |
-| `'react'`          | React core types     | React components, hooks, JSX |
-| `'react-dom'`      | React DOM types      | DOM rendering, events        |
-| `'node'`           | Node.js globals      | Server-side code, utilities  |
-| `'dom'`            | Browser/DOM globals  | Window, document, web APIs   |
-| `'@types/package'` | Custom type packages | Third-party library types    |
 
 ---
 
@@ -455,6 +373,8 @@ import { TypesLoadPrecomputedTypesMeta } from './types';
 
 <TypesLoadPrecomputedTypesMeta />
 
+---
+
 ## Error Handling
 
 ### Single Factory Function per File
@@ -462,11 +382,11 @@ import { TypesLoadPrecomputedTypesMeta } from './types';
 Only one `createTypesMeta` function call is allowed per `types.ts` file:
 
 ```typescript
-// ❌ Multiple calls will cause a build error in types.ts
+// [x] Multiple calls will cause a build error
 export const Meta1 = createTypesMeta(/* ... */);
 export const Meta2 = createTypesMeta(/* ... */); // Error!
 
-// ✅ Use separate components instead
+// [✓] Use separate files instead
 // button/types.ts
 export const TypesButton = createTypesMeta(/* ... */);
 
@@ -506,4 +426,359 @@ createTypesMeta(
   component, // Required: component or variant object
   { options }, // Optional: options object
 );
+```
+
+---
+
+## Architecture
+
+The loader processes TypeScript types efficiently using a worker-based architecture that keeps webpack's main thread responsive.
+
+### Main Thread (Webpack Loader)
+
+The webpack loader runs in the main thread and handles:
+
+- Parsing `createTypesMeta` factory calls from source files
+- Resolving variant paths and TypeScript configuration
+- Sending type extraction requests to the worker
+- Receiving precomputed type metadata from the worker
+- Reconstructing performance logs for visibility
+- Replacing source code with precomputed data
+
+### Worker Thread (Singleton)
+
+A dedicated worker thread maintains a singleton TypeScript language service that:
+
+- Creates and caches the optimized TypeScript program
+- Loads and caches all source files in memory
+- Performs all TypeScript operations (parsing, type checking, formatting)
+- Tracks file changes and updates versions for incremental compilation
+- Returns only serializable type metadata (no TypeScript objects)
+- **Persists across all module contexts**: Uses Node.js `process` object to maintain true singleton across Turbopack/webpack compilations
+
+### Multi-Process Socket Architecture
+
+When Next.js runs with multiple processes, the loader uses a socket-based IPC system to share a single TypeScript language service across all processes:
+
+- **Lock-based server election**: Uses `proper-lockfile` for atomic lock acquisition
+- **Single server worker**: One process acquires the lock and starts a socket server
+- **Multiple client workers**: All other processes connect as socket clients
+- **Unix domain socket**: `/tmp/mui-types-meta-worker.sock` for inter-process communication
+- **Stale lock detection**: 10-second timeout prevents permanent deadlocks from crashed servers
+- **Automatic cleanup**: Locks released gracefully on process exit
+
+This architecture ensures:
+
+1. Only one TypeScript program is created (87-92% performance improvement)
+2. All processes share the same file cache (512+ files cached in memory)
+3. First request creates language service (~500-1200ms), subsequent requests reuse it (~100-140ms)
+4. Automatic fallback to local processing if socket communication fails
+
+### Benefits
+
+1. **Non-blocking Builds**: Heavy TypeScript operations run in worker, keeping webpack responsive
+2. **True Singleton via Process Object**: Language service persists across all module contexts in both Turbopack and webpack
+3. **Multi-Process Sharing**: Socket-based IPC enables sharing single language service across all Next.js worker processes
+4. **Memory Isolation**: TypeScript Program and AST objects never cross thread boundaries
+5. **Efficient Reuse**: First load ~500ms-1.2s, subsequent loads ~100-140ms (up to 10x faster)
+6. **Scalable Performance**: 87-92% performance improvement in multi-CPU builds by avoiding duplicate language services
+7. **Robust Locking**: Atomic lock acquisition with stale detection prevents race conditions and deadlocks
+8. **Clean Separation**: Main thread handles I/O and webpack, worker handles TypeScript, socket handles IPC
+
+### Performance Flow
+
+**Single Process Mode:**
+
+```
+Webpack Loader (Main Thread)          Worker Thread (Singleton via process)
+─────────────────────────────         ──────────────────────────────────────
+                                      ┌─ Language Service Cache (Shared)
+                                      │  ├─ TypeScript Program
+                                      │  ├─ files Map (512+ cached)
+                                      │  └─ Type Checker
+                                      │
+Component 1 ──request(paths)──────────┤
+            ◄──metadata──────────────┤  (loads 512 files: ~500-1200ms)
+                                      │
+Component 2 ──request(paths)──────────┤
+            ◄──metadata──────────────┤  (reuses cache: ~110-140ms)
+                                      │
+Component 3 ──request(paths)──────────┤
+            ◄──metadata──────────────┤  (reuses cache: ~110-140ms)
+```
+
+**Multi-Process Mode:**
+
+```
+Process 1 (Main)          Socket Server Worker          Language Service
+────────────────          ────────────────────          ────────────────
+                                                        ┌─ Singleton Cache
+                                                        │  ├─ Program
+                                                        │  ├─ 512+ files
+                                                        │  └─ Checker
+                                                        │
+request ──socket────────► process ─────────────────────┤
+        ◄────────────────metadata◄─────────────────────┤  (~1200ms first)
+                                                        │
+Process 2 (Worker)                                      │
+────────────────                                        │
+request ──socket────────► process ─────────────────────┤
+        ◄────────────────metadata◄─────────────────────┤  (~120ms reuse)
+                                                        │
+Process 3-N (Workers)                                   │
+──────────────────                                      │
+requests──socket────────► process ─────────────────────┤
+        ◄────────────────metadata◄─────────────────────┤  (~42-354ms)
+
+[All N processes share 1 language service via socket]
+```
+
+> [!NOTE]
+> The singleton uses Node.js `process` object (not `globalThis`) to ensure the worker manager persists across all Turbopack module contexts. This solves the issue where Turbopack creates separate `globalThis` objects for different compilations.
+
+### What Crosses Thread Boundaries
+
+**Main → Worker** (serializable):
+
+- File paths (strings)
+- Compiler options (plain objects)
+- Configuration (globalTypes, etc.)
+
+**Worker → Main** (serializable):
+
+- Type metadata (plain objects/arrays)
+- Dependencies (string arrays)
+- Performance logs (timing data)
+
+**Never Crosses** (stays in worker):
+
+- TypeScript `Program` object
+- TypeScript `TypeChecker` object
+- AST nodes and source files
+- Language service instance
+
+---
+
+## Performance Tracking
+
+The loader includes comprehensive performance tracking that works across thread boundaries.
+
+### Unified Performance Logs
+
+Performance measurements from both the main thread and worker thread are combined into a single timeline:
+
+```typescript
+// Worker tracks its operations
+const tracker = new PerformanceTracker();
+const start = tracker.mark('program creation start');
+// ... TypeScript work ...
+const end = tracker.mark('program creation end');
+tracker.measure('program creation', start, end);
+
+// Performance logs sent back to main thread
+return {
+  variantData,
+  performanceLogs: tracker.getLogs(),
+};
+```
+
+```typescript
+// Main thread reconstructs timeline
+const workerStartTime = performance.now();
+const result = await workerManager.processTypes({
+  /* ... */
+});
+
+// Adjust worker times to main thread timeline
+reconstructPerformanceLogs(result.performanceLogs, workerStartTime);
+
+// Now all measurements appear in unified performance timeline
+```
+
+### Performance Output Example
+
+```bash
+[Worker] program creation: 498.11ms
+[Worker] variant Default parsing: 120.34ms
+[Worker] variant Default formatting: 45.67ms
+worker processing (with overhead): 680.25ms
+precompute replacement: 2.15ms
+types.md generation: 15.42ms
+```
+
+### Debugging Performance
+
+Enable performance logging in your webpack configuration:
+
+```javascript
+// next.config.mjs
+module.exports = {
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\/types\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        {
+          loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+          options: {
+            performance: {
+              logging: true, // Enable performance logs
+              notableMs: 100, // Only log operations >100ms
+              showWrapperMeasures: false,
+            },
+          },
+        },
+      ],
+    });
+    return config;
+  },
+};
+```
+
+### What Gets Measured
+
+**Worker Thread**:
+
+- Program creation time
+- Each variant's parsing time
+- Each variant's formatting time
+- Total processing time per variant
+
+**Main Thread**:
+
+- Worker communication overhead
+- Performance log reconstruction
+- Source code replacement
+- Markdown generation
+- Total end-to-end time
+
+---
+
+## Processing Pipeline
+
+The loader follows these steps to extract type metadata:
+
+### 1. Parse Factory Call (Main Thread)
+
+The webpack loader finds your `createTypesMeta` function call and extracts the components and options from the source code.
+
+### 2. Resolve Paths (Main Thread)
+
+Resolves all variant paths, loads TypeScript configuration, and prepares the request for the worker.
+
+### 3. Send to Worker (Main Thread)
+
+Sends a serializable request to the worker thread containing:
+
+- Project path and compiler options
+- All entrypoint file paths
+- Global types configuration
+- Variant mapping
+
+### 4. Create Optimized Program (Worker Thread)
+
+The worker creates or reuses an optimized TypeScript program that:
+
+- Loads only necessary files (70%+ performance improvement)
+- Includes specified global types
+- Respects your project's `tsconfig.json` settings
+- Caches files in memory for subsequent requests
+
+### 5. Extract Type Information (Worker Thread)
+
+For each component variant, the worker:
+
+- Analyzes the TypeScript AST
+- Extracts props, methods, and type signatures
+- Resolves complex type relationships
+- Formats the data into serializable objects
+- Tracks all dependencies
+
+### 6. Return Results (Worker Thread → Main Thread)
+
+Worker sends back serializable data:
+
+- Extracted type metadata for all variants
+- List of all file dependencies
+- Performance timing logs
+
+### 7. Process Results (Main Thread)
+
+The main thread:
+
+- Receives type metadata from worker
+- Reconstructs performance timeline
+- Replaces factory function call with precomputed data
+- Generates markdown documentation
+- Adds dependencies to webpack watch list
+
+### Data Flow
+
+```typescript
+// Main Thread: Prepare request
+const request = {
+  projectPath: config.projectPath,
+  compilerOptions: config.options,
+  allEntrypoints: ['Component.tsx', 'types.ts'],
+  globalTypes: ['react', 'node'],
+  resolvedVariantMap: [['Default', 'file:///.../Component.tsx']],
+};
+
+// Send to worker
+const result = await workerManager.processTypes(request);
+
+// Worker Thread: Process types
+function processTypesInWorker(request) {
+  const program = createOptimizedProgram(/* ... */);
+  const checker = program.getTypeChecker();
+
+  // Extract types for each variant
+  const types = exports.map(exportNode => {
+    if (isPublicComponent(exportNode)) {
+      return formatComponentData(exportNode, allTypes, namespaces);
+    }
+    // ...
+  });
+
+  return {
+    success: true,
+    variantData: { Default: { types } },
+    allDependencies: [...],
+    performanceLogs: [...],
+  };
+}
+
+// Main Thread: Use results
+const modifiedSource = replacePrecomputeValue(source, result.variantData, typesMetaCall);
+```
+
+### Result Structure
+
+```typescript
+// Your source before processing
+export const TypesComponent = createTypesMeta(import.meta.url, Component);
+
+// After processing (simplified)
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  precompute: {
+    Default: {
+      types: {
+        default: {
+          props: {
+            /* detailed prop types */
+          },
+          exports: {
+            /* component exports */
+          },
+          // ... comprehensive type metadata
+        },
+      },
+    },
+  },
+});
+
+// The factory function returns a React component that:
+// 1. Renders your original Component
+// 2. Displays the extracted type information
+// 3. Provides interactive documentation UI
 ```
