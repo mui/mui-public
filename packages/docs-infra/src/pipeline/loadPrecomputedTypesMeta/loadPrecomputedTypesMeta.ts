@@ -312,6 +312,15 @@ export async function loadPrecomputedTypesMeta(
       }),
     ).then((pairs) => pairs.flat());
 
+    const metaFilesResolvedMark = nameMark(functionName, 'Meta Files Resolved', [relativePath]);
+    performance.mark(metaFilesResolvedMark);
+    performance.measure(
+      nameMark(functionName, 'Meta Files Resolution', [relativePath]),
+      currentMark,
+      metaFilesResolvedMark,
+    );
+    currentMark = metaFilesResolvedMark;
+
     // Create optimized TypeScript program
     // This provides 70%+ performance improvement by reducing file loading
     // from ~700+ files to ~80-100 files while maintaining type accuracy
