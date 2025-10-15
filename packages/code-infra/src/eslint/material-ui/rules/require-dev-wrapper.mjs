@@ -1,4 +1,4 @@
-import { isProcessEnvNodeEnv, isLiteral } from './nodeEnvUtils.mjs';
+import { isProcessEnvNodeEnv, isNodeEnvComparison } from './nodeEnvUtils.mjs';
 
 /**
  * ESLint rule that enforces certain function calls to be wrapped with
@@ -58,37 +58,6 @@ const rule = {
     const functionNames = options.functionNames || ['warnOnce', 'warn', 'checkSlot'];
 
     /**
-     * Checks if we're in the consequent or a valid alternate branch
-     * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
-     * @param {import('estree').IfStatement} ifStatement
-     * @returns {boolean}
-     */
-    function isInValidBranch(node, ifStatement) {
-      let temp = node;
-      while (temp && temp !== ifStatement) {
-        if (temp === ifStatement.consequent) {
-          return true;
-        }
-        if (temp === ifStatement.alternate) {
-          // Check if the if condition is checking for production
-          // If so, the else block is for non-production (valid)
-          const test = ifStatement.test;
-          if (
-            test.type === 'BinaryExpression' &&
-            test.operator === '===' &&
-            ((isProcessEnvNodeEnv(test.left) && isLiteral(test.right, 'production')) ||
-              (isProcessEnvNodeEnv(test.right) && isLiteral(test.left, 'production')))
-          ) {
-            return true;
-          }
-          return false;
-        }
-        temp = temp.parent;
-      }
-      return false;
-    }
-
-    /**
      * Checks if a node is wrapped in any production check conditional
      * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
      * @returns {boolean}
@@ -99,27 +68,54 @@ const rule = {
       while (current) {
         // Check if we're inside an if statement
         if (current.type === 'IfStatement') {
-          const test = current.test;
+          // Determine which branch we're in
+          let isInConsequent = false;
+          let temp = node;
+          while (temp && temp !== current) {
+            if (temp === current.consequent) {
+              isInConsequent = true;
+              break;
+            }
+            if (temp === current.alternate) {
+              isInConsequent = false;
+              break;
+            }
+            temp = temp.parent;
+          }
 
-          // Check if we're in a valid branch (consequent or valid alternate)
-          if (!isInValidBranch(node, current)) {
+          // Skip if not in a branch
+          if (temp === current) {
             current = current.parent;
             continue;
           }
 
-          // Check if it's a binary expression with === or !==
+          const test = current.test;
+
+          // If we're in the consequent, we need !==
+          // If we're in the alternate (else), we need ===
+          const operator = isInConsequent ? '!==' : '===';
+
+          // Check for the specific pattern with the right operator
           if (
             test.type === 'BinaryExpression' &&
-            (test.operator === '===' || test.operator === '!==')
+            test.operator === operator &&
+            isNodeEnvComparison(test.left, test.right, operator, 'production')
           ) {
-            // Check if either side is process.env.NODE_ENV
-            if (isProcessEnvNodeEnv(test.left) || isProcessEnvNodeEnv(test.right)) {
-              return true;
-            }
+            return true;
           }
 
-          // Check for any construct involving process.env.NODE_ENV
-          if (containsProcessEnvNodeEnv(test)) {
+          // For consequent branch only, also allow any other NODE_ENV check
+          if (
+            isInConsequent &&
+            test.type === 'BinaryExpression' &&
+            (test.operator === '===' || test.operator === '!==') &&
+            (isProcessEnvNodeEnv(test.left) || isProcessEnvNodeEnv(test.right))
+          ) {
+            return true;
+          }
+
+          // Check for any other construct involving process.env.NODE_ENV (consequent only)
+          if (isInConsequent && containsProcessEnvNodeEnv(test)) {
             return true;
           }
         }

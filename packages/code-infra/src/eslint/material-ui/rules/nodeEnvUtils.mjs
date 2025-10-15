@@ -29,3 +29,19 @@ export function isProcessEnvNodeEnv(node) {
 export function isLiteral(node, value) {
   return node.type === 'Literal' && node.value === value;
 }
+
+/**
+ * Checks if a binary expression is comparing process.env.NODE_ENV with a value
+ * @param {import('estree').Node} left - Left side of comparison
+ * @param {import('estree').Node} right - Right side of comparison
+ * @param {string} operator - The comparison operator (===, !==, etc.)
+ * @param {string} value - The value to compare with
+ * @returns {boolean}
+ */
+export function isNodeEnvComparison(left, right, operator, value) {
+  return (
+    (operator === '===' || operator === '!==') &&
+    ((isProcessEnvNodeEnv(left) && isLiteral(right, value)) ||
+      (isProcessEnvNodeEnv(right) && isLiteral(left, value)))
+  );
+}
