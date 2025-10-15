@@ -1,4 +1,4 @@
-import { isProcessEnvNodeEnv, isLiteral } from './nodeEnvUtils.mjs';
+import { isProcessEnvNodeEnv, isLiteralEq, isLiteralNeq } from './nodeEnvUtils.mjs';
 
 /**
  * ESLint rule that enforces certain function calls to be wrapped with
@@ -65,27 +65,23 @@ const rule = {
      * @returns {boolean}
      */
     function isNodeEnvComparison(binaryExpression, operator, value) {
-      if (binaryExpression.type !== 'BinaryExpression') {
-        return false;
-      }
-
       const { left, right } = binaryExpression;
 
       // Check for exact match with the specified value
       if (
         binaryExpression.operator === operator &&
-        ((isProcessEnvNodeEnv(left) && isLiteral(right, value)) ||
-          (isProcessEnvNodeEnv(right) && isLiteral(left, value)))
+        ((isProcessEnvNodeEnv(left) && isLiteralEq(right, value)) ||
+          (isProcessEnvNodeEnv(right) && isLiteralEq(left, value)))
       ) {
         return true;
       }
 
-      // For !== operator in consequent, also allow === with any literal value that's NOT 'production'
+      // For !== operator also allow === with any literal value that's NOT 'production'
       if (
         operator === '!==' &&
         binaryExpression.operator === '===' &&
-        ((isProcessEnvNodeEnv(left) && right.type === 'Literal' && right.value !== value) ||
-          (isProcessEnvNodeEnv(right) && left.type === 'Literal' && left.value !== value))
+        ((isProcessEnvNodeEnv(left) && isLiteralNeq(right, value)) ||
+          (isProcessEnvNodeEnv(right) && isLiteralNeq(left, value)))
       ) {
         return true;
       }
@@ -110,24 +106,20 @@ const rule = {
           const isInAlternate = current.alternate === currentChild;
 
           // Skip if not in a branch
-          if (!isInConsequent && !isInAlternate) {
-            currentChild = current;
-            current = current.parent;
-            continue;
-          }
+          if (isInConsequent || isInAlternate) {
+            const test = current.test;
 
-          const test = current.test;
+            // If we're in the consequent, we need !==
+            // If we're in the alternate (else), we need ===
+            const operator = isInConsequent ? '!==' : '===';
 
-          // If we're in the consequent, we need !==
-          // If we're in the alternate (else), we need ===
-          const operator = isInConsequent ? '!==' : '===';
-
-          // Check for the specific pattern with the right operator
-          if (
-            test.type === 'BinaryExpression' &&
-            isNodeEnvComparison(test, operator, 'production')
-          ) {
-            return true;
+            // Check for the specific pattern with the right operator
+            if (
+              test.type === 'BinaryExpression' &&
+              isNodeEnvComparison(test, operator, 'production')
+            ) {
+              return true;
+            }
           }
         }
 

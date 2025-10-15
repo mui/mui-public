@@ -26,6 +26,16 @@ export function isProcessEnvNodeEnv(node) {
  * @param {string} value
  * @returns {boolean}
  */
-export function isLiteral(node, value) {
+export function isLiteralEq(node, value) {
   return node.type === 'Literal' && node.value === value;
+}
+
+/**
+ * Checks if a node is a Literal with a value not equal to the specified one
+ * @param {import('estree').Node} node
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isLiteralNeq(node, value) {
+  return node.type === 'Literal' && node.value !== value;
 }

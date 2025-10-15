@@ -1,4 +1,4 @@
-import { isProcessEnvNodeEnv, isLiteral } from './nodeEnvUtils.mjs';
+import { isProcessEnvNodeEnv, isLiteralEq } from './nodeEnvUtils.mjs';
 
 /**
  * ESLint rule that enforces consistent patterns for production guard checks.
@@ -51,35 +51,20 @@ const rule = {
   },
   create(context) {
     /**
-     * Check if a guard is valid (process.env.NODE_ENV compared with literal 'production')
-     * @param {import('estree').Node} envNode - The node that might be process.env.NODE_ENV
-     * @param {import('estree').Node} valueNode - The node being compared with
-     * @param {import('estree').BinaryExpression} binaryNode - The binary expression node
+     * @param {import("estree").BinaryExpression} binaryNode
+     * @param {import("estree").Expression | import("estree").PrivateIdentifier} valueNode
      */
-    function checkGuard(envNode, valueNode, binaryNode) {
-      if (isProcessEnvNodeEnv(envNode)) {
-        // Must compare with literal 'production'
-        if (!isLiteral(valueNode, 'production')) {
-          context.report({
-            node: binaryNode,
-            messageId: 'invalidComparison',
-            data: {
-              comparedValue: valueNode.type === 'Literal' ? String(valueNode.value) : 'non-literal',
-            },
-          });
-        }
-      }
+    function report(binaryNode, valueNode) {
+      context.report({
+        node: binaryNode,
+        messageId: 'invalidComparison',
+        data: {
+          comparedValue: valueNode.type === 'Literal' ? String(valueNode.value) : 'non-literal',
+        },
+      });
     }
 
     return {
-      BinaryExpression(node) {
-        // Check if this is a comparison with === or !==
-        if (node.operator === '===' || node.operator === '!==') {
-          checkGuard(node.left, node.right, node);
-          checkGuard(node.right, node.left, node);
-        }
-      },
-      // Catch any other usage of process.env.NODE_ENV (not in a valid binary expression)
       MemberExpression(node) {
         if (isProcessEnvNodeEnv(node)) {
           // Check if it's part of a valid binary expression
@@ -89,15 +74,18 @@ const rule = {
             parent.type === 'BinaryExpression' &&
             (parent.operator === '===' || parent.operator === '!==')
           ) {
-            // This is handled by BinaryExpression visitor
-            return;
+            if (parent.left === node && !isLiteralEq(parent.right, 'production')) {
+              report(parent, parent.right);
+            } else if (parent.right === node && !isLiteralEq(parent.left, 'production')) {
+              report(parent, parent.left);
+            }
+            // Valid usage, do nothing
+          } else {
+            context.report({
+              node,
+              messageId: 'invalidUsage',
+            });
           }
-
-          // Invalid usage
-          context.report({
-            node,
-            messageId: 'invalidUsage',
-          });
         }
       },
     };
