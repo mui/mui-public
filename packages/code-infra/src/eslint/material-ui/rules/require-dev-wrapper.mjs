@@ -1,4 +1,4 @@
-import { isProcessEnvNodeEnv, isNodeEnvComparison } from './nodeEnvUtils.mjs';
+import { isNodeEnvComparison } from './nodeEnvUtils.mjs';
 
 /**
  * ESLint rule that enforces certain function calls to be wrapped with
@@ -98,18 +98,7 @@ const rule = {
           // Check for the specific pattern with the right operator
           if (
             test.type === 'BinaryExpression' &&
-            test.operator === operator &&
-            isNodeEnvComparison(test.left, test.right, operator, 'production')
-          ) {
-            return true;
-          }
-
-          // For consequent branch only, also allow any other NODE_ENV check
-          if (
-            isInConsequent &&
-            test.type === 'BinaryExpression' &&
-            (test.operator === '===' || test.operator === '!==') &&
-            (isProcessEnvNodeEnv(test.left) || isProcessEnvNodeEnv(test.right))
+            isNodeEnvComparison(test, operator, 'production')
           ) {
             return true;
           }

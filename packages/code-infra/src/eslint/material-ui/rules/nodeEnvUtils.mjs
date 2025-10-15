@@ -32,16 +32,35 @@ export function isLiteral(node, value) {
 
 /**
  * Checks if a binary expression is comparing process.env.NODE_ENV with a value
- * @param {import('estree').Node} left - Left side of comparison
- * @param {import('estree').Node} right - Right side of comparison
- * @param {string} operator - The comparison operator (===, !==, etc.)
+ * @param {import('estree').BinaryExpression} binaryExpression - The binary expression to check
+ * @param {string} operator - The expected comparison operator (===, !==, etc.)
  * @param {string} value - The value to compare with
  * @returns {boolean}
  */
-export function isNodeEnvComparison(left, right, operator, value) {
-  return (
-    (operator === '===' || operator === '!==') &&
+export function isNodeEnvComparison(binaryExpression, operator, value) {
+  if (binaryExpression.type !== 'BinaryExpression') {
+    return false;
+  }
+
+  const { left, right } = binaryExpression;
+
+  // Check for exact match with the specified value
+  if (
+    binaryExpression.operator === operator &&
     ((isProcessEnvNodeEnv(left) && isLiteral(right, value)) ||
       (isProcessEnvNodeEnv(right) && isLiteral(left, value)))
-  );
+  ) {
+    return true;
+  }
+
+  // For !== operator, also allow any other NODE_ENV comparison
+  if (
+    operator === '!==' &&
+    (binaryExpression.operator === '===' || binaryExpression.operator === '!==') &&
+    (isProcessEnvNodeEnv(left) || isProcessEnvNodeEnv(right))
+  ) {
+    return true;
+  }
+
+  return false;
 }
