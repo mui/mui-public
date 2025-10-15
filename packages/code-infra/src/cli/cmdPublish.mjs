@@ -3,17 +3,18 @@
 /* eslint-disable no-console */
 
 /**
- * @typedef {import('./pnpm.mjs').PublicPackage} PublicPackage
- * @typedef {import('./pnpm.mjs').PublishOptions} PublishOptions
+ * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
+ * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
+import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
+import { $ } from 'execa';
+import gitUrlParse from 'git-url-parse';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
-import gitUrlParse from 'git-url-parse';
-import { $ } from 'execa';
-import { createActionAuth } from '@octokit/auth-action';
-import { getWorkspacePackages, publishPackages } from './pnpm.mjs';
+
+import { getWorkspacePackages, publishPackages } from '../utils/pnpm.mjs';
 
 function getOctokit() {
   return new Octokit({ authStrategy: createActionAuth });

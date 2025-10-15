@@ -6,7 +6,7 @@ import cmdArgosPush from './cmdArgosPush.mjs';
 import cmdBuild from './cmdBuild.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdExtractErrorCodes from './cmdExtractErrorCodes.mjs';
-import cmdJsonLint from './cmdJsonLint.mjs';
+import cmdGithubAuth from './cmdGithubAuth.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
 import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
@@ -22,7 +22,7 @@ yargs()
   .command(cmdBuild)
   .command(cmdCopyFiles)
   .command(cmdExtractErrorCodes)
-  .command(cmdJsonLint)
+  .command(cmdGithubAuth)
   .command(cmdListWorkspaces)
   .command(cmdPublish)
   .command(cmdPublishCanary)

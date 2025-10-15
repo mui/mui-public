@@ -7,7 +7,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { getWorkspacePackages } from './pnpm.mjs';
+import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
