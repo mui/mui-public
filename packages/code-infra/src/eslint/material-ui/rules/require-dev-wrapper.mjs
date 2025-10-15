@@ -113,49 +113,9 @@ const rule = {
           ) {
             return true;
           }
-
-          // Check for any other construct involving process.env.NODE_ENV (consequent only)
-          if (isInConsequent && containsProcessEnvNodeEnv(test)) {
-            return true;
-          }
         }
 
         current = current.parent;
-      }
-
-      return false;
-    }
-
-    /**
-     * Checks if a node contains process.env.NODE_ENV anywhere
-     * @param {import('estree').Node} node
-     * @returns {boolean}
-     */
-    function containsProcessEnvNodeEnv(node) {
-      if (isProcessEnvNodeEnv(node)) {
-        return true;
-      }
-
-      // Recursively check child nodes (avoid circular references like 'parent')
-      const keys = Object.keys(node);
-      for (const key of keys) {
-        // Skip parent to avoid circular references
-        if (key === 'parent') {
-          continue;
-        }
-
-        const value = node[key];
-        if (value && typeof value === 'object') {
-          if (Array.isArray(value)) {
-            for (const item of value) {
-              if (item && typeof item === 'object' && containsProcessEnvNodeEnv(item)) {
-                return true;
-              }
-            }
-          } else if (containsProcessEnvNodeEnv(value)) {
-            return true;
-          }
-        }
       }
 
       return false;
