@@ -80,21 +80,12 @@ const rule = {
         return true;
       }
 
-      // For !== operator in consequent, also allow === with any literal (including 'production')
+      // For !== operator in consequent, also allow === with any literal value that's NOT 'production'
       if (
         operator === '!==' &&
         binaryExpression.operator === '===' &&
-        ((isProcessEnvNodeEnv(left) && right.type === 'Literal') ||
-          (isProcessEnvNodeEnv(right) && left.type === 'Literal'))
-      ) {
-        return true;
-      }
-
-      // For !== operator in consequent, also allow !== with any other value
-      if (
-        operator === '!==' &&
-        binaryExpression.operator === '!==' &&
-        (isProcessEnvNodeEnv(left) || isProcessEnvNodeEnv(right))
+        ((isProcessEnvNodeEnv(left) && right.type === 'Literal' && right.value !== value) ||
+          (isProcessEnvNodeEnv(right) && left.type === 'Literal' && left.value !== value))
       ) {
         return true;
       }

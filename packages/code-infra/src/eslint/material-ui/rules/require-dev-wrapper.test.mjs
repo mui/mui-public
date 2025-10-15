@@ -18,35 +18,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
       `,
     },
-    // Should pass: Function wrapped with === production check
-    {
-      code: `
-if (process.env.NODE_ENV === 'production') {
-  checkSlot(key, overrides[k]);
-}
-      `,
-    },
-    // Should pass: Function wrapped with === 'development' check (still wrapped)
+    // Should pass: Function wrapped with === 'development' check (tree-shakes in production)
     {
       code: `
 if (process.env.NODE_ENV === 'development') {
-  checkSlot(key, overrides[k]);
-}
-      `,
-    },
-    // Should pass: Function wrapped with !== 'test' check (still wrapped)
-    {
-      code: `
-if (process.env.NODE_ENV !== 'test') {
-  checkSlot(key, overrides[k]);
-}
-      `,
-    },
-    // Should pass: Function wrapped with non-static check (still wrapped)
-    {
-      code: `
-const env = 'production';
-if (process.env.NODE_ENV !== env) {
   checkSlot(key, overrides[k]);
 }
       `,
@@ -72,14 +47,6 @@ otherFunction('hello');
       code: `
 if (process.env.NODE_ENV !== 'production') {
   warnOnce('Some warning message');
-}
-      `,
-    },
-    // Should pass: warn wrapped correctly with ===
-    {
-      code: `
-if (process.env.NODE_ENV === 'production') {
-  warn('Some warning message');
 }
       `,
     },
@@ -196,6 +163,49 @@ if (someOtherCondition) {
 if (process.env.NODE_ENV !== 'production') {
   // ok
 } else {
+  checkSlot(key, value);
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'checkSlot' },
+        },
+      ],
+    },
+    // Should fail: In then block of === 'production' (would run in production!)
+    {
+      code: `
+if (process.env.NODE_ENV === 'production') {
+  checkSlot(key, value);
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'checkSlot' },
+        },
+      ],
+    },
+    // Should fail: !== 'test' doesn't reliably tree-shake
+    {
+      code: `
+if (process.env.NODE_ENV !== 'test') {
+  checkSlot(key, value);
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'checkSlot' },
+        },
+      ],
+    },
+    // Should fail: Non-static check doesn't tree-shake
+    {
+      code: `
+const env = 'production';
+if (process.env.NODE_ENV !== env) {
   checkSlot(key, value);
 }
       `,
