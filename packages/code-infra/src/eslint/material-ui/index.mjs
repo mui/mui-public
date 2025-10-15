@@ -1,3 +1,4 @@
+import consistentProductionGuard from './rules/consistent-production-guard.mjs';
 import disallowActiveElementAsKeyEventTarget from './rules/disallow-active-element-as-key-event-target.mjs';
 import disallowReactApiInServerComponents from './rules/disallow-react-api-in-server-components.mjs';
 import docgenIgnoreBeforeComment from './rules/docgen-ignore-before-comment.mjs';
@@ -15,6 +16,7 @@ export default /** @type {import('eslint').ESLint.Plugin} */ ({
     version: '0.1.0',
   },
   rules: {
+    'consistent-production-guard': consistentProductionGuard,
     'disallow-active-element-as-key-event-target': disallowActiveElementAsKeyEventTarget,
     'docgen-ignore-before-comment': docgenIgnoreBeforeComment,
     'mui-name-matches-component-name': muiNameMatchesComponentName,

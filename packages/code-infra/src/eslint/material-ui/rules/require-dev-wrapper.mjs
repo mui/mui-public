@@ -3,26 +3,14 @@
  * a production check to prevent them from ending up in production bundles.
  *
  * @example
- * // Valid - function wrapped with production check (!==)
+ * // Valid - function wrapped with production check
  * if (process.env.NODE_ENV !== 'production') {
- *   checkSlot(key, overrides[k]);
- * }
- *
- * @example
- * // Valid - function wrapped with production check (===)
- * if (process.env.NODE_ENV === 'production') {
  *   checkSlot(key, overrides[k]);
  * }
  *
  * @example
  * // Invalid - function not wrapped
  * checkSlot(key, overrides[k]); // Will trigger error
- *
- * @example
- * // Invalid - comparing with non-production value
- * if (process.env.NODE_ENV === 'development') {
- *   checkSlot(key, overrides[k]); // Will trigger error
- * }
  *
  * @example
  * // Usage in ESLint config
@@ -46,10 +34,6 @@ const rule = {
     messages: {
       missingDevWrapper:
         "Function `{{ functionName }}` must be wrapped with a production check (e.g., `if (process.env.NODE_ENV !== 'production')`) to prevent it from ending up in production bundles.",
-      invalidCondition:
-        "Function `{{ functionName }}` must be wrapped with a check against 'production' only (e.g., `process.env.NODE_ENV !== 'production'` or `process.env.NODE_ENV === 'production'`), not '{{ comparedValue }}'.",
-      nonStaticCondition:
-        "Function `{{ functionName }}` must be wrapped with a statically analyzable production check. Use `process.env.NODE_ENV === 'production'` or `process.env.NODE_ENV !== 'production'`.",
     },
     schema: [
       {
@@ -72,9 +56,9 @@ const rule = {
     const functionNames = options.functionNames || ['warnOnce', 'warn', 'checkSlot'];
 
     /**
-     * Checks if a node is wrapped in a valid production check conditional
+     * Checks if a node is wrapped in any production check conditional
      * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
-     * @returns {{ wrapped: boolean; invalidCondition: boolean; comparedValue?: string; nonStatic: boolean }}
+     * @returns {boolean}
      */
     function isWrappedInProductionCheck(node) {
       let current = node.parent;
@@ -106,59 +90,22 @@ const rule = {
             test.type === 'BinaryExpression' &&
             (test.operator === '===' || test.operator === '!==')
           ) {
-            // Check if left side is process.env.NODE_ENV
-            if (isProcessEnvNodeEnv(test.left)) {
-              // Right side must be a literal
-              if (test.right.type !== 'Literal') {
-                return { wrapped: true, invalidCondition: false, nonStatic: true };
-              }
-
-              // Right side must be the string 'production'
-              if (test.right.value === 'production') {
-                return { wrapped: true, invalidCondition: false, nonStatic: false };
-              }
-
-              // Right side is a literal but not 'production'
-              return {
-                wrapped: true,
-                invalidCondition: true,
-                comparedValue: String(test.right.value),
-                nonStatic: false,
-              };
-            }
-
-            // Check if right side is process.env.NODE_ENV (reversed)
-            if (isProcessEnvNodeEnv(test.right)) {
-              // Left side must be a literal
-              if (test.left.type !== 'Literal') {
-                return { wrapped: true, invalidCondition: false, nonStatic: true };
-              }
-
-              // Left side must be the string 'production'
-              if (test.left.value === 'production') {
-                return { wrapped: true, invalidCondition: false, nonStatic: false };
-              }
-
-              // Left side is a literal but not 'production'
-              return {
-                wrapped: true,
-                invalidCondition: true,
-                comparedValue: String(test.left.value),
-                nonStatic: false,
-              };
+            // Check if either side is process.env.NODE_ENV
+            if (isProcessEnvNodeEnv(test.left) || isProcessEnvNodeEnv(test.right)) {
+              return true;
             }
           }
 
-          // Check for non-static constructs (e.g., process.env.NODE_ENV used outside comparison)
+          // Check for any construct involving process.env.NODE_ENV
           if (containsProcessEnvNodeEnv(test)) {
-            return { wrapped: true, invalidCondition: false, nonStatic: true };
+            return true;
           }
         }
 
         current = current.parent;
       }
 
-      return { wrapped: false, invalidCondition: false, nonStatic: false };
+      return false;
     }
 
     /**
@@ -218,32 +165,12 @@ const rule = {
       CallExpression(node) {
         // Check if the callee is one of the restricted function names
         if (node.callee.type === 'Identifier' && functionNames.includes(node.callee.name)) {
-          const { wrapped, invalidCondition, comparedValue, nonStatic } =
-            isWrappedInProductionCheck(node);
-
-          if (!wrapped) {
+          if (!isWrappedInProductionCheck(node)) {
             context.report({
               node,
               messageId: 'missingDevWrapper',
               data: {
                 functionName: node.callee.name,
-              },
-            });
-          } else if (nonStatic) {
-            context.report({
-              node,
-              messageId: 'nonStaticCondition',
-              data: {
-                functionName: node.callee.name,
-              },
-            });
-          } else if (invalidCondition) {
-            context.report({
-              node,
-              messageId: 'invalidCondition',
-              data: {
-                functionName: node.callee.name,
-                comparedValue: comparedValue || 'unknown',
               },
             });
           }

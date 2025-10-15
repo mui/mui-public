@@ -26,6 +26,31 @@ if (process.env.NODE_ENV === 'production') {
 }
       `,
     },
+    // Should pass: Function wrapped with === 'development' check (still wrapped)
+    {
+      code: `
+if (process.env.NODE_ENV === 'development') {
+  checkSlot(key, overrides[k]);
+}
+      `,
+    },
+    // Should pass: Function wrapped with !== 'test' check (still wrapped)
+    {
+      code: `
+if (process.env.NODE_ENV !== 'test') {
+  checkSlot(key, overrides[k]);
+}
+      `,
+    },
+    // Should pass: Function wrapped with non-static check (still wrapped)
+    {
+      code: `
+const env = 'production';
+if (process.env.NODE_ENV !== env) {
+  checkSlot(key, overrides[k]);
+}
+      `,
+    },
     // Should pass: Function wrapped in a for loop inside production check
     {
       code: `
@@ -100,49 +125,6 @@ checkSlot(key, overrides[k]);
         },
       ],
     },
-    // Should fail: Comparing with 'development' instead of 'production'
-    {
-      code: `
-if (process.env.NODE_ENV === 'development') {
-  checkSlot(key, overrides[k]);
-}
-      `,
-      errors: [
-        {
-          messageId: 'invalidCondition',
-          data: { functionName: 'checkSlot', comparedValue: 'development' },
-        },
-      ],
-    },
-    // Should fail: Comparing with 'test' instead of 'production'
-    {
-      code: `
-if (process.env.NODE_ENV !== 'test') {
-  checkSlot(key, overrides[k]);
-}
-      `,
-      errors: [
-        {
-          messageId: 'invalidCondition',
-          data: { functionName: 'checkSlot', comparedValue: 'test' },
-        },
-      ],
-    },
-    // Should fail: Non-static condition (variable)
-    {
-      code: `
-const env = 'production';
-if (process.env.NODE_ENV !== env) {
-  checkSlot(key, overrides[k]);
-}
-      `,
-      errors: [
-        {
-          messageId: 'nonStaticCondition',
-          data: { functionName: 'checkSlot' },
-        },
-      ],
-    },
     // Should fail: warnOnce without production check
     {
       code: `
@@ -184,7 +166,7 @@ warn('Warning message');
         },
       ],
     },
-    // Should fail: Inside wrong conditional
+    // Should fail: Inside wrong conditional (no process.env.NODE_ENV)
     {
       code: `
 if (someOtherCondition) {
