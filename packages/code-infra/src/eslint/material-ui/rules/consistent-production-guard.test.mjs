@@ -105,7 +105,8 @@ if (process.env.NODE_ENV !== env) {
       `,
       errors: [
         {
-          messageId: 'nonStaticComparison',
+          messageId: 'invalidComparison',
+          data: { comparedValue: 'non-literal' },
         },
       ],
     },
@@ -119,7 +120,8 @@ if (env === process.env.NODE_ENV) {
       `,
       errors: [
         {
-          messageId: 'nonStaticComparison',
+          messageId: 'invalidComparison',
+          data: { comparedValue: 'non-literal' },
         },
       ],
     },

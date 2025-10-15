@@ -111,6 +111,16 @@ if ('production' !== process.env.NODE_ENV) {
 }
       `,
     },
+    // Should pass: Function in else block when if checks for production
+    {
+      code: `
+if (process.env.NODE_ENV === 'production') {
+  // production code
+} else {
+  checkSlot(key, value);
+}
+      `,
+    },
   ],
   invalid: [
     // Should fail: checkSlot without production check
@@ -180,7 +190,7 @@ if (someOtherCondition) {
         },
       ],
     },
-    // Should fail: Inside else block of production check
+    // Should fail: Inside else block of production check (!== 'production')
     {
       code: `
 if (process.env.NODE_ENV !== 'production') {

@@ -1,3 +1,5 @@
+import { isProcessEnvNodeEnv, isLiteral } from './nodeEnvUtils.mjs';
+
 /**
  * ESLint rule that enforces consistent patterns for production guard checks.
  *
@@ -42,80 +44,39 @@ const rule = {
     messages: {
       invalidComparison:
         "Only compare process.env.NODE_ENV with 'production'. Use `process.env.NODE_ENV !== 'production'` or `process.env.NODE_ENV === 'production'` instead of comparing with '{{ comparedValue }}'.",
-      nonStaticComparison:
-        "Production guard must use a statically analyzable pattern. Use `process.env.NODE_ENV === 'production'` or `process.env.NODE_ENV !== 'production'` with a string literal.",
       invalidUsage:
-        "process.env.NODE_ENV must be used in a binary comparison with === or !==. Use `process.env.NODE_ENV !== 'production'` or `process.env.NODE_ENV === 'production'`.",
+        "process.env.NODE_ENV must be used in a binary comparison with === or !== and a literal 'production'. Use `process.env.NODE_ENV !== 'production'` or `process.env.NODE_ENV === 'production'`.",
     },
     schema: [],
   },
   create(context) {
     /**
-     * Checks if a node is process.env.NODE_ENV
-     * @param {import('estree').Node} node
-     * @returns {boolean}
+     * Check if a guard is valid (process.env.NODE_ENV compared with literal 'production')
+     * @param {import('estree').Node} envNode - The node that might be process.env.NODE_ENV
+     * @param {import('estree').Node} valueNode - The node being compared with
+     * @param {import('estree').BinaryExpression} binaryNode - The binary expression node
      */
-    function isProcessEnvNodeEnv(node) {
-      return (
-        node.type === 'MemberExpression' &&
-        node.object.type === 'MemberExpression' &&
-        node.object.object.type === 'Identifier' &&
-        node.object.object.name === 'process' &&
-        node.object.property.type === 'Identifier' &&
-        node.object.property.name === 'env' &&
-        node.property.type === 'Identifier' &&
-        node.property.name === 'NODE_ENV'
-      );
+    function checkGuard(envNode, valueNode, binaryNode) {
+      if (isProcessEnvNodeEnv(envNode)) {
+        // Must compare with literal 'production'
+        if (!isLiteral(valueNode, 'production')) {
+          context.report({
+            node: binaryNode,
+            messageId: 'invalidComparison',
+            data: {
+              comparedValue: valueNode.type === 'Literal' ? String(valueNode.value) : 'non-literal',
+            },
+          });
+        }
+      }
     }
 
     return {
       BinaryExpression(node) {
         // Check if this is a comparison with === or !==
         if (node.operator === '===' || node.operator === '!==') {
-          // Check if left side is process.env.NODE_ENV
-          if (isProcessEnvNodeEnv(node.left)) {
-            // Right side must be a literal
-            if (node.right.type !== 'Literal') {
-              context.report({
-                node,
-                messageId: 'nonStaticComparison',
-              });
-              return;
-            }
-
-            // Right side must be the string 'production'
-            if (node.right.value !== 'production') {
-              context.report({
-                node,
-                messageId: 'invalidComparison',
-                data: {
-                  comparedValue: String(node.right.value),
-                },
-              });
-            }
-          }
-          // Check if right side is process.env.NODE_ENV (reversed comparison)
-          else if (isProcessEnvNodeEnv(node.right)) {
-            // Left side must be a literal
-            if (node.left.type !== 'Literal') {
-              context.report({
-                node,
-                messageId: 'nonStaticComparison',
-              });
-              return;
-            }
-
-            // Left side must be the string 'production'
-            if (node.left.value !== 'production') {
-              context.report({
-                node,
-                messageId: 'invalidComparison',
-                data: {
-                  comparedValue: String(node.left.value),
-                },
-              });
-            }
-          }
+          checkGuard(node.left, node.right, node);
+          checkGuard(node.right, node.left, node);
         }
       },
       // Catch any other usage of process.env.NODE_ENV (not in a valid binary expression)

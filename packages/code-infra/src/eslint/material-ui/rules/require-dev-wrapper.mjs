@@ -1,3 +1,5 @@
+import { isProcessEnvNodeEnv, isLiteral } from './nodeEnvUtils.mjs';
+
 /**
  * ESLint rule that enforces certain function calls to be wrapped with
  * a production check to prevent them from ending up in production bundles.
@@ -56,6 +58,37 @@ const rule = {
     const functionNames = options.functionNames || ['warnOnce', 'warn', 'checkSlot'];
 
     /**
+     * Checks if we're in the consequent or a valid alternate branch
+     * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
+     * @param {import('estree').IfStatement} ifStatement
+     * @returns {boolean}
+     */
+    function isInValidBranch(node, ifStatement) {
+      let temp = node;
+      while (temp && temp !== ifStatement) {
+        if (temp === ifStatement.consequent) {
+          return true;
+        }
+        if (temp === ifStatement.alternate) {
+          // Check if the if condition is checking for production
+          // If so, the else block is for non-production (valid)
+          const test = ifStatement.test;
+          if (
+            test.type === 'BinaryExpression' &&
+            test.operator === '===' &&
+            ((isProcessEnvNodeEnv(test.left) && isLiteral(test.right, 'production')) ||
+              (isProcessEnvNodeEnv(test.right) && isLiteral(test.left, 'production')))
+          ) {
+            return true;
+          }
+          return false;
+        }
+        temp = temp.parent;
+      }
+      return false;
+    }
+
+    /**
      * Checks if a node is wrapped in any production check conditional
      * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
      * @returns {boolean}
@@ -68,19 +101,8 @@ const rule = {
         if (current.type === 'IfStatement') {
           const test = current.test;
 
-          // Make sure we're in the consequent (then) block, not the alternate (else) block
-          let isInConsequent = false;
-          let temp = node;
-          while (temp && temp !== current) {
-            if (temp === current.consequent) {
-              isInConsequent = true;
-              break;
-            }
-            temp = temp.parent;
-          }
-
-          if (!isInConsequent) {
-            // Continue looking up the tree if we're in the alternate branch
+          // Check if we're in a valid branch (consequent or valid alternate)
+          if (!isInValidBranch(node, current)) {
             current = current.parent;
             continue;
           }
@@ -141,24 +163,6 @@ const rule = {
       }
 
       return false;
-    }
-
-    /**
-     * Checks if a node is process.env.NODE_ENV
-     * @param {import('estree').Node} node
-     * @returns {boolean}
-     */
-    function isProcessEnvNodeEnv(node) {
-      return (
-        node.type === 'MemberExpression' &&
-        node.object.type === 'MemberExpression' &&
-        node.object.object.type === 'Identifier' &&
-        node.object.object.name === 'process' &&
-        node.object.property.type === 'Identifier' &&
-        node.object.property.name === 'env' &&
-        node.property.type === 'Identifier' &&
-        node.property.name === 'NODE_ENV'
-      );
     }
 
     return {
