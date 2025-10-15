@@ -1,9 +1,8 @@
-/* eslint-disable no-await-in-loop */
-import * as tae from 'typescript-api-extractor';
 import { uniq, sortBy } from 'es-toolkit';
 import prettier from 'prettier/standalone';
 import prettierPluginEstree from 'prettier/plugins/estree';
 import prettierPluginTypescript from 'prettier/plugins/typescript';
+import type * as tae from 'typescript-api-extractor';
 
 // Helper functions to check type kind (works with both class instances and serialized objects)
 export function isExternalType(type: any): type is tae.ExternalTypeNode {
@@ -90,52 +89,52 @@ export async function formatProperties(
   exportNames: string[],
   allExports: tae.ExportNode[] | undefined = undefined,
 ) {
-  const result: Record<string, any> = {};
+  const propEntries = await Promise.all(
+    props.map(async (prop) => {
+      const exampleTag = prop.documentation?.tags
+        ?.filter((tag) => tag.name === 'example')
+        .map((tag) => tag.value)
+        .join('\n');
 
-  for (const prop of props) {
-    const exampleTag = prop.documentation?.tags
-      ?.filter((tag) => tag.name === 'example')
-      .map((tag) => tag.value)
-      .join('\n');
+      let detailedType = formatType(
+        prop.type,
+        prop.optional,
+        prop.documentation?.tags,
+        false,
+        exportNames,
+      );
+      if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
+        detailedType = formatDetailedType(prop.type, allExports, exportNames);
+      }
 
-    let detailedType = formatType(
-      prop.type,
-      prop.optional,
-      prop.documentation?.tags,
-      false,
-      exportNames,
-    );
-    if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
-      detailedType = formatDetailedType(prop.type, allExports, exportNames);
-    }
+      detailedType = await prettyFormat(detailedType);
 
-    detailedType = await prettyFormat(detailedType);
+      const formattedType = formatType(
+        prop.type,
+        prop.optional,
+        prop.documentation?.tags,
+        false,
+        exportNames,
+      );
 
-    const formattedType = formatType(
-      prop.type,
-      prop.optional,
-      prop.documentation?.tags,
-      false,
-      exportNames,
-    );
+      const resultObject: Record<string, any> = {
+        type: formattedType,
+        default: prop.documentation?.defaultValue,
+        required: !prop.optional || undefined,
+        description: prop.documentation?.description,
+        example: exampleTag || undefined,
+        detailedType,
+      };
 
-    const resultObject: Record<string, any> = {
-      type: formattedType,
-      default: prop.documentation?.defaultValue,
-      required: !prop.optional || undefined,
-      description: prop.documentation?.description,
-      example: exampleTag || undefined,
-      detailedType,
-    };
+      if (detailedType === formattedType) {
+        delete resultObject.detailedType;
+      }
 
-    if (detailedType === formattedType) {
-      delete resultObject.detailedType;
-    }
+      return [prop.name, resultObject] as const;
+    }),
+  );
 
-    result[prop.name] = resultObject;
-  }
-
-  return result;
+  return Object.fromEntries(propEntries);
 }
 
 export function formatParameters(params: tae.Parameter[], exportNames: string[] = []) {
