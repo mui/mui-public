@@ -1,4 +1,4 @@
-import { isNodeEnvComparison } from './nodeEnvUtils.mjs';
+import { isProcessEnvNodeEnv, isLiteral } from './nodeEnvUtils.mjs';
 
 /**
  * ESLint rule that enforces certain function calls to be wrapped with
@@ -58,33 +58,69 @@ const rule = {
     const functionNames = options.functionNames || ['warnOnce', 'warn', 'checkSlot'];
 
     /**
+     * Checks if a binary expression is comparing process.env.NODE_ENV appropriately
+     * @param {import('estree').BinaryExpression} binaryExpression - The binary expression to check
+     * @param {string} operator - The expected comparison operator (===, !==, etc.)
+     * @param {string} value - The value to compare with
+     * @returns {boolean}
+     */
+    function isNodeEnvComparison(binaryExpression, operator, value) {
+      if (binaryExpression.type !== 'BinaryExpression') {
+        return false;
+      }
+
+      const { left, right } = binaryExpression;
+
+      // Check for exact match with the specified value
+      if (
+        binaryExpression.operator === operator &&
+        ((isProcessEnvNodeEnv(left) && isLiteral(right, value)) ||
+          (isProcessEnvNodeEnv(right) && isLiteral(left, value)))
+      ) {
+        return true;
+      }
+
+      // For !== operator in consequent, also allow === with any literal (including 'production')
+      if (
+        operator === '!==' &&
+        binaryExpression.operator === '===' &&
+        ((isProcessEnvNodeEnv(left) && right.type === 'Literal') ||
+          (isProcessEnvNodeEnv(right) && left.type === 'Literal'))
+      ) {
+        return true;
+      }
+
+      // For !== operator in consequent, also allow !== with any other value
+      if (
+        operator === '!==' &&
+        binaryExpression.operator === '!==' &&
+        (isProcessEnvNodeEnv(left) || isProcessEnvNodeEnv(right))
+      ) {
+        return true;
+      }
+
+      return false;
+    }
+
+    /**
      * Checks if a node is wrapped in any production check conditional
      * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
      * @returns {boolean}
      */
     function isWrappedInProductionCheck(node) {
       let current = node.parent;
+      let currentChild = node;
 
       while (current) {
         // Check if we're inside an if statement
         if (current.type === 'IfStatement') {
           // Determine which branch we're in
-          let isInConsequent = false;
-          let temp = node;
-          while (temp && temp !== current) {
-            if (temp === current.consequent) {
-              isInConsequent = true;
-              break;
-            }
-            if (temp === current.alternate) {
-              isInConsequent = false;
-              break;
-            }
-            temp = temp.parent;
-          }
+          const isInConsequent = current.consequent === currentChild;
+          const isInAlternate = current.alternate === currentChild;
 
           // Skip if not in a branch
-          if (temp === current) {
+          if (!isInConsequent && !isInAlternate) {
+            currentChild = current;
             current = current.parent;
             continue;
           }
@@ -104,6 +140,7 @@ const rule = {
           }
         }
 
+        currentChild = current;
         current = current.parent;
       }
 
