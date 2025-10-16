@@ -732,11 +732,11 @@ reconstructPerformanceLogs(result.performanceLogs, workerStartTime);
 ```bash
 [Worker] program creation: 498.11ms
 [Worker] variant Default parsing: 120.34ms
-worker processing (with overhead): 680.25ms
+| worker processing: 680.25ms
 highlighting initialization: 15.23ms
 type formatting: 45.67ms
+| highlighting and markdown generation: 78.09ms
 precompute replacement: 2.15ms
-types.md generation: 15.42ms
 ```
 
 ### Debugging Performance

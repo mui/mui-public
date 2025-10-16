@@ -30,7 +30,7 @@ import { reconstructPerformanceLogs } from './performanceTracking';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted/transformHtmlCodeInlineHighlighted';
-import { highlightTypes } from './highlightTypes.js';
+import { highlightTypes } from './highlightTypes';
 
 export type LoaderOptions = {
   performance?: {

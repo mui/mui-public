@@ -1,5 +1,5 @@
 import { unified } from 'unified';
-import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed.js';
+import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
 import type { ComponentTypeMeta } from './formatComponent';
 import type { HookTypeMeta } from './formatHook';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
