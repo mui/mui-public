@@ -6,12 +6,15 @@
 
 ### useTypes
 
+Processes types metadata and renders HAST nodes to JSX. This hook is responsible for converting precomputed HAST nodes from the webpack loader into renderable React components.
+
 **useTypes Parameters:**
 
-| Parameter    | Type                    | Default | Description |
-| :----------- | :---------------------- | :------ | :---------- |
-| contentProps | `TypesContentProps<{}>` | -       | -           |
+| Parameter    | Type                                                                | Default | Description |
+| :----------- | :------------------------------------------------------------------ | :------ | :---------- |
+| contentProps | `TypesContentProps<{}>`                                             | -       | -           |
+| \_options    | `{ components?: { Pre?: ComponentType<{ children: ReactNode }> } }` | -       | -           |
 
 **useTypes Return Value:**
 
-`TypesContentProps<{}>`
+`ProcessedTypesContentProps<{}>`

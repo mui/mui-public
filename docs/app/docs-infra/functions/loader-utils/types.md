@@ -18,101 +18,6 @@ to correctly identify imports while avoiding false positives in strings, comment
 and template literals, it's most efficient to handle comment processing in this
 same pass rather than requiring separate parsing steps.
 
-### ImportName
-
-Represents a single import name with its properties.
-
-### ImportPathPosition
-
-Represents the position of an import path in the source code.
-
-### RelativeImport
-
-Represents an import from a relative path (starts with ./ or ../).
-
-### ExternalImport
-
-Represents an import from an external package (node_modules).
-
-### ImportsAndComments
-
-The result of parsing import statements from source code.
-
-### isJavaScriptModule
-
-Checks if a file path or import path represents a JavaScript/TypeScript module
-
-### resolveModulePath
-
-Resolves a module path by reading directory contents to find matching files.
-This is more efficient than checking each file individually with stat calls.
-
-Given a path like `/Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
-this function will try to find the actual file by checking for:
-
-- `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
-- `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
-
-### resolveModulePaths
-
-Resolves multiple module paths efficiently by grouping them by directory
-and performing batch directory lookups.
-
-### resolveImportResult
-
-Resolves import result by separating JavaScript modules from static assets,
-only resolving JavaScript modules and returning a combined map.
-This function uses the new type-aware resolveModulePath function internally.
-
-### resolveVariantPaths
-
-Resolves variant paths from a variants object mapping variant names to their file paths.
-This function extracts the paths, resolves them using resolveModulePaths, and returns
-a map from variant name to resolved file URL.
-
-### JAVASCRIPT_MODULE_EXTENSIONS
-
-Default file extensions for JavaScript/TypeScript modules that can be resolved
-
-### TYPE_IMPORT_EXTENSIONS
-
-Extension priority for type-only imports - prioritize .d.ts first
-
-### VALUE_IMPORT_EXTENSIONS
-
-Extension priority for value imports - standard priority with .d.ts last
-
-### DirectoryEntry
-
-### ResolveModulePathOptions
-
-### TypeAwareResolveResult
-
-### rewriteImports
-
-Efficiently rewrites import paths using position data.
-This avoids regex parsing and uses precise position information for replacement.
-Works for both JavaScript/TypeScript and CSS imports.
-
-### processRelativeImports
-
-Processes imports based on the specified storage mode, automatically handling
-source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
-
-### ProcessImportsResult
-
-### getFileNameFromUrl
-
-Extracts the filename and extension from a URL or file path.
-This function is isomorphic and works in both Node.js and browser environments.
-It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
-
-### extractNameAndSlugFromUrl
-
-Extracts and formats a name and slug from a URL path
-
-### externalsToPackages
-
 ```typescript
   code: string,
   filePath: string,
@@ -125,6 +30,10 @@ Extracts and formats a name and slug from a URL path
 ) => Promise<ImportsAndComments>
 ```
 
+### ImportName
+
+Represents a single import name with its properties.
+
 ```typescript
 type ImportName = {
   name: string;
@@ -134,9 +43,17 @@ type ImportName = {
 };
 ```
 
+### ImportPathPosition
+
+Represents the position of an import path in the source code.
+
 ```typescript
 type ImportPathPosition = { start: number; end: number };
 ```
+
+### RelativeImport
+
+Represents an import from a relative path (starts with ./ or ../).
 
 ```typescript
 type RelativeImport = {
@@ -152,6 +69,10 @@ type RelativeImport = {
 };
 ```
 
+### ExternalImport
+
+Represents an import from an external package (node_modules).
+
 ```typescript
 type ExternalImport = {
   names: {
@@ -164,6 +85,10 @@ type ExternalImport = {
 };
 ```
 
+### ImportsAndComments
+
+The result of parsing import statements from source code.
+
 ```typescript
 type ImportsAndComments = {
   relative: Record<string, RelativeImport>;
@@ -173,9 +98,24 @@ type ImportsAndComments = {
 };
 ```
 
+### isJavaScriptModule
+
+Checks if a file path or import path represents a JavaScript/TypeScript module
+
 ```typescript
 (path: string) => boolean;
 ```
+
+### resolveModulePath
+
+Resolves a module path by reading directory contents to find matching files.
+This is more efficient than checking each file individually with stat calls.
+
+Given a path like `/Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
+this function will try to find the actual file by checking for:
+
+- `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
+- `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
 
 ```typescript
   modulePath: string,
@@ -187,6 +127,11 @@ type ImportsAndComments = {
 ) => Promise<string | TypeAwareResolveResult>
 ```
 
+### resolveModulePaths
+
+Resolves multiple module paths efficiently by grouping them by directory
+and performing batch directory lookups.
+
 ```typescript
   modulePaths: string[],
   readDirectory: (
@@ -195,6 +140,12 @@ type ImportsAndComments = {
   options: { extensions?: string[] } | undefined,
 ) => Promise<Map<string, string>>
 ```
+
+### resolveImportResult
+
+Resolves import result by separating JavaScript modules from static assets,
+only resolving JavaScript modules and returning a combined map.
+This function uses the new type-aware resolveModulePath function internally.
 
 ```typescript
   importResult: Record<
@@ -213,6 +164,12 @@ type ImportsAndComments = {
 ) => Promise<Map<string, string>>
 ```
 
+### resolveVariantPaths
+
+Resolves variant paths from a variants object mapping variant names to their file paths.
+This function extracts the paths, resolves them using resolveModulePaths, and returns
+a map from variant name to resolved file URL.
+
 ```typescript
   variants: Record<string, string>,
   readDirectory: (
@@ -222,17 +179,31 @@ type ImportsAndComments = {
 ) => Promise<Map<string, string>>
 ```
 
+### JAVASCRIPT_MODULE_EXTENSIONS
+
+Default file extensions for JavaScript/TypeScript modules that can be resolved
+
 ```typescript
 ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
+
+### TYPE_IMPORT_EXTENSIONS
+
+Extension priority for type-only imports - prioritize .d.ts first
 
 ```typescript
 ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
 ```
 
+### VALUE_IMPORT_EXTENSIONS
+
+Extension priority for value imports - standard priority with .d.ts last
+
 ```typescript
 ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
+
+### DirectoryEntry
 
 ```typescript
 type DirectoryEntry = {
@@ -242,9 +213,13 @@ type DirectoryEntry = {
 };
 ```
 
+### ResolveModulePathOptions
+
 ```typescript
 type ResolveModulePathOptions = { extensions?: string[] };
 ```
+
+### TypeAwareResolveResult
 
 ```typescript
 type TypeAwareResolveResult = {
@@ -252,6 +227,12 @@ type TypeAwareResolveResult = {
   typeImport?: string;
 };
 ```
+
+### rewriteImports
+
+Efficiently rewrites import paths using position data.
+This avoids regex parsing and uses precise position information for replacement.
+Works for both JavaScript/TypeScript and CSS imports.
 
 ```typescript
   source: string,
@@ -262,6 +243,11 @@ type TypeAwareResolveResult = {
   >,
 ) => string
 ```
+
+### processRelativeImports
+
+Processes imports based on the specified storage mode, automatically handling
+source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
 
 ```typescript
   source: string,
@@ -282,6 +268,8 @@ type TypeAwareResolveResult = {
 }
 ```
 
+### ProcessImportsResult
+
 ```typescript
 type ProcessImportsResult = {
   processedSource: string;
@@ -289,11 +277,21 @@ type ProcessImportsResult = {
 };
 ```
 
+### getFileNameFromUrl
+
+Extracts the filename and extension from a URL or file path.
+This function is isomorphic and works in both Node.js and browser environments.
+It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
+
 ```typescript
   fileName: string
   extension: string
 }
 ```
+
+### extractNameAndSlugFromUrl
+
+Extracts and formats a name and slug from a URL path
 
 ```typescript
 (url: string) => {
@@ -301,6 +299,8 @@ type ProcessImportsResult = {
   slug: string;
 };
 ```
+
+### externalsToPackages
 
 ```typescript
 (externals: string[]) => Record<string, true>;

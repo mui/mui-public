@@ -17,7 +17,16 @@ This factory function creates a LoadCodeMeta implementation that:
 The actual loading, parsing, and transformation of the variants is handled
 elsewhere by the CodeHighlighter component using loadVariant.
 
+```typescript
+  _options: {} | undefined,
+) => (url: string) => Promise<Code>
+```
+
 ### CreateLoadCodeMetaOptions
+
+```typescript
+type CreateLoadCodeMetaOptions = {};
+```
 
 ### loadServerCodeMeta
 
@@ -25,15 +34,6 @@ Default loadServerCodeMeta function that resolves variant paths from demo files.
 This function is used to load code metadata for demos, specifically resolving paths for variants defined in the demo files.
 It reads the demo file, parses it to find `createDemo` calls with variants, and resolves the paths for those variants.
 It returns a Code object mapping variant names to their resolved file URLs.
-
-```typescript
-  _options: {} | undefined,
-) => (url: string) => Promise<Code>
-```
-
-```typescript
-type CreateLoadCodeMetaOptions = {};
-```
 
 ```typescript
 (url: string) => Promise<Code>;

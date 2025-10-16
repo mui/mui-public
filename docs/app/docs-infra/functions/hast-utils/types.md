@@ -6,15 +6,11 @@
 
 ### hastToJsx
 
-### hastOrJsonToJsx
-
-### stringOrHastToString
-
-### stringOrHastToJsx
-
 ```typescript
 (hast: HastNodes) => ReactNode;
 ```
+
+### hastOrJsonToJsx
 
 ```typescript
   hastOrJson:
@@ -24,6 +20,8 @@
 ) => ReactNode
 ```
 
+### stringOrHastToString
+
 ```typescript
   source:
     | string
@@ -32,6 +30,8 @@
     | { hastGzip: string },
 ) => string
 ```
+
+### stringOrHastToJsx
 
 ```typescript
   source:

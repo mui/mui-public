@@ -110,26 +110,28 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
     md.heading(2, 'API Reference'),
   ];
 
-  await Promise.all(
-    types.map(async (typeMeta) => {
+  const typeContents = await Promise.all(
+    types.map(async (typeMeta): Promise<RootContent[]> => {
+      const content: RootContent[] = [];
+
       if (typeMeta.type === 'component') {
         const part = typeMeta.data.name;
         const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
 
         // Add subheading for the part
-        tables.push(md.heading(3, part));
+        content.push(md.heading(3, part));
 
         // Add description if available
         if (data.description) {
           // Convert HAST to MDAST and add all content directly
           const descriptionNodes = await hastToMdast(data.description);
-          descriptionNodes.forEach((node) => tables.push(node));
+          descriptionNodes.forEach((node) => content.push(node));
         }
 
         // Props table (for components)
         if (Object.keys(data.props || {}).length > 0) {
           // Create a proper heading with strong node
-          tables.push(md.paragraph([md.strong(`${part} Props:`)]));
+          content.push(md.paragraph([md.strong(`${part} Props:`)]));
 
           const propsRows = await Promise.all(
             Object.entries(data.props).map(async ([propName, propDef]) => [
@@ -148,12 +150,12 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
             propsRows as any,
             alignments as any,
           );
-          tables.push(tableNode);
+          content.push(tableNode);
         }
 
         // Data attributes table (for components)
         if (Object.keys(data.dataAttributes || {}).length > 0) {
-          tables.push(md.paragraph([md.strong(`${part} Data Attributes:`)]));
+          content.push(md.paragraph([md.strong(`${part} Data Attributes:`)]));
 
           const attrRows = await Promise.all(
             Object.entries(data.dataAttributes).map(async ([attrName, attrDef]) => [
@@ -171,12 +173,12 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
             attrRows as any,
             alignments as any,
           );
-          tables.push(tableNode);
+          content.push(tableNode);
         }
 
         // CSS variables table (for components)
         if (Object.keys(data.cssVariables || {}).length > 0) {
-          tables.push(md.paragraph([md.strong(`${part} CSS Variables:`)]));
+          content.push(md.paragraph([md.strong(`${part} CSS Variables:`)]));
 
           const cssRows = await Promise.all(
             Object.entries(data.cssVariables).map(async ([variableName, variableDef]) => [
@@ -194,25 +196,25 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
             cssRows as any,
             alignments as any,
           );
-          tables.push(tableNode);
+          content.push(tableNode);
         }
       } else if (typeMeta.type === 'hook') {
         const part = typeMeta.data.name;
         const data = typeMeta.data; // This is now properly typed as HookTypeMeta
 
         // Add subheading for the part
-        tables.push(md.heading(3, part));
+        content.push(md.heading(3, part));
 
         // Add description if available
         if (data.description) {
           // Convert HAST to MDAST and add all content directly
           const descriptionNodes = await hastToMdast(data.description);
-          descriptionNodes.forEach((node) => tables.push(node));
+          descriptionNodes.forEach((node) => content.push(node));
         }
 
         // Parameters table (for hooks)
         if (Object.keys(data.parameters || {}).length > 0) {
-          tables.push(md.paragraph([md.strong(`${part} Parameters:`)]));
+          content.push(md.paragraph([md.strong(`${part} Parameters:`)]));
 
           const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => [
             paramName,
@@ -228,25 +230,27 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
             paramRows as any,
             alignments as any,
           );
-          tables.push(tableNode);
+          content.push(tableNode);
         }
 
         // Return Value (for hooks)
         if (data.returnValue) {
-          tables.push(md.paragraph([md.strong(`${part} Return Value:`)]));
+          content.push(md.paragraph([md.strong(`${part} Return Value:`)]));
 
           if (typeof data.returnValue === 'string') {
-            tables.push(md.paragraph(md.inlineCode(data.returnValue)));
+            content.push(md.paragraph(md.inlineCode(data.returnValue)));
           } else if (
             typeof data.returnValue === 'object' &&
             Object.keys(data.returnValue).length > 0
           ) {
-            const returnRows = Object.entries(data.returnValue).map(
-              ([returnName, returnDef]: [string, any]) => [
-                returnName,
-                returnDef.type ? md.inlineCode(returnDef.type) : '-',
-                parseInlineMarkdown(returnDef.description || '-'),
-              ],
+            const returnRows = await Promise.all(
+              Object.entries(data.returnValue).map(
+                async ([returnName, returnDef]: [string, any]) => [
+                  returnName,
+                  returnDef.type ? await hastToInlineMdast(returnDef.type) : '-',
+                  returnDef.description ? await hastToInlineMdast(returnDef.description) : '-',
+                ],
+              ),
             );
 
             const alignments = ['left', 'left', 'left'];
@@ -256,7 +260,7 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
               returnRows as any,
               alignments as any,
             );
-            tables.push(tableNode);
+            content.push(tableNode);
           }
         }
       } else {
@@ -265,21 +269,28 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         const data = typeMeta.data; // This is now properly typed as ExportNode
 
         // Add subheading for the part
-        tables.push(md.heading(3, part));
+        content.push(md.heading(3, part));
 
         // Add description if available
         if (data.documentation?.description) {
           // Parse the description as markdown and add all content directly
           const descriptionNodes = parseMarkdown(data.documentation.description);
-          descriptionNodes.forEach((node) => tables.push(node));
+          descriptionNodes.forEach((node) => content.push(node));
         }
 
-        tables.push(
+        content.push(
           md.code(await prettyFormatType(data.type, true, undefined, true, []), 'typescript'),
         );
       }
+
+      return content;
     }),
   );
+
+  // Merge all type contents in order
+  typeContents.forEach((content) => {
+    content.forEach((node) => tables.push(node));
+  });
 
   const root: Root = { type: 'root', children: tables };
 

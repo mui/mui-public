@@ -242,10 +242,10 @@ describe('formatHook', () => {
       expect(result.returnValue).toBe('string');
     });
 
-    it('should format return value as string for object types without instanceof', async () => {
-      // Tests the return value formatting fallback. When the return type is an object
-      // but instanceof ObjectNode check fails (due to plain mock), the return value
-      // is formatted as a string rather than expanded as an object structure.
+    it('should format return value as object when type guard detects object type', async () => {
+      // Tests that return value is correctly expanded when the type has kind: 'object'.
+      // With type guards (checking kind property), plain serialized objects are correctly
+      // identified as ObjectNode types and expanded into their properties structure.
       const hook = createMockHookExportNode({
         name: 'useButton',
         type: {
@@ -271,9 +271,10 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, []);
 
-      // The return value is formatted as a string representation of the type
-      // rather than expanded as an object with individual properties.
-      expect(typeof result.returnValue).toBe('string');
+      // With type guards, the return value is correctly formatted as an object
+      // with individual properties extracted from the ObjectNode structure.
+      expect(typeof result.returnValue).toBe('object');
+      expect(result.returnValue).toHaveProperty('ref');
     });
   });
 });

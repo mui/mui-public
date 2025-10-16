@@ -8,13 +8,6 @@
 
 Creates a loadSource function that reads a file and extracts its dependencies.
 
-### loadServerSource
-
-Default loadServerSource function that reads a file and extracts its dependencies.
-This function is used to load source files for demos, resolving their imports and dependencies.
-It reads the source file, resolves its imports, and returns the processed source along with any
-additional files and dependencies that were found.
-
 ```typescript
   options:
     | {
@@ -33,6 +26,13 @@ additional files and dependencies that were found.
   externals?: Externals
 }>
 ```
+
+### loadServerSource
+
+Default loadServerSource function that reads a file and extracts its dependencies.
+This function is used to load source files for demos, resolving their imports and dependencies.
+It reads the source file, resolves its imports, and returns the processed source along with any
+additional files and dependencies that were found.
 
 ```typescript
   url: string,

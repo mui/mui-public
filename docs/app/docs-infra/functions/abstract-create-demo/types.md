@@ -6,10 +6,6 @@
 
 ### abstractCreateDemo
 
-### createDemoFactory
-
-### createDemoWithVariantsFactory
-
 ```typescript
   options: {
     DemoContent: ComponentType<ContentProps<{}>>
@@ -83,6 +79,8 @@
   | ((props: {}) => ReactNode | Promise<ReactNode>)
 ```
 
+### createDemoFactory
+
 ```typescript
   DemoContent: ComponentType<ContentProps<{}>>
   DemoContentLoading?: ComponentType<
@@ -150,6 +148,8 @@
   | (ComponentClass<{}, any> & { Title: ComponentType })
   | ((props: {}) => ReactNode | Promise<ReactNode>)
 ```
+
+### createDemoWithVariantsFactory
 
 ```typescript
   DemoContent: ComponentType<ContentProps<{}>>

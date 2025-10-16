@@ -4,6 +4,7 @@ import {
   formatParameters,
   formatType,
   isFunctionType,
+  isObjectType,
   parseMarkdownToHast,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
@@ -35,18 +36,22 @@ export async function formatHookData(
   let formattedParameters: Record<string, any>;
   if (
     parameters.length === 1 &&
-    parameters[0].type instanceof tae.ObjectNode &&
+    isObjectType(parameters[0].type) &&
     parameters[0].name === 'params'
   ) {
-    formattedParameters = await formatProperties(parameters[0].type.properties, exportNames, []);
+    formattedParameters = await formatProperties(
+      (parameters[0].type as tae.ObjectNode).properties,
+      exportNames,
+      [],
+    );
   } else {
     formattedParameters = await formatParameters(parameters, exportNames);
   }
 
   let formattedReturnValue: Record<string, any> | string;
-  if (signature.returnValueType instanceof tae.ObjectNode) {
+  if (isObjectType(signature.returnValueType)) {
     formattedReturnValue = await formatProperties(
-      signature.returnValueType.properties,
+      (signature.returnValueType as tae.ObjectNode).properties,
       exportNames,
       [],
     );

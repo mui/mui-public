@@ -11,20 +11,6 @@ A variant is a different implementation style of the same component.
 Returns a data object containing demo metadata and components instead of a complete demo component.
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
-### createDemoData
-
-Creates demo data for displaying code examples with syntax highlighting.
-Returns a data object containing demo metadata and components instead of a complete demo component.
-Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
-
-### createDemoGlobalWithVariants
-
-Creates a demo data object for a global provider component with different variants.
-
-### createDemoGlobal
-
-Creates a demo data object for a global provider component.
-
 ```typescript
   url: string,
   variants: { Default: ComponentType<any> } | {},
@@ -47,6 +33,12 @@ Creates a demo data object for a global provider component.
   components: {}
 }
 ```
+
+### createDemoData
+
+Creates demo data for displaying code examples with syntax highlighting.
+Returns a data object containing demo metadata and components instead of a complete demo component.
+Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
 ```typescript
   url: string,
@@ -71,6 +63,10 @@ Creates a demo data object for a global provider component.
 }
 ```
 
+### createDemoGlobalWithVariants
+
+Creates a demo data object for a global provider component with different variants.
+
 ```typescript
   url: string,
   globalProviders: {},
@@ -93,6 +89,10 @@ Creates a demo data object for a global provider component.
   components: {}
 }
 ```
+
+### createDemoGlobal
+
+Creates a demo data object for a global provider component.
 
 ```typescript
   url: string,

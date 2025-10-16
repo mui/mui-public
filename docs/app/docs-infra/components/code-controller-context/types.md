@@ -8,9 +8,7 @@
 
 Hook for accessing the controlled code context.
 
-This hook provides access to the controlled code, selection state, and setter functions
-from the CodeControllerContext. It's worth noting that useCode and useDemo handle
-controlling selection in typical cases.
+This hook provides access to the controlled code, selection state, and setter functions from the CodeControllerContext. It's worth noting that useCode and useDemo handle controlling selection in typical cases.
 
 **useControlledCode Return Value:**
 

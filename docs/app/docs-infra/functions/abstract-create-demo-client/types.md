@@ -9,8 +9,6 @@
 Abstract factory function for creating demo client providers.
 This creates a provider component that supplies externals to child components.
 
-### createDemoClientFactory
-
 ```typescript
   options: { live?: boolean },
   url: string,
@@ -26,6 +24,8 @@ This creates a provider component that supplies externals to child components.
     | undefined,
 ) => ComponentType<{ children: ReactNode }>
 ```
+
+### createDemoClientFactory
 
 ```typescript
   live?: boolean
