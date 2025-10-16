@@ -51,7 +51,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Repository Structure
 
-```
+```text
 packages/
 ├── babel-plugin-display-name/     # Babel plugin for component display names
 ├── babel-plugin-minify-errors/    # Babel plugin for error minification

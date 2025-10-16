@@ -5,6 +5,7 @@ import prettier from 'eslint-config-prettier/flat';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
+import markdown from '@eslint/markdown';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -42,6 +43,14 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
     prettier,
+    // Track https://github.com/eslint/markdown/issues/316 for MDX support
+    markdown.configs.recommended,
+    {
+      files: ['**/*.md'],
+      rules: {
+        'markdown/no-duplicate-headings': 'error',
+      },
+    },
     {
       name: 'Base config',
       files: [`**/*${EXTENSION_TS}`],
