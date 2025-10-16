@@ -21,7 +21,7 @@ Scripts and configs to be used across MUI repos.
 4. Refresh the page to see the newly created workflow, and click it.
 5. The next screen shows "@username requested your review to deploy to npm-publish", click "Review deployments" and authorize your workflow run. **Never approve workflow runs you didn't initiaite.**
 
-> **!IMPORTANT**
+> [!IMPORTANT] <!-- eslint-disable-line markdown/no-missing-label-refs  --><!-- See https://github.com/eslint/markdown/issues/294 -->
 >
 > Go through the below steps if there is an error that says `The following packages are new and need to be published manually first` in the publish flow.
 
