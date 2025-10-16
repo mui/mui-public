@@ -18,8 +18,9 @@ describe('formatComponent', () => {
       expect(
         isPublicComponent({
           type: { kind: 'component' },
-          documentation: { hasTag: (n: string) => n === 'ignore' },
-          isPublic: () => true,
+          documentation: {
+            tags: [{ name: 'ignore', value: undefined }],
+          },
         } as any),
       ).toBe(false);
     });
@@ -28,7 +29,10 @@ describe('formatComponent', () => {
       expect(
         isPublicComponent({
           type: { kind: 'component' },
-          isPublic: () => false,
+          documentation: {
+            visibility: 'internal',
+            tags: [],
+          },
         } as any),
       ).toBe(false);
     });

@@ -64,7 +64,9 @@ describe('formatHook', () => {
       const mockExport = createMockExportNode({
         name: 'useInternal',
         type: { kind: 'function', callSignatures: [] },
-        documentation: { hasTag: (n: string) => n === 'ignore' },
+        documentation: {
+          tags: [{ name: 'ignore', value: undefined }],
+        },
       });
 
       expect(isPublicHook(mockExport)).toBe(false);
@@ -74,7 +76,10 @@ describe('formatHook', () => {
       const mockExport = createMockExportNode({
         name: 'usePrivate',
         type: { kind: 'function', callSignatures: [] },
-        isPublic: () => false,
+        documentation: {
+          visibility: 'internal',
+          tags: [],
+        },
       });
 
       expect(isPublicHook(mockExport)).toBe(false);

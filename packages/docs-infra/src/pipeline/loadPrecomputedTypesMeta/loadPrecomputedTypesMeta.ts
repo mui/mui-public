@@ -29,6 +29,7 @@ import { reconstructPerformanceLogs } from './performanceTracking';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted/transformHtmlCodeInlineHighlighted';
+import { highlightTypes } from './highlightTypes.js';
 
 export type LoaderOptions = {
   performance?: {
@@ -416,8 +417,67 @@ export async function loadPrecomputedTypesMeta(
     );
     currentMark = formattingCompleteMark;
 
+    // Collect all types for markdown generation
+    const allTypes = Object.values(variantData).flatMap((v) => v.types);
+
+    // Apply transformHtmlCodePrecomputed and generate/write markdown in parallel
+    const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');
+    const [highlightedVariantData] = await Promise.all([
+      (async () => {
+        const highlightStart = performance.now();
+        const result = await highlightTypes(variantData);
+        const highlightEnd = performance.now();
+        const highlightCompleteMark = nameMark(functionName, 'HAST transformation complete', [
+          relativePath,
+        ]);
+        performance.mark(highlightCompleteMark);
+        performance.measure(nameMark(functionName, 'HAST transformation', [relativePath]), {
+          start: highlightStart,
+          end: highlightEnd,
+        });
+        return result;
+      })(),
+      (async () => {
+        const markdownStart = performance.now();
+        const markdown = await generateTypesMarkdown(resourceName, allTypes);
+        await fs.writeFile(markdownFilePath, markdown, 'utf-8');
+        if (process.env.NODE_ENV === 'production') {
+          // during development, if this markdown file is included as a dependency,
+          // it causes a second rebuild when this file is written
+          // during production builds, we should already have the file in place
+          // so this is not an issue and we should ensure changing this file triggers a rebuild
+          allDependencies.push(markdownFilePath);
+        }
+        const markdownEnd = performance.now();
+        const markdownCompleteMark = nameMark(
+          functionName,
+          'markdown generation and write complete',
+          [relativePath],
+        );
+        performance.mark(markdownCompleteMark);
+        performance.measure(
+          nameMark(functionName, 'markdown generation and write', [relativePath]),
+          { start: markdownStart, end: markdownEnd },
+        );
+      })(),
+    ]);
+
+    const parallelCompleteMark = nameMark(
+      functionName,
+      'highlighted and markdown generated',
+      [relativePath],
+      true,
+    );
+    performance.mark(parallelCompleteMark);
+    performance.measure(
+      nameMark(functionName, 'highlighting and markdown generation', [relativePath], true),
+      currentMark,
+      parallelCompleteMark,
+    );
+    currentMark = parallelCompleteMark;
+
     // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);
+    const modifiedSource = replacePrecomputeValue(source, highlightedVariantData, typesMetaCall);
 
     const replacedPrecomputeMark = nameMark(functionName, 'replaced precompute', [relativePath]);
     performance.mark(replacedPrecomputeMark);
@@ -427,32 +487,6 @@ export async function loadPrecomputedTypesMeta(
       replacedPrecomputeMark,
     );
     currentMark = replacedPrecomputeMark;
-
-    const allTypes: TypesMeta[] = [];
-    Object.values(variantData).forEach((v) => {
-      allTypes.push(...v.types);
-    });
-
-    const markdown = await generateTypesMarkdown(resourceName, allTypes);
-    const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');
-    await fs.writeFile(markdownFilePath, markdown, 'utf-8');
-
-    if (process.env.NODE_ENV === 'production') {
-      // during development, if this markdown file is included as a dependency,
-      // it causes a second rebuild when this file is written
-      // during production builds, we should already have the file in place
-      // so this is not an issue and we should ensure changing this file triggers a rebuild
-      allDependencies.push(markdownFilePath);
-    }
-
-    const generatedTypesMdMark = nameMark(functionName, 'generated types.md', [relativePath]);
-    performance.mark(generatedTypesMdMark);
-    performance.measure(
-      nameMark(functionName, 'types.md generation', [relativePath]),
-      currentMark,
-      generatedTypesMdMark,
-    );
-    currentMark = generatedTypesMdMark;
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {

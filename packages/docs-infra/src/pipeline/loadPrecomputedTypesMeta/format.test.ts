@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
-import { decompressSync, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
-import type { Nodes as HastNodes, Element as HastElement } from 'hast';
+import type { Element as HastElement } from 'hast';
 import {
   isExternalType,
   isIntrinsicType,
@@ -35,45 +33,6 @@ function isHastElement(node: unknown): node is HastElement {
     'tagName' in node &&
     'properties' in node
   );
-}
-
-/**
- * Type guard to check if a value has a dataPrecompute property.
- */
-function hasDataPrecompute(
-  props: unknown,
-): props is { dataPrecompute: string; [key: string]: unknown } {
-  return (
-    typeof props === 'object' &&
-    props !== null &&
-    'dataPrecompute' in props &&
-    typeof (props as any).dataPrecompute === 'string'
-  );
-}
-
-/**
- * Decompresses and parses HAST from various precomputed source formats.
- *
- * @param source - The precomputed source in one of several formats:
- *   - string: JSON string to parse
- *   - HastNodes: Already parsed nodes
- *   - { hastJson: string }: JSON-encoded HAST
- *   - { hastGzip: string }: Gzipped and base64-encoded HAST
- * @returns Parsed HAST nodes ready for validation
- */
-function parsePrecomputedSource(
-  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
-): HastNodes {
-  if (typeof source === 'string') {
-    return JSON.parse(source);
-  }
-  if ('hastJson' in source) {
-    return JSON.parse(source.hastJson);
-  }
-  if ('hastGzip' in source) {
-    return JSON.parse(strFromU8(decompressSync(decode(source.hastGzip))));
-  }
-  return source;
 }
 
 describe('format', () => {
@@ -853,67 +812,27 @@ describe('format', () => {
           ]),
         });
 
-        // Code block with precomputed data
+        // Code block (raw structure, transformation happens in highlightTypes)
         expect(nonWhitespaceChildren[2]).toMatchObject({
           type: 'element',
           tagName: 'pre',
-          properties: {
-            dataPrecompute: expect.any(String),
-          },
+          properties: {},
+          children: [
+            {
+              type: 'element',
+              tagName: 'code',
+              properties: {
+                className: ['language-ts'],
+              },
+              children: [
+                {
+                  type: 'text',
+                  value: expect.stringMatching(/<Input value="test" \/>/),
+                },
+              ],
+            },
+          ],
         });
-
-        // Verify precomputed data structure
-        const codeBlock = nonWhitespaceChildren[2];
-        expect(codeBlock.type).toBe('element');
-        expect(isHastElement(codeBlock)).toBe(true);
-        if (isHastElement(codeBlock) && hasDataPrecompute(codeBlock.properties)) {
-          const precomputedData = JSON.parse(codeBlock.properties.dataPrecompute);
-          expect(precomputedData).toMatchObject({
-            Default: {
-              source: expect.anything(),
-              fileName: 'index.ts',
-            },
-          });
-
-          // Decompress and verify the actual HAST structure with syntax highlighting
-          const hastNodes = parsePrecomputedSource(precomputedData.Default.source);
-
-          // Verify the HAST structure contains syntax-highlighted tokens
-          // The structure is: root > span.frame > span.line > span tokens
-          expect(hastNodes).toMatchObject({
-            type: 'root',
-            data: {
-              totalLines: expect.any(Number),
-            },
-            children: expect.arrayContaining([
-              expect.objectContaining({
-                type: 'element',
-                tagName: 'span',
-                properties: expect.objectContaining({
-                  className: 'frame',
-                }),
-                children: expect.arrayContaining([
-                  expect.objectContaining({
-                    type: 'element',
-                    tagName: 'span',
-                    properties: expect.objectContaining({
-                      className: 'line',
-                    }),
-                    children: expect.arrayContaining([
-                      expect.objectContaining({
-                        type: 'element',
-                        tagName: 'span',
-                        properties: expect.objectContaining({
-                          className: expect.any(Array),
-                        }),
-                      }),
-                    ]),
-                  }),
-                ]),
-              }),
-            ]),
-          });
-        }
       });
 
       it('should parse example markdown', async () => {
@@ -930,32 +849,32 @@ describe('format', () => {
 
         const result = await formatProperties(props, []);
 
-        // Verify example HAST structure
+        // Verify example HAST structure (raw structure, transformation happens in highlightTypes)
         expect(result.value.example).toBeDefined();
         expect(result.value.example!.type).toBe('root');
         expect(result.value.example!.children).toHaveLength(1);
 
-        // Verify pre element with precomputed data
+        // Verify pre element has raw code block structure
         expect(result.value.example!.children[0]).toMatchObject({
           type: 'element',
           tagName: 'pre',
-          properties: {
-            dataPrecompute: expect.any(String),
-          },
-        });
-
-        // Verify precomputed data structure
-        const preElement = result.value.example!.children[0];
-        expect(isHastElement(preElement)).toBe(true);
-        if (isHastElement(preElement) && hasDataPrecompute(preElement.properties)) {
-          const precomputedData = JSON.parse(preElement.properties.dataPrecompute);
-          expect(precomputedData).toMatchObject({
-            Default: {
-              source: expect.anything(),
-              fileName: 'index.ts',
+          properties: {},
+          children: [
+            {
+              type: 'element',
+              tagName: 'code',
+              properties: {
+                className: ['language-ts'],
+              },
+              children: [
+                {
+                  type: 'text',
+                  value: expect.stringMatching(/const x = "test";/),
+                },
+              ],
             },
-          });
-        }
+          ],
+        });
       });
 
       it('should handle props without documentation', async () => {
@@ -1617,15 +1536,16 @@ describe('format', () => {
 
         const result = await formatProperties(props, []);
 
-        // Verify description HAST contains precomputed code
+        // Verify description HAST contains raw code block (transformation happens in highlightTypes)
         expect(result.value.description).toBeDefined();
         const codeBlock = result.value.description!.children.find(
           (child) => isHastElement(child) && child.tagName === 'pre',
         );
         expect(codeBlock).toBeDefined();
         expect(isHastElement(codeBlock)).toBe(true);
-        if (isHastElement(codeBlock) && hasDataPrecompute(codeBlock.properties)) {
-          expect(codeBlock.properties.dataPrecompute).toBeDefined();
+        if (isHastElement(codeBlock)) {
+          expect(codeBlock.tagName).toBe('pre');
+          expect(codeBlock.properties).toEqual({});
         }
       });
 
@@ -1669,15 +1589,13 @@ describe('format', () => {
 
         const result = await formatProperties(props, []);
 
-        // Code block should have precomputed data
+        // Code block should have raw structure (transformation happens in highlightTypes)
         expect(result.example.description).toBeDefined();
         const codeBlock = result.example.description!.children[0];
         expect(isHastElement(codeBlock)).toBe(true);
         if (isHastElement(codeBlock)) {
           expect(codeBlock.tagName).toBe('pre');
-          if (hasDataPrecompute(codeBlock.properties)) {
-            expect(codeBlock.properties.dataPrecompute).toBeDefined();
-          }
+          expect(codeBlock.properties).toEqual({});
         }
       });
     });

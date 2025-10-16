@@ -5,7 +5,6 @@ import remarkGfm from 'remark-gfm';
 import rehypeRemark from 'rehype-remark';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
 import type { HastRoot } from '../../CodeHighlighter/types';
-import transformHtmlCodeToMarkdown from './transformHtmlCodeToMarkdown';
 import * as md from './createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
 import { prettyFormatType } from './format';
@@ -28,9 +27,7 @@ function parseMarkdown(markdown: string): RootContent[] {
  * @returns Array of MDAST root content nodes
  */
 async function hastToMdast(hast: HastRoot): Promise<RootContent[]> {
-  const processor = unified()
-    .use(transformHtmlCodeToMarkdown) // Expand precomputed code blocks before conversion
-    .use(rehypeRemark);
+  const processor = unified().use(rehypeRemark);
   const result = (await processor.run(hast)) as Root;
   return result.children as RootContent[];
 }

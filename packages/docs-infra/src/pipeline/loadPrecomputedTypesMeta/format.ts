@@ -9,7 +9,6 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import type { HastRoot } from '../../CodeHighlighter/types';
-import transformHtmlCodePrecomputed from '../transformHtmlCodePrecomputed';
 import transformHtmlCodeInlineHighlighted, {
   ensureStarryNightInitialized,
 } from '../transformHtmlCodeInlineHighlighted';
@@ -206,12 +205,7 @@ function shouldShowDetailedType(name: string, type: string | undefined): boolean
  * while preserving all markdown features and applying syntax highlighting to code blocks.
  */
 export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
-  const processor = unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkRehype)
-    .use(transformHtmlCodePrecomputed)
-    .freeze();
+  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype).freeze();
 
   const mdast = processor.parse(markdown) as MdastRoot;
   const result = (await processor.run(mdast)) as HastRoot;
@@ -252,11 +246,13 @@ async function formatInlineTypeAsHast(typeText: string): Promise<HastRoot> {
 
 /**
  * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
- * Uses transformHtmlCodePrecomputed for precomputed highlighting.
+ * Creates a code block structure that will be processed by transformHtmlCodePrecomputed
+ * later in the pipeline (in loadPrecomputedTypesMeta.ts).
  * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
  */
 async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
   // Construct HAST directly (no need for MDAST → HAST conversion)
+  // The code block will be expanded by transformHtmlCodePrecomputed later
   const hast: HastRoot = {
     type: 'root',
     children: [
@@ -276,12 +272,7 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
     ],
   };
 
-  // Apply syntax highlighting transform
-  const processor = unified().use(transformHtmlCodePrecomputed).freeze();
-
-  const result = (await processor.run(hast)) as HastRoot;
-
-  return result;
+  return hast;
 }
 
 async function prettyFormat(type: string, typeName?: string) {

@@ -75,7 +75,7 @@ export function isPublicHook(
     exportNode.documentation?.visibility !== 'private' &&
     exportNode.documentation?.visibility !== 'internal';
 
-  const hasIgnoreTag = exportNode.documentation?.tags.some((tag) => tag.name === 'ignore');
+  const hasIgnoreTag = exportNode.documentation?.tags?.some((tag) => tag.name === 'ignore');
 
   return (
     isFunctionType(exportNode.type) &&
