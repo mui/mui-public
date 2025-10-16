@@ -3,50 +3,285 @@ import prettier from 'prettier/standalone';
 import prettierPluginEstree from 'prettier/plugins/estree';
 import prettierPluginTypescript from 'prettier/plugins/typescript';
 import type * as tae from 'typescript-api-extractor';
+import { unified } from 'unified';
+import type { Root as MdastRoot } from 'mdast';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import type { HastRoot } from '../../CodeHighlighter/types';
+import transformHtmlCodePrecomputed from '../transformHtmlCodePrecomputed';
+import transformHtmlCodeInlineHighlighted, {
+  ensureStarryNightInitialized,
+} from '../transformHtmlCodeInlineHighlighted';
 
-// Helper functions to check type kind (works with both class instances and serialized objects)
-export function isExternalType(type: any): type is tae.ExternalTypeNode {
-  return type.kind === 'external';
+/**
+ * Formatted property metadata with syntax-highlighted types and parsed markdown.
+ */
+export interface FormattedProperty {
+  /** Syntax-highlighted type as HAST */
+  type: HastRoot;
+  /** Default value if specified */
+  default?: unknown;
+  /** Whether the property is required */
+  required?: true;
+  /** Description as parsed markdown HAST */
+  description?: HastRoot;
+  /** Example usage as parsed markdown HAST */
+  example?: HastRoot;
+  /** Detailed expanded type view (only when different from basic type) */
+  detailedType?: HastRoot;
 }
 
-export function isIntrinsicType(type: any): type is tae.IntrinsicNode {
-  return type.kind === 'intrinsic';
+/**
+ * Formatted enum member metadata.
+ */
+export interface FormattedEnumMember {
+  /** Description of the enum member as parsed markdown HAST */
+  description?: HastRoot;
+  /** Type annotation from JSDoc @type tag */
+  type?: string;
 }
 
-export function isUnionType(type: any): type is tae.UnionNode {
-  return type.kind === 'union';
+/**
+ * Formatted parameter metadata for functions and hooks.
+ */
+export interface FormattedParameter {
+  /** Type as a string */
+  type: string;
+  /** Default value if specified */
+  default?: string;
+  /** Whether the parameter is optional */
+  optional?: true;
+  /** Description from JSDoc as parsed markdown HAST */
+  description?: HastRoot;
+  /** Example usage from @example tag */
+  example?: string;
 }
 
-export function isIntersectionType(type: any): type is tae.IntersectionNode {
-  return type.kind === 'intersection';
+/**
+ * Base type guard helper to check if a value has a specific kind property.
+ * Validates that the value is an object with a 'kind' property matching the expected value.
+ */
+function hasKind(value: unknown, kind: string): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'kind' in value &&
+    (value as { kind: unknown }).kind === kind
+  );
 }
 
-export function isObjectType(type: any): type is tae.ObjectNode {
-  return type.kind === 'object';
+/**
+ * Type guard to check if a type node is an external type reference.
+ * Works with both class instances and serialized objects from typescript-api-extractor.
+ */
+export function isExternalType(type: unknown): type is tae.ExternalTypeNode {
+  return hasKind(type, 'external');
 }
 
-export function isArrayType(type: any): type is tae.ArrayNode {
-  return type.kind === 'array';
+/**
+ * Type guard to check if a type node is an intrinsic (built-in) type.
+ */
+export function isIntrinsicType(type: unknown): type is tae.IntrinsicNode {
+  return hasKind(type, 'intrinsic');
 }
 
-export function isFunctionType(type: any): type is tae.FunctionNode {
-  return type.kind === 'function';
+/**
+ * Type guard to check if a type node is a union type.
+ */
+export function isUnionType(type: unknown): type is tae.UnionNode {
+  return hasKind(type, 'union');
 }
 
-export function isLiteralType(type: any): type is tae.LiteralNode {
-  return type.kind === 'literal';
+/**
+ * Type guard to check if a type node is an intersection type.
+ */
+export function isIntersectionType(type: unknown): type is tae.IntersectionNode {
+  return hasKind(type, 'intersection');
 }
 
-export function isEnumType(type: any): type is tae.EnumNode {
-  return type.kind === 'enum';
+/**
+ * Type guard to check if a type node is an object type.
+ */
+export function isObjectType(type: unknown): type is tae.ObjectNode {
+  return hasKind(type, 'object');
 }
 
-export function isTupleType(type: any): type is tae.TupleNode {
-  return type.kind === 'tuple';
+/**
+ * Type guard to check if a type node is an array type.
+ */
+export function isArrayType(type: unknown): type is tae.ArrayNode {
+  return hasKind(type, 'array');
 }
 
-export function isTypeParameterType(type: any): type is tae.TypeParameterNode {
-  return type.kind === 'typeParameter';
+/**
+ * Type guard to check if a type node is a function type.
+ */
+export function isFunctionType(type: unknown): type is tae.FunctionNode {
+  return hasKind(type, 'function');
+}
+
+/**
+ * Type guard to check if a type node is a literal type.
+ */
+export function isLiteralType(type: unknown): type is tae.LiteralNode {
+  return hasKind(type, 'literal');
+}
+
+/**
+ * Type guard to check if a type node is an enum type.
+ */
+export function isEnumType(type: unknown): type is tae.EnumNode {
+  return hasKind(type, 'enum');
+}
+
+/**
+ * Type guard to check if a type node is a tuple type.
+ */
+export function isTupleType(type: unknown): type is tae.TupleNode {
+  return hasKind(type, 'tuple');
+}
+
+/**
+ * Type guard to check if a type node is a type parameter.
+ */
+export function isTypeParameterType(type: unknown): type is tae.TypeParameterNode {
+  return hasKind(type, 'typeParameter');
+}
+
+/**
+ * Type guard to check if a type node is a component type.
+ */
+export function isComponentType(type: unknown): type is tae.ComponentNode {
+  return hasKind(type, 'component');
+}
+
+/**
+ * Determines whether a property should display its full type definition or a simplified version.
+ *
+ * Properties with complex types (unions, callbacks, etc.) benefit from expandable detailed views,
+ * while simple types (string, number, boolean) can be shown inline without expansion.
+ */
+function shouldShowDetailedType(name: string, type: string | undefined): boolean {
+  // Event handlers and getters typically have complex function signatures
+  if (/^(on|get)[A-Z].*/.test(name)) {
+    return true;
+  }
+
+  if (type === undefined || type === null) {
+    return false;
+  }
+
+  // className can be string or function, show details
+  if (name === 'className') {
+    return true;
+  }
+
+  // render prop can be ReactElement or function, show details
+  if (name === 'render') {
+    return true;
+  }
+
+  // Simple types and short unions don't need expansion
+  if (
+    name.endsWith('Ref') ||
+    name === 'children' ||
+    type === 'boolean' ||
+    type === 'string' ||
+    type === 'number' ||
+    type.indexOf(' | ') === -1 ||
+    (type.split('|').length < 3 && type.length < 30)
+  ) {
+    return false;
+  }
+
+  // Complex unions benefit from detailed expansion
+  return true;
+}
+
+/**
+ * Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
+ *
+ * This enables rendering rich formatted descriptions including code examples, lists, and links
+ * while preserving all markdown features and applying syntax highlighting to code blocks.
+ */
+export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype)
+    .use(transformHtmlCodePrecomputed)
+    .freeze();
+
+  const mdast = processor.parse(markdown) as MdastRoot;
+  const result = (await processor.run(mdast)) as HastRoot;
+
+  return result;
+}
+
+/**
+ * Formats TypeScript type text as HAST with inline syntax highlighting.
+ * Uses transformHtmlCodeInlineHighlighted plugin for lightweight highlighting without line gutters or frame wrappers.
+ * This is used for simple inline type displays (equivalent to single backticks in MDX).
+ */
+async function formatInlineTypeAsHast(typeText: string): Promise<HastRoot> {
+  // Construct HAST with a code element
+  // Add dataHighlightingPrefix so the plugin can temporarily wrap the type in valid syntax
+  const hast: HastRoot = {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'code',
+        properties: {
+          className: ['language-ts'],
+          dataHighlightingPrefix: 'type _ = ',
+        },
+        children: [{ type: 'text', value: typeText }],
+      },
+    ],
+  };
+
+  // Apply inline syntax highlighting
+  const processor = unified().use(transformHtmlCodeInlineHighlighted).freeze();
+
+  const result = (await processor.run(hast)) as HastRoot;
+
+  return result;
+}
+
+/**
+ * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
+ * Uses transformHtmlCodePrecomputed for precomputed highlighting.
+ * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
+ */
+async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
+  // Construct HAST directly (no need for MDAST → HAST conversion)
+  const hast: HastRoot = {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'pre',
+        properties: {},
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: { className: ['language-ts'] },
+            children: [{ type: 'text', value: typeText }],
+          },
+        ],
+      },
+    ],
+  };
+
+  // Apply syntax highlighting transform
+  const processor = unified().use(transformHtmlCodePrecomputed).freeze();
+
+  const result = (await processor.run(hast)) as HastRoot;
+
+  return result;
 }
 
 async function prettyFormat(type: string, typeName?: string) {
@@ -84,30 +319,29 @@ async function prettyFormat(type: string, typeName?: string) {
   return type;
 }
 
+/**
+ * Formats component or hook properties into a structured object with syntax-highlighted types.
+ *
+ * Each property includes its type (as HAST for rendering), description (parsed markdown),
+ * default value, and optionally a detailed expanded type view for complex types.
+ *
+ * This function handles the conversion of TypeScript type information into a format
+ * suitable for documentation display with proper syntax highlighting.
+ */
 export async function formatProperties(
   props: tae.PropertyNode[],
   exportNames: string[],
   allExports: tae.ExportNode[] | undefined = undefined,
-) {
+): Promise<Record<string, FormattedProperty>> {
+  // Ensure Starry Night is initialized for inline code highlighting
+  await ensureStarryNightInitialized();
+
   const propEntries = await Promise.all(
     props.map(async (prop) => {
       const exampleTag = prop.documentation?.tags
         ?.filter((tag) => tag.name === 'example')
         .map((tag) => tag.value)
         .join('\n');
-
-      let detailedType = formatType(
-        prop.type,
-        prop.optional,
-        prop.documentation?.tags,
-        false,
-        exportNames,
-      );
-      if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
-        detailedType = formatDetailedType(prop.type, allExports, exportNames);
-      }
-
-      detailedType = await prettyFormat(detailedType);
 
       const formattedType = formatType(
         prop.type,
@@ -117,17 +351,51 @@ export async function formatProperties(
         exportNames,
       );
 
-      const resultObject: Record<string, any> = {
-        type: formattedType,
+      const needsDetailedType = shouldShowDetailedType(prop.name, formattedType);
+
+      let detailedTypeText = formattedType;
+      if (needsDetailedType) {
+        if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
+          detailedTypeText = formatDetailedType(prop.type, allExports, exportNames);
+        } else {
+          detailedTypeText = formatType(
+            prop.type,
+            prop.optional,
+            prop.documentation?.tags,
+            false,
+            exportNames,
+          );
+        }
+        detailedTypeText = await prettyFormat(detailedTypeText);
+      }
+
+      // Parse description as markdown and convert to HAST for rich rendering
+      const description = prop.documentation?.description
+        ? await parseMarkdownToHast(prop.documentation.description)
+        : undefined;
+
+      // Parse example as markdown if present
+      const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
+
+      // Convert types to HAST for syntax highlighting
+      // Use inline highlighting for simple types, detailed highlighting for expanded types
+      const type = await formatInlineTypeAsHast(formattedType);
+      const detailedType =
+        needsDetailedType && detailedTypeText !== formattedType
+          ? await formatDetailedTypeAsHast(detailedTypeText)
+          : undefined;
+
+      const resultObject: FormattedProperty = {
+        type,
         default: prop.documentation?.defaultValue,
         required: !prop.optional || undefined,
-        description: prop.documentation?.description,
-        example: exampleTag || undefined,
-        detailedType,
+        description,
+        example,
       };
 
-      if (detailedType === formattedType) {
-        delete resultObject.detailedType;
+      // Only include detailedType if it differs from the basic type
+      if (detailedType) {
+        resultObject.detailedType = detailedType;
       }
 
       return [prop.name, resultObject] as const;
@@ -137,27 +405,49 @@ export async function formatProperties(
   return Object.fromEntries(propEntries);
 }
 
-export function formatParameters(params: tae.Parameter[], exportNames: string[] = []) {
-  const result: Record<string, any> = {};
+/**
+ * Formats function or hook parameters into a structured object.
+ *
+ * Each parameter includes its type (as string), description (parsed markdown as HAST),
+ * default value, and whether it's optional.
+ */
+export async function formatParameters(
+  params: tae.Parameter[],
+  exportNames: string[] = [],
+): Promise<Record<string, FormattedParameter>> {
+  const result: Record<string, FormattedParameter> = {};
 
-  for (const param of params) {
-    const exampleTag = param.documentation?.tags
-      ?.filter((tag) => tag.name === 'example')
-      .map((tag) => tag.value)
-      .join('\n');
+  await Promise.all(
+    params.map(async (param) => {
+      const exampleTag = param.documentation?.tags
+        ?.filter((tag) => tag.name === 'example')
+        .map((tag) => tag.value)
+        .join('\n');
 
-    result[param.name] = {
-      type: formatType(param.type, param.optional, param.documentation?.tags, true, exportNames),
-      default: param.defaultValue,
-      optional: param.optional || undefined,
-      description: param.documentation?.description,
-      example: exampleTag || undefined,
-    };
-  }
+      const description = param.documentation?.description
+        ? await parseMarkdownToHast(param.documentation.description)
+        : undefined;
+
+      result[param.name] = {
+        type: formatType(param.type, param.optional, param.documentation?.tags, true, exportNames),
+        default: param.defaultValue as string | undefined,
+        optional: param.optional || undefined,
+        description,
+        example: exampleTag || undefined,
+      };
+    }),
+  );
 
   return result;
 }
 
+/**
+ * Recursively expands type aliases and external type references to their full definitions.
+ *
+ * This function resolves external types by looking them up in the provided exports,
+ * and recursively expands union and intersection types. It includes cycle detection
+ * to prevent infinite recursion on self-referential types.
+ */
 export function formatDetailedType(
   type: tae.AnyType,
   allExports: tae.ExportNode[],
@@ -209,18 +499,44 @@ export function formatDetailedType(
   return formatType(type, false, undefined, true, exportNames);
 }
 
-export function formatEnum(enumNode: tae.EnumNode) {
-  const result: Record<string, any> = {};
-  for (const member of sortBy(enumNode.members, ['value'])) {
-    result[member.value] = {
-      description: member.documentation?.description,
-      type: member.documentation?.tags?.find((tag) => tag.name === 'type')?.value,
-    };
-  }
+/**
+ * Formats an enum type into a structured object mapping enum values to their metadata.
+ *
+ * The result includes each enum member's description (parsed markdown as HAST) and type
+ * information from JSDoc tags. Members are sorted by their value for consistent output.
+ */
+export async function formatEnum(
+  enumNode: tae.EnumNode,
+): Promise<Record<string, FormattedEnumMember>> {
+  const result: Record<string, FormattedEnumMember> = {};
+
+  await Promise.all(
+    sortBy(enumNode.members, ['value']).map(async (member) => {
+      const description = member.documentation?.description
+        ? await parseMarkdownToHast(member.documentation.description)
+        : undefined;
+
+      result[member.value] = {
+        description,
+        type: member.documentation?.tags?.find((tag) => tag.name === 'type')?.value,
+      };
+    }),
+  );
 
   return result;
 }
 
+/**
+ * Formats a TypeScript type into a string representation for documentation display.
+ *
+ * This function recursively processes various type nodes (intrinsic types, unions, intersections,
+ * objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
+ * complex scenarios like optional properties, type parameters, and nested structures.
+ *
+ * For inline code contexts (when `inline: true`), the function generates type expressions
+ * with a prefix (`type _ = `) for better syntax highlighting, then removes the prefix from
+ * the highlighted output.
+ */
 export function formatType(
   type: tae.AnyType,
   removeUndefined: boolean,
@@ -377,6 +693,13 @@ export function formatType(
   return 'unknown';
 }
 
+/**
+ * Formats a TypeScript type into a prettified string representation.
+ *
+ * This is a convenience wrapper around `formatType()` that applies Prettier formatting
+ * to the resulting type string. It delegates to `formatType()` for the core type
+ * processing, then runs the output through `prettyFormat()` for consistent styling.
+ */
 export async function prettyFormatType(...args: Parameters<typeof formatType>) {
   return prettyFormat(
     formatType(...args),

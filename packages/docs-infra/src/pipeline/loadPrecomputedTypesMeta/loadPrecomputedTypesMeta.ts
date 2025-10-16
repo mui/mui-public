@@ -15,14 +15,20 @@ import {
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
-import { ComponentTypeMeta as ComponentType } from './formatComponent';
-import { HookTypeMeta as HookType } from './formatHook';
+import {
+  ComponentTypeMeta as ComponentType,
+  formatComponentData,
+  isPublicComponent,
+} from './formatComponent';
+import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
+import { FormattedProperty, FormattedEnumMember, FormattedParameter } from './format';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
+import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted/transformHtmlCodeInlineHighlighted';
 
 export type LoaderOptions = {
   performance?: {
@@ -35,6 +41,7 @@ export type LoaderOptions = {
 
 export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
+export type { FormattedProperty, FormattedEnumMember, FormattedParameter };
 
 export type TypesMeta =
   | {
@@ -342,8 +349,72 @@ export async function loadPrecomputedTypesMeta(
     );
     currentMark = workerProcessedMark;
 
-    const variantData = workerResult.variantData || {};
+    const rawVariantData = workerResult.variantData || {};
     const allDependencies = workerResult.allDependencies || [];
+
+    // Initialize inline highlighting for type formatting
+    await ensureStarryNightInitialized();
+
+    const highlightingInitializedMark = nameMark(functionName, 'highlighting initialized', [
+      relativePath,
+    ]);
+    performance.mark(highlightingInitializedMark);
+    performance.measure(
+      nameMark(functionName, 'highlighting initialization', [relativePath]),
+      currentMark,
+      highlightingInitializedMark,
+    );
+    currentMark = highlightingInitializedMark;
+
+    // Format the raw exports from the worker into TypesMeta
+    const variantData: Record<string, { types: TypesMeta[] }> = {};
+
+    // Process all variants in parallel
+    await Promise.all(
+      Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+        // Process all exports in parallel within each variant
+        const types = await Promise.all(
+          variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
+            if (isPublicComponent(exportNode)) {
+              const formattedData = await formatComponentData(
+                exportNode,
+                variantResult.allTypes,
+                variantResult.namespaces,
+              );
+              return {
+                type: 'component',
+                name: exportNode.name,
+                data: formattedData,
+              };
+            }
+            if (isPublicHook(exportNode)) {
+              const formattedData = await formatHookData(exportNode, variantResult.namespaces);
+              return {
+                type: 'hook',
+                name: exportNode.name,
+                data: formattedData,
+              };
+            }
+            return {
+              type: 'other',
+              name: exportNode.name,
+              data: exportNode,
+            };
+          }),
+        );
+
+        variantData[variantName] = { types };
+      }),
+    );
+
+    const formattingCompleteMark = nameMark(functionName, 'formatting complete', [relativePath]);
+    performance.mark(formattingCompleteMark);
+    performance.measure(
+      nameMark(functionName, 'type formatting', [relativePath]),
+      currentMark,
+      formattingCompleteMark,
+    );
+    currentMark = formattingCompleteMark;
 
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);

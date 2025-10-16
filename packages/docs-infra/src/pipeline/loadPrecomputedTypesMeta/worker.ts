@@ -5,30 +5,19 @@ import { parentPort } from 'worker_threads';
 import type { CompilerOptions } from 'typescript';
 import { ExportNode, parseFromProgram, ParserOptions } from 'typescript-api-extractor';
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
-import { formatComponentData, isPublicComponent } from './formatComponent';
-import { formatHookData, isPublicHook } from './formatHook';
 import { parseExports } from './parseExports';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketClient';
 import { SocketServer } from './socketServer';
 
-export type TypesMeta =
-  | {
-      type: 'component';
-      name: string;
-      data: any;
-    }
-  | {
-      type: 'hook';
-      name: string;
-      data: any;
-    }
-  | {
-      type: 'other';
-      name: string;
-      data: ExportNode;
-    };
+// Worker returns raw export nodes and metadata for formatting in main thread
+export interface VariantResult {
+  exports: ExportNode[];
+  allTypes: ExportNode[]; // All exports including internal types for reference resolution
+  namespaces: string[];
+  importedFrom: string;
+}
 
 export interface WorkerRequest {
   requestId?: number; // Added by worker manager for request tracking
@@ -46,13 +35,7 @@ export interface WorkerRequest {
 export interface WorkerResponse {
   requestId?: number; // Echoed back from request for tracking
   success: boolean;
-  variantData?: Record<
-    string,
-    {
-      types: TypesMeta[];
-      importedFrom: string;
-    }
-  >;
+  variantData?: Record<string, VariantResult>;
   allDependencies?: string[];
   performanceLogs?: PerformanceLog[];
   error?: string;
@@ -198,37 +181,6 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
             parseEnd,
           );
 
-          const formatStart = tracker.mark(
-            nameMark(functionName, `Variant ${variantName} Format Start`, [request.relativePath]),
-          );
-          const types: TypesMeta[] = await Promise.all(
-            exports.map(async (exportNode) => {
-              if (isPublicComponent(exportNode)) {
-                const componentApiReference = await formatComponentData(
-                  exportNode,
-                  allTypes,
-                  namespaces,
-                );
-                return { type: 'component', name: exportNode.name, data: componentApiReference };
-              }
-
-              if (isPublicHook(exportNode)) {
-                const hookApiReference = await formatHookData(exportNode, []);
-                return { type: 'hook', name: exportNode.name, data: hookApiReference };
-              }
-
-              return { type: 'other', name: exportNode.name, data: exportNode };
-            }),
-          );
-          const formatEnd = tracker.mark(
-            nameMark(functionName, `Variant ${variantName} Formatted`, [request.relativePath]),
-          );
-          tracker.measure(
-            nameMark(functionName, `Variant ${variantName} Formatting`, [request.relativePath]),
-            formatStart,
-            formatEnd,
-          );
-
           const variantEnd = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Complete`, [request.relativePath], true),
           );
@@ -241,11 +193,12 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
           return {
             variantName,
             variantData: {
-              types,
+              exports,
+              allTypes,
+              namespaces,
               importedFrom: namedExport || 'default',
             },
             dependencies,
-            namespaces,
           };
         } catch (error) {
           throw new Error(
@@ -258,24 +211,24 @@ async function processTypesInWorker(request: WorkerRequest): Promise<WorkerRespo
     const variantResults = await Promise.all(variantPromises);
 
     // Process results and collect dependencies
-    const variantData: Record<
-      string,
-      {
-        types: TypesMeta[];
-        importedFrom: string;
-      }
-    > = {};
+    const variantData: Record<string, VariantResult> = {};
     const allDependencies: string[] = [];
 
     if (
       variantResults.length === 1 &&
       variantResults[0]?.variantName === 'Default' &&
-      variantResults[0]?.namespaces.length > 0
+      variantResults[0]?.variantData.namespaces.length > 0
     ) {
       const defaultVariant = variantResults[0];
-      const data = defaultVariant?.variantData;
-      data.types.forEach((type) => {
-        variantData[type.data.name] = { types: [type], importedFrom: data.importedFrom };
+      const data = defaultVariant.variantData;
+      // Split exports by name for the Default variant case
+      data.exports.forEach((exportNode) => {
+        variantData[exportNode.name] = {
+          exports: [exportNode],
+          allTypes: data.allTypes,
+          namespaces: data.namespaces,
+          importedFrom: data.importedFrom,
+        };
       });
       defaultVariant.dependencies.forEach((file: string) => {
         allDependencies.push(file);

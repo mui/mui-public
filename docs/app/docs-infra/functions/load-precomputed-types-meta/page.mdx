@@ -367,6 +367,127 @@ For a simple React component, the extracted metadata looks like:
 
 ---
 
+## Rich Documentation Support
+
+The loader supports rich markdown content in JSDoc comments, which is automatically converted to appropriate formats in the generated documentation.
+
+### Component and Hook Descriptions
+
+You can add JSDoc comments to the component or hook itself to provide an overview:
+
+````typescript
+/**
+ * A customizable button component with multiple variants and states.
+ *
+ * This component supports various styling options and can be used throughout
+ * your application for consistent button styling.
+ *
+ * Example usage:
+ * ```tsx
+ * <Button variant="primary" onClick={handleClick}>
+ *   Click me
+ * </Button>
+ * ```
+ *
+ * @see https://example.com/button-guidelines for design guidelines
+ */
+export function Button(props: ButtonProps) {
+  // ...
+}
+````
+
+For hooks:
+
+````typescript
+/**
+ * A hook for managing form state with validation.
+ *
+ * This hook provides form state management with built-in validation
+ * and error handling capabilities.
+ *
+ * Example usage:
+ * ```tsx
+ * const { values, errors, handleChange } = useForm({
+ *   initialValues: { email: '', password: '' },
+ *   validate: validateLoginForm,
+ * });
+ * ```
+ */
+export function useForm<T>(options: UseFormOptions<T>) {
+  // ...
+}
+````
+
+Component-level descriptions support full markdown formatting including:
+
+- Code blocks (rendered as markdown code fences)
+- Lists (rendered as markdown lists)
+- Links and emphasis
+- Multiple paragraphs
+
+### Code Examples in Descriptions
+
+You can include code examples in your JSDoc comments:
+
+````typescript
+interface ButtonProps {
+  /**
+   * Click handler for the button.
+   *
+   * Example usage:
+   * ```tsx
+   * <Button onClick={() => console.log('clicked')} />
+   * ```
+   */
+  onClick?: () => void;
+}
+````
+
+**In Component Descriptions**: Code blocks are rendered as full markdown code fences.
+
+**In Table Cells** (props, parameters, return values): Code blocks are automatically converted to inline code (`` `code` ``) to fit within markdown table constraints.
+
+### Lists in Descriptions
+
+Lists are automatically converted based on context:
+
+```typescript
+interface ButtonProps {
+  /**
+   * The button variant.
+   *
+   * Supported values:
+   * - `primary` - Primary call-to-action
+   * - `secondary` - Secondary actions
+   * - `tertiary` - Tertiary actions
+   */
+  variant?: string;
+}
+```
+
+**In Component Descriptions**: Lists are rendered as markdown lists.
+
+**In Table Cells**: Lists are converted to comma-separated inline content: `primary, secondary, tertiary`.
+
+### Links and Rich Formatting
+
+You can use links, bold, italic, and other inline markdown:
+
+```typescript
+interface ButtonProps {
+  /**
+   * Determines if the button is disabled.
+   *
+   * See the [accessibility guide](https://example.com/a11y) for best practices.
+   */
+  disabled?: boolean;
+}
+```
+
+All inline markdown formatting is preserved in both component descriptions and table cells.
+
+---
+
 ## Types
 
 import { TypesLoadPrecomputedTypesMeta } from './types';
@@ -441,9 +562,12 @@ The webpack loader runs in the main thread and handles:
 - Parsing `createTypesMeta` factory calls from source files
 - Resolving variant paths and TypeScript configuration
 - Sending type extraction requests to the worker
-- Receiving precomputed type metadata from the worker
+- Receiving raw TypeScript exports from the worker
+- Initializing inline syntax highlighting
+- Formatting exports into type metadata (HAST/markdown generation)
 - Reconstructing performance logs for visibility
 - Replacing source code with precomputed data
+- Generating markdown documentation
 
 ### Worker Thread (Singleton)
 
@@ -451,9 +575,9 @@ A dedicated worker thread maintains a singleton TypeScript language service that
 
 - Creates and caches the optimized TypeScript program
 - Loads and caches all source files in memory
-- Performs all TypeScript operations (parsing, type checking, formatting)
+- Performs TypeScript parsing and type extraction
 - Tracks file changes and updates versions for incremental compilation
-- Returns only serializable type metadata (no TypeScript objects)
+- Returns raw TypeScript exports (serializable data only)
 - **Persists across all module contexts**: Uses Node.js `process` object to maintain true singleton across Turbopack/webpack compilations
 
 ### Multi-Process Socket Architecture
@@ -477,13 +601,14 @@ This architecture ensures:
 ### Benefits
 
 1. **Non-blocking Builds**: Heavy TypeScript operations run in worker, keeping webpack responsive
-2. **True Singleton via Process Object**: Language service persists across all module contexts in both Turbopack and webpack
-3. **Multi-Process Sharing**: Socket-based IPC enables sharing single language service across all Next.js worker processes
-4. **Memory Isolation**: TypeScript Program and AST objects never cross thread boundaries
-5. **Efficient Reuse**: First load ~500ms-1.2s, subsequent loads ~100-140ms (up to 10x faster)
-6. **Scalable Performance**: 87-92% performance improvement in multi-CPU builds by avoiding duplicate language services
-7. **Robust Locking**: Atomic lock acquisition with stale detection prevents race conditions and deadlocks
-8. **Clean Separation**: Main thread handles I/O and webpack, worker handles TypeScript, socket handles IPC
+2. **Separation of Concerns**: Worker handles CPU-intensive parsing, main thread handles I/O-intensive formatting
+3. **True Singleton via Process Object**: Language service persists across all module contexts in both Turbopack and webpack
+4. **Multi-Process Sharing**: Socket-based IPC enables sharing single language service across all Next.js worker processes
+5. **Memory Isolation**: TypeScript Program and AST objects never cross thread boundaries
+6. **Efficient Reuse**: First load ~500ms-1.2s, subsequent loads ~100-140ms (up to 10x faster)
+7. **Scalable Performance**: 87-92% performance improvement in multi-CPU builds by avoiding duplicate language services
+8. **Robust Locking**: Atomic lock acquisition with stale detection prevents race conditions and deadlocks
+9. **Clean Architecture**: Worker = TypeScript parsing, Main = HAST/markdown formatting, Socket = IPC
 
 ### Performance Flow
 
@@ -546,7 +671,8 @@ requests──socket────────► process ────────
 
 **Worker → Main** (serializable):
 
-- Type metadata (plain objects/arrays)
+- Raw TypeScript exports (`ExportNode[]`)
+- Export metadata (allTypes, namespaces, importedFrom)
 - Dependencies (string arrays)
 - Performance logs (timing data)
 
@@ -556,6 +682,12 @@ requests──socket────────► process ────────
 - TypeScript `TypeChecker` object
 - AST nodes and source files
 - Language service instance
+
+**Never Crosses** (stays in main thread):
+
+- Formatted type metadata (HAST nodes)
+- Markdown documentation
+- Inline syntax highlighting singleton
 
 ---
 
@@ -600,8 +732,9 @@ reconstructPerformanceLogs(result.performanceLogs, workerStartTime);
 ```bash
 [Worker] program creation: 498.11ms
 [Worker] variant Default parsing: 120.34ms
-[Worker] variant Default formatting: 45.67ms
 worker processing (with overhead): 680.25ms
+highlighting initialization: 15.23ms
+type formatting: 45.67ms
 precompute replacement: 2.15ms
 types.md generation: 15.42ms
 ```
@@ -641,13 +774,14 @@ module.exports = {
 
 - Program creation time
 - Each variant's parsing time
-- Each variant's formatting time
 - Total processing time per variant
 
 **Main Thread**:
 
 - Worker communication overhead
 - Performance log reconstruction
+- Inline highlighting initialization
+- Type formatting (HAST/markdown generation)
 - Source code replacement
 - Markdown generation
 - Total end-to-end time
@@ -691,22 +825,33 @@ For each component variant, the worker:
 - Analyzes the TypeScript AST
 - Extracts props, methods, and type signatures
 - Resolves complex type relationships
-- Formats the data into serializable objects
+- Returns raw exports as serializable data
 - Tracks all dependencies
 
 ### 6. Return Results (Worker Thread → Main Thread)
 
 Worker sends back serializable data:
 
-- Extracted type metadata for all variants
+- Raw TypeScript exports (`ExportNode[]`)
+- Export metadata (allTypes, namespaces, importedFrom)
 - List of all file dependencies
 - Performance timing logs
 
-### 7. Process Results (Main Thread)
+### 7. Format Types (Main Thread)
+
+The main thread formats the raw exports:
+
+- Initializes inline syntax highlighting
+- Calls `formatComponentData()` for components
+- Calls `formatHookData()` for hooks
+- Generates HAST nodes and markdown
+- Parallelizes formatting using `Promise.all()`
+
+### 8. Process Results (Main Thread)
 
 The main thread:
 
-- Receives type metadata from worker
+- Receives and formats type metadata
 - Reconstructs performance timeline
 - Replaces factory function call with precomputed data
 - Generates markdown documentation
@@ -732,24 +877,41 @@ function processTypesInWorker(request) {
   const program = createOptimizedProgram(/* ... */);
   const checker = program.getTypeChecker();
 
-  // Extract types for each variant
-  const types = exports.map(exportNode => {
-    if (isPublicComponent(exportNode)) {
-      return formatComponentData(exportNode, allTypes, namespaces);
-    }
-    // ...
-  });
+  // Extract raw exports for each variant
+  const exports = parseExports(program, entrypoint);
 
   return {
     success: true,
-    variantData: { Default: { types } },
+    variantData: {
+      Default: {
+        exports,           // Raw ExportNode[]
+        allTypes,          // All type exports
+        namespaces,        // Export namespaces
+        importedFrom,      // Import source
+      },
+    },
     allDependencies: [...],
     performanceLogs: [...],
   };
 }
 
-// Main Thread: Use results
-const modifiedSource = replacePrecomputeValue(source, result.variantData, typesMetaCall);
+// Main Thread: Format raw exports
+await ensureStarryNightInitialized();
+
+const formattedTypes = await Promise.all(
+  rawExports.map(async (exportNode) => {
+    if (isPublicComponent(exportNode)) {
+      return formatComponentData(exportNode, allTypes, namespaces);
+    }
+    if (isPublicHook(exportNode)) {
+      return formatHookData(exportNode, namespaces);
+    }
+    return exportNode;
+  }),
+);
+
+const variantData = { Default: { types: formattedTypes } };
+const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);
 ```
 
 ### Result Structure

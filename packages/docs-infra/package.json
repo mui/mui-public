@@ -81,6 +81,7 @@
     "path-module": "^0.1.2",
     "prettier": "^3.6.2",
     "proper-lockfile": "^4.1.2",
+    "rehype-remark": "^10.0.1",
     "remark-gfm": "^4.0.1",
     "remark-stringify": "^11.0.0",
     "typescript-api-extractor": "1.0.0-alpha.8",

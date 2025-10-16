@@ -2,7 +2,10 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
+import rehypeRemark from 'rehype-remark';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
+import type { HastRoot } from '../../CodeHighlighter/types';
+import transformHtmlCodeToMarkdown from './transformHtmlCodeToMarkdown';
 import * as md from './createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
 import { prettyFormatType } from './format';
@@ -20,6 +23,19 @@ function parseMarkdown(markdown: string): RootContent[] {
 }
 
 /**
+ * Convert HAST (HTML AST) back to MDAST (Markdown AST)
+ * @param hast - HAST root node
+ * @returns Array of MDAST root content nodes
+ */
+async function hastToMdast(hast: HastRoot): Promise<RootContent[]> {
+  const processor = unified()
+    .use(transformHtmlCodeToMarkdown) // Expand precomputed code blocks before conversion
+    .use(rehypeRemark);
+  const result = (await processor.run(hast)) as Root;
+  return result.children as RootContent[];
+}
+
+/**
  * Parse a markdown string and extract only the inline content (for table cells)
  * @param markdown - Markdown string to parse
  * @returns Array of phrasing content nodes
@@ -32,6 +48,62 @@ function parseInlineMarkdown(markdown: string): PhrasingContent[] {
   }
   // Otherwise, convert to text
   return [md.text(markdown)];
+}
+
+/**
+ * Convert HAST to inline markdown content (for table cells)
+ * @param hast - HAST root node
+ * @returns Array of phrasing content nodes
+ */
+async function hastToInlineMdast(hast: HastRoot): Promise<PhrasingContent[]> {
+  const nodes = await hastToMdast(hast);
+
+  return nodes.flatMap((node) => {
+    // Handle paragraphs - extract their inline children
+    if (node.type === 'paragraph') {
+      return (node as any).children || [];
+    }
+
+    // Handle code blocks - convert to inline code
+    if (node.type === 'code') {
+      return [md.inlineCode((node as any).value || '')];
+    }
+
+    // Handle lists - convert to comma-separated inline content
+    if (node.type === 'list') {
+      const items = (node as any).children || [];
+      const listContent: PhrasingContent[] = [];
+
+      items.forEach((item: any, index: number) => {
+        if (item.type === 'listItem') {
+          const itemChildren = item.children || [];
+          // Recursively flatten list item content
+          itemChildren.forEach((child: any) => {
+            if (child.type === 'paragraph') {
+              listContent.push(...(child.children || []));
+            }
+          });
+
+          // Add comma separator between items (but not after last item)
+          if (index < items.length - 1) {
+            listContent.push(md.text(', '));
+          }
+        }
+      });
+
+      return listContent;
+    }
+
+    // For other block-level content (headings, etc.), try to extract text
+    if ('children' in node && Array.isArray((node as any).children)) {
+      return (node as any).children.filter(
+        (child: any) => child.type === 'text' || child.type === 'inlineCode',
+      );
+    }
+
+    // Fallback: return empty array for unhandled node types
+    return [];
+  });
 }
 
 export async function generateTypesMarkdown(name: string, types: TypesMeta[]): Promise<string> {
@@ -52,8 +124,8 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
 
         // Add description if available
         if (data.description) {
-          // Parse the description as markdown and add all content directly
-          const descriptionNodes = parseMarkdown(data.description);
+          // Convert HAST to MDAST and add all content directly
+          const descriptionNodes = await hastToMdast(data.description);
           descriptionNodes.forEach((node) => tables.push(node));
         }
 
@@ -62,12 +134,14 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
           // Create a proper heading with strong node
           tables.push(md.paragraph([md.strong(`${part} Props:`)]));
 
-          const propsRows = Object.entries(data.props).map(([propName, propDef]: [string, any]) => [
-            propName,
-            propDef.type ? md.inlineCode(propDef.type) : '-',
-            propDef.default ? md.inlineCode(propDef.default) : '-',
-            parseInlineMarkdown(propDef.description || '-'),
-          ]);
+          const propsRows = await Promise.all(
+            Object.entries(data.props).map(async ([propName, propDef]) => [
+              propName,
+              propDef.type ? await hastToInlineMdast(propDef.type) : '-',
+              propDef.default ? md.inlineCode(String(propDef.default)) : '-',
+              propDef.description ? await hastToInlineMdast(propDef.description) : '-',
+            ]),
+          );
 
           // Define column alignments: prop name left-aligned, others left-aligned
           const alignments = ['left', 'left', 'left', 'left'];
@@ -84,12 +158,12 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         if (Object.keys(data.dataAttributes || {}).length > 0) {
           tables.push(md.paragraph([md.strong(`${part} Data Attributes:`)]));
 
-          const attrRows = Object.entries(data.dataAttributes).map(
-            ([attrName, attrDef]: [string, any]) => [
+          const attrRows = await Promise.all(
+            Object.entries(data.dataAttributes).map(async ([attrName, attrDef]) => [
               attrName,
               attrDef.type ? md.inlineCode(attrDef.type) : '-',
-              parseInlineMarkdown(attrDef.description || '-'),
-            ],
+              attrDef.description ? await hastToInlineMdast(attrDef.description) : '-',
+            ]),
           );
 
           // Define column alignments
@@ -107,12 +181,12 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         if (Object.keys(data.cssVariables || {}).length > 0) {
           tables.push(md.paragraph([md.strong(`${part} CSS Variables:`)]));
 
-          const cssRows = Object.entries(data.cssVariables).map(
-            ([variableName, variableDef]: [string, any]) => [
+          const cssRows = await Promise.all(
+            Object.entries(data.cssVariables).map(async ([variableName, variableDef]) => [
               md.inlineCode(variableName),
               md.inlineCode(variableDef.type || ''),
-              parseInlineMarkdown(variableDef.description || '-'),
-            ],
+              variableDef.description ? await hastToInlineMdast(variableDef.description) : '-',
+            ]),
           );
 
           // Define column alignments
@@ -134,8 +208,8 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
 
         // Add description if available
         if (data.description) {
-          // Parse the description as markdown and add all content directly
-          const descriptionNodes = parseMarkdown(data.description);
+          // Convert HAST to MDAST and add all content directly
+          const descriptionNodes = await hastToMdast(data.description);
           descriptionNodes.forEach((node) => tables.push(node));
         }
 
@@ -143,14 +217,12 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         if (Object.keys(data.parameters || {}).length > 0) {
           tables.push(md.paragraph([md.strong(`${part} Parameters:`)]));
 
-          const paramRows = Object.entries(data.parameters).map(
-            ([paramName, paramDef]: [string, any]) => [
-              paramName,
-              paramDef.type ? md.inlineCode(paramDef.type) : '-',
-              paramDef.default ? md.inlineCode(paramDef.default) : '-',
-              parseInlineMarkdown(paramDef.description || '-'),
-            ],
-          );
+          const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => [
+            paramName,
+            paramDef.type ? md.inlineCode(paramDef.type) : '-',
+            paramDef.default ? md.inlineCode(paramDef.default) : '-',
+            parseInlineMarkdown(paramDef.description || '-'),
+          ]);
 
           const alignments = ['left', 'left', 'left', 'left'];
 

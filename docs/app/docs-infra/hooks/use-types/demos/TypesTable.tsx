@@ -1,15 +1,38 @@
 import * as React from 'react';
 import type { AnyType } from 'typescript-api-extractor';
 import { useTypes } from '@mui/internal-docs-infra/useTypes';
+import type {
+  ProcessedComponentTypeMeta,
+  ProcessedHookTypeMeta,
+  ProcessedTypesMeta,
+} from '@mui/internal-docs-infra/useTypes';
 import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
-import {
-  TypesMeta,
-  ComponentTypeMeta,
-  HookTypeMeta,
-} from '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta';
 import styles from './TypesTable.module.css';
 
 export type TypesTableProps = TypesContentProps<{}>;
+
+export function TypesTable(props: TypesTableProps) {
+  // Process HAST nodes to JSX
+  const { types } = useTypes(props);
+
+  if (!types || types.length === 0) {
+    return <div>No types to display</div>;
+  }
+
+  return (
+    <div className={styles.typesTable}>
+      {types.map((typeMeta: ProcessedTypesMeta) => {
+        if (typeMeta.type === 'component') {
+          return <ComponentDoc key={typeMeta.name} type={typeMeta.data} />;
+        }
+        if (typeMeta.type === 'hook') {
+          return <HookDoc key={typeMeta.name} type={typeMeta.data} />;
+        }
+        return null;
+      })}
+    </div>
+  );
+}
 
 export function TypeDoc(props: {
   type: AnyType;
@@ -302,7 +325,7 @@ export function TypeDoc(props: {
   );
 }
 
-function ComponentDoc(props: { type: ComponentTypeMeta }) {
+function ComponentDoc(props: { type: ProcessedComponentTypeMeta }) {
   const { type } = props;
 
   return (
@@ -324,9 +347,7 @@ function ComponentDoc(props: { type: ComponentTypeMeta }) {
               return (
                 <tr key={key}>
                   <td>{key}</td>
-                  <td>
-                    <code>{prop.type}</code>
-                  </td>
+                  <td>{prop.type}</td>
                   <td>{prop.description}</td>
                 </tr>
               );
@@ -351,7 +372,9 @@ function ComponentDoc(props: { type: ComponentTypeMeta }) {
                   <td>{key}</td>
                   <td>{dataAttr.description}</td>
                   <td>
-                    <code>{dataAttr.default}</code>
+                    {dataAttr.default !== undefined && (
+                      <code>{JSON.stringify(dataAttr.default)}</code>
+                    )}
                   </td>
                 </tr>
               );
@@ -376,7 +399,7 @@ function ComponentDoc(props: { type: ComponentTypeMeta }) {
                   <td>{key}</td>
                   <td>{cssVar.description}</td>
                   <td>
-                    <code>{cssVar.default}</code>
+                    {cssVar.default !== undefined && <code>{JSON.stringify(cssVar.default)}</code>}
                   </td>
                 </tr>
               );
@@ -388,7 +411,7 @@ function ComponentDoc(props: { type: ComponentTypeMeta }) {
   );
 }
 
-function HookDoc(props: { type: HookTypeMeta }) {
+function HookDoc(props: { type: ProcessedHookTypeMeta }) {
   const { type } = props;
 
   const { name, description, parameters, returnValue } = type;
@@ -412,9 +435,7 @@ function HookDoc(props: { type: HookTypeMeta }) {
               return (
                 <tr key={param.name || i}>
                   <td>{param.name || i}</td>
-                  <td>
-                    <code>{param.type}</code>
-                  </td>
+                  <td>{param.type}</td>
                   <td>{param.description}</td>
                 </tr>
               );
@@ -423,62 +444,47 @@ function HookDoc(props: { type: HookTypeMeta }) {
         </table>
       )}
       <div className={styles.returnType}>Return Type</div>
-      {typeof returnValue === 'string' ? (
-        <code>{returnValue}</code>
-      ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Type</th>
-              <th>Required</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(returnValue).map((key) => {
-              const returnValueValue = returnValue[key];
-              return (
-                <tr key={key}>
-                  <td>{key}</td>
-                  <td>
-                    <code>{returnValueValue.type}</code>
-                  </td>
-                  <td>{returnValueValue.required ? 'Yes' : 'No'}</td>
+      {(() => {
+        if (typeof returnValue === 'string') {
+          return <code>{returnValue}</code>;
+        }
+        if (returnValue && 'type' in returnValue) {
+          // Single return value with type and description
+          return (
+            <div>
+              {returnValue.type}
+              {returnValue.description && <div>{returnValue.description}</div>}
+            </div>
+          );
+        }
+        if (returnValue) {
+          // Object of return properties
+          return (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Type</th>
+                  <th>Required</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
-export function TypesTable(props: TypesTableProps) {
-  const { types } = useTypes(props);
-
-  const renderType = React.useCallback((type: TypesMeta) => {
-    switch (type.type) {
-      case 'component':
-        return <ComponentDoc type={type.data} />;
-      case 'hook':
-        return <HookDoc type={type.data} />;
-      default:
-        return (
-          <React.Fragment>
-            <div className={styles.name}>{type.data.name}</div>
-            {type.data.documentation && type.data.documentation.description && (
-              <div className={styles.documentation}>{type.data.documentation.description}</div>
-            )}
-            <TypeDoc type={type.data.type} showName={false} />
-          </React.Fragment>
-        );
-    }
-  }, []);
-
-  return (
-    <div className={styles.root}>
-      {types && types?.map((type, i) => <div key={i}>{renderType(type)}</div>)}
+              </thead>
+              <tbody>
+                {Object.keys(returnValue).map((key) => {
+                  const returnValueValue = returnValue[key];
+                  return (
+                    <tr key={key}>
+                      <td>{key}</td>
+                      <td>{returnValueValue.type}</td>
+                      <td>{returnValueValue.required ? 'Yes' : 'No'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 }

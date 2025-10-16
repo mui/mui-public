@@ -1,23 +1,49 @@
 import * as tae from 'typescript-api-extractor';
-import { formatProperties, formatEnum } from './format';
+import {
+  formatProperties,
+  formatEnum,
+  isComponentType,
+  parseMarkdownToHast,
+  type FormattedProperty,
+  type FormattedEnumMember,
+} from './format';
+import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from './order';
 
+/**
+ * Complete component type metadata for documentation.
+ */
 export type ComponentTypeMeta = {
   name: string;
-  description?: string;
-  props: Record<string, any>;
-  dataAttributes: Record<string, any>;
-  cssVariables: Record<string, any>;
+  description?: HastRoot;
+  props: Record<string, FormattedProperty>;
+  dataAttributes: Record<string, FormattedEnumMember>;
+  cssVariables: Record<string, FormattedEnumMember>;
 };
 
+/**
+ * Options for customizing component data formatting.
+ */
 export interface FormatComponentOptions {
+  /** Suffix for data attributes enum name (default: 'DataAttributes') */
   dataAttributesSuffix?: string;
+  /** Suffix for CSS variables enum name (default: 'CssVars') */
   cssVariablesSuffix?: string;
+  /** Regex pattern to remove from component description */
   descriptionRemoveRegex?: RegExp;
 }
 
+/**
+ * Formats a TypeScript component export into structured documentation metadata.
+ *
+ * This function extracts and formats all relevant component information including
+ * props, data attributes, and CSS variables. It also applies post-processing to
+ * normalize type names across re-exports and hide internal implementation details.
+ *
+ * The component must be validated with `isPublicComponent()` before calling this function.
+ */
 export async function formatComponentData(
-  component: tae.ExportNode,
+  component: tae.ExportNode & { type: tae.ComponentNode },
   allExports: tae.ExportNode[],
   exportNames: string[],
   options: FormatComponentOptions = {},
@@ -28,7 +54,8 @@ export async function formatComponentData(
     descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
   } = options;
 
-  const description = component.documentation?.description?.replace(descriptionRemoveRegex, '');
+  const descriptionText = component.documentation?.description?.replace(descriptionRemoveRegex, '');
+  const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Find data attributes and CSS variables in a single loop
   let dataAttributes: tae.ExportNode | undefined;
@@ -58,19 +85,16 @@ export async function formatComponentData(
     name: component.name,
     description,
     props: sortObjectByKeys(
-      await formatProperties((component.type as tae.ComponentNode).props, exportNames, allExports),
+      await formatProperties(component.type.props, exportNames, allExports),
       memberOrder.props,
     ),
     dataAttributes:
       dataAttributes && dataAttributes.type.kind === 'enum'
-        ? sortObjectByKeys(
-            formatEnum(dataAttributes.type as tae.EnumNode),
-            memberOrder.dataAttributes,
-          )
+        ? sortObjectByKeys(await formatEnum(dataAttributes.type), memberOrder.dataAttributes)
         : {},
     cssVariables:
       cssVariables && cssVariables.type.kind === 'enum'
-        ? sortObjectByKeys(formatEnum(cssVariables.type as tae.EnumNode), memberOrder.cssVariables)
+        ? sortObjectByKeys(await formatEnum(cssVariables.type), memberOrder.cssVariables)
         : {},
   };
 
@@ -79,12 +103,23 @@ export async function formatComponentData(
   return rewriteTypeStringsDeep(raw, componentGroup);
 }
 
-export function isPublicComponent(exportNode: tae.ExportNode) {
-  return (
-    exportNode.type instanceof tae.ComponentNode &&
-    !exportNode.documentation?.hasTag('ignore') &&
-    exportNode.isPublic()
-  );
+/**
+ * Type guard to check if an export is a public component that should be documented.
+ *
+ * A component is considered public if it's a ComponentNode, doesn't have an @ignore tag,
+ * and is marked as public (not @internal). Use this to filter components before passing
+ * them to `formatComponentData()`.
+ */
+export function isPublicComponent(
+  exportNode: tae.ExportNode,
+): exportNode is tae.ExportNode & { type: tae.ComponentNode } {
+  const isPublic =
+    exportNode.documentation?.visibility !== 'private' &&
+    exportNode.documentation?.visibility !== 'internal';
+
+  const hasIgnoreTag = exportNode.documentation?.tags.some((tag) => tag.name === 'ignore');
+
+  return isComponentType(exportNode.type) && !hasIgnoreTag && isPublic;
 }
 
 function sortObjectByKeys<T>(obj: Record<string, T>, order: string[]): Record<string, T> {
@@ -137,25 +172,35 @@ function rewriteTypeValue(value: string, componentGroup: string): string {
   return next;
 }
 
-function rewriteTypeStringsDeep(node: any, componentGroup: string): any {
+/**
+ * Recursively rewrites type strings in a data structure.
+ *
+ * This function traverses objects, arrays, and primitive values, applying type name
+ * transformations to all string values. Used to normalize type references after
+ * component data formatting.
+ *
+ * The function preserves the structure of the input, only transforming string values,
+ * so the output type matches the input type.
+ */
+function rewriteTypeStringsDeep<T>(node: T, componentGroup: string): T {
   if (node == null) {
     return node;
   }
 
   if (typeof node === 'string') {
-    return rewriteTypeValue(node, componentGroup);
+    return rewriteTypeValue(node, componentGroup) as T;
   }
 
   if (Array.isArray(node)) {
-    return node.map((item) => rewriteTypeStringsDeep(item, componentGroup));
+    return node.map((item) => rewriteTypeStringsDeep(item, componentGroup)) as T;
   }
 
   if (typeof node === 'object') {
-    const result: Record<string, any> = {};
+    const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node)) {
       result[key] = rewriteTypeStringsDeep(value, componentGroup);
     }
-    return result;
+    return result as T;
   }
 
   return node;
