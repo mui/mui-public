@@ -17,6 +17,7 @@ import { persistentAuthStrategy } from './github.mjs';
  * @property {string} message
  * @property {string[]} labels
  * @property {number} prNumber
+ * @property {string} html_url
  * @property {{login: string; association: AuthorAssociation} | null} author
  */
 
@@ -122,6 +123,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       message: commit.commit.message,
       labels,
       prNumber,
+      html_url: pr.data.html_url,
       author: pr.data.user?.login
         ? {
             login: pr.data.user.login,
