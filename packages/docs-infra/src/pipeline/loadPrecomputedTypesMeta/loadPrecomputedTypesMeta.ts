@@ -12,6 +12,7 @@ import {
   createPerformanceLogger,
   logPerformance,
   nameMark,
+  performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
@@ -89,18 +90,18 @@ export async function loadPrecomputedTypesMeta(
     new URL('.', `file://${this.resourcePath}`).pathname,
   ).name;
 
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+
   let observer: PerformanceObserver | undefined = undefined;
   if (options.performance?.logging) {
     observer = new PerformanceObserver(
-      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures),
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
     );
     observer.observe({ entryTypes: ['measure'] });
   }
 
-  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
-  const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
-  performance.mark(startMark);
-  let currentMark = startMark;
+  let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
+  performance.mark(currentMark);
 
   try {
     // Parse the source to find a single createTypesMeta call
@@ -108,14 +109,11 @@ export async function loadPrecomputedTypesMeta(
       allowExternalVariants: true,
     });
 
-    const parsedFactoryMark = nameMark(functionName, 'Parsed Factory', [relativePath]);
-    performance.mark(parsedFactoryMark);
-    performance.measure(
-      nameMark(functionName, 'Factory Parsing', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      parsedFactoryMark,
+      { mark: 'Parsed Factory', measure: 'Factory Parsing' },
+      [functionName, relativePath],
     );
-    currentMark = parsedFactoryMark;
 
     // If no createTypesMeta call found, return the source unchanged
     if (!typesMetaCall) {
@@ -176,14 +174,11 @@ export async function loadPrecomputedTypesMeta(
       });
     }
 
-    const tsconfigLoadedMark = nameMark(functionName, 'tsconfig.json loaded', [relativePath]);
-    performance.mark(tsconfigLoadedMark);
-    performance.measure(
-      nameMark(functionName, 'tsconfig.json loading', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      tsconfigLoadedMark,
+      { mark: 'tsconfig.json loaded', measure: 'tsconfig.json loading' },
+      [functionName, relativePath],
     );
-    currentMark = tsconfigLoadedMark;
 
     // Resolve all variant entry point paths using import.meta.resolve
     let globalTypes = typesMetaCall?.structuredOptions?.globalTypes?.[0].map((s: any) =>
@@ -285,14 +280,11 @@ export async function loadPrecomputedTypesMeta(
         }
       });
 
-      const pathsResolvedMark = nameMark(functionName, 'Paths Resolved', [relativePath]);
-      performance.mark(pathsResolvedMark);
-      performance.measure(
-        nameMark(functionName, 'Path Resolution', [relativePath]),
+      currentMark = performanceMeasure(
         currentMark,
-        pathsResolvedMark,
+        { mark: 'Paths Resolved', measure: 'Path Resolution' },
+        [functionName, relativePath],
       );
-      currentMark = pathsResolvedMark;
     }
 
     // Collect all entrypoints for optimized program creation
@@ -306,14 +298,11 @@ export async function loadPrecomputedTypesMeta(
       }),
     ).then((pairs) => pairs.flat());
 
-    const metaFilesResolvedMark = nameMark(functionName, 'Meta Files Resolved', [relativePath]);
-    performance.mark(metaFilesResolvedMark);
-    performance.measure(
-      nameMark(functionName, 'Meta Files Resolution', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      metaFilesResolvedMark,
+      { mark: 'Meta Files Resolved', measure: 'Meta Files Resolution' },
+      [functionName, relativePath],
     );
-    currentMark = metaFilesResolvedMark;
 
     // Process types in worker thread
     // This offloads TypeScript operations to a worker while keeping the singleton cache
@@ -337,18 +326,18 @@ export async function loadPrecomputedTypesMeta(
     }
 
     // Reconstruct worker performance logs in main thread
+    // Note: Worker logs already include relativePath in their names,
+    // so they'll be automatically filtered by the PerformanceObserver
     if (workerResult.performanceLogs) {
       reconstructPerformanceLogs(workerResult.performanceLogs, workerStartTime);
     }
 
-    const workerProcessedMark = nameMark(functionName, 'worker processed', [relativePath], true);
-    performance.mark(workerProcessedMark);
-    performance.measure(
-      nameMark(functionName, 'worker processing', [relativePath], true),
+    currentMark = performanceMeasure(
       currentMark,
-      workerProcessedMark,
+      { prefix: 'worker', mark: 'processed', measure: 'processing' },
+      [functionName, relativePath],
+      true,
     );
-    currentMark = workerProcessedMark;
 
     const rawVariantData = workerResult.variantData || {};
     const allDependencies = workerResult.allDependencies || [];
@@ -356,16 +345,11 @@ export async function loadPrecomputedTypesMeta(
     // Initialize inline highlighting for type formatting
     await ensureStarryNightInitialized();
 
-    const highlightingInitializedMark = nameMark(functionName, 'highlighting initialized', [
-      relativePath,
-    ]);
-    performance.mark(highlightingInitializedMark);
-    performance.measure(
-      nameMark(functionName, 'highlighting initialization', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      highlightingInitializedMark,
+      { mark: 'highlighting initialized', measure: 'highlighting initialization' },
+      [functionName, relativePath],
     );
-    currentMark = highlightingInitializedMark;
 
     // Format the raw exports from the worker into TypesMeta
     const variantData: Record<string, { types: TypesMeta[] }> = {};
@@ -408,14 +392,11 @@ export async function loadPrecomputedTypesMeta(
       }),
     );
 
-    const formattingCompleteMark = nameMark(functionName, 'formatting complete', [relativePath]);
-    performance.mark(formattingCompleteMark);
-    performance.measure(
-      nameMark(functionName, 'type formatting', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      formattingCompleteMark,
+      { mark: 'formatting complete', measure: 'type formatting' },
+      [functionName, relativePath],
     );
-    currentMark = formattingCompleteMark;
 
     // Collect all types for markdown generation
     const allTypes = Object.values(variantData).flatMap((v) => v.types);
@@ -462,31 +443,24 @@ export async function loadPrecomputedTypesMeta(
       })(),
     ]);
 
-    const parallelCompleteMark = nameMark(
-      functionName,
-      'highlighted and markdown generated',
-      [relativePath],
+    currentMark = performanceMeasure(
+      currentMark,
+      {
+        mark: 'highlighted and markdown generated',
+        measure: 'highlighting and markdown generation',
+      },
+      [functionName, relativePath],
       true,
     );
-    performance.mark(parallelCompleteMark);
-    performance.measure(
-      nameMark(functionName, 'highlighting and markdown generation', [relativePath], true),
-      currentMark,
-      parallelCompleteMark,
-    );
-    currentMark = parallelCompleteMark;
 
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, highlightedVariantData, typesMetaCall);
 
-    const replacedPrecomputeMark = nameMark(functionName, 'replaced precompute', [relativePath]);
-    performance.mark(replacedPrecomputeMark);
-    performance.measure(
-      nameMark(functionName, 'precompute replacement', [relativePath]),
+    performanceMeasure(
       currentMark,
-      replacedPrecomputeMark,
+      { mark: 'replaced precompute', measure: 'precompute replacement' },
+      [functionName, relativePath],
     );
-    currentMark = replacedPrecomputeMark;
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
@@ -510,7 +484,7 @@ export async function loadPrecomputedTypesMeta(
     observer
       ?.takeRecords()
       ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
     callback(null, modifiedSource);
@@ -519,7 +493,7 @@ export async function loadPrecomputedTypesMeta(
     observer
       ?.takeRecords()
       ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
     callback(error instanceof Error ? error : new Error(String(error)));
