@@ -607,6 +607,154 @@ describe('useCode integration tests', () => {
   });
 
   describe('hash synchronization', () => {
+    it('should update selected file when hash is updated via hashchange event', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+              'config.js': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#test-slug:demo.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('demo.js');
+      });
+
+      // Update hash to point to utils.js
+      act(() => {
+        window.location.hash = '#test-slug:utils.js';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('utils.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Update hash again to point to config.js
+      act(() => {
+        window.location.hash = '#test-slug:config.js';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('config.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Verify final state
+      expect(result.current.selectedFileName).toBe('config.js');
+      expect(window.location.hash).toBe('#test-slug:config.js');
+    });
+
+    it('should reset to main file when hash is completely removed', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+              'config.js': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash pointing to utils.js
+      window.location.hash = '#test-slug:utils.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('utils.js');
+      });
+
+      // Remove hash completely (user clears URL or navigates back)
+      act(() => {
+        window.location.hash = '';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          // Should reset to main file when hash is removed
+          expect(result.current.selectedFileName).toBe('demo.js');
+        },
+        { timeout: 1000 },
+      );
+
+      expect(result.current.selectedFileName).toBe('demo.js');
+      expect(window.location.hash).toBe('');
+    });
+
+    it('should reset to main file when hash is removed after being on extra file in different variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'console.log("main");',
+            extraFiles: {
+              'helper.js': 'export const help = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'console.log("main");',
+            extraFiles: {
+              'helper.ts': 'export const help = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash pointing to TypeScript variant's helper file
+      window.location.hash = '#demo:type-script:helper.ts';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('helper.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Remove hash completely
+      act(() => {
+        window.location.hash = '';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          // Should reset to main file when hash is removed
+          // Variant stays the same (TypeScript due to localStorage preference)
+          expect(result.current.selectedFileName).toBe('index.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      expect(result.current.selectedFileName).toBe('index.ts');
+    });
+
     it('should update hash when user manually selects file', async () => {
       const contentProps: ContentProps<{}> = {
         code: {
@@ -643,6 +791,57 @@ describe('useCode integration tests', () => {
       expect((window.history.replaceState as any).mock.calls.length).toBeGreaterThan(
         initialHistoryCallCount,
       );
+    });
+
+    it('should update hash when user manually changes variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-demo',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with a hash pointing to the main file of the default variant
+      // This simulates a user who navigated to this page with a specific file
+      window.location.hash = '#test-demo:demo.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('JavaScript');
+        expect(result.current.selectedFileName).toBe('demo.js');
+      });
+
+      // User manually selects a different variant
+      act(() => {
+        result.current.selectVariant('TypeScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('demo.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be updated to reflect the new variant
+      // Since we started with a hash, variant changes should update it
+      const historyCalls = (window.history.replaceState as any).mock.calls;
+      const hashUpdates = historyCalls
+        .map((call: any[]) => call[2])
+        .filter((url: string) => url && url.includes('#'));
+
+      // Should have updated the hash to include the new variant
+      expect(hashUpdates.length).toBeGreaterThan(0);
+      expect(hashUpdates.some((url: string) => url.includes('type-script'))).toBe(true);
     });
 
     it('should handle malformed hash gracefully', async () => {
@@ -738,6 +937,148 @@ describe('useCode integration tests', () => {
       // Some updates are expected for variant switch and file selection, but not excessive
       // Allow up to 15 updates (variant switch may trigger multiple effects)
       expect(historyCallCountAfter - historyCallCountBefore).toBeLessThan(15);
+    });
+
+    it('should not create infinite loop when hash is manually edited to trigger variant switch with extra file', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'Hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="css-modules" />',
+            extraFiles: {
+              'index.module.css': '.hero { color: red; }',
+            },
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="tailwind" />',
+            extraFiles: {
+              'index.ts': 'export const styles = {};',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      let hookCallCount = 0;
+      const { result } = renderHook(() => {
+        hookCallCount += 1;
+        return useCode(contentProps);
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      act(() => {
+        window.location.hash = '#hero:index.module.css';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('CssModules');
+          expect(result.current.selectedFileName).toBe('index.module.css');
+        },
+        { timeout: 1000 },
+      );
+
+      expect(window.location.hash).toBe('#hero:index.module.css');
+
+      const historyCalls = (window.history.replaceState as any).mock.calls.map(
+        (call: any[]) => call[2],
+      );
+      expect(historyCalls.some((url: string) => url.endsWith('#hero:index.tsx'))).toBe(false);
+
+      expect(hookCallCount).toBeLessThan(50);
+    });
+
+    it('should update hash when variant changes after rapid hash-driven navigation', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="css-modules" />',
+            extraFiles: {
+              'index.module.css': '.hero { color: red; }',
+              'theme.css': ':root { --color: blue; }',
+            },
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: '<Hero variant="tailwind" />',
+          },
+        },
+      };
+
+      // Start with Tailwind variant
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      // Simulate rapid hash changes (user clicking through files or browser history)
+      act(() => {
+        window.location.hash = '#hero:tailwind:index.tsx';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('index.tsx');
+      });
+
+      act(() => {
+        window.location.hash = '#hero:theme.css';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('CssModules');
+          expect(result.current.selectedFileName).toBe('theme.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Clear history calls to track only the variant change
+      (window.history.replaceState as any).mockClear();
+
+      // Now user changes variant - this should update the hash
+      // Bug: hashNavigationInProgressRef stays true and blocks this update
+      act(() => {
+        result.current.selectVariant('Tailwind');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+        },
+        { timeout: 1000 },
+      );
+
+      // The hash should be updated to reflect the new variant
+      // If hashNavigationInProgressRef is stuck, this will fail
+      const historyCalls = (window.history.replaceState as any).mock.calls;
+      const hashUpdates = historyCalls
+        .map((call: any[]) => call[2])
+        .filter((url: string) => url && url.includes('#'));
+
+      // Should have updated the hash to include tailwind variant
+      expect(hashUpdates.some((url: string) => url.includes('tailwind'))).toBe(true);
     });
   });
 
