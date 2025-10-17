@@ -2,18 +2,20 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatProperties,
   formatParameters,
-  formatType,
+  formatTypeAsHast,
   isFunctionType,
   isObjectType,
   parseMarkdownToHast,
+  FormattedProperty,
+  FormattedParameter,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
 export type HookTypeMeta = {
   name: string;
   description?: HastRoot;
-  parameters: Record<string, any>;
-  returnValue: Record<string, any> | string;
+  parameters: Record<string, FormattedParameter | FormattedProperty>;
+  returnValue: Record<string, FormattedProperty> | HastRoot;
 };
 
 export interface FormatHookOptions {
@@ -33,30 +35,26 @@ export async function formatHookData(
   // We don't support hooks with multiple signatures yet
   const signature = hook.type.callSignatures[0];
   const parameters = signature.parameters;
-  let formattedParameters: Record<string, any>;
+  let formattedParameters: Record<string, FormattedParameter | FormattedProperty>;
   if (
     parameters.length === 1 &&
     isObjectType(parameters[0].type) &&
     parameters[0].name === 'params'
   ) {
-    formattedParameters = await formatProperties(
-      (parameters[0].type as tae.ObjectNode).properties,
-      exportNames,
-      [],
-    );
+    formattedParameters = await formatProperties(parameters[0].type.properties, exportNames, []);
   } else {
     formattedParameters = await formatParameters(parameters, exportNames);
   }
 
-  let formattedReturnValue: Record<string, any> | string;
+  let formattedReturnValue: Record<string, FormattedProperty> | HastRoot;
   if (isObjectType(signature.returnValueType)) {
     formattedReturnValue = await formatProperties(
-      (signature.returnValueType as tae.ObjectNode).properties,
+      signature.returnValueType.properties,
       exportNames,
       [],
     );
   } else {
-    formattedReturnValue = formatType(
+    formattedReturnValue = await formatTypeAsHast(
       signature.returnValueType,
       false,
       undefined,

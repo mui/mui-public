@@ -143,8 +143,18 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
 
     // Transform returnValue (if it's an object with properties, transform each property)
     (async () => {
-      if (typeof data.returnValue === 'string' || !data.returnValue) {
+      if (!data.returnValue) {
         return data.returnValue;
+      }
+
+      // Check if returnValue is a HastRoot (has type === 'root')
+      if (
+        typeof data.returnValue === 'object' &&
+        'type' in data.returnValue &&
+        (data.returnValue as any).type === 'root'
+      ) {
+        // It's a HastRoot - transform it directly
+        return processor.run(data.returnValue);
       }
 
       // returnValue is an object with FormattedProperty values

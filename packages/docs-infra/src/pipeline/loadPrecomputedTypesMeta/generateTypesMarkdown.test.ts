@@ -268,7 +268,7 @@ describe('generateTypesMarkdown', () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
         parameters: {},
-        returnValue: 'number',
+        returnValue: codeToHast('number'),
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -296,7 +296,7 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         description: textToHast('A hook for managing counter state'),
         parameters: {},
-        returnValue: 'number',
+        returnValue: codeToHast('number'),
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -326,16 +326,16 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         parameters: {
           initialValue: {
-            type: 'number',
+            type: codeToHast('number'),
             default: '0',
-            description: 'The initial counter value',
+            description: textToHast('The initial counter value'),
           },
           step: {
-            type: 'number',
-            description: 'Increment/decrement step',
+            type: codeToHast('number'),
+            description: textToHast('Increment/decrement step'),
           },
         },
-        returnValue: 'number',
+        returnValue: codeToHast('number'),
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -369,7 +369,7 @@ describe('generateTypesMarkdown', () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
         parameters: {},
-        returnValue: 'number',
+        returnValue: codeToHast('number'),
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -561,7 +561,7 @@ describe('generateTypesMarkdown', () => {
       const hook: HookTypeMeta = {
         name: 'useButton',
         parameters: {},
-        returnValue: 'void',
+        returnValue: codeToHast('void'),
       };
 
       const typeExport = {
@@ -934,7 +934,7 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         description: multiParagraphDescription,
         parameters: {},
-        returnValue: 'number',
+        returnValue: codeToHast('number'),
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
@@ -1411,18 +1411,18 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         parameters: {
           initialValue: {
-            type: 'number',
+            type: codeToHast('number'),
             default: '0',
             optional: true,
-            description: 'Initial counter value',
+            description: textToHast('Initial counter value'),
           },
           step: {
-            type: 'number',
+            type: codeToHast('number'),
             optional: true,
-            description: 'Increment step',
+            description: textToHast('Increment step'),
           },
         },
-        returnValue: 'number',
+        returnValue: codeToHast('number'),
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
@@ -1505,10 +1505,10 @@ describe('generateTypesMarkdown', () => {
           count: {
             type: codeToHast('number'),
             description: textToHast('Current count'),
+            required: true,
           },
           reset: {
             type: codeToHast('() => void'),
-            optional: true,
             description: textToHast('Optional reset function'),
           },
         },

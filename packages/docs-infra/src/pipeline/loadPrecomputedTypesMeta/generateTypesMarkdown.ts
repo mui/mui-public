@@ -216,12 +216,36 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         if (Object.keys(data.parameters || {}).length > 0) {
           content.push(md.paragraph([md.strong(`${part} Parameters:`)]));
 
-          const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => [
-            paramName,
-            paramDef.type ? md.inlineCode(paramDef.type) : '-',
-            paramDef.default ? md.inlineCode(paramDef.default) : '-',
-            parseInlineMarkdown(paramDef.description || '-'),
-          ]);
+          const paramRows = await Promise.all(
+            Object.entries(data.parameters).map(async ([paramName, paramDef]) => {
+              // Handle type (can be string or HastRoot)
+              let typeCell: any;
+              if (!paramDef.type) {
+                typeCell = '-';
+              } else if (typeof paramDef.type === 'string') {
+                typeCell = md.inlineCode(paramDef.type);
+              } else {
+                typeCell = await hastToInlineMdast(paramDef.type);
+              }
+
+              // Handle description (can be string or HastRoot)
+              let descriptionCell: any;
+              if (!paramDef.description) {
+                descriptionCell = '-';
+              } else if (typeof paramDef.description === 'string') {
+                descriptionCell = parseInlineMarkdown(paramDef.description);
+              } else {
+                descriptionCell = await hastToInlineMdast(paramDef.description);
+              }
+
+              return [
+                paramName,
+                typeCell,
+                paramDef.default ? md.inlineCode(String(paramDef.default)) : '-',
+                descriptionCell,
+              ];
+            }),
+          );
 
           const alignments = ['left', 'left', 'left', 'left'];
 
@@ -237,12 +261,20 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         if (data.returnValue) {
           content.push(md.paragraph([md.strong(`${part} Return Value:`)]));
 
-          if (typeof data.returnValue === 'string') {
-            content.push(md.paragraph(md.inlineCode(data.returnValue)));
+          // Check if it's a HastRoot (simple type)
+          if (
+            typeof data.returnValue === 'object' &&
+            'type' in data.returnValue &&
+            data.returnValue.type === 'root'
+          ) {
+            // It's a HastRoot - convert to inline markdown
+            const inlineType = await hastToInlineMdast(data.returnValue as HastRoot);
+            content.push(md.paragraph(inlineType));
           } else if (
             typeof data.returnValue === 'object' &&
             Object.keys(data.returnValue).length > 0
           ) {
+            // It's a Record of properties
             const returnRows = await Promise.all(
               Object.entries(data.returnValue).map(
                 async ([returnName, returnDef]: [string, any]) => [

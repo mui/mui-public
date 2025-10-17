@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import type { Element as HastElement } from 'hast';
+import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 import {
   isExternalType,
   isIntrinsicType,
@@ -36,6 +37,10 @@ function isHastElement(node: unknown): node is HastElement {
 }
 
 describe('format', () => {
+  beforeAll(async () => {
+    await ensureStarryNightInitialized();
+  });
+
   describe('type guard helpers', () => {
     it('should identify external types', () => {
       const externalType = { kind: 'external', typeName: { name: 'External' } };
@@ -487,7 +492,24 @@ describe('format', () => {
 
       const result = await formatParameters(params);
 
-      expect(result.value.type).toBe('string');
+      // Parameter type is now HastRoot with syntax highlighting
+      expect(result.value.type).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: { className: ['language-ts'] },
+            children: expect.arrayContaining([
+              expect.objectContaining({
+                type: 'element',
+                tagName: 'span',
+                children: [{ type: 'text', value: 'string' }],
+              }),
+            ]),
+          },
+        ],
+      });
       expect(result.value.default).toBeUndefined();
       expect(result.value.optional).toBeUndefined();
       expect(result.value.description).toMatchObject({
@@ -502,7 +524,24 @@ describe('format', () => {
       });
       expect(result.value.example).toBeUndefined();
 
-      expect(result.options.type).toBe('object');
+      // Parameter type is now HastRoot with syntax highlighting
+      expect(result.options.type).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: { className: ['language-ts'] },
+            children: expect.arrayContaining([
+              expect.objectContaining({
+                type: 'element',
+                tagName: 'span',
+                children: [{ type: 'text', value: 'object' }],
+              }),
+            ]),
+          },
+        ],
+      });
       expect(result.options.default).toBe('{}');
       expect(result.options.optional).toBe(true);
       expect(result.options.description).toMatchObject({
@@ -515,7 +554,17 @@ describe('format', () => {
           },
         ],
       });
-      expect(result.options.example).toBe('{ key: "value" }');
+      // Example is now HastRoot with markdown parsing
+      expect(result.options.example).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'p',
+            children: [{ type: 'text', value: '{ key: "value" }' }],
+          },
+        ],
+      });
     });
 
     it('should handle parameters with multiple example tags', async () => {
@@ -535,7 +584,17 @@ describe('format', () => {
 
       const result = await formatParameters(params);
 
-      expect(result.value.example).toBe('Example 1\nExample 2');
+      // Example is now HastRoot with markdown parsing
+      expect(result.value.example).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'p',
+            children: [{ type: 'text', value: 'Example 1\nExample 2' }],
+          },
+        ],
+      });
     });
   });
 

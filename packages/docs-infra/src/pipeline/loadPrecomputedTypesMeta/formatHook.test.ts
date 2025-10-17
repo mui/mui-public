@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatHookData, isPublicHook } from './formatHook';
+import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 
 /**
  * Creates a mock ExportNode for testing purposes.
@@ -39,6 +40,10 @@ function createMockHookExportNode(partial: {
 }
 
 describe('formatHook', () => {
+  beforeAll(async () => {
+    await ensureStarryNightInitialized();
+  });
+
   describe('isPublicHook', () => {
     it('should reject non-FunctionNode types', () => {
       const mockExport = createMockExportNode({
@@ -171,7 +176,24 @@ describe('formatHook', () => {
       const result = await formatHookData(hook, []);
 
       expect(result.parameters.initial).toBeDefined();
-      expect(result.parameters.initial.type).toBe('number');
+      // Parameter type is now HastRoot with syntax highlighting
+      expect(result.parameters.initial.type).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: { className: ['language-ts'] },
+            children: expect.arrayContaining([
+              expect.objectContaining({
+                type: 'element',
+                tagName: 'span',
+                children: [{ type: 'text', value: 'number' }],
+              }),
+            ]),
+          },
+        ],
+      });
       expect(result.parameters.initial.description).toMatchObject({
         type: 'root',
         children: [
@@ -239,7 +261,16 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, []);
 
-      expect(result.returnValue).toBe('string');
+      // Now returns HastRoot with syntax highlighting instead of plain string
+      expect(result.returnValue).toMatchObject({
+        type: 'root',
+        children: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'element',
+            tagName: 'code',
+          }),
+        ]),
+      });
     });
 
     it('should format return value as object when type guard detects object type', async () => {

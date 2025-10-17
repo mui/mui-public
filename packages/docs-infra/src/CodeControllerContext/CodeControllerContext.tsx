@@ -54,9 +54,10 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
 );
 
 /**
- * Hook for accessing the controlled code context.
- *
- * This hook provides access to the controlled code, selection state, and setter functions
+ * Hook to access controlled code state and setters. This is useful for custom
+ * components that need to interact with the controlled code state. Use useCode
+ * instead when you need access to the code data along with control functions.
+ * Use this hook when you need direct access to the setCode and setSelection functions
  * from the CodeControllerContext. It's worth noting that useCode and useDemo handle
  * controlling selection in typical cases.
  *
@@ -67,7 +68,13 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
  *   - setSelection: Function to update the selection
  *   - components: Override components for the preview
  */
-export function useControlledCode() {
+export function useControlledCode(): {
+  code: ControlledCode | undefined;
+  selection: Selection | undefined;
+  setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>> | undefined;
+  setSelection: React.Dispatch<React.SetStateAction<Selection>> | undefined;
+  components: Record<string, React.ReactNode> | undefined;
+} {
   const context = React.useContext(CodeControllerContext);
 
   return {

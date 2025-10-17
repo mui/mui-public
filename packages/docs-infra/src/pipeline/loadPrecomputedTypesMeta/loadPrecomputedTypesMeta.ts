@@ -127,37 +127,15 @@ export async function loadPrecomputedTypesMeta(
       return;
     }
 
-    // Resolve tsconfig.json relative to the webpack project root (rootContext),
-    // with graceful fallbacks to process.cwd().
-    const tsconfigCandidates = [
-      this.rootContext && path.join(this.rootContext, 'tsconfig.json'),
-      path.join(process.cwd(), 'tsconfig.json'),
-      // TODO: what if we need to load the tsconfig.json from an external project?
-    ].filter(Boolean) as string[];
+    const config = await loadTypescriptConfig(path.join(this.rootContext, 'tsconfig.json'));
 
-    const existsResults = await Promise.all(
-      tsconfigCandidates.map(async (candidate) => {
-        const exists = await fs
-          .access(candidate)
-          .then(() => true)
-          .catch(() => false);
-        return exists ? candidate : null;
-      }),
+    // If paths are configured in tsconfig or watchSourceDirectly is explicitly set, we watch source files
+    const watchSourceDirectly = Boolean(
+      typesMetaCall.structuredOptions?.watchSourceDirectly || config.options.paths,
     );
 
-    const tsconfigPath = existsResults.find(Boolean);
-    if (!tsconfigPath) {
-      throw new Error(
-        `Unable to locate tsconfig.json. Looked in: ${tsconfigCandidates.join(', ')}`,
-      );
-    }
-
-    const watchSourceDirectly = Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly);
-
-    const config = await loadTypescriptConfig(tsconfigPath);
-
     let paths: Record<string, string[]> | undefined;
-    if (watchSourceDirectly && config.options.paths) {
+    if (config.options.paths) {
       const optionsPaths = config.options.paths;
       Object.keys(optionsPaths).forEach((key) => {
         const regex = `^${key.replace('**', '(.+)').replace('*', '([^/]+)')}$`;
@@ -238,7 +216,7 @@ export async function loadPrecomputedTypesMeta(
           // We can use this ponyfill because it behaves strangely when using native import.meta.resolve(path, parentUrl)
           const resolvedPath = resolve(variantPath, `file://${this.resourcePath}`);
 
-          if (!typesMetaCall.structuredOptions?.watchSourceDirectly) {
+          if (!watchSourceDirectly) {
             globalTypes = []; // if we are reading d.ts files directly, we shouldn't need to add any global types
             return [variantName, resolvedPath] as const;
           }

@@ -1,5 +1,3 @@
-import type { Root as HastRoot } from 'hast';
-
 import type { TypesContentProps } from '../abstractCreateTypes';
 import type {
   ComponentTypeMeta,
@@ -8,11 +6,14 @@ import type {
   FormattedEnumMember,
   FormattedParameter,
 } from '../pipeline/loadPrecomputedTypesMeta';
+import type { HastRoot } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
 export type UseTypesOptions = {
   components?: {
-    Pre?: React.ComponentType<{ children: React.ReactNode }>;
+    pre?: React.ComponentType<{
+      'data-precompute'?: string;
+    }>;
   };
 };
 
@@ -33,9 +34,10 @@ export type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'descriptio
   default?: unknown;
 };
 
-export type ProcessedParameter = Omit<FormattedParameter, 'type' | 'description'> & {
+export type ProcessedParameter = Omit<FormattedParameter, 'type' | 'description' | 'example'> & {
   type: React.ReactNode;
   description?: React.ReactNode;
+  example?: React.ReactNode;
 };
 
 export type ProcessedComponentTypeMeta = Omit<
@@ -48,16 +50,20 @@ export type ProcessedComponentTypeMeta = Omit<
   cssVariables: Record<string, ProcessedEnumMember>;
 };
 
+export type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
+
+// Discriminated union for hook return values
+export type ProcessedHookReturnValue =
+  | { kind: 'simple'; type: React.ReactNode; description?: React.ReactNode }
+  | { kind: 'object'; properties: Record<string, ProcessedProperty> };
+
 export type ProcessedHookTypeMeta = Omit<
   HookTypeMeta,
   'description' | 'parameters' | 'returnValue'
 > & {
   description?: React.ReactNode;
-  parameters: Record<string, any>; // Can be array or object depending on hook format
-  returnValue?:
-    | Record<string, any>
-    | string
-    | { type: React.ReactNode; description?: React.ReactNode };
+  parameters: Record<string, ProcessedHookParameter>;
+  returnValue?: ProcessedHookReturnValue;
 };
 
 export type ProcessedTypesMeta =
@@ -73,10 +79,13 @@ export type ProcessedTypesContentProps<T extends {}> = Omit<TypesContentProps<T>
  * Processes types metadata and renders HAST nodes to JSX.
  * This hook is responsible for converting precomputed HAST nodes
  * from the webpack loader into renderable React components.
+ * ```ts
+ * console.log('test')
+ * ```
  */
 export function useTypes<T extends {}>(
   contentProps: TypesContentProps<T>,
-  _options?: UseTypesOptions,
+  options?: UseTypesOptions,
 ): ProcessedTypesContentProps<T> {
   const { types, ...rest } = contentProps;
 
@@ -87,10 +96,10 @@ export function useTypes<T extends {}>(
   // Process types to render HAST nodes
   const processedTypes: ProcessedTypesMeta[] = types.map((typeMeta) => {
     if (typeMeta.type === 'component') {
-      return processComponentType(typeMeta.data);
+      return processComponentType(typeMeta.data, options?.components);
     }
     if (typeMeta.type === 'hook') {
-      return processHookType(typeMeta.data);
+      return processHookType(typeMeta.data, options?.components);
     }
     return typeMeta;
   });
@@ -101,22 +110,25 @@ export function useTypes<T extends {}>(
   };
 }
 
-function processComponentType(component: ComponentTypeMeta): ProcessedTypesMeta {
+function processComponentType(
+  component: ComponentTypeMeta,
+  components?: UseTypesOptions['components'],
+): ProcessedTypesMeta {
   return {
     type: 'component',
     name: component.name,
     data: {
       ...component,
-      description: component.description ? hastToJsx(component.description) : undefined,
+      description: component.description ? hastToJsx(component.description, components) : undefined,
       props: Object.fromEntries(
         Object.entries(component.props).map(([key, prop]) => [
           key,
           {
             ...prop,
-            type: hastToJsx(prop.type),
-            description: prop.description ? hastToJsx(prop.description) : undefined,
-            example: prop.example ? hastToJsx(prop.example) : undefined,
-            detailedType: prop.detailedType ? hastToJsx(prop.detailedType) : undefined,
+            type: hastToJsx(prop.type, components),
+            description: prop.description ? hastToJsx(prop.description, components) : undefined,
+            example: prop.example ? hastToJsx(prop.example, components) : undefined,
+            detailedType: prop.detailedType ? hastToJsx(prop.detailedType, components) : undefined,
           },
         ]),
       ),
@@ -124,13 +136,14 @@ function processComponentType(component: ComponentTypeMeta): ProcessedTypesMeta 
         Object.entries(component.dataAttributes).map(([key, attr]) => {
           let processedType: React.ReactNode | undefined;
           if (attr.type) {
-            processedType = typeof attr.type === 'string' ? attr.type : hastToJsx(attr.type);
+            processedType =
+              typeof attr.type === 'string' ? attr.type : hastToJsx(attr.type, components);
           }
           return [
             key,
             {
               type: processedType,
-              description: attr.description ? hastToJsx(attr.description) : undefined,
+              description: attr.description ? hastToJsx(attr.description, components) : undefined,
             },
           ];
         }),
@@ -139,13 +152,16 @@ function processComponentType(component: ComponentTypeMeta): ProcessedTypesMeta 
         Object.entries(component.cssVariables).map(([key, cssVar]) => {
           let processedType: React.ReactNode | undefined;
           if (cssVar.type) {
-            processedType = typeof cssVar.type === 'string' ? cssVar.type : hastToJsx(cssVar.type);
+            processedType =
+              typeof cssVar.type === 'string' ? cssVar.type : hastToJsx(cssVar.type, components);
           }
           return [
             key,
             {
               type: processedType,
-              description: cssVar.description ? hastToJsx(cssVar.description) : undefined,
+              description: cssVar.description
+                ? hastToJsx(cssVar.description, components)
+                : undefined,
             },
           ];
         }),
@@ -154,57 +170,121 @@ function processComponentType(component: ComponentTypeMeta): ProcessedTypesMeta 
   };
 }
 
-function processHookType(hook: HookTypeMeta): ProcessedTypesMeta {
-  const returnValue =
-    typeof hook.returnValue === 'string'
-      ? { type: hook.returnValue, description: undefined }
-      : hook.returnValue;
-
+function processHookType(
+  hook: HookTypeMeta,
+  components?: UseTypesOptions['components'],
+): ProcessedTypesMeta {
   // Parameters can be either FormattedParameter[] or Record<string, FormattedProperty>
-  let processedParameters: Record<string, any>;
+  let processedParameters: Record<string, ProcessedHookParameter>;
   if (Array.isArray(hook.parameters)) {
     // Array of parameters - just pass through as strings are already rendered
-    processedParameters = hook.parameters;
+    processedParameters = hook.parameters as unknown as Record<string, ProcessedHookParameter>;
   } else {
-    // Object of parameters (formatted as properties)
-    processedParameters = Object.fromEntries(
-      Object.entries(hook.parameters).map(([key, param]: [string, any]) => [
-        key,
-        {
-          ...param,
-          type: hastToJsx(param.type as HastRoot),
-          description: param.description ? hastToJsx(param.description) : undefined,
-          example: param.example ? hastToJsx(param.example) : undefined,
-          detailedType: param.detailedType ? hastToJsx(param.detailedType) : undefined,
-        },
-      ]),
+    // Object of parameters (formatted as properties or parameters)
+    const entries = Object.entries(hook.parameters).map(
+      ([key, param]: [string, FormattedParameter | FormattedProperty]): [
+        string,
+        ProcessedHookParameter,
+      ] => {
+        // Type can be string (FormattedParameter) or HastRoot (FormattedProperty)
+        const processedType =
+          typeof param.type === 'string' ? param.type : hastToJsx(param.type, components);
+
+        // Description can be string or HastRoot
+        let processedDescription: React.ReactNode | undefined;
+        if (param.description) {
+          processedDescription =
+            typeof param.description === 'string'
+              ? param.description
+              : hastToJsx(param.description, components);
+        }
+
+        // Example can be string (FormattedParameter) or HastRoot (FormattedProperty)
+        let processedExample: React.ReactNode | undefined;
+        if (param.example) {
+          processedExample =
+            typeof param.example === 'string'
+              ? param.example
+              : hastToJsx(param.example, components);
+        }
+
+        // DetailedType only exists on FormattedProperty
+        let processedDetailedType: React.ReactNode | undefined;
+        if ('detailedType' in param && param.detailedType) {
+          processedDetailedType = hastToJsx(param.detailedType, components);
+        }
+
+        return [
+          key,
+          {
+            ...param,
+            type: processedType,
+            description: processedDescription,
+            example: processedExample,
+            detailedType: processedDetailedType,
+          } as ProcessedHookParameter,
+        ];
+      },
     );
+    processedParameters = Object.fromEntries(entries);
   }
 
   // Process return value
-  let processedReturnValue: any;
-  if (typeof returnValue === 'string') {
-    processedReturnValue = returnValue;
-  } else if (returnValue.type) {
-    // Single return value with type
+  let processedReturnValue: ProcessedHookReturnValue | undefined;
+
+  // Check if it's a simple return value (HastRoot) vs object of properties
+  // HastRoot has 'type' property that equals 'root' and 'children' array
+  const isHastRoot =
+    typeof hook.returnValue === 'object' &&
+    hook.returnValue !== null &&
+    'type' in hook.returnValue &&
+    (hook.returnValue as any).type === 'root' &&
+    'children' in hook.returnValue &&
+    Array.isArray((hook.returnValue as any).children);
+
+  if (isHastRoot) {
+    // It's a HastRoot - convert to simple discriminated union
+    const hastRoot = hook.returnValue as HastRoot;
     processedReturnValue = {
-      type: hastToJsx(returnValue.type as HastRoot),
-      description: returnValue.description ? hastToJsx(returnValue.description) : undefined,
+      kind: 'simple',
+      type: hastToJsx(hastRoot, components),
+      description: undefined,
     };
   } else {
-    // Object of return properties
-    processedReturnValue = Object.fromEntries(
-      Object.entries(returnValue).map(([key, prop]: [string, any]) => [
-        key,
-        {
-          ...prop,
-          type: hastToJsx(prop.type as HastRoot),
-          description: prop.description ? hastToJsx(prop.description) : undefined,
-          example: prop.example ? hastToJsx(prop.example) : undefined,
-          detailedType: prop.detailedType ? hastToJsx(prop.detailedType) : undefined,
-        },
-      ]),
+    // Object of return properties (Record<string, FormattedProperty>)
+    const returnValueRecord = hook.returnValue as Record<string, FormattedProperty>;
+    const entries = Object.entries(returnValueRecord).map(
+      ([key, prop]: [string, FormattedProperty]): [string, ProcessedProperty] => {
+        // Type is always HastRoot for return value properties
+        const processedType = prop.type ? hastToJsx(prop.type, components) : undefined;
+
+        // Description, example, and detailedType can be HastRoot or undefined
+        const processedDescription = prop.description
+          ? hastToJsx(prop.description, components)
+          : undefined;
+
+        const processedExample = prop.example ? hastToJsx(prop.example, components) : undefined;
+
+        const processedDetailedType = prop.detailedType
+          ? hastToJsx(prop.detailedType, components)
+          : undefined;
+
+        return [
+          key,
+          {
+            ...prop,
+            type: processedType!,
+            description: processedDescription,
+            example: processedExample,
+            detailedType: processedDetailedType,
+          },
+        ];
+      },
     );
+    processedReturnValue = {
+      kind: 'object',
+      properties: Object.fromEntries(entries),
+    };
   }
 
   return {
@@ -212,7 +292,7 @@ function processHookType(hook: HookTypeMeta): ProcessedTypesMeta {
     name: hook.name,
     data: {
       ...hook,
-      description: hook.description ? hastToJsx(hook.description) : undefined,
+      description: hook.description ? hastToJsx(hook.description, components) : undefined,
       parameters: processedParameters,
       returnValue: processedReturnValue,
     },

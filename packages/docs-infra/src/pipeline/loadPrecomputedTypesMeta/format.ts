@@ -45,16 +45,16 @@ export interface FormattedEnumMember {
  * Formatted parameter metadata for functions and hooks.
  */
 export interface FormattedParameter {
-  /** Type as a string */
-  type: string;
+  /** Syntax-highlighted type as HAST */
+  type: HastRoot;
   /** Default value if specified */
   default?: string;
   /** Whether the parameter is optional */
   optional?: true;
   /** Description from JSDoc as parsed markdown HAST */
   description?: HastRoot;
-  /** Example usage from @example tag */
-  example?: string;
+  /** Example usage as parsed markdown HAST */
+  example?: HastRoot;
 }
 
 /**
@@ -214,9 +214,20 @@ export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
 }
 
 /**
- * Formats TypeScript type text as HAST with inline syntax highlighting.
- * Uses transformHtmlCodeInlineHighlighted plugin for lightweight highlighting without line gutters or frame wrappers.
- * This is used for simple inline type displays (equivalent to single backticks in MDX).
+ * Formats an inline type string with syntax highlighting.
+ *
+ * This function transforms type strings (like `string`, `number | null`, etc.) into
+ * syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
+ * the type with `type _ = ` before highlighting, then removes the prefix from the result.
+ *
+ * @param typeText - The type string to format (e.g., "string | number")
+ * @returns A promise that resolves to a HAST root containing highlighted nodes
+ *
+ * @example
+ * ```ts
+ * await formatInlineTypeAsHast('string | number')
+ * // Returns HAST nodes with syntax highlighting for "string | number"
+ * ```
  */
 async function formatInlineTypeAsHast(typeText: string): Promise<HastRoot> {
   // Construct HAST with a code element
@@ -419,12 +430,20 @@ export async function formatParameters(
         ? await parseMarkdownToHast(param.documentation.description)
         : undefined;
 
+      const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
+
       result[param.name] = {
-        type: formatType(param.type, param.optional, param.documentation?.tags, true, exportNames),
+        type: await formatTypeAsHast(
+          param.type,
+          param.optional,
+          param.documentation?.tags,
+          true,
+          exportNames,
+        ),
         default: param.defaultValue as string | undefined,
         optional: param.optional || undefined,
         description,
-        example: exampleTag || undefined,
+        example,
       };
     }),
   );
@@ -696,6 +715,18 @@ export async function prettyFormatType(...args: Parameters<typeof formatType>) {
     formatType(...args),
     args[0].kind === 'object' ? args[0].typeName?.name : undefined,
   );
+}
+
+/**
+ * Formats a TypeScript type into syntax-highlighted HAST nodes.
+ *
+ * This is a convenience wrapper around `formatType()` that applies syntax highlighting
+ * to the resulting type string. It delegates to `formatType()` for the core type
+ * processing, then converts the output to HAST nodes with inline syntax highlighting.
+ */
+export async function formatTypeAsHast(...args: Parameters<typeof formatType>): Promise<HastRoot> {
+  const typeString = formatType(...args);
+  return formatInlineTypeAsHast(typeString);
 }
 
 function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): string {

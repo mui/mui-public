@@ -8,12 +8,13 @@ import type {
 } from '@mui/internal-docs-infra/useTypes';
 import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
 import styles from './TypesTable.module.css';
+import { Pre } from '../../../../../components/Pre';
 
 export type TypesTableProps = TypesContentProps<{}>;
 
 export function TypesTable(props: TypesTableProps) {
   // Process HAST nodes to JSX
-  const { types } = useTypes(props);
+  const { types } = useTypes(props, { components: { pre: Pre } });
 
   if (!types || types.length === 0) {
     return <div>No types to display</div>;
@@ -430,11 +431,11 @@ function HookDoc(props: { type: ProcessedHookTypeMeta }) {
             </tr>
           </thead>
           <tbody>
-            {Object.keys(parameters).map((key, i) => {
+            {Object.keys(parameters).map((key) => {
               const param = type.parameters[key];
               return (
-                <tr key={param.name || i}>
-                  <td>{param.name || i}</td>
+                <tr key={key}>
+                  <td>{key}</td>
                   <td>{param.type}</td>
                   <td>{param.description}</td>
                 </tr>
@@ -445,45 +446,44 @@ function HookDoc(props: { type: ProcessedHookTypeMeta }) {
       )}
       <div className={styles.returnType}>Return Type</div>
       {(() => {
-        if (typeof returnValue === 'string') {
-          return <code>{returnValue}</code>;
+        if (!returnValue) {
+          return null;
         }
-        if (returnValue && 'type' in returnValue) {
-          // Single return value with type and description
+
+        // Use discriminated union for type-safe checks
+        if (returnValue.kind === 'simple') {
           return (
             <div>
-              {returnValue.type}
+              <div>{returnValue.type}</div>
               {returnValue.description && <div>{returnValue.description}</div>}
             </div>
           );
         }
-        if (returnValue) {
-          // Object of return properties
-          return (
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Key</th>
-                  <th>Type</th>
-                  <th>Required</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.keys(returnValue).map((key) => {
-                  const returnValueValue = returnValue[key];
-                  return (
-                    <tr key={key}>
-                      <td>{key}</td>
-                      <td>{returnValueValue.type}</td>
-                      <td>{returnValueValue.required ? 'Yes' : 'No'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          );
-        }
-        return null;
+
+        // returnValue.kind === 'object'
+        return (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Type</th>
+                <th>Required</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(returnValue.properties).map((key) => {
+                const prop = returnValue.properties[key];
+                return (
+                  <tr key={key}>
+                    <td>{key}</td>
+                    <td>{prop.type}</td>
+                    <td>{prop.required ? 'Yes' : 'No'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        );
       })()}
     </div>
   );

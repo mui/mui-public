@@ -6,7 +6,7 @@
  */
 
 import { connect, Socket } from 'node:net';
-import { existsSync } from 'node:fs';
+import { existsSync, watch } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
@@ -26,6 +26,38 @@ export function getLockPath(): string {
   return join(tmpdir(), 'mui-types-meta-worker.lock');
 }
 
+/**
+ * Wait for the socket file to appear
+ * Returns when the socket file exists or throws after timeout
+ */
+export function waitForSocketFile(timeoutMs: number = 5000): Promise<void> {
+  const socketPath = getSocketPath();
+
+  // Check if it already exists
+  if (existsSync(socketPath)) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    let timer: NodeJS.Timeout;
+
+    // Watch the directory for the socket file to appear
+    const socketDir = tmpdir();
+    const watcher = watch(socketDir, (eventType, filename) => {
+      if (filename && filename.includes('mui-types-meta-worker.sock')) {
+        clearTimeout(timer);
+        watcher.close();
+        resolve();
+      }
+    });
+
+    timer = setTimeout(() => {
+      watcher.close();
+      reject(new Error(`Socket file did not appear within ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+}
+
 // Store the release function globally so we can call it when needed
 let lockReleaseFunction: (() => Promise<void>) | null = null;
 
@@ -38,10 +70,10 @@ export async function tryAcquireServerLock(): Promise<boolean> {
 
   try {
     // Try to acquire the lock with no retries (immediate check)
-    // Stale locks will be detected after 10 seconds by default
+    // Stale locks will be detected after 3 seconds (server should start quickly)
     lockReleaseFunction = await lockfile.lock(lockPath, {
       retries: 0, // Don't retry, just check once
-      stale: 10000, // Consider lock stale after 10 seconds
+      stale: 3000, // Consider lock stale after 3 seconds
       realpath: false, // Don't resolve symlinks (file doesn't need to exist)
     });
 
