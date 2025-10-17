@@ -9,15 +9,11 @@
 Creates a loadSource function that reads a file and extracts its dependencies.
 
 ```typescript
-  options:
-    | {
-        maxDepth?: number
-        maxFiles?: number
-        includeDependencies?: boolean
-        storeAt?: StoreAtMode
-      }
-    | undefined,
-) => (
+  maxDepth?: number
+  maxFiles?: number
+  includeDependencies?: boolean
+  storeAt?: StoreAtMode
+}) => (
   url: string,
 ) => Promise<{
   source: string

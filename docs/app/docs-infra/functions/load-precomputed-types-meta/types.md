@@ -138,7 +138,7 @@ default value, and whether it's optional.
 
 ```typescript
   params: Parameter[],
-  exportNames: string[] | undefined,
+  exportNames: string[],
 ) => Promise<Record<string, FormattedParameter>>
 ```
 
@@ -154,7 +154,7 @@ to prevent infinite recursion on self-referential types.
   type: AnyType,
   allExports: ExportNode[],
   exportNames: string[],
-  visited: Set<string> | undefined,
+  visited: Set<string>,
 ) => string
 ```
 
@@ -186,8 +186,8 @@ the highlighted output.
   type: AnyType,
   removeUndefined: boolean,
   jsdocTags: DocumentationTag[] | undefined,
-  expandObjects: boolean | undefined,
-  exportNames: string[] | undefined,
+  expandObjects: boolean,
+  exportNames: string[],
 ) => string
 ```
 
@@ -208,6 +208,25 @@ processing, then runs the output through `prettyFormat()` for consistent styling
     string[] | undefined,
   ],
 ) => Promise<string>
+```
+
+### formatTypeAsHast
+
+Formats a TypeScript type into syntax-highlighted HAST nodes.
+
+This is a convenience wrapper around `formatType()` that applies syntax highlighting
+to the resulting type string. It delegates to `formatType()` for the core type
+processing, then converts the output to HAST nodes with inline syntax highlighting.
+
+```typescript
+  args: [
+    AnyType,
+    boolean,
+    DocumentationTag[] | undefined,
+    boolean | undefined,
+    string[] | undefined,
+  ],
+) => Promise<HastRoot>
 ```
 
 ### FormattedProperty
@@ -248,12 +267,12 @@ Formatted parameter metadata for functions and hooks.
 
 ```typescript
 type FormattedParameter = {
-  type: string;
+  type: { data?: RootData & { totalLines?: number } };
   default?: string;
   optional?: true;
   description?: {
     data?: RootData & { totalLines?: number };
   };
-  example?: string;
+  example?: { data?: RootData & { totalLines?: number } };
 };
 ```

@@ -8,12 +8,16 @@
 
 Processes types metadata and renders HAST nodes to JSX. This hook is responsible for converting precomputed HAST nodes from the webpack loader into renderable React components.
 
+```ts
+console.log('test');
+```
+
 **useTypes Parameters:**
 
-| Parameter    | Type                                                                | Default | Description |
-| :----------- | :------------------------------------------------------------------ | :------ | :---------- |
-| contentProps | `TypesContentProps<{}>`                                             | -       | -           |
-| \_options    | `{ components?: { Pre?: ComponentType<{ children: ReactNode }> } }` | -       | -           |
+| Parameter    | Type                                                                     | Default | Description |
+| :----------- | :----------------------------------------------------------------------- | :------ | :---------- |
+| contentProps | `TypesContentProps<{}>`                                                  | -       | -           |
+| options      | `{ components?: { pre?: ComponentType<{ data-precompute?: string }> } }` | -       | -           |
 
 **useTypes Return Value:**
 
