@@ -109,7 +109,7 @@ This enables rendering rich formatted descriptions including code examples, list
 while preserving all markdown features and applying syntax highlighting to code blocks.
 
 ```typescript
-(markdown: string) => Promise<HastRoot>;
+(markdown: string) => Promise<Root>;
 ```
 
 ### formatProperties
@@ -226,7 +226,7 @@ processing, then converts the output to HAST nodes with inline syntax highlighti
     boolean | undefined,
     string[] | undefined,
   ],
-) => Promise<HastRoot>
+) => Promise<Root>
 ```
 
 ### FormattedProperty
@@ -235,16 +235,15 @@ Formatted property metadata with syntax-highlighted types and parsed markdown.
 
 ```typescript
 type FormattedProperty = {
-  type: { data?: RootData & { totalLines?: number } };
-  default?: unknown;
+  type: HastRoot;
+  shortType?: HastRoot;
+  shortTypeText?: string;
+  default?: HastRoot;
+  defaultText?: string;
   required?: true;
-  description?: {
-    data?: RootData & { totalLines?: number };
-  };
-  example?: { data?: RootData & { totalLines?: number } };
-  detailedType?: {
-    data?: RootData & { totalLines?: number };
-  };
+  description?: HastRoot;
+  example?: HastRoot;
+  detailedType?: HastRoot;
 };
 ```
 
@@ -254,9 +253,7 @@ Formatted enum member metadata.
 
 ```typescript
 type FormattedEnumMember = {
-  description?: {
-    data?: RootData & { totalLines?: number };
-  };
+  description?: HastRoot;
   type?: string;
 };
 ```
@@ -267,12 +264,11 @@ Formatted parameter metadata for functions and hooks.
 
 ```typescript
 type FormattedParameter = {
-  type: { data?: RootData & { totalLines?: number } };
-  default?: string;
+  type: HastRoot;
+  default?: HastRoot;
+  defaultText?: string;
   optional?: true;
-  description?: {
-    data?: RootData & { totalLines?: number };
-  };
-  example?: { data?: RootData & { totalLines?: number } };
+  description?: HastRoot;
+  example?: HastRoot;
 };
 ```

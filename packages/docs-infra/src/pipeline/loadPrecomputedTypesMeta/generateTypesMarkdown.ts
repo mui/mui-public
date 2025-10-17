@@ -137,7 +137,7 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
             Object.entries(data.props).map(async ([propName, propDef]) => [
               propName,
               propDef.type ? await hastToInlineMdast(propDef.type) : '-',
-              propDef.default ? md.inlineCode(String(propDef.default)) : '-',
+              propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
               propDef.description ? await hastToInlineMdast(propDef.description) : '-',
             ]),
           );
@@ -241,7 +241,7 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
               return [
                 paramName,
                 typeCell,
-                paramDef.default ? md.inlineCode(String(paramDef.default)) : '-',
+                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
                 descriptionCell,
               ];
             }),

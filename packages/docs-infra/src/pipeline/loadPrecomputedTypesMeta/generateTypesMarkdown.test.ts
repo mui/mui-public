@@ -92,7 +92,8 @@ describe('generateTypesMarkdown', () => {
           variant: {
             type: codeToHast('"primary" | "secondary"'),
             description: textToHast('The button variant'),
-            default: 'primary',
+            default: codeToHast('primary'),
+            defaultText: 'primary',
           },
           disabled: {
             type: codeToHast('boolean'),
@@ -327,7 +328,8 @@ describe('generateTypesMarkdown', () => {
         parameters: {
           initialValue: {
             type: codeToHast('number'),
-            default: '0',
+            default: codeToHast('0'),
+            defaultText: '0',
             description: textToHast('The initial counter value'),
           },
           step: {
@@ -1412,7 +1414,8 @@ describe('generateTypesMarkdown', () => {
         parameters: {
           initialValue: {
             type: codeToHast('number'),
-            default: '0',
+            default: codeToHast('0'),
+            defaultText: '0',
             optional: true,
             description: textToHast('Initial counter value'),
           },

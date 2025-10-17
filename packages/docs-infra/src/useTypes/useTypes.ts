@@ -127,18 +127,41 @@ function processComponentType(
       ...component,
       description: component.description ? hastToJsx(component.description, components) : undefined,
       props: Object.fromEntries(
-        Object.entries(component.props).map(([key, prop]) => [
-          key,
-          {
-            ...prop,
+        Object.entries(component.props).map(([key, prop]) => {
+          // Destructure to exclude HAST fields that need to be converted
+          const {
+            type,
+            shortType,
+            default: defaultValue,
+            description,
+            example,
+            detailedType,
+            ...rest
+          } = prop;
+
+          const processed: ProcessedProperty = {
+            ...rest,
             type: hastToJsx(prop.type, components),
-            shortType: prop.shortType ? hastToJsx(prop.shortType, components) : undefined,
-            default: prop.default ? hastToJsx(prop.default, components) : undefined,
-            description: prop.description ? hastToJsx(prop.description, components) : undefined,
-            example: prop.example ? hastToJsx(prop.example, components) : undefined,
-            detailedType: prop.detailedType ? hastToJsx(prop.detailedType, components) : undefined,
-          },
-        ]),
+          };
+
+          if (prop.shortType) {
+            processed.shortType = hastToJsx(prop.shortType, components);
+          }
+          if (prop.default) {
+            processed.default = hastToJsx(prop.default, components);
+          }
+          if (prop.description) {
+            processed.description = hastToJsx(prop.description, components);
+          }
+          if (prop.example) {
+            processed.example = hastToJsx(prop.example, components);
+          }
+          if (prop.detailedType) {
+            processed.detailedType = hastToJsx(prop.detailedType, components);
+          }
+
+          return [key, processed];
+        }),
       ),
       dataAttributes: Object.fromEntries(
         Object.entries(component.dataAttributes).map(([key, attr]) => {
@@ -290,18 +313,39 @@ function processHookType(
           ? hastToJsx(prop.detailedType, components)
           : undefined;
 
-        return [
-          key,
-          {
-            ...prop,
-            type: processedType!,
-            shortType: processedShortType,
-            default: processedDefault,
-            description: processedDescription,
-            example: processedExample,
-            detailedType: processedDetailedType,
-          },
-        ];
+        // Destructure to exclude HAST fields that need to be converted
+        const {
+          type,
+          shortType,
+          default: defaultValue,
+          description,
+          example,
+          detailedType,
+          ...rest
+        } = prop;
+
+        const processed: ProcessedProperty = {
+          ...rest,
+          type: processedType!,
+        };
+
+        if (processedShortType) {
+          processed.shortType = processedShortType;
+        }
+        if (processedDefault) {
+          processed.default = processedDefault;
+        }
+        if (processedDescription) {
+          processed.description = processedDescription;
+        }
+        if (processedExample) {
+          processed.example = processedExample;
+        }
+        if (processedDetailedType) {
+          processed.detailedType = processedDetailedType;
+        }
+
+        return [key, processed];
       },
     );
     processedReturnValue = {

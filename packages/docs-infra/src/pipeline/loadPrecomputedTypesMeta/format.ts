@@ -4,11 +4,10 @@ import prettierPluginEstree from 'prettier/plugins/estree';
 import prettierPluginTypescript from 'prettier/plugins/typescript';
 import type * as tae from 'typescript-api-extractor';
 import { unified } from 'unified';
-import type { Root as MdastRoot } from 'mdast';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
-import type { HastRoot } from '../../CodeHighlighter/types';
+import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInlineHighlighted, {
   ensureStarryNightInitialized,
 } from '../transformHtmlCodeInlineHighlighted';
@@ -244,8 +243,8 @@ function getShortTypeString(name: string, typeText: string): string | undefined 
 export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype).freeze();
 
-  const mdast = processor.parse(markdown) as MdastRoot;
-  const result = (await processor.run(mdast)) as HastRoot;
+  const mdast = processor.parse(markdown);
+  const result = await processor.run(mdast);
 
   return result;
 }
