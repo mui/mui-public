@@ -12,6 +12,7 @@ import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
+import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
 
 const pkgJson = createRequire(import.meta.url)('../../package.json');
 
@@ -28,6 +29,7 @@ yargs()
   .command(cmdPublishCanary)
   .command(cmdPublishNewPackage)
   .command(cmdSetVersionOverrides)
+  .command(cmdValidateBuiltTypes)
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
