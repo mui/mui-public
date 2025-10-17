@@ -20,9 +20,11 @@ export type UseTypesOptions = {
 // Processed types with React nodes instead of HAST
 export type ProcessedProperty = Omit<
   FormattedProperty,
-  'type' | 'description' | 'example' | 'detailedType'
+  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
 > & {
   type: React.ReactNode;
+  shortType?: React.ReactNode;
+  default?: React.ReactNode;
   description?: React.ReactNode;
   example?: React.ReactNode;
   detailedType?: React.ReactNode;
@@ -34,8 +36,12 @@ export type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'descriptio
   default?: unknown;
 };
 
-export type ProcessedParameter = Omit<FormattedParameter, 'type' | 'description' | 'example'> & {
+export type ProcessedParameter = Omit<
+  FormattedParameter,
+  'type' | 'description' | 'example' | 'default'
+> & {
   type: React.ReactNode;
+  default?: React.ReactNode;
   description?: React.ReactNode;
   example?: React.ReactNode;
 };
@@ -126,6 +132,8 @@ function processComponentType(
           {
             ...prop,
             type: hastToJsx(prop.type, components),
+            shortType: prop.shortType ? hastToJsx(prop.shortType, components) : undefined,
+            default: prop.default ? hastToJsx(prop.default, components) : undefined,
             description: prop.description ? hastToJsx(prop.description, components) : undefined,
             example: prop.example ? hastToJsx(prop.example, components) : undefined,
             detailedType: prop.detailedType ? hastToJsx(prop.detailedType, components) : undefined,
@@ -190,6 +198,12 @@ function processHookType(
         const processedType =
           typeof param.type === 'string' ? param.type : hastToJsx(param.type, components);
 
+        // Default is always HastRoot for both FormattedParameter and FormattedProperty
+        let processedDefault: React.ReactNode | undefined;
+        if (param.default) {
+          processedDefault = hastToJsx(param.default, components);
+        }
+
         // Description can be string or HastRoot
         let processedDescription: React.ReactNode | undefined;
         if (param.description) {
@@ -219,6 +233,7 @@ function processHookType(
           {
             ...param,
             type: processedType,
+            default: processedDefault,
             description: processedDescription,
             example: processedExample,
             detailedType: processedDetailedType,
@@ -258,7 +273,13 @@ function processHookType(
         // Type is always HastRoot for return value properties
         const processedType = prop.type ? hastToJsx(prop.type, components) : undefined;
 
-        // Description, example, and detailedType can be HastRoot or undefined
+        // ShortType, default, description, example, and detailedType can be HastRoot or undefined
+        const processedShortType = prop.shortType
+          ? hastToJsx(prop.shortType, components)
+          : undefined;
+
+        const processedDefault = prop.default ? hastToJsx(prop.default, components) : undefined;
+
         const processedDescription = prop.description
           ? hastToJsx(prop.description, components)
           : undefined;
@@ -274,6 +295,8 @@ function processHookType(
           {
             ...prop,
             type: processedType!,
+            shortType: processedShortType,
+            default: processedDefault,
             description: processedDescription,
             example: processedExample,
             detailedType: processedDetailedType,

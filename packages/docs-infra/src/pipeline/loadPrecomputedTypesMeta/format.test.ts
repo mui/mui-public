@@ -542,7 +542,19 @@ describe('format', () => {
           },
         ],
       });
-      expect(result.options.default).toBe('{}');
+      // Default value is now HastRoot with syntax highlighting
+      expect(result.options.default).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: { className: ['language-ts'] },
+            children: [{ type: 'text', value: '{}' }],
+          },
+        ],
+      });
+      expect(result.options.defaultText).toBe('{}');
       expect(result.options.optional).toBe(true);
       expect(result.options.description).toMatchObject({
         type: 'root',
@@ -694,6 +706,132 @@ describe('format', () => {
         const result = await formatProperties(props, []);
 
         expect(result.onClick.detailedType).toBeDefined();
+        expect(result.onClick.shortType).toBeDefined();
+        expect(result.onClick.shortTypeText).toBe('function');
+      });
+
+      it('should include shortTypeText for event handlers', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'onChange',
+            type: {
+              kind: 'function',
+              callSignatures: [
+                {
+                  parameters: [{ name: 'value', type: { kind: 'intrinsic', intrinsic: 'string' } }],
+                  returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
+                },
+              ],
+            } as any,
+            optional: false,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, []);
+
+        expect(result.onChange.shortTypeText).toBe('function');
+        expect(result.onChange.shortType).toBeDefined();
+      });
+
+      it('should include shortTypeText for className prop', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'className',
+            type: {
+              kind: 'union',
+              types: [
+                { kind: 'intrinsic', intrinsic: 'string' },
+                {
+                  kind: 'function',
+                  callSignatures: [
+                    {
+                      parameters: [],
+                      returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
+                    },
+                  ],
+                },
+              ],
+            } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, []);
+
+        expect(result.className.shortTypeText).toBe('string | function');
+        expect(result.className.shortType).toBeDefined();
+      });
+
+      it('should include shortTypeText for render prop', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'render',
+            type: {
+              kind: 'union',
+              types: [
+                { kind: 'external', typeName: { name: 'ReactElement' } },
+                {
+                  kind: 'function',
+                  callSignatures: [
+                    {
+                      parameters: [],
+                      returnValueType: { kind: 'external', typeName: { name: 'ReactElement' } },
+                    },
+                  ],
+                },
+              ],
+            } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, []);
+
+        expect(result.render.shortTypeText).toBe('ReactElement | function');
+        expect(result.render.shortType).toBeDefined();
+      });
+
+      it('should include shortTypeText for complex unions', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'variant',
+            type: {
+              kind: 'union',
+              types: [
+                { kind: 'literal', value: "'primary'" },
+                { kind: 'literal', value: "'secondary'" },
+                { kind: 'literal', value: "'tertiary'" },
+                { kind: 'literal', value: "'quaternary'" },
+              ],
+            } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, []);
+
+        expect(result.variant.shortTypeText).toBe('Union');
+        expect(result.variant.shortType).toBeDefined();
+      });
+
+      it('should not include shortType for simple types', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'title',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, []);
+
+        expect(result.title.shortType).toBeUndefined();
+        expect(result.title.shortTypeText).toBeUndefined();
       });
 
       it('should recognize className prop for potential detailed type', async () => {

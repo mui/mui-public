@@ -19,8 +19,14 @@ import transformHtmlCodeInlineHighlighted, {
 export interface FormattedProperty {
   /** Syntax-highlighted type as HAST */
   type: HastRoot;
-  /** Default value if specified */
-  default?: unknown;
+  /** Short simplified type for table display (e.g., "Union", "function") */
+  shortType?: HastRoot;
+  /** Plain text version of shortType for accessibility and text operations */
+  shortTypeText?: string;
+  /** Default value with syntax highlighting as HAST */
+  default?: HastRoot;
+  /** Plain text version of default for accessibility and text operations */
+  defaultText?: string;
   /** Whether the property is required */
   required?: true;
   /** Description as parsed markdown HAST */
@@ -47,8 +53,10 @@ export interface FormattedEnumMember {
 export interface FormattedParameter {
   /** Syntax-highlighted type as HAST */
   type: HastRoot;
-  /** Default value if specified */
-  default?: string;
+  /** Default value with syntax highlighting as HAST */
+  default?: HastRoot;
+  /** Plain text version of default for accessibility and text operations */
+  defaultText?: string;
   /** Whether the parameter is optional */
   optional?: true;
   /** Description from JSDoc as parsed markdown HAST */
@@ -196,6 +204,35 @@ function shouldShowDetailedType(name: string, type: string | undefined): boolean
 
   // Complex unions benefit from detailed expansion
   return true;
+}
+
+/**
+ * Gets the short representation of a type for display in tables.
+ * Returns a simplified type string for complex types (e.g., "Union", "function").
+ */
+function getShortTypeString(name: string, typeText: string): string | undefined {
+  // Event handlers and getters show as "function"
+  if (/^(on|get)[A-Z].*/.test(name)) {
+    return 'function';
+  }
+
+  // className can be string or function
+  if (name === 'className') {
+    return 'string | function';
+  }
+
+  // render can be ReactElement or function
+  if (name === 'render') {
+    return 'ReactElement | function';
+  }
+
+  // Complex unions show as "Union"
+  if (shouldShowDetailedType(name, typeText)) {
+    return 'Union';
+  }
+
+  // Simple types don't need a short version
+  return undefined;
 }
 
 /**
@@ -379,21 +416,45 @@ export async function formatProperties(
       // Parse example as markdown if present
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
+      // Get short type string if this prop needs one
+      const shortTypeString = getShortTypeString(prop.name, formattedType);
+
       // Convert types to HAST for syntax highlighting
       // Use inline highlighting for simple types, detailed highlighting for expanded types
       const type = await formatInlineTypeAsHast(formattedType);
+      const shortType = shortTypeString ? await formatInlineTypeAsHast(shortTypeString) : undefined;
       const detailedType =
         needsDetailedType && detailedTypeText !== formattedType
           ? await formatDetailedTypeAsHast(detailedTypeText)
           : undefined;
 
+      // Format default value with syntax highlighting if present
+      const defaultValueText =
+        prop.documentation?.defaultValue !== undefined
+          ? String(prop.documentation.defaultValue)
+          : undefined;
+      const defaultValue = defaultValueText
+        ? await formatInlineTypeAsHast(defaultValueText)
+        : undefined;
+
       const resultObject: FormattedProperty = {
         type,
-        default: prop.documentation?.defaultValue,
         required: !prop.optional || undefined,
         description,
         example,
       };
+
+      // Only include shortType and shortTypeText if they exist
+      if (shortType && shortTypeString) {
+        resultObject.shortType = shortType;
+        resultObject.shortTypeText = shortTypeString;
+      }
+
+      // Only include default and defaultText if they exist
+      if (defaultValue && defaultValueText) {
+        resultObject.default = defaultValue;
+        resultObject.defaultText = defaultValueText;
+      }
 
       // Only include detailedType if it differs from the basic type
       if (detailedType) {
@@ -432,7 +493,14 @@ export async function formatParameters(
 
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
-      result[param.name] = {
+      // Format default value with syntax highlighting if present
+      const defaultValueText =
+        param.defaultValue !== undefined ? String(param.defaultValue) : undefined;
+      const defaultValue = defaultValueText
+        ? await formatInlineTypeAsHast(defaultValueText)
+        : undefined;
+
+      const paramResult: FormattedParameter = {
         type: await formatTypeAsHast(
           param.type,
           param.optional,
@@ -440,11 +508,18 @@ export async function formatParameters(
           true,
           exportNames,
         ),
-        default: param.defaultValue as string | undefined,
         optional: param.optional || undefined,
         description,
         example,
       };
+
+      // Only include default and defaultText if they exist
+      if (defaultValue && defaultValueText) {
+        paramResult.default = defaultValue;
+        paramResult.defaultText = defaultValueText;
+      }
+
+      result[param.name] = paramResult;
     }),
   );
 
