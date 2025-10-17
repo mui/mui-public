@@ -293,13 +293,11 @@ async function formatInlineTypeAsHast(typeText: string): Promise<HastRoot> {
 
 /**
  * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
- * Creates a code block structure that will be processed by transformHtmlCodePrecomputed
- * later in the pipeline (in loadPrecomputedTypesMeta.ts).
  * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
+ * Unlike formatInlineTypeAsHast which uses <code>, this creates a <pre><code> structure.
  */
 async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
-  // Construct HAST directly (no need for MDAST → HAST conversion)
-  // The code block will be expanded by transformHtmlCodePrecomputed later
+  // Construct HAST with a pre > code structure for block-level display
   const hast: HastRoot = {
     type: 'root',
     children: [
@@ -311,7 +309,10 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
           {
             type: 'element',
             tagName: 'code',
-            properties: { className: ['language-ts'] },
+            properties: {
+              className: ['language-ts'],
+              dataHighlightingPrefix: 'type _ = ',
+            },
             children: [{ type: 'text', value: typeText }],
           },
         ],
@@ -319,7 +320,12 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
     ],
   };
 
-  return hast;
+  // Apply inline syntax highlighting
+  const processor = unified().use(transformHtmlCodeInlineHighlighted).freeze();
+
+  const result = (await processor.run(hast)) as HastRoot;
+
+  return result;
 }
 
 async function prettyFormat(type: string, typeName?: string) {

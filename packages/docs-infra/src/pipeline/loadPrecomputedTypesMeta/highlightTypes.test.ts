@@ -94,62 +94,6 @@ describe('highlightTypes', () => {
       }
     });
 
-    it('should add dataPrecompute to code blocks in prop type field', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {
-                  onClick: {
-                    name: 'onClick',
-                    type: {
-                      type: 'root',
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [{ type: 'text', value: '() => void' }],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    description: undefined,
-                    required: false,
-                    default: undefined,
-                    example: undefined,
-                    detailedType: undefined,
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              },
-            },
-          ] as any,
-        },
-      };
-
-      const result = await highlightTypes(variantData);
-
-      const componentData = result.Default.types[0];
-      if (componentData.type === 'component') {
-        const preElements = findPreElements(componentData.data.props.onClick.type);
-        expect(preElements).toHaveLength(1);
-        expect(hasDataPrecompute(preElements[0])).toBe(true);
-      }
-    });
-
     it('should add dataPrecompute to code blocks in prop description', async () => {
       const variantData = {
         Default: {
@@ -262,67 +206,6 @@ describe('highlightTypes', () => {
       const componentData = result.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.onChange.example);
-        expect(preElements).toHaveLength(1);
-        expect(hasDataPrecompute(preElements[0])).toBe(true);
-      }
-    });
-
-    it('should add dataPrecompute to code blocks in prop detailedType', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {
-                  variant: {
-                    name: 'variant',
-                    type: undefined,
-                    description: undefined,
-                    required: false,
-                    default: undefined,
-                    example: undefined,
-                    detailedType: {
-                      type: 'root',
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: '"primary" | "secondary" | "tertiary"',
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              },
-            },
-          ] as any,
-        },
-      };
-
-      const result = await highlightTypes(variantData);
-
-      const componentData = result.Default.types[0];
-      if (componentData.type === 'component') {
-        const preElements = findPreElements(componentData.data.props.variant.detailedType);
         expect(preElements).toHaveLength(1);
         expect(hasDataPrecompute(preElements[0])).toBe(true);
       }
@@ -535,69 +418,6 @@ describe('highlightTypes', () => {
       if (hookData.type === 'hook') {
         const preElements = findPreElements(hookData.data.parameters.options.description);
         expect(preElements).toHaveLength(1);
-        expect(hasDataPrecompute(preElements[0])).toBe(true);
-      }
-    });
-
-    it('should add dataPrecompute to code blocks in hook return value when it contains HAST', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'hook' as const,
-              name: 'useButton',
-              data: {
-                description: undefined,
-                parameters: {},
-                returnValue: {
-                  getRootProps: {
-                    type: {
-                      type: 'root',
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: '() => Record<string, any>',
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    description: undefined,
-                    required: true,
-                    default: undefined,
-                    example: undefined,
-                    detailedType: undefined,
-                  },
-                },
-              },
-            },
-          ] as any,
-        },
-      };
-
-      const result = await highlightTypes(variantData);
-
-      const hookData = result.Default.types[0];
-      if (hookData.type === 'hook' && typeof hookData.data.returnValue === 'object') {
-        // The returnValue is an object with properties, check the type property of getRootProps
-        const getRootProps = (hookData.data.returnValue as any).getRootProps;
-        expect(getRootProps).toBeDefined();
-        expect(getRootProps.type).toBeDefined();
-
-        const preElements = findPreElements(getRootProps.type);
-        expect(preElements.length).toBeGreaterThan(0);
         expect(hasDataPrecompute(preElements[0])).toBe(true);
       }
     });

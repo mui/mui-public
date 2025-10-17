@@ -85,9 +85,6 @@ export type ProcessedTypesContentProps<T extends {}> = Omit<TypesContentProps<T>
  * Processes types metadata and renders HAST nodes to JSX.
  * This hook is responsible for converting precomputed HAST nodes
  * from the webpack loader into renderable React components.
- * ```ts
- * console.log('test')
- * ```
  */
 export function useTypes<T extends {}>(
   contentProps: TypesContentProps<T>,

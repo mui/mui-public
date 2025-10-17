@@ -5,15 +5,20 @@ import type { HookTypeMeta } from './formatHook';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
 
 /**
- * Applies syntax highlighting to all HAST nodes in the variant data.
+ * Applies syntax highlighting to code blocks in descriptions and examples.
  *
  * This function processes all TypesMeta objects and applies transformHtmlCodePrecomputed
- * to expand any code blocks with precomputed syntax highlighting. It operates in parallel
- * for maximum performance.
+ * to expand any code blocks in markdown content (descriptions and examples) with precomputed
+ * syntax highlighting. It operates in parallel for maximum performance.
+ *
+ * Note: Type strings (type, shortType, detailedType, default) are already syntax-highlighted
+ * inline during formatting, so they don't need processing here.
  *
  * The transform is applied to:
- * - Component descriptions, props (type, description, example, detailedType), data attributes, and CSS variables
- * - Hook descriptions and parameters
+ * - Component and hook descriptions (markdown with code blocks)
+ * - Prop/parameter examples (markdown with code blocks)
+ * - Prop/parameter descriptions (markdown with code blocks)
+ * - Data attribute and CSS variable descriptions (markdown with code blocks)
  *
  * @param variantData - The variant data containing TypesMeta objects to process
  * @returns New variant data with transformed HAST nodes
@@ -51,44 +56,41 @@ export async function highlightTypes(
 }
 
 /**
- * Applies syntax highlighting to all HAST nodes in a component type.
+ * Applies syntax highlighting to code blocks in component descriptions and examples.
+ * Type fields (type, shortType, detailedType, default) are already highlighted inline.
  */
 async function highlightComponentType(
   processor: any,
   data: ComponentTypeMeta,
 ): Promise<ComponentTypeMeta> {
-  // Transform all HAST nodes in parallel
+  // Transform markdown content (descriptions and examples) in parallel
+  // Type fields are already syntax-highlighted during formatting
   const [description, propsEntries, dataAttributesEntries, cssVariablesEntries] = await Promise.all(
     [
-      // Transform description
+      // Transform component description (markdown with code blocks)
       data.description ? processor.run(data.description) : Promise.resolve(data.description),
 
-      // Transform props
+      // Transform prop descriptions and examples (markdown with code blocks)
+      // Skip type/shortType/detailedType/default - already highlighted inline
       Promise.all(
         Object.entries(data.props).map(async ([propName, prop]) => {
-          const [type, propDescription, example, detailedType] = await Promise.all([
-            prop.type ? processor.run(prop.type) : Promise.resolve(prop.type),
+          const [propDescription, example] = await Promise.all([
             prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
             prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
-            prop.detailedType
-              ? processor.run(prop.detailedType)
-              : Promise.resolve(prop.detailedType),
           ]);
 
           return [
             propName,
             {
               ...prop,
-              type,
               description: propDescription,
               example,
-              detailedType,
             },
           ] as const;
         }),
       ),
 
-      // Transform data attributes
+      // Transform data attribute descriptions (markdown with code blocks)
       Promise.all(
         Object.entries(data.dataAttributes).map(async ([attrName, attr]) => {
           const attrDescription = attr.description
@@ -99,7 +101,7 @@ async function highlightComponentType(
         }),
       ),
 
-      // Transform CSS variables
+      // Transform CSS variable descriptions (markdown with code blocks)
       Promise.all(
         Object.entries(data.cssVariables).map(async ([varName, cssVar]) => {
           const varDescription = cssVar.description
@@ -122,26 +124,30 @@ async function highlightComponentType(
 }
 
 /**
- * Applies syntax highlighting to all HAST nodes in a hook type.
+ * Applies syntax highlighting to code blocks in hook descriptions and examples.
+ * Type fields (type, default) are already highlighted inline.
  */
 async function highlightHookType(processor: any, data: HookTypeMeta): Promise<HookTypeMeta> {
-  // Transform all HAST nodes in parallel
+  // Transform markdown content (descriptions and examples) in parallel
+  // Type fields are already syntax-highlighted during formatting
   const [description, parametersEntries, returnValue] = await Promise.all([
-    // Transform description
+    // Transform hook description (markdown with code blocks)
     data.description ? processor.run(data.description) : Promise.resolve(data.description),
 
-    // Transform parameters (only description is HastRoot, type is string)
+    // Transform parameter descriptions and examples (markdown with code blocks)
+    // Skip type/default - already highlighted inline
     Promise.all(
       Object.entries(data.parameters).map(async ([paramName, param]) => {
-        const paramDescription = param.description
-          ? await processor.run(param.description)
-          : param.description;
+        const [paramDescription, example] = await Promise.all([
+          param.description ? processor.run(param.description) : Promise.resolve(param.description),
+          param.example ? processor.run(param.example) : Promise.resolve(param.example),
+        ]);
 
-        return [paramName, { ...param, description: paramDescription }] as const;
+        return [paramName, { ...param, description: paramDescription, example }] as const;
       }),
     ),
 
-    // Transform returnValue (if it's an object with properties, transform each property)
+    // Transform returnValue descriptions and examples
     (async () => {
       if (!data.returnValue) {
         return data.returnValue;
@@ -153,30 +159,25 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
         'type' in data.returnValue &&
         (data.returnValue as any).type === 'root'
       ) {
-        // It's a HastRoot - transform it directly
+        // It's a HastRoot (single return type) - transform it directly
         return processor.run(data.returnValue);
       }
 
       // returnValue is an object with FormattedProperty values
+      // Transform descriptions and examples (skip type/detailedType/default - already highlighted)
       const returnValueEntries = await Promise.all(
         Object.entries(data.returnValue).map(async ([propName, prop]) => {
-          const [type, propDescription, example, detailedType] = await Promise.all([
-            prop.type ? processor.run(prop.type) : Promise.resolve(prop.type),
+          const [propDescription, example] = await Promise.all([
             prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
             prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
-            prop.detailedType
-              ? processor.run(prop.detailedType)
-              : Promise.resolve(prop.detailedType),
           ]);
 
           return [
             propName,
             {
               ...prop,
-              type,
               description: propDescription,
               example,
-              detailedType,
             },
           ] as const;
         }),
