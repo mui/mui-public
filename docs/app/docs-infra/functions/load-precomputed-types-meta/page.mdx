@@ -9,7 +9,7 @@ The types meta loader is a Webpack/Turbopack loader that automatically generates
 The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. The factory returns a React component that displays interactive type documentation alongside your component.
 
 > [!NOTE]
-> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You could have custom factory functions like `createApiReference()` or `createTypeDocs()` that return documentation components.
+> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
 
 ## Features
 
@@ -210,7 +210,7 @@ interface FactoryOptions {
 
 ## Output Structure
 
-The loader extracts comprehensive type information using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor/blob/main/README.md#output-format) and formats it with **HAST (Hypertext Abstract Syntax Tree) nodes** for syntax-highlighted rendering.
+The loader extracts comprehensive type information using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor/blob/main/README.md#output-format) and formats it with **[HAST (Hypertext Abstract Syntax Tree)](../../patterns/hast/page.mdx) nodes** for syntax-highlighted rendering.
 
 ### Type Metadata Format
 
@@ -555,7 +555,7 @@ You can add JSDoc comments to the component or hook itself to provide an overvie
  * This component supports various styling options and can be used throughout
  * your application for consistent button styling.
  *
- * Example usage:
+ * @example
  * ```tsx
  * <Button variant="primary" onClick={handleClick}>
  *   Click me
@@ -578,7 +578,7 @@ For hooks:
  * This hook provides form state management with built-in validation
  * and error handling capabilities.
  *
- * Example usage:
+ * @example
  * ```tsx
  * const { values, errors, handleChange } = useForm({
  *   initialValues: { email: '', password: '' },
@@ -598,16 +598,19 @@ Component-level descriptions support full markdown formatting including:
 - Links and emphasis
 - Multiple paragraphs
 
+> [!NOTE]
+> The loader automatically removes `Documentation: <url>` suffixes that may be added by API extraction tools. For example, `"Button component\n\nDocumentation: https://..."` becomes `"Button component"` in the generated documentation.
+
 ### Code Examples in Descriptions
 
-You can include code examples in your JSDoc comments:
+You can include code examples using the `@example` JSDoc tag:
 
 ````typescript
 interface ButtonProps {
   /**
    * Click handler for the button.
    *
-   * Example usage:
+   * @example
    * ```tsx
    * <Button onClick={() => console.log('clicked')} />
    * ```
@@ -615,6 +618,8 @@ interface ButtonProps {
   onClick?: () => void;
 }
 ````
+
+The `@example` tag is automatically extracted and parsed as markdown. Multiple `@example` tags can be used if needed.
 
 **In Component Descriptions**: Code blocks are rendered as full markdown code fences.
 
@@ -690,16 +695,7 @@ export const TypesInput = createTypesMeta(/* ... */);
 
 ### Missing TypeScript Configuration
 
-The loader requires a valid `tsconfig.json`:
-
-```typescript
-// Checks these locations in order:
-// 1. {rootContext}/tsconfig.json
-// 2. {process.cwd()}/tsconfig.json
-
-// If not found, throws:
-// "Unable to locate tsconfig.json. Looked in: ..."
-```
+The loader requires a valid `tsconfig.json` at `{rootContext}/tsconfig.json` (typically the workspace root). If the file cannot be found or read, the build will fail with a file system error.
 
 ### Component Resolution Errors
 
@@ -1186,3 +1182,11 @@ export const TypesComponent = createTypesMeta(import.meta.url, Component, {
 // 2. Displays the extracted type information
 // 3. Provides interactive documentation UI
 ```
+
+---
+
+## Related
+
+- **[`abstractCreateTypes`](../abstract-create-types/page.mdx)**: Factory functions for creating type documentation components
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for converting HAST types to React nodes at runtime
+- **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format used for types

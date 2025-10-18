@@ -1,0 +1,179 @@
+# abstractCreateTypes
+
+The `abstractCreateTypes` function helps you create structured type documentation factories that work seamlessly with the [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) loader. It provides a standardized way to create type documentation components that display TypeScript type information extracted at build time.
+
+> [!TIP]
+> For the underlying architectural rationale (URLs as identity, variant enumeration, precompute) see the [Built Factories Pattern](../../patterns/built-factories/).
+
+## Overview
+
+Type factories created with `abstractCreateTypes` automatically integrate with:
+
+- **[`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx)**: For build-time type extraction
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: For converting HAST types to React nodes
+- **[HAST Pattern](../../patterns/hast/page.mdx)**: For understanding the HAST format
+
+## Factory Function Requirements
+
+At the fundamental level, the [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) function expects factory functions with these signatures:
+
+```ts
+// Single component types
+export const createTypes = (url: string, component: any, options?: any) => {
+  return () => <>Type Documentation</>;
+};
+
+// Multi-component types (e.g., Checkbox.Root, Checkbox.Indicator)
+export const createMultipleTypes = (url: string, components: Record<string, any>, options?: any) => {
+  return { [key: string]: () => <>Type Documentation</> };
+};
+```
+
+## Implementation
+
+To quickly implement these factory functions, use the `abstractCreateTypes` utilities:
+
+```ts
+import {
+  createTypesFactory,
+  createMultipleTypesFactory,
+} from '@mui/internal-docs-infra/abstractCreateTypes';
+
+import { TypesContent } from './TypesContent';
+
+/**
+ * Creates a type documentation component for a single component.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param component The component to extract types from.
+ * @param meta Additional metadata for the types (injected by loader).
+ */
+export const createTypes = createTypesFactory({
+  TypesContent,
+});
+
+/**
+ * Creates type documentation components for multiple related components.
+ * Useful for component families like Checkbox.Root, Checkbox.Indicator.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param components Object with multiple component exports.
+ * @param meta Additional metadata for the types (injected by loader).
+ */
+export const createMultipleTypes = createMultipleTypesFactory({
+  TypesContent,
+});
+```
+
+## Loader Configuration
+
+To make type extraction work properly, configure the webpack loader. The easiest way is using [`withDocsInfra`](../with-docs-infra/page.mdx):
+
+```js
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // withDocsInfra automatically includes:
+  // - './app/**/types.ts' (for type extraction)
+});
+```
+
+For manual configuration, see the [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) documentation.
+
+## Advanced: Custom HOC Logic
+
+Only needed when `createTypesFactory` or `createMultipleTypesFactory` don't provide enough flexibility:
+
+```typescript
+import { abstractCreateTypes } from '@mui/internal-docs-infra/abstractCreateTypes';
+import type { TypesTableMeta } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { MyTypesTable } from './MyTypesTable';
+
+export function createMyTypes(url: string, typeDef: object, meta?: TypesTableMeta) {
+  // Custom logic before creating the component
+  const enhancedMeta = meta ? { ...meta, customFlag: true } : meta;
+
+  // Wrap abstractCreateTypes with your custom behavior
+  return abstractCreateTypes({ TypesContent: MyTypesTable }, url, enhancedMeta);
+}
+```
+
+### Custom Factory with TypeScript Generics
+
+For even more flexibility, you can create a factory function from scratch that uses TypeScript generics to specify components:
+
+```typescript
+import { abstractCreateTypes } from '@mui/internal-docs-infra/abstractCreateTypes';
+import type { TypesTableMeta } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { MyTypesTable } from './MyTypesTable';
+
+// Single component with generics
+export function createTypes<TComponent>(
+  url: string,
+  options?: Record<string, any>,
+  meta?: TypesTableMeta,
+) {
+  return abstractCreateTypes({ TypesContent: MyTypesTable }, url, meta);
+}
+
+// Multiple components with generics
+export function createMultipleTypes<TComponents extends Record<string, any>>(
+  url: string,
+  options?: Record<string, any>,
+  meta?: TypesTableMeta,
+): Record<keyof TComponents, React.ComponentType> {
+  // Implementation logic here
+  return {} as Record<keyof TComponents, React.ComponentType>;
+}
+```
+
+**Usage:**
+
+```typescript
+// In types.ts - Single component
+import { Button } from './Button';
+
+export const TypesButton = createTypes<Button>(import.meta.url);
+
+// In types.ts - Multiple components
+import { Checkbox } from './Checkbox';
+
+const types = createMultipleTypes<typeof Checkbox>(import.meta.url);
+
+export const TypesCheckboxRoot = types.Root;
+export const TypesCheckboxIndicator = types.Indicator;
+```
+
+This approach allows the component types to be inferred from the generic parameter, enabling:
+
+- Type-safe factory calls without runtime component arguments
+- Cleaner syntax when components are only used for type extraction
+- Custom options objects as the second parameter
+
+The [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) loader supports this pattern and will extract type information from the generic parameter.
+
+## Types
+
+import {
+  TypesAbstractCreateTypes,
+  TypesCreateTypesFactory,
+  TypesCreateMultipleTypesFactory,
+} from './types';
+
+### `abstractCreateTypes`
+
+<TypesAbstractCreateTypes />
+
+### `createTypesFactory`
+
+<TypesCreateTypesFactory />
+
+### `createMultipleTypesFactory`
+
+<TypesCreateMultipleTypesFactory />
+
+## Related
+
+- **[Built Factories Pattern](../../patterns/built-factories/page.mdx)**: Core pattern explaining `import.meta.url` and filesystem-based routing
+- **[`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx)**: Build-time loader that extracts types
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for converting HAST types to React nodes
+- **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format used for types
