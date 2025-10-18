@@ -1,0 +1,396 @@
+# HAST (Hypertext Abstract Syntax Tree)
+
+HAST is the core data structure used throughout this package for syntax highlighting and markdown processing. Understanding HAST helps you work effectively with the docs infra.
+
+---
+
+## What is HAST?
+
+HAST (Hypertext Abstract Syntax Tree) is a specification for representing HTML as an abstract syntax tree. In this package, HAST serves as an intermediate format that bridges the gap between raw source code and rendered React components.
+
+**Key Characteristics:**
+
+- An abstract syntax tree format for HTML
+- Contains syntax highlighting metadata
+- Can be serialized to JSON for caching
+- Converted to React elements at runtime
+
+---
+
+## Why HAST?
+
+Using HAST as an intermediate format provides several critical benefits for documentation infrastructure:
+
+### Build-time Optimization
+
+Syntax highlighting is computed once during compilation, not on every page load or request. This means:
+
+- Complex parsing happens during build, not in the browser or on the server per-request
+- Highlighting results are cached and reused across builds
+- Users receive pre-processed, ready-to-render content
+
+### Zero Runtime Overhead
+
+No parsing or highlighting libraries are needed in the client bundle or server runtime:
+
+- Smaller JavaScript bundles shipped to users
+- Faster page loads and better performance
+- No server-side processing of syntax highlighting on each request
+- No client-side processing of syntax highlighting
+
+> [!NOTE]
+> While server-side highlighting (e.g., with React Server Components) can offload work from the client, it still requires processing on every request. Build-time HAST generation eliminates this overhead entirely by computing highlighting once and caching the results.
+
+### Framework Agnostic
+
+HAST can be converted to any framework's component format:
+
+- React via `hastToJsx()`
+- Vue, Svelte, or other frameworks with appropriate converters
+- Enables sharing documentation infrastructure across different tech stacks
+
+### Customizable Rendering
+
+Unlike plain HTML strings, HAST can be converted to actual React components with custom handlers:
+
+- Replace specific elements with custom React components
+- Enhance code blocks with interactive features
+- Use React Server Components for dynamic content
+- Apply context-aware rendering logic
+
+This is not possible with plain HTML strings, which can only be rendered via `dangerouslySetInnerHTML` without component-level control.
+
+### Rich Plugin Ecosystem
+
+HAST is part of the [unified](https://unifiedjs.com/) ecosystem, which provides a vast collection of plugins for transforming content:
+
+- **Rehype plugins**: Transform HAST trees (e.g., syntax highlighting, link processing, image optimization)
+- **Remark plugins**: Process markdown before HAST conversion
+- **Composable pipelines**: Chain multiple transformations together
+- **Community ecosystem**: Hundreds of existing plugins available
+- **Runtime transformations**: Easily transform HAST at runtime without reparsing HTML or using regex
+
+This plugin architecture allows you to build sophisticated content processing pipelines without writing transform logic from scratch. Since HAST is already a structured tree, you can traverse and modify it directly without the overhead of parsing HTML strings or the fragility of regex replacements.
+
+### Efficient Caching
+
+Webpack can cache HAST as JSON between builds:
+
+- Fast incremental builds
+- Only reprocess files that have changed
+- Persistent build cache across development sessions
+
+---
+
+## Data Flow
+
+The typical flow of data through the HAST pipeline:
+
+```
+Source Code
+    ↓
+Parse & Format (Build Time)
+    ↓
+HAST (Syntax-highlighted AST)
+    ↓
+Serialize to JSON
+    ↓
+Store in Bundle
+    ↓
+Load at Runtime
+    ↓
+Convert to React.ReactNode
+    ↓
+Render Components
+```
+
+---
+
+## Structure
+
+A HAST tree consists of nodes with the following structure:
+
+```typescript
+interface HastRoot {
+  type: 'root';
+  children: HastContent[];
+}
+
+interface HastElement {
+  type: 'element';
+  tagName: string;
+  properties?: Record<string, any>;
+  children?: HastContent[];
+}
+
+interface HastText {
+  type: 'text';
+  value: string;
+}
+
+type HastContent = HastElement | HastText;
+```
+
+### Example
+
+Here's what a simple HAST structure looks like for highlighted code:
+
+```json
+{
+  "type": "root",
+  "children": [
+    {
+      "type": "element",
+      "tagName": "code",
+      "properties": { "className": ["language-ts"] },
+      "children": [
+        {
+          "type": "element",
+          "tagName": "span",
+          "properties": { "className": ["token", "keyword"] },
+          "children": [{ "type": "text", "value": "const" }]
+        },
+        { "type": "text", "value": " " },
+        {
+          "type": "element",
+          "tagName": "span",
+          "properties": { "className": ["token", "variable"] },
+          "children": [{ "type": "text", "value": "x" }]
+        }
+      ]
+    }
+  ]
+}
+```
+
+This represents: `const x` with syntax highlighting classes applied.
+
+### Security Considerations
+
+When working with HAST from untrusted sources (e.g., JSON from external APIs or user-generated content), sanitize the HAST tree before converting it to React components:
+
+```typescript
+import { hastToJsx } from '@mui/internal-docs-infra/hastToJsx';
+import { sanitize } from 'hast-util-sanitize';
+
+// Untrusted HAST from external source
+const untrustedHast = await fetch('/api/user-content').then((r) => r.json());
+
+// Sanitize before rendering
+const sanitizedHast = sanitize(untrustedHast);
+const safeContent = hastToJsx(sanitizedHast);
+```
+
+The [`hast-util-sanitize`](https://github.com/syntax-tree/hast-util-sanitize) package removes potentially dangerous elements and attributes, preventing XSS attacks.
+
+> [!NOTE]
+> For HAST generated at build time by this package (from `loadPrecomputedCodeHighlighter` or `loadPrecomputedTypesMeta`), sanitization is not necessary since the content comes from your own source files.
+
+---
+
+## Key Functions
+
+### Creating HAST
+
+- [`parseSource`](../../functions/parse-source/page.mdx): Converts source code to HAST with syntax highlighting using Starry Night
+
+### Converting HAST
+
+- [`hastToJsx`](../../functions/hast-utils/page.mdx): Converts HAST nodes to React elements
+- [`hastOrJsonToJsx`](../../functions/hast-utils/page.mdx): Handles both HAST and serialized JSON formats
+
+### Transforming HAST
+
+HAST transformers follow a naming convention based on which AST they operate on:
+
+**Rehype plugins** (operate on HAST/HTML AST):
+
+- [`transformHtmlCode`](../../functions/transform-html-code/page.mdx): Processes `<pre><code>` blocks in HAST and precomputes syntax highlighting data
+- [`transformHtmlCodeInlineHighlighted`](../../functions/transform-html-code-inline-highlighted/page.mdx): Applies inline syntax highlighting to HAST
+- All `transformHtml*` functions work with HAST nodes
+
+**Remark plugins** (operate on MDAST/Markdown AST):
+
+- [`transformMarkdownCode`](../../functions/transform-markdown-code/page.mdx): Groups markdown code fences with variants and converts to semantic HTML/HAST
+- All `transformMarkdown*` functions work with MDAST, often producing HAST as output
+
+**React hooks** (consume HAST at runtime):
+
+- [`useTypes`](../../hooks/use-types/page.mdx): Converts type metadata (HAST) to React nodes
+
+---
+
+## Usage in This Package
+
+HAST is used extensively throughout the docs-infra package:
+
+### Code Highlighting
+
+The [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component works with HAST:
+
+- Demo source code is parsed to HAST at build time
+- HAST is stored in the bundle as JSON
+- At runtime, HAST is converted to React components
+
+### Type Documentation
+
+The [`loadPrecomputedTypesMeta`](../../functions/load-precomputed-types-meta/page.mdx) loader:
+
+- Extracts TypeScript types and formats them as HAST
+- JSDoc descriptions are parsed as markdown HAST
+- Type signatures get syntax highlighting as HAST
+- All HAST is embedded in the bundle
+
+---
+
+## Performance Benefits
+
+Using HAST provides measurable performance improvements over both client-side and server-side highlighting:
+
+### Build Time
+
+- **First build**: Slightly slower due to parsing and highlighting
+- **Incremental builds**: Fast due to caching (only changed files reprocessed)
+
+### Runtime
+
+- **Bundle size**: Smaller (no syntax highlighting libraries)
+- **Parse time**: Zero (already parsed at build time)
+- **Render time**: Fast (direct conversion to React elements)
+- **Server load**: None (no per-request processing)
+
+### Comparison
+
+For a documentation site with 100 code examples:
+
+**Client-side highlighting:**
+
+- Bundle size: +50KB (highlighting library)
+- Time to interactive: +200ms (parsing and highlighting)
+- CPU usage: High (processing all examples in browser)
+- Server load: None
+
+**Server-side highlighting (per request):**
+
+- Bundle size: Optimal (no client libraries)
+- Time to first byte: +50ms (processing on server)
+- CPU usage: Minimal client, high server
+- Server load: High (processing on every request)
+
+**Build-time HAST (this approach):**
+
+- Bundle size: Optimal (no highlighting libraries)
+- Time to interactive: Instant (pre-rendered)
+- CPU usage: Minimal (just rendering)
+- Server load: None (processed once at build time)
+
+---
+
+## Related Specifications
+
+HAST is part of the [unified](https://unifiedjs.com/) ecosystem:
+
+- **[HAST Specification](https://github.com/syntax-tree/hast)**: Official HAST format specification
+- **[MDAST](https://github.com/syntax-tree/mdast)**: Markdown Abstract Syntax Tree (input format)
+- **[Unified](https://unifiedjs.com/)**: The plugin ecosystem that works with HAST
+
+---
+
+## Best Practices
+
+### When to Use HAST
+
+**Build-time HAST is ideal for:**
+
+- Static documentation sites with code examples
+- Content that rarely changes or changes with deployments
+- Syntax highlighting that can be computed once and cached
+- Scenarios where you want zero runtime highlighting overhead
+- Projects with build pipelines that support loaders/plugins
+
+> [!NOTE]
+> Build-time HAST can still be enhanced and transformed at server or client render-time without reparsing. Since it's already a structured tree, you can traverse and modify it efficiently for dynamic customization while keeping the expensive syntax highlighting precomputed.
+
+**Server-side rendering (RSC) works well for:**
+
+- Dynamic content that changes frequently
+- Per-user or per-request customized code examples
+- Content from databases or external APIs
+- Scenarios where build-time caching isn't feasible
+- When you want optimal bundle size but can accept server processing cost
+
+**Client-side rendering is necessary for:**
+
+- Truly dynamic, user-generated content that can't be pre-processed
+- Interactive code editors or playgrounds
+- When neither build-time nor server-side processing is available
+- Progressive enhancement scenarios
+
+**Consider hybrid approaches:**
+
+- Use build-time HAST for static examples
+- Use server-side rendering for dynamic content
+- Use client-side as a fallback or for interactive features
+- Combine approaches based on content type and requirements
+
+> [!TIP]
+> The choice isn't binary - you can use different approaches for different types of content in the same application. For example, use build-time HAST for documentation pages while using server-side rendering for user-generated content sections.
+
+### Runtime Enhancement Examples
+
+You can still customize precomputed HAST at render-time on the server or client without reparsing HTML or using regex.
+
+- Component mapping (replace elements with React components):
+
+```tsx
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
+
+const components = {
+  code: (props: any) => <CodeBlock {...props} />, // enhance code blocks
+  a: (props: any) => <a {...props} rel={props.rel ?? 'noopener noreferrer'} />, // enforce safe links
+};
+
+export function RenderHast({ hast }: { hast: any }) {
+  return <>{hastToJsx(hast, components)}</>;
+}
+```
+
+- Lightweight tree transform (server or client):
+
+```ts
+import type { Root, Element } from 'hast';
+
+function addNoopener(hast: Root): Root {
+  const stack: any[] = [hast];
+  while (stack.length) {
+    const node: any = stack.pop();
+    if (node.type === 'element' && node.tagName === 'a') {
+      node.properties = {
+        ...(node.properties || {}),
+        rel: node.properties?.rel ?? 'noopener noreferrer',
+      };
+    }
+    if (node.children) stack.push(...node.children);
+  }
+  return hast;
+}
+
+// Server or client render-time
+const sanitized = sanitize(hast); // if the source is untrusted
+const enhanced = addNoopener(sanitized);
+const jsx = hastToJsx(enhanced, components);
+```
+
+### Working with HAST
+
+**Do:**
+
+- Cache HAST between builds
+- Serialize HAST to JSON for storage
+- Use proper TypeScript types (import from `hast`)
+
+**Don't:**
+
+- Manually construct HAST trees (use parsers)
+- Modify HAST nodes directly (use transformers)
+- Skip validation of HAST structure

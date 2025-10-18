@@ -15,6 +15,7 @@ The loader processes `types.ts` files that use the `createTypesMeta` factory pat
 
 - **Automatic type extraction**: Analyzes TypeScript components and generates comprehensive API documentation
 - **Build-time processing**: Type analysis happens during compilation for zero runtime overhead
+- **HAST output format**: Types formatted as syntax-highlighted HAST nodes for efficient rendering
 - **Fast incremental builds**: Process-based singleton ensures language service persists across all compilations
 - **Hot reloading**: Tracks all dependencies and updates documentation when types change
 - **Error detection**: Suggests missing global types with helpful error messages
@@ -115,20 +116,25 @@ The `createTypesMeta` factory processes your component and returns a new React c
 
 ### Multiple Components
 
-The loader handles multiple component variants automatically:
+When a component has multiple parts (like `CheckboxRoot` and `CheckboxIndicator`), you can document them all at once by passing an object with multiple components:
 
 ```typescript
-import { createTypesMeta } from '../createTypesMeta';
-import MainComponent from './MainComponent';
-import HelperComponent from './HelperComponent';
+import { createMultipleTypes } from '../createTypes';
+import { Checkbox } from '@base-ui-components/react/checkbox';
 
-// Returns a component that documents both MainComponent and HelperComponent
-export const TypesInputGroup = createTypesMeta(import.meta.url, { MainComponent, HelperComponent });
+// Processes all parts of the Checkbox component
+const types = createMultipleTypes(import.meta.url, Checkbox);
+
+// Export individual type components for each part
+export const TypesCheckboxRoot = types.Root;
+export const TypesCheckboxIndicator = types.Indicator;
 ```
+
+The factory function extracts the component structure and returns an object where each key corresponds to a component part. This allows you to export type documentation components individually while processing them all together for efficiency.
 
 ### Global Types Configuration
 
-Specify global types for proper TypeScript compilation:
+In most cases, global types are automatically detected. You only need to specify them manually if the loader suggests missing types:
 
 ```typescript
 import { createTypesMeta } from '../createTypesMeta';
@@ -149,7 +155,6 @@ import Component from './Component';
 
 export const TypesAdvancedComponent = createTypesMeta(import.meta.url, Component, {
   name: 'Advanced Component API',
-  globalTypes: ['react', 'dom'],
   skipPrecompute: false,
   customOption: 'value',
 });
@@ -159,24 +164,11 @@ export const TypesAdvancedComponent = createTypesMeta(import.meta.url, Component
 
 ## Global Types
 
-Global types ensure the TypeScript compiler has access to necessary type definitions during analysis.
-
-### Common Global Types
-
-```typescript
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
-  globalTypes: [
-    'react', // React types (React, JSX, etc.)
-    'react-dom', // React DOM types
-    'node', // Node.js globals (process, Buffer, etc.)
-    'dom', // Browser/DOM globals (window, document, etc.)
-  ],
-});
-```
+Global types ensure the TypeScript compiler has access to necessary type definitions during analysis. The loader automatically detects most required types, but you can manually specify them if needed.
 
 ### Automatic Error Detection
 
-The loader automatically detects missing global types and provides helpful suggestions:
+If global types are missing, the loader provides helpful suggestions:
 
 ```bash
 Error: Missing global types detected. Consider adding these to globalTypes: ['react', 'dom']
@@ -185,23 +177,18 @@ To fix this, update your createTypesMeta call:
 export const TypesYourComponent = createTypesMeta(import.meta.url, YourComponent, {
   globalTypes: ['react', 'dom'],
 });
-
-Common globalTypes values:
-- 'react' for React components
-- 'react-dom' for React DOM types
-- 'node' for Node.js globals
-- 'dom' for browser/DOM globals
 ```
 
-### Custom Global Types
+### Common Values
 
-You can also specify custom global type packages:
+When manual specification is needed, these are the most common values:
 
-```typescript
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
-  globalTypes: ['react', '@types/lodash', '@mui/types'],
-});
-```
+- `'react'` - React types (React, JSX, etc.)
+- `'react-dom'` - React DOM types
+- `'node'` - Node.js globals (process, Buffer, etc.)
+- `'dom'` - Browser/DOM globals (window, document, etc.)
+
+You can also specify custom type packages like `'@types/lodash'` or `'@mui/types'` if needed.
 
 ---
 
@@ -223,7 +210,73 @@ interface FactoryOptions {
 
 ## Output Structure
 
-The loader extracts comprehensive type information using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor/blob/main/README.md#output-format) and structures it as:
+The loader extracts comprehensive type information using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor/blob/main/README.md#output-format) and formats it with **HAST (Hypertext Abstract Syntax Tree) nodes** for syntax-highlighted rendering.
+
+### Type Metadata Format
+
+The loader produces two layers of types:
+
+**Build-time Format** (stored in JSON):
+
+- Type fields (`type`, `shortType`, `detailedType`, `default`) are formatted as **HAST** with inline syntax highlighting
+- Markdown fields (`description`, `example`) are parsed as **HAST** with embedded code blocks
+- These HAST structures enable zero runtime parsing overhead
+
+**Runtime Format** (after `useTypes` processing):
+
+- HAST nodes are converted to `React.ReactNode` for rendering
+- See [`useTypes`](../../hooks/use-types/page.mdx) for runtime conversion details
+
+### Formatted Types (Build-time)
+
+```typescript
+interface FormattedProperty {
+  /** Syntax-highlighted type as HAST (not a string) */
+  type: HastRoot;
+  /** Short simplified type for table display */
+  shortType?: HastRoot;
+  /** Plain text version of shortType */
+  shortTypeText?: string;
+  /** Default value with syntax highlighting as HAST */
+  default?: HastRoot;
+  /** Plain text version of default */
+  defaultText?: string;
+  /** Whether the property is required */
+  required?: true;
+  /** Description as parsed markdown HAST */
+  description?: HastRoot;
+  /** Example usage as parsed markdown HAST */
+  example?: HastRoot;
+  /** Detailed expanded type view (when different from basic type) */
+  detailedType?: HastRoot;
+}
+
+interface FormattedParameter {
+  /** Syntax-highlighted type as HAST */
+  type: HastRoot;
+  /** Default value with syntax highlighting as HAST */
+  default?: HastRoot;
+  /** Plain text version of default */
+  defaultText?: string;
+  /** Whether the parameter is optional */
+  optional?: true;
+  /** Description from JSDoc as parsed markdown HAST */
+  description?: HastRoot;
+  /** Example usage as parsed markdown HAST */
+  example?: HastRoot;
+}
+```
+
+> [!NOTE]
+> All type and markdown fields are **HAST nodes**, not strings. This enables:
+>
+> - Syntax highlighting computed once at build time
+> - Direct rendering without runtime parsing
+> - Smaller server/client bundles (no highlighting libraries needed at runtime)
+
+### TypeScript API Extractor Output
+
+The raw TypeScript analysis produces structured metadata:
 
 ```typescript
 interface TypeMetadata {
@@ -320,42 +373,44 @@ declare class ObjectNode implements TypeNode {
 
 ### Example Output
 
-For a simple React component, the extracted metadata looks like:
+The loader can extract different types of exports. Here are examples of each:
+
+**Component Example:**
 
 ```json
 {
   "Default": {
-    "name": "MyComponent",
+    "name": "Button",
     "exports": [
       {
-        "name": "MyComponent",
+        "name": "Button",
         "type": {
           "kind": "component",
-          "typeName": { "name": "MyComponent" },
           "props": [
             {
-              "name": "title",
+              "name": "variant",
               "type": {
-                "kind": "intrinsic",
-                "intrinsic": "string"
+                "type": "root",
+                "children": [
+                  {
+                    "type": "element",
+                    "tagName": "code",
+                    "properties": { "className": ["language-ts"] },
+                    "children": [{ "type": "text", "value": "'primary' | 'secondary'" }]
+                  }
+                ]
               },
-              "optional": false,
-              "documentation": {
-                "description": "The title to display",
-                "tags": []
-              }
-            },
-            {
-              "name": "disabled",
-              "type": {
-                "kind": "intrinsic",
-                "intrinsic": "boolean"
+              "description": {
+                "type": "root",
+                "children": [
+                  {
+                    "type": "element",
+                    "tagName": "p",
+                    "children": [{ "type": "text", "value": "The visual style variant" }]
+                  }
+                ]
               },
-              "optional": true,
-              "documentation": {
-                "description": "Whether the component is disabled",
-                "tags": []
-              }
+              "optional": true
             }
           ]
         }
@@ -364,6 +419,124 @@ For a simple React component, the extracted metadata looks like:
   }
 }
 ```
+
+**Hook Example:**
+
+```json
+{
+  "Default": {
+    "name": "useToggle",
+    "exports": [
+      {
+        "name": "useToggle",
+        "type": {
+          "kind": "function",
+          "parameters": [
+            {
+              "name": "initialValue",
+              "type": {
+                "type": "root",
+                "children": [
+                  {
+                    "type": "element",
+                    "tagName": "code",
+                    "properties": { "className": ["language-ts"] },
+                    "children": [{ "type": "text", "value": "boolean" }]
+                  }
+                ]
+              },
+              "description": {
+                "type": "root",
+                "children": [
+                  {
+                    "type": "element",
+                    "tagName": "p",
+                    "children": [{ "type": "text", "value": "The initial toggle state" }]
+                  }
+                ]
+              },
+              "optional": true
+            }
+          ],
+          "returnValue": {
+            "type": {
+              "kind": "object",
+              "properties": [
+                {
+                  "name": "value",
+                  "type": {
+                    "type": "root",
+                    "children": [
+                      {
+                        "type": "element",
+                        "tagName": "code",
+                        "properties": { "className": ["language-ts"] },
+                        "children": [{ "type": "text", "value": "boolean" }]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "toggle",
+                  "type": {
+                    "type": "root",
+                    "children": [
+                      {
+                        "type": "element",
+                        "tagName": "code",
+                        "properties": { "className": ["language-ts"] },
+                        "children": [{ "type": "text", "value": "() => void" }]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+**Other Exports (Type/Interface):**
+
+```json
+{
+  "Default": {
+    "name": "types",
+    "exports": [
+      {
+        "name": "ButtonProps",
+        "type": {
+          "kind": "object",
+          "properties": [
+            {
+              "name": "variant",
+              "type": {
+                "type": "root",
+                "children": [
+                  {
+                    "type": "element",
+                    "tagName": "code",
+                    "properties": { "className": ["language-ts"] },
+                    "children": [{ "type": "text", "value": "'primary' | 'secondary'" }]
+                  }
+                ]
+              },
+              "optional": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+> [!TIP]
+> Notice how `type` and `description` fields contain HAST tree structures, not plain strings. This pre-computed format eliminates runtime parsing overhead and enables zero-cost rendering at runtime.
 
 ---
 
@@ -547,6 +720,71 @@ createTypesMeta(
   component, // Required: component or variant object
   { options }, // Optional: options object
 );
+```
+
+---
+
+## Data Flow Architecture
+
+The loader implements a multi-stage pipeline that transforms TypeScript types into renderable React components:
+
+### Build Time (Webpack Loader)
+
+1. **Extract TypeScript types**: Worker thread analyzes your components using TypeScript compiler API
+2. **Format as HAST**: Main thread converts types to syntax-highlighted HAST nodes
+3. **Store in JSON**: Precomputed HAST is embedded in your source code as JSON
+
+```typescript
+// Before processing
+export const TypesButton = createTypesMeta(import.meta.url, Button);
+
+// After processing (simplified)
+export const TypesButton = createTypesMeta(import.meta.url, Button, {
+  precompute: {
+    Default: {
+      types: {
+        props: {
+          variant: {
+            type: /* HastRoot with syntax highlighting */,
+            description: /* HastRoot with parsed markdown */,
+          },
+        },
+      },
+    },
+  },
+});
+```
+
+### Runtime (React Components)
+
+1. **Load precomputed data**: Your component imports the factory function with embedded HAST
+2. **Convert HAST to React**: [`useTypes`](../../hooks/use-types/page.mdx) hook converts HAST to React elements
+3. **Render documentation**: Your TypesContent component displays the interactive docs
+
+```typescript
+// In your documentation page
+import { TypesButton } from './types';
+
+// TypesButton contains precomputed HAST data
+// useTypes converts it to React.ReactNode
+// Your TypesContent component renders it
+<TypesButton />
+```
+
+### Why HAST?
+
+HAST (Hypertext Abstract Syntax Tree) is an intermediate format that provides:
+
+- **Build-time optimization**: Syntax highlighting computed once during compilation
+- **Zero runtime parsing**: No need to parse markdown or apply syntax highlighting on every render
+- **Smaller bundles**: No syntax highlighting libraries shipped to clients
+- **Efficient caching**: HAST can be serialized to JSON and cached by webpack
+- **Framework agnostic**: HAST can be converted to React, Vue, or other frameworks
+
+**Type Flow:**
+
+```
+TypeScript Types → Worker Analysis → HAST (Build) → JSON → HAST (Load) → React.ReactNode (Runtime) → Display
 ```
 
 ---
@@ -839,13 +1077,17 @@ Worker sends back serializable data:
 
 ### 7. Format Types (Main Thread)
 
-The main thread formats the raw exports:
+The main thread formats the raw exports into HAST structures:
 
-- Initializes inline syntax highlighting
+- Initializes inline syntax highlighting via [Starry Night](https://github.com/wooorm/starry-night)
 - Calls `formatComponentData()` for components
 - Calls `formatHookData()` for hooks
-- Generates HAST nodes and markdown
+- **Generates HAST nodes**: Converts types to syntax-highlighted HAST
+- **Parses markdown**: Converts JSDoc descriptions to HAST
 - Parallelizes formatting using `Promise.all()`
+
+> [!NOTE]
+> At this stage, all type fields (`type`, `shortType`, `detailedType`, `default`) and markdown fields (`description`, `example`) become **HAST nodes**, not strings. This precomputed format enables zero-cost rendering at runtime.
 
 ### 8. Process Results (Main Thread)
 
