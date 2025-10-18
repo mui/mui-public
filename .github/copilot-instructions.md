@@ -165,6 +165,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **4.5** When looking for documentation, start at the `/README.md` and follow links inward.
 - **4.6** Avoid "breaking the 3rd wall" in code comments and documentation by referring to the instructions provided when working in this repository. Instead, focus on clear, concise explanations of the code itself.
 - **4.7** When writing code comments, use JSDoc style comments for all functions, but type definitions should be in TypeScript types. Avoid using JSDoc `@typedef` and `@param` tags for types. Use them only for descriptions.
+- **4.8** Use progressive disclosure in documentation. Start with simple, common use cases and gradually introduce complexity. Structure docs so readers can stop at their desired depth of understanding. Place advanced sections (like architecture details or performance tuning) at the end of the document after practical content. Follow this pattern: basic usage → configuration → common patterns → reference material → advanced features → implementation details.
 
 ### File Organization & Structure
 

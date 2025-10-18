@@ -176,6 +176,14 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           },
         ],
       },
+      './app/**/types.ts': {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+            options: { performance },
+          },
+        ],
+      },
     };
 
     // Add additional demo patterns to Turbopack rules
@@ -254,6 +262,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
+          ],
+        });
+
+        // Types files for type metadata
+        webpackConfig.module.rules.push({
+          test: new RegExp('/types\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
               options: { performance },
             },
           ],
