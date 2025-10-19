@@ -21,7 +21,7 @@
   "devDependencies": {
     "@types/diff": "^8.0.0",
     "@types/etag": "^1.8.4",
-    "@types/node": "^22.18.9",
+    "@types/node": "^22.18.10",
     "@types/pako": "^2.0.4",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",

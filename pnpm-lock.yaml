@@ -35,7 +35,7 @@ importers:
         specifier: ^22.0.2
         version: 22.0.2
       '@types/node':
-        specifier: ^22.18.9
+        specifier: ^22.18.10
         version: 22.18.10
       '@types/semver':
         specifier: ^7.7.1
@@ -145,7 +145,7 @@ importers:
         specifier: ^1.8.4
         version: 1.8.4
       '@types/node':
-        specifier: ^22.18.9
+        specifier: ^22.18.10
         version: 22.18.10
       '@types/pako':
         specifier: ^2.0.4
@@ -215,7 +215,7 @@ importers:
         version: 1.0.3
     devDependencies:
       '@types/node':
-        specifier: ^22.18.9
+        specifier: ^22.18.10
         version: 22.18.10
       '@types/ssh2':
         specifier: ^1.15.5
@@ -293,7 +293,7 @@ importers:
         specifier: ^5.2.2
         version: 5.2.2
       '@types/node':
-        specifier: ^22.18.9
+        specifier: ^22.18.10
         version: 22.18.10
       '@types/resolve':
         specifier: ^1.20.6
@@ -614,7 +614,7 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
       '@types/node':
-        specifier: ^22.18.9
+        specifier: ^22.18.10
         version: 22.18.10
       '@types/react':
         specifier: ^19.2.2
