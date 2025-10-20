@@ -7,7 +7,8 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "types": ["react", "node"]
+    "types": ["react", "node"],
+    "noEmit": false
   },
   "include": ["src"]
 }
