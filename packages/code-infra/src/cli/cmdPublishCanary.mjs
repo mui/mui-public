@@ -8,6 +8,7 @@
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
+import path from 'node:path';
 import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
@@ -346,7 +347,9 @@ async function createCanaryTag(dryRun = false) {
 }
 
 /**
- * Publish canary versions with updated dependencies
+ * Publish canary versions with updated dependencies. A big assumption here is that
+ * all packages are already built before calling this function.
+ *
  * @param {PublicPackage[]} packagesToPublish - Packages that need canary publishing
  * @param {PublicPackage[]} allPackages - All workspace packages
  * @param {Map<string, VersionInfo>} packageVersionInfo - Version info map
@@ -370,7 +373,6 @@ async function publishCanaryVersions(
 
   const gitSha = await getCurrentGitSha();
   const canaryVersions = new Map();
-  const originalPackageJsons = new Map();
 
   // First pass: determine canary version numbers for all packages
   const changedPackageNames = new Set(packagesToPublish.map((pkg) => pkg.name));
@@ -397,8 +399,14 @@ async function publishCanaryVersions(
   }
 
   // Second pass: read and update ALL package.json files in parallel
+  // Packages are already built at this point.
   const packageUpdatePromises = allPackages.map(async (pkg) => {
-    const originalPackageJson = await readPackageJson(pkg.path);
+    let originalPackageJson = await readPackageJson(pkg.path);
+    let pkgJsonDirectory = pkg.path;
+    if (originalPackageJson.publishConfig?.directory) {
+      pkgJsonDirectory = path.join(pkg.path, originalPackageJson.publishConfig.directory);
+      originalPackageJson = await readPackageJson(pkgJsonDirectory);
+    }
 
     const canaryVersion = canaryVersions.get(pkg.name);
     if (canaryVersion) {
@@ -407,31 +415,19 @@ async function publishCanaryVersions(
         version: canaryVersion,
         gitSha,
       };
-
-      await writePackageJson(pkg.path, updatedPackageJson);
+      await writePackageJson(pkgJsonDirectory, updatedPackageJson);
       console.log(`📝 Updated ${pkg.name} package.json to ${canaryVersion}`);
     }
-
-    return { pkg, originalPackageJson };
+    return { pkg, originalPackageJson, pkgJsonDirectory };
   });
 
   const updateResults = await Promise.all(packageUpdatePromises);
-
-  // Build the original package.json map
-  for (const { pkg, originalPackageJson } of updateResults) {
-    originalPackageJsons.set(pkg.name, originalPackageJson);
-  }
 
   // Prepare changelogs before building and publishing (so it can error out early if there are issues)
   let changelogs = new Map();
   if (options.githubRelease) {
     changelogs = await prepareChangelogsForPackages(packagesToPublish, canaryVersions);
   }
-
-  // Run release build after updating package.json files
-  console.log('\n🔨 Running release build...');
-  await $({ stdio: 'inherit' })`pnpm release:build`;
-  console.log('✅ Release build completed successfully');
 
   // Third pass: publish only the changed packages using recursive publish
   let publishSuccess = false;
@@ -447,10 +443,14 @@ async function publishCanaryVersions(
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
-    const restorePromises = allPackages.map(async (pkg) => {
-      const originalPackageJson = originalPackageJsons.get(pkg.name);
-      await writePackageJson(pkg.path, originalPackageJson);
-    });
+    const restorePromises = updateResults.map(
+      async ({ pkg, originalPackageJson, pkgJsonDirectory }) => {
+        // no need to restore package.json files in build directories
+        if (pkgJsonDirectory === pkg.path) {
+          await writePackageJson(pkg.path, originalPackageJson);
+        }
+      },
+    );
 
     await Promise.all(restorePromises);
   }
