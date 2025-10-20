@@ -9,8 +9,6 @@
     "strict": true,
     "noEmit": true,
     "paths": {
-      "@mui/internal-docs-infra/*": ["./packages/docs-infra/src/*"],
-      "@mui/internal-docs-infra/pipeline/*": ["./packages/docs-infra/src/pipeline/*"],
       "docs/*": ["./docs/*"]
     }
   },

@@ -11,7 +11,7 @@ export interface ResolveLibrarySourceFilesOptions {
   rootContext: string;
   tsconfigPaths?: ts.MapLike<string[]>;
   pathsBasePath?: string;
-  watchSourceDirectly: boolean;
+  watchSourceDirectly?: boolean;
 }
 
 export interface ResolveLibrarySourceFilesResult {
@@ -53,14 +53,34 @@ function transformTsconfigPaths(tsconfigPaths: ts.MapLike<string[]>): Record<str
  *
  * For external libraries with watchSourceDirectly enabled, follows source maps
  * to find the original TypeScript source files instead of declaration files.
+ *
+ * If watchSourceDirectly is not explicitly provided, it will be automatically
+ * determined based on whether any variants use tsconfig path aliases.
  */
 export async function resolveLibrarySourceFiles(
   options: ResolveLibrarySourceFilesOptions,
 ): Promise<ResolveLibrarySourceFilesResult> {
-  const { variants, resourcePath, rootContext, tsconfigPaths, pathsBasePath, watchSourceDirectly } =
-    options;
+  const { variants, resourcePath, rootContext, tsconfigPaths, pathsBasePath } = options;
 
-  let globalTypes = options.watchSourceDirectly ? [] : [];
+  // Determine watchSourceDirectly if not explicitly provided
+  // If any variant uses a tsconfig path alias, we should watch source files directly
+  const watchSourceDirectly =
+    options.watchSourceDirectly ??
+    (tsconfigPaths
+      ? Object.values(variants).some((variantPath) => {
+          // Skip relative paths - they don't need source watching
+          if (variantPath.startsWith(rootContext)) {
+            return false;
+          }
+          // Check if this variant path matches any tsconfig path pattern
+          return Object.keys(tsconfigPaths).some((pattern) => {
+            const regexPattern = pattern.replace(/\*\*/g, '.+').replace(/\*/g, '[^/]+');
+            return new RegExp(`^${regexPattern}`).test(variantPath);
+          });
+        })
+      : false);
+
+  let globalTypes = watchSourceDirectly ? [] : [];
 
   const relativeVariants: Record<string, string> = {};
   const externalVariants: Record<string, string> = {};
