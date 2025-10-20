@@ -19,15 +19,14 @@ and template literals, it's most efficient to handle comment processing in this
 same pass rather than requiring separate parsing steps.
 
 ```typescript
+(
   code: string,
   filePath: string,
-  options:
-    | {
-        removeCommentsWithPrefix?: string[]
-        notableCommentsPrefix?: string[]
-      }
-    | undefined,
-) => Promise<ImportsAndComments>
+  options?: {
+    removeCommentsWithPrefix?: string[];
+    notableCommentsPrefix?: string[];
+  },
+) => Promise<ImportsAndComments>;
 ```
 
 ### ImportName
@@ -118,13 +117,12 @@ this function will try to find the actual file by checking for:
 - `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
 
 ```typescript
+(
   modulePath: string,
-  readDirectory: (
-    path: string,
-  ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] } | undefined,
-  includeTypeDefs: boolean | undefined,
-) => Promise<string | TypeAwareResolveResult>
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+  includeTypeDefs?: boolean,
+) => Promise<string | TypeAwareResolveResult>;
 ```
 
 ### resolveModulePaths
@@ -133,12 +131,11 @@ Resolves multiple module paths efficiently by grouping them by directory
 and performing batch directory lookups.
 
 ```typescript
+(
   modulePaths: string[],
-  readDirectory: (
-    path: string,
-  ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] } | undefined,
-) => Promise<Map<string, string>>
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+) => Promise<Map<string, string>>;
 ```
 
 ### resolveImportResult
@@ -148,20 +145,19 @@ only resolving JavaScript modules and returning a combined map.
 This function uses the new type-aware resolveModulePath function internally.
 
 ```typescript
+(
   importResult: Record<
     string,
     {
-      path: string
-      names: string[]
-      includeTypeDefs?: true
-      positions?: { start: number; end: number }[]
+      path: string;
+      names: string[];
+      includeTypeDefs?: true;
+      positions?: { start: number; end: number }[];
     }
   >,
-  readDirectory: (
-    path: string,
-  ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] } | undefined,
-) => Promise<Map<string, string>>
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+) => Promise<Map<string, string>>;
 ```
 
 ### resolveVariantPaths
@@ -171,12 +167,11 @@ This function extracts the paths, resolves them using resolveModulePaths, and re
 a map from variant name to resolved file URL.
 
 ```typescript
+(
   variants: Record<string, string>,
-  readDirectory: (
-    path: string,
-  ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] } | undefined,
-) => Promise<Map<string, string>>
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+) => Promise<Map<string, string>>;
 ```
 
 ### JAVASCRIPT_MODULE_EXTENSIONS
@@ -235,13 +230,11 @@ This avoids regex parsing and uses precise position information for replacement.
 Works for both JavaScript/TypeScript and CSS imports.
 
 ```typescript
+(
   source: string,
   importPathMapping: Map<string, string>,
-  importResult: Record<
-    string,
-    { positions: { start: number; end: number }[] }
-  >,
-) => string
+  importResult: Record<string, { positions: { start: number; end: number }[] }>,
+) => string;
 ```
 
 ### processRelativeImports
@@ -250,22 +243,23 @@ Processes imports based on the specified storage mode, automatically handling
 source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
 
 ```typescript
+(
   source: string,
   importResult: Record<
     string,
     {
-      path: string
-      names: string[]
-      positions?: { start: number; end: number }[]
+      path: string;
+      names: string[];
+      positions?: { start: number; end: number }[];
     }
   >,
   storeAt: StoreAtMode,
-  isJsFile: boolean | undefined,
-  resolvedPathsMap: Map<string, string> | undefined,
+  isJsFile?: boolean,
+  resolvedPathsMap?: Map<string, string>,
 ) => {
-  processedSource: string
-  extraFiles: Record<string, string>
-}
+  processedSource: string;
+  extraFiles: Record<string, string>;
+};
 ```
 
 ### ProcessImportsResult
@@ -284,9 +278,10 @@ This function is isomorphic and works in both Node.js and browser environments.
 It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
 
 ```typescript
-  fileName: string
-  extension: string
-}
+(url: string) => {
+  fileName: string;
+  extension: string;
+};
 ```
 
 ### extractNameAndSlugFromUrl

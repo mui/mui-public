@@ -10,36 +10,34 @@ Abstract factory function for creating demo client providers.
 This creates a provider component that supplies externals to child components.
 
 ```typescript
+(
   options: { live?: boolean },
   url: string,
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        variantType?: string
-        skipPrecompute?: boolean
-        precompute?: { externals?: {} }
-      }
-    | undefined,
-) => ComponentType<{ children: ReactNode }>
+  meta?: {
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    precompute?: { externals?: {} };
+  },
+) => ComponentType<{ children: ReactNode }>;
 ```
 
 ### createDemoClientFactory
 
 ```typescript
-  live?: boolean
-}) => (
-  url: string,
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        variantType?: string
-        skipPrecompute?: boolean
-        precompute?: { externals?: {} }
-      }
-    | undefined,
-) => ComponentType<{ children: ReactNode }>
+(options: { live?: boolean }) =>
+  (
+    url: string,
+    meta?: {
+      name?: string;
+      slug?: string;
+      displayName?: string;
+      variantType?: string;
+      skipPrecompute?: boolean;
+      precompute?: { externals?: {} };
+    },
+  ) =>
+    ComponentType<{ children: ReactNode }>;
 ```

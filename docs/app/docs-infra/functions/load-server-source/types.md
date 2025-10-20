@@ -9,22 +9,19 @@
 Creates a loadSource function that reads a file and extracts its dependencies.
 
 ```typescript
-  options:
-    | {
-        maxDepth?: number
-        maxFiles?: number
-        includeDependencies?: boolean
-        storeAt?: StoreAtMode
-      }
-    | undefined,
-) => (
-  url: string,
-) => Promise<{
-  source: string
-  extraFiles?: VariantExtraFiles
-  extraDependencies?: string[]
-  externals?: Externals
-}>
+(options?: {
+    maxDepth?: number;
+    maxFiles?: number;
+    includeDependencies?: boolean;
+    storeAt?: StoreAtMode;
+  }) =>
+  (url: string) =>
+    Promise<{
+      source: string;
+      extraFiles?: VariantExtraFiles;
+      extraDependencies?: string[];
+      externals?: Externals;
+    }>;
 ```
 
 ### loadServerSource
@@ -35,11 +32,11 @@ It reads the source file, resolves its imports, and returns the processed source
 additional files and dependencies that were found.
 
 ```typescript
-  url: string,
-) => Promise<{
-  source: string
-  extraFiles?: VariantExtraFiles
-  extraDependencies?: string[]
-  externals?: Externals
-}>
+(url: string) =>
+  Promise<{
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
 ```

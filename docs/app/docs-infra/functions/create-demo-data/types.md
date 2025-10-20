@@ -12,18 +12,17 @@ Returns a data object containing demo metadata and components instead of a compl
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
 ```typescript
+(
   url: string,
   variants: { Default: ComponentType<any> } | {},
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        skipPrecompute?: boolean
-        precompute?: {}
-        client?: ComponentType<{ children: ReactNode }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    skipPrecompute?: boolean
+    precompute?: {}
+    client?: ComponentType<{ children: ReactNode }>
+  },
 ) => {
   name: string
   slug: string
@@ -41,18 +40,17 @@ Returns a data object containing demo metadata and components instead of a compl
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
 ```typescript
+(
   url: string,
   component: ComponentType<any>,
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        skipPrecompute?: boolean
-        precompute?: {}
-        client?: ComponentType<{ children: ReactNode }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    skipPrecompute?: boolean
+    precompute?: {}
+    client?: ComponentType<{ children: ReactNode }>
+  },
 ) => {
   name: string
   slug: string
@@ -68,18 +66,17 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 Creates a demo data object for a global provider component with different variants.
 
 ```typescript
+(
   url: string,
   globalProviders: {},
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        skipPrecompute?: boolean
-        precompute?: {}
-        client?: ComponentType<{ children: ReactNode }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    skipPrecompute?: boolean
+    precompute?: {}
+    client?: ComponentType<{ children: ReactNode }>
+  },
 ) => {
   name: string
   slug: string
@@ -95,18 +92,17 @@ Creates a demo data object for a global provider component with different varian
 Creates a demo data object for a global provider component.
 
 ```typescript
+(
   url: string,
   globalProvider: DemoGlobalProvider,
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        skipPrecompute?: boolean
-        precompute?: {}
-        client?: ComponentType<{ children: ReactNode }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    skipPrecompute?: boolean
+    precompute?: {}
+    client?: ComponentType<{ children: ReactNode }>
+  },
 ) => {
   name: string
   slug: string

@@ -340,12 +340,20 @@ async function prettyFormat(type: string, typeName?: string) {
   // Improve readability by formatting complex types with Prettier.
   // Prettier either formats the type on a single line or multiple lines.
   // If it's on a single line, we remove the `type _ = ` prefix.
-  // If it's on multiple lines, we remove the first line (`type _ =`) and de-indent the rest.
+  // If it's on multiple lines, we remove the `type _ = ` prefix but keep the rest of the first line.
   const lines = formattedType.trimEnd().split('\n');
   if (lines.length === 1) {
     type = lines[0].replace(/^type _ = /, '');
   } else {
-    const codeLines = typeName ? lines : lines.slice(1);
+    let codeLines: string[];
+    if (typeName) {
+      codeLines = lines;
+    } else {
+      // For multi-line types without a typeName, replace the `type _ = ` prefix
+      // on the first line, but keep the rest of the line (e.g., opening parenthesis)
+      const firstLine = lines[0].replace(/^type _ = /, '');
+      codeLines = [firstLine, ...lines.slice(1)];
+    }
     const nonEmptyLines = codeLines.filter((l) => l.trim() !== '');
     if (nonEmptyLines.length > 0) {
       const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)?.[0].length ?? 0));
@@ -750,9 +758,44 @@ export function formatType(
     const functionSignature = type.callSignatures
       .map((s) => {
         const params = s.parameters
-          .map(
-            (p) => `${p.name}: ${formatType(p.type, false, undefined, expandObjects, exportNames)}`,
-          )
+          .map((p, index, allParams) => {
+            let paramType = formatType(p.type, false, undefined, expandObjects, exportNames);
+
+            // Check if the type includes undefined
+            const hasUndefined =
+              paramType.includes('| undefined') || paramType.includes('undefined |');
+
+            // Use ?: syntax for optional parameters only if all following parameters are also optional
+            // This ensures we maintain valid TypeScript syntax (optional params must come last)
+            if (p.optional || hasUndefined) {
+              const remainingParams = allParams.slice(index + 1);
+              const allRemainingAreOptional = remainingParams.every((remaining) => {
+                // If the parameter is explicitly marked as optional, we don't need to check the type
+                if (remaining.optional) {
+                  return true;
+                }
+                // Only check the type if the parameter is not explicitly optional
+                // Check if it's a union with undefined without formatting the entire type
+                if (isUnionType(remaining.type)) {
+                  return remaining.type.types.some(
+                    (t) => isIntrinsicType(t) && t.intrinsic === 'undefined',
+                  );
+                }
+                return false;
+              });
+
+              if (allRemainingAreOptional) {
+                // Remove | undefined from the type since we're using ?:
+                paramType = paramType
+                  .replace(/\s*\|\s*undefined\s*$/, '')
+                  .replace(/^\s*undefined\s*\|\s*/, '')
+                  .trim();
+                return `${p.name}?: ${paramType}`;
+              }
+            }
+
+            return `${p.name}: ${paramType}`;
+          })
           .join(', ');
         const returnType = formatType(
           s.returnValueType,

@@ -18,8 +18,7 @@ The actual loading, parsing, and transformation of the variants is handled
 elsewhere by the CodeHighlighter component using loadVariant.
 
 ```typescript
-  _options: {} | undefined,
-) => (url: string) => Promise<Code>
+(_options?: {}) => (url: string) => Promise<Code>;
 ```
 
 ### CreateLoadCodeMetaOptions

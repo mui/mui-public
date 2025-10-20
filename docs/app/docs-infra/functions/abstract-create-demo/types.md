@@ -7,6 +7,7 @@
 ### abstractCreateDemo
 
 ```typescript
+(
   options: {
     DemoContent: ComponentType<ContentProps<{}>>
     DemoContentLoading?: ComponentType<
@@ -51,29 +52,21 @@
   },
   url: string,
   variants: {},
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        variantType?: string
-        skipPrecompute?: boolean
-        highlightAfter?:
-          | 'init'
-          | 'stream'
-          | 'hydration'
-          | 'idle'
-        enhanceAfter?:
-          | 'init'
-          | 'stream'
-          | 'hydration'
-          | 'idle'
-        precompute?: {}
-        ClientProvider?: ComponentType<{
-          children: ReactNode
-        }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    variantType?: string
+    skipPrecompute?: boolean
+    highlightAfter?:
+      | 'init'
+      | 'stream'
+      | 'hydration'
+      | 'idle'
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
+    precompute?: {}
+    ClientProvider?: ComponentType<{ children: ReactNode }>
+  },
 ) =>
   | (ComponentClass<{}, any> & { Title: ComponentType })
   | ((props: {}) => ReactNode | Promise<ReactNode>)
@@ -82,6 +75,7 @@
 ### createDemoFactory
 
 ```typescript
+(options?: {
   DemoContent: ComponentType<ContentProps<{}>>
   DemoContentLoading?: ComponentType<
     ContentLoadingProps<{}>
@@ -121,29 +115,21 @@
 }) => (
   url: string,
   component: ComponentType,
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        variantType?: string
-        skipPrecompute?: boolean
-        highlightAfter?:
-          | 'init'
-          | 'stream'
-          | 'hydration'
-          | 'idle'
-        enhanceAfter?:
-          | 'init'
-          | 'stream'
-          | 'hydration'
-          | 'idle'
-        precompute?: {}
-        ClientProvider?: ComponentType<{
-          children: ReactNode
-        }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    variantType?: string
+    skipPrecompute?: boolean
+    highlightAfter?:
+      | 'init'
+      | 'stream'
+      | 'hydration'
+      | 'idle'
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
+    precompute?: {}
+    ClientProvider?: ComponentType<{ children: ReactNode }>
+  },
 ) =>
   | (ComponentClass<{}, any> & { Title: ComponentType })
   | ((props: {}) => ReactNode | Promise<ReactNode>)
@@ -152,6 +138,7 @@
 ### createDemoWithVariantsFactory
 
 ```typescript
+(options?: {
   DemoContent: ComponentType<ContentProps<{}>>
   DemoContentLoading?: ComponentType<
     ContentLoadingProps<{}>
@@ -191,29 +178,21 @@
 }) => (
   url: string,
   variants: Record<string, ComponentType>,
-  meta:
-    | {
-        name?: string
-        slug?: string
-        displayName?: string
-        variantType?: string
-        skipPrecompute?: boolean
-        highlightAfter?:
-          | 'init'
-          | 'stream'
-          | 'hydration'
-          | 'idle'
-        enhanceAfter?:
-          | 'init'
-          | 'stream'
-          | 'hydration'
-          | 'idle'
-        precompute?: {}
-        ClientProvider?: ComponentType<{
-          children: ReactNode
-        }>
-      }
-    | undefined,
+  meta?: {
+    name?: string
+    slug?: string
+    displayName?: string
+    variantType?: string
+    skipPrecompute?: boolean
+    highlightAfter?:
+      | 'init'
+      | 'stream'
+      | 'hydration'
+      | 'idle'
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
+    precompute?: {}
+    ClientProvider?: ComponentType<{ children: ReactNode }>
+  },
 ) =>
   | (ComponentClass<{}, any> & { Title: ComponentType })
   | ((props: {}) => ReactNode | Promise<ReactNode>)

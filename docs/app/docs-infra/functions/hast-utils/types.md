@@ -7,42 +7,27 @@
 ### hastToJsx
 
 ```typescript
-  hast: HastNodes,
-  components: {} | undefined,
-) => ReactNode
+(hast: HastNodes, components?: {}) => ReactNode;
 ```
 
 ### hastOrJsonToJsx
 
 ```typescript
-  hastOrJson:
-    | HastNodes
-    | { hastJson: string }
-    | { hastGzip: string },
-  components: {} | undefined,
-) => ReactNode
+(hastOrJson: HastNodes | { hastJson: string } | { hastGzip: string }, components?: {}) => ReactNode;
 ```
 
 ### stringOrHastToString
 
 ```typescript
-  source:
-    | string
-    | HastNodes
-    | { hastJson: string }
-    | { hastGzip: string },
-) => string
+(source: string | HastNodes | { hastJson: string } | { hastGzip: string }) => string;
 ```
 
 ### stringOrHastToJsx
 
 ```typescript
-  source:
-    | string
-    | HastNodes
-    | { hastJson: string }
-    | { hastGzip: string },
-  highlighted: boolean | undefined,
-  components: {} | undefined,
-) => ReactNode
+(
+  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
+  highlighted?: boolean,
+  components?: {},
+) => ReactNode;
 ```

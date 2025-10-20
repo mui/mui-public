@@ -278,6 +278,224 @@ describe('format', () => {
       expect(parts[parts.length - 2]).toBe('null');
       expect(parts[parts.length - 1]).toBe('undefined');
     });
+
+    describe('function type formatting', () => {
+      it('should format function with required parameters', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'value',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+                  optional: false,
+                } as any,
+                {
+                  name: 'count',
+                  type: { kind: 'intrinsic', intrinsic: 'number' } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        expect(formatType(functionType, false, undefined, true)).toBe(
+          '((value: string, count: number) => void)',
+        );
+      });
+
+      it('should use ?: syntax for optional parameters at the end', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'value',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+                  optional: false,
+                } as any,
+                {
+                  name: 'options',
+                  type: { kind: 'intrinsic', intrinsic: 'object' } as any,
+                  optional: true,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        expect(formatType(functionType, false, undefined, true)).toBe(
+          '((value: string, options?: object) => void)',
+        );
+      });
+
+      it('should use ?: syntax for parameters with | undefined when all following params are optional', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'value',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+                  optional: false,
+                } as any,
+                {
+                  name: 'options',
+                  type: {
+                    kind: 'union',
+                    types: [
+                      { kind: 'intrinsic', intrinsic: 'object' } as any,
+                      { kind: 'intrinsic', intrinsic: 'undefined' } as any,
+                    ],
+                  } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        expect(formatType(functionType, false, undefined, true)).toBe(
+          '((value: string, options?: object) => void)',
+        );
+      });
+
+      it('should NOT use ?: syntax when optional param comes before required param', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'options',
+                  type: {
+                    kind: 'union',
+                    types: [
+                      { kind: 'intrinsic', intrinsic: 'object' } as any,
+                      { kind: 'intrinsic', intrinsic: 'undefined' } as any,
+                    ],
+                  } as any,
+                  optional: false,
+                } as any,
+                {
+                  name: 'value',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        // Should keep | undefined since the next param is required
+        expect(formatType(functionType, false, undefined, true)).toBe(
+          '((options: object | undefined, value: string) => void)',
+        );
+      });
+
+      it('should use ?: syntax for multiple optional parameters at the end', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'value',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+                  optional: false,
+                } as any,
+                {
+                  name: 'options',
+                  type: {
+                    kind: 'union',
+                    types: [
+                      { kind: 'intrinsic', intrinsic: 'object' } as any,
+                      { kind: 'intrinsic', intrinsic: 'undefined' } as any,
+                    ],
+                  } as any,
+                  optional: false,
+                } as any,
+                {
+                  name: 'callback',
+                  type: { kind: 'function', callSignatures: [] } as any,
+                  optional: true,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        const result = formatType(functionType, false, undefined, true);
+        // Both optional params should use ?: syntax
+        expect(result).toContain('options?: object');
+        expect(result).toContain('callback?:');
+      });
+
+      it('should handle all parameters being optional', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'a',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+                  optional: true,
+                } as any,
+                {
+                  name: 'b',
+                  type: { kind: 'intrinsic', intrinsic: 'number' } as any,
+                  optional: true,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        expect(formatType(functionType, false, undefined, true)).toBe(
+          '((a?: string, b?: number) => void)',
+        );
+      });
+
+      it('should strip undefined from type when using ?: syntax', () => {
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'options',
+                  type: {
+                    kind: 'union',
+                    types: [
+                      { kind: 'intrinsic', intrinsic: 'undefined' } as any,
+                      { kind: 'intrinsic', intrinsic: 'object' } as any,
+                    ],
+                  } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        const result = formatType(functionType, false, undefined, true);
+        // Should be options?: object, not options?: undefined | object
+        expect(result).toBe('((options?: object) => void)');
+        expect(result).not.toContain('undefined');
+      });
+    });
   });
 
   describe('formatEnum', () => {

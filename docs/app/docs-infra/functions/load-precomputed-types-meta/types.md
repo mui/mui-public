@@ -123,10 +123,8 @@ This function handles the conversion of TypeScript type information into a forma
 suitable for documentation display with proper syntax highlighting.
 
 ```typescript
-  props: PropertyNode[],
-  exportNames: string[],
-  allExports: ExportNode[] | undefined,
-) => Promise<Record<string, FormattedProperty>>
+(props: PropertyNode[], exportNames: string[], allExports?: ExportNode[]) =>
+  Promise<Record<string, FormattedProperty>>;
 ```
 
 ### formatParameters
@@ -137,9 +135,7 @@ Each parameter includes its type (as string), description (parsed markdown as HA
 default value, and whether it's optional.
 
 ```typescript
-  params: Parameter[],
-  exportNames: string[] | undefined,
-) => Promise<Record<string, FormattedParameter>>
+(params: Parameter[], exportNames?: string[]) => Promise<Record<string, FormattedParameter>>;
 ```
 
 ### formatDetailedType
@@ -151,11 +147,7 @@ and recursively expands union and intersection types. It includes cycle detectio
 to prevent infinite recursion on self-referential types.
 
 ```typescript
-  type: AnyType,
-  allExports: ExportNode[],
-  exportNames: string[],
-  visited: Set<string> | undefined,
-) => string
+(type: AnyType, allExports: ExportNode[], exportNames: string[], visited?: Set<string>) => string;
 ```
 
 ### formatEnum
@@ -166,8 +158,7 @@ The result includes each enum member's description (parsed markdown as HAST) and
 information from JSDoc tags. Members are sorted by their value for consistent output.
 
 ```typescript
-  enumNode: EnumNode,
-) => Promise<Record<string, FormattedEnumMember>>
+(enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
 ```
 
 ### formatType
@@ -183,12 +174,13 @@ with a prefix (`type _ = `) for better syntax highlighting, then removes the pre
 the highlighted output.
 
 ```typescript
+(
   type: AnyType,
   removeUndefined: boolean,
-  jsdocTags: DocumentationTag[] | undefined,
-  expandObjects: boolean | undefined,
-  exportNames: string[] | undefined,
-) => string
+  jsdocTags?: DocumentationTag[],
+  expandObjects?: boolean,
+  exportNames?: string[],
+) => string;
 ```
 
 ### prettyFormatType
@@ -200,14 +192,15 @@ to the resulting type string. It delegates to `formatType()` for the core type
 processing, then runs the output through `prettyFormat()` for consistent styling.
 
 ```typescript
-  args: [
+(
+  args?: [
     AnyType,
     boolean,
     DocumentationTag[] | undefined,
     boolean | undefined,
     string[] | undefined,
   ],
-) => Promise<string>
+) => Promise<string>;
 ```
 
 ### formatTypeAsHast
@@ -219,14 +212,15 @@ to the resulting type string. It delegates to `formatType()` for the core type
 processing, then converts the output to HAST nodes with inline syntax highlighting.
 
 ```typescript
-  args: [
+(
+  args?: [
     AnyType,
     boolean,
     DocumentationTag[] | undefined,
     boolean | undefined,
     string[] | undefined,
   ],
-) => Promise<Root>
+) => Promise<Root>;
 ```
 
 ### FormattedProperty
