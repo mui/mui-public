@@ -8,13 +8,12 @@ import type {
 } from '@mui/internal-docs-infra/useTypes';
 import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
 import styles from './TypesTable.module.css';
-import { Pre } from '../../../../../components/Pre';
 
 export type TypesTableProps = TypesContentProps<{}>;
 
 export function TypesTable(props: TypesTableProps) {
   // Process HAST nodes to JSX
-  const { types } = useTypes(props, { components: { pre: Pre } });
+  const { types } = useTypes(props);
 
   if (!types || types.length === 0) {
     return <div>No types to display</div>;

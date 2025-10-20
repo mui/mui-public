@@ -38,6 +38,28 @@ export function parseExports(
 
   const reExportInfos: ReExportInfo[] = [];
 
+  // First, check for `export *` declarations at the statement level
+  // These are barrel exports that re-export everything from another module
+  sourceFile.statements.forEach((statement) => {
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.moduleSpecifier &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      !statement.exportClause // `export *` has no exportClause
+    ) {
+      // This is an `export * from './file'` statement
+      const importedSymbol = checker.getSymbolAtLocation(statement.moduleSpecifier);
+      const importedSourceFile = importedSymbol?.valueDeclaration?.getSourceFile();
+
+      if (importedSourceFile) {
+        reExportInfos.push({
+          sourceFile: importedSourceFile,
+          aliasMap: new Map(), // No aliasing for `export *`
+        });
+      }
+    }
+  });
+
   // Check each exported symbol
   exportedSymbols.forEach((symbol) => {
     const declarations = symbol.declarations;

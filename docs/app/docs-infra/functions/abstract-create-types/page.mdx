@@ -34,12 +34,16 @@ export const createMultipleTypes = (url: string, components: Record<string, any>
 To quickly implement these factory functions, use the `abstractCreateTypes` utilities:
 
 ```ts
+import 'server-only'; // Omit if factories will be imported in client components or Pages Router
 import {
   createTypesFactory,
   createMultipleTypesFactory,
 } from '@mui/internal-docs-infra/abstractCreateTypes';
 
 import { TypesContent } from './TypesContent';
+import { Pre } from './Pre';
+
+const components = { pre: Pre };
 
 /**
  * Creates a type documentation component for a single component.
@@ -49,6 +53,8 @@ import { TypesContent } from './TypesContent';
  */
 export const createTypes = createTypesFactory({
   TypesContent,
+  // Optional: Customize how types are rendered
+  components,
 });
 
 /**
@@ -60,8 +66,41 @@ export const createTypes = createTypesFactory({
  */
 export const createMultipleTypes = createMultipleTypesFactory({
   TypesContent,
+  // Optional: Customize how types are rendered
+  components,
 });
 ```
+
+### Customizing Type Rendering
+
+The `components` option allows you to customize how type information is rendered:
+
+```ts
+export const createTypes = createTypesFactory({
+  TypesContent,
+  components: {
+    // Custom component for rendering code blocks in type signatures
+    pre: ({ children, ...props }) => (
+      <pre className="custom-type-code" {...props}>
+        {children}
+      </pre>
+    ),
+  },
+});
+```
+
+You can also override `components` per type:
+
+```ts
+// In your types.ts file
+export const TypesButton = createTypes(import.meta.url, Button, {
+  components: {
+    pre: SpecialPreComponent, // Overrides factory-level component
+  },
+});
+```
+
+The `components` from the type-level metadata take priority over factory-level components.
 
 ## Loader Configuration
 
@@ -181,5 +220,5 @@ import {
 
 - **[Built Factories Pattern](../../patterns/built-factories/page.mdx)**: Core pattern explaining `import.meta.url` and filesystem-based routing
 - **[`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx)**: Build-time loader that extracts types
-- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for converting HAST types to React nodes
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for accessing processed types in TypesContent components
 - **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format used for types

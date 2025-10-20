@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { TypesMeta } from '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta';
+import { typesToJsx, type ProcessedTypesMeta, type TypesJsxOptions } from './typesToJsx';
 
 export type TypesTableMeta = {
   precompute?: {
@@ -13,15 +14,17 @@ export type TypesTableMeta = {
   disableOptimization?: boolean;
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
+  components?: TypesJsxOptions['components'];
 };
 
 export type TypesContentProps<T extends {}> = T & {
-  types?: TypesMeta[];
+  types?: ProcessedTypesMeta[];
   multiple?: boolean;
 };
 
 type AbstractCreateTypesOptions<T extends {}> = {
   TypesContent: React.ComponentType<TypesContentProps<T>>;
+  components?: TypesJsxOptions['components'];
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -40,9 +43,18 @@ export function abstractCreateTypes<T extends {}>(
     throw new Error('abstractCreateTypes() must be called within a `types.ts` file');
   }
 
-  const types = meta?.precompute?.[exportName || 'Default']?.types;
+  const rawTypes = meta?.precompute?.[exportName || 'Default']?.types;
+
+  // Merge components from factory options and meta, with meta taking priority
+  const components = {
+    ...options.components,
+    ...meta.components,
+  };
 
   function TypesComponent(props: T) {
+    // Memoize the conversion from HAST to JSX
+    const types = React.useMemo(() => typesToJsx(rawTypes, { components }), []);
+
     return <options.TypesContent {...props} types={types} multiple={Boolean(exportName)} />;
   }
 
