@@ -20,7 +20,15 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@mui/internal-docs-infra/*": ["../packages/docs-infra/src/*"],
+      "@mui/internal-docs-infra/*/errors": ["../packages/docs-infra/src/*/errors"],
+      "@mui/internal-docs-infra/*/types": ["../packages/docs-infra/src/*/types"],
+      "@mui/internal-docs-infra/pipeline/*": ["../packages/docs-infra/src/pipeline/*"],
+      "@mui/internal-docs-infra/pipeline/*/errors": [
+        "../packages/docs-infra/src/pipeline/*/errors"
+      ],
+      "@mui/internal-docs-infra/pipeline/*/types": ["../packages/docs-infra/src/pipeline/*/types"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.mdx", ".next/types/**/*.ts"],

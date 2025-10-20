@@ -4,6 +4,334 @@
 
 ## API Reference
 
+### ExternalImportItem
+
+```typescript
+type ExternalImportItem = {
+  name: string;
+  type: 'named' | 'default' | 'namespace';
+  isType?: boolean;
+};
+```
+
+### HastRoot
+
+```typescript
+type HastRoot = {
+  data?: RootData & { totalLines?: number };
+};
+```
+
+### LoadFileOptions
+
+Options for controlling file loading behavior
+
+```typescript
+type LoadFileOptions = {
+  disableTransforms?: boolean;
+  disableParsing?: boolean;
+  maxDepth?: number;
+  loadedFiles?: Set<string>;
+  globalsCode?: (string | VariantCode)[];
+  output?: 'hast' | 'hastJson' | 'hastGzip';
+};
+```
+
+### LoadVariantOptions
+
+Options for the loadVariant function, extending LoadFileOptions with required function dependencies
+
+```typescript
+type LoadVariantOptions = {
+  disableTransforms?: boolean;
+  disableParsing?: boolean;
+  maxDepth?: number;
+  loadedFiles?: Set<string>;
+  globalsCode?: (string | VariantCode)[];
+  output?: 'hast' | 'hastJson' | 'hastGzip';
+  sourceParser?: Promise<ParseSource>;
+  loadSource?: (url: string) => Promise<{
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
+  sourceTransformers?: {
+    extensions: string[];
+    transformer: (
+      source: string,
+      fileName: string,
+    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+  }[];
+};
+```
+
+### LoadFallbackCodeOptions
+
+Options for loading fallback code with various configuration flags
+
+```typescript
+type LoadFallbackCodeOptions = {
+  shouldHighlight?: boolean;
+  initialFilename?: string;
+  globalsCode?: (string | {})[];
+  disableTransforms?: boolean;
+  disableParsing?: boolean;
+  maxDepth?: number;
+  loadedFiles?: Set<string>;
+  output?: 'hast' | 'hastJson' | 'hastGzip';
+  loadCodeMeta?: (url: string) => Promise<Code>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
+  loadSource?: (url: string) => Promise<{
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  sourceTransformers?: {
+    extensions: string[];
+    transformer: (
+      source: string,
+      fileName: string,
+    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+  }[];
+  sourceParser?: Promise<ParseSource>;
+  variants?: string[];
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+};
+```
+
+### CodeIdentityProps
+
+Basic identification and metadata props for code examples
+
+```typescript
+type CodeIdentityProps = {
+  name?: string;
+  slug?: string;
+  url?: string;
+};
+```
+
+### CodeContentProps
+
+Core code content and variant management props
+
+```typescript
+type CodeContentProps = {
+  code?: {};
+  components?: {};
+  variantType?: string;
+  variants?: string[];
+  variant?: string;
+  fileName?: string;
+  initialVariant?: string;
+  defaultVariant?: string;
+  globalsCode?: (string | {})[];
+};
+```
+
+### CodeLoadingProps
+
+Loading and processing configuration props
+
+```typescript
+type CodeLoadingProps = {
+  precompute?: {};
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  controlled?: boolean;
+  children?: string;
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  forceClient?: boolean;
+  deferParsing?: 'none' | 'json' | 'gzip';
+};
+```
+
+### CodeFunctionProps
+
+Function props for loading and transforming code
+
+```typescript
+type CodeFunctionProps = {
+  loadCodeMeta?: (url: string) => Promise<Code>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
+  loadSource?: (url: string) => Promise<{
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  sourceTransformers?: {
+    extensions: string[];
+    transformer: (
+      source: string,
+      fileName: string,
+    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+  }[];
+  sourceParser?: Promise<ParseSource>;
+};
+```
+
+### CodeRenderingProps
+
+Component and rendering props
+
+```typescript
+type CodeRenderingProps = {
+  Content: ComponentType<ContentProps<{}>>;
+  contentProps?: {};
+};
+```
+
+### CodeClientRenderingProps
+
+Client-specific rendering props
+
+```typescript
+type CodeClientRenderingProps = {
+  children: ReactNode;
+  fallback?: ReactNode;
+  skipFallback?: boolean;
+};
+```
+
+### CodeHighlighterBaseProps
+
+Base props containing essential properties shared across CodeHighlighter components and helper functions.
+This serves as the foundation for other CodeHighlighter-related interfaces.
+
+```typescript
+type CodeHighlighterBaseProps = {
+  name?: string;
+  slug?: string;
+  url?: string;
+  code?: {};
+  components?: {};
+  variantType?: string;
+  variants?: string[];
+  variant?: string;
+  fileName?: string;
+  initialVariant?: string;
+  defaultVariant?: string;
+  globalsCode?: (string | {})[];
+  precompute?: {};
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  controlled?: boolean;
+  children?: string;
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  forceClient?: boolean;
+  deferParsing?: 'none' | 'json' | 'gzip';
+  loadCodeMeta?: (url: string) => Promise<Code>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
+  loadSource?: (url: string) => Promise<{
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  sourceTransformers?: {
+    extensions: string[];
+    transformer: (
+      source: string,
+      fileName: string,
+    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+  }[];
+  sourceParser?: Promise<ParseSource>;
+  Content: ComponentType<ContentProps<{}>>;
+  contentProps?: {};
+};
+```
+
+### CodeHighlighterClientProps
+
+Props for the client-side CodeHighlighter component.
+Used when rendering happens in the browser with lazy loading and interactive features.
+
+```typescript
+type CodeHighlighterClientProps = {
+  highlightAfter?: 'init' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'hydration' | 'idle';
+  name?: string;
+  slug?: string;
+  url?: string;
+  code?: {};
+  components?: {};
+  variantType?: string;
+  variants?: string[];
+  variant?: string;
+  fileName?: string;
+  initialVariant?: string;
+  defaultVariant?: string;
+  globalsCode?: (string | {})[];
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  precompute?: {};
+  controlled?: boolean;
+  forceClient?: boolean;
+  deferParsing?: 'none' | 'json' | 'gzip';
+  children: ReactNode;
+  fallback?: ReactNode;
+  skipFallback?: boolean;
+};
+```
+
+### CodeHighlighterProps
+
+Main props for the CodeHighlighter component.
+Supports both build-time precomputation and runtime code loading with extensive customization options.
+Generic type T allows for custom props to be passed to Content and ContentLoading components.
+
+```typescript
+type CodeHighlighterProps = {
+  ContentLoading?: ComponentType<ContentLoadingProps<{}>>;
+  name?: string;
+  slug?: string;
+  url?: string;
+  code?: {};
+  components?: {};
+  variantType?: string;
+  variants?: string[];
+  variant?: string;
+  fileName?: string;
+  initialVariant?: string;
+  defaultVariant?: string;
+  globalsCode?: (string | {})[];
+  precompute?: {};
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  controlled?: boolean;
+  children?: string;
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  forceClient?: boolean;
+  deferParsing?: 'none' | 'json' | 'gzip';
+  loadCodeMeta?: (url: string) => Promise<Code>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
+  loadSource?: (url: string) => Promise<{
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  sourceTransformers?: {
+    extensions: string[];
+    transformer: (
+      source: string,
+      fileName: string,
+    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+  }[];
+  sourceParser?: Promise<ParseSource>;
+  Content: ComponentType<ContentProps<{}>>;
+  contentProps?: {};
+};
+```
+
 ### CodeHighlighter
 
 **CodeHighlighter Props:**

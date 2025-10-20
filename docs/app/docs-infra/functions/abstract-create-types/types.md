@@ -9,6 +9,9 @@
 ```typescript
   options: {
     TypesContent: ComponentType<TypesContentProps<{}>>
+    components?: {
+      pre?: ComponentType<{ 'data-precompute'?: string }>
+    }
   },
   url: string,
   meta:
@@ -19,6 +22,11 @@
         disableOptimization?: boolean
         globalTypes?: string[]
         watchSourceDirectly?: boolean
+        components?: {
+          pre?: ComponentType<{
+            'data-precompute'?: string
+          }>
+        }
       }
     | undefined,
   exportName: string | undefined,
@@ -29,6 +37,9 @@
 
 ```typescript
   TypesContent: ComponentType<TypesContentProps<{}>>
+  components?: {
+    pre?: ComponentType<{ 'data-precompute'?: string }>
+  }
 }) => (
   url: string,
   typeDef: {},
@@ -40,6 +51,11 @@
         disableOptimization?: boolean
         globalTypes?: string[]
         watchSourceDirectly?: boolean
+        components?: {
+          pre?: ComponentType<{
+            'data-precompute'?: string
+          }>
+        }
       }
     | undefined,
 ) => ComponentType<{}>
@@ -49,6 +65,9 @@
 
 ```typescript
   TypesContent: ComponentType<TypesContentProps<{}>>
+  components?: {
+    pre?: ComponentType<{ 'data-precompute'?: string }>
+  }
 }) => (
   url: string,
   typeDef: Record<string, any>,
@@ -60,6 +79,11 @@
         disableOptimization?: boolean
         globalTypes?: string[]
         watchSourceDirectly?: boolean
+        components?: {
+          pre?: ComponentType<{
+            'data-precompute'?: string
+          }>
+        }
       }
     | undefined,
 ) => Record<any, ComponentType<{}>>

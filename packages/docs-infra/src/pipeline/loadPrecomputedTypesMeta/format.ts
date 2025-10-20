@@ -712,10 +712,11 @@ export function formatType(
     }
 
     return `{ ${type.properties
-      .map(
-        (m) =>
-          `${m.name}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, expandObjects, exportNames)}`,
-      )
+      .map((m) => {
+        // Property names with hyphens or other special characters need quotes
+        const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
+        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, expandObjects, exportNames)}`;
+      })
       .join(', ')} }`;
   }
 
