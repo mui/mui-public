@@ -2,9 +2,7 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import fs from 'fs/promises';
-
-import { resolve } from 'import-meta-resolve';
+import { writeFile } from 'fs/promises';
 import type { LoaderContext } from 'webpack';
 import type { ExportNode } from 'typescript-api-extractor';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
@@ -14,8 +12,8 @@ import {
   nameMark,
   performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
+import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
 import {
   ComponentTypeMeta as ComponentType,
   formatComponentData,
@@ -29,7 +27,7 @@ import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted/transformHtmlCodeInlineHighlighted';
+import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 import { highlightTypes } from './highlightTypes';
 
 export type LoaderOptions = {
@@ -134,129 +132,29 @@ export async function loadPrecomputedTypesMeta(
       typesMetaCall.structuredOptions?.watchSourceDirectly || config.options.paths,
     );
 
-    let paths: Record<string, string[]> | undefined;
-    if (config.options.paths) {
-      const optionsPaths = config.options.paths;
-      Object.keys(optionsPaths).forEach((key) => {
-        const regex = `^${key.replace('**', '(.+)').replace('*', '([^/]+)')}$`;
-        if (!paths) {
-          paths = {};
-        }
-        paths[regex] = optionsPaths[key].map((p) => {
-          let index = 0;
-          return p.replace(/\*\*|\*/g, () => {
-            index = index + 1;
-            return `$${index}`;
-          });
-        });
-      });
-    }
-
     currentMark = performanceMeasure(
       currentMark,
       { mark: 'tsconfig.json loaded', measure: 'tsconfig.json loading' },
       [functionName, relativePath],
     );
 
-    // Resolve all variant entry point paths using import.meta.resolve
     let globalTypes = typesMetaCall?.structuredOptions?.globalTypes?.[0].map((s: any) =>
       s.replace(/['"]/g, ''),
     );
 
     let resolvedVariantMap = new Map<string, string>();
     if (typesMetaCall.variants) {
-      const relativeVariants: Record<string, string> = {};
-      const externalVariants: Record<string, string> = {};
-
-      const projectRoot = this.rootContext || process.cwd();
-      Object.entries(typesMetaCall.variants).forEach(([variantName, variantPath]) => {
-        if (variantPath.startsWith(projectRoot)) {
-          relativeVariants[variantName] = variantPath;
-        } else if (paths) {
-          Object.keys(paths).find((key) => {
-            if (!paths) {
-              return false;
-            }
-
-            const regex = new RegExp(key);
-            const pathMatch = variantPath.match(regex);
-            if (pathMatch && pathMatch.length > 0) {
-              const replacements = paths[key];
-              for (const replacement of replacements) {
-                let replacedPath = replacement;
-                for (let i = 1; i < pathMatch.length; i += 1) {
-                  replacedPath = replacedPath.replace(`$${i}`, pathMatch[i]);
-                }
-                if (replacedPath.startsWith('.')) {
-                  let basePath = String(config.options.pathsBasePath || projectRoot);
-                  basePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
-                  relativeVariants[variantName] = new URL(
-                    replacedPath,
-                    `file://${basePath}`,
-                  ).pathname;
-                } else {
-                  externalVariants[variantName] = replacedPath;
-                }
-
-                return true;
-              }
-            }
-
-            return false;
-          });
-        } else {
-          externalVariants[variantName] = variantPath;
-        }
+      const result = await resolveLibrarySourceFiles({
+        variants: typesMetaCall.variants,
+        resourcePath: this.resourcePath,
+        rootContext: this.rootContext || process.cwd(),
+        tsconfigPaths: config.options.paths,
+        pathsBasePath: String(config.options.pathsBasePath || ''),
+        watchSourceDirectly,
       });
 
-      resolvedVariantMap = await resolveVariantPathsWithFs(relativeVariants);
-
-      const externalVariantPromises = Object.entries(externalVariants).map(
-        async ([variantName, variantPath]) => {
-          // We can use this ponyfill because it behaves strangely when using native import.meta.resolve(path, parentUrl)
-          const resolvedPath = resolve(variantPath, `file://${this.resourcePath}`);
-
-          if (!watchSourceDirectly) {
-            globalTypes = []; // if we are reading d.ts files directly, we shouldn't need to add any global types
-            return [variantName, resolvedPath] as const;
-          }
-
-          // Lookup the source map to find the original .ts/.tsx source file
-          const resolvedSourceMap = resolvedPath.replace('file://', '').replace('.js', '.d.ts.map');
-          const sourceMap = await fs.readFile(resolvedSourceMap, 'utf-8').catch(() => null);
-          if (!sourceMap) {
-            throw new Error(
-              `Missing source map for variant "${variantName}" at ${resolvedSourceMap}.`,
-            );
-          }
-
-          const parsedSourceMap = JSON.parse(sourceMap);
-
-          if (
-            !('sources' in parsedSourceMap) ||
-            !Array.isArray(parsedSourceMap.sources) ||
-            parsedSourceMap.sources.length === 0
-          ) {
-            throw new Error(
-              `Invalid source map for variant "${variantName}" at ${resolvedSourceMap}. Missing "sources" field.`,
-            );
-          }
-
-          const basePath = parsedSourceMap.sourceRoot
-            ? new URL(parsedSourceMap.sourceRoot, resolvedPath)
-            : resolvedPath;
-          const sourceUrl = new URL(parsedSourceMap.sources[0], basePath).toString();
-
-          return [variantName, sourceUrl] as const;
-        },
-      );
-
-      const externalVariantResults = await Promise.all(externalVariantPromises);
-      externalVariantResults.forEach((result) => {
-        if (result) {
-          resolvedVariantMap.set(result[0], result[1]);
-        }
-      });
+      resolvedVariantMap = result.resolvedVariantMap;
+      globalTypes = result.globalTypes;
 
       currentMark = performanceMeasure(
         currentMark,
@@ -344,20 +242,24 @@ export async function loadPrecomputedTypesMeta(
                 variantResult.allTypes,
                 variantResult.namespaces,
               );
+
               return {
                 type: 'component',
                 name: exportNode.name,
                 data: formattedData,
               };
             }
+
             if (isPublicHook(exportNode)) {
               const formattedData = await formatHookData(exportNode, variantResult.namespaces);
+
               return {
                 type: 'hook',
                 name: exportNode.name,
                 data: formattedData,
               };
             }
+
             return {
               type: 'other',
               name: exportNode.name,
@@ -384,22 +286,25 @@ export async function loadPrecomputedTypesMeta(
     const [highlightedVariantData] = await Promise.all([
       (async () => {
         const highlightStart = performance.now();
+
         const result = await highlightTypes(variantData);
+
         const highlightEnd = performance.now();
-        const highlightCompleteMark = nameMark(functionName, 'HAST transformation complete', [
-          relativePath,
-        ]);
+        const highlightCompleteMark = nameMark(functionName, 'HAST transformed', [relativePath]);
         performance.mark(highlightCompleteMark);
         performance.measure(nameMark(functionName, 'HAST transformation', [relativePath]), {
           start: highlightStart,
           end: highlightEnd,
         });
+
         return result;
       })(),
       (async () => {
         const markdownStart = performance.now();
+
         const markdown = await generateTypesMarkdown(resourceName, allTypes);
-        await fs.writeFile(markdownFilePath, markdown, 'utf-8');
+        await writeFile(markdownFilePath, markdown, 'utf-8');
+
         if (process.env.NODE_ENV === 'production') {
           // during development, if this markdown file is included as a dependency,
           // it causes a second rebuild when this file is written
@@ -407,17 +312,14 @@ export async function loadPrecomputedTypesMeta(
           // so this is not an issue and we should ensure changing this file triggers a rebuild
           allDependencies.push(markdownFilePath);
         }
+
         const markdownEnd = performance.now();
-        const markdownCompleteMark = nameMark(
-          functionName,
-          'markdown generation and write complete',
-          [relativePath],
-        );
+        const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
         performance.mark(markdownCompleteMark);
-        performance.measure(
-          nameMark(functionName, 'markdown generation and write', [relativePath]),
-          { start: markdownStart, end: markdownEnd },
-        );
+        performance.measure(nameMark(functionName, 'markdown generation', [relativePath]), {
+          start: markdownStart,
+          end: markdownEnd,
+        });
       })(),
     ]);
 
