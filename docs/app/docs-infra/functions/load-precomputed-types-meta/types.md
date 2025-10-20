@@ -138,7 +138,7 @@ default value, and whether it's optional.
 
 ```typescript
   params: Parameter[],
-  exportNames: string[],
+  exportNames: string[] | undefined,
 ) => Promise<Record<string, FormattedParameter>>
 ```
 
@@ -154,7 +154,7 @@ to prevent infinite recursion on self-referential types.
   type: AnyType,
   allExports: ExportNode[],
   exportNames: string[],
-  visited: Set<string>,
+  visited: Set<string> | undefined,
 ) => string
 ```
 
@@ -186,8 +186,8 @@ the highlighted output.
   type: AnyType,
   removeUndefined: boolean,
   jsdocTags: DocumentationTag[] | undefined,
-  expandObjects: boolean,
-  exportNames: string[],
+  expandObjects: boolean | undefined,
+  exportNames: string[] | undefined,
 ) => string
 ```
 

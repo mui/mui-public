@@ -122,7 +122,7 @@ this function will try to find the actual file by checking for:
   readDirectory: (
     path: string,
   ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] },
+  options: { extensions?: string[] } | undefined,
   includeTypeDefs: boolean | undefined,
 ) => Promise<string | TypeAwareResolveResult>
 ```
@@ -137,7 +137,7 @@ and performing batch directory lookups.
   readDirectory: (
     path: string,
   ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] },
+  options: { extensions?: string[] } | undefined,
 ) => Promise<Map<string, string>>
 ```
 
@@ -160,7 +160,7 @@ This function uses the new type-aware resolveModulePath function internally.
   readDirectory: (
     path: string,
   ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] },
+  options: { extensions?: string[] } | undefined,
 ) => Promise<Map<string, string>>
 ```
 
@@ -175,7 +175,7 @@ a map from variant name to resolved file URL.
   readDirectory: (
     path: string,
   ) => Promise<DirectoryEntry[]>,
-  options: { extensions?: string[] },
+  options: { extensions?: string[] } | undefined,
 ) => Promise<Map<string, string>>
 ```
 
@@ -260,7 +260,7 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
     }
   >,
   storeAt: StoreAtMode,
-  isJsFile: boolean,
+  isJsFile: boolean | undefined,
   resolvedPathsMap: Map<string, string> | undefined,
 ) => {
   processedSource: string

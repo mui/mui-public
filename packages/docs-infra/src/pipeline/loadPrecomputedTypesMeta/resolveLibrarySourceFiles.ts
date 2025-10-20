@@ -137,7 +137,9 @@ export async function resolveLibrarySourceFiles(
 
       if (!watchSourceDirectly) {
         globalTypes = []; // if we are reading d.ts files directly, we shouldn't need to add any global types
-        return [variantName, resolvedPath] as const;
+        // When not watching source directly, we want to analyze the .d.ts file, not the .js file
+        const dtsPath = resolvedPath.replace('.js', '.d.ts');
+        return [variantName, dtsPath] as const;
       }
 
       // Lookup the source map to find the original .ts/.tsx source file

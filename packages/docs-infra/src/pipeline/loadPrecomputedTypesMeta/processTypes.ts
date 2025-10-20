@@ -130,7 +130,9 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           const parseStart = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Parse Start`, [request.relativePath]),
           );
+
           const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
+
           if (reExportResults && reExportResults.length > 0) {
             namespaces = reExportResults.map((result) => result.name).filter(Boolean);
           }
