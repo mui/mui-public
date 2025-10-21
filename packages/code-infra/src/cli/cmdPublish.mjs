@@ -136,6 +136,10 @@ async function getRepositoryInfo(remotes = ['origin']) {
    * @type {{owner: string, repo: string} | undefined}
    */
   let result;
+  /**
+   * @type {Record<string, any>}
+   */
+  const cause = {};
 
   for (let i = 0; i < remotes.length; i += 1) {
     const remote = remotes[i];
@@ -146,14 +150,15 @@ async function getRepositoryInfo(remotes = ['origin']) {
 
       const parsed = gitUrlParse(url);
       if (parsed.source !== 'github.com' && parsed.owner !== 'mui') {
-        throw new Error('Repository is not hosted on GitHub or the owner is not "mui"');
+        cause[remote] = { message: `Unsupported git remote URL: ${url}` };
+        continue;
       }
 
       result = {
         owner: parsed.owner,
         repo: parsed.name,
       };
-      break;
+      break; // break as soon as we have a valid result
     } catch (/** @type {any} */ error) {
       const execaError = /** @type {import('execa').ExecaError} */ (error);
       if (
@@ -163,11 +168,11 @@ async function getRepositoryInfo(remotes = ['origin']) {
       ) {
         continue; // Try next remote
       }
-      throw new Error(`Failed to get repository info: ${error.message}`);
+      cause[remote] = error;
     }
   }
   if (!result) {
-    throw new Error(`Failed to determine repository info from remotes: ${remotes.join(', ')}`);
+    throw new Error(`Failed to find remote`, { cause });
   }
   return result;
 }
@@ -434,7 +439,7 @@ Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" fi
       return;
     }
 
-    const res = await octokit.actions.createWorkflowDispatch({
+    await octokit.actions.createWorkflowDispatch({
       ...params,
       ref: 'master',
       inputs: {
@@ -444,13 +449,9 @@ Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" fi
         'dist-tag': opts.tag,
       },
     });
-    if (res.status > 204) {
-      console.error('❌🚨 Error creating release.');
-    } else {
-      console.log(
-        `🎉✅ Release created successfully! Check the status at: https://github.com/${params.owner}/${params.repo}/actions/${WORKFLOW_PATH} .`,
-      );
-    }
+    console.log(
+      `🎉✅ Release created successfully! Check the status at: https://github.com/${params.owner}/${params.repo}/actions/${WORKFLOW_PATH} .`,
+    );
   } catch (error) {
     const err =
       /** @type {import('@octokit/types').RequestError & {response: {data: {message: string; documentation_url: string}}}} */ (
@@ -462,8 +463,9 @@ Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" fi
       return;
     }
     if (err.status === 403) {
+      const isAppPermissionIssue = /not accessible by integration/.exec(err.response.data.message);
       console.error(
-        `❌🔒 The "Code Infra" Github app does not have sufficient permissions to perform this action on your behalf. Contact an admin to update the permissions.${err.response.data.documentation_url ? ` See ${err.response.data.documentation_url} for more information.` : ''}.
+        `❌🔒 ${isAppPermissionIssue ? '"Code Infra" app doesn\'t' : "You don't"} seem to have sufficient permissions to perform this action. ${isAppPermissionIssue ? 'Contact' : 'If this seems incorrect, contact'} the infra team regarding the app permissions.${err.response.data.documentation_url ? ` See ${err.response.data.documentation_url} for more information.` : ''}.
 ${manualTriggerUrl}`,
       );
       return;
