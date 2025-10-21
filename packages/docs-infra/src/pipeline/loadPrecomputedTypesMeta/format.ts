@@ -854,7 +854,18 @@ export async function formatTypeAsHast(...args: Parameters<typeof formatType>): 
 }
 
 function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): string {
-  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames);
+  let nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames);
+
+  // Handle types that follow the pattern {ComponentName}{State|Props}
+  // Convert them to {Component}.{State|Props} notation
+  const typeMatch = nameWithTypeArgs.match(/^(.+?)(State|Props)$/);
+  if (typeMatch) {
+    const [, baseName, suffix] = typeMatch;
+    // Check if this base name exists in exportNames (e.g., "Root" in ["Root", "Item", "Panel"])
+    if (exportNames.includes(baseName)) {
+      nameWithTypeArgs = `${baseName}.${suffix}`;
+    }
+  }
 
   if (!typeName.namespaces || typeName.namespaces.length === 0) {
     return nameWithTypeArgs;

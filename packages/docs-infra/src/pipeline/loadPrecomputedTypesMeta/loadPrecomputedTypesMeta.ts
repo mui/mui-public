@@ -228,6 +228,13 @@ export async function loadPrecomputedTypesMeta(
     // Process all variants in parallel
     await Promise.all(
       Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+        // Get all export names for this variant to help with namespace resolution
+        const exportNames = variantResult.exports.map((exp) => exp.name);
+
+        console.log('[DEBUG] Variant:', variantName);
+        console.log('[DEBUG] Namespaces:', variantResult.namespaces);
+        console.log('[DEBUG] Export names:', exportNames.slice(0, 10), '...');
+
         // Process all exports in parallel within each variant
         const types = await Promise.all(
           variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
@@ -255,9 +262,34 @@ export async function loadPrecomputedTypesMeta(
               };
             }
 
+            // For "other" types, apply namespace formatting if applicable
+            let displayName = exportNode.name;
+
+            // Check if this matches the pattern {ComponentName}{Suffix}
+            // e.g., "AccordionRootState" -> "Accordion.Root.State"
+            const typeMatch = exportNode.name.match(
+              /^(.+?)(State|Props|ChangeEventReason|ChangeEventDetails)$/,
+            );
+            if (typeMatch && variantResult.namespaces.length > 0) {
+              const [, fullComponentName, suffix] = typeMatch;
+              const namespace = variantResult.namespaces[0];
+
+              // Try to find the component by removing the namespace prefix
+              // e.g., "AccordionRoot" -> "Root" (if namespace is "Accordion")
+              const componentName = fullComponentName.startsWith(namespace)
+                ? fullComponentName.slice(namespace.length)
+                : fullComponentName;
+
+              // Check if this component exists in exportNames (e.g., "Root" in ["Root", "Item", "Panel"])
+              if (exportNames.includes(componentName)) {
+                // Format as Namespace.Component.Suffix
+                displayName = `${namespace}.${componentName}.${suffix}`;
+              }
+            }
+
             return {
               type: 'other',
-              name: exportNode.name,
+              name: displayName,
               data: exportNode,
             };
           }),
