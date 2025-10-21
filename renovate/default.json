@@ -27,6 +27,30 @@
   "internalChecksFilter": "strict",
   "ignorePresets": [":ignoreModulesAndTests"],
   "ignorePaths": ["**/node_modules/**", "**/examples/**", "**/__tests__/**", "**/__fixtures__/**"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [".circleci/**/*.yml"],
+      "matchStrings": [
+        // For circleci config files
+        "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
+      ],
+      "currentValueTemplate": "master",
+      "depNameTemplate": "code-infra",
+      "packageNameTemplate": "https://github.com/mui/mui-public",
+      "datasourceTemplate": "git-refs"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [".circleci/**/*.yml"],
+      "matchStrings": [
+        // For Playwright Docker image versions
+        "playwright-img-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
+      ],
+      "packageNameTemplate": "mcr.microsoft.com/playwright",
+      "datasourceTemplate": "docker"
+    }
+  ],
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
