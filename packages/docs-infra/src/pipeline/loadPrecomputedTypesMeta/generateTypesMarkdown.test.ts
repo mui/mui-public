@@ -588,17 +588,17 @@ describe('generateTypesMarkdown', () => {
 
         ### Button
 
-        ### useButton
-
-        **useButton Return Value:**
-
-        \`void\`
-
         ### ButtonProps
 
         \`\`\`typescript
         undefined
         \`\`\`
+
+        ### useButton
+
+        **useButton Return Value:**
+
+        \`void\`
         "
       `);
     });
