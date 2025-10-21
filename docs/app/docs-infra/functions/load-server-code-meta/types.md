@@ -4,6 +4,12 @@
 
 ## API Reference
 
+### CreateLoadCodeMetaOptions
+
+```typescript
+type CreateLoadCodeMetaOptions = {};
+```
+
 ### createLoadServerCodeMeta
 
 Creates a loadCodeMeta function that resolves variant paths from demo files.
@@ -19,12 +25,6 @@ elsewhere by the CodeHighlighter component using loadVariant.
 
 ```typescript
 (_options?: {}) => (url: string) => Promise<Code>;
-```
-
-### CreateLoadCodeMetaOptions
-
-```typescript
-type CreateLoadCodeMetaOptions = {};
 ```
 
 ### loadServerCodeMeta

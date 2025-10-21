@@ -4,12 +4,6 @@
 
 ## API Reference
 
-### useCodeExternals
-
-**useCodeExternals Return Value:**
-
-`{ externals?: Record<string, {}> } | undefined`
-
 ### CodeExternalsContext
 
 ```typescript
@@ -17,3 +11,9 @@ type CodeExternalsContext = {
   externals?: Record<string, {}>;
 };
 ```
+
+### useCodeExternals
+
+**useCodeExternals Return Value:**
+
+`{ externals?: Record<string, {}> } | undefined`

@@ -4,22 +4,16 @@
 
 ## API Reference
 
-### hastToJsx
-
-```typescript
-(hast: HastNodes, components?: {}) => ReactNode;
-```
-
 ### hastOrJsonToJsx
 
 ```typescript
 (hastOrJson: HastNodes | { hastJson: string } | { hastGzip: string }, components?: {}) => ReactNode;
 ```
 
-### stringOrHastToString
+### hastToJsx
 
 ```typescript
-(source: string | HastNodes | { hastJson: string } | { hastGzip: string }) => string;
+(hast: HastNodes, components?: {}) => ReactNode;
 ```
 
 ### stringOrHastToJsx
@@ -30,4 +24,10 @@
   highlighted?: boolean,
   components?: {},
 ) => ReactNode;
+```
+
+### stringOrHastToString
+
+```typescript
+(source: string | HastNodes | { hastJson: string } | { hastGzip: string }) => string;
 ```

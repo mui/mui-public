@@ -4,140 +4,6 @@
 
 ## API Reference
 
-### isExternalType
-
-Type guard to check if a type node is an external type reference.
-Works with both class instances and serialized objects from typescript-api-extractor.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isIntrinsicType
-
-Type guard to check if a type node is an intrinsic (built-in) type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isUnionType
-
-Type guard to check if a type node is a union type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isIntersectionType
-
-Type guard to check if a type node is an intersection type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isObjectType
-
-Type guard to check if a type node is an object type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isArrayType
-
-Type guard to check if a type node is an array type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isFunctionType
-
-Type guard to check if a type node is a function type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isLiteralType
-
-Type guard to check if a type node is a literal type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isEnumType
-
-Type guard to check if a type node is an enum type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isTupleType
-
-Type guard to check if a type node is a tuple type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isTypeParameterType
-
-Type guard to check if a type node is a type parameter.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### isComponentType
-
-Type guard to check if a type node is a component type.
-
-```typescript
-(type: unknown) => boolean;
-```
-
-### parseMarkdownToHast
-
-Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
-
-This enables rendering rich formatted descriptions including code examples, lists, and links
-while preserving all markdown features and applying syntax highlighting to code blocks.
-
-```typescript
-(markdown: string) => Promise<Root>;
-```
-
-### formatProperties
-
-Formats component or hook properties into a structured object with syntax-highlighted types.
-
-Each property includes its type (as HAST for rendering), description (parsed markdown),
-default value, and optionally a detailed expanded type view for complex types.
-
-This function handles the conversion of TypeScript type information into a format
-suitable for documentation display with proper syntax highlighting.
-
-```typescript
-(props: PropertyNode[], exportNames: string[], allExports?: ExportNode[]) =>
-  Promise<Record<string, FormattedProperty>>;
-```
-
-### formatParameters
-
-Formats function or hook parameters into a structured object.
-
-Each parameter includes its type (as string), description (parsed markdown as HAST),
-default value, and whether it's optional.
-
-```typescript
-(params: Parameter[], exportNames?: string[]) => Promise<Record<string, FormattedParameter>>;
-```
-
 ### formatDetailedType
 
 Recursively expands type aliases and external type references to their full definitions.
@@ -161,84 +27,30 @@ information from JSDoc tags. Members are sorted by their value for consistent ou
 (enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
 ```
 
-### formatType
+### formatParameters
 
-Formats a TypeScript type into a string representation for documentation display.
+Formats function or hook parameters into a structured object.
 
-This function recursively processes various type nodes (intrinsic types, unions, intersections,
-objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
-complex scenarios like optional properties, type parameters, and nested structures.
-
-For inline code contexts (when `inline: true`), the function generates type expressions
-with a prefix (`type _ = `) for better syntax highlighting, then removes the prefix from
-the highlighted output.
+Each parameter includes its type (as string), description (parsed markdown as HAST),
+default value, and whether it's optional.
 
 ```typescript
-(
-  type: AnyType,
-  removeUndefined: boolean,
-  jsdocTags?: DocumentationTag[],
-  expandObjects?: boolean,
-  exportNames?: string[],
-) => string;
+(params: Parameter[], exportNames?: string[]) => Promise<Record<string, FormattedParameter>>;
 ```
 
-### prettyFormatType
+### formatProperties
 
-Formats a TypeScript type into a prettified string representation.
+Formats component or hook properties into a structured object with syntax-highlighted types.
 
-This is a convenience wrapper around `formatType()` that applies Prettier formatting
-to the resulting type string. It delegates to `formatType()` for the core type
-processing, then runs the output through `prettyFormat()` for consistent styling.
+Each property includes its type (as HAST for rendering), description (parsed markdown),
+default value, and optionally a detailed expanded type view for complex types.
 
-```typescript
-(
-  args?: [
-    AnyType,
-    boolean,
-    DocumentationTag[] | undefined,
-    boolean | undefined,
-    string[] | undefined,
-  ],
-) => Promise<string>;
-```
-
-### formatTypeAsHast
-
-Formats a TypeScript type into syntax-highlighted HAST nodes.
-
-This is a convenience wrapper around `formatType()` that applies syntax highlighting
-to the resulting type string. It delegates to `formatType()` for the core type
-processing, then converts the output to HAST nodes with inline syntax highlighting.
+This function handles the conversion of TypeScript type information into a format
+suitable for documentation display with proper syntax highlighting.
 
 ```typescript
-(
-  args?: [
-    AnyType,
-    boolean,
-    DocumentationTag[] | undefined,
-    boolean | undefined,
-    string[] | undefined,
-  ],
-) => Promise<Root>;
-```
-
-### FormattedProperty
-
-Formatted property metadata with syntax-highlighted types and parsed markdown.
-
-```typescript
-type FormattedProperty = {
-  type: HastRoot;
-  shortType?: HastRoot;
-  shortTypeText?: string;
-  default?: HastRoot;
-  defaultText?: string;
-  required?: true;
-  description?: HastRoot;
-  example?: HastRoot;
-  detailedType?: HastRoot;
-};
+(props: PropertyNode[], exportNames: string[], allExports?: ExportNode[]) =>
+  Promise<Record<string, FormattedProperty>>;
 ```
 
 ### FormattedEnumMember
@@ -265,4 +77,192 @@ type FormattedParameter = {
   description?: HastRoot;
   example?: HastRoot;
 };
+```
+
+### FormattedProperty
+
+Formatted property metadata with syntax-highlighted types and parsed markdown.
+
+```typescript
+type FormattedProperty = {
+  type: HastRoot;
+  shortType?: HastRoot;
+  shortTypeText?: string;
+  default?: HastRoot;
+  defaultText?: string;
+  required?: true;
+  description?: HastRoot;
+  example?: HastRoot;
+  detailedType?: HastRoot;
+};
+```
+
+### formatType
+
+Formats a TypeScript type into a string representation for documentation display.
+
+This function recursively processes various type nodes (intrinsic types, unions, intersections,
+objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
+complex scenarios like optional properties, type parameters, and nested structures.
+
+For inline code contexts (when `inline: true`), the function generates type expressions
+with a prefix (`type _ = `) for better syntax highlighting, then removes the prefix from
+the highlighted output.
+
+```typescript
+(
+  type: AnyType,
+  removeUndefined: boolean,
+  jsdocTags?: DocumentationTag[],
+  expandObjects?: boolean,
+  exportNames?: string[],
+) => string;
+```
+
+### formatTypeAsHast
+
+Formats a TypeScript type into syntax-highlighted HAST nodes.
+
+This is a convenience wrapper around `formatType()` that applies syntax highlighting
+to the resulting type string. It delegates to `formatType()` for the core type
+processing, then converts the output to HAST nodes with inline syntax highlighting.
+
+```typescript
+(
+  args?: [
+    AnyType,
+    boolean,
+    DocumentationTag[] | undefined,
+    boolean | undefined,
+    string[] | undefined,
+  ],
+) => Promise<Root>;
+```
+
+### isArrayType
+
+Type guard to check if a type node is an array type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isComponentType
+
+Type guard to check if a type node is a component type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isEnumType
+
+Type guard to check if a type node is an enum type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isExternalType
+
+Type guard to check if a type node is an external type reference.
+Works with both class instances and serialized objects from typescript-api-extractor.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isFunctionType
+
+Type guard to check if a type node is a function type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isIntersectionType
+
+Type guard to check if a type node is an intersection type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isIntrinsicType
+
+Type guard to check if a type node is an intrinsic (built-in) type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isLiteralType
+
+Type guard to check if a type node is a literal type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isObjectType
+
+Type guard to check if a type node is an object type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isTupleType
+
+Type guard to check if a type node is a tuple type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isTypeParameterType
+
+Type guard to check if a type node is a type parameter.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### isUnionType
+
+Type guard to check if a type node is a union type.
+
+```typescript
+(type: unknown) => boolean;
+```
+
+### parseMarkdownToHast
+
+Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
+
+This enables rendering rich formatted descriptions including code examples, lists, and links
+while preserving all markdown features and applying syntax highlighting to code blocks.
+
+```typescript
+(markdown: string) => Promise<Root>;
+```
+
+### prettyFormatType
+
+Formats a TypeScript type into a prettified string representation.
+
+This is a convenience wrapper around `formatType()` that applies Prettier formatting
+to the resulting type string. It delegates to `formatType()` for the core type
+processing, then runs the output through `prettyFormat()` for consistent styling.
+
+```typescript
+(
+  args?: [
+    AnyType,
+    boolean,
+    DocumentationTag[] | undefined,
+    boolean | undefined,
+    string[] | undefined,
+  ],
+) => Promise<string>;
 ```

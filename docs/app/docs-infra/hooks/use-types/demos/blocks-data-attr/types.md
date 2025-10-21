@@ -23,6 +23,25 @@ A simple component that displays a title and optional children.
 | data-disabled | -    | Present when the component is disabled. |
 | data-title    | -    | Present when the component has a title. |
 
+### Root.Props
+
+```typescript
+type ComponentRootProps = {
+  title: string;
+  disabled?: boolean;
+  children?: ReactNode;
+};
+```
+
+### Root.State
+
+```typescript
+type ComponentRootState = {
+  disabled: boolean;
+  active: boolean;
+};
+```
+
 ### Part
 
 A simple component that displays a title and optional children.
@@ -41,3 +60,22 @@ A simple component that displays a title and optional children.
 | :------------ | :--- | :-------------------------------------- |
 | data-disabled | -    | Present when the component is disabled. |
 | data-title    | -    | Present when the component has a title. |
+
+### Part.Props
+
+```typescript
+type ComponentPartProps = {
+  title: string;
+  disabled?: boolean;
+  children?: ReactNode;
+};
+```
+
+### Part.State
+
+```typescript
+type ComponentPartState = {
+  visible: boolean;
+  expanded: boolean;
+};
+```

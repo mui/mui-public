@@ -4,20 +4,6 @@
 
 ## API Reference
 
-### useControlledCode
-
-Hook to access controlled code state and setters. This is useful for custom components that need to interact with the controlled code state. Use useCode instead when you need access to the code data along with control functions. Use this hook when you need direct access to the setCode and setSelection functions from the CodeControllerContext. It's worth noting that useCode and useDemo handle controlling selection in typical cases.
-
-**useControlledCode Return Value:**
-
-| Property     | Type                                                                 | Description |
-| :----------- | :------------------------------------------------------------------- | :---------- |
-| code         | `ControlledCode \| undefined`                                        | -           |
-| selection    | `Selection \| undefined`                                             | -           |
-| setCode      | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection | `Dispatch<SetStateAction<Selection>> \| undefined`                   | -           |
-| components   | `Record<string, ReactNode> \| undefined`                             | -           |
-
 ### CodeControllerContext
 
 Context for controlling the code shown within the CodeHighlighter component.
@@ -39,3 +25,17 @@ type CodeControllerContext = {
   components?: Record<string, ReactNode>;
 };
 ```
+
+### useControlledCode
+
+Hook to access controlled code state and setters. This is useful for custom components that need to interact with the controlled code state. Use useCode instead when you need access to the code data along with control functions. Use this hook when you need direct access to the setCode and setSelection functions from the CodeControllerContext. It's worth noting that useCode and useDemo handle controlling selection in typical cases.
+
+**useControlledCode Return Value:**
+
+| Property     | Type                                                                 | Description |
+| :----------- | :------------------------------------------------------------------- | :---------- |
+| code         | `ControlledCode \| undefined`                                        | -           |
+| selection    | `Selection \| undefined`                                             | -           |
+| setCode      | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
+| setSelection | `Dispatch<SetStateAction<Selection>> \| undefined`                   | -           |
+| components   | `Record<string, ReactNode> \| undefined`                             | -           |
