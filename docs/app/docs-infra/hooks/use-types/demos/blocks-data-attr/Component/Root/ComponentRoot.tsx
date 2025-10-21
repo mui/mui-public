@@ -1,6 +1,13 @@
 import * as React from 'react';
 
-interface Props {
+export interface ComponentRootState {
+  /** Whether the component is disabled */
+  disabled: boolean;
+  /** Whether the component is active */
+  active: boolean;
+}
+
+export interface ComponentRootProps {
   /** The title to display */
   title: string;
   /** Whether the component is disabled */
@@ -12,7 +19,7 @@ interface Props {
 /**
  * A simple component that displays a title and optional children.
  */
-export function ComponentRoot(props: Props) {
+export function ComponentRoot(props: ComponentRootProps) {
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event);
   };
@@ -23,4 +30,10 @@ export function ComponentRoot(props: Props) {
       {!props.disabled ? props.children : null}
     </button>
   );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace -- Using namespace for type grouping as per Base UI convention
+export namespace ComponentRoot {
+  export type State = ComponentRootState;
+  export type Props = ComponentRootProps;
 }

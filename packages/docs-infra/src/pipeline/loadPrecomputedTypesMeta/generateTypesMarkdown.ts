@@ -8,6 +8,86 @@ import type { HastRoot } from '../../CodeHighlighter/types';
 import * as md from './createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
 import { prettyFormatType } from './format';
+import { exports as exportOrder } from './order';
+
+/**
+ * Sort types for documentation generation.
+ *
+ * Sorting rules:
+ * 1. Components (no dots) are sorted according to exportOrder
+ * 2. Namespace members (with dots) are grouped by component, then sorted by exportOrder
+ * 3. Within the same component, namespace members appear immediately after the component
+ */
+function sortTypes(types: TypesMeta[]): TypesMeta[] {
+  return [...types].sort((a, b) => {
+    const aName = a.name;
+    const bName = b.name;
+
+    // Check if these are namespace members (contain dots)
+    const aIsNamespaceMember = aName.includes('.');
+    const bIsNamespaceMember = bName.includes('.');
+
+    // Extract component name (before the dot) and suffix (after the dot)
+    const aComponent = aIsNamespaceMember ? aName.substring(0, aName.lastIndexOf('.')) : aName;
+    const bComponent = bIsNamespaceMember ? bName.substring(0, bName.lastIndexOf('.')) : bName;
+
+    // If they're from the same component
+    if (aComponent === bComponent) {
+      // Component itself comes before its namespace members
+      if (!aIsNamespaceMember && bIsNamespaceMember) {
+        return -1;
+      }
+      if (aIsNamespaceMember && !bIsNamespaceMember) {
+        return 1;
+      }
+      // Both are namespace members - sort by suffix using exportOrder
+      if (aIsNamespaceMember && bIsNamespaceMember) {
+        const aSuffix = aName.substring(aName.lastIndexOf('.') + 1);
+        const bSuffix = bName.substring(bName.lastIndexOf('.') + 1);
+
+        const aIndex = exportOrder.indexOf(aSuffix);
+        const bIndex = exportOrder.indexOf(bSuffix);
+
+        // If both are in the order list, use that
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        }
+
+        // If only one is in the list, it comes first
+        if (aIndex !== -1) {
+          return -1;
+        }
+        if (bIndex !== -1) {
+          return 1;
+        }
+
+        // Neither in the list - sort alphabetically
+        return aSuffix.localeCompare(bSuffix);
+      }
+    }
+
+    // Different components - need to determine overall order
+    // First, get the order index for each component (not suffix)
+    const aComponentIndex = exportOrder.indexOf(aComponent);
+    const bComponentIndex = exportOrder.indexOf(bComponent);
+
+    // If both components are in the order list, use that order
+    if (aComponentIndex !== -1 && bComponentIndex !== -1) {
+      return aComponentIndex - bComponentIndex;
+    }
+
+    // If only one component is in the list, it comes first
+    if (aComponentIndex !== -1) {
+      return -1;
+    }
+    if (bComponentIndex !== -1) {
+      return 1;
+    }
+
+    // Neither component is in the list - sort alphabetically by component name
+    return aComponent.localeCompare(bComponent);
+  });
+}
 
 /**
  * Parse a markdown string into an AST
@@ -110,8 +190,11 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
     md.heading(2, 'API Reference'),
   ];
 
+  // Sort types before processing
+  const sortedTypes = sortTypes(types);
+
   const typeContents = await Promise.all(
-    types.map(async (typeMeta): Promise<RootContent[]> => {
+    sortedTypes.map(async (typeMeta): Promise<RootContent[]> => {
       const content: RootContent[] = [];
 
       if (typeMeta.type === 'component') {

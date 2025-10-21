@@ -1,6 +1,13 @@
 import * as React from 'react';
 
-interface Props {
+export interface ComponentPartState {
+  /** Whether the part is visible */
+  visible: boolean;
+  /** Whether the part is expanded */
+  expanded: boolean;
+}
+
+export interface ComponentPartProps {
   /** The title to display */
   title: string;
   /** Whether the component is disabled */
@@ -12,7 +19,7 @@ interface Props {
 /**
  * A simple component that displays a title and optional children.
  */
-export function ComponentPart(props: Props) {
+export function ComponentPart(props: ComponentPartProps) {
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event);
   };
@@ -23,4 +30,10 @@ export function ComponentPart(props: Props) {
       {!props.disabled ? props.children : null}
     </button>
   );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace -- Using namespace for type grouping as per Base UI convention
+export namespace ComponentPart {
+  export type State = ComponentPartState;
+  export type Props = ComponentPartProps;
 }

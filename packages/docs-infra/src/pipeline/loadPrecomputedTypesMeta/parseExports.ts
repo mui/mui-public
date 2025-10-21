@@ -159,6 +159,31 @@ export function parseExports(
 
   // If there are re-exports, recursively process them
   if (reExportInfos.length > 0) {
+    // Check if any re-export has a namespace - if so, collect its aliases to share with type exports
+    const namespaceReExport = reExportInfos.find((info) => info.namespaceName);
+    let sharedAliasMap: Map<string, string> | undefined;
+
+    // If we have a namespace export, build a shared alias map from its source file
+    if (namespaceReExport) {
+      sharedAliasMap = new Map();
+
+      // Parse the namespace module's export statements to get aliases
+      // e.g., `export { ComponentRoot as Root }` creates ComponentRoot -> Root
+      namespaceReExport.sourceFile.statements.forEach((stmt) => {
+        if (
+          ts.isExportDeclaration(stmt) &&
+          stmt.exportClause &&
+          ts.isNamedExports(stmt.exportClause)
+        ) {
+          stmt.exportClause.elements.forEach((element) => {
+            const originalName = (element.propertyName || element.name).text;
+            const exportedName = element.name.text;
+            sharedAliasMap!.set(originalName, exportedName);
+          });
+        }
+      });
+    }
+
     for (const reExportInfo of reExportInfos) {
       const recursiveResults = parseExports(
         reExportInfo.sourceFile,
@@ -184,20 +209,23 @@ export function parseExports(
       } else {
         // Process each recursive result for regular re-exports
         for (const recursiveResult of recursiveResults) {
-          if (reExportInfo.aliasMap.size > 0) {
+          // Use the reExportInfo's aliasMap if it has one, otherwise use the shared alias map
+          const aliasMap = reExportInfo.aliasMap.size > 0 ? reExportInfo.aliasMap : sharedAliasMap;
+
+          if (aliasMap && aliasMap.size > 0) {
             // Apply alias mappings to individual exports
             // Include both explicitly aliased exports AND related types that share the same prefix
             const aliasedExports: ExportNode[] = [];
 
             // Sort original names by length (longest first) for prefix matching
-            const sortedOriginalNames = Array.from(reExportInfo.aliasMap.keys()).sort(
+            const sortedOriginalNames = Array.from(aliasMap.keys()).sort(
               (a, b) => b.length - a.length,
             );
 
             for (const exportNode of recursiveResult.exports) {
-              if (reExportInfo.aliasMap.has(exportNode.name)) {
+              if (aliasMap.has(exportNode.name)) {
                 // This export is explicitly aliased (e.g., AccordionRoot -> Root)
-                const aliasedName = reExportInfo.aliasMap.get(exportNode.name)!;
+                const aliasedName = aliasMap.get(exportNode.name)!;
                 exportNode.name = aliasedName;
                 aliasedExports.push(exportNode);
               } else {
@@ -208,7 +236,7 @@ export function parseExports(
                     exportNode.name.startsWith(originalName) &&
                     exportNode.name !== originalName
                   ) {
-                    const aliasedName = reExportInfo.aliasMap.get(originalName)!;
+                    const aliasedName = aliasMap.get(originalName)!;
                     const suffix = exportNode.name.slice(originalName.length);
                     // Rename: "AccordionRootState" -> "Root.State"
                     exportNode.name = `${aliasedName}.${suffix}`;
