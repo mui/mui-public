@@ -11,14 +11,16 @@ import select from '@inquirer/select';
 import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
 import chalk from 'chalk';
+import envCI from 'env-ci';
 import { $ } from 'execa';
 import gitUrlParse from 'git-url-parse';
-import isCI from 'is-ci';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import { getWorkspacePackages, publishPackages } from '../utils/pnpm.mjs';
+
+const isCI = envCI().isCi;
 
 function getOctokit() {
   return new Octokit({ authStrategy: isCI ? createActionAuth : persistentAuthStrategy });

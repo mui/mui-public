@@ -440,6 +440,9 @@ importers:
       clipboardy:
         specifier: ^4.0.0
         version: 4.0.0
+      env-ci:
+        specifier: ^11.2.0
+        version: 11.2.0
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@9.38.0(jiti@2.5.1))
@@ -482,9 +485,6 @@ importers:
       globby:
         specifier: ^15.0.0
         version: 15.0.0
-      is-ci:
-        specifier: ^4.1.0
-        version: 4.1.0
       minimatch:
         specifier: ^10.0.3
         version: 10.0.3
@@ -525,6 +525,9 @@ importers:
       '@types/babel__preset-env':
         specifier: ^7.10.0
         version: 7.10.0
+      '@types/env-ci':
+        specifier: ^3.1.4
+        version: 3.1.4
       '@types/eslint-plugin-jsx-a11y':
         specifier: ^6.10.0
         version: 6.10.0(jiti@2.5.1)
@@ -8847,10 +8850,6 @@ packages:
 
   is-ci@3.0.1:
     resolution: {integrity: sha512-ZYvCgrefwqoQ6yTyYUbQu64HsITZ3NfKX1lzaEYdkTDcfKzzCI/wthRRYKkdjHKFVgNiXKAKm65Zo1pk2as/QQ==}
-    hasBin: true
-
-  is-ci@4.1.0:
-    resolution: {integrity: sha512-Ab9bQDQ11lWootZUI5qxgN2ZXwxNI5hTwnsvOc1wyxQ7zQ8OkEDw79mI0+9jI3x432NfwbVRru+3noJfXF6lSQ==}
     hasBin: true
 
   is-core-module@2.16.1:
@@ -23187,10 +23186,6 @@ snapshots:
   is-ci@3.0.1:
     dependencies:
       ci-info: 3.9.0
-
-  is-ci@4.1.0:
-    dependencies:
-      ci-info: 4.3.1
 
   is-core-module@2.16.1:
     dependencies:
