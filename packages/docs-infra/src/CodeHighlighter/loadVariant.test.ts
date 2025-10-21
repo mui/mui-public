@@ -2522,6 +2522,7 @@ describe('loadVariant - helper functions', () => {
   describe('allFilesListed validation', () => {
     it('should throw error in non-production when allFilesListed=true and loadSource returns unknown extra files', async () => {
       const originalEnv = process.env.NODE_ENV;
+      // @ts-expect-error
       process.env.NODE_ENV = 'development';
 
       try {
@@ -2566,12 +2567,14 @@ describe('loadVariant - helper functions', () => {
             'Please update the loadVariantMeta function to provide the complete list of files upfront.',
         );
       } finally {
+        // @ts-expect-error
         process.env.NODE_ENV = originalEnv;
       }
     });
 
     it('should console.warn in production when allFilesListed=true and loadSource returns unknown extra files', async () => {
       const originalEnv = process.env.NODE_ENV;
+      // @ts-expect-error
       process.env.NODE_ENV = 'production';
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -2620,6 +2623,7 @@ describe('loadVariant - helper functions', () => {
         expect(result.code.extraFiles).toBeDefined();
         expect(result.code.extraFiles!['helper.js']).toBeDefined();
       } finally {
+        // @ts-expect-error
         process.env.NODE_ENV = originalEnv;
         consoleWarnSpy.mockRestore();
       }
@@ -2708,6 +2712,7 @@ describe('loadVariant - helper functions', () => {
 
     it('should allow extraDependencies from loadSource when allFilesListed=true', async () => {
       const originalEnv = process.env.NODE_ENV;
+      // @ts-expect-error
       process.env.NODE_ENV = 'development';
 
       try {
@@ -2742,6 +2747,7 @@ describe('loadVariant - helper functions', () => {
           'file:///path/to/dependency.js',
         ]);
       } finally {
+        // @ts-expect-error
         process.env.NODE_ENV = originalEnv;
       }
     });
