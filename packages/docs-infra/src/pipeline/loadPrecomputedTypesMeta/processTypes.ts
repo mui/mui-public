@@ -11,6 +11,7 @@ export interface VariantResult {
   allTypes: ExportNode[]; // All exports including internal types for reference resolution
   namespaces: string[];
   importedFrom: string;
+  allExportNames?: string[]; // All export names from the original parse (for namespace resolution)
 }
 
 export interface WorkerRequest {
@@ -138,7 +139,47 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           }
 
           // Flatten all exports from the re-export results
-          const exports = reExportResults.flatMap((result) => result.exports);
+          let exports = reExportResults.flatMap((result) => result.exports);
+
+          // Deduplicate: remove flat types that are redundant with namespaced types
+          // e.g., remove "AccordionRootState" if we have "Root.State" in the Accordion namespace
+          if (namespaces.length > 0) {
+            const namespacedTypes: string[] = [];
+
+            // Collect all namespaced export names
+            exports.forEach((exp) => {
+              if (exp.name.includes('.')) {
+                namespacedTypes.push(exp.name);
+              }
+            });
+
+            // Filter out flat types that have namespaced equivalents
+            // e.g., if we have "Root.State", remove "AccordionRootState"
+            exports = exports.filter((exp) => {
+              if (!exp.name.includes('.')) {
+                // This is a flat export - check if there's a namespaced version
+                // Pattern: if we have "Root.State" and this is "AccordionRootState"
+                // where namespace is "Accordion", then this is redundant
+                for (const ns of namespaces) {
+                  // Check if this name starts with the namespace prefix
+                  if (exp.name.startsWith(ns)) {
+                    // Get the part after the namespace: "RootState" from "AccordionRootState"
+                    const withoutNamespace = exp.name.slice(ns.length);
+                    // Check if there's a namespaced equivalent with dots
+                    // e.g., "Root.State" should match "AccordionRootState" (both become "RootState" without dots/namespace)
+                    for (const namespacedType of namespacedTypes) {
+                      const namespacedWithoutDots = namespacedType.replace(/\./g, '');
+                      if (namespacedWithoutDots === withoutNamespace) {
+                        // This flat type is redundant with a namespaced type
+                        return false;
+                      }
+                    }
+                  }
+                }
+              }
+              return true;
+            });
+          }
 
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...request.dependencies, entrypoint];
@@ -221,6 +262,8 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     ) {
       const defaultVariant = variantResults[0];
       const data = defaultVariant.variantData;
+      // Collect all export names for namespace resolution
+      const allExportNames = data.exports.map((exp) => exp.name);
       // Split exports by name for the Default variant case
       data.exports.forEach((exportNode) => {
         variantData[exportNode.name] = {
@@ -228,6 +271,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           allTypes: data.allTypes,
           namespaces: data.namespaces,
           importedFrom: data.importedFrom,
+          allExportNames, // Include all export names for namespace resolution
         };
       });
       defaultVariant.dependencies.forEach((file: string) => {

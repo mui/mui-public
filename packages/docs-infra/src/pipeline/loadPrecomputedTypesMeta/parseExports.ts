@@ -171,6 +171,7 @@ export function parseExports(
       if (reExportInfo.namespaceName) {
         // For namespace exports, collect all exports from all recursive results
         // and group them under a single namespace name
+        // The aliasing has already been applied in the recursive processing
         const allNamespaceExports: ExportNode[] = [];
         for (const recursiveResult of recursiveResults) {
           allNamespaceExports.push(...recursiveResult.exports);
@@ -184,17 +185,38 @@ export function parseExports(
         // Process each recursive result for regular re-exports
         for (const recursiveResult of recursiveResults) {
           if (reExportInfo.aliasMap.size > 0) {
-            // Apply alias mappings to individual exports by mutating the name property
-            // Only include exports that are explicitly re-exported (in the aliasMap)
+            // Apply alias mappings to individual exports
+            // Include both explicitly aliased exports AND related types that share the same prefix
             const aliasedExports: ExportNode[] = [];
+
+            // Sort original names by length (longest first) for prefix matching
+            const sortedOriginalNames = Array.from(reExportInfo.aliasMap.keys()).sort(
+              (a, b) => b.length - a.length,
+            );
+
             for (const exportNode of recursiveResult.exports) {
               if (reExportInfo.aliasMap.has(exportNode.name)) {
-                // Mutate the name property directly to preserve methods like isPublic()
+                // This export is explicitly aliased (e.g., AccordionRoot -> Root)
                 const aliasedName = reExportInfo.aliasMap.get(exportNode.name)!;
                 exportNode.name = aliasedName;
                 aliasedExports.push(exportNode);
+              } else {
+                // Check if this export starts with any aliased component name
+                // e.g., "AccordionRootState" starts with "AccordionRoot" which is aliased to "Root"
+                for (const originalName of sortedOriginalNames) {
+                  if (
+                    exportNode.name.startsWith(originalName) &&
+                    exportNode.name !== originalName
+                  ) {
+                    const aliasedName = reExportInfo.aliasMap.get(originalName)!;
+                    const suffix = exportNode.name.slice(originalName.length);
+                    // Rename: "AccordionRootState" -> "Root.State"
+                    exportNode.name = `${aliasedName}.${suffix}`;
+                    aliasedExports.push(exportNode);
+                    break;
+                  }
+                }
               }
-              // If not in aliasMap, skip this export (don't include it)
             }
             allResults.push({
               name: recursiveResult.name,
