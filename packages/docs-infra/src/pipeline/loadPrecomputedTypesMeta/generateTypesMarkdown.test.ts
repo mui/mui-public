@@ -477,7 +477,7 @@ describe('generateTypesMarkdown', () => {
         Props for the Button component
 
         \`\`\`typescript
-        {}
+        {};
         \`\`\`
         "
       `);
@@ -508,7 +508,7 @@ describe('generateTypesMarkdown', () => {
         ### Status
 
         \`\`\`typescript
-        undefined
+        undefined;
         \`\`\`
         "
       `);
@@ -591,7 +591,7 @@ describe('generateTypesMarkdown', () => {
         ### ButtonProps
 
         \`\`\`typescript
-        undefined
+        undefined;
         \`\`\`
 
         ### useButton

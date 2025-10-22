@@ -2024,7 +2024,7 @@ describe('format', () => {
       } as any;
 
       const result = await prettyFormatType(type, false);
-      expect(result).toBe('string');
+      expect(result).toBe('string;');
     });
 
     it('should format complex types with prettier on multiple lines', async () => {
