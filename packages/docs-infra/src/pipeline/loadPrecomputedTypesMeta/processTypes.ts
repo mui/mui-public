@@ -159,17 +159,18 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           }
 
           // Flatten all exports from the re-export results
-          // For multi-namespace exports, prefix each export name with its namespace to avoid collisions
+          // For multi-namespace exports, store namespace info on a separate property
           let exports = reExportResults.flatMap((result) => {
             if (result.name) {
-              // This result has a namespace - prefix all export names with it
-              // e.g., Button namespace: "Root" becomes "Button:Root", "Root.Props" becomes "Button:Root.Props"
+              // This result has a namespace - store it on the export node
               return result.exports.map((exp) => {
-                // Create a new export node with the prefixed name
-                const prefixedExport = Object.create(Object.getPrototypeOf(exp));
-                Object.assign(prefixedExport, exp);
-                prefixedExport.name = `${result.name}:${exp.name}`;
-                return prefixedExport;
+                // Create a new export node with namespace metadata
+                const exportWithNamespace = Object.create(Object.getPrototypeOf(exp));
+                Object.assign(exportWithNamespace, exp);
+                // Store namespace on a custom property instead of encoding in the name
+                (exportWithNamespace as ExportNode & { exportNamespace: string }).exportNamespace =
+                  result.name;
+                return exportWithNamespace;
               });
             }
             // No namespace - return exports as-is
@@ -307,15 +308,11 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       const exportsByNamespace = new Map<string, ExportNode[]>();
 
       data.exports.forEach((exportNode) => {
-        // Extract the namespace from the prefixed export name
-        // e.g., "Button:Root" -> namespace "Button", name "Root"
-        // e.g., "Root" -> namespace "Default"
-        let exportNamespaceName = data.namespaceName || 'Default';
-
-        if (exportNode.name.includes(':')) {
-          const [prefix] = exportNode.name.split(':');
-          exportNamespaceName = prefix;
-        }
+        // Extract the namespace from the metadata property
+        const exportNamespaceName =
+          (exportNode as ExportNode & { exportNamespace?: string }).exportNamespace ||
+          data.namespaceName ||
+          'Default';
 
         if (!exportsByNamespace.has(exportNamespaceName)) {
           exportsByNamespace.set(exportNamespaceName, []);
@@ -331,25 +328,15 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       exportsByNamespace.forEach((exports, namespaceName) => {
         // Transform export names based on whether we have multiple namespaces
         const transformedExports = exports.map((exportNode) => {
-          let baseName = exportNode.name;
-
-          // Remove the temporary colon prefix if present
-          if (exportNode.name.includes(':')) {
-            const [, ...rest] = exportNode.name.split(':');
-            baseName = rest.join(':');
-          }
-
           // Create a copy with the appropriate name
           const transformedExport = Object.create(Object.getPrototypeOf(exportNode));
           Object.assign(transformedExport, exportNode);
 
           if (hasMultipleNamespaces) {
             // Multiple namespaces: prefix with namespace (e.g., "Button.Root")
-            transformedExport.name = `${namespaceName}.${baseName}`;
-          } else {
-            // Single namespace: use base name only (e.g., "Root")
-            transformedExport.name = baseName;
+            transformedExport.name = `${namespaceName}.${exportNode.name}`;
           }
+          // else: Single namespace: keep the name as-is (no prefix needed)
 
           return transformedExport;
         });

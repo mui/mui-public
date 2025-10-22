@@ -266,7 +266,9 @@ export async function loadPrecomputedTypesMeta(
 
             // For namespace members (e.g., Button.Root.Temp), resolve external type references
             let resolvedExportNode = exportNode;
-            const isNamespaceMember = exportNode.name.includes('.');
+            const isNamespaceMember =
+              (exportNode as ExportNode & { isNamespaceMember?: boolean }).isNamespaceMember ||
+              exportNode.name.includes('.');
 
             if (
               isNamespaceMember &&

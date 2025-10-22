@@ -312,9 +312,26 @@ export function parseExports(
   } else {
     // No re-exports found, parse actual exports from this file
     const { exports } = parseFromProgram(fileName, program, parserOptions);
+
+    // Process exports to detect namespace members (indicated by leading dot)
+    // and store this information as metadata
+    const processedExports = exports.map((exp) => {
+      if (exp.name.startsWith('.')) {
+        // This is a namespace member - store the flag and remove the leading dot
+        const cleanName = exp.name.slice(1);
+        const processedExport: ExportNode & { isNamespaceMember: boolean } = Object.assign(
+          Object.create(Object.getPrototypeOf(exp)),
+          exp,
+          { name: cleanName, isNamespaceMember: true },
+        );
+        return processedExport;
+      }
+      return exp;
+    });
+
     allResults.push({
       name: '',
-      exports,
+      exports: processedExports,
     });
   }
 
