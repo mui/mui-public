@@ -922,11 +922,10 @@ function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): s
     const exportNameIndex = nameWithTypeArgs.indexOf(exportName);
     if (exportNameIndex !== -1) {
       const afterExportName = nameWithTypeArgs.slice(exportNameIndex + exportName.length);
-      // Check if what follows starts with uppercase (indicates a suffix like State, Props, etc.)
-      if (
-        afterExportName.length > 0 &&
-        afterExportName.charAt(0) === afterExportName.charAt(0).toUpperCase()
-      ) {
+      // Check if what follows starts with an uppercase LETTER (indicates a suffix like State, Props, etc.)
+      // This ensures we don't match "Root" inside "ShadowRoot" where the next char is ' ' or '|'
+      const firstChar = afterExportName.charAt(0);
+      if (afterExportName.length > 0 && firstChar >= 'A' && firstChar <= 'Z') {
         // Extract namespace prefix if present (everything before the exportName)
         const beforeExportName = nameWithTypeArgs.slice(0, exportNameIndex);
 
