@@ -9,191 +9,151 @@
 ```typescript
 (
   options: {
-    DemoContent: ComponentType<ContentProps<{}>>
-    DemoContentLoading?: ComponentType<
-      ContentLoadingProps<{}>
-    >
-    DemoTitle?: ComponentType<{
-      slug?: string
-      children?: string
-    }>
-    controlled?: boolean
+    DemoContent: ComponentType<ContentProps<{}>>;
+    DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
+    DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
+    controlled?: boolean;
     demoGlobalData?: {
-      name: string
-      slug: string
-      displayName: string
-      precompute: {} | undefined
-      url: string
-      components: {}
-    }[]
-    variantTypes?: Record<string, string>
-    highlightAfter?:
-      | 'init'
-      | 'stream'
-      | 'hydration'
-      | 'idle'
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-    fallbackUsesExtraFiles?: boolean
-    fallbackUsesAllVariants?: boolean
-    loadCodeMeta?: (url: string) => Promise<Code>
-    loadVariantMeta?: (
-      variantName: string,
-      url: string,
-    ) => Promise<VariantCode>
+      name: string;
+      slug: string;
+      displayName: string;
+      precompute: {} | undefined;
+      url: string;
+      components: {};
+    }[];
+    variantTypes?: Record<string, string>;
+    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    fallbackUsesExtraFiles?: boolean;
+    fallbackUsesAllVariants?: boolean;
+    loadCodeMeta?: (url: string) => Promise<Code>;
+    loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
     loadSource?: (
       url: string,
     ) => Promise<{
-      source: string
-      extraFiles?: VariantExtraFiles
-      extraDependencies?: string[]
-      externals?: Externals
-    }>
-    sourceParser?: Promise<ParseSource>
+      source: string;
+      extraFiles?: VariantExtraFiles;
+      extraDependencies?: string[];
+      externals?: Externals;
+    }>;
+    sourceParser?: Promise<ParseSource>;
   },
   url: string,
   variants: {},
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    variantType?: string
-    skipPrecompute?: boolean
-    highlightAfter?:
-      | 'init'
-      | 'stream'
-      | 'hydration'
-      | 'idle'
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-    precompute?: {}
-    ClientProvider?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    precompute?: {};
+    ClientProvider?: ComponentType<{ children: ReactNode }>;
   },
 ) =>
   | (ComponentClass<{}, any> & { Title: ComponentType })
-  | ((props: {}) => ReactNode | Promise<ReactNode>)
+  | ((props: {}) => ReactNode | Promise<ReactNode>);
 ```
 
 ### createDemoFactory
 
 ```typescript
 (options?: {
-  DemoContent: ComponentType<ContentProps<{}>>
-  DemoContentLoading?: ComponentType<
-    ContentLoadingProps<{}>
-  >
-  DemoTitle?: ComponentType<{
-    slug?: string
-    children?: string
-  }>
-  controlled?: boolean
+  DemoContent: ComponentType<ContentProps<{}>>;
+  DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
+  DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
+  controlled?: boolean;
   demoGlobalData?: {
-    name: string
-    slug: string
-    displayName: string
-    precompute: {} | undefined
-    url: string
-    components: {}
-  }[]
-  variantTypes?: Record<string, string>
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-  fallbackUsesExtraFiles?: boolean
-  fallbackUsesAllVariants?: boolean
-  loadCodeMeta?: (url: string) => Promise<Code>
-  loadVariantMeta?: (
-    variantName: string,
-    url: string,
-  ) => Promise<VariantCode>
+    name: string;
+    slug: string;
+    displayName: string;
+    precompute: {} | undefined;
+    url: string;
+    components: {};
+  }[];
+  variantTypes?: Record<string, string>;
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  loadCodeMeta?: (url: string) => Promise<Code>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
   loadSource?: (
     url: string,
   ) => Promise<{
-    source: string
-    extraFiles?: VariantExtraFiles
-    extraDependencies?: string[]
-    externals?: Externals
-  }>
-  sourceParser?: Promise<ParseSource>
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  sourceParser?: Promise<ParseSource>;
 }) => (
   url: string,
   component: ComponentType,
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    variantType?: string
-    skipPrecompute?: boolean
-    highlightAfter?:
-      | 'init'
-      | 'stream'
-      | 'hydration'
-      | 'idle'
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-    precompute?: {}
-    ClientProvider?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    precompute?: {};
+    ClientProvider?: ComponentType<{ children: ReactNode }>;
   },
 ) =>
   | (ComponentClass<{}, any> & { Title: ComponentType })
-  | ((props: {}) => ReactNode | Promise<ReactNode>)
+  | ((props: {}) => ReactNode | Promise<ReactNode>);
 ```
 
 ### createDemoWithVariantsFactory
 
 ```typescript
 (options?: {
-  DemoContent: ComponentType<ContentProps<{}>>
-  DemoContentLoading?: ComponentType<
-    ContentLoadingProps<{}>
-  >
-  DemoTitle?: ComponentType<{
-    slug?: string
-    children?: string
-  }>
-  controlled?: boolean
+  DemoContent: ComponentType<ContentProps<{}>>;
+  DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
+  DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
+  controlled?: boolean;
   demoGlobalData?: {
-    name: string
-    slug: string
-    displayName: string
-    precompute: {} | undefined
-    url: string
-    components: {}
-  }[]
-  variantTypes?: Record<string, string>
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-  fallbackUsesExtraFiles?: boolean
-  fallbackUsesAllVariants?: boolean
-  loadCodeMeta?: (url: string) => Promise<Code>
-  loadVariantMeta?: (
-    variantName: string,
-    url: string,
-  ) => Promise<VariantCode>
+    name: string;
+    slug: string;
+    displayName: string;
+    precompute: {} | undefined;
+    url: string;
+    components: {};
+  }[];
+  variantTypes?: Record<string, string>;
+  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  fallbackUsesExtraFiles?: boolean;
+  fallbackUsesAllVariants?: boolean;
+  loadCodeMeta?: (url: string) => Promise<Code>;
+  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
   loadSource?: (
     url: string,
   ) => Promise<{
-    source: string
-    extraFiles?: VariantExtraFiles
-    extraDependencies?: string[]
-    externals?: Externals
-  }>
-  sourceParser?: Promise<ParseSource>
+    source: string;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+  }>;
+  sourceParser?: Promise<ParseSource>;
 }) => (
   url: string,
   variants: Record<string, ComponentType>,
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    variantType?: string
-    skipPrecompute?: boolean
-    highlightAfter?:
-      | 'init'
-      | 'stream'
-      | 'hydration'
-      | 'idle'
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle'
-    precompute?: {}
-    ClientProvider?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    precompute?: {};
+    ClientProvider?: ComponentType<{ children: ReactNode }>;
   },
 ) =>
   | (ComponentClass<{}, any> & { Title: ComponentType })
-  | ((props: {}) => ReactNode | Promise<ReactNode>)
+  | ((props: {}) => ReactNode | Promise<ReactNode>);
 ```

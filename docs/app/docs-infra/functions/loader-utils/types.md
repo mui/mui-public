@@ -7,11 +7,7 @@
 ### DirectoryEntry
 
 ```typescript
-type DirectoryEntry = {
-  name: string;
-  isFile: boolean;
-  isDirectory: boolean;
-};
+type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ```
 
 ### ExternalImport
@@ -154,11 +150,7 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
   source: string,
   importResult: Record<
     string,
-    {
-      path: string;
-      names: string[];
-      positions?: { start: number; end: number }[];
-    }
+    { path: string; names: string[]; positions?: { start: number; end: number }[] }
   >,
   storeAt: StoreAtMode,
   isJsFile?: boolean,
@@ -287,10 +279,7 @@ Extension priority for type-only imports - prioritize .d.ts first
 ### TypeAwareResolveResult
 
 ```typescript
-type TypeAwareResolveResult = {
-  import: string;
-  typeImport?: string;
-};
+type TypeAwareResolveResult = { import: string; typeImport?: string };
 ```
 
 ### VALUE_IMPORT_EXTENSIONS

@@ -10,11 +10,13 @@ A simple component that displays a title and optional children.
 
 **Root Props:**
 
-| Prop     | Type        | Default | Description                       |
-| :------- | :---------- | :------ | :-------------------------------- |
-| title    | `string`    | -       | The title to display              |
-| disabled | `boolean`   | -       | Whether the component is disabled |
-| children | `ReactNode` | -       | Child elements                    |
+| Prop          | Type                                                     | Default | Description                                                                                           |
+| :------------ | :------------------------------------------------------- | :------ | :---------------------------------------------------------------------------------------------------- |
+| onStateChange | `((details: Component.Root.ChangeEventDetails) => void)` | -       | Callback fired when the state changes. Receives the event details containing previous and new states. |
+| partState     | `Component.Part.State`                                   | -       | Optional state from the Part component. This demonstrates cross-component type references.            |
+| title         | `string`                                                 | -       | The title to display                                                                                  |
+| disabled      | `boolean`                                                | -       | Whether the component is disabled                                                                     |
+| children      | `ReactNode`                                              | -       | Child elements                                                                                        |
 
 **Root Data Attributes:**
 
@@ -25,20 +27,20 @@ A simple component that displays a title and optional children.
 
 ### Root.Props
 
-```typescript
-type ComponentRootProps = {
-  title: string;
-  disabled?: boolean;
-  children?: ReactNode;
-};
-```
+Re-export of [Root](#root) props.
 
 ### Root.State
 
 ```typescript
-type ComponentRootState = {
-  disabled: boolean;
-  active: boolean;
+type ComponentRootState = { disabled: boolean; active: boolean };
+```
+
+### Root.ChangeEventDetails
+
+```typescript
+type ComponentRootChangeEventDetails = {
+  previousState: { disabled: boolean; active: boolean };
+  newState: { disabled: boolean; active: boolean };
 };
 ```
 
@@ -63,19 +65,10 @@ A simple component that displays a title and optional children.
 
 ### Part.Props
 
-```typescript
-type ComponentPartProps = {
-  title: string;
-  disabled?: boolean;
-  children?: ReactNode;
-};
-```
+Re-export of [Part](#part) props.
 
 ### Part.State
 
 ```typescript
-type ComponentPartState = {
-  visible: boolean;
-  expanded: boolean;
-};
+type ComponentPartState = { visible: boolean; expanded: boolean };
 ```

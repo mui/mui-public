@@ -7,41 +7,52 @@ import type { PhrasingContent, RootContent, Root } from 'mdast';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as md from './createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
-import { prettyFormatType } from './format';
+import { prettyFormatType, parseMarkdownToHast } from './format';
 import { exports as exportOrder } from './order';
 
 /**
  * Sort types for documentation generation.
  *
  * Sorting rules:
- * 1. Components (no dots) are sorted according to exportOrder
- * 2. Namespace members (with dots) are grouped by component, then sorted by exportOrder
- * 3. Within the same component, namespace members appear immediately after the component
+ * 1. Components (identified as 'component' or 'hook' type) are sorted by their name
+ * 2. Namespace members (type: 'other' with reExportOf or specific suffixes) are grouped under their component
+ * 3. Within the same component, namespace members appear immediately after the component, sorted by suffix
  */
 function sortTypes(types: TypesMeta[]): TypesMeta[] {
   return [...types].sort((a, b) => {
     const aName = a.name;
     const bName = b.name;
 
-    // Check if these are namespace members (contain dots)
-    const aIsNamespaceMember = aName.includes('.');
-    const bIsNamespaceMember = bName.includes('.');
+    // Determine if these are actual components or namespace member re-exports
+    const aIsComponent = a.type === 'component' || a.type === 'hook';
+    const bIsComponent = b.type === 'component' || b.type === 'hook';
 
-    // Extract component name (before the dot) and suffix (after the dot)
-    const aComponent = aIsNamespaceMember ? aName.substring(0, aName.lastIndexOf('.')) : aName;
-    const bComponent = bIsNamespaceMember ? bName.substring(0, bName.lastIndexOf('.')) : bName;
+    // For namespace members, determine their parent component
+    // e.g., "Button.Root.Props" -> parent is "Button.Root"
+    const getParentComponent = (name: string, isComp: boolean): string => {
+      if (isComp) {
+        return name; // Components are their own parent
+      }
+      // For namespace members, the parent is everything except the last part
+      const lastDotIndex = name.lastIndexOf('.');
+      return lastDotIndex > 0 ? name.substring(0, lastDotIndex) : name;
+    };
 
-    // If they're from the same component
-    if (aComponent === bComponent) {
+    const aParent = getParentComponent(aName, aIsComponent);
+    const bParent = getParentComponent(bName, bIsComponent);
+
+    // If they have the same parent component
+    if (aParent === bParent) {
       // Component itself comes before its namespace members
-      if (!aIsNamespaceMember && bIsNamespaceMember) {
+      if (aIsComponent && !bIsComponent) {
         return -1;
       }
-      if (aIsNamespaceMember && !bIsNamespaceMember) {
+      if (!aIsComponent && bIsComponent) {
         return 1;
       }
-      // Both are namespace members - sort by suffix using exportOrder
-      if (aIsNamespaceMember && bIsNamespaceMember) {
+
+      // Both are namespace members of the same parent - sort by suffix using exportOrder
+      if (!aIsComponent && !bIsComponent) {
         const aSuffix = aName.substring(aName.lastIndexOf('.') + 1);
         const bSuffix = bName.substring(bName.lastIndexOf('.') + 1);
 
@@ -64,28 +75,31 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
         // Neither in the list - sort alphabetically
         return aSuffix.localeCompare(bSuffix);
       }
+
+      // Both are components with the same name (shouldn't happen)
+      return 0;
     }
 
-    // Different components - need to determine overall order
-    // First, get the order index for each component (not suffix)
-    const aComponentIndex = exportOrder.indexOf(aComponent);
-    const bComponentIndex = exportOrder.indexOf(bComponent);
+    // Different parent components - need to determine overall order
+    // First, get the order index for each parent component
+    const aParentIndex = exportOrder.indexOf(aParent);
+    const bParentIndex = exportOrder.indexOf(bParent);
 
-    // If both components are in the order list, use that order
-    if (aComponentIndex !== -1 && bComponentIndex !== -1) {
-      return aComponentIndex - bComponentIndex;
+    // If both parent components are in the order list, use that order
+    if (aParentIndex !== -1 && bParentIndex !== -1) {
+      return aParentIndex - bParentIndex;
     }
 
-    // If only one component is in the list, it comes first
-    if (aComponentIndex !== -1) {
+    // If only one parent component is in the list, it comes first
+    if (aParentIndex !== -1) {
       return -1;
     }
-    if (bComponentIndex !== -1) {
+    if (bParentIndex !== -1) {
       return 1;
     }
 
-    // Neither component is in the list - sort alphabetically by component name
-    return aComponent.localeCompare(bComponent);
+    // Neither parent component is in the list - sort alphabetically by parent name
+    return aParent.localeCompare(bParent);
   });
 }
 
@@ -386,16 +400,79 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         // Add subheading for the part
         content.push(md.heading(3, part));
 
-        // Add description if available
-        if (data.documentation?.description) {
-          // Parse the description as markdown and add all content directly
-          const descriptionNodes = parseMarkdown(data.documentation.description);
-          descriptionNodes.forEach((node) => content.push(node));
-        }
+        // Check if this is a re-export of another type
+        if (typeMeta.reExportOf) {
+          // Add a note that this is a re-export with a link back to the original
+          // Convert to anchor format: remove dots for the link, keep dots for display
+          const anchorId = typeMeta.reExportOf.toLowerCase().replace(/\./g, '');
+          const reExportNote = md.paragraph([
+            md.text('Re-export of '),
+            md.link(`#${anchorId}`, `${typeMeta.reExportOf}`),
+            md.text(' props.'),
+          ]);
+          content.push(reExportNote);
+        } else if (part.endsWith('.DataAttributes')) {
+          // This is a namespace member DataAttributes - link to the component's data attributes table
+          const componentName = part.replace('.DataAttributes', '');
+          // Convert to anchor format: remove dots for the link, keep dots for display
+          const anchorId = componentName.toLowerCase().replace(/\./g, '');
+          const reExportNote = md.paragraph([
+            md.text('Data attributes for '),
+            md.link(`#${anchorId}`, `${componentName}`),
+            md.text(' component.'),
+          ]);
+          content.push(reExportNote);
+        } else if (part.endsWith('.CssVars')) {
+          // This is a namespace member CssVars - link to the component's CSS variables table
+          const componentName = part.replace('.CssVars', '');
+          // Convert to anchor format: remove dots for the link, keep dots for display
+          const anchorId = componentName.toLowerCase().replace(/\./g, '');
+          const reExportNote = md.paragraph([
+            md.text('CSS variables for '),
+            md.link(`#${anchorId}`, `${componentName}`),
+            md.text(' component.'),
+          ]);
+          content.push(reExportNote);
+        } else if (data.type.kind === 'enum' && data.type.members && data.type.members.length > 0) {
+          // Format enum as a table (external references are already resolved in the loader)
+          // Add description if available
+          if (data.documentation?.description) {
+            const descriptionNodes = parseMarkdown(data.documentation.description);
+            descriptionNodes.forEach((node) => content.push(node));
+          }
 
-        content.push(
-          md.code(await prettyFormatType(data.type, true, undefined, true, []), 'typescript'),
-        );
+          const enumRows = await Promise.all(
+            data.type.members.map(async (member: any) => [
+              member.name,
+              member.value ? md.inlineCode(String(member.value)) : '-',
+              member.documentation?.description
+                ? await hastToInlineMdast(
+                    await parseMarkdownToHast(member.documentation.description),
+                  )
+                : '-',
+            ]),
+          );
+
+          const alignments = ['left', 'left', 'left'];
+
+          const tableNode = md.table(
+            ['Member', 'Value', 'Description'],
+            enumRows as any,
+            alignments as any,
+          );
+          content.push(tableNode);
+        } else {
+          // Add description if available
+          if (data.documentation?.description) {
+            // Parse the description as markdown and add all content directly
+            const descriptionNodes = parseMarkdown(data.documentation.description);
+            descriptionNodes.forEach((node) => content.push(node));
+          }
+
+          content.push(
+            md.code(await prettyFormatType(data.type, true, undefined, true, []), 'typescript'),
+          );
+        }
       }
 
       return content;

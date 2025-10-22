@@ -2,6 +2,7 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatProperties,
   formatEnum,
+  formatObjectAsEnum,
   isComponentType,
   parseMarkdownToHast,
   type FormattedProperty,
@@ -31,6 +32,8 @@ export interface FormatComponentOptions {
   cssVariablesSuffix?: string;
   /** Regex pattern to remove from component description */
   descriptionRemoveRegex?: RegExp;
+  /** Namespace name for finding data attributes (e.g., "Component", "Accordion") */
+  namespaceName?: string;
 }
 
 /**
@@ -52,6 +55,7 @@ export async function formatComponentData(
     dataAttributesSuffix = 'DataAttributes',
     cssVariablesSuffix = 'CssVars',
     descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
+    namespaceName,
   } = options;
 
   const descriptionText = component.documentation?.description?.replace(descriptionRemoveRegex, '');
@@ -60,24 +64,58 @@ export async function formatComponentData(
   // Find data attributes and CSS variables in a single loop
   let dataAttributes: tae.ExportNode | undefined;
   let cssVariables: tae.ExportNode | undefined;
-  const prefixes = exportNames && exportNames.length > 0 ? exportNames : [''];
-  const dataAttributesName = prefixes.map(
-    (prefix) => `${prefix}${component.name}${dataAttributesSuffix}`,
-  );
-  const cssVariablesName = prefixes.map(
-    (prefix) => `${prefix}${component.name}${cssVariablesSuffix}`,
-  );
+
+  // Build expected names for data attributes and CSS variables
+  // For components like "Root" (from Component.Root after namespace stripping), also check "ComponentRootDataAttributes"
+  // For components like "Button.Root" (multi-namespace), check "ButtonRootDataAttributes"
+  // The enum name always includes the full path without dots
+  const componentNameWithoutDot = component.name.replace(/\./g, '');
+
+  // If namespaceName is provided and component name doesn't include it, prepend it
+  // e.g., component "Root" with namespaceName "Component" → "ComponentRootDataAttributes"
+  let dataAttributesNames: string[];
+  let cssVariablesNames: string[];
+
+  if (namespaceName && !component.name.includes('.')) {
+    // Single namespace case: component is "Root", look for "ComponentRootDataAttributes"
+    dataAttributesNames = [`${namespaceName}${component.name}${dataAttributesSuffix}`];
+    cssVariablesNames = [`${namespaceName}${component.name}${cssVariablesSuffix}`];
+  } else {
+    // Multi-namespace case or no namespace: component is "Button.Root", look for "ButtonRootDataAttributes"
+    dataAttributesNames = [`${componentNameWithoutDot}${dataAttributesSuffix}`];
+    cssVariablesNames = [`${componentNameWithoutDot}${cssVariablesSuffix}`];
+  }
 
   for (const node of allExports) {
-    if (dataAttributesName.includes(node.name)) {
+    if (dataAttributesNames.includes(node.name)) {
       dataAttributes = node;
-    } else if (cssVariablesName.includes(node.name)) {
+    } else if (cssVariablesNames.includes(node.name)) {
       cssVariables = node;
     }
 
     // Early exit if we found both
     if (dataAttributes && cssVariables) {
       break;
+    }
+  }
+
+  // Format data attributes based on type kind
+  let formattedDataAttributes: Record<string, FormattedEnumMember> = {};
+  if (dataAttributes) {
+    if (dataAttributes.type.kind === 'enum') {
+      formattedDataAttributes = await formatEnum(dataAttributes.type);
+    } else if (dataAttributes.type.kind === 'object') {
+      formattedDataAttributes = await formatObjectAsEnum(dataAttributes.type);
+    }
+  }
+
+  // Format CSS variables based on type kind
+  let formattedCssVariables: Record<string, FormattedEnumMember> = {};
+  if (cssVariables) {
+    if (cssVariables.type.kind === 'enum') {
+      formattedCssVariables = await formatEnum(cssVariables.type);
+    } else if (cssVariables.type.kind === 'object') {
+      formattedCssVariables = await formatObjectAsEnum(cssVariables.type);
     }
   }
 
@@ -88,14 +126,8 @@ export async function formatComponentData(
       await formatProperties(component.type.props, exportNames, allExports),
       memberOrder.props,
     ),
-    dataAttributes:
-      dataAttributes && dataAttributes.type.kind === 'enum'
-        ? sortObjectByKeys(await formatEnum(dataAttributes.type), memberOrder.dataAttributes)
-        : {},
-    cssVariables:
-      cssVariables && cssVariables.type.kind === 'enum'
-        ? sortObjectByKeys(await formatEnum(cssVariables.type), memberOrder.cssVariables)
-        : {},
+    dataAttributes: sortObjectByKeys(formattedDataAttributes, memberOrder.dataAttributes),
+    cssVariables: sortObjectByKeys(formattedCssVariables, memberOrder.cssVariables),
   };
 
   // Post-process type strings to align naming across re-exports and hide internal suffixes.

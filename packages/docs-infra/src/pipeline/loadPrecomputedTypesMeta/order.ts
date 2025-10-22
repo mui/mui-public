@@ -182,7 +182,6 @@ export const exports = [
 
   // Utilities
   'DirectionProvider',
-  'Portal',
   'Transition',
   'useRender',
 

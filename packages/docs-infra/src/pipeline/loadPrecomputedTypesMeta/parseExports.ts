@@ -195,11 +195,63 @@ export function parseExports(
 
       if (reExportInfo.namespaceName) {
         // For namespace exports, collect all exports from all recursive results
-        // and group them under a single namespace name
-        // The aliasing has already been applied in the recursive processing
+        // and prefix them with the namespace name
+        // e.g., ButtonRootProps becomes Button.Root.Props in the Button namespace
         const allNamespaceExports: ExportNode[] = [];
+
+        // Use the reExportInfo's aliasMap if it has one, otherwise use the shared alias map
+        const aliasMap = reExportInfo.aliasMap.size > 0 ? reExportInfo.aliasMap : sharedAliasMap;
+
         for (const recursiveResult of recursiveResults) {
-          allNamespaceExports.push(...recursiveResult.exports);
+          for (const exportNode of recursiveResult.exports) {
+            // Extract the base component name and suffix from the export name
+            // e.g., "ButtonRootProps" -> base: "ButtonRoot", suffix: "Props"
+            // We need to transform this to "Button.Root.Props" where:
+            // - "Button" is the namespace name from reExportInfo
+            // - "Root" comes from the alias map (ButtonRoot -> Root)
+            // - "Props" is the suffix
+
+            const namespaceName = reExportInfo.namespaceName;
+            const exportName = exportNode.name;
+
+            // Try to find a matching component name in the alias map
+            // e.g., "ButtonRootProps" -> find "ButtonRoot" -> get alias "Root" -> suffix "Props"
+            let transformedName = exportName;
+
+            // Check each alias to see if the export name starts with the original component name
+            if (aliasMap && aliasMap.size > 0) {
+              aliasMap.forEach((aliasedName, originalName) => {
+                if (transformedName === exportName && exportName.startsWith(originalName)) {
+                  // Found a match - split the name into component and suffix
+                  const suffix = exportName.slice(originalName.length);
+
+                  // Build the transformed name: Namespace.Alias.Suffix
+                  // e.g., "Button" + "Root" + "Props" = "Button.Root.Props"
+                  if (suffix) {
+                    transformedName = `${namespaceName}.${aliasedName}.${suffix}`;
+                  } else {
+                    // No suffix - just the component name
+                    transformedName = `${namespaceName}.${aliasedName}`;
+                  }
+                }
+              });
+            }
+
+            // If no alias match found, fall back to simple prefix removal
+            // (for exports that don't follow the component naming pattern)
+            if (transformedName === exportName && exportName.startsWith(namespaceName)) {
+              const withoutNamespace = exportName.slice(namespaceName.length);
+              // Only add the dot if there's actually a suffix after the namespace
+              if (withoutNamespace) {
+                transformedName = `${namespaceName}.${withoutNamespace}`;
+              }
+              // If withoutNamespace is empty, the export name is the same as namespace name,
+              // so keep it as-is (transformedName = exportName)
+            }
+
+            exportNode.name = transformedName;
+            allNamespaceExports.push(exportNode);
+          }
         }
 
         allResults.push({

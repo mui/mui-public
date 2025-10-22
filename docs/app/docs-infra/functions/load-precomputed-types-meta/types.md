@@ -27,6 +27,18 @@ information from JSDoc tags. Members are sorted by their value for consistent ou
 (enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
 ```
 
+### formatObjectAsEnum
+
+Formats an object type (like `typeof DataAttributes`) into enum member format.
+
+This handles cases where data attributes or similar enums are defined as const objects
+with `typeof`, converting the object's properties into the same format as enum members.
+Properties with JSDoc comments become descriptions.
+
+```typescript
+(objectNode: ObjectNode) => Promise<Record<string, FormattedEnumMember>>;
+```
+
 ### formatParameters
 
 Formats function or hook parameters into a structured object.
@@ -58,10 +70,7 @@ suitable for documentation display with proper syntax highlighting.
 Formatted enum member metadata.
 
 ```typescript
-type FormattedEnumMember = {
-  description?: HastRoot;
-  type?: string;
-};
+type FormattedEnumMember = { description?: HastRoot; type?: string };
 ```
 
 ### FormattedParameter
@@ -116,6 +125,7 @@ the highlighted output.
   jsdocTags?: DocumentationTag[],
   expandObjects?: boolean,
   exportNames?: string[],
+  allExports?: ExportNode[],
 ) => string;
 ```
 
@@ -135,6 +145,7 @@ processing, then converts the output to HAST nodes with inline syntax highlighti
     DocumentationTag[] | undefined,
     boolean | undefined,
     string[] | undefined,
+    ExportNode[] | undefined,
   ],
 ) => Promise<Root>;
 ```
@@ -263,6 +274,7 @@ processing, then runs the output through `prettyFormat()` for consistent styling
     DocumentationTag[] | undefined,
     boolean | undefined,
     string[] | undefined,
+    ExportNode[] | undefined,
   ],
 ) => Promise<string>;
 ```

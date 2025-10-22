@@ -58,6 +58,7 @@ export type TypesMeta =
       type: 'other';
       name: string;
       data: ExportNode;
+      reExportOf?: string;
     };
 
 const functionName = 'Load Precomputed Types Meta';
@@ -234,8 +235,16 @@ export async function loadPrecomputedTypesMeta(
             if (isPublicComponent(exportNode)) {
               const formattedData = await formatComponentData(
                 exportNode,
-                variantResult.allTypes,
+                variantResult.allTypes, // Use allTypes to find DataAttributes/CssVars enums
                 variantResult.namespaces,
+                {
+                  // Only pass namespaceName if it's not the default variant name
+                  // For single exports without namespace, namespaceName is 'Default' but we don't want to use it
+                  namespaceName:
+                    variantResult.namespaceName === 'Default'
+                      ? undefined
+                      : variantResult.namespaceName,
+                },
               );
 
               return {
@@ -255,10 +264,39 @@ export async function loadPrecomputedTypesMeta(
               };
             }
 
+            // For namespace members (e.g., Button.Root.Temp), resolve external type references
+            let resolvedExportNode = exportNode;
+            const isNamespaceMember = exportNode.name.includes('.');
+
+            if (
+              isNamespaceMember &&
+              exportNode.type.kind === 'external' &&
+              'typeName' in exportNode.type &&
+              exportNode.type.typeName
+            ) {
+              const typeNameToFind = exportNode.type.typeName.name;
+              const referencedExport = variantResult.allTypes.find(
+                (exportItem) => exportItem.name === typeNameToFind,
+              );
+              if (referencedExport) {
+                // Create a new export node with the resolved type, preserving the isPublic method
+                const originalIsPublic = exportNode.isPublic.bind(exportNode);
+                resolvedExportNode = Object.assign(
+                  Object.create(Object.getPrototypeOf(exportNode)),
+                  {
+                    ...exportNode,
+                    type: referencedExport.type,
+                  },
+                );
+                // Ensure the isPublic method is preserved
+                resolvedExportNode.isPublic = originalIsPublic;
+              }
+            }
+
             return {
               type: 'other',
               name: exportNode.name,
-              data: exportNode,
+              data: resolvedExportNode,
             };
           }),
         );
@@ -274,7 +312,55 @@ export async function loadPrecomputedTypesMeta(
     );
 
     // Collect all types for markdown generation
-    const allTypes = Object.values(variantData).flatMap((v) => v.types);
+    let allTypes = Object.values(variantData).flatMap((v) => v.types);
+
+    // Mark namespace types that are re-exports (e.g., Component.Props re-exports component props)
+    allTypes = allTypes.map((typeMeta) => {
+      // Only check namespace members (contain a dot)
+      if (!typeMeta.name.includes('.')) {
+        return typeMeta;
+      }
+
+      // Extract component name and suffix
+      const lastDotIndex = typeMeta.name.lastIndexOf('.');
+      const componentName = typeMeta.name.substring(0, lastDotIndex);
+      const suffix = typeMeta.name.substring(lastDotIndex + 1);
+
+      // Only check Props and State suffixes
+      if (suffix !== 'Props' && suffix !== 'State') {
+        return typeMeta;
+      }
+
+      // Check if there's a component with this name that already documents these
+      const correspondingComponent = allTypes.find(
+        (t) => t.name === componentName && t.type === 'component',
+      );
+
+      if (!correspondingComponent || correspondingComponent.type !== 'component') {
+        return typeMeta; // Keep as-is if there's no corresponding component
+      }
+
+      // Check if Props is a re-export of the component's props
+      if (suffix === 'Props' && correspondingComponent.data.props) {
+        const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
+        if (hasProps) {
+          // Mark this as a re-export - preserve all properties using proper type assertion
+          if (typeMeta.type === 'other') {
+            return {
+              type: 'other' as const,
+              name: typeMeta.name,
+              data: typeMeta.data,
+              reExportOf: componentName,
+            };
+          }
+        }
+      }
+
+      // Note: We don't mark State as re-export because components don't have a "state" table
+      // State types are always useful to show separately
+
+      return typeMeta;
+    });
 
     // Apply transformHtmlCodePrecomputed and generate/write markdown in parallel
     const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');

@@ -7,9 +7,7 @@
 ### CodeExternalsContext
 
 ```typescript
-type CodeExternalsContext = {
-  externals?: Record<string, {}>;
-};
+type CodeExternalsContext = { externals?: Record<string, {}> };
 ```
 
 ### useCodeExternals

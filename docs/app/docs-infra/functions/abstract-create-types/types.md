@@ -10,9 +10,7 @@
 (
   options: {
     TypesContent: ComponentType<TypesContentProps<{}>>;
-    components?: {
-      pre?: ComponentType<{ 'data-precompute'?: string }>;
-    };
+    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
   url: string,
   meta?: {
@@ -22,9 +20,7 @@
     disableOptimization?: boolean;
     globalTypes?: string[];
     watchSourceDirectly?: boolean;
-    components?: {
-      pre?: ComponentType<{ 'data-precompute'?: string }>;
-    };
+    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
   exportName?: string,
 ) => ComponentType<{}>;
@@ -35,9 +31,7 @@
 ```typescript
 (options: {
     TypesContent: ComponentType<TypesContentProps<{}>>;
-    components?: {
-      pre?: ComponentType<{ 'data-precompute'?: string }>;
-    };
+    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   }) =>
   (
     url: string,
@@ -49,9 +43,7 @@
       disableOptimization?: boolean;
       globalTypes?: string[];
       watchSourceDirectly?: boolean;
-      components?: {
-        pre?: ComponentType<{ 'data-precompute'?: string }>;
-      };
+      components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     },
   ) =>
     Record<any, ComponentType<{}>>;
@@ -62,9 +54,7 @@
 ```typescript
 (options: {
     TypesContent: ComponentType<TypesContentProps<{}>>;
-    components?: {
-      pre?: ComponentType<{ 'data-precompute'?: string }>;
-    };
+    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   }) =>
   (
     url: string,
@@ -76,9 +66,7 @@
       disableOptimization?: boolean;
       globalTypes?: string[];
       watchSourceDirectly?: boolean;
-      components?: {
-        pre?: ComponentType<{ 'data-precompute'?: string }>;
-      };
+      components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     },
   ) =>
     ComponentType<{}>;

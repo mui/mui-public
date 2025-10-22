@@ -233,11 +233,7 @@ type CodeHighlighterProps = {
 Basic identification and metadata props for code examples
 
 ```typescript
-type CodeIdentityProps = {
-  name?: string;
-  slug?: string;
-  url?: string;
-};
+type CodeIdentityProps = { name?: string; slug?: string; url?: string };
 ```
 
 ### CodeLoadingProps
@@ -282,9 +278,7 @@ type ExternalImportItem = {
 ### HastRoot
 
 ```typescript
-type HastRoot = {
-  data?: RootData & { totalLines?: number };
-};
+type HastRoot = { data?: RootData & { totalLines?: number } };
 ```
 
 ### LoadFallbackCodeOptions

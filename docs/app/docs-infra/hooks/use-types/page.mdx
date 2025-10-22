@@ -107,6 +107,18 @@ This demo illustrates how to use the `useTypes` hook to extract and display type
 
 ---
 
+import { DemoUseTypesMultiNamespace } from './demos/multi-namespace';
+
+<DemoUseTypesMultiNamespace.Title />
+
+This demo tests handling of files with multiple namespace exports (both `export * as Button` and `export * as Checkbox`). Each component should correctly resolve its own DataAttributes (ButtonRootDataAttributes and CheckboxRootDataAttributes).
+
+<DemoUseTypesMultiNamespace />
+
+[See Demo](./demos/multi-namespace/)
+
+---
+
 ## Type Conversion
 
 Types are converted from HAST to React elements during component creation, not at runtime:

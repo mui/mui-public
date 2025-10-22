@@ -207,3 +207,19 @@ export function comment(value: string, ref?: string): Definition {
     title: value,
   };
 }
+
+/**
+ * Create a link node
+ * @param url - The URL to link to
+ * @param children - Child node, string, or array of nodes/strings
+ * @param title - Optional title attribute
+ * @returns A link node
+ */
+export function link(url: string, children: Child | Child[], title?: string): PhrasingContent {
+  return {
+    type: 'link',
+    url,
+    title,
+    children: normalizeChildren(children),
+  };
+}

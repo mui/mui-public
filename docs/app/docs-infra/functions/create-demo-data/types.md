@@ -15,21 +15,21 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
   url: string,
   component: ComponentType<any>,
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    skipPrecompute?: boolean
-    precompute?: {}
-    client?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    skipPrecompute?: boolean;
+    precompute?: {};
+    client?: ComponentType<{ children: ReactNode }>;
   },
 ) => {
-  name: string
-  slug: string
-  displayName: string
-  precompute: {} | undefined
-  url: string
-  components: {}
-}
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: {} | undefined;
+  url: string;
+  components: {};
+};
 ```
 
 ### createDemoDataWithVariants
@@ -44,21 +44,21 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
   url: string,
   variants: { Default: ComponentType<any> } | {},
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    skipPrecompute?: boolean
-    precompute?: {}
-    client?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    skipPrecompute?: boolean;
+    precompute?: {};
+    client?: ComponentType<{ children: ReactNode }>;
   },
 ) => {
-  name: string
-  slug: string
-  displayName: string
-  precompute: {} | undefined
-  url: string
-  components: {}
-}
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: {} | undefined;
+  url: string;
+  components: {};
+};
 ```
 
 ### createDemoGlobal
@@ -70,21 +70,21 @@ Creates a demo data object for a global provider component.
   url: string,
   globalProvider: DemoGlobalProvider,
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    skipPrecompute?: boolean
-    precompute?: {}
-    client?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    skipPrecompute?: boolean;
+    precompute?: {};
+    client?: ComponentType<{ children: ReactNode }>;
   },
 ) => {
-  name: string
-  slug: string
-  displayName: string
-  precompute: {} | undefined
-  url: string
-  components: {}
-}
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: {} | undefined;
+  url: string;
+  components: {};
+};
 ```
 
 ### createDemoGlobalWithVariants
@@ -96,19 +96,19 @@ Creates a demo data object for a global provider component with different varian
   url: string,
   globalProviders: {},
   meta?: {
-    name?: string
-    slug?: string
-    displayName?: string
-    skipPrecompute?: boolean
-    precompute?: {}
-    client?: ComponentType<{ children: ReactNode }>
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    skipPrecompute?: boolean;
+    precompute?: {};
+    client?: ComponentType<{ children: ReactNode }>;
   },
 ) => {
-  name: string
-  slug: string
-  displayName: string
-  precompute: {} | undefined
-  url: string
-  components: {}
-}
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: {} | undefined;
+  url: string;
+  components: {};
+};
 ```
