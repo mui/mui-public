@@ -7,17 +7,23 @@
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  */
 
+import select from '@inquirer/select';
 import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
+import chalk from 'chalk';
+import envCI from 'env-ci';
 import { $ } from 'execa';
 import gitUrlParse from 'git-url-parse';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 
+import { persistentAuthStrategy } from '../utils/github.mjs';
 import { getWorkspacePackages, publishPackages } from '../utils/pnpm.mjs';
 
+const isCI = envCI().isCi;
+
 function getOctokit() {
-  return new Octokit({ authStrategy: createActionAuth });
+  return new Octokit({ authStrategy: isCI ? createActionAuth : persistentAuthStrategy });
 }
 
 /**
@@ -25,6 +31,8 @@ function getOctokit() {
  * @property {boolean} dry-run Run in dry-run mode without publishing
  * @property {boolean} github-release Create a GitHub draft release after publishing
  * @property {string} tag NPM dist tag to publish to
+ * @property {boolean} ci Runs in CI environment
+ * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
  */
 
 /**
@@ -120,25 +128,53 @@ async function checkGitHubReleaseExists(owner, repo, version) {
 
 /**
  * Get current repository info from git remote
+ * @param {string[]} [remotes=['origin']] - Remote name(s) to check (default: 'origin')
  * @returns {Promise<{owner: string, repo: string}>} Repository owner and name
  */
-async function getRepositoryInfo() {
-  try {
-    const result = await $`git remote get-url origin`;
-    const url = result.stdout.trim();
+async function getRepositoryInfo(remotes = ['origin']) {
+  /**
+   * @type {{owner: string, repo: string} | undefined}
+   */
+  let result;
+  /**
+   * @type {Record<string, any>}
+   */
+  const cause = {};
 
-    const parsed = gitUrlParse(url);
-    if (parsed.source !== 'github.com') {
-      throw new Error('Repository is not hosted on GitHub');
+  for (let i = 0; i < remotes.length; i += 1) {
+    const remote = remotes[i];
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const cliResult = await $`git remote get-url ${remote}`;
+      const url = cliResult.stdout.trim();
+
+      const parsed = gitUrlParse(url);
+      if (parsed.source !== 'github.com' && parsed.owner !== 'mui') {
+        cause[remote] = { message: `Unsupported git remote URL: ${url}` };
+        continue;
+      }
+
+      result = {
+        owner: parsed.owner,
+        repo: parsed.name,
+      };
+      break; // break as soon as we have a valid result
+    } catch (/** @type {any} */ error) {
+      const execaError = /** @type {import('execa').ExecaError} */ (error);
+      if (
+        i < remotes.length - 1 &&
+        typeof execaError.stderr === 'string' &&
+        execaError.stderr.includes('No such remote')
+      ) {
+        continue; // Try next remote
+      }
+      cause[remote] = error;
     }
-
-    return {
-      owner: parsed.owner,
-      repo: parsed.name,
-    };
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to get repository info: ${error.message}`);
   }
+  if (!result) {
+    throw new Error(`Failed to find remote`, { cause });
+  }
+  return result;
 }
 
 /**
@@ -275,15 +311,42 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         default: 'latest',
         description: 'NPM dist tag to publish to',
+      })
+      .option('ci', {
+        type: 'boolean',
+        description:
+          'Runs in CI environment. On local environments, it triggers the GitHub publish workflow instead of publishing directly.',
+      })
+      .option('sha', {
+        type: 'string',
+        description: 'Git SHA to use for the GitHub release workflow (local only)',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, tag = 'latest' } = argv;
+    const { dryRun = false, githubRelease = false, tag = 'latest', sha } = argv;
+
+    if (isCI && !argv.ci) {
+      console.error(
+        chalk.yellow(
+          '❌ Error: CI environment detected but the "--ci" flag was not passed. Pass it explicitly to run in CI.',
+        ),
+      );
+      return;
+    }
+    argv.ci = argv.ci ?? isCI;
+
+    if (argv.ci && sha) {
+      throw new Error('The --sha option can only be used in non-CI environments');
+    }
 
     if (dryRun) {
       console.log('🧪 Running in DRY RUN mode - no actual publishing will occur\n');
     }
 
+    if (!argv.ci) {
+      await triggerLocalGithubPublishWorkflow(argv);
+      return;
+    }
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
@@ -341,3 +404,127 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     console.log('\n🏁 Publishing complete!');
   },
 });
+
+const WORKFLOW_PATH = 'workflows/publish.yml';
+const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
+
+/**
+ * @param {Omit<Args, 'ci'>} opts
+ */
+async function triggerLocalGithubPublishWorkflow(opts) {
+  console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
+  const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+  if (newPackages.length) {
+    console.warn(
+      `⚠️  Found new packages that should be published to npm first before triggering a release:
+  * ${newPackages.map((pkg) => pkg.name).join('  * ')}
+Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" first to publish and configure npm.`,
+    );
+    return;
+  }
+  console.log('✅ No new packages found, proceeding...');
+  const repoInfo = await getRepositoryInfo(['upstream', 'origin']);
+  console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
+  const params = {
+    owner: repoInfo.owner,
+    repo: repoInfo.repo,
+    workflow_id: PUBLISH_WORKFLOW_ID,
+  };
+  const octokit = getOctokit();
+
+  try {
+    const sha = opts.sha || (await determineGitSha(octokit, repoInfo));
+    if (!sha) {
+      console.error('❌🚨 No commit SHA provided, cannot proceed.');
+      return;
+    }
+
+    await octokit.actions.createWorkflowDispatch({
+      ...params,
+      ref: 'master',
+      inputs: {
+        sha,
+        'dry-run': opts['dry-run'] ? 'true' : 'false',
+        'github-release': opts['github-release'] ? 'true' : 'false',
+        'dist-tag': opts.tag,
+      },
+    });
+    console.log(
+      `🎉✅ Release created successfully! Check the status at: https://github.com/${params.owner}/${params.repo}/actions/${WORKFLOW_PATH} .`,
+    );
+  } catch (error) {
+    const err =
+      /** @type {import('@octokit/types').RequestError & {response: {data: {message: string; documentation_url: string}}}} */ (
+        error
+      );
+    const manualTriggerUrl = `You can also trigger the workflow manually at: https://github.com/${params.owner}/${params.repo}/actions/${WORKFLOW_PATH}`;
+    if (err.status === 422) {
+      console.error(`❌🚫 ${err.response.data.message}\n. ${manualTriggerUrl}`);
+      return;
+    }
+    if (err.status === 403) {
+      const isAppPermissionIssue = /not accessible by integration/.exec(err.response.data.message);
+      console.error(
+        `❌🔒 ${isAppPermissionIssue ? '"Code Infra" app doesn\'t' : "You don't"} seem to have sufficient permissions to perform this action. ${isAppPermissionIssue ? 'Contact' : 'If this seems incorrect, contact'} the infra team regarding the app permissions.${err.response.data.documentation_url ? ` See ${err.response.data.documentation_url} for more information.` : ''}.
+${manualTriggerUrl}`,
+      );
+      return;
+    }
+    console.error(`❌🔥 Error while invoking the publish workflow.\n. ${manualTriggerUrl}`);
+    throw error;
+  }
+}
+
+/**
+ * @param {import('@octokit/rest').Octokit} octokit
+ * @param {{owner: string; repo: string}} repoInfo
+ * @returns {Promise<string | undefined>}
+ */
+async function determineGitSha(octokit, repoInfo) {
+  console.log(`🔍 Determining the git SHA to use for the release...`);
+  // Avoid the deprecation warning when calling octokit.search.issuesAndPullRequests
+  // It has been deprecated but new method is not available in @octokit/rest yet.
+  octokit.log.warn = () => {};
+  const pulls = (
+    await octokit.search.issuesAndPullRequests({
+      advanced_search: 'true',
+      q: `is:pr is:merged label:release repo:${repoInfo.owner}/${repoInfo.repo}`,
+      per_page: 1,
+    })
+  ).data.items;
+  if (!pulls.length) {
+    console.log(`❌🚨 Could not find any merged release PRs in the repository.`);
+    return undefined;
+  }
+
+  console.log(
+    `🫆  Found the latest merged release PR: ${chalk.bold(pulls[0].title)} (${pulls[0].html_url})`,
+  );
+
+  const commits = (
+    await octokit.search.commits({
+      q: `repo:${repoInfo.owner}/${repoInfo.repo} author:${pulls[0].user?.login} [release]`,
+      per_page: 100,
+    })
+  ).data.items;
+
+  if (!commits.length) {
+    console.error(
+      `❌🚨 Could not find any commits associated with the release PR: ${pulls[0].html_url}`,
+    );
+    return undefined;
+  }
+  const relevantData = commits.map((commit) => ({
+    value: commit.sha,
+    name: `(${commit.sha.slice(0, 7)}) ${commit.commit.message.split('\n')[0]} by ${commit.author?.login ?? 'no author'} on ${new Date(commit.commit.committer?.date ?? '').toISOString()}`,
+    desciption: commit.commit.message,
+  }));
+
+  const result = await select({
+    message: 'Select the commit to release from:',
+    choices: relevantData,
+    default: relevantData[0].value,
+    pageSize: 10,
+  });
+  return result;
+}
