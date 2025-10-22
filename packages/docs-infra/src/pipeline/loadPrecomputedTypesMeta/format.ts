@@ -958,6 +958,21 @@ function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): s
 
   // Our components are defined in the source as [ComponentName][Part], but exported as [ComponentName].[Part].
   // The following code adjusts the namespaces to match the exported names.
+  // However, we should only do this for our own component types, not external/DOM types.
+
+  // Check if any namespace matches our export names - if not, this is likely an external type
+  const hasComponentNamespace = typeName.namespaces.some((namespace) =>
+    exportNames.some((exportName) => new RegExp(`^${exportName}[A-Z]`).test(namespace)),
+  );
+
+  // For external types (like ShadowRoot from DOM), just use the simple concatenation
+  if (!hasComponentNamespace) {
+    // For DOM types, TypeScript reports Shadow.Root but we want ShadowRoot
+    // So just concatenate namespace and name without dots
+    return typeName.namespaces.join('') + nameWithTypeArgs;
+  }
+
+  // For our component types, apply the transformation
   const joinedNamespaces = typeName.namespaces.map((namespace) => {
     const exportNameInNamespace = exportNames.find((exportName) =>
       new RegExp(`^${exportName}[A-Z]`).test(namespace),
@@ -965,13 +980,19 @@ function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): s
 
     if (exportNameInNamespace) {
       const dotPosition = exportNameInNamespace.length;
-      return `${namespace.substring(0, dotPosition)}.${namespace.substring(dotPosition)}`;
+      const afterDot = namespace.substring(dotPosition);
+      // Only add dot if there's content after it to avoid trailing dots
+      return afterDot
+        ? `${namespace.substring(0, dotPosition)}.${afterDot}`
+        : namespace.substring(0, dotPosition);
     }
 
     return namespace;
   });
 
-  return `${joinedNamespaces}.${nameWithTypeArgs}`;
+  const joined = joinedNamespaces.join('.');
+  // Only add dot before name if name exists to avoid trailing dots
+  return nameWithTypeArgs ? `${joined}.${nameWithTypeArgs}` : joined;
 }
 
 function createNameWithTypeArguments(typeName: tae.TypeName, exportNames: string[] = []) {

@@ -42,7 +42,9 @@ Function props for loading and transforming code
 type CodeFunctionProps = {
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
+  loadSource?: (
+    url: string,
+  ) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
@@ -125,7 +127,9 @@ type CodeHighlighterBaseProps = {
   deferParsing?: 'none' | 'json' | 'gzip';
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
+  loadSource?: (
+    url: string,
+  ) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
@@ -209,7 +213,9 @@ type CodeHighlighterProps = {
   deferParsing?: 'none' | 'json' | 'gzip';
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
+  loadSource?: (
+    url: string,
+  ) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
@@ -297,7 +303,9 @@ type LoadFallbackCodeOptions = {
   output?: 'hast' | 'hastJson' | 'hastGzip';
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
+  loadSource?: (
+    url: string,
+  ) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
@@ -345,7 +353,9 @@ type LoadVariantOptions = {
   globalsCode?: (string | VariantCode)[];
   output?: 'hast' | 'hastJson' | 'hastGzip';
   sourceParser?: Promise<ParseSource>;
-  loadSource?: (url: string) => Promise<{
+  loadSource?: (
+    url: string,
+  ) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
