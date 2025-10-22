@@ -104,7 +104,10 @@ export function useCode<T extends {} = {}>(
   }, [contentProps, context?.url]);
 
   // Sub-hook: UI State Management
-  const uiState = useUIState({ defaultOpen });
+  const uiState = useUIState({
+    defaultOpen,
+    mainSlug: userProps.slug,
+  });
 
   // Sub-hook: Variant Selection
   const variantSelection = useVariantSelection({
