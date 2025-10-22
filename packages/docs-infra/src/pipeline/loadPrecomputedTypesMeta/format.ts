@@ -933,16 +933,21 @@ function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): s
         // Build the fully qualified name with namespace
         if (beforeExportName.length > 0) {
           // Has a namespace prefix: Component + Root + State → Component.Root.State
-          return `${beforeExportName}.${exportName}.${afterExportName}`;
+          // Only add the dot before afterExportName if it's non-empty to avoid trailing dots
+          return afterExportName
+            ? `${beforeExportName}.${exportName}.${afterExportName}`
+            : `${beforeExportName}.${exportName}`;
         }
 
         // No namespace prefix, but check if TypeScript reported namespaces
         if (typeName.namespaces && typeName.namespaces.length > 0) {
-          return `${typeName.namespaces.join('.')}.${exportName}.${afterExportName}`;
+          return afterExportName
+            ? `${typeName.namespaces.join('.')}.${exportName}.${afterExportName}`
+            : `${typeName.namespaces.join('.')}.${exportName}`;
         }
 
         // No namespace at all: Root + State → Root.State
-        return `${exportName}.${afterExportName}`;
+        return afterExportName ? `${exportName}.${afterExportName}` : exportName;
       }
     }
   }
