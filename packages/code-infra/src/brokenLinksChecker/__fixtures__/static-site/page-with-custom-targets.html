@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Page with Custom Targets</title>
+  </head>
+  <body>
+    <h1>Page with Custom Targets</h1>
+    <nav>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="#custom-id">Link to custom ID</a></li>
+        <li><a href="#__should-be-ignored">Link to ignored ID</a></li>
+      </ul>
+    </nav>
+    <section id="custom-id">
+      <h2>Custom ID Section</h2>
+    </section>
+    <section id="__should-be-ignored">
+      <h2>This target should be ignored</h2>
+    </section>
+  </body>
+</html>

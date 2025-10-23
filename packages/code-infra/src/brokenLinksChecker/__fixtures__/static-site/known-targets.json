@@ -1,0 +1,5 @@
+{
+  "targets": {
+    "/api-page.html": ["#method1", "#method2", "#method3"]
+  }
+}
