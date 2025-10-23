@@ -88,6 +88,18 @@ if (process.env.NODE_ENV === 'production') {
 }
       `,
     },
+    // Should pass: Nested if statement in else block
+    {
+      code: `
+if (process.env.NODE_ENV === 'production') {
+  // production code
+} else {
+  if (someCondition) {
+    warnOnce('nested warning in else');
+  }
+}
+      `,
+    },
   ],
   invalid: [
     // Should fail: checkSlot without production check
