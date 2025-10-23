@@ -328,7 +328,8 @@ async function resolveKnownTargets(options) {
 
 /**
  * @typedef {Object} CrawlResult
- * @property {number} brokenLinks
+ * @property {Set<Link>} links
+ * @property {Map<string, PageData>} pages
  * @property {Issue[]} issues
  */
 
@@ -525,40 +526,33 @@ export async function crawl(rawOptions) {
     });
   }
 
-  let totalLinks = 0;
-  let checkedLinks = 0;
   for (const crawledLink of crawledLinks) {
-    totalLinks += 1;
     const pageUrl = getPageUrl(crawledLink.href, options.ignoredPaths);
-    if (pageUrl === null) {
-      // External link
-      continue;
-    }
-    checkedLinks += 1;
+    if (pageUrl !== null) {
+      // Internal link
+      const parsed = new URL(crawledLink.href, 'http://localhost');
 
-    const parsed = new URL(crawledLink.href, 'http://localhost');
+      const knownPage = knownTargets.get(pageUrl);
+      if (knownPage) {
+        if (parsed.hash && !knownPage.has(parsed.hash)) {
+          recordBrokenLink(crawledLink, 'target not found');
+        } else {
+          // all good
+        }
+      } else {
+        const page = results.get(pageUrl);
 
-    const knownPage = knownTargets.get(pageUrl);
-    if (knownPage) {
-      if (parsed.hash && !knownPage.has(parsed.hash)) {
-        recordBrokenLink(crawledLink, 'target not found');
-      }
-      continue;
-    }
-
-    const page = results.get(pageUrl);
-
-    if (!page) {
-      recordBrokenLink(crawledLink, 'not crawled');
-      continue;
-    }
-    if (page.status >= 400) {
-      recordBrokenLink(crawledLink, `returned status ${page.status}`);
-      continue;
-    }
-    if (parsed.hash) {
-      if (!page.targets.has(parsed.hash)) {
-        recordBrokenLink(crawledLink, 'target not found');
+        if (!page) {
+          recordBrokenLink(crawledLink, 'not crawled');
+        } else if (page.status >= 400) {
+          recordBrokenLink(crawledLink, `returned status ${page.status}`);
+        } else if (parsed.hash) {
+          if (!page.targets.has(parsed.hash)) {
+            recordBrokenLink(crawledLink, 'target not found');
+          }
+        } else {
+          // all good
+        }
       }
     }
   }
@@ -577,11 +571,9 @@ export async function crawl(rawOptions) {
     maximumFractionDigits: 2,
   }).format(durationSeconds);
   console.log(chalk.blue(`\nCrawl completed in ${duration}`));
-  console.log(`  Total links found: ${chalk.cyan(totalLinks)}`);
-  console.log(`  Total links checked: ${chalk.cyan(checkedLinks)}`);
+  console.log(`  Total links found: ${chalk.cyan(crawledLinks.size)}`);
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
 
-  const totalBrokenLinks = brokenLinks + brokenLinkTargets;
-  return { brokenLinks: totalBrokenLinks, issues };
+  return { links: crawledLinks, pages: results, issues };
 }
