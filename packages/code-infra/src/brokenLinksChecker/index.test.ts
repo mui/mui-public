@@ -46,7 +46,7 @@ describe('Broken Links Checker', () => {
       knownTargetsDownloadUrl: [`${host}/known-targets.json`],
     });
 
-    // Total: 2 broken-link + 5 broken-target = 7 issues
+    expect(result.links).toHaveLength(49);
     expect(result.issues).toHaveLength(7);
 
     // Check broken-link type issues
