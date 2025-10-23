@@ -323,9 +323,6 @@ async function resolveKnownTargets(options) {
  * @property {'broken-link' | 'broken-target'} type
  * @property {string} message
  * @property {Link} link
- * @property {string} sourceUrl
- * @property {string | null} sourceName
- * @property {string} targetUrl
  */
 
 /**
@@ -350,9 +347,10 @@ function reportIssues(issuesList) {
   /** @type {Map<string, Issue[]>} */
   const issuesBySource = new Map();
   for (const issue of issuesList) {
-    const sourceIssues = issuesBySource.get(issue.sourceUrl) ?? [];
+    const sourceUrl = issue.link.src ?? '(unknown)';
+    const sourceIssues = issuesBySource.get(sourceUrl) ?? [];
     if (sourceIssues.length === 0) {
-      issuesBySource.set(issue.sourceUrl, sourceIssues);
+      issuesBySource.set(sourceUrl, sourceIssues);
     }
     sourceIssues.push(issue);
   }
@@ -362,7 +360,7 @@ function reportIssues(issuesList) {
     console.error(`Source ${chalk.cyan(sourceUrl)}:`);
     for (const issue of sourceIssues) {
       const reason = issue.type === 'broken-target' ? 'target not found' : 'returned status 404';
-      console.error(`  [${issue.sourceName}](${chalk.cyan(issue.targetUrl)}) (${reason})`);
+      console.error(`  [${issue.link.text}](${chalk.cyan(issue.link.href)}) (${reason})`);
     }
   }
 }
@@ -515,9 +513,6 @@ export async function crawl(rawOptions) {
       type,
       message,
       link,
-      sourceUrl: link.src ?? '(unknown)',
-      sourceName: link.text,
-      targetUrl: link.href,
     });
   }
 
