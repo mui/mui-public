@@ -321,6 +321,8 @@ async function resolveKnownTargets(options) {
 /**
  * @typedef {Object} Issue
  * @property {'broken-link' | 'broken-target'} type
+ * @property {string} message
+ * @property {Link} link
  * @property {string} sourceUrl
  * @property {string | null} sourceName
  * @property {string} targetUrl
@@ -402,7 +404,7 @@ export async function crawl(rawOptions) {
   /** @type {Set<Link>} */
   const crawledLinks = new Set();
 
-  const queue = new Queue(async (link) => {
+  const queue = new Queue(async (/** @type {Link} */ link) => {
     crawledLinks.add(link);
 
     const pageUrl = getPageUrl(link.href, options.ignoredPaths);
@@ -500,26 +502,19 @@ export async function crawl(rawOptions) {
    * @property {string} reason
    */
 
-  /** @type {Map<string, BrokenLinkError[]>} */
-  const brokenLinksByPage = new Map();
-
   /** @type {Issue[]} */
   const issues = [];
 
   /**
    * @param {Link} link
-   * @param {string} reason
+   * @param {'broken-target' | 'broken-link'} type
+   * @param {string} message
    */
-  function recordBrokenLink(link, reason) {
-    const src = link.src ?? '(unknown)';
-    const linksForPage = brokenLinksByPage.get(src) ?? [];
-    brokenLinksByPage.set(src, linksForPage);
-    linksForPage.push({ link, reason });
-
-    // Also record in issues array
-    const type = reason === 'target not found' ? 'broken-target' : 'broken-link';
+  function recordBrokenLink(link, type, message) {
     issues.push({
       type,
+      message,
+      link,
       sourceUrl: link.src ?? '(unknown)',
       sourceName: link.text,
       targetUrl: link.href,
@@ -535,7 +530,7 @@ export async function crawl(rawOptions) {
       const knownPage = knownTargets.get(pageUrl);
       if (knownPage) {
         if (parsed.hash && !knownPage.has(parsed.hash)) {
-          recordBrokenLink(crawledLink, 'target not found');
+          recordBrokenLink(crawledLink, 'broken-target', 'Target not found');
         } else {
           // all good
         }
@@ -543,12 +538,12 @@ export async function crawl(rawOptions) {
         const page = results.get(pageUrl);
 
         if (!page) {
-          recordBrokenLink(crawledLink, 'not crawled');
+          recordBrokenLink(crawledLink, 'broken-link', 'Page not crawled');
         } else if (page.status >= 400) {
-          recordBrokenLink(crawledLink, `returned status ${page.status}`);
+          recordBrokenLink(crawledLink, 'broken-link', `Page returned error ${page.status}`);
         } else if (parsed.hash) {
           if (!page.targets.has(parsed.hash)) {
-            recordBrokenLink(crawledLink, 'target not found');
+            recordBrokenLink(crawledLink, 'broken-target', 'Target not found');
           }
         } else {
           // all good
