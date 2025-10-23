@@ -39,6 +39,10 @@
     "./stylelint": {
       "types": "./build/stylelint/index.d.mts",
       "default": "./src/stylelint/index.mjs"
+    },
+    "./brokenLinksChecker": {
+      "types": "./build/brokenLinksChecker/index.d.mts",
+      "default": "./src/brokenLinksChecker/index.mjs"
     }
   },
   "bin": {
@@ -124,7 +128,9 @@
     "@typescript-eslint/parser": "^8.45.0",
     "@typescript-eslint/rule-tester": "^8.45.0",
     "eslint": "^9.36.0",
+    "get-port": "^7.1.0",
     "prettier": "^3.6.2",
+    "serve": "^14.2.5",
     "typescript-eslint": "^8.45.0"
   },
   "files": [

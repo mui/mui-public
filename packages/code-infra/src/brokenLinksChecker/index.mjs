@@ -319,8 +319,17 @@ async function resolveKnownTargets(options) {
 }
 
 /**
+ * @typedef {Object} Issue
+ * @property {'broken-link' | 'broken-target'} type
+ * @property {string} sourceUrl
+ * @property {string | null} sourceName
+ * @property {string} targetUrl
+ */
+
+/**
  * @typedef {Object} CrawlResult
  * @property {number} brokenLinks
+ * @property {Issue[]} issues
  */
 
 /**
@@ -329,7 +338,6 @@ async function resolveKnownTargets(options) {
  */
 export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
-  const knownTargets = await resolveKnownTargets(options);
   const startTime = Date.now();
 
   let appProcess;
@@ -353,6 +361,8 @@ export async function crawl(rawOptions) {
 
     console.log(`Server started on ${chalk.underline(options.host)}`);
   }
+
+  const knownTargets = await resolveKnownTargets(options);
 
   /** @type {Map<string, Promise<PageData>>} */
   const crawledPages = new Map();
@@ -460,6 +470,9 @@ export async function crawl(rawOptions) {
   /** @type {Map<string, BrokenLinkError[]>} */
   const brokenLinksByPage = new Map();
 
+  /** @type {Issue[]} */
+  const issues = [];
+
   /**
    * @param {Link} link
    * @param {string} reason
@@ -469,6 +482,15 @@ export async function crawl(rawOptions) {
     const linksForPage = brokenLinksByPage.get(src) ?? [];
     brokenLinksByPage.set(src, linksForPage);
     linksForPage.push({ link, reason });
+
+    // Also record in issues array
+    const type = reason === 'target not found' ? 'broken-target' : 'broken-link';
+    issues.push({
+      type,
+      sourceUrl: link.src ?? '(unknown)',
+      sourceName: link.text,
+      targetUrl: link.href,
+    });
   }
 
   let totalLinks = 0;
@@ -540,5 +562,5 @@ export async function crawl(rawOptions) {
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
 
   const totalBrokenLinks = brokenLinks + brokenLinkTargets;
-  return { brokenLinks: totalBrokenLinks };
+  return { brokenLinks: totalBrokenLinks, issues };
 }
