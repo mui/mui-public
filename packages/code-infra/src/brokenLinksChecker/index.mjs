@@ -333,6 +333,38 @@ async function resolveKnownTargets(options) {
  */
 
 /**
+ * Report broken links grouped by source page
+ * @param {Issue[]} issuesList
+ */
+function reportIssues(issuesList) {
+  if (issuesList.length === 0) {
+    return;
+  }
+
+  console.error('\nBroken links found:\n');
+
+  // Group issues by source URL
+  /** @type {Map<string, Issue[]>} */
+  const issuesBySource = new Map();
+  for (const issue of issuesList) {
+    const sourceIssues = issuesBySource.get(issue.sourceUrl) ?? [];
+    if (sourceIssues.length === 0) {
+      issuesBySource.set(issue.sourceUrl, sourceIssues);
+    }
+    sourceIssues.push(issue);
+  }
+
+  // Report issues grouped by source
+  for (const [sourceUrl, sourceIssues] of issuesBySource.entries()) {
+    console.error(`Source ${chalk.cyan(sourceUrl)}:`);
+    for (const issue of sourceIssues) {
+      const reason = issue.type === 'broken-target' ? 'target not found' : 'returned status 404';
+      console.error(`  [${issue.sourceName}](${chalk.cyan(issue.targetUrl)}) (${reason})`);
+    }
+  }
+}
+
+/**
  * @param {CrawlOptions} rawOptions
  * @returns {Promise<CrawlResult>}
  */
@@ -495,8 +527,6 @@ export async function crawl(rawOptions) {
 
   let totalLinks = 0;
   let checkedLinks = 0;
-  let brokenLinks = 0;
-  let brokenLinkTargets = 0;
   for (const crawledLink of crawledLinks) {
     totalLinks += 1;
     const pageUrl = getPageUrl(crawledLink.href, options.ignoredPaths);
@@ -512,7 +542,6 @@ export async function crawl(rawOptions) {
     if (knownPage) {
       if (parsed.hash && !knownPage.has(parsed.hash)) {
         recordBrokenLink(crawledLink, 'target not found');
-        brokenLinkTargets += 1;
       }
       continue;
     }
@@ -521,32 +550,24 @@ export async function crawl(rawOptions) {
 
     if (!page) {
       recordBrokenLink(crawledLink, 'not crawled');
-      brokenLinks += 1;
       continue;
     }
     if (page.status >= 400) {
       recordBrokenLink(crawledLink, `returned status ${page.status}`);
-      brokenLinks += 1;
       continue;
     }
     if (parsed.hash) {
       if (!page.targets.has(parsed.hash)) {
         recordBrokenLink(crawledLink, 'target not found');
-        brokenLinkTargets += 1;
       }
     }
   }
 
-  // Report broken links grouped by source page
-  if (brokenLinksByPage.size > 0) {
-    console.error('\nBroken links found:\n');
-    for (const [pageUrl, errors] of brokenLinksByPage.entries()) {
-      console.error(`Source ${chalk.cyan(pageUrl)}:`);
-      for (const { link, reason } of errors) {
-        console.error(`  [${link.text}](${chalk.cyan(link.href)}) (${reason})`);
-      }
-    }
-  }
+  reportIssues(issues);
+
+  // Derive counts from issues
+  const brokenLinks = issues.filter((issue) => issue.type === 'broken-link').length;
+  const brokenLinkTargets = issues.filter((issue) => issue.type === 'broken-target').length;
 
   const endTime = Date.now();
   const durationSeconds = (endTime - startTime) / 1000;
