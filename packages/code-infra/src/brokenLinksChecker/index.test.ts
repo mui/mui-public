@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import/extensions
 import { crawl, Issue, Link } from './index.mjs';
 
-type ExpectedIssue = Partial<Issue> & { link?: Partial<Link> };
+type ExpectedIssue = Omit<Partial<Issue>, 'link'> & { link?: Partial<Link> };
 
 function objectMatchingIssue(expectedIssue: ExpectedIssue) {
   return expect.objectContaining({
