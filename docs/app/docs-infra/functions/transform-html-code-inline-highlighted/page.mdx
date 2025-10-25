@@ -1,0 +1,526 @@
+# Transform HTML Code Inline Highlighted
+
+A rehype plugin that applies lightweight syntax highlighting to inline `<code>` elements without adding line gutters, frame wrappers, or precomputed data attributes.
+
+---
+
+## Overview
+
+The `transformHtmlCodeInlineHighlighted` plugin transforms plain inline code into beautifully syntax-highlighted code using [Starry Night](https://github.com/wooorm/starry-night). Unlike [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx), this plugin is optimized for inline code snippets and type expressions.
+
+### Key Features
+
+- **Lightweight highlighting**: Applies syntax highlighting without line numbers, gutters, or frames
+- **Prefix support**: Handles `data-highlighting-prefix` attribute for proper type context
+- **Automatic cleanup**: Removes highlighting prefixes after processing
+- **Language detection**: Reads language from `className` attribute (e.g., `language-ts`)
+- **Singleton initialization**: Shares Starry Night instance across all processing
+
+---
+
+## Installation
+
+This plugin is part of `@mui/internal-docs-infra` and doesn't need separate installation.
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { unified } from 'unified';
+import rehypeParse from 'rehype-parse';
+import rehypeStringify from 'rehype-stringify';
+import transformHtmlCodeInlineHighlighted, {
+  ensureStarryNightInitialized,
+} from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
+
+// Initialize Starry Night once before using the plugin
+await ensureStarryNightInitialized();
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(transformHtmlCodeInlineHighlighted)
+  .use(rehypeStringify);
+
+const result = await processor.process('<code class="language-ts">string | number</code>');
+
+console.log(String(result));
+// Output: <code class="language-ts"><span class="pl-c1">string</span> | <span class="pl-c1">number</span></code>
+```
+
+### With Highlighting Prefix
+
+For type expressions that need context for proper highlighting:
+
+```typescript
+const html = `
+  <code class="language-ts" data-highlighting-prefix="type _ = ">
+    { foo: string; bar: number }
+  </code>
+`;
+
+const result = await processor.process(html);
+
+// The prefix is used during highlighting but removed from output:
+// <code class="language-ts">
+//   <span class="pl-k">{</span> foo<span class="pl-k">:</span> <span class="pl-c1">string</span><span class="pl-k">;</span> ...
+// </code>
+```
+
+---
+
+## Configuration
+
+### Initialization
+
+**CRITICAL**: You must initialize Starry Night before using the plugin:
+
+```typescript
+import { ensureStarryNightInitialized } from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
+
+// Call once at application startup
+await ensureStarryNightInitialized();
+```
+
+The initialization:
+
+- Creates a Starry Night instance with all supported grammars
+- Stores it in `globalThis` for reuse across all processing
+- Only runs once (subsequent calls are no-ops)
+
+### Supported Languages
+
+The plugin supports all languages defined in [`grammars.ts`](../parse-source/page.mdx#supported-languages):
+
+- TypeScript (`.ts`, `.tsx`)
+- JavaScript (`.js`, `.jsx`)
+- CSS (`.css`)
+- HTML (`.html`)
+- JSON (`.json`)
+- Markdown (`.md`)
+- Shell (`.sh`, `.bash`)
+- YAML (`.yaml`, `.yml`)
+
+---
+
+## How It Works
+
+### Processing Pipeline
+
+1. **Find code elements**: Visits all `<code>` elements in the HAST tree
+2. **Extract text content**: Gets the raw text from the code element
+3. **Check for prefix**: Reads `data-highlighting-prefix` attribute if present
+4. **Apply prefix**: Temporarily prepends prefix for proper context
+5. **Highlight**: Uses Starry Night to apply syntax highlighting
+6. **Remove prefix**: Strips prefix characters from the highlighted output
+7. **Replace children**: Updates code element with highlighted nodes
+8. **Clean up**: Removes `data-highlighting-prefix` attribute
+
+### Prefix Removal Algorithm
+
+The [`removePrefixFromHighlightedNodes`](./remove-prefix-from-highlighted-nodes/) helper removes prefix characters by:
+
+1. Tracking how many characters to remove
+2. Iterating through HAST nodes (text and elements)
+3. Removing complete nodes when prefix exceeds node length
+4. Partially trimming nodes when prefix is shorter
+5. Recursing into element children when needed
+6. Preserving all syntax highlighting structure
+
+---
+
+## Examples
+
+### Simple Type Expression
+
+```typescript
+// Input
+<code class="language-ts">boolean</code>
+
+// Output
+<code class="language-ts"><span class="pl-c1">boolean</span></code>
+```
+
+### Union Type
+
+```typescript
+// Input
+<code class="language-ts">string | number | boolean</code>
+
+// Output
+<code class="language-ts">
+  <span class="pl-c1">string</span> <span class="pl-k">|</span> <span class="pl-c1">number</span> <span class="pl-k">|</span> <span class="pl-c1">boolean</span>
+</code>
+```
+
+### Type with Context Prefix
+
+```typescript
+// Input
+<code class="language-ts" data-highlighting-prefix="type _ = ">
+  { foo: string }
+</code>
+
+// Highlighted with prefix: "type _ = { foo: string }"
+// Prefix removed from output: "{ foo: string }"
+
+// Output
+<code class="language-ts">
+  <span class="pl-k">{</span> foo<span class="pl-k">:</span> <span class="pl-c1">string</span> <span class="pl-k">}</span>
+</code>
+```
+
+### Function Type
+
+```typescript
+// Input
+<code class="language-ts" data-highlighting-prefix="type _ = ">
+  (event: React.MouseEvent) => void
+</code>
+
+// Output
+<code class="language-ts">
+  ((<span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">React</span>.<span class="pl-en">MouseEvent</span>) <span class="pl-k">=></span> <span class="pl-c1">void</span>)
+</code>
+```
+
+---
+
+## Use Cases
+
+### Type Documentation
+
+Highlight type expressions in API documentation:
+
+```typescript
+const processor = unified().use(transformHtmlCodeInlineHighlighted);
+
+// Highlight prop types
+await processor.process('<code class="language-ts">string | number</code>');
+
+// Highlight complex types
+await processor.process(
+  '<code class="language-ts" data-highlighting-prefix="type _ = ">{ foo: string; bar: number }</code>',
+);
+```
+
+### Markdown Tables
+
+Apply highlighting to inline code in markdown tables:
+
+```markdown
+| Prop    | Type                             |
+| ------- | -------------------------------- | ------------- |
+| variant | <code class="language-ts">string | number</code> |
+```
+
+### JSDoc Examples
+
+Highlight code examples in JSDoc comments:
+
+```typescript
+/**
+ * @example
+ * <code class="language-tsx">
+ *   <Button variant="primary" />
+ * </code>
+ */
+```
+
+---
+
+## API Reference
+
+### transformHtmlCodeInlineHighlighted()
+
+```typescript
+function transformHtmlCodeInlineHighlighted(): (tree: Root) => Promise<void>;
+```
+
+Returns a unified transformer that highlights `<code>` elements.
+
+**Parameters:** None
+
+**Returns:** A transformer function that processes the HAST tree
+
+**Throws:**
+
+- Error if Starry Night hasn't been initialized via `ensureStarryNightInitialized()`
+
+---
+
+### ensureStarryNightInitialized()
+
+```typescript
+async function ensureStarryNightInitialized(): Promise<void>;
+```
+
+Initializes the Starry Night syntax highlighter singleton.
+
+**Parameters:** None
+
+**Returns:** Promise that resolves when initialization is complete
+
+**Side Effects:**
+
+- Stores Starry Night instance in `globalThis.__docs_infra_starry_night_instance__`
+- Only initializes once (subsequent calls are no-ops)
+
+---
+
+## Architecture
+
+### Singleton Pattern
+
+The plugin uses a singleton Starry Night instance stored in `globalThis`:
+
+```typescript
+const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
+
+export async function ensureStarryNightInitialized(): Promise<void> {
+  if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
+    (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
+  }
+}
+```
+
+**Benefits:**
+
+1. **Performance**: Starry Night creation is expensive (~500-1200ms)
+2. **Memory**: Single instance shared across all processing
+3. **Consistency**: Same highlighting rules everywhere
+
+### Prefix Handling
+
+The `data-highlighting-prefix` attribute solves a key challenge: TypeScript types need context for proper syntax highlighting.
+
+**Problem**: Highlighting `string | number` in isolation may not recognize it as a type expression.
+
+**Solution**: Add context prefix `type _ = string | number`, highlight the complete string, then remove the prefix.
+
+**Example:**
+
+```typescript
+// Without prefix: may highlight incorrectly
+<code class="language-ts">{ foo: string }</code>
+
+// With prefix: highlights as proper type
+<code class="language-ts" data-highlighting-prefix="type _ = ">
+  { foo: string }
+</code>
+
+// After processing: prefix removed but highlighting preserved
+<code class="language-ts">
+  <span class="pl-k">{</span> foo<span class="pl-k">:</span> ...
+</code>
+```
+
+---
+
+## Performance Considerations
+
+### Initialization Cost
+
+- **First call**: ~500-1200ms to create Starry Night instance
+- **Subsequent calls**: ~0ms (singleton pattern)
+
+**Recommendation**: Initialize once at application startup:
+
+```typescript
+// In your application entry point
+import { ensureStarryNightInitialized } from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
+
+await ensureStarryNightInitialized();
+```
+
+### Processing Cost
+
+- **Per code element**: ~1-5ms for typical inline code
+- **With prefix**: ~2-8ms (includes removal step)
+
+**Optimization**: The plugin only processes `<code>` elements with language classes, skipping:
+
+- Plain code without `class="language-*"`
+- Empty code elements
+- Code elements with unsupported languages
+
+---
+
+## Comparison with transformHtmlCodePrecomputed
+
+| Feature             | transformHtmlCodeInlineHighlighted | transformHtmlCodePrecomputed |
+| ------------------- | ---------------------------------- | ---------------------------- |
+| **Use case**        | Inline code snippets               | Multi-line code blocks       |
+| **Line gutters**    | No                                 | Yes                          |
+| **Frame wrapper**   | No                                 | Yes                          |
+| **Data attributes** | No                                 | Yes (dataPrecompute)         |
+| **Prefix support**  | Yes                                | No                           |
+| **Performance**     | Fast                               | Slower (more features)       |
+| **Output size**     | Smaller                            | Larger                       |
+
+**When to use transformHtmlCodeInlineHighlighted:**
+
+- Inline code in documentation
+- Type expressions in tables
+- Short code snippets (< 5 lines)
+- Minimal HTML overhead needed
+
+**When to use transformHtmlCodePrecomputed:**
+
+- Multi-line code examples
+- Interactive demos
+- Code with line numbers
+- Precomputed caching needed
+
+---
+
+## Best Practices
+
+### 1. Initialize Once
+
+```typescript
+// ✓ Good: Initialize at startup
+await ensureStarryNightInitialized();
+const processor = unified().use(transformHtmlCodeInlineHighlighted);
+
+// ✗ Bad: Initialize multiple times
+for (const file of files) {
+  await ensureStarryNightInitialized(); // Wasteful
+}
+```
+
+### 2. Use Appropriate Prefixes
+
+```typescript
+// ✓ Good: Minimal prefix for context
+<code class="language-ts" data-highlighting-prefix="type _ = ">
+  string | number
+</code>
+
+// ✗ Bad: Long unnecessary prefix
+<code class="language-ts" data-highlighting-prefix="export type MyVeryLongTypeName = ">
+  string | number
+</code>
+```
+
+### 3. Specify Language
+
+```typescript
+// ✓ Good: Explicit language
+<code class="language-ts">string</code>
+
+// ✗ Bad: No language (won't highlight)
+<code>string</code>
+```
+
+### 4. Keep Code Inline
+
+```typescript
+// ✓ Good: Short inline code
+<code class="language-ts">string | number</code>
+
+// ✗ Bad: Multi-line code (use transformHtmlCodePrecomputed)
+<code class="language-ts">
+  function example() {
+    // 50 lines of code
+  }
+</code>
+```
+
+---
+
+## Troubleshooting
+
+### Code Not Highlighting
+
+**Problem**: Code remains plain text without highlighting.
+
+**Solutions:**
+
+1. Verify Starry Night is initialized:
+
+   ```typescript
+   await ensureStarryNightInitialized();
+   ```
+
+2. Check language class exists:
+
+   ```html
+   <!-- ✓ Good -->
+   <code class="language-ts">string</code>
+
+   <!-- ✗ Bad: missing class -->
+   <code>string</code>
+   ```
+
+3. Confirm language is supported:
+   ```typescript
+   // Supported: ts, js, tsx, jsx, css, html, json, md, sh, yaml
+   // Unsupported: python, ruby, go, rust
+   ```
+
+### Prefix Not Removed
+
+**Problem**: Prefix appears in output.
+
+**Solutions:**
+
+1. Verify attribute name is exact:
+
+   ```html
+   <!-- ✓ Good -->
+   <code data-highlighting-prefix="type _ = ">string</code>
+
+   <!-- ✗ Bad: wrong attribute name -->
+   <code data-prefix="type _ = ">string</code>
+   ```
+
+2. Check prefix length matches actual characters:
+   ```typescript
+   // Prefix removal counts characters, not bytes
+   // "type _ = " is 9 characters (including spaces)
+   ```
+
+### Unexpected Highlighting
+
+**Problem**: Highlighting differs from expected.
+
+**Solutions:**
+
+1. Add appropriate prefix for context:
+
+   ```html
+   <!-- Without prefix: might highlight as variable -->
+   <code class="language-ts">{ foo: string }</code>
+
+   <!-- With prefix: highlights as type -->
+   <code class="language-ts" data-highlighting-prefix="type _ = "> { foo: string } </code>
+   ```
+
+2. Check language matches content:
+
+   ```html
+   <!-- ✗ Bad: JSX with wrong language -->
+   <code class="language-js"><button /></code>
+
+   <!-- ✓ Good: JSX with correct language -->
+   <code class="language-tsx"><button /></code>
+   ```
+
+---
+
+## Related Functions
+
+- [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx) - For multi-line code blocks with line gutters
+- [`parseSource`](../parse-source/page.mdx) - Underlying syntax highlighting function
+- [`formatProperties`](../load-precomputed-types-meta/page.mdx#formatproperties) - Uses this for type highlighting
+
+---
+
+## See Also
+
+- [Starry Night Documentation](https://github.com/wooorm/starry-night)
+- [Unified Documentation](https://unifiedjs.com/)
+- [Rehype Plugins](https://github.com/rehypejs/rehype/blob/main/doc/plugins.md)

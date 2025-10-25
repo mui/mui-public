@@ -13,7 +13,12 @@ import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithF
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
-import { createPerformanceLogger, logPerformance, nameMark } from './performanceLogger';
+import {
+  createPerformanceLogger,
+  logPerformance,
+  nameMark,
+  performanceMeasure,
+} from './performanceLogger';
 
 export type LoaderOptions = {
   performance?: {
@@ -48,15 +53,16 @@ export async function loadPrecomputedCodeHighlighter(
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+
   let observer: PerformanceObserver | undefined = undefined;
   if (options.performance?.logging) {
     observer = new PerformanceObserver(
-      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures),
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
     );
     observer.observe({ entryTypes: ['measure'] });
   }
 
-  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
   const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
   performance.mark(startMark);
   let currentMark = startMark;
@@ -65,14 +71,11 @@ export async function loadPrecomputedCodeHighlighter(
     // Parse the source to find a single createDemo call
     const demoCall = await parseCreateFactoryCall(source, this.resourcePath);
 
-    const parsedFactoryMark = nameMark(functionName, 'Parsed Factory', [relativePath]);
-    performance.mark(parsedFactoryMark);
-    performance.measure(
-      nameMark(functionName, 'Factory Parsing', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      parsedFactoryMark,
+      { mark: 'Parsed Factory', measure: 'Factory Parsing' },
+      [functionName, relativePath],
     );
-    currentMark = parsedFactoryMark;
 
     // If no createDemo call found, return the source unchanged
     if (!demoCall) {
@@ -93,14 +96,11 @@ export async function loadPrecomputedCodeHighlighter(
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
     const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants || {});
 
-    const pathsResolvedMark = nameMark(functionName, 'Paths Resolved', [relativePath]);
-    performance.mark(pathsResolvedMark);
-    performance.measure(
-      nameMark(functionName, 'Path Resolution', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      pathsResolvedMark,
+      { mark: 'Paths Resolved', measure: 'Path Resolution' },
+      [functionName, relativePath],
     );
-    currentMark = pathsResolvedMark;
 
     // Create loader functions
     const loadSource = createLoadServerSource({
@@ -116,12 +116,10 @@ export async function loadPrecomputedCodeHighlighter(
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();
 
-    const functionsInitMark = nameMark(functionName, 'Functions Init', [relativePath]);
-    performance.mark(functionsInitMark);
-    performance.measure(
-      nameMark(functionName, 'Functions Init', [relativePath]),
+    const functionsInitMark = performanceMeasure(
       currentMark,
-      functionsInitMark,
+      { mark: 'Functions Init', measure: 'Functions Init' },
+      [functionName, relativePath],
     );
     currentMark = functionsInitMark;
 
@@ -159,19 +157,12 @@ export async function loadPrecomputedCodeHighlighter(
             },
           );
 
-          const variantLoadedMark = nameMark(
-            functionName,
-            'Variant Loaded',
-            [variantName, relativePath],
+          currentMark = performanceMeasure(
+            currentMark,
+            { mark: 'Variant Loaded', measure: 'Variant Loading' },
+            [functionName, variantName, relativePath],
             true,
           );
-          performance.mark(variantLoadedMark);
-          performance.measure(
-            nameMark(functionName, 'Variant Loading', [variantName, relativePath], true),
-            currentMark,
-            variantLoadedMark,
-          );
-          currentMark = variantLoadedMark;
 
           return {
             variantName,
@@ -196,26 +187,21 @@ export async function loadPrecomputedCodeHighlighter(
       }
     }
 
-    const variantsLoadedMark = nameMark(functionName, 'All Variants Loaded', [relativePath], true);
-    performance.mark(variantsLoadedMark);
-    performance.measure(
-      nameMark(functionName, 'Complete Variants Loading', [relativePath], true),
+    currentMark = performanceMeasure(
       functionsInitMark,
-      variantsLoadedMark,
+      { mark: 'All Variants Loaded', measure: 'Complete Variants Loading' },
+      [functionName, relativePath],
+      true,
     );
-    currentMark = variantsLoadedMark;
 
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
 
-    const replacedPrecomputeMark = nameMark(functionName, 'Replaced Precompute', [relativePath]);
-    performance.mark(replacedPrecomputeMark);
-    performance.measure(
-      nameMark(functionName, 'Precompute Replacement', [relativePath]),
+    currentMark = performanceMeasure(
       currentMark,
-      replacedPrecomputeMark,
+      { mark: 'Replaced Precompute', measure: 'Precompute Replacement' },
+      [functionName, relativePath],
     );
-    currentMark = replacedPrecomputeMark;
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
@@ -227,7 +213,7 @@ export async function loadPrecomputedCodeHighlighter(
     observer
       ?.takeRecords()
       ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
     callback(null, modifiedSource);
@@ -236,7 +222,7 @@ export async function loadPrecomputedCodeHighlighter(
     observer
       ?.takeRecords()
       ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
     callback(error instanceof Error ? error : new Error(String(error)));
