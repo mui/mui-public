@@ -114,7 +114,9 @@ export const props = [
  * For example, "Accordion" will be followed by "Accordion.Root", "Accordion.Item", etc.
  * The namespace members themselves are sorted by the suffix order defined below.
  */
-export const exports = [
+
+// Top-level component and utility exports
+export const componentExports = [
   'Accordion',
   'AlertDialog',
   'Autocomplete',
@@ -185,8 +187,12 @@ export const exports = [
   'Transition',
   'useRender',
 
-  // Namespace member suffix order (for sorting ComponentName.X members)
-  // These define the order of suffixes within a component's namespace
+  '__EVERYTHING_ELSE__', // Placeholder for all other top-level types
+];
+
+// Namespace member parts order (for sorting ComponentName.Part members)
+// These define the order of parts within a component's namespace
+export const namespaceParts = [
   'Root',
   'Provider',
   'Trigger',
@@ -250,11 +256,21 @@ export const exports = [
   'CheckboxItem',
   'CheckboxItemIndicator',
 
-  // Type suffixes (common namespace members)
+  '__EVERYTHING_ELSE__', // Placeholder for all other parts
+];
+
+// Type suffixes (common namespace members like Props, State, etc.)
+export const typeSuffixes = [
   'Props',
   'State',
+  'Actions',
   'ChangeEventReason',
   'ChangeEventDetails',
+  'DataAttributes',
+  'CssVars',
 
-  '__EVERYTHING_ELSE__', // Placeholder for all other types
+  '__EVERYTHING_ELSE__', // Placeholder for all other type suffixes
 ];
+
+// Legacy combined export for backward compatibility
+export const exports = [...componentExports, ...namespaceParts, ...typeSuffixes];

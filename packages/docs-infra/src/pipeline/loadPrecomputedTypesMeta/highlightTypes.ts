@@ -73,7 +73,7 @@ async function highlightComponentType(
       // Transform prop descriptions and examples (markdown with code blocks)
       // Skip type/shortType/detailedType/default - already highlighted inline
       Promise.all(
-        Object.entries(data.props).map(async ([propName, prop]) => {
+        Object.entries(data.props).map(async ([propName, prop]: [string, any]) => {
           const [propDescription, example] = await Promise.all([
             prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
             prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
@@ -92,7 +92,7 @@ async function highlightComponentType(
 
       // Transform data attribute descriptions (markdown with code blocks)
       Promise.all(
-        Object.entries(data.dataAttributes).map(async ([attrName, attr]) => {
+        Object.entries(data.dataAttributes).map(async ([attrName, attr]: [string, any]) => {
           const attrDescription = attr.description
             ? await processor.run(attr.description)
             : attr.description;
@@ -103,7 +103,7 @@ async function highlightComponentType(
 
       // Transform CSS variable descriptions (markdown with code blocks)
       Promise.all(
-        Object.entries(data.cssVariables).map(async ([varName, cssVar]) => {
+        Object.entries(data.cssVariables).map(async ([varName, cssVar]: [string, any]) => {
           const varDescription = cssVar.description
             ? await processor.run(cssVar.description)
             : cssVar.description;
@@ -117,9 +117,11 @@ async function highlightComponentType(
   return {
     ...data,
     description,
-    props: Object.fromEntries(propsEntries),
-    dataAttributes: Object.fromEntries(dataAttributesEntries),
-    cssVariables: Object.fromEntries(cssVariablesEntries),
+    props: Object.fromEntries(propsEntries) as ComponentTypeMeta['props'],
+    dataAttributes: Object.fromEntries(
+      dataAttributesEntries,
+    ) as ComponentTypeMeta['dataAttributes'],
+    cssVariables: Object.fromEntries(cssVariablesEntries) as ComponentTypeMeta['cssVariables'],
   };
 }
 
@@ -137,7 +139,7 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
     // Transform parameter descriptions and examples (markdown with code blocks)
     // Skip type/default - already highlighted inline
     Promise.all(
-      Object.entries(data.parameters).map(async ([paramName, param]) => {
+      Object.entries(data.parameters).map(async ([paramName, param]: [string, any]) => {
         const [paramDescription, example] = await Promise.all([
           param.description ? processor.run(param.description) : Promise.resolve(param.description),
           param.example ? processor.run(param.example) : Promise.resolve(param.example),
@@ -166,7 +168,7 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
       // returnValue is an object with FormattedProperty values
       // Transform descriptions and examples (skip type/detailedType/default - already highlighted)
       const returnValueEntries = await Promise.all(
-        Object.entries(data.returnValue).map(async ([propName, prop]) => {
+        Object.entries(data.returnValue).map(async ([propName, prop]: [string, any]) => {
           const [propDescription, example] = await Promise.all([
             prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
             prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
@@ -183,14 +185,14 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
         }),
       );
 
-      return Object.fromEntries(returnValueEntries);
+      return Object.fromEntries(returnValueEntries) as Record<string, any>;
     })(),
   ]);
 
   return {
     ...data,
     description,
-    parameters: Object.fromEntries(parametersEntries),
+    parameters: Object.fromEntries(parametersEntries) as HookTypeMeta['parameters'],
     returnValue,
   };
 }

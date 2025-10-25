@@ -8,98 +8,91 @@ import type { HastRoot } from '../../CodeHighlighter/types';
 import * as md from './createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
 import { prettyFormatType, parseMarkdownToHast } from './format';
-import { exports as exportOrder } from './order';
+import { namespaceParts, typeSuffixes } from './order';
 
 /**
- * Sort types for documentation generation.
+ * Sort types for documentation generation using structured ordering.
  *
  * Sorting rules:
- * 1. Components (identified as 'component' or 'hook' type) are sorted by their name
- * 2. Namespace members (type: 'other' with reExportOf or specific suffixes) are grouped under their component
- * 3. Within the same component, namespace members appear immediately after the component, sorted by suffix
+ * 1. Top-level components are sorted by componentExports order
+ * 2. Namespace parts (Component.Part) are sorted by namespaceParts order
+ * 3. Type suffixes (Component.PartProps, Component.PartState) are sorted by typeSuffixes order
+ * 4. DataAttributes and CssVars are sorted by typeSuffixes order
  */
 function sortTypes(types: TypesMeta[]): TypesMeta[] {
-  return [...types].sort((a, b) => {
-    const aName = a.name;
-    const bName = b.name;
+  const getOrderIndex = (arr: string[], value: string | null): number => {
+    if (value === null) {
+      return arr.indexOf('__EVERYTHING_ELSE__');
+    }
+    const idx = arr.indexOf(value);
+    return idx === -1 ? arr.indexOf('__EVERYTHING_ELSE__') : idx;
+  };
 
-    // Determine if these are actual components or namespace member re-exports
-    const aIsComponent = a.type === 'component' || a.type === 'hook';
-    const bIsComponent = b.type === 'component' || b.type === 'hook';
+  const parseName = (fullName: string) => {
+    // fullName is like: "Checkbox.Root", "Checkbox.Root.Props", "Checkbox.Indicator.State"
+    // We need to extract: component, part, suffix
 
-    // For namespace members, determine their parent component
-    // e.g., "Button.Root.Props" -> parent is "Button.Root"
-    const getParentComponent = (name: string, isComp: boolean): string => {
-      if (isComp) {
-        return name; // Components are their own parent
+    let suffix = null;
+    let baseName = fullName;
+
+    // Check if it ends with a known suffix like ".Props", ".State", etc.
+    for (const suf of typeSuffixes) {
+      if (suf === '__EVERYTHING_ELSE__') {
+        continue;
       }
-      // For namespace members, the parent is everything except the last part
-      const lastDotIndex = name.lastIndexOf('.');
-      return lastDotIndex > 0 ? name.substring(0, lastDotIndex) : name;
-    };
-
-    const aParent = getParentComponent(aName, aIsComponent);
-    const bParent = getParentComponent(bName, bIsComponent);
-
-    // If they have the same parent component
-    if (aParent === bParent) {
-      // Component itself comes before its namespace members
-      if (aIsComponent && !bIsComponent) {
-        return -1;
+      if (fullName.endsWith(`.${suf}`)) {
+        suffix = suf;
+        baseName = fullName.substring(0, fullName.length - suf.length - 1); // Remove ".Suffix"
+        break;
       }
-      if (!aIsComponent && bIsComponent) {
-        return 1;
-      }
-
-      // Both are namespace members of the same parent - sort by suffix using exportOrder
-      if (!aIsComponent && !bIsComponent) {
-        const aSuffix = aName.substring(aName.lastIndexOf('.') + 1);
-        const bSuffix = bName.substring(bName.lastIndexOf('.') + 1);
-
-        const aIndex = exportOrder.indexOf(aSuffix);
-        const bIndex = exportOrder.indexOf(bSuffix);
-
-        // If both are in the order list, use that
-        if (aIndex !== -1 && bIndex !== -1) {
-          return aIndex - bIndex;
-        }
-
-        // If only one is in the list, it comes first
-        if (aIndex !== -1) {
-          return -1;
-        }
-        if (bIndex !== -1) {
-          return 1;
-        }
-
-        // Neither in the list - sort alphabetically
-        return aSuffix.localeCompare(bSuffix);
-      }
-
-      // Both are components with the same name (shouldn't happen)
-      return 0;
     }
 
-    // Different parent components - need to determine overall order
-    // First, get the order index for each parent component
-    const aParentIndex = exportOrder.indexOf(aParent);
-    const bParentIndex = exportOrder.indexOf(bParent);
-
-    // If both parent components are in the order list, use that order
-    if (aParentIndex !== -1 && bParentIndex !== -1) {
-      return aParentIndex - bParentIndex;
+    // Now baseName is like "Checkbox.Root" or "Checkbox.Indicator"
+    // Parse component.part structure
+    const lastDotIndex = baseName.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+      const component = baseName.substring(0, lastDotIndex);
+      const part = baseName.substring(lastDotIndex + 1);
+      return { component, part, suffix };
     }
 
-    // If only one parent component is in the list, it comes first
-    if (aParentIndex !== -1) {
+    // No dot found - treat as just a part or component
+    return { component: null, part: baseName, suffix };
+  };
+
+  return types.slice().sort((a, b) => {
+    // Use data.name which has the full name like "Checkbox.Root"
+    const aFullName = a.type === 'component' || a.type === 'hook' ? a.data.name : a.name;
+    const bFullName = b.type === 'component' || b.type === 'hook' ? b.data.name : b.name;
+
+    const aParsed = parseName(aFullName);
+    const bParsed = parseName(bFullName);
+
+    // First, sort by part (Root, Trigger, Indicator, etc.)
+    const aPartIdx = getOrderIndex(namespaceParts, aParsed.part);
+    const bPartIdx = getOrderIndex(namespaceParts, bParsed.part);
+
+    if (aPartIdx !== bPartIdx) {
+      return aPartIdx - bPartIdx;
+    }
+
+    // Then by suffix (Props, State, DataAttributes, etc.)
+    // Items with no suffix should come first (before .Props, .State, etc.)
+    const aSuffixIdx = aParsed.suffix === null ? -1 : getOrderIndex(typeSuffixes, aParsed.suffix);
+    const bSuffixIdx = bParsed.suffix === null ? -1 : getOrderIndex(typeSuffixes, bParsed.suffix);
+    if (aSuffixIdx !== bSuffixIdx) {
+      return aSuffixIdx - bSuffixIdx;
+    }
+
+    // Finally, by original name as fallback
+    if (aFullName < bFullName) {
       return -1;
     }
-    if (bParentIndex !== -1) {
+    if (aFullName > bFullName) {
       return 1;
     }
 
-    // Neither parent component is in the list - sort alphabetically by parent name
-    return aParent.localeCompare(bParent);
+    return 0;
   });
 }
 
@@ -197,7 +190,11 @@ async function hastToInlineMdast(hast: HastRoot): Promise<PhrasingContent[]> {
   });
 }
 
-export async function generateTypesMarkdown(name: string, types: TypesMeta[]): Promise<string> {
+export async function generateTypesMarkdown(
+  name: string,
+  types: TypesMeta[],
+  typeNameMap: Record<string, string> = {},
+): Promise<string> {
   const tables: RootContent[] = [
     md.heading(1, name),
     md.comment('<-- Autogenerated By (do not edit the following markdown directly)', 'types.ts'),
@@ -207,6 +204,13 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
   // Sort types before processing
   const sortedTypes = sortTypes(types);
 
+  // Check if there's a component/hook with the same name as the namespace
+  // E.g., for "DirectionProvider", check if there's a DirectionProvider component
+  const namespaceName = name.replace(/\s+/g, ''); // "Context Menu" -> "ContextMenu"
+  const hasNamespaceComponent = types.some(
+    (t) => (t.type === 'component' || t.type === 'hook') && t.name === namespaceName,
+  );
+
   const typeContents = await Promise.all(
     sortedTypes.map(async (typeMeta): Promise<RootContent[]> => {
       const content: RootContent[] = [];
@@ -215,8 +219,18 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         const part = typeMeta.data.name;
         const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
 
-        // Add subheading for the part
-        content.push(md.heading(3, part));
+        // Strip namespace prefix from component heading if:
+        // 1. The component name starts with the namespace name
+        // 2. There's NO component/hook with the exact namespace name
+        // E.g., "ContextMenu.Backdrop" -> "Backdrop" (no ContextMenu component exists)
+        // But "DirectionProvider.Props" stays as "DirectionProvider" (DirectionProvider component exists)
+        const displayName =
+          part.startsWith(`${namespaceName}.`) && !hasNamespaceComponent
+            ? part.slice(namespaceName.length + 1) // Remove "ContextMenu." prefix
+            : part;
+
+        // Add subheading for the part using display name
+        content.push(md.heading(3, displayName));
 
         // Add description if available
         if (data.description) {
@@ -228,10 +242,10 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         // Props table (for components)
         if (Object.keys(data.props || {}).length > 0) {
           // Create a proper heading with strong node
-          content.push(md.paragraph([md.strong(`${part} Props:`)]));
+          content.push(md.paragraph([md.strong(`${displayName} Props:`)]));
 
           const propsRows = await Promise.all(
-            Object.entries(data.props).map(async ([propName, propDef]) => [
+            Object.entries(data.props).map(async ([propName, propDef]: [string, any]) => [
               propName,
               propDef.type ? await hastToInlineMdast(propDef.type) : '-',
               propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
@@ -252,10 +266,10 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
 
         // Data attributes table (for components)
         if (Object.keys(data.dataAttributes || {}).length > 0) {
-          content.push(md.paragraph([md.strong(`${part} Data Attributes:`)]));
+          content.push(md.paragraph([md.strong(`${displayName} Data Attributes:`)]));
 
           const attrRows = await Promise.all(
-            Object.entries(data.dataAttributes).map(async ([attrName, attrDef]) => [
+            Object.entries(data.dataAttributes).map(async ([attrName, attrDef]: [string, any]) => [
               attrName,
               attrDef.type ? md.inlineCode(attrDef.type) : '-',
               attrDef.description ? await hastToInlineMdast(attrDef.description) : '-',
@@ -275,14 +289,16 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
 
         // CSS variables table (for components)
         if (Object.keys(data.cssVariables || {}).length > 0) {
-          content.push(md.paragraph([md.strong(`${part} CSS Variables:`)]));
+          content.push(md.paragraph([md.strong(`${displayName} CSS Variables:`)]));
 
           const cssRows = await Promise.all(
-            Object.entries(data.cssVariables).map(async ([variableName, variableDef]) => [
-              md.inlineCode(variableName),
-              md.inlineCode(variableDef.type || ''),
-              variableDef.description ? await hastToInlineMdast(variableDef.description) : '-',
-            ]),
+            Object.entries(data.cssVariables).map(
+              async ([variableName, variableDef]: [string, any]) => [
+                md.inlineCode(variableName),
+                md.inlineCode(variableDef.type || ''),
+                variableDef.description ? await hastToInlineMdast(variableDef.description) : '-',
+              ],
+            ),
           );
 
           // Define column alignments
@@ -397,17 +413,31 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
         const part = typeMeta.data.name || 'Unknown';
         const data = typeMeta.data; // This is now properly typed as ExportNode
 
-        // Add subheading for the part
-        content.push(md.heading(3, part));
+        // Strip namespace prefix from heading if:
+        // 1. The type name starts with the namespace name
+        // 2. There's NO component/hook with the exact namespace name
+        const displayName =
+          part.startsWith(`${namespaceName}.`) && !hasNamespaceComponent
+            ? part.slice(namespaceName.length + 1) // Remove "ContextMenu." prefix
+            : part;
+
+        // Add subheading for the part using display name
+        content.push(md.heading(3, displayName));
 
         // Check if this is a re-export of another type
         if (typeMeta.reExportOf) {
           // Add a note that this is a re-export with a link back to the original
-          // Convert to anchor format: remove dots for the link, keep dots for display
-          const anchorId = typeMeta.reExportOf.toLowerCase().replace(/\./g, '');
+          // Strip namespace from the component name for the anchor (same as component headings)
+          const componentDisplayName =
+            typeMeta.reExportOf.startsWith(`${namespaceName}.`) && !hasNamespaceComponent
+              ? typeMeta.reExportOf.slice(namespaceName.length + 1)
+              : typeMeta.reExportOf;
+
+          // Convert to anchor format: lowercase and remove dots
+          const anchorId = componentDisplayName.toLowerCase().replace(/\./g, '');
           const reExportNote = md.paragraph([
             md.text('Re-export of '),
-            md.link(`#${anchorId}`, `${typeMeta.reExportOf}`),
+            md.link(`#${anchorId}`, componentDisplayName),
             md.text(' props.'),
           ]);
           content.push(reExportNote);
@@ -470,7 +500,10 @@ export async function generateTypesMarkdown(name: string, types: TypesMeta[]): P
           }
 
           content.push(
-            md.code(await prettyFormatType(data.type, true, undefined, true, []), 'typescript'),
+            md.code(
+              await prettyFormatType(data.type, true, undefined, true, [], typeNameMap),
+              'typescript',
+            ),
           );
         }
       }

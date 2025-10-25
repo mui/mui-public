@@ -2,10 +2,11 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
 import type { LoaderContext } from 'webpack';
 import type { ExportNode } from 'typescript-api-extractor';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
+import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import {
   createPerformanceLogger,
   logPerformance,
@@ -128,6 +129,11 @@ export async function loadPrecomputedTypesMeta(
 
     const config = await loadTypescriptConfig(path.join(this.rootContext, 'tsconfig.json'));
 
+    // If paths are configured in tsconfig or watchSourceDirectly is explicitly set, we watch source files
+    const watchSourceDirectly = Boolean(
+      typesMetaCall.structuredOptions?.watchSourceDirectly || config.options.paths,
+    );
+
     currentMark = performanceMeasure(
       currentMark,
       { mark: 'tsconfig.json loaded', measure: 'tsconfig.json loading' },
@@ -146,7 +152,7 @@ export async function loadPrecomputedTypesMeta(
         rootContext: this.rootContext || process.cwd(),
         tsconfigPaths: config.options.paths,
         pathsBasePath: String(config.options.pathsBasePath || ''),
-        watchSourceDirectly: typesMetaCall.structuredOptions?.watchSourceDirectly,
+        watchSourceDirectly,
       });
 
       resolvedVariantMap = result.resolvedVariantMap;
@@ -160,12 +166,52 @@ export async function loadPrecomputedTypesMeta(
     }
 
     // Collect all entrypoints for optimized program creation
+    // Include both the component entrypoints and their meta files (DataAttributes, CssVars)
     const resolvedEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
       url.replace('file://', ''),
     );
 
-    const allEntrypoints = await Promise.all(
+    // Parse exports from library source files to find re-exported directories
+    // This helps us discover DataAttributes/CssVars files from re-exported components
+    const reExportedDirs = new Set<string>();
+
+    await Promise.all(
       resolvedEntrypoints.map(async (entrypoint) => {
+        try {
+          const sourceCode = await readFile(entrypoint, 'utf-8');
+          const parsed = await parseImportsAndComments(sourceCode, entrypoint);
+
+          // Look for relative exports that go up directories (e.g., '../menu/')
+          Object.keys(parsed.relative || {}).forEach((exportPath) => {
+            if (exportPath.startsWith('..')) {
+              // For '../menu/backdrop/MenuBackdrop', we want the parent 'menu' directory
+              // Split the path and take segments except the last one (the file/component name)
+              const segments = exportPath.split('/');
+              const parentPath = segments.slice(0, -1).join('/'); // '../menu/backdrop'
+
+              // Resolve to absolute path
+              const absoluteParentPath = path.resolve(path.dirname(entrypoint), parentPath);
+              reExportedDirs.add(absoluteParentPath);
+            }
+          });
+        } catch (error) {
+          // If we can't parse a file, just skip it
+          console.warn(
+            `[Main] Failed to parse exports from ${entrypoint}:`,
+            error instanceof Error ? error.message : error,
+          );
+        }
+      }),
+    );
+
+    // Find meta files from the library source directories and re-exported directories
+    const allDirectoriesToSearch = [
+      ...resolvedEntrypoints, // Component entrypoints themselves
+      ...Array.from(reExportedDirs), // Re-exported directories (e.g., ../menu/)
+    ];
+
+    const allEntrypoints = await Promise.all(
+      allDirectoriesToSearch.map(async (entrypoint) => {
         return [entrypoint, ...(await findMetaFiles(entrypoint))];
       }),
     ).then((pairs) => pairs.flat());
@@ -197,6 +243,19 @@ export async function loadPrecomputedTypesMeta(
       throw new Error(workerResult.error || 'Worker failed to process types');
     }
 
+    // Log debug information from worker
+    if (workerResult.debug) {
+      console.warn(`[Main Thread] Debug info for ${relativePath}:`);
+      console.warn(
+        `  - Source file paths from re-exports: ${workerResult.debug.sourceFilePaths?.length || 0}`,
+      );
+      if (workerResult.debug.sourceFilePaths && workerResult.debug.sourceFilePaths.length > 0) {
+        console.warn(`  - First 5 paths:`, workerResult.debug.sourceFilePaths.slice(0, 5));
+      }
+      console.warn(`  - Meta files found: ${workerResult.debug.metaFilesCount || 0}`);
+      console.warn(`  - Adjacent files count: ${workerResult.debug.adjacentFilesCount || 0}`);
+    }
+
     // Reconstruct worker performance logs in main thread
     // Note: Worker logs already include relativePath in their names,
     // so they'll be automatically filtered by the PerformanceObserver
@@ -224,7 +283,10 @@ export async function loadPrecomputedTypesMeta(
     );
 
     // Format the raw exports from the worker into TypesMeta
-    const variantData: Record<string, { types: TypesMeta[] }> = {};
+    const variantData: Record<
+      string,
+      { types: TypesMeta[]; typeNameMap?: Record<string, string> }
+    > = {};
 
     // Process all variants in parallel
     await Promise.all(
@@ -235,18 +297,10 @@ export async function loadPrecomputedTypesMeta(
             if (isPublicComponent(exportNode)) {
               const formattedData = await formatComponentData(
                 exportNode,
-                variantResult.allTypes, // Use allTypes to find DataAttributes/CssVars enums
+                variantResult.allTypes,
                 variantResult.namespaces,
-                {
-                  // Only pass namespaceName if it's not the default variant name
-                  // For single exports without namespace, namespaceName is 'Default' but we don't want to use it
-                  namespaceName:
-                    variantResult.namespaceName === 'Default'
-                      ? undefined
-                      : variantResult.namespaceName,
-                },
+                variantResult.typeNameMap || {},
               );
-
               return {
                 type: 'component',
                 name: exportNode.name,
@@ -255,7 +309,11 @@ export async function loadPrecomputedTypesMeta(
             }
 
             if (isPublicHook(exportNode)) {
-              const formattedData = await formatHookData(exportNode, variantResult.namespaces);
+              const formattedData = await formatHookData(
+                exportNode,
+                variantResult.namespaces,
+                variantResult.typeNameMap || {},
+              );
 
               return {
                 type: 'hook',
@@ -264,46 +322,15 @@ export async function loadPrecomputedTypesMeta(
               };
             }
 
-            // For namespace members (e.g., Button.Root.Temp), resolve external type references
-            let resolvedExportNode = exportNode;
-            const isNamespaceMember =
-              (exportNode as ExportNode & { isNamespaceMember?: boolean }).isNamespaceMember ||
-              exportNode.name.includes('.');
-
-            if (
-              isNamespaceMember &&
-              exportNode.type.kind === 'external' &&
-              'typeName' in exportNode.type &&
-              exportNode.type.typeName
-            ) {
-              const typeNameToFind = exportNode.type.typeName.name;
-              const referencedExport = variantResult.allTypes.find(
-                (exportItem) => exportItem.name === typeNameToFind,
-              );
-              if (referencedExport) {
-                // Create a new export node with the resolved type, preserving the isPublic method
-                const originalIsPublic = exportNode.isPublic.bind(exportNode);
-                resolvedExportNode = Object.assign(
-                  Object.create(Object.getPrototypeOf(exportNode)),
-                  {
-                    ...exportNode,
-                    type: referencedExport.type,
-                  },
-                );
-                // Ensure the isPublic method is preserved
-                resolvedExportNode.isPublic = originalIsPublic;
-              }
-            }
-
             return {
               type: 'other',
               name: exportNode.name,
-              data: resolvedExportNode,
+              data: exportNode,
             };
           }),
         );
 
-        variantData[variantName] = { types };
+        variantData[variantName] = { types, typeNameMap: variantResult.typeNameMap };
       }),
     );
 
@@ -316,53 +343,66 @@ export async function loadPrecomputedTypesMeta(
     // Collect all types for markdown generation
     let allTypes = Object.values(variantData).flatMap((v) => v.types);
 
-    // Mark namespace types that are re-exports (e.g., Component.Props re-exports component props)
+    // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
     allTypes = allTypes.map((typeMeta) => {
-      // Only check namespace members (contain a dot)
-      if (!typeMeta.name.includes('.')) {
+      if (typeMeta.type !== 'other') {
         return typeMeta;
       }
 
-      // Extract component name and suffix
-      const lastDotIndex = typeMeta.name.lastIndexOf('.');
-      const componentName = typeMeta.name.substring(0, lastDotIndex);
-      const suffix = typeMeta.name.substring(lastDotIndex + 1);
-
-      // Only check Props and State suffixes
-      if (suffix !== 'Props' && suffix !== 'State') {
+      // Extract component name and suffix (e.g., "ButtonProps" -> component: "Button", suffix: "Props")
+      // Handle both namespaced (ContextMenu.Root.Props) and non-namespaced (ButtonProps) names
+      const parts = typeMeta.name.match(/^(.+)\.(Props|State|DataAttributes)$/);
+      if (!parts) {
         return typeMeta;
       }
 
-      // Check if there's a component with this name that already documents these
+      const [, componentName, suffix] = parts;
+
+      // Find the corresponding component by checking both the full name and just the last part
+      // e.g., for "ContextMenu.Root.Props", check both "ContextMenu.Root" and "Root"
       const correspondingComponent = allTypes.find(
-        (t) => t.name === componentName && t.type === 'component',
+        (t) =>
+          t.type === 'component' &&
+          (t.name === componentName || t.name.endsWith(`.${componentName}`)),
       );
 
       if (!correspondingComponent || correspondingComponent.type !== 'component') {
-        return typeMeta; // Keep as-is if there's no corresponding component
+        return typeMeta;
       }
 
       // Check if Props is a re-export of the component's props
       if (suffix === 'Props' && correspondingComponent.data.props) {
         const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
         if (hasProps) {
-          // Mark this as a re-export - preserve all properties using proper type assertion
-          if (typeMeta.type === 'other') {
-            return {
-              type: 'other' as const,
-              name: typeMeta.name,
-              data: typeMeta.data,
-              reExportOf: componentName,
-            };
-          }
+          // Mark this as a re-export
+          return {
+            type: 'other' as const,
+            name: typeMeta.name,
+            data: typeMeta.data,
+            reExportOf: componentName,
+          };
         }
       }
 
-      // Note: We don't mark State as re-export because components don't have a "state" table
-      // State types are always useful to show separately
+      // Check if DataAttributes is a re-export of the component's data attributes
+      if (suffix === 'DataAttributes' && correspondingComponent.data.dataAttributes) {
+        const hasDataAttributes =
+          Object.keys(correspondingComponent.data.dataAttributes).length > 0;
+        if (hasDataAttributes) {
+          return {
+            type: 'other' as const,
+            name: typeMeta.name,
+            data: typeMeta.data,
+            reExportOf: componentName,
+          };
+        }
+      }
 
       return typeMeta;
     });
+
+    // Get typeNameMap from first variant (they should all be the same)
+    const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
     // Apply transformHtmlCodePrecomputed and generate/write markdown in parallel
     const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');
@@ -385,7 +425,7 @@ export async function loadPrecomputedTypesMeta(
       (async () => {
         const markdownStart = performance.now();
 
-        const markdown = await generateTypesMarkdown(resourceName, allTypes);
+        const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
         await writeFile(markdownFilePath, markdown, 'utf-8');
 
         if (process.env.NODE_ENV === 'production') {

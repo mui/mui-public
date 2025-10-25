@@ -25,6 +25,7 @@ export interface FormatHookOptions {
 export async function formatHookData(
   hook: tae.ExportNode & { type: tae.FunctionNode },
   exportNames: string[],
+  typeNameMap: Record<string, string>,
   options: FormatHookOptions = {},
 ): Promise<HookTypeMeta> {
   const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m } = options;
@@ -41,9 +42,14 @@ export async function formatHookData(
     isObjectType(parameters[0].type) &&
     parameters[0].name === 'params'
   ) {
-    formattedParameters = await formatProperties(parameters[0].type.properties, exportNames, []);
+    formattedParameters = await formatProperties(
+      parameters[0].type.properties,
+      exportNames,
+      typeNameMap,
+      [],
+    );
   } else {
-    formattedParameters = await formatParameters(parameters, exportNames);
+    formattedParameters = await formatParameters(parameters, exportNames, typeNameMap);
   }
 
   let formattedReturnValue: Record<string, FormattedProperty> | HastRoot;
@@ -51,7 +57,7 @@ export async function formatHookData(
     formattedReturnValue = await formatProperties(
       signature.returnValueType.properties,
       exportNames,
-      [],
+      typeNameMap,
     );
   } else {
     formattedReturnValue = await formatTypeAsHast(
@@ -60,6 +66,7 @@ export async function formatHookData(
       undefined,
       true,
       exportNames,
+      typeNameMap,
     );
   }
 

@@ -133,10 +133,24 @@ export function inlineCode(value: string): InlineCode {
  * @param {string|Object} content - Cell content
  * @returns {Object} Table cell node
  */
-function tableCell(content: Child | Child[]): TableCell {
+function tableCell(content: Child | Child[], widthIncrements?: number): TableCell {
+  const children = normalizeChildren(content).map((cell) => {
+    if (widthIncrements && cell.type === 'text') {
+      const spaces = new Array(
+        Math.ceil(cell.value.length / widthIncrements) * widthIncrements - cell.value.length,
+      )
+        .fill(' ')
+        .join('');
+      cell = { ...cell, value: `${cell.value}${spaces}` };
+      return cell;
+    }
+
+    return cell;
+  });
+
   return {
     type: 'tableCell',
-    children: normalizeChildren(content),
+    children,
   };
 }
 
@@ -145,10 +159,10 @@ function tableCell(content: Child | Child[]): TableCell {
  * @param cells - Array of cell contents
  * @returns Table row node
  */
-function tableRow(cells: (Child | Child[])[]): TableRow {
+function tableRow(cells: (Child | Child[])[], widthIncrements?: number): TableRow {
   return {
     type: 'tableRow',
-    children: cells.map((cell) => tableCell(cell)),
+    children: cells.map((cell) => tableCell(cell, widthIncrements)),
   };
 }
 
@@ -157,12 +171,14 @@ function tableRow(cells: (Child | Child[])[]): TableRow {
  * @param {Array<string|Object>} headers - Array of header strings or nodes
  * @param {Array<Array<string|Object>>} rows - Array of row data, each row is an array of cell content
  * @param {Array<string>} [alignment] - Optional array of alignments ('left', 'center', 'right') for each column
+ * @param {number} [widthIncrements] - Optional value to control the increments that tables expand for cleaner
  * @returns {Object} A table node
  */
 export function table(
   headers: (Child | Child[])[],
   rows: (Child | Child[])[][],
   alignment: string[] | null = null,
+  widthIncrements: number = 1,
 ): Table {
   // Convert alignment strings to AST format
   const align: ('left' | 'right' | 'center' | null)[] = headers.map((_: any, index: number) => {
@@ -184,7 +200,7 @@ export function table(
   const headerRow = tableRow(headers);
 
   // Create data rows - rows is actually an array of arrays
-  const dataRows = rows.map((row) => tableRow(row));
+  const dataRows = rows.map((row) => tableRow(row, widthIncrements));
 
   // Return table node
   return {

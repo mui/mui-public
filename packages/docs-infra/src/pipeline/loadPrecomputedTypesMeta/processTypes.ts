@@ -4,15 +4,15 @@ import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimiz
 import { parseExports } from './parseExports';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { findMetaFiles } from './findMetaFiles';
 
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
   exports: ExportNode[];
   allTypes: ExportNode[]; // All exports including internal types for reference resolution
-  namespaces: string[]; // Part names like "Root", "Part" for type formatting
-  namespaceName?: string; // Namespace prefix like "Component" for data attributes lookup
+  namespaces: string[];
   importedFrom: string;
-  allExportNames?: string[]; // All export names from the original parse (for namespace resolution)
+  typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
 }
 
 export interface WorkerRequest {
@@ -35,6 +35,11 @@ export interface WorkerResponse {
   allDependencies?: string[];
   performanceLogs?: PerformanceLog[];
   error?: string;
+  debug?: {
+    sourceFilePaths?: string[];
+    metaFilesCount?: number;
+    adjacentFilesCount?: number;
+  };
 }
 
 /**
@@ -132,90 +137,23 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           const parseStart = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Parse Start`, [request.relativePath]),
           );
-
           const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
-
-          // Extract namespace information from re-export results
-          let namespaceName: string | undefined;
-
           if (reExportResults && reExportResults.length > 0) {
-            // Set namespaceName to the first namespace found (for backward compatibility)
-            const firstNamedResult = reExportResults.find((result) => result.name);
-            if (firstNamedResult) {
-              namespaceName = firstNamedResult.name;
-            }
-
-            // Extract the base export names (without dots) from all exports
-            // e.g., "Root", "Part" from ["Root", "Root.State", "Part", "Part.State"]
-            const exportNamesSet = new Set<string>();
-            reExportResults.forEach((result) => {
-              result.exports.forEach((exp) => {
-                // Get the base name (before any dots)
-                const baseName = exp.name.split('.')[0];
-                exportNamesSet.add(baseName);
-              });
-            });
-            namespaces = Array.from(exportNamesSet);
+            namespaces = reExportResults.map((result) => result.name).filter(Boolean);
           }
 
           // Flatten all exports from the re-export results
-          // For multi-namespace exports, store namespace info on a separate property
-          let exports = reExportResults.flatMap((result) => {
-            if (result.name) {
-              // This result has a namespace - store it on the export node
-              return result.exports.map((exp) => {
-                // Create a new export node with namespace metadata
-                const exportWithNamespace = Object.create(Object.getPrototypeOf(exp));
-                Object.assign(exportWithNamespace, exp);
-                // Store namespace on a custom property instead of encoding in the name
-                (exportWithNamespace as ExportNode & { exportNamespace: string }).exportNamespace =
-                  result.name;
-                return exportWithNamespace;
+          const exports = reExportResults.flatMap((result) => result.exports);
+
+          // Merge all typeNameMaps from the re-export results
+          const mergedTypeNameMap = new Map<string, string>();
+          reExportResults.forEach((result) => {
+            if (result.typeNameMap) {
+              result.typeNameMap.forEach((value, key) => {
+                mergedTypeNameMap.set(key, value);
               });
             }
-            // No namespace - return exports as-is
-            return result.exports;
           });
-
-          // Deduplicate: remove flat types that are redundant with namespaced types
-          // e.g., remove "AccordionRootState" if we have "Root.State" in the Accordion namespace
-          if (namespaces.length > 0) {
-            const namespacedTypes: string[] = [];
-
-            // Collect all namespaced export names
-            exports.forEach((exp) => {
-              if (exp.name.includes('.')) {
-                namespacedTypes.push(exp.name);
-              }
-            });
-
-            // Filter out flat types that have namespaced equivalents
-            // e.g., if we have "Root.State", remove "AccordionRootState"
-            exports = exports.filter((exp) => {
-              if (!exp.name.includes('.')) {
-                // This is a flat export - check if there's a namespaced version
-                // Pattern: if we have "Root.State" and this is "AccordionRootState"
-                // where namespace is "Accordion", then this is redundant
-                for (const ns of namespaces) {
-                  // Check if this name starts with the namespace prefix
-                  if (exp.name.startsWith(ns)) {
-                    // Get the part after the namespace: "RootState" from "AccordionRootState"
-                    const withoutNamespace = exp.name.slice(ns.length);
-                    // Check if there's a namespaced equivalent with dots
-                    // e.g., "Root.State" should match "AccordionRootState" (both become "RootState" without dots/namespace)
-                    for (const namespacedType of namespacedTypes) {
-                      const namespacedWithoutDots = namespacedType.replace(/\./g, '');
-                      if (namespacedWithoutDots === withoutNamespace) {
-                        // This flat type is redundant with a namespaced type
-                        return false;
-                      }
-                    }
-                  }
-                }
-              }
-              return true;
-            });
-          }
 
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...request.dependencies, entrypoint];
@@ -228,13 +166,50 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
           dependencies.push(...dependantFiles);
 
+          // Collect adjacent files from the main entrypoint directory
           const adjacentFiles = dependantFiles.filter(
             (fileName) => fileName !== entrypoint && fileName.startsWith(entrypointDir),
           );
 
+          // Also collect adjacent files from all re-exported source directories
+          // Use sourceFilePaths from reExportResults to find directories that were re-exported
+          // Those directories should have their DataAttributes/CssVars files included
+          const allSourceFilePaths = reExportResults.flatMap((result) => result.sourceFilePaths || []);
+          
+          let metaFilesCount = 0;
+          try {
+            // For each source file path, find DataAttributes and CssVars files in that directory
+            const metaFilesPromises = allSourceFilePaths.map((sourcePath) => findMetaFiles(sourcePath));
+            const allMetaFiles = await Promise.all(metaFilesPromises);
+            const flatMetaFiles = allMetaFiles.flat();
+            metaFilesCount = flatMetaFiles.length;
+
+            // Add meta files directly to adjacentFiles
+            // These files aren't imported, so they won't be in dependantFiles
+            flatMetaFiles.forEach((metaFile) => {
+              if (!adjacentFiles.includes(metaFile)) {
+                adjacentFiles.push(metaFile);
+              }
+            });
+          } catch (error) {
+            // If we can't find meta files, just continue with the basic adjacent files
+            console.warn(
+              `[processTypes] Failed to find meta files from re-export source paths:`,
+              error instanceof Error ? error.message : error,
+            );
+          }
+
           const allInternalTypes = adjacentFiles.map((file) => {
             if (internalTypesCache[file]) {
               return internalTypesCache[file];
+            }
+
+            // Ensure the file is loaded in the program first
+            // This is important for meta files (DataAttributes, CssVars) that aren't imported
+            const fileSourceFile = program.getSourceFile(file);
+            if (!fileSourceFile) {
+              console.warn(`[processTypes] ${variantName} - Could not load source file: ${file}`);
+              return [];
             }
 
             const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
@@ -273,10 +248,17 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
               exports,
               allTypes,
               namespaces,
-              namespaceName,
               importedFrom: namedExport || 'default',
+              // Convert Map to Record for serialization across worker boundary
+              typeNameMap:
+                mergedTypeNameMap.size > 0 ? Object.fromEntries(mergedTypeNameMap) : undefined,
             },
             dependencies,
+            debug: {
+              sourceFilePaths: allSourceFilePaths,
+              metaFilesCount,
+              adjacentFilesCount: adjacentFiles.length,
+            },
           };
         } catch (error) {
           throw new Error(
@@ -288,9 +270,10 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
     const variantResults = await Promise.all(variantPromises);
 
-    // Process results and collect dependencies
+    // Process results and collect dependencies and debug info
     const variantData: Record<string, VariantResult> = {};
     const allDependencies: string[] = [];
+    const debugInfo: Record<string, { sourceFilePaths: string[]; metaFilesCount: number; adjacentFilesCount: number; }> = {};
 
     if (
       variantResults.length === 1 &&
@@ -299,92 +282,32 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     ) {
       const defaultVariant = variantResults[0];
       const data = defaultVariant.variantData;
-      // Collect all export names for namespace resolution
-      const allExportNames = data.exports.map((exp) => exp.name);
-
-      // Group exports by their namespace
-      // For multi-namespace files (e.g., both Checkbox and Button exports),
-      // each namespace gets its own variant with all its exports
-      const exportsByNamespace = new Map<string, ExportNode[]>();
-
+      // Split exports by name for the Default variant case
       data.exports.forEach((exportNode) => {
-        // Extract the namespace from the metadata property
-        const exportNamespaceName =
-          (exportNode as ExportNode & { exportNamespace?: string }).exportNamespace ||
-          data.namespaceName ||
-          'Default';
-
-        if (!exportsByNamespace.has(exportNamespaceName)) {
-          exportsByNamespace.set(exportNamespaceName, []);
-        }
-
-        exportsByNamespace.get(exportNamespaceName)!.push(exportNode);
-      });
-
-      // Determine if we have multiple namespaces (need prefixing) or single namespace (no prefixing)
-      const hasMultipleNamespaces = exportsByNamespace.size > 1;
-
-      // Create a variant for each namespace
-      exportsByNamespace.forEach((exports, namespaceName) => {
-        // Transform export names based on whether we have multiple namespaces
-        const transformedExports = exports.map((exportNode) => {
-          // Create a copy with the appropriate name
-          const transformedExport = Object.create(Object.getPrototypeOf(exportNode));
-          Object.assign(transformedExport, exportNode);
-
-          if (hasMultipleNamespaces) {
-            // Multiple namespaces: prefix with namespace (e.g., "Button.Root")
-            transformedExport.name = `${namespaceName}.${exportNode.name}`;
-          }
-          // else: Single namespace: keep the name as-is (no prefix needed)
-
-          return transformedExport;
-        });
-
-        variantData[namespaceName] = {
-          exports: transformedExports,
+        variantData[exportNode.name] = {
+          exports: [exportNode],
           allTypes: data.allTypes,
           namespaces: data.namespaces,
-          namespaceName, // Use the namespace as the variant key
           importedFrom: data.importedFrom,
-          allExportNames, // Include all export names for namespace resolution
+          typeNameMap: data.typeNameMap, // ✅ Include typeNameMap for namespace exports
         };
       });
-
       defaultVariant.dependencies.forEach((file: string) => {
         allDependencies.push(file);
       });
-    } else {
-      // For multi-variant requests, normalize namespaceName across all results
-      // If one variant has a namespaceName, all variants from the same file should share it
-      const namespaceNamesByFile = new Map<string, string>();
-
-      // First pass: collect namespaceName from each file
-      for (const result of variantResults) {
-        if (result?.variantData.namespaceName) {
-          const fileUrl = resolvedVariantMap.get(result.variantName);
-          if (fileUrl) {
-            namespaceNamesByFile.set(fileUrl, result.variantData.namespaceName);
-          }
-        }
+      if (defaultVariant.debug) {
+        debugInfo.Default = defaultVariant.debug;
       }
-
-      // Second pass: apply namespaceName to all variants from the same file
+    } else {
       for (const result of variantResults) {
         if (result) {
-          const fileUrl = resolvedVariantMap.get(result.variantName);
-          if (fileUrl && !result.variantData.namespaceName) {
-            // If this variant doesn't have a namespaceName but another variant from the same file does, use it
-            const sharedNamespaceName = namespaceNamesByFile.get(fileUrl);
-            if (sharedNamespaceName) {
-              result.variantData.namespaceName = sharedNamespaceName;
-            }
-          }
-
           variantData[result.variantName] = result.variantData;
           result.dependencies.forEach((file: string) => {
             allDependencies.push(file);
           });
+          if (result.debug) {
+            debugInfo[result.variantName] = result.debug;
+          }
         }
       }
     }
@@ -394,6 +317,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       variantData,
       allDependencies,
       performanceLogs: tracker.getLogs(),
+      debug: Object.keys(debugInfo).length > 0 ? debugInfo[Object.keys(debugInfo)[0]] : undefined,
     };
   } catch (error) {
     return {

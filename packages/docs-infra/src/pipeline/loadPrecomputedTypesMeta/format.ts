@@ -383,6 +383,7 @@ async function prettyFormat(type: string, typeName?: string) {
 export async function formatProperties(
   props: tae.PropertyNode[],
   exportNames: string[],
+  typeNameMap: Record<string, string>,
   allExports: tae.ExportNode[] | undefined = undefined,
 ): Promise<Record<string, FormattedProperty>> {
   // Ensure Starry Night is initialized for inline code highlighting
@@ -401,6 +402,7 @@ export async function formatProperties(
         prop.documentation?.tags,
         false,
         exportNames,
+        typeNameMap,
       );
 
       const needsDetailedType = shouldShowDetailedType(prop.name, formattedType);
@@ -408,7 +410,7 @@ export async function formatProperties(
       let detailedTypeText = formattedType;
       if (needsDetailedType) {
         if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
-          detailedTypeText = formatDetailedType(prop.type, allExports, exportNames);
+          detailedTypeText = formatDetailedType(prop.type, allExports, exportNames, typeNameMap);
         } else {
           detailedTypeText = formatType(
             prop.type,
@@ -416,6 +418,7 @@ export async function formatProperties(
             prop.documentation?.tags,
             false,
             exportNames,
+            typeNameMap,
           );
         }
         detailedTypeText = await prettyFormat(detailedTypeText);
@@ -489,7 +492,8 @@ export async function formatProperties(
  */
 export async function formatParameters(
   params: tae.Parameter[],
-  exportNames: string[] = [],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
 ): Promise<Record<string, FormattedParameter>> {
   const result: Record<string, FormattedParameter> = {};
 
@@ -520,6 +524,7 @@ export async function formatParameters(
           param.documentation?.tags,
           true,
           exportNames,
+          typeNameMap,
         ),
         optional: param.optional || undefined,
         description,
@@ -550,11 +555,12 @@ export function formatDetailedType(
   type: tae.AnyType,
   allExports: tae.ExportNode[],
   exportNames: string[],
+  typeNameMap: Record<string, string>,
   visited = new Set<string>(),
 ): string {
   // Prevent infinite recursion
   if (isExternalType(type)) {
-    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames);
+    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     if (visited.has(qualifiedName)) {
       return qualifiedName;
     }
@@ -566,6 +572,7 @@ export function formatDetailedType(
         (exportNode.type as unknown as tae.AnyType) ?? type,
         allExports,
         exportNames,
+        typeNameMap,
         visited,
       );
     }
@@ -581,20 +588,20 @@ export function formatDetailedType(
 
   if (isUnionType(type)) {
     const memberTypes = type.types.map((t) =>
-      formatDetailedType(t, allExports, exportNames, visited),
+      formatDetailedType(t, allExports, exportNames, typeNameMap, visited),
     );
     return uniq(memberTypes).join(' | ');
   }
 
   if (isIntersectionType(type)) {
     const memberTypes = type.types.map((t) =>
-      formatDetailedType(t, allExports, exportNames, visited),
+      formatDetailedType(t, allExports, exportNames, typeNameMap, visited),
     );
     return uniq(memberTypes).join(' & ');
   }
 
   // For objects and everything else, reuse existing formatter with object expansion enabled
-  return formatType(type, false, undefined, true, exportNames);
+  return formatType(type, false, undefined, true, exportNames, typeNameMap);
 }
 
 /**
@@ -625,34 +632,6 @@ export async function formatEnum(
 }
 
 /**
- * Formats an object type (like `typeof DataAttributes`) into enum member format.
- *
- * This handles cases where data attributes or similar enums are defined as const objects
- * with `typeof`, converting the object's properties into the same format as enum members.
- * Properties with JSDoc comments become descriptions.
- */
-export async function formatObjectAsEnum(
-  objectNode: tae.ObjectNode,
-): Promise<Record<string, FormattedEnumMember>> {
-  const result: Record<string, FormattedEnumMember> = {};
-
-  await Promise.all(
-    sortBy(objectNode.properties, ['name']).map(async (property) => {
-      const description = property.documentation?.description
-        ? await parseMarkdownToHast(property.documentation.description)
-        : undefined;
-
-      result[property.name] = {
-        description,
-        type: property.documentation?.tags?.find((tag) => tag.name === 'type')?.value,
-      };
-    }),
-  );
-
-  return result;
-}
-
-/**
  * Formats a TypeScript type into a string representation for documentation display.
  *
  * This function recursively processes various type nodes (intrinsic types, unions, intersections,
@@ -666,10 +645,10 @@ export async function formatObjectAsEnum(
 export function formatType(
   type: tae.AnyType,
   removeUndefined: boolean,
-  jsdocTags: tae.DocumentationTag[] | undefined = undefined,
-  expandObjects: boolean = false,
-  exportNames: string[] = [],
-  allExports?: tae.ExportNode[],
+  jsdocTags: tae.DocumentationTag[] | undefined,
+  expandObjects: boolean,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
 ): string {
   const typeTag = jsdocTags?.find?.((tag) => tag.name === 'type');
   const typeValue = typeTag?.value;
@@ -678,49 +657,27 @@ export function formatType(
     return typeValue;
   }
 
-  if (isEnumType(type)) {
-    if (type.typeName) {
-      return getFullyQualifiedName(type.typeName, exportNames);
-    }
-
-    // Format enum as union of member values
-    return type.members.map((m) => normalizeQuotes(m.value)).join(' | ');
-  }
-
   if (isExternalType(type)) {
     if (/^ReactElement(<.*>)?/.test(type.typeName.name || '')) {
       return 'ReactElement';
     }
 
     if (type.typeName.namespaces?.length === 1 && type.typeName.namespaces[0] === 'React') {
-      return createNameWithTypeArguments(type.typeName, exportNames);
+      return createNameWithTypeArguments(type.typeName, exportNames, typeNameMap);
     }
 
-    // If allExports is provided, try to resolve the external reference
-    if (allExports) {
-      const exportNode = allExports.find((node) => node.name === type.typeName.name);
-      if (exportNode) {
-        return formatType(
-          exportNode.type as unknown as tae.AnyType,
-          removeUndefined,
-          jsdocTags,
-          expandObjects,
-          exportNames,
-          allExports,
-        );
-      }
-    }
-
-    return getFullyQualifiedName(type.typeName, exportNames);
+    return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
   }
 
   if (isIntrinsicType(type)) {
-    return type.typeName ? getFullyQualifiedName(type.typeName, exportNames) : type.intrinsic;
+    return type.typeName
+      ? getFullyQualifiedName(type.typeName, exportNames, typeNameMap)
+      : type.intrinsic;
   }
 
   if (isUnionType(type)) {
     if (type.typeName) {
-      return getFullyQualifiedName(type.typeName, exportNames);
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
     let memberTypes = type.types;
@@ -746,7 +703,7 @@ export function formatType(
 
     const formattedMemeberTypes = uniq(
       orderMembers(flattenedMemberTypes).map((t) =>
-        formatType(t, removeUndefined, undefined, expandObjects, exportNames),
+        formatType(t, removeUndefined, undefined, expandObjects, exportNames, typeNameMap),
       ),
     );
 
@@ -755,20 +712,17 @@ export function formatType(
 
   if (isIntersectionType(type)) {
     if (type.typeName) {
-      return getFullyQualifiedName(type.typeName, exportNames);
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
     return orderMembers(type.types)
-      .map((t) => formatType(t, false, undefined, expandObjects, exportNames))
+      .map((t) => formatType(t, false, undefined, expandObjects, exportNames, typeNameMap))
       .join(' & ');
   }
 
   if (isObjectType(type)) {
-    // Always expand objects with the special __object typename (from typeof const objects)
-    const shouldExpand = expandObjects || type.typeName?.name === '__object';
-
-    if (type.typeName && !shouldExpand) {
-      return getFullyQualifiedName(type.typeName, exportNames);
+    if (type.typeName && !expandObjects) {
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
     if (isObjectEmpty(type.properties)) {
@@ -779,7 +733,7 @@ export function formatType(
       .map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, expandObjects, exportNames)}`;
+        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, expandObjects, exportNames, typeNameMap)}`;
       })
       .join(', ')} }`;
   }
@@ -795,6 +749,7 @@ export function formatType(
       undefined,
       expandObjects,
       exportNames,
+      typeNameMap,
     );
 
     if (formattedMemberType.includes(' ')) {
@@ -808,14 +763,21 @@ export function formatType(
     // If object expansion is requested, we want to fully expand the function signature instead
     // of returning the aliased type name (e.g., OffsetFunction).
     if (!expandObjects && type.typeName && !type.typeName.name?.startsWith('ComponentRenderFn')) {
-      return getFullyQualifiedName(type.typeName, exportNames);
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
     const functionSignature = type.callSignatures
       .map((s) => {
         const params = s.parameters
           .map((p, index, allParams) => {
-            let paramType = formatType(p.type, false, undefined, expandObjects, exportNames);
+            let paramType = formatType(
+              p.type,
+              false,
+              undefined,
+              expandObjects,
+              exportNames,
+              typeNameMap,
+            );
 
             // Check if the type includes undefined
             const hasUndefined =
@@ -859,6 +821,7 @@ export function formatType(
           undefined,
           expandObjects,
           exportNames,
+          typeNameMap,
         );
         return `(${params}) => ${returnType}`;
       })
@@ -868,15 +831,22 @@ export function formatType(
 
   if (isTupleType(type)) {
     if (type.typeName) {
-      return getFullyQualifiedName(type.typeName, exportNames);
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
-    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, expandObjects, exportNames)).join(', ')}]`;
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, expandObjects, exportNames, typeNameMap)).join(', ')}]`;
   }
 
   if (isTypeParameterType(type)) {
     return type.constraint !== undefined
-      ? formatType(type.constraint, removeUndefined, undefined, expandObjects, exportNames)
+      ? formatType(
+          type.constraint,
+          removeUndefined,
+          undefined,
+          expandObjects,
+          exportNames,
+          typeNameMap,
+        )
       : type.name;
   }
 
@@ -909,98 +879,83 @@ export async function formatTypeAsHast(...args: Parameters<typeof formatType>): 
   return formatInlineTypeAsHast(typeString);
 }
 
-function getFullyQualifiedName(typeName: tae.TypeName, exportNames: string[]): string {
-  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames);
+function getFullyQualifiedName(
+  typeName: tae.TypeName,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+): string {
+  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames, typeNameMap);
 
-  // Check if this type belongs to the current component's namespace
-  // by checking if any export name appears in the type name followed by more text
-  for (const exportName of exportNames) {
-    // Pattern: {Namespace}{ExportName}{Rest} where ExportName is "Root", "Trigger", etc.
-    // and Rest is "State", "Props", "ChangeEventDetails", etc.
+  // Construct the flat name (what parseExports would have created)
+  const flatName =
+    typeName.namespaces && typeName.namespaces.length > 0
+      ? typeName.namespaces.join('') + typeName.name
+      : typeName.name;
 
-    // Find if exportName appears in the type name followed by an uppercase letter
-    const exportNameIndex = nameWithTypeArgs.indexOf(exportName);
-    if (exportNameIndex !== -1) {
-      const afterExportName = nameWithTypeArgs.slice(exportNameIndex + exportName.length);
-      // Check if what follows starts with an uppercase LETTER (indicates a suffix like State, Props, etc.)
-      // This ensures we don't match "Root" inside "ShadowRoot" where the next char is ' ' or '|'
-      const firstChar = afterExportName.charAt(0);
-      if (afterExportName.length > 0 && firstChar >= 'A' && firstChar <= 'Z') {
-        // Extract namespace prefix if present (everything before the exportName)
-        const beforeExportName = nameWithTypeArgs.slice(0, exportNameIndex);
+  // DEBUG: Log for MenuBackdropState and MenuRootActions
+  if (flatName === 'MenuBackdropState' || flatName === 'MenuRootActions') {
+    console.warn('[getFullyQualifiedName]', {
+      flatName,
+      'typeNameMap[flatName]': typeNameMap[flatName],
+      hasMapping: !!typeNameMap[flatName],
+      typeNameMapSize: Object.keys(typeNameMap).length,
+    });
+  }
 
-        // Build the fully qualified name with namespace
-        if (beforeExportName.length > 0) {
-          // Has a namespace prefix: Component + Root + State → Component.Root.State
-          // Only add the dot before afterExportName if it's non-empty to avoid trailing dots
-          return afterExportName
-            ? `${beforeExportName}.${exportName}.${afterExportName}`
-            : `${beforeExportName}.${exportName}`;
-        }
+  // Check if this type is in our map
+  if (typeNameMap[flatName]) {
+    // This is one of our component types - use the mapped dotted name
+    const typeArgsStart = nameWithTypeArgs.indexOf('<');
 
-        // No namespace prefix, but check if TypeScript reported namespaces
-        if (typeName.namespaces && typeName.namespaces.length > 0) {
-          return afterExportName
-            ? `${typeName.namespaces.join('.')}.${exportName}.${afterExportName}`
-            : `${typeName.namespaces.join('.')}.${exportName}`;
-        }
+    if (typeArgsStart !== -1) {
+      // Preserve type arguments
+      return typeNameMap[flatName] + nameWithTypeArgs.slice(typeArgsStart);
+    }
+    return typeNameMap[flatName];
+  }
 
-        // No namespace at all: Root + State → Root.State
-        return afterExportName ? `${exportName}.${afterExportName}` : exportName;
+  // Check if we have a namespaced reference where the namespace itself needs transformation
+  // E.g., ToolbarRoot.Orientation where ToolbarRoot → Toolbar.Root
+  if (typeName.namespaces && typeName.namespaces.length > 0) {
+    // Check if any namespace part is in the typeNameMap
+    const transformedNamespaces = typeName.namespaces.map((ns) => typeNameMap[ns] || ns);
+    const hasTransformation = transformedNamespaces.some((ns, i) => ns !== typeName.namespaces![i]);
+
+    if (hasTransformation) {
+      // Build the transformed name: TransformedNamespace.Member
+      const transformedName = [...transformedNamespaces, typeName.name].join('.');
+      const typeArgsStart = nameWithTypeArgs.indexOf('<');
+
+      if (typeArgsStart !== -1) {
+        // Preserve type arguments
+        return transformedName + nameWithTypeArgs.slice(typeArgsStart);
       }
-    }
-  }
-
-  if (!typeName.namespaces || typeName.namespaces.length === 0) {
-    return nameWithTypeArgs;
-  }
-
-  // Our components are defined in the source as [ComponentName][Part], but exported as [ComponentName].[Part].
-  // The following code adjusts the namespaces to match the exported names.
-  // However, we should only do this for our own component types, not external/DOM types.
-
-  // Check if any namespace matches our export names - if not, this is likely an external type
-  const hasComponentNamespace = typeName.namespaces.some((namespace) =>
-    exportNames.some((exportName) => new RegExp(`^${exportName}[A-Z]`).test(namespace)),
-  );
-
-  // For external types (like ShadowRoot from DOM), just use the simple concatenation
-  if (!hasComponentNamespace) {
-    // For DOM types, TypeScript reports Shadow.Root but we want ShadowRoot
-    // So just concatenate namespace and name without dots
-    return typeName.namespaces.join('') + nameWithTypeArgs;
-  }
-
-  // For our component types, apply the transformation
-  const joinedNamespaces = typeName.namespaces.map((namespace) => {
-    const exportNameInNamespace = exportNames.find((exportName) =>
-      new RegExp(`^${exportName}[A-Z]`).test(namespace),
-    );
-
-    if (exportNameInNamespace) {
-      const dotPosition = exportNameInNamespace.length;
-      const afterDot = namespace.substring(dotPosition);
-      // Only add dot if there's content after it to avoid trailing dots
-      return afterDot
-        ? `${namespace.substring(0, dotPosition)}.${afterDot}`
-        : namespace.substring(0, dotPosition);
+      return transformedName;
     }
 
-    return namespace;
-  });
+    // No transformation needed - return as-is
+    const typeArgsStart = nameWithTypeArgs.indexOf('<');
+    if (typeArgsStart !== -1) {
+      return flatName + nameWithTypeArgs.slice(typeArgsStart);
+    }
+    return flatName;
+  }
 
-  const joined = joinedNamespaces.join('.');
-  // Only add dot before name if name exists to avoid trailing dots
-  return nameWithTypeArgs ? `${joined}.${nameWithTypeArgs}` : joined;
+  // Not in the map and no namespaces - it's an external type (React, HTMLElement, etc.)
+  return nameWithTypeArgs;
 }
 
-function createNameWithTypeArguments(typeName: tae.TypeName, exportNames: string[] = []) {
+function createNameWithTypeArguments(
+  typeName: tae.TypeName,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+) {
   if (
     typeName.typeArguments &&
     typeName.typeArguments.length > 0 &&
     typeName.typeArguments.some((ta) => ta.equalToDefault === false)
   ) {
-    return `${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames)).join(', ')}>`;
+    return `${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap)).join(', ')}>`;
   }
 
   return typeName.name;

@@ -2,7 +2,6 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatProperties,
   formatEnum,
-  formatObjectAsEnum,
   isComponentType,
   parseMarkdownToHast,
   type FormattedProperty,
@@ -32,8 +31,6 @@ export interface FormatComponentOptions {
   cssVariablesSuffix?: string;
   /** Regex pattern to remove from component description */
   descriptionRemoveRegex?: RegExp;
-  /** Namespace name for finding data attributes (e.g., "Component", "Accordion") */
-  namespaceName?: string;
 }
 
 /**
@@ -49,13 +46,13 @@ export async function formatComponentData(
   component: tae.ExportNode & { type: tae.ComponentNode },
   allExports: tae.ExportNode[],
   exportNames: string[],
+  typeNameMap: Record<string, string>,
   options: FormatComponentOptions = {},
 ): Promise<ComponentTypeMeta> {
   const {
     dataAttributesSuffix = 'DataAttributes',
     cssVariablesSuffix = 'CssVars',
     descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
-    namespaceName,
   } = options;
 
   const descriptionText = component.documentation?.description?.replace(descriptionRemoveRegex, '');
@@ -65,31 +62,49 @@ export async function formatComponentData(
   let dataAttributes: tae.ExportNode | undefined;
   let cssVariables: tae.ExportNode | undefined;
 
-  // Build expected names for data attributes and CSS variables
-  // For components like "Root" (from Component.Root after namespace stripping), also check "ComponentRootDataAttributes"
-  // For components like "Button.Root" (multi-namespace), check "ButtonRootDataAttributes"
-  // The enum name always includes the full path without dots
-  const componentNameWithoutDot = component.name.replace(/\./g, '');
+  // For DataAttributes/CssVars lookup, use the originalName (before transformations).
+  // Example for re-exported component:
+  //   - Component: ContextMenu.Backdrop (transformed from MenuBackdrop)
+  //   - originalName: MenuBackdrop
+  //   - We look for: MenuBackdropDataAttributes (using originalName + suffix)
+  //   - That export's originalName will also be MenuBackdropDataAttributes
+  const originalName = (component as any).originalName;
+  const componentNameForLookup = originalName || component.name.replace(/\./g, '');
 
-  // If namespaceName is provided and component name doesn't include it, prepend it
-  // e.g., component "Root" with namespaceName "Component" → "ComponentRootDataAttributes"
-  let dataAttributesNames: string[];
-  let cssVariablesNames: string[];
+  const dataAttributesName = `${componentNameForLookup}${dataAttributesSuffix}`;
+  const cssVariablesName = `${componentNameForLookup}${cssVariablesSuffix}`;
 
-  if (namespaceName && !component.name.includes('.')) {
-    // Single namespace case: component is "Root", look for "ComponentRootDataAttributes"
-    dataAttributesNames = [`${namespaceName}${component.name}${dataAttributesSuffix}`];
-    cssVariablesNames = [`${namespaceName}${component.name}${cssVariablesSuffix}`];
-  } else {
-    // Multi-namespace case or no namespace: component is "Button.Root", look for "ButtonRootDataAttributes"
-    dataAttributesNames = [`${componentNameWithoutDot}${dataAttributesSuffix}`];
-    cssVariablesNames = [`${componentNameWithoutDot}${cssVariablesSuffix}`];
+  // DEBUG: Log DataAttributes lookup for ContextMenu components
+  if (component.name.startsWith('ContextMenu.')) {
+    console.warn('[formatComponent] DataAttributes lookup for:', component.name);
+    console.warn('[formatComponent] originalName:', originalName);
+    console.warn('[formatComponent] componentNameForLookup:', componentNameForLookup);
+    console.warn('[formatComponent] Looking for dataAttributesName:', dataAttributesName);
+    console.warn('[formatComponent] Looking for cssVariablesName:', cssVariablesName);
+    console.warn(
+      '[formatComponent] Available exports (first 10):',
+      allExports.slice(0, 10).map((exp) => exp.name),
+    );
+    console.warn(
+      '[formatComponent] DataAttributes exports:',
+      allExports
+        .filter((exp) => exp.name.includes('DataAttributes'))
+        .map((exp) => ({
+          name: exp.name,
+          originalName: (exp as any).originalName,
+        })),
+    );
+    console.warn('[formatComponent] Total allExports count:', allExports.length);
   }
 
+  // Look for DataAttributes/CssVars by checking originalName on each export
   for (const node of allExports) {
-    if (dataAttributesNames.includes(node.name)) {
+    const nodeOriginalName = (node as any).originalName;
+    const nodeName = nodeOriginalName || node.name;
+
+    if (nodeName === dataAttributesName) {
       dataAttributes = node;
-    } else if (cssVariablesNames.includes(node.name)) {
+    } else if (nodeName === cssVariablesName) {
       cssVariables = node;
     }
 
@@ -99,35 +114,21 @@ export async function formatComponentData(
     }
   }
 
-  // Format data attributes based on type kind
-  let formattedDataAttributes: Record<string, FormattedEnumMember> = {};
-  if (dataAttributes) {
-    if (dataAttributes.type.kind === 'enum') {
-      formattedDataAttributes = await formatEnum(dataAttributes.type);
-    } else if (dataAttributes.type.kind === 'object') {
-      formattedDataAttributes = await formatObjectAsEnum(dataAttributes.type);
-    }
-  }
-
-  // Format CSS variables based on type kind
-  let formattedCssVariables: Record<string, FormattedEnumMember> = {};
-  if (cssVariables) {
-    if (cssVariables.type.kind === 'enum') {
-      formattedCssVariables = await formatEnum(cssVariables.type);
-    } else if (cssVariables.type.kind === 'object') {
-      formattedCssVariables = await formatObjectAsEnum(cssVariables.type);
-    }
-  }
-
   const raw: ComponentTypeMeta = {
     name: component.name,
     description,
     props: sortObjectByKeys(
-      await formatProperties(component.type.props, exportNames, allExports),
+      await formatProperties(component.type.props, exportNames, typeNameMap, allExports),
       memberOrder.props,
     ),
-    dataAttributes: sortObjectByKeys(formattedDataAttributes, memberOrder.dataAttributes),
-    cssVariables: sortObjectByKeys(formattedCssVariables, memberOrder.cssVariables),
+    dataAttributes:
+      dataAttributes && dataAttributes.type.kind === 'enum'
+        ? sortObjectByKeys(await formatEnum(dataAttributes.type), memberOrder.dataAttributes)
+        : {},
+    cssVariables:
+      cssVariables && cssVariables.type.kind === 'enum'
+        ? sortObjectByKeys(await formatEnum(cssVariables.type), memberOrder.cssVariables)
+        : {},
   };
 
   // Post-process type strings to align naming across re-exports and hide internal suffixes.

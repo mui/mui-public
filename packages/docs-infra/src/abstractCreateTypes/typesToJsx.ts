@@ -127,7 +127,7 @@ function processComponentType(
       ...component,
       description: component.description && hastToJsx(component.description, components),
       props: Object.fromEntries(
-        Object.entries(component.props).map(([key, prop]) => {
+        Object.entries(component.props).map(([key, prop]: [string, any]) => {
           // Destructure to exclude HAST fields that need to be converted
           const {
             type,
@@ -162,9 +162,9 @@ function processComponentType(
 
           return [key, processed];
         }),
-      ),
+      ) as Record<string, ProcessedProperty>,
       dataAttributes: Object.fromEntries(
-        Object.entries(component.dataAttributes).map(([key, attr]) => {
+        Object.entries(component.dataAttributes).map(([key, attr]: [string, any]) => {
           let processedType: React.ReactNode | undefined;
           if (attr.type) {
             processedType =
@@ -178,9 +178,9 @@ function processComponentType(
             },
           ];
         }),
-      ),
+      ) as Record<string, ProcessedEnumMember>,
       cssVariables: Object.fromEntries(
-        Object.entries(component.cssVariables).map(([key, cssVar]) => {
+        Object.entries(component.cssVariables).map(([key, cssVar]: [string, any]) => {
           let processedType: React.ReactNode | undefined;
           if (cssVar.type) {
             processedType =
@@ -194,7 +194,7 @@ function processComponentType(
             },
           ];
         }),
-      ),
+      ) as Record<string, ProcessedEnumMember>,
     },
   };
 }
