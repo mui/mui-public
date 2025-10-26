@@ -2076,4 +2076,176 @@ describe('format', () => {
       expect(result).toContain('string');
     });
   });
+
+  describe('typeNameMap transformations', () => {
+    it('should transform flat type names to dotted names in formatType', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: [],
+          name: 'MenuBackdropState',
+        },
+      } as any;
+
+      const typeNameMap = {
+        MenuBackdropState: 'Menu.BackdropState',
+      };
+
+      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+
+      expect(result).toBe('Menu.BackdropState');
+    });
+
+    it('should transform flat type names with type arguments', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: [],
+          name: 'MenuBackdropState',
+        },
+      } as any;
+
+      const typeNameMap = {
+        MenuBackdropState: 'Menu.BackdropState',
+      };
+
+      // Simulate a type with generic arguments
+      const typeWithArgs = { ...externalType, typeName: { ...externalType.typeName } };
+      const result = formatType(typeWithArgs, false, undefined, false, [], typeNameMap);
+
+      expect(result).toBe('Menu.BackdropState');
+    });
+
+    it('should transform namespace references in formatType', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: ['MenuRoot'],
+          name: 'State',
+        },
+      } as any;
+
+      const typeNameMap = {
+        MenuRoot: 'Menu.Root',
+      };
+
+      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+
+      expect(result).toBe('Menu.Root.State');
+    });
+
+    it('should leave unmapped types unchanged', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: [],
+          name: 'UnmappedType',
+        },
+      } as any;
+
+      const typeNameMap = {
+        MenuBackdropState: 'Menu.BackdropState',
+      };
+
+      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+
+      expect(result).toBe('UnmappedType');
+    });
+
+    it('should transform property types in formatProperties', async () => {
+      const props: tae.PropertyNode[] = [
+        {
+          name: 'state',
+          type: {
+            kind: 'external',
+            typeName: {
+              importedFrom: undefined,
+              namespaces: [],
+              name: 'MenuBackdropState',
+            },
+          } as any,
+          optional: false,
+          documentation: {
+            description: 'The backdrop state',
+          } as any,
+        } as any,
+      ];
+
+      const typeNameMap = {
+        MenuBackdropState: 'Menu.BackdropState',
+      };
+
+      const result = await formatProperties(props, [], typeNameMap);
+
+      expect(result.state).toBeDefined();
+      // The type field contains HAST nodes, so we check the structure
+      expect(result.state.type).toMatchObject({
+        type: 'root',
+        children: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'element',
+            tagName: 'code',
+          }),
+        ]),
+      });
+    });
+
+    it('should transform types in formatDetailedType', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: [],
+          name: 'MenuBackdropState',
+        },
+      } as any;
+
+      const typeNameMap = {
+        MenuBackdropState: 'Menu.BackdropState',
+      };
+
+      const result = formatDetailedType(externalType, [], [], typeNameMap);
+
+      // formatDetailedType returns a string with the transformed type name
+      expect(result).toBe('Menu.BackdropState');
+    });
+
+    it('should handle empty typeNameMap', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: [],
+          name: 'SomeType',
+        },
+      } as any;
+
+      const result = formatType(externalType, false, undefined, false, [], {});
+
+      expect(result).toBe('SomeType');
+    });
+
+    it('should transform multiple namespace levels', () => {
+      const externalType: tae.ExternalTypeNode = {
+        kind: 'external',
+        typeName: {
+          importedFrom: undefined,
+          namespaces: ['MenuRoot', 'Actions'],
+          name: 'Handler',
+        },
+      } as any;
+
+      const typeNameMap = {
+        MenuRoot: 'Menu.Root',
+      };
+
+      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+
+      expect(result).toBe('Menu.Root.Actions.Handler');
+    });
+  });
 });
