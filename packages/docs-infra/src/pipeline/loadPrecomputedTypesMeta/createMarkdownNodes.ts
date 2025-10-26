@@ -178,7 +178,7 @@ export function table(
   headers: (Child | Child[])[],
   rows: (Child | Child[])[][],
   alignment: string[] | null = null,
-  widthIncrements: number = 1,
+  widthIncrements: number = 6,
 ): Table {
   // Convert alignment strings to AST format
   const align: ('left' | 'right' | 'center' | null)[] = headers.map((_: any, index: number) => {
