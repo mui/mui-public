@@ -28,10 +28,10 @@ Hook to access controlled code state and setters. This is useful for custom comp
 
 **useControlledCode Return Value:**
 
-| Property     | Type                                                                 | Description |
-| :----------- | :------------------------------------------------------------------- | :---------- |
-| code         | `ControlledCode \| undefined`                                        | -           |
-| selection    | `Selection \| undefined`                                             | -           |
-| setCode      | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection | `Dispatch<SetStateAction<Selection>> \| undefined`                   | -           |
-| components   | `Record<string, ReactNode> \| undefined`                             | -           |
+| Property       | Type                                                                       | Description |
+| :------------- | :------------------------------------------------------------------------- | :---------- |
+| code           | `ControlledCode \| undefined`                                              | -           |
+| selection      | `Selection \| undefined`                                                   | -           |
+| setCode        | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined`       | -           |
+| setSelection   | `Dispatch<SetStateAction<Selection>> \| undefined`                         | -           |
+| components     | `Record<string, ReactNode> \| undefined`                                   | -           |

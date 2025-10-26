@@ -10,9 +10,9 @@ Hook for accessing types props in TypesContent components.
 
 **useTypes Parameters:**
 
-| Parameter    | Type                    | Default | Description |
-| :----------- | :---------------------- | :------ | :---------- |
-| contentProps | `TypesContentProps<{}>` | -       | -           |
+| Parameter      | Type                    | Default | Description |
+| :------------- | :---------------------- | :------ | :---------- |
+| contentProps   | `TypesContentProps<{}>` | -       | -           |
 
 **useTypes Return Value:**
 

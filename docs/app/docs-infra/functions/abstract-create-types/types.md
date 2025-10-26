@@ -30,44 +30,40 @@
 
 ```typescript
 (options: {
-    TypesContent: ComponentType<TypesContentProps<{}>>;
+  TypesContent: ComponentType<TypesContentProps<{}>>;
+  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+}) => (
+  url: string,
+  typeDef: Record<string, any>,
+  meta?: {
+    precompute?: {};
+    name?: string;
+    displayName?: string;
+    disableOptimization?: boolean;
+    globalTypes?: string[];
+    watchSourceDirectly?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  }) =>
-  (
-    url: string,
-    typeDef: Record<string, any>,
-    meta?: {
-      precompute?: {};
-      name?: string;
-      displayName?: string;
-      disableOptimization?: boolean;
-      globalTypes?: string[];
-      watchSourceDirectly?: boolean;
-      components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    },
-  ) =>
-    Record<any, ComponentType<{}>>;
+  },
+) => Record<any, ComponentType<{}>>;
 ```
 
 ### createTypesFactory
 
 ```typescript
 (options: {
-    TypesContent: ComponentType<TypesContentProps<{}>>;
+  TypesContent: ComponentType<TypesContentProps<{}>>;
+  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+}) => (
+  url: string,
+  typeDef: {},
+  meta?: {
+    precompute?: {};
+    name?: string;
+    displayName?: string;
+    disableOptimization?: boolean;
+    globalTypes?: string[];
+    watchSourceDirectly?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  }) =>
-  (
-    url: string,
-    typeDef: {},
-    meta?: {
-      precompute?: {};
-      name?: string;
-      displayName?: string;
-      disableOptimization?: boolean;
-      globalTypes?: string[];
-      watchSourceDirectly?: boolean;
-      components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    },
-  ) =>
-    ComponentType<{}>;
+  },
+) => ComponentType<{}>;
 ```

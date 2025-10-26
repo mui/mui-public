@@ -20,6 +20,7 @@ The loader processes `types.ts` files that use the `createTypesMeta` factory pat
 - **Hot reloading**: Tracks all dependencies and updates documentation when types change
 - **Error detection**: Suggests missing global types with helpful error messages
 - **Flexible configuration**: Support for custom global types and multiple components per file
+- **Auto-included metadata files**: Automatically discovers and includes `DataAttributes` and `CssVars` files from component directories
 
 ---
 
@@ -131,6 +132,59 @@ export const TypesCheckboxIndicator = types.Indicator;
 ```
 
 The factory function extracts the component structure and returns an object where each key corresponds to a component part. This allows you to export type documentation components individually while processing them all together for efficiency.
+
+### Automatic Metadata File Discovery
+
+The loader automatically discovers and includes `DataAttributes` and `CssVars` files from component directories. This ensures that data attributes and CSS custom properties are documented alongside component props without requiring manual configuration.
+
+**File Structure:**
+
+```
+app/components/checkbox/
+├── types.ts              # Your createTypesMeta() file
+├── Checkbox.tsx          # Main component
+├── CheckboxDataAttributes.ts  # ← Auto-discovered
+└── CheckboxCssVars.ts         # ← Auto-discovered
+```
+
+**How It Works:**
+
+1. The loader scans the directory containing your component file
+2. It recursively searches for files ending with `DataAttributes.ts` or `CssVars.ts`
+3. These files are automatically included as entrypoints for type analysis
+4. The extracted types are merged with your component's documentation
+
+**Example DataAttributes file:**
+
+```typescript
+/**
+ * Data attributes applied to the Checkbox root element.
+ */
+export interface CheckboxDataAttributes {
+  /**
+   * Present when the checkbox is checked.
+   */
+  'data-checked'?: string;
+
+  /**
+   * Present when the checkbox is disabled.
+   */
+  'data-disabled'?: string;
+}
+```
+
+**Re-exported Components:**
+
+The loader also discovers metadata files from re-exported components. For example, if your component re-exports from a parent directory:
+
+```typescript
+// app/components/autocomplete/Autocomplete.tsx
+export { Combobox as Autocomplete } from '../combobox';
+```
+
+The loader will search `../combobox/` for `DataAttributes` and `CssVars` files and include them in the documentation.
+
+This automatic discovery works for both directly defined components and re-exported components, ensuring comprehensive documentation without manual entrypoint configuration.
 
 ### Global Types Configuration
 

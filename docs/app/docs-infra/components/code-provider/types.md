@@ -8,9 +8,9 @@
 
 **CodeProvider Props:**
 
-| Prop            | Type              | Default | Description |
-| :-------------- | :---------------- | :------ | :---------- |
-| loadCodeMeta    | `LoadCodeMeta`    | -       | -           |
-| loadSource      | `LoadSource`      | -       | -           |
-| loadVariantMeta | `LoadVariantMeta` | -       | -           |
-| children        | `ReactNode`       | -       | -           |
+| Prop                  | Type                    | Default | Description |
+| :-------------------- | :---------------------- | :------ | :---------- |
+| loadCodeMeta          | `LoadCodeMeta`          | -       | -           |
+| loadSource            | `LoadSource`            | -       | -           |
+| loadVariantMeta       | `LoadVariantMeta`       | -       | -           |
+| children              | `ReactNode`             | -       | -           |
