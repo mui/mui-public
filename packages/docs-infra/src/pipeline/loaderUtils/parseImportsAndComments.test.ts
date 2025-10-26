@@ -2724,3 +2724,365 @@ console.log('codeB');`);
     expect(result.externals).toEqual({});
   });
 });
+
+// Test cases for export-from statements
+describe('Export-from statement parsing', () => {
+  it('should parse simple export-from statement', async () => {
+    const code = `export { Component } from './Component';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Component': {
+          path: '/src/Component',
+          names: [{ name: 'Component', type: 'named' }],
+          positions: [{ start: 26, end: 39 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should parse export-from with multiple named exports', async () => {
+    const code = `export { Button, Input, Select } from './components';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './components': {
+          path: '/src/components',
+          names: [
+            { name: 'Button', type: 'named' },
+            { name: 'Input', type: 'named' },
+            { name: 'Select', type: 'named' },
+          ],
+          positions: [{ start: 38, end: 52 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should parse export-from with renamed exports', async () => {
+    const code = `export { Component as MyComponent } from './Component';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Component': {
+          path: '/src/Component',
+          names: [{ name: 'Component', alias: 'MyComponent', type: 'named' }],
+          positions: [{ start: 41, end: 54 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should parse export type from statement', async () => {
+    const code = `export type { Props } from './types';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './types': {
+          path: '/src/types',
+          names: [{ name: 'Props', type: 'named', isType: true }],
+          positions: [{ start: 27, end: 36 }],
+          includeTypeDefs: true,
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should parse export-from from external packages', async () => {
+    const code = `export { Button } from '@mui/material';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {},
+      externals: {
+        '@mui/material': {
+          names: [{ name: 'Button', type: 'named' }],
+          positions: [{ start: 23, end: 38 }],
+        },
+      },
+    });
+  });
+
+  it('should parse multiple export-from statements', async () => {
+    const code = `
+      export { Button } from './Button';
+      export { Input } from './Input';
+      export { Select } from '@mui/material';
+    `;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Button': {
+          path: '/src/Button',
+          names: [{ name: 'Button', type: 'named' }],
+          positions: [{ start: 30, end: 40 }],
+        },
+        './Input': {
+          path: '/src/Input',
+          names: [{ name: 'Input', type: 'named' }],
+          positions: [{ start: 70, end: 79 }],
+        },
+      },
+      externals: {
+        '@mui/material': {
+          names: [{ name: 'Select', type: 'named' }],
+          positions: [{ start: 110, end: 125 }],
+        },
+      },
+    });
+  });
+
+  it('should NOT parse export statements without from clause', async () => {
+    const code = `
+      export const MyComponent = () => {};
+      export default function App() {};
+      export { localVar };
+    `;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {},
+      externals: {},
+    });
+  });
+
+  it('should parse mixed import and export-from statements', async () => {
+    const code = `
+      import React from 'react';
+      export { Button } from './Button';
+      import { useState } from 'react';
+      export { Input } from './Input';
+    `;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Button': {
+          path: '/src/Button',
+          names: [{ name: 'Button', type: 'named' }],
+          positions: [{ start: 63, end: 73 }],
+        },
+        './Input': {
+          path: '/src/Input',
+          names: [{ name: 'Input', type: 'named' }],
+          positions: [{ start: 143, end: 152 }],
+        },
+      },
+      externals: {
+        react: {
+          names: [
+            { name: 'React', type: 'default' },
+            { name: 'useState', type: 'named' },
+          ],
+          positions: [
+            { start: 25, end: 32 },
+            { start: 106, end: 113 },
+          ],
+        },
+      },
+    });
+  });
+
+  it('should handle export-from in comments and strings correctly', async () => {
+    const code = `
+      // export { Fake } from './fake';
+      const str = "export { Fake } from './fake'";
+      export { Real } from './Real';
+    `;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Real': {
+          path: '/src/Real',
+          names: [{ name: 'Real', type: 'named' }],
+          positions: [{ start: 119, end: 127 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should handle export-from with semicolon', async () => {
+    const code = `export { Component } from './Component';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result.relative['./Component'].positions).toEqual([{ start: 26, end: 39 }]);
+  });
+
+  it('should handle export-from without semicolon', async () => {
+    const code = `export { Component } from './Component'`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result.relative['./Component'].positions).toEqual([{ start: 26, end: 39 }]);
+  });
+
+  it('should handle export-from with newline instead of semicolon', async () => {
+    const code = `export { Component } from './Component'\nexport { Button } from './Button'`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Component': {
+          path: '/src/Component',
+          names: [{ name: 'Component', type: 'named' }],
+          positions: [{ start: 26, end: 39 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should handle export-from with type keyword for individual exports', async () => {
+    const code = `export { type Props, Component } from './types';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './types': {
+          path: '/src/types',
+          names: [
+            { name: 'Props', type: 'named', isType: true },
+            { name: 'Component', type: 'named' },
+          ],
+          positions: [{ start: 38, end: 47 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should handle export-from with comment stripping', async () => {
+    const code = `
+      // @eslint-ignore some rule
+      export { Button } from './Button';
+      /* @ts-ignore type issue */
+      export { Input } from './Input';
+    `;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Button': {
+          path: '/src/Button',
+          names: [{ name: 'Button', type: 'named' }],
+          positions: [{ start: 64, end: 74 }],
+        },
+        './Input': {
+          path: '/src/Input',
+          names: [{ name: 'Input', type: 'named' }],
+          positions: [{ start: 138, end: 147 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should handle export-from inside MDX files', async () => {
+    const code = `
+import React from 'react';
+
+export { Component } from './Component';
+
+\`\`\`tsx
+export { FakeComponent } from './FakeComponent';
+\`\`\`
+
+export { RealComponent } from './RealComponent';
+    `;
+    const filePath = '/src/demo.mdx';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './Component': {
+          path: '/src/Component',
+          names: [{ name: 'Component', type: 'named' }],
+          positions: [{ start: 55, end: 68 }],
+        },
+        './RealComponent': {
+          path: '/src/RealComponent',
+          names: [{ name: 'RealComponent', type: 'named' }],
+          positions: [{ start: 162, end: 179 }],
+        },
+      },
+      externals: {
+        react: {
+          names: [{ name: 'React', type: 'default' }],
+          positions: [{ start: 19, end: 26 }],
+        },
+      },
+    });
+  });
+
+  it('should handle export star from statements', async () => {
+    const code = `export * from './all-exports';`;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    // Export * uses namespace import type
+    expect(result).toEqual({
+      relative: {
+        './all-exports': {
+          path: '/src/all-exports',
+          names: [],
+          positions: [{ start: 14, end: 29 }],
+        },
+      },
+      externals: {},
+    });
+  });
+
+  it('should handle complex export-from with whitespace and comments', async () => {
+    const code = `
+      export {
+        // Exported components
+        Button,
+        Input,
+        /* Multi-line
+           comment */
+        Select
+      } from './components';
+    `;
+    const filePath = '/src/index.ts';
+    const result = await parseImportsAndComments(code, filePath);
+
+    expect(result).toEqual({
+      relative: {
+        './components': {
+          path: '/src/components',
+          names: [
+            { name: 'Button', type: 'named' },
+            { name: 'Input', type: 'named' },
+            { name: 'Select', type: 'named' },
+          ],
+          positions: [{ start: 150, end: 164 }],
+        },
+      },
+      externals: {},
+    });
+  });
+});
