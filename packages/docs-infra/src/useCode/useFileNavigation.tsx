@@ -459,13 +459,12 @@ export function useFileNavigation({
 
     // Only update the URL hash if it's different from current hash
     if (fileSlug && hash !== fileSlug) {
-      // Update hash if either:
-      // 1. Current hash is for the same demo (starts with mainSlug), OR
-      // 2. There is no hash but user changed variant (user interaction)
-      if (isHashRelevantToDemo(hash, mainSlug) || !hash) {
+      // Only update if current hash is for the same demo (starts with mainSlug)
+      // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
+      if (isHashRelevantToDemo(hash, mainSlug)) {
         setHash(fileSlug);
       }
-      // Don't update if hash is for a different demo
+      // Otherwise, don't update - either no hash exists or hash is for a different demo
     }
   }, [
     selectedVariant,

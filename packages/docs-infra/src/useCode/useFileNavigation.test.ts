@@ -582,7 +582,7 @@ describe('useFileNavigation', () => {
   });
 
   describe('hash update behavior', () => {
-    it('should not create hash when none exists on variant change without user interaction', () => {
+    it('should not create hash when none exists on variant change', () => {
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',
@@ -613,8 +613,7 @@ describe('useFileNavigation', () => {
       // Verify no hash set on initial load
       expect(mockSetHash).not.toHaveBeenCalled();
 
-      // Change variant - should NOT create a hash since there was no user interaction
-      // (variant changes triggered programmatically, not by user clicking)
+      // Change variant - should NOT create a hash since none existed
       rerender({ selectedVariantKey: 'Tailwind' });
 
       // Should still not have set any hash
