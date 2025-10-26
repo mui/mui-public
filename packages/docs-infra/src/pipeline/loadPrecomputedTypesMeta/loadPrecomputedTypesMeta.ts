@@ -129,11 +129,6 @@ export async function loadPrecomputedTypesMeta(
 
     const config = await loadTypescriptConfig(path.join(this.rootContext, 'tsconfig.json'));
 
-    // If paths are configured in tsconfig or watchSourceDirectly is explicitly set, we watch source files
-    const watchSourceDirectly = Boolean(
-      typesMetaCall.structuredOptions?.watchSourceDirectly || config.options.paths,
-    );
-
     currentMark = performanceMeasure(
       currentMark,
       { mark: 'tsconfig.json loaded', measure: 'tsconfig.json loading' },
@@ -152,7 +147,7 @@ export async function loadPrecomputedTypesMeta(
         rootContext: this.rootContext || process.cwd(),
         tsconfigPaths: config.options.paths,
         pathsBasePath: String(config.options.pathsBasePath || ''),
-        watchSourceDirectly,
+        watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
       });
 
       resolvedVariantMap = result.resolvedVariantMap;
