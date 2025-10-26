@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as semver from 'semver';
 import { $ } from 'execa';
-import { resolveVersion, findDependencyVersionFromSpec } from './pnpm.mjs';
+import { resolveVersion, findDependencyVersionFromSpec } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -50,6 +50,22 @@ async function processPackageOverride(packageSpec) {
     const reactMajor = semver.major(overrides.react);
     if (reactMajor === 17) {
       overrides['@testing-library/react'] = await resolveVersion('@testing-library/react@^12.1.0');
+    }
+  } else if (packageName === '@mui/material') {
+    // Special case for MUI - also override related packages
+    overrides['@mui/material'] = await resolveVersion(`@mui/material@${version}`);
+    overrides['@mui/system'] = await resolveVersion(`@mui/system@${version}`);
+    overrides['@mui/icons-material'] = await resolveVersion(`@mui/icons-material@${version}`);
+    overrides['@mui/utils'] = await resolveVersion(`@mui/utils@${version}`);
+    overrides['@mui/material-nextjs'] = await resolveVersion(`@mui/material-nextjs@${version}`);
+
+    const latest = await resolveVersion(`@mui/material@latest`);
+    const latestMajor = semver.major(latest);
+    const muiMajor = semver.major(overrides['@mui/material']);
+    if (muiMajor < latestMajor) {
+      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest-v${muiMajor}`);
+    } else {
+      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`);
     }
   } else {
     // Generic case for other packages

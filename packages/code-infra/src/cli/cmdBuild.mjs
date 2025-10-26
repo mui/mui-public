@@ -382,7 +382,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    const babelMod = await import('./babel.mjs');
+    const babelMod = await import('../utils/babel.mjs');
     const relativeOutDirs = {
       cjs: cjsOutDir,
       esm: 'esm',
@@ -444,7 +444,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // js build end
 
     if (buildTypes) {
-      const tsMod = await import('./typescript.mjs');
+      const tsMod = await import('../utils/typescript.mjs');
       /**
        * @type {{type: import('../utils/build.mjs').BundleType, dir: string}[]};
        */

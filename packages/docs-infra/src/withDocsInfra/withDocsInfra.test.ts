@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Configuration as WebpackConfig } from 'webpack';
-import { withDocsInfra, getDocsInfraMdxOptions, type NextConfig } from './withDocsInfra';
+import type { NextConfig } from 'next';
+import type { WebpackConfigContext } from 'next/dist/server/config-shared';
+import { withDocsInfra, getDocsInfraMdxOptions } from './withDocsInfra';
 
 describe('withDocsInfra', () => {
   describe('basic configuration', () => {
@@ -45,12 +47,12 @@ describe('withDocsInfra', () => {
       const plugin = withDocsInfra();
       const existingConfig: NextConfig = {
         env: { CUSTOM_VAR: 'value' },
-        experimental: { appDir: true },
+        experimental: { allowDevelopmentBuild: true },
       };
       const result = plugin(existingConfig);
 
       expect(result.env).toEqual({ CUSTOM_VAR: 'value' });
-      expect(result.experimental).toEqual({ appDir: true });
+      expect(result.experimental).toEqual({ allowDevelopmentBuild: true });
     });
   });
 
@@ -183,7 +185,9 @@ describe('withDocsInfra', () => {
       isServer: false,
       config: {},
       defaultLoaders: mockDefaultLoaders,
-    };
+      dir: '/tmp',
+      totalPages: 10,
+    } as unknown as WebpackConfigContext;
 
     it('should add default webpack rules for demo patterns', () => {
       const plugin = withDocsInfra();
@@ -331,7 +335,7 @@ describe('withDocsInfra', () => {
             use: 'babel-loader',
           },
         },
-      };
+      } as unknown as WebpackConfigContext;
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
@@ -420,7 +424,7 @@ describe('withDocsInfra', () => {
             use: 'babel-loader',
           },
         },
-      };
+      } as unknown as WebpackConfigContext;
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 

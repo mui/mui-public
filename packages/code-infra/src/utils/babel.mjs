@@ -6,7 +6,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { $ } from 'execa';
-import { BASE_IGNORES } from '../utils/build.mjs';
+import { BASE_IGNORES } from './build.mjs';
 
 const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
 
@@ -77,7 +77,7 @@ export async function cjsCopy({ from, to }) {
  * @param {string} options.outDir - The output directory for the build.
  * @param {string} options.outExtension - The output file extension for the build.
  * @param {boolean} options.hasLargeFiles - Whether the build includes large files.
- * @param {import('../utils/build.mjs').BundleType} options.bundle - The bundles to build.
+ * @param {import('./build.mjs').BundleType} options.bundle - The bundles to build.
  * @param {string} options.babelRuntimeVersion - The version of @babel/runtime to use.
  * @returns {Promise<void>}
  */

@@ -81,9 +81,10 @@
     "@types/babel__traverse": "^7.28.0",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^24.6.2",
-    "@types/react": "^19.2.0",
+    "@types/node": "^22.18.12",
+    "@types/react": "^19.2.2",
     "@types/webpack": "^5.28.5",
+    "next": "^15.0.0",
     "react": "^19.2.0",
     "rehype-parse": "^9.0.1",
     "rehype-stringify": "^10.0.1",
@@ -98,6 +99,9 @@
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "next": {
       "optional": true
     }
   },
