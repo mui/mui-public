@@ -129,24 +129,61 @@ export function inlineCode(value: string): InlineCode {
 }
 
 /**
+ * Calculate the visual length of phrasing content
+ * (e.g., "One `two` three" has visual length of ~13)
+ */
+function getPhrasingContentLength(node: PhrasingContent): number {
+  switch (node.type) {
+    case 'text':
+      return node.value.length;
+    case 'inlineCode':
+      return node.value.length + 2; // Backticks add 2 chars
+    case 'emphasis':
+    case 'strong':
+    case 'delete':
+    case 'link':
+      // Sum the length of children
+      return (node.children || []).reduce((sum, child) => sum + getPhrasingContentLength(child), 0);
+    case 'image':
+      return (node.alt || '').length + 4; // ![alt] is roughly 4 extra chars
+    case 'break':
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+/**
  * Creates a table cell node
  * @param {string|Object} content - Cell content
  * @returns {Object} Table cell node
  */
 function tableCell(content: Child | Child[], widthIncrements?: number): TableCell {
-  const children = normalizeChildren(content).map((cell) => {
-    if (widthIncrements && cell.type === 'text') {
-      const spaces = new Array(
-        Math.ceil(cell.value.length / widthIncrements) * widthIncrements - cell.value.length,
-      )
-        .fill(' ')
-        .join('');
-      cell = { ...cell, value: `${cell.value}${spaces}` };
-      return cell;
-    }
+  const children = normalizeChildren(content);
 
-    return cell;
-  });
+  if (widthIncrements) {
+    // Calculate total visual length of all content
+    const totalLength = children.reduce((sum, child) => sum + getPhrasingContentLength(child), 0);
+
+    // Calculate padding needed
+    const paddingNeeded = Math.ceil(totalLength / widthIncrements) * widthIncrements - totalLength;
+
+    // Add padding as trailing spaces to the last text node, or create a new text node
+    if (paddingNeeded > 0) {
+      const spaces = new Array(paddingNeeded).fill(' ').join('');
+
+      // Find the last text node and append spaces
+      const lastTextIndex = children.findLastIndex((child) => child.type === 'text');
+
+      if (lastTextIndex >= 0) {
+        const lastText = children[lastTextIndex] as Text;
+        children[lastTextIndex] = { ...lastText, value: `${lastText.value}${spaces}` };
+      } else {
+        // No text node found, add a new text node with just spaces
+        children.push(text(spaces));
+      }
+    }
+  }
 
   return {
     type: 'tableCell',
