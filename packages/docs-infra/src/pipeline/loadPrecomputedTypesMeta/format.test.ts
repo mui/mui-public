@@ -116,7 +116,7 @@ describe('format', () => {
         intrinsic: 'string',
       } as any;
 
-      expect(formatType(stringType, false)).toBe('string');
+      expect(formatType(stringType, false, undefined, false, [], {})).toBe('string');
     });
 
     it('should format literal types', () => {
@@ -125,7 +125,7 @@ describe('format', () => {
         value: '"test"',
       } as any;
 
-      expect(formatType(literalType, false)).toBe("'test'");
+      expect(formatType(literalType, false, undefined, false, [], {})).toBe("'test'");
     });
 
     it('should format array types', () => {
@@ -137,7 +137,7 @@ describe('format', () => {
         } as any,
       } as any;
 
-      expect(formatType(arrayType, false)).toBe('string[]');
+      expect(formatType(arrayType, false, undefined, false, [], {})).toBe('string[]');
     });
 
     it('should format array types with complex elements', () => {
@@ -152,7 +152,7 @@ describe('format', () => {
         } as any,
       } as any;
 
-      expect(formatType(arrayType, false)).toBe('(string | number)[]');
+      expect(formatType(arrayType, false, undefined, false, [], {})).toBe('(string | number)[]');
     });
 
     it('should format union types', () => {
@@ -164,7 +164,7 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(unionType, false)).toBe('string | number');
+      expect(formatType(unionType, false, undefined, false, [], {})).toBe('string | number');
     });
 
     it('should remove undefined from union types when requested', () => {
@@ -176,8 +176,8 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(unionType, true)).toBe('string');
-      expect(formatType(unionType, false)).toBe('string | undefined');
+      expect(formatType(unionType, true, undefined, false, [], {})).toBe('string');
+      expect(formatType(unionType, false, undefined, false, [], {})).toBe('string | undefined');
     });
 
     it('should format intersection types', () => {
@@ -207,7 +207,9 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(intersectionType, false)).toBe('{ a: string } & { b: number }');
+      expect(formatType(intersectionType, false, undefined, false, [], {})).toBe(
+        '{ a: string } & { b: number }',
+      );
     });
 
     it('should format object types when expanded', () => {
@@ -227,7 +229,9 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(objectType, false, undefined, true)).toBe('{ name: string, age?: number }');
+      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
+        '{ name: string, age?: number }',
+      );
     });
 
     it('should format tuple types', () => {
@@ -239,7 +243,7 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(tupleType, false)).toBe('[string, number]');
+      expect(formatType(tupleType, false, undefined, false, [], {})).toBe('[string, number]');
     });
 
     it('should respect @type JSDoc tag', () => {
@@ -255,7 +259,7 @@ describe('format', () => {
         } as any,
       ];
 
-      expect(formatType(type, false, tags)).toBe('CustomType');
+      expect(formatType(type, false, tags, false, [], {})).toBe('CustomType');
     });
 
     it('should order union members with any, null, undefined at the end', () => {
@@ -270,7 +274,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatType(unionType, false);
+      const result = formatType(unionType, false, undefined, false, [], {});
       const parts = result.split(' | ');
 
       // Check that any, null, undefined are at the end
@@ -302,7 +306,7 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true)).toBe(
+        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
           '((value: string, count: number) => void)',
         );
       });
@@ -329,7 +333,7 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true)).toBe(
+        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
           '((value: string, options?: object) => void)',
         );
       });
@@ -362,7 +366,7 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true)).toBe(
+        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
           '((value: string, options?: object) => void)',
         );
       });
@@ -396,7 +400,7 @@ describe('format', () => {
         } as any;
 
         // Should keep | undefined since the next param is required
-        expect(formatType(functionType, false, undefined, true)).toBe(
+        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
           '((options: object | undefined, value: string) => void)',
         );
       });
@@ -434,7 +438,7 @@ describe('format', () => {
           ],
         } as any;
 
-        const result = formatType(functionType, false, undefined, true);
+        const result = formatType(functionType, false, undefined, true, [], {});
         // Both optional params should use ?: syntax
         expect(result).toContain('options?: object');
         expect(result).toContain('callback?:');
@@ -462,7 +466,7 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true)).toBe(
+        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
           '((a?: string, b?: number) => void)',
         );
       });
@@ -490,7 +494,7 @@ describe('format', () => {
           ],
         } as any;
 
-        const result = formatType(functionType, false, undefined, true);
+        const result = formatType(functionType, false, undefined, true, [], {});
         // Should be options?: object, not options?: undefined | object
         expect(result).toBe('((options?: object) => void)');
         expect(result).not.toContain('undefined');
@@ -585,7 +589,7 @@ describe('format', () => {
         typeName: { name: 'MyType' } as any,
       } as any;
 
-      const result = formatDetailedType(externalType, exportNodes, []);
+      const result = formatDetailedType(externalType, exportNodes, [], {});
       expect(result).toBe('{ prop: string }');
     });
 
@@ -597,7 +601,7 @@ describe('format', () => {
       } as any;
 
       // Should not throw and return the type name
-      const result = formatDetailedType(externalType, exportNodes, ['CircularType']);
+      const result = formatDetailedType(externalType, exportNodes, ['CircularType'], {});
       expect(result).toBe('CircularType');
     });
 
@@ -627,7 +631,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatDetailedType(unionType, exportNodes, []);
+      const result = formatDetailedType(unionType, exportNodes, [], {});
       expect(result).toBe('string | number');
     });
 
@@ -668,7 +672,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatDetailedType(intersectionType, exportNodes, []);
+      const result = formatDetailedType(intersectionType, exportNodes, [], {});
       expect(result).toBe('{ a: string } & { b: number }');
     });
 
@@ -678,7 +682,7 @@ describe('format', () => {
         typeName: { name: 'Padding' } as any,
       } as any;
 
-      const result = formatDetailedType(externalType, [], []);
+      const result = formatDetailedType(externalType, [], [], {});
       expect(result).toBe(
         '{ top?: number; right?: number; bottom?: number; left?: number } | number',
       );
@@ -708,7 +712,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params);
+      const result = await formatParameters(params, [], {});
 
       // Parameter type is now HastRoot with syntax highlighting
       expect(result.value.type).toMatchObject({
@@ -812,7 +816,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params);
+      const result = await formatParameters(params, [], {});
 
       // Example is now HastRoot with markdown parsing
       expect(result.value.example).toMatchObject({
@@ -842,7 +846,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.title).toBeDefined();
         expect(result.title.required).toBe(true);
@@ -921,7 +925,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.onClick.detailedType).toBeDefined();
         expect(result.onClick.shortType).toBeDefined();
@@ -946,7 +950,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.onChange.shortTypeText).toBe('function');
         expect(result.onChange.shortType).toBeDefined();
@@ -976,7 +980,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.className.shortTypeText).toBe('string | function');
         expect(result.className.shortType).toBeDefined();
@@ -1006,7 +1010,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.render.shortTypeText).toBe('ReactElement | function');
         expect(result.render.shortType).toBeDefined();
@@ -1030,7 +1034,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.variant.shortTypeText).toBe('Union');
         expect(result.variant.shortType).toBeDefined();
@@ -1046,7 +1050,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.title.shortType).toBeUndefined();
         expect(result.title.shortTypeText).toBeUndefined();
@@ -1076,7 +1080,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // className is recognized as needing detailed type, but without allExports to expand,
         // the detailed type will equal the formatted type and won't be included
@@ -1120,7 +1124,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // render is recognized as needing detailed type, but without allExports to expand,
         // the detailed type will equal the formatted type and won't be included
@@ -1138,7 +1142,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.disabled.detailedType).toBeUndefined();
       });
@@ -1153,7 +1157,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         expect(result.inputRef.detailedType).toBeUndefined();
       });
@@ -1177,7 +1181,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Complex union with 5+ members should show detailed type
         expect(result.variant.detailedType).toBeDefined();
@@ -1198,7 +1202,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify HAST structure (filter out whitespace text nodes)
         expect(result.value.description).toBeDefined();
@@ -1262,7 +1266,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify example HAST structure (raw structure, transformation happens in highlightTypes)
         expect(result.value.example).toBeDefined();
@@ -1301,7 +1305,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Without documentation, both fields should be undefined
         expect(result.value.description).toBeUndefined();
@@ -1320,7 +1324,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify exact HAST structure with all inline formatting
         expect(result.content.description).toMatchObject({
@@ -1385,7 +1389,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Snapshot the inline function type with external parameter type
         expect(result.handler.type).toMatchInlineSnapshot(`
@@ -1515,7 +1519,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Snapshot the complete inline type HAST structure
         expect(result.value.type).toMatchInlineSnapshot(`
@@ -1570,7 +1574,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Snapshot the complete union type HAST structure showing text nodes and span elements
         expect(result.complexProp.type).toMatchInlineSnapshot(`
@@ -1708,7 +1712,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Snapshot the complete function type HAST structure showing all text and span elements
         expect(result.callback.type).toMatchInlineSnapshot(`
@@ -1840,7 +1844,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify exact HAST structure with link
         expect(result.docs.description).toMatchObject({
@@ -1879,7 +1883,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify HAST structure (filter whitespace nodes)
         expect(result.options.description).toBeDefined();
@@ -1949,7 +1953,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify description HAST contains raw code block (transformation happens in highlightTypes)
         expect(result.value.description).toBeDefined();
@@ -1982,7 +1986,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Verify type field contains HAST structure
         expect(result.callback.type).toBeDefined();
@@ -2002,7 +2006,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, []);
+        const result = await formatProperties(props, [], {});
 
         // Code block should have raw structure (transformation happens in highlightTypes)
         expect(result.example.description).toBeDefined();
@@ -2023,7 +2027,7 @@ describe('format', () => {
         intrinsic: 'string',
       } as any;
 
-      const result = await prettyFormatType(type, false);
+      const result = await prettyFormatType(type, false, undefined, false, [], {});
       expect(result).toBe('string;');
     });
 
@@ -2044,7 +2048,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = await prettyFormatType(type, false, undefined, true);
+      const result = await prettyFormatType(type, false, undefined, true, [], {});
 
       // Should be formatted on multiple lines
       expect(result).toContain('\n');
@@ -2065,7 +2069,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = await prettyFormatType(type, false, undefined, true, []);
+      const result = await prettyFormatType(type, false, undefined, true, [], {});
 
       // Should include formatted properties
       expect(result).toContain('prop');

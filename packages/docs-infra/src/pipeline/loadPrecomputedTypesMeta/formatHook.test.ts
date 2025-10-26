@@ -107,7 +107,7 @@ describe('formatHook', () => {
         documentation: { description: 'A button hook' },
       });
 
-      const result = await formatHookData(hook, []);
+      const result = await formatHookData(hook, [], {});
 
       expect(result.name).toBe('useButton');
       expect(result.description).toMatchObject({
@@ -138,7 +138,7 @@ describe('formatHook', () => {
         documentation: { description: 'Input hook\n\nDocumentation: url' },
       });
 
-      const result = await formatHookData(hook, []);
+      const result = await formatHookData(hook, [], {});
 
       expect(result.description).toMatchObject({
         type: 'root',
@@ -173,7 +173,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, []);
+      const result = await formatHookData(hook, [], {});
 
       expect(result.parameters.initial).toBeDefined();
       // Parameter type is now HastRoot with syntax highlighting
@@ -238,7 +238,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, []);
+      const result = await formatHookData(hook, [], {});
 
       // When the parameter name is 'options' (not 'params'), the object is not flattened
       // and instead treated as a single parameter in the output.
@@ -259,7 +259,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, []);
+      const result = await formatHookData(hook, [], {});
 
       // Now returns HastRoot with syntax highlighting instead of plain string
       expect(result.returnValue).toMatchObject({
@@ -300,7 +300,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, []);
+      const result = await formatHookData(hook, [], {});
 
       // With type guards, the return value is correctly formatted as an object
       // with individual properties extracted from the ObjectNode structure.

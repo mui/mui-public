@@ -119,10 +119,10 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop     | Type                       | Default   | Description                    |
-        | :------- | :------------------------- | :-------- | :----------------------------- |
-        | variant  | \`"primary" \\| "secondary"\` | \`primary\` | The button variant             |
-        | disabled | \`boolean\`                  | -         | Whether the button is disabled |
+        | Prop           | Type                            | Default   | Description                         |
+        | :------------- | :------------------------------ | :-------- | :---------------------------------- |
+        | variant        | \`"primary" \\| "secondary"\`      | \`primary\` | The button variant                  |
+        | disabled       | \`boolean\`                       | -         | Whether the button is disabled      |
         "
       `);
     });
@@ -155,9 +155,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Data Attributes:**
 
-        | Attribute  | Type                     | Description                     |
-        | :--------- | :----------------------- | :------------------------------ |
-        | data-state | \`"active" \\| "inactive"\` | The current state of the button |
+        | Attribute      | Type                     | Description                         |
+        | :------------- | :----------------------- | :---------------------------------- |
+        | data-state     | \`"active" \\| "inactive"\` | The current state of the button     |
         "
       `);
     });
@@ -194,10 +194,10 @@ describe('generateTypesMarkdown', () => {
 
         **Button CSS Variables:**
 
-        | Variable           | Type     | Description                    |
-        | :----------------- | :------- | :----------------------------- |
-        | \`--button-bg\`      | \`color\`  | Background color of the button |
-        | \`--button-padding\` | \`length\` | Padding inside the button      |
+        | Variable                | Type      | Description                         |
+        | :---------------------- | :-------- | :---------------------------------- |
+        | \`--button-bg\`           | \`color\`   | Background color of the button      |
+        | \`--button-padding\`      | \`length\`  | Padding inside the button           |
         "
       `);
     });
@@ -244,21 +244,21 @@ describe('generateTypesMarkdown', () => {
 
         **CompleteButton Props:**
 
-        | Prop    | Type     | Default | Description |
-        | :------ | :------- | :------ | :---------- |
-        | variant | \`string\` | -       | -           |
+        | Prop    | Type      | Default | Description |
+        | :------ | :-------- | :------ | :---------- |
+        | variant | \`string\`  | -       | -           |
 
         **CompleteButton Data Attributes:**
 
-        | Attribute   | Type      | Description  |
-        | :---------- | :-------- | :----------- |
-        | data-active | \`boolean\` | Active state |
+        | Attribute      | Type      | Description    |
+        | :------------- | :-------- | :------------- |
+        | data-active    | \`boolean\` | Active state   |
 
         **CompleteButton CSS Variables:**
 
-        | Variable  | Type    | Description  |
-        | :-------- | :------ | :----------- |
-        | \`--color\` | \`color\` | Button color |
+        | Variable  | Type      | Description    |
+        | :-------- | :-------- | :------------- |
+        | \`--color\` | \`color\`   | Button color   |
         "
       `);
     });
@@ -355,10 +355,10 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Parameters:**
 
-        | Parameter    | Type     | Default | Description               |
-        | :----------- | :------- | :------ | :------------------------ |
-        | initialValue | \`number\` | \`0\`     | The initial counter value |
-        | step         | \`number\` | -       | Increment/decrement step  |
+        | Parameter      | Type      | Default   | Description                  |
+        | :------------- | :-------- | :-------- | :--------------------------- |
+        | initialValue   | \`number\`  | \`0\`       | The initial counter value    |
+        | step           | \`number\`  | -         | Increment/decrement step     |
 
         **useCounter Return Value:**
 
@@ -429,11 +429,11 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        | Property  | Type         | Description                   |
-        | :-------- | :----------- | :---------------------------- |
-        | count     | \`number\`     | Current count value           |
-        | increment | \`() => void\` | Function to increment counter |
-        | decrement | \`() => void\` | Function to decrement counter |
+        | Property       | Type             | Description                         |
+        | :------------- | :--------------- | :---------------------------------- |
+        | count          | \`number\`         | Current count value                 |
+        | increment      | \`() => void\`     | Function to increment counter       |
+        | decrement      | \`() => void\`     | Function to decrement counter       |
         "
       `);
     });
@@ -545,9 +545,9 @@ describe('generateTypesMarkdown', () => {
 
         ## API Reference
 
-        ### Button
-
         ### Input
+
+        ### Button
         "
       `);
     });
@@ -670,9 +670,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop    | Type     | Default | Description |
-        | :------ | :------- | :------ | :---------- |
-        | variant | \`string\` | -       | -           |
+        | Prop    | Type      | Default | Description |
+        | :------ | :-------- | :------ | :---------- |
+        | variant | \`string\`  | -       | -           |
         "
       `);
     });
@@ -900,9 +900,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop     | Type      | Default | Description                          |
-        | :------- | :-------- | :------ | :----------------------------------- |
-        | disabled | \`boolean\` | -       | Set to \`true\` to disable the button. |
+        | Prop           | Type      | Default | Description                           |
+        | :------------- | :-------- | :------ | :------------------------------------ |
+        | disabled       | \`boolean\` | -       | Set to \`true\` to disable the button.  |
         "
       `);
     });
@@ -1306,9 +1306,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop    | Type         | Default | Description                                  |
-        | :------ | :----------- | :------ | :------------------------------------------- |
-        | onClick | \`() => void\` | -       | Usage example:\`<Button onClick={handler} />\` |
+        | Prop    | Type             | Default | Description                                  |
+        | :------ | :--------------- | :------ | :------------------------------------------- |
+        | onClick | \`() => void\`     | -       | Usage example:\`<Button onClick={handler} />\` |
         "
       `);
     });
@@ -1399,9 +1399,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop    | Type     | Default | Description                                     |
-        | :------ | :------- | :------ | :---------------------------------------------- |
-        | variant | \`string\` | -       | Supported variants:primary, secondary, tertiary |
+        | Prop    | Type      | Default | Description                                       |
+        | :------ | :-------- | :------ | :------------------------------------------------ |
+        | variant | \`string\`  | -       | Supported variants:primary, secondary, tertiary   |
         "
       `);
     });
@@ -1443,10 +1443,10 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Parameters:**
 
-        | Parameter    | Type     | Default | Description           |
-        | :----------- | :------- | :------ | :-------------------- |
-        | initialValue | \`number\` | \`0\`     | Initial counter value |
-        | step         | \`number\` | -       | Increment step        |
+        | Parameter      | Type      | Default   | Description           |
+        | :------------- | :-------- | :-------- | :-------------------- |
+        | initialValue   | \`number\`  | \`0\`       | Initial counter value |
+        | step           | \`number\`  | -         | Increment step        |
 
         **useCounter Return Value:**
 
@@ -1490,10 +1490,10 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop     | Type      | Default | Description               |
-        | :------- | :-------- | :------ | :------------------------ |
-        | variant  | \`string\`  | -       | Button variant (required) |
-        | disabled | \`boolean\` | -       | Disabled state (optional) |
+        | Prop           | Type      | Default | Description                  |
+        | :------------- | :-------- | :------ | :--------------------------- |
+        | variant        | \`string\`  | -       | Button variant (required)    |
+        | disabled       | \`boolean\` | -       | Disabled state (optional)    |
         "
       `);
       // Required marker is stored in data but not currently rendered
@@ -1532,10 +1532,10 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        | Property | Type         | Description             |
-        | :------- | :----------- | :---------------------- |
-        | count    | \`number\`     | Current count           |
-        | reset    | \`() => void\` | Optional reset function |
+        | Property | Type             | Description                  |
+        | :------- | :--------------- | :--------------------------- |
+        | count    | \`number\`         | Current count                |
+        | reset    | \`() => void\`     | Optional reset function      |
         "
       `);
     });
@@ -1634,9 +1634,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop    | Type      | Default | Description  |
-        | :------ | :-------- | :------ | :----------- |
-        | variant | \`unknown\` | -       | Variant prop |
+        | Prop    | Type      | Default | Description    |
+        | :------ | :-------- | :------ | :------------- |
+        | variant | \`unknown\` | -       | Variant prop   |
         "
       `);
     });
@@ -1668,9 +1668,9 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop    | Type     | Default | Description |
-        | :------ | :------- | :------ | :---------- |
-        | variant | \`string\` | -       | -           |
+        | Prop    | Type      | Default | Description |
+        | :------ | :-------- | :------ | :---------- |
+        | variant | \`string\`  | -       | -           |
         "
       `);
     });

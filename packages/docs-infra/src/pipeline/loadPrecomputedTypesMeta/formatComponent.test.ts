@@ -48,6 +48,8 @@ describe('formatComponent', () => {
         } as any,
         [],
         [],
+        {},
+        {},
       );
 
       expect(result.name).toBe('Button');
@@ -72,6 +74,7 @@ describe('formatComponent', () => {
         } as any,
         [],
         [],
+        {},
       );
 
       expect(result.description).toMatchObject({
@@ -99,6 +102,7 @@ describe('formatComponent', () => {
           },
         ] as any,
         [],
+        {},
       );
 
       expect(result.dataAttributes['data-checked'].type).toBeUndefined();
@@ -132,6 +136,7 @@ describe('formatComponent', () => {
           },
         ] as any,
         [],
+        {},
       );
 
       expect(result.cssVariables['--color'].type).toBe('color');
@@ -165,6 +170,7 @@ describe('formatComponent', () => {
         } as any,
         [],
         [],
+        {},
       );
 
       const json = JSON.stringify(result);
@@ -190,6 +196,7 @@ describe('formatComponent', () => {
         } as any,
         [],
         [],
+        {},
       );
 
       const json = JSON.stringify(result);
