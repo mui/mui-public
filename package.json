@@ -61,7 +61,7 @@
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "eslint-plugin-n": "^17.23.1",
-    "stylelint": "^16.24.0"
+    "stylelint": "^16.25.0"
   },
   "packageManager": "pnpm@10.17.1",
   "engines": {
