@@ -202,8 +202,8 @@ importers:
         specifier: ^16.11.0
         version: 16.11.0
       graphql-request:
-        specifier: ^7.2.0
-        version: 7.2.0(graphql@16.11.0)
+        specifier: ^7.3.1
+        version: 7.3.1(graphql@16.11.0)
       mysql:
         specifier: ^2.18.1
         version: 2.18.1
@@ -8456,8 +8456,8 @@ packages:
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
 
-  graphql-request@7.2.0:
-    resolution: {integrity: sha512-0GR7eQHBFYz372u9lxS16cOtEekFlZYB2qOyq8wDvzRmdRSJ0mgUVX1tzNcIzk3G+4NY+mGtSz411wZdeDF/+A==}
+  graphql-request@7.3.1:
+    resolution: {integrity: sha512-GdinBsBVYrWzwEvOlzadrV5j8mdOc9ZT8In9QyRIZaxbhkTL08j35yNbPp96jAacYzjeD/hKKy2E2RGI7c7Yug==}
     peerDependencies:
       graphql: 14 - 16
 
@@ -22662,7 +22662,7 @@ snapshots:
 
   graphemer@1.4.0: {}
 
-  graphql-request@7.2.0(graphql@16.11.0):
+  graphql-request@7.3.1(graphql@16.11.0):
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
       graphql: 16.11.0
