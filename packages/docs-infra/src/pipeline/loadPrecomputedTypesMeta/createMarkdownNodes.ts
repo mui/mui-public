@@ -130,22 +130,49 @@ export function inlineCode(value: string): InlineCode {
 
 /**
  * Calculate the visual length of phrasing content
- * (e.g., "One `two` three" has visual length of ~13)
+ * (e.g., "One `two` three" has visual length of ~13, or ~9 if excludeFormatting=true)
+ * @param node - The phrasing content node
+ * @param excludeFormatting - If true, don't count formatting characters like backticks, brackets, etc.
+ *                            This allows "`false`" and "false" to both be treated as length 5.
  */
-function getPhrasingContentLength(node: PhrasingContent): number {
+function getPhrasingContentLength(node: PhrasingContent, excludeFormatting = false): number {
   switch (node.type) {
     case 'text':
       return node.value.length;
     case 'inlineCode':
-      return node.value.length + 2; // Backticks add 2 chars
+      // Backticks add 2 chars, but exclude them if normalizing
+      return node.value.length + (excludeFormatting ? 0 : 2);
     case 'emphasis':
+      // Asterisks/underscores add chars, but exclude them if normalizing
+      return (node.children || []).reduce(
+        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
+        excludeFormatting ? 0 : 2, // *text* or _text_ adds 2 chars
+      );
     case 'strong':
+      // Double asterisks/underscores add chars, but exclude them if normalizing
+      return (node.children || []).reduce(
+        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
+        excludeFormatting ? 0 : 4, // **text** or __text__ adds 4 chars
+      );
     case 'delete':
-    case 'link':
-      // Sum the length of children
-      return (node.children || []).reduce((sum, child) => sum + getPhrasingContentLength(child), 0);
-    case 'image':
-      return (node.alt || '').length + 4; // ![alt] is roughly 4 extra chars
+      // Tildes add chars, but exclude them if normalizing
+      return (node.children || []).reduce(
+        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
+        excludeFormatting ? 0 : 4, // ~~text~~ adds 4 chars
+      );
+    case 'link': {
+      // [text](url) format adds chars, but exclude them if normalizing
+      const childrenLength = (node.children || []).reduce(
+        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
+        0,
+      );
+      return excludeFormatting ? childrenLength : childrenLength + 4 + (node.url?.length || 0); // [](url) adds 4 + url length
+    }
+    case 'image': {
+      // ![alt](url) format
+      const altLength = (node.alt || '').length;
+      return excludeFormatting ? altLength : altLength + 5 + (node.url?.length || 0); // ![](url) adds 5 + url length
+    }
     case 'break':
       return 0;
     default:
@@ -155,15 +182,24 @@ function getPhrasingContentLength(node: PhrasingContent): number {
 
 /**
  * Creates a table cell node
- * @param {string|Object} content - Cell content
- * @returns {Object} Table cell node
+ * @param content - Cell content
+ * @param widthIncrements - Optional width increment for padding alignment
+ * @param excludeFormatting - If true, don't count formatting chars when calculating width
+ * @returns Table cell node
  */
-function tableCell(content: Child | Child[], widthIncrements?: number): TableCell {
+function tableCell(
+  content: Child | Child[],
+  widthIncrements?: number,
+  excludeFormatting = true,
+): TableCell {
   const children = normalizeChildren(content);
 
   if (widthIncrements) {
     // Calculate total visual length of all content
-    const totalLength = children.reduce((sum, child) => sum + getPhrasingContentLength(child), 0);
+    const totalLength = children.reduce(
+      (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
+      0,
+    );
 
     // Calculate padding needed
     const paddingNeeded = Math.ceil(totalLength / widthIncrements) * widthIncrements - totalLength;
@@ -215,7 +251,7 @@ export function table(
   headers: (Child | Child[])[],
   rows: (Child | Child[])[][],
   alignment: string[] | null = null,
-  widthIncrements: number = 6,
+  widthIncrements: number = 7,
 ): Table {
   // Convert alignment strings to AST format
   const align: ('left' | 'right' | 'center' | null)[] = headers.map((_: any, index: number) => {
