@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Configuration as WebpackConfig } from 'webpack';
 import type { NextConfig } from 'next';
-import type { WebpackConfigContext } from 'next/dist/server/config-shared';
 import { withDocsInfra, getDocsInfraMdxOptions } from './withDocsInfra';
+
+type WebpackConfigContext = Parameters<NonNullable<NextConfig['webpack']>>[1];
 
 describe('withDocsInfra', () => {
   describe('basic configuration', () => {
