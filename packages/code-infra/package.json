@@ -69,7 +69,6 @@
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
     "@napi-rs/keyring": "^1.2.0",
-    "@next/eslint-plugin-next": "^15.5.4",
     "@octokit/auth-action": "^6.0.1",
     "@octokit/oauth-methods": "^6.0.1",
     "@octokit/rest": "^22.0.0",
@@ -108,7 +107,8 @@
   "peerDependencies": {
     "eslint": "^9.0.0",
     "prettier": "^3.5.3",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@next/eslint-plugin-next": "*"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
