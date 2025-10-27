@@ -21,15 +21,15 @@
   "devDependencies": {
     "@types/diff": "^8.0.0",
     "@types/etag": "^1.8.4",
-    "@types/node": "^22.18.10",
+    "@types/node": "^22.18.12",
     "@types/pako": "^2.0.4",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/semver": "^7.7.1",
     "@vitejs/plugin-react": "^5.0.4",
-    "netlify-cli": "^23.9.1",
+    "netlify-cli": "^23.9.5",
     "typescript": "^5.9.3",
-    "vite": "^7.1.10",
+    "vite": "^7.1.12",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "scripts": {
