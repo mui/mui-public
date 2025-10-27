@@ -65,90 +65,79 @@ async function getRepositoryInfo() {
 }
 
 /**
- * Extract package name from npm package name for label matching
- * @param {string} commitHash - Commit hash to check changed files
- * @param {PublicPackage[]} allPackages - List of all package names
- * @returns {Promise<string[]>} Affected package names
- */
-async function getAffectedPkgsForCommit(commitHash, allPackages) {
-  const { stdout } = await $`git diff-tree --no-commit-id --name-only -r ${commitHash}`;
-  const affectedFiles = stdout.trim().split('\n');
-  /**
-   * @type {Set<string>}
-   */
-  const affectedPackages = new Set();
-
-  for (const filePath of affectedFiles) {
-    for (const pkg of allPackages) {
-      const relativePath = path.relative(pkg.path, filePath);
-      if (!relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
-        affectedPackages.add(pkg.name);
-      }
-    }
-  }
-
-  return Array.from(affectedPackages);
-}
-
-/**
- *
  * @param {Object} param0
- * @param {string} param0.repo
- * @param {string} param0.owner
- * @returns {Promise<Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']>}
+ * @param {string} param0.packagePath
+ * @returns {Promise<{sha: string; message: string;}[]>} Commits between the tag and master
  */
-async function fetchCommitsBetweenRefs({ repo, owner }) {
-  const octokit = getOctokit();
+async function fetchCommitsForPackage({ packagePath }) {
   /**
-   * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
-   */
-  /**
-   * @type {Commits}
+   * @type {{sha: string; message: string;}[]}
    */
   const results = [];
-  /**
-   * @type {any}
-   */
-  const timeline = octokit.paginate.iterator(
-    octokit.repos.compareCommitsWithBasehead.endpoint.merge({
-      owner,
-      repo,
-      basehead: `${CANARY_TAG}...master`,
-    }),
-  );
-  for await (const response of timeline) {
-    results.push(...response.data.commits);
+  const res = $`git log --no-decorate --oneline -q ${CANARY_TAG}..master -- ${packagePath}`;
+  for await (const line of res) {
+    const [rawSha, ...rest] = line.split(' ');
+    const sha = rawSha.trim();
+    const message = rest.join(' ').trim();
+    results.push({ sha, message });
   }
-  return results;
+  /**
+   * @type {typeof results}
+   */
+  const userCommits = [];
+  /** @type {typeof results} */
+  const bumpCommmits = [];
+  results.forEach((commit) => {
+    if (commit.message.match(/^bump/i)) {
+      bumpCommmits.push(commit);
+    } else {
+      userCommits.push(commit);
+    }
+  });
+  return userCommits.concat(bumpCommmits);
 }
 
 /**
  * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
- * @param {{owner: string, repo: string}} repoInfo - Repository information
  * @returns {Promise<Map<string, string[]>>} Map of package names to their changelogs
  */
-async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, repoInfo) {
-  console.log('🔍 Fetching merged commits from GitHub API...');
-  const commits = await fetchCommitsBetweenRefs(repoInfo);
-  console.log(`📋 Found ${commits.length} merged commits since last canary tag`);
-
+async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions) {
   /**
    * @type {Map<string, string[]>}
    */
   const changelogs = new Map();
-  for (const commit of commits) {
-    // eslint-disable-next-line no-await-in-loop
-    const affectedPackages = await getAffectedPkgsForCommit(commit.sha, packagesToPublish);
-    for (const pkgName of affectedPackages) {
-      const existingChangelogs = changelogs.get(pkgName) || [];
-      existingChangelogs.push(
-        `- ${commit.commit.message.split('\n')[0]} (${commit.sha.slice(0, 7)})`,
-      );
-      changelogs.set(pkgName, existingChangelogs);
-    }
-  }
+
+  await Promise.all(
+    packagesToPublish.map(async (pkg) => {
+      const commits = await fetchCommitsForPackage({ packagePath: pkg.path });
+      if (!commits.length) {
+        return;
+      }
+      console.log(`Found ${commits.length} commits for package ${pkg.name}`);
+      const changeLogStrs = commits.map((commit) => `- ${commit.message}`);
+      const { stdout: dependencyBumpsStr } =
+        // Lists the workspace dependencies that were updated in the package
+        await $`pnpm list --exclude-peers --only-projects --json --prod -F ${pkg.name}`;
+      /**
+       * @type {{dependencies: Record<string, {from: string}>}[]}
+       */
+      const dependencyBumps = JSON.parse(dependencyBumpsStr);
+      console.log(dependencyBumps);
+      if (dependencyBumps.length > 0 && dependencyBumps[0].dependencies) {
+        const updatedDeps = Object.keys(dependencyBumps[0].dependencies ?? {});
+        if (updatedDeps.length > 0) {
+          changeLogStrs.push(
+            `- Updated dependencies:
+
+${updatedDeps.map((dep) => `     - ${dep} (${canaryVersions.get(dep)})`).join('\n')}`,
+          );
+        }
+      }
+      changelogs.set(pkg.name, changeLogStrs);
+    }),
+  );
   return changelogs;
 }
 
@@ -167,9 +156,7 @@ async function prepareChangelogsForPackages(packagesToPublish, canaryVersions) {
   /**
    * @type {Map<string, string[]>}
    */
-  let changelogs = new Map();
-
-  changelogs = await prepareChangelogsFromGitHub(packagesToPublish, canaryVersions, repoInfo);
+  const changelogs = await prepareChangelogsFromGitHub(packagesToPublish, canaryVersions);
 
   // Log changelog content for each package
   for (const pkg of packagesToPublish) {
@@ -180,12 +167,10 @@ async function prepareChangelogsForPackages(packagesToPublish, canaryVersions) {
 
     const changelog = changelogs.get(pkg.name) || [];
     console.log(`\n📦 ${pkg.name}@${version}`);
-    if (changelog) {
+    if (changelog.length > 0) {
       console.log(
         `   Changelog:\n${changelog.map((/** @type {string} */ line) => `   ${line}`).join('\n')}`,
       );
-    } else {
-      console.log('   Changelog: No changes with scope labels found for this package.');
     }
   }
 
