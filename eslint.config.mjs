@@ -15,6 +15,8 @@ export default defineConfig(
       n: nPlugin,
     },
     rules: {
+      // not needed in this repo
+      'compat/compat': 'off',
       // No time for this
       'react/prop-types': 'off',
       'jsx-a11y/control-has-associated-label': 'off',
