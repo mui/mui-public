@@ -28,6 +28,9 @@ importers:
       '@mui/internal-code-infra':
         specifier: workspace:*
         version: link:packages/code-infra
+      '@next/eslint-plugin-next':
+        specifier: ^15.5.6
+        version: 15.5.6
       '@octokit/rest':
         specifier: ^22.0.0
         version: 22.0.0
@@ -408,7 +411,7 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
       '@next/eslint-plugin-next':
-        specifier: ^15.5.6
+        specifier: '*'
         version: 15.5.6
       '@octokit/auth-action':
         specifier: ^6.0.1
