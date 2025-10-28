@@ -567,6 +567,9 @@ export async function crawl(rawOptions) {
   console.log(`  Total links found: ${chalk.cyan(crawledLinks.size)}`);
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
+  if (options.outPath) {
+    console.log(chalk.blue(`Output written to: ${options.outPath}`));
+  }
 
   return { links: crawledLinks, pages: results, issues };
 }
