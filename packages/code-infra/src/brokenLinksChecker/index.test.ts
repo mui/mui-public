@@ -47,7 +47,7 @@ describe('Broken Links Checker', () => {
       seedUrls: ['/', '/orphaned-page.html'],
     });
 
-    expect(result.links).toHaveLength(52);
+    expect(result.links).toHaveLength(53);
     expect(result.issues).toHaveLength(8);
 
     // Check broken-link type issues
@@ -164,5 +164,9 @@ describe('Broken Links Checker', () => {
         text: 'Broken link from orphaned page',
       },
     });
+
+    // Test trailing slash normalization: /valid.html and /valid.html/ should be treated as the same page
+    // The orphaned page has both links, but they should not cause duplicate page crawls
+    expectNotIssue(result.issues, { link: { href: '/valid.html/' } });
   }, 30000);
 });

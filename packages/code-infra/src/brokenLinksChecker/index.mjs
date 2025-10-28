@@ -233,7 +233,12 @@ function getPageUrl(href, ignoredPaths = []) {
   if (ignoredPaths.some((pattern) => pattern.test(parsed.pathname))) {
     return null;
   }
-  const link = parsed.pathname + parsed.search;
+  // Normalize pathname by removing trailing slash (except for root)
+  let pathname = parsed.pathname;
+  if (pathname !== '/' && pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
+  const link = pathname + parsed.search;
   return link;
 }
 
