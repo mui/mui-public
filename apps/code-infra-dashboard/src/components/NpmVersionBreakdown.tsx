@@ -13,8 +13,6 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { PieChart } from '@mui/x-charts/PieChart';
-import { AnimatedLineProps, LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import {
   AxisValueFormatterContext,
@@ -22,6 +20,9 @@ import {
   PieItemIdentifier,
   PieSeriesType,
   PieValueType,
+  AnimatedLineProps,
+  LineChart,
+  PieChart,
 } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
