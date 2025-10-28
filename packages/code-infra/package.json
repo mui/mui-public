@@ -42,10 +42,12 @@
     }
   },
   "bin": {
-    "code-infra": "./bin/code-infra.mjs"
+    "code-infra": "./src/bin/code-infra.mjs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "build-tsdown": "node ./src/bin/code-infra.mjs build-new --bundle esm",
+    "build-rslib": "node ./src/bin/code-infra.mjs build-new --bundler rslib",
     "typescript": "tsc -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
@@ -73,6 +75,7 @@
     "@octokit/oauth-methods": "^6.0.1",
     "@octokit/rest": "^22.0.0",
     "@pnpm/find-workspace-dir": "^1000.1.3",
+    "@swc/helpers": "^0.5.17",
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
@@ -101,6 +104,7 @@
     "regexp.escape": "^2.0.1",
     "resolve-pkg-maps": "^1.0.0",
     "semver": "^7.7.3",
+    "rsbuild-plugin-dts": "^0.16.1",
     "stylelint-config-standard": "^39.0.1",
     "typescript-eslint": "^8.46.2",
     "yargs": "^18.0.0"
@@ -108,8 +112,18 @@
   "peerDependencies": {
     "eslint": "^9.0.0",
     "prettier": "^3.5.3",
-    "typescript": "^5.0.0",
-    "@next/eslint-plugin-next": "*"
+    "@next/eslint-plugin-next": "*",
+    "@rslib/core": "^0.16.1",
+    "tsdown": "^0.15.11",
+    "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@rslib/core": {
+      "optional": true
+    },
+    "tsdown": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
@@ -125,15 +139,9 @@
     "eslint": "^9.38.0",
     "@octokit/types": "^15.0.1",
     "prettier": "^3.6.2",
+    "tsdown": "^0.15.11",
     "typescript-eslint": "^8.46.2"
   },
-  "files": [
-    "bin",
-    "build",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
   "publishConfig": {
     "access": "public"
   }
