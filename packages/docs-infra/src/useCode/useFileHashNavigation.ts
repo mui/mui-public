@@ -89,6 +89,8 @@ interface UseFileHashNavigationProps {
   initialVariant?: string;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
+  suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
+  forceLocalStorageSync?: () => void;
   avoidMutatingAddressBar?: boolean;
   fileHashAfterRead?: 'preserve' | 'demo' | 'remove';
 }
@@ -113,6 +115,8 @@ export function useFileHashNavigation({
   initialVariant,
   effectiveCode,
   selectVariant,
+  suppressLocalStorageSync,
+  forceLocalStorageSync,
   avoidMutatingAddressBar = false,
   fileHashAfterRead = 'preserve',
 }: UseFileHashNavigationProps): UseFileHashNavigationResult {
@@ -369,6 +373,16 @@ export function useFileHashNavigation({
           if (cleanHash && hash !== cleanHash) {
             setHash(cleanHash);
             hasCleanedHashAfterRead.current = true;
+            // If avoidMutatingAddressBar is true, suppress localStorage sync permanently
+            // This keeps the hash-driven selection active even after hash is cleaned
+            if (avoidMutatingAddressBar && suppressLocalStorageSync) {
+              suppressLocalStorageSync('permanent');
+            }
+            // For fileHashAfterRead: 'demo', force localStorage to sync after hash is cleaned
+            // This allows localStorage preference to apply
+            else if (fileHashAfterRead === 'demo' && forceLocalStorageSync) {
+              forceLocalStorageSync();
+            }
           }
         }
       }
@@ -389,6 +403,8 @@ export function useFileHashNavigation({
     avoidMutatingAddressBar,
     fileHashAfterRead,
     setHash,
+    suppressLocalStorageSync,
+    forceLocalStorageSync,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
@@ -428,6 +444,16 @@ export function useFileHashNavigation({
           if (cleanHash && hash !== cleanHash) {
             setHash(cleanHash);
             hasCleanedHashAfterRead.current = true;
+            // If avoidMutatingAddressBar is true, suppress localStorage sync permanently
+            // This keeps the hash-driven selection active even after hash is cleaned
+            if (avoidMutatingAddressBar && suppressLocalStorageSync) {
+              suppressLocalStorageSync('permanent');
+            }
+            // For fileHashAfterRead: 'demo', force localStorage to sync after hash is cleaned
+            // This allows localStorage preference to apply
+            else if (fileHashAfterRead === 'demo' && forceLocalStorageSync) {
+              forceLocalStorageSync();
+            }
           }
         }
       }

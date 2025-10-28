@@ -157,6 +157,8 @@ export function useCode<T extends {} = {}>(
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,
+    suppressLocalStorageSync: variantSelection.suppressLocalStorageSync,
+    forceLocalStorageSync: variantSelection.forceLocalStorageSync,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,

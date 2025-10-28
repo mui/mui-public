@@ -682,6 +682,51 @@ describe('useCode integration tests', () => {
 
       Storage.prototype.getItem = originalGetItem;
     });
+
+    it('should respect hash variant with fileHashAfterRead remove and localStorage preference', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: 'const x = 1;',
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Mock localStorage to have CssModules preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'CssModules';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Hash points to Tailwind variant
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'remove' }));
+
+      // Hash should take precedence over localStorage - should load Tailwind, not CssModules
+      // With fileHashAfterRead: 'remove', hash should be completely removed after loading
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+          // Hash should be completely removed with fileHashAfterRead: 'remove'
+          expect(window.location.hash).toBe('');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
+    });
   });
 
   describe('cross-page navigation', () => {
@@ -1996,6 +2041,49 @@ describe('useCode integration tests', () => {
         },
         { timeout: 1000 },
       );
+    });
+
+    it('should apply localStorage preference when hash is cleaned with fileHashAfterRead demo', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Mock localStorage to have TypeScript preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'TypeScript';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Start with hash pointing to JavaScript file
+      window.location.hash = '#hero:index.js';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'demo' }));
+
+      // Should load JavaScript from hash, then clean hash to #hero
+      // After cleaning, localStorage preference (TypeScript) should apply
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(window.location.hash).toBe('#hero');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
     });
 
     it('should not update localStorage when navigating via hash to different variant', async () => {

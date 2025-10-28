@@ -17,6 +17,8 @@ export interface UseVariantSelectionResult {
   selectedVariant: VariantCode | null;
   selectVariant: React.Dispatch<React.SetStateAction<string>>;
   selectVariantProgrammatic: React.Dispatch<React.SetStateAction<string>>;
+  suppressLocalStorageSync: (mode: boolean | 'permanent') => void;
+  forceLocalStorageSync: () => void;
 }
 
 /**
@@ -84,9 +86,27 @@ export function useVariantSelection({
   // Sync with localStorage changes (but don't override programmatic changes or when hash is present)
   // Only sync when storedValue changes AND it's different from what we expect
   const expectedStoredValue = React.useRef<string | null>(storedValue);
+  const justSetProgrammatically = React.useRef(false);
+  // Track if we're suppressing localStorage for the next sync (e.g., after programmatic change)
+  // This can be set to 'permanent' to block localStorage sync until explicitly cleared
+  const suppressLocalStorageSync = React.useRef<boolean | 'permanent'>(false);
   React.useEffect(() => {
     // Don't sync from localStorage when a relevant URL hash is present - hash takes absolute priority
     if (hasRelevantUrlHash) {
+      return;
+    }
+    // Don't sync if we just set the variant programmatically (e.g., from hash navigation)
+    // This prevents localStorage from overriding hash-driven changes after hash is removed
+    if (justSetProgrammatically.current) {
+      justSetProgrammatically.current = false;
+      return;
+    }
+    // Don't sync if localStorage is suppressed (e.g., during avoidMutatingAddressBar mode)
+    if (suppressLocalStorageSync.current === 'permanent') {
+      return;
+    }
+    if (suppressLocalStorageSync.current === true) {
+      suppressLocalStorageSync.current = false;
       return;
     }
     // Only sync if the stored value changed AND it's not what we expected (meaning it changed externally)
@@ -103,6 +123,9 @@ export function useVariantSelection({
       setSelectedVariantKeyState((currentKey) => {
         const resolvedValue = typeof value === 'function' ? value(currentKey) : value;
         if (variantKeys.includes(resolvedValue)) {
+          // Mark that we just set the variant programmatically
+          // This prevents localStorage from overriding this change
+          justSetProgrammatically.current = true;
           // Only update React state, not localStorage
           // This prevents conflicts with hash-driven navigation
           return resolvedValue;
@@ -139,6 +162,20 @@ export function useVariantSelection({
     return null;
   }, [effectiveCode, selectedVariantKey]);
 
+  const suppressLocalStorageSyncFn = React.useCallback((mode: boolean | 'permanent') => {
+    suppressLocalStorageSync.current = mode;
+  }, []);
+
+  const forceLocalStorageSyncFn = React.useCallback(() => {
+    // Clear any suppression flags
+    justSetProgrammatically.current = false;
+    suppressLocalStorageSync.current = false;
+    // Force sync from localStorage if value exists and is different
+    if (storedValue && variantKeys.includes(storedValue) && storedValue !== selectedVariantKey) {
+      setSelectedVariantKeyState(storedValue);
+    }
+  }, [storedValue, variantKeys, selectedVariantKey]);
+
   // Safety check: if selectedVariant doesn't exist, fall back to first variant
   React.useEffect(() => {
     if (!selectedVariant && variantKeys.length > 0) {
@@ -154,5 +191,7 @@ export function useVariantSelection({
     selectedVariant,
     selectVariant: setSelectedVariantKeyAsUser,
     selectVariantProgrammatic: setSelectedVariantKeyProgrammatic,
+    suppressLocalStorageSync: suppressLocalStorageSyncFn,
+    forceLocalStorageSync: forceLocalStorageSyncFn,
   };
 }

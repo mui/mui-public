@@ -28,16 +28,14 @@ export function toKebabCase(str: string): string {
  * Check if URL hash is relevant to this specific demo
  * @param urlHash - The URL hash (without '#')
  * @param mainSlug - The main slug for the demo
- * @returns true if the hash starts with the demo's slug or equals the demo's slug
+ * @returns true if the hash starts with the demo's slug
  */
 export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string): boolean {
   if (!urlHash || !mainSlug) {
     return false;
   }
   const kebabSlug = toKebabCase(mainSlug);
-  // Hash is relevant if it starts with the slug followed by a colon (e.g., "hero:tailwind:file.ts")
-  // OR if it equals just the slug (e.g., "hero" after cleaning with avoidMutatingAddressBar)
-  return urlHash.startsWith(`${kebabSlug}:`) || urlHash === kebabSlug;
+  return urlHash.startsWith(`${kebabSlug}:`);
 }
 
 /**
@@ -92,6 +90,8 @@ interface UseFileNavigationProps {
   preRef?: React.Ref<HTMLPreElement>;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
+  suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
+  forceLocalStorageSync?: () => void;
   avoidMutatingAddressBar?: boolean;
   fileHashAfterRead?: 'preserve' | 'demo' | 'remove';
 }
@@ -121,6 +121,8 @@ export function useFileNavigation({
   preRef,
   effectiveCode,
   selectVariant,
+  suppressLocalStorageSync,
+  forceLocalStorageSync,
   avoidMutatingAddressBar,
   fileHashAfterRead,
 }: UseFileNavigationProps): UseFileNavigationResult {
@@ -141,6 +143,8 @@ export function useFileNavigation({
     initialVariant,
     effectiveCode,
     selectVariant,
+    suppressLocalStorageSync,
+    forceLocalStorageSync,
     avoidMutatingAddressBar,
     fileHashAfterRead,
   });
