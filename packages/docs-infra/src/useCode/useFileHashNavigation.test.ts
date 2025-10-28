@@ -709,8 +709,8 @@ describe('useFileHashNavigation', () => {
     });
   });
 
-  describe('avoidMutatingAddressBar flag', () => {
-    it('should clean up hash to demo-only format after reading file from hash', () => {
+  describe('fileHashMode', () => {
+    it("should clean up hash to demo-only format after reading file from hash (mode: 'read')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -734,7 +734,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
-          avoidMutatingAddressBar: true,
+          fileHashMode: 'read',
         }),
       );
 
@@ -745,7 +745,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('advanced');
     });
 
-    it('should not add hash when user selects a file and no hash exists', () => {
+    it("should not add hash when user selects a file and no hash exists (mode: 'read')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -768,7 +768,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
-          avoidMutatingAddressBar: true,
+          fileHashMode: 'read',
         }),
       );
 
@@ -783,7 +783,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).not.toHaveBeenCalled();
     });
 
-    it('should clean hash to just slug regardless of variant', () => {
+    it("should clean hash to just slug regardless of variant (mode: 'read')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -807,7 +807,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Premium',
           variantKeys: ['Default', 'Premium'],
           initialVariant: 'Default',
-          avoidMutatingAddressBar: true,
+          fileHashMode: 'read',
         }),
       );
 
@@ -818,7 +818,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('demo');
     });
 
-    it('should not set hash when avoidMutatingAddressBar is false (default behavior)', () => {
+    it("should set hash with filename when mode is 'full' (default behavior)", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -841,7 +841,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
-          avoidMutatingAddressBar: false,
+          fileHashMode: 'full',
         }),
       );
 
@@ -857,7 +857,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('test:utils.js');
     });
 
-    it('should update hash on variant change with clean format', () => {
+    it("should update hash on variant change with clean format (mode: 'read')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -883,7 +883,7 @@ describe('useFileHashNavigation', () => {
             selectedVariantKey,
             variantKeys: ['Default', 'Advanced'],
             initialVariant: 'Default',
-            avoidMutatingAddressBar: true,
+            fileHashMode: 'read',
           }),
         {
           initialProps: { selectedVariantKey: 'Default' },

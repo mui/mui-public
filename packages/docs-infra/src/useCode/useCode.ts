@@ -20,26 +20,15 @@ export type UseCodeOpts = {
   initialVariant?: string;
   initialTransform?: string;
   /**
-   * When true, the hook will read the hash to update state but will not add new hashes.
-   * If a hash already exists for this demo, it will be cleaned to just the demo slug.
-   * For example: `#advanced:premium:index.module.css` becomes `#advanced`
-   * If no hash exists, switching tabs/files will not add one to the URL.
-   * @default false
+   * Controls URL hash management for file navigation.
+   *
+   * - `'full'` (default): Read and write URL hashes with full detail (shareable deep links)
+   * - `'read'`: Read hash once, clean to demo slug, no further writes (embedded viewers)
+   * - `'remove'`: Read hash once, then remove completely (isolated code viewers)
+   *
+   * @default 'full'
    */
-  avoidMutatingAddressBar?: boolean;
-  /**
-   * Controls what happens to the URL hash after reading it to set initial state.
-   *
-   * - `'preserve'` (default): Hash remains in URL after reading (e.g., stays as `#demo:file.tsx`)
-   * - `'demo'`: Hash is cleaned to just demo slug (e.g., `#demo:file.tsx` becomes `#demo`)
-   * - `'remove'`: Hash is completely removed from URL (e.g., `#demo:file.tsx` becomes empty)
-   *
-   * Note: This only affects the hash cleanup behavior. The `avoidMutatingAddressBar` flag
-   * controls whether new hashes are added during subsequent user interactions.
-   *
-   * @default 'preserve'
-   */
-  fileHashAfterRead?: 'preserve' | 'demo' | 'remove';
+  fileHashMode?: 'full' | 'read' | 'remove';
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -79,8 +68,7 @@ export function useCode<T extends {} = {}>(
     initialTransform,
     preClassName,
     preRef,
-    avoidMutatingAddressBar = false,
-    fileHashAfterRead = 'preserve',
+    fileHashMode = 'full',
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -158,15 +146,13 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,
     suppressLocalStorageSync: variantSelection.suppressLocalStorageSync,
-    forceLocalStorageSync: variantSelection.forceLocalStorageSync,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,
     preClassName,
     preRef,
     effectiveCode,
-    avoidMutatingAddressBar,
-    fileHashAfterRead,
+    fileHashMode,
   });
 
   // Sub-hook: Copy Functionality

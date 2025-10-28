@@ -90,9 +90,7 @@ interface UseFileHashNavigationProps {
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
-  forceLocalStorageSync?: () => void;
-  avoidMutatingAddressBar?: boolean;
-  fileHashAfterRead?: 'preserve' | 'demo' | 'remove';
+  fileHashMode?: 'full' | 'read' | 'remove';
 }
 
 export interface UseFileHashNavigationResult {
@@ -116,14 +114,10 @@ export function useFileHashNavigation({
   effectiveCode,
   selectVariant,
   suppressLocalStorageSync,
-  forceLocalStorageSync,
-  avoidMutatingAddressBar = false,
-  fileHashAfterRead = 'preserve',
+  fileHashMode = 'full',
 }: UseFileHashNavigationProps): UseFileHashNavigationResult {
   // Track user interaction locally
-  const [hasUserInteraction, setHasUserInteraction] = React.useState(false);
-
-  // Helper to mark user interaction
+  const [hasUserInteraction, setHasUserInteraction] = React.useState(false); // Helper to mark user interaction
   const markUserInteraction = React.useCallback(() => {
     setHasUserInteraction(true);
   }, []);
@@ -178,8 +172,8 @@ export function useFileHashNavigation({
       const hashMatchesThisDemo = hash && (hash === mainSlug || hash.startsWith(`${mainSlug}:`));
 
       if (
-        fileHashAfterRead !== 'remove' &&
-        !avoidMutatingAddressBar &&
+        fileHashMode !== 'remove' &&
+        fileHashMode !== 'read' &&
         selectedVariant?.fileName &&
         hashMatchesThisDemo
       ) {
@@ -206,12 +200,11 @@ export function useFileHashNavigation({
   }, [
     selectedVariantKey,
     selectedVariant,
-    fileHashAfterRead,
+    fileHashMode,
     initialVariant,
     variantKeys,
     mainSlug,
     setHash,
-    avoidMutatingAddressBar,
     // Note: hash is intentionally NOT in dependencies to prevent loops
     // We read it to decide whether to update, but don't want hash changes to trigger this effect
   ]);
@@ -399,7 +392,7 @@ export function useFileHashNavigation({
         // Update the hash to reflect user's choice (even with avoidMutatingAddressBar)
         hashNavigationInProgressRef.current = false;
         lastVariantChangeWasUserInitiated.current = false; // Reset the flag
-        if (fileHashAfterRead === 'remove') {
+        if (fileHashMode === 'remove') {
           setHash(null);
         } else if (!matchingVariantKey || matchingVariantKey !== selectedVariantKey) {
           // Update hash if there's no variant in current hash or it's different from selected
@@ -428,27 +421,22 @@ export function useFileHashNavigation({
 
       // Handle hash cleaning for same-variant file selection
       if (!hasCleanedHashAfterRead.current) {
-        if (fileHashAfterRead === 'remove') {
+        if (fileHashMode === 'remove') {
           // Completely remove the hash from the URL
           if (hash) {
             setHash(null);
             hasCleanedHashAfterRead.current = true;
           }
-        } else if (fileHashAfterRead === 'demo' || avoidMutatingAddressBar) {
+        } else if (fileHashMode === 'read') {
           // Clean up the hash to just show demo slug
           const cleanHash = generateDemoSlug(mainSlug);
           if (cleanHash && hash !== cleanHash) {
             setHash(cleanHash);
             hasCleanedHashAfterRead.current = true;
-            // If avoidMutatingAddressBar is true, suppress localStorage sync permanently
+            // If fileHashMode is 'read', suppress localStorage sync permanently
             // This keeps the hash-driven selection active even after hash is cleaned
-            if (avoidMutatingAddressBar && suppressLocalStorageSync) {
+            if (suppressLocalStorageSync) {
               suppressLocalStorageSync('permanent');
-            }
-            // For fileHashAfterRead: 'demo', force localStorage to sync after hash is cleaned
-            // This allows localStorage preference to apply
-            else if (fileHashAfterRead === 'demo' && forceLocalStorageSync) {
-              forceLocalStorageSync();
             }
           }
         }
@@ -468,11 +456,9 @@ export function useFileHashNavigation({
     effectiveCode,
     selectedFileNameInternal,
     setSelectedFileNameInternal,
-    avoidMutatingAddressBar,
-    fileHashAfterRead,
+    fileHashMode,
     setHash,
     suppressLocalStorageSync,
-    forceLocalStorageSync,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
@@ -500,27 +486,22 @@ export function useFileHashNavigation({
 
       // Handle hash cleaning based on flags - only after completing the cross-variant navigation
       if (!hasCleanedHashAfterRead.current) {
-        if (fileHashAfterRead === 'remove') {
+        if (fileHashMode === 'remove') {
           // Completely remove the hash from the URL
           if (hash) {
             setHash(null);
             hasCleanedHashAfterRead.current = true;
           }
-        } else if (fileHashAfterRead === 'demo' || avoidMutatingAddressBar) {
+        } else if (fileHashMode === 'read') {
           // Clean up the hash to just show demo slug
           const cleanHash = generateDemoSlug(mainSlug);
           if (cleanHash && hash !== cleanHash) {
             setHash(cleanHash);
             hasCleanedHashAfterRead.current = true;
-            // If avoidMutatingAddressBar is true, suppress localStorage sync permanently
+            // If fileHashMode is 'read', suppress localStorage sync permanently
             // This keeps the hash-driven selection active even after hash is cleaned
-            if (avoidMutatingAddressBar && suppressLocalStorageSync) {
+            if (suppressLocalStorageSync) {
               suppressLocalStorageSync('permanent');
-            }
-            // For fileHashAfterRead: 'demo', force localStorage to sync after hash is cleaned
-            // This allows localStorage preference to apply
-            else if (fileHashAfterRead === 'demo' && forceLocalStorageSync) {
-              forceLocalStorageSync();
             }
           }
         }
@@ -666,12 +647,12 @@ export function useFileHashNavigation({
       // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
       if (isHashRelevantToDemo(hash, mainSlug)) {
         // Handle hash cleaning/removal based on flags
-        if (fileHashAfterRead === 'remove') {
+        if (fileHashMode === 'remove') {
           // Completely remove the hash from the URL
           if (hash) {
             setHash(null);
           }
-        } else if (fileHashAfterRead === 'demo' || avoidMutatingAddressBar) {
+        } else if (fileHashMode === 'read') {
           // Clean existing hash to just slug
           const cleanHash = generateDemoSlug(mainSlug);
           if (cleanHash && hash !== cleanHash) {
@@ -694,8 +675,7 @@ export function useFileHashNavigation({
     hasUserInteraction,
     setHash,
     hash,
-    avoidMutatingAddressBar,
-    fileHashAfterRead,
+    fileHashMode,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates
@@ -743,12 +723,12 @@ export function useFileHashNavigation({
       // Update the URL hash without adding to history (replaceState)
       if (typeof window !== 'undefined' && fileSlug && hash !== fileSlug) {
         // Handle hash cleaning/removal based on flags
-        if (fileHashAfterRead === 'remove') {
+        if (fileHashMode === 'remove') {
           // Completely remove the hash from the URL
           if (hash) {
             setHash(null);
           }
-        } else if (fileHashAfterRead === 'demo' || avoidMutatingAddressBar) {
+        } else if (fileHashMode === 'read') {
           // Only clean existing relevant hash, don't add a new hash if none exists
           if (isHashRelevantToDemo(hash, mainSlug)) {
             const cleanHash = generateDemoSlug(mainSlug);
@@ -777,8 +757,7 @@ export function useFileHashNavigation({
       markUserInteraction,
       hash,
       setSelectedFileNameInternal,
-      avoidMutatingAddressBar,
-      fileHashAfterRead,
+      fileHashMode,
     ],
   );
 

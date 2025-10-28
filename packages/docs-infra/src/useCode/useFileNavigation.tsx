@@ -91,9 +91,7 @@ interface UseFileNavigationProps {
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
-  forceLocalStorageSync?: () => void;
-  avoidMutatingAddressBar?: boolean;
-  fileHashAfterRead?: 'preserve' | 'demo' | 'remove';
+  fileHashMode?: 'full' | 'read' | 'remove';
 }
 
 export interface UseFileNavigationResult {
@@ -122,9 +120,7 @@ export function useFileNavigation({
   effectiveCode,
   selectVariant,
   suppressLocalStorageSync,
-  forceLocalStorageSync,
-  avoidMutatingAddressBar,
-  fileHashAfterRead,
+  fileHashMode = 'full',
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -144,9 +140,7 @@ export function useFileNavigation({
     effectiveCode,
     selectVariant,
     suppressLocalStorageSync,
-    forceLocalStorageSync,
-    avoidMutatingAddressBar,
-    fileHashAfterRead,
+    fileHashMode,
   });
 
   // Compute the displayed filename (transformed if applicable)
