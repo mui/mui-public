@@ -44,10 +44,11 @@ describe('Broken Links Checker', () => {
       ignoredTargets: new Set(['__should-be-ignored']),
       knownTargets: new Map([['/external-page.html', new Set(['#valid-target'])]]),
       knownTargetsDownloadUrl: [`${host}/known-targets.json`],
+      seedUrls: ['/', '/orphaned-page.html'],
     });
 
-    expect(result.links).toHaveLength(49);
-    expect(result.issues).toHaveLength(7);
+    expect(result.links).toHaveLength(52);
+    expect(result.issues).toHaveLength(8);
 
     // Check broken-link type issues
     expectIssue(result.issues, {
@@ -148,6 +149,19 @@ describe('Broken Links Checker', () => {
         src: '/page-with-api-links.html',
         href: '/api-page.html#unknown-method',
         text: 'Unknown API method',
+      },
+    });
+
+    // Test seedUrls: orphaned-page.html should be crawled even though it's not linked from anywhere
+    expect(result.pages.has('/orphaned-page.html')).toBe(true);
+
+    // Test seedUrls: broken link from orphaned page should be detected
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/orphaned-page.html',
+        href: '/orphaned-broken-link.html',
+        text: 'Broken link from orphaned page',
       },
     });
   }, 30000);

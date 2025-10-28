@@ -248,6 +248,7 @@ function getPageUrl(href, ignoredPaths = []) {
  * @property {Map<string, Set<string>>} [knownTargets]
  * @property {string[]} [knownTargetsDownloadUrl]
  * @property {number} [concurrency]
+ * @property {string[]} [seedUrls]
  */
 
 /**
@@ -269,6 +270,7 @@ function resolveOptions(rawOptions) {
     knownTargets: rawOptions.knownTargets ?? new Map(),
     knownTargetsDownloadUrl: rawOptions.knownTargetsDownloadUrl ?? [],
     concurrency: rawOptions.concurrency ?? DEFAULT_CONCURRENCY,
+    seedUrls: rawOptions.seedUrls ?? ['/'],
   };
 }
 
@@ -479,7 +481,9 @@ export async function crawl(rawOptions) {
     await pagePromise;
   }, options.concurrency);
 
-  queue.add({ src: null, text: null, href: '/' });
+  for (const seedUrl of options.seedUrls) {
+    queue.add({ src: null, text: null, href: seedUrl });
+  }
 
   await queue.waitAll();
 
