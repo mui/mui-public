@@ -445,6 +445,21 @@ export async function crawl(rawOptions) {
         };
       }
 
+      // Check if the response is HTML
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('text/html')) {
+        console.warn(
+          chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${contentType}`),
+        );
+
+        return {
+          url: pageUrl,
+          status: res.status,
+          targets: new Map(),
+          links: [],
+        };
+      }
+
       const html = await res.text();
 
       const dom = parse(html);

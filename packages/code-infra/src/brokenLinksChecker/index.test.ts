@@ -47,7 +47,7 @@ describe('Broken Links Checker', () => {
       seedUrls: ['/', '/orphaned-page.html'],
     });
 
-    expect(result.links).toHaveLength(53);
+    expect(result.links).toHaveLength(54);
     expect(result.issues).toHaveLength(8);
 
     // Check broken-link type issues
@@ -168,5 +168,11 @@ describe('Broken Links Checker', () => {
     // Test trailing slash normalization: /valid.html and /valid.html/ should be treated as the same page
     // The orphaned page has both links, but they should not cause duplicate page crawls
     expectNotIssue(result.issues, { link: { href: '/valid.html/' } });
+
+    // Test content-type checking: links inside markdown files should not be crawled
+    // The example.md file contains a link to /this-should-not-be-checked.html in an HTML snippet
+    expectNotIssue(result.issues, { link: { href: '/this-should-not-be-checked.html' } });
+    // The markdown file itself should not cause issues (it's a valid file, just not HTML)
+    expectNotIssue(result.issues, { link: { href: '/example.md' } });
   }, 30000);
 });
