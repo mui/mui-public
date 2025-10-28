@@ -503,12 +503,7 @@ function PackageVersionsSection({
   onVersionChange,
 }: PackageVersionsSectionProps) {
   const [searchParams] = useSearchParams();
-  const hoverStoreRef = React.useRef<HoverStore>(null);
-
-  // Create hover store once
-  if (!hoverStoreRef.current) {
-    hoverStoreRef.current = new HoverStore();
-  }
+  const [hoverStore] = React.useState(() => new HoverStore());
 
   const state = React.useMemo(
     () => (packageDetails ? getBreakdownState(packageDetails, selectedVersion) : null),
@@ -583,11 +578,7 @@ function PackageVersionsSection({
       </Breadcrumbs>
 
       {/* Visualization */}
-      <BreakdownVisualization
-        state={state}
-        onItemClick={onVersionChange}
-        hoverStore={hoverStoreRef.current}
-      />
+      <BreakdownVisualization state={state} onItemClick={onVersionChange} hoverStore={hoverStore} />
 
       {/* Historical Trends */}
       <Box sx={{ mt: 4 }}>
@@ -597,7 +588,7 @@ function PackageVersionsSection({
         <HistoricalTrendsSection
           packageDetails={packageDetails}
           selectedVersion={selectedVersion}
-          hoverStore={hoverStoreRef.current}
+          hoverStore={hoverStore}
         />
       </Box>
     </div>
