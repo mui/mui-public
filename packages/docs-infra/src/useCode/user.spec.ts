@@ -13,7 +13,7 @@
  * These tests serve as comprehensive documentation of all expected behaviors.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import { useCode } from './useCode';
 import type { ContentProps } from '../CodeHighlighter/types';
 
@@ -68,10 +68,21 @@ describe('useCode integration tests', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clear the hash BEFORE cleanup so components see the empty hash
+    window.location.hash = '';
+
+    // Ensure all hooks are unmounted
+    cleanup();
+
     Object.defineProperty(window, 'location', {
       writable: true,
       value: originalLocation,
+    });
+
+    // Wait for all async effects to complete
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
     });
   });
 
@@ -473,6 +484,198 @@ describe('useCode integration tests', () => {
         () => {
           // Hash should take precedence
           expect(result.current.selectedVariant).toBe('Python');
+          expect(result.current.selectedFileName).toBe('demo.py');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
+    });
+
+    it('should switch to hash variant even when localStorage has default variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+            extraFiles: {
+              'utils.ts': 'export const util = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Mock localStorage to have JavaScript (default) preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'JavaScript';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // But hash specifies TypeScript with extra file
+      window.location.hash = '#test-slug:type-script:utils.ts';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          // Hash should take precedence - should switch to TypeScript and select utils.ts
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('utils.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
+    });
+
+    it('should not clear hash when initial mount has both localStorage and hash', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+            extraFiles: {
+              'utils.ts': 'export const util = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Mock localStorage to have JavaScript preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'JavaScript';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Hash points to TypeScript variant with extra file
+      window.location.hash = '#test-slug:type-script:utils.ts';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          // Should switch to TypeScript as specified in hash
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('utils.ts');
+          // Hash should still be present (not cleared)
+          expect(window.location.hash).toBe('#test-slug:type-script:utils.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
+    });
+
+    it('should switch variants on mount even with fileHashAfterRead remove and localStorage', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+            extraFiles: {
+              'utils.ts': 'export const util = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Mock localStorage to have JavaScript preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'JavaScript';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Hash points to TypeScript variant with extra file
+      window.location.hash = '#test-slug:type-script:utils.ts';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'remove' }));
+
+      await waitFor(
+        () => {
+          // Should switch to TypeScript and select the file even though fileHashAfterRead is 'remove'
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('utils.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
+    });
+
+    it('should respect hash variant on mount with avoidMutatingAddressBar and localStorage preference', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: 'const x = 1;',
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Mock localStorage to have CssModules preference (matching real scenario)
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'CssModules';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Hash points to Tailwind variant (using kebab-case as it appears in URL)
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      // Hash should take precedence over localStorage - should load Tailwind, not CssModules
+      // With avoidMutatingAddressBar, hash should be cleaned to just #hero after loading
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+          // Hash should be cleaned to just the slug with avoidMutatingAddressBar
+          expect(window.location.hash).toBe('#hero');
         },
         { timeout: 1000 },
       );
@@ -1793,6 +1996,152 @@ describe('useCode integration tests', () => {
         },
         { timeout: 1000 },
       );
+    });
+
+    it('should not update localStorage when navigating via hash to different variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      const originalGetItem = Storage.prototype.getItem;
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.getItem = mockGetItem;
+      Storage.prototype.setItem = mockSetItem;
+
+      // Set hash to TypeScript variant file BEFORE rendering
+      window.location.hash = '#demo:type-script:index.ts';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('index.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // localStorage should NOT have been updated for hash-driven navigation
+      // Filter out any calls that might be for transforms or other preferences
+      const variantCalls = mockSetItem.mock.calls.filter(
+        (call) => call[0] && call[0].includes('variant_pref'),
+      );
+      expect(variantCalls).toHaveLength(0);
+
+      // Restore
+      Storage.prototype.getItem = originalGetItem;
+      Storage.prototype.setItem = originalSetItem;
+    });
+
+    it('should not update localStorage when hash changes AFTER mount to trigger variant switch', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+          },
+          Python: {
+            fileName: 'index.py',
+            source: 'x = 1',
+          },
+        },
+      };
+
+      // Mock localStorage
+      const mockGetItem = vi.fn();
+      const mockSetItem = vi.fn();
+      const originalGetItem = Storage.prototype.getItem;
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.getItem = mockGetItem;
+      Storage.prototype.setItem = mockSetItem;
+
+      // Ensure hash is empty before starting
+      window.location.hash = '';
+
+      // Start with JavaScript variant
+      window.location.hash = '#demo:index.js';
+
+      const { result, unmount } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // Clear any calls from initialization
+      mockSetItem.mockClear();
+
+      // Verify we're starting from JavaScript
+      expect(result.current.selectedVariant).toBe('JavaScript');
+      expect(window.location.hash).toBe('#demo:index.js');
+
+      // Now change hash to TypeScript variant AFTER mount
+      act(() => {
+        window.location.hash = '#demo:type-script:index.ts';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('index.ts');
+        },
+        { timeout: 2000 },
+      );
+
+      // localStorage should NOT have been updated for hash-driven navigation
+      const variantCalls = mockSetItem.mock.calls.filter(
+        (call) => call[0] && call[0].includes('variant_pref'),
+      );
+      expect(variantCalls).toHaveLength(0);
+
+      // Change to Python variant via hash
+      mockSetItem.mockClear();
+      act(() => {
+        window.location.hash = '#demo:python:index.py';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Python');
+          expect(result.current.selectedFileName).toBe('index.py');
+        },
+        { timeout: 1000 },
+      );
+
+      // Still should not update localStorage
+      const pythonVariantCalls = mockSetItem.mock.calls.filter(
+        (call) => call[0] && call[0].includes('variant_pref'),
+      );
+      expect(pythonVariantCalls).toHaveLength(0);
+
+      // Cleanup
+      unmount();
+
+      // Restore
+      Storage.prototype.getItem = originalGetItem;
+      Storage.prototype.setItem = originalSetItem;
     });
   });
 

@@ -82,15 +82,16 @@ export function useVariantSelection({
   }, [hasInitialized, hasRelevantUrlHash, storedValue, variantKeys]);
 
   // Sync with localStorage changes (but don't override programmatic changes or when hash is present)
-  // Only sync when storedValue changes, not when selectedVariantKey changes
-  const prevStoredValue = React.useRef(storedValue);
+  // Only sync when storedValue changes AND it's different from what we expect
+  const expectedStoredValue = React.useRef<string | null>(storedValue);
   React.useEffect(() => {
     // Don't sync from localStorage when a relevant URL hash is present - hash takes absolute priority
     if (hasRelevantUrlHash) {
       return;
     }
-    if (storedValue !== prevStoredValue.current) {
-      prevStoredValue.current = storedValue;
+    // Only sync if the stored value changed AND it's not what we expected (meaning it changed externally)
+    if (storedValue !== expectedStoredValue.current) {
+      expectedStoredValue.current = storedValue;
       if (storedValue && variantKeys.includes(storedValue) && storedValue !== selectedVariantKey) {
         setSelectedVariantKeyState(storedValue);
       }
@@ -99,25 +100,35 @@ export function useVariantSelection({
 
   const setSelectedVariantKeyProgrammatic = React.useCallback(
     (value: React.SetStateAction<string>) => {
-      const resolvedValue = typeof value === 'function' ? value(selectedVariantKey) : value;
-      if (variantKeys.includes(resolvedValue)) {
-        // Only update React state, not localStorage
-        // This prevents conflicts with hash-driven navigation
-        setSelectedVariantKeyState(resolvedValue);
-      }
+      setSelectedVariantKeyState((currentKey) => {
+        const resolvedValue = typeof value === 'function' ? value(currentKey) : value;
+        if (variantKeys.includes(resolvedValue)) {
+          // Only update React state, not localStorage
+          // This prevents conflicts with hash-driven navigation
+          return resolvedValue;
+        }
+        return currentKey;
+      });
     },
-    [selectedVariantKey, variantKeys],
+    [variantKeys],
   );
+
+  const selectedVariantKeyRef = React.useRef(selectedVariantKey);
+  React.useEffect(() => {
+    selectedVariantKeyRef.current = selectedVariantKey;
+  });
 
   const setSelectedVariantKeyAsUser = React.useCallback(
     (value: React.SetStateAction<string>) => {
-      const resolvedValue = typeof value === 'function' ? value(selectedVariantKey) : value;
+      const resolvedValue =
+        typeof value === 'function' ? value(selectedVariantKeyRef.current) : value;
       if (variantKeys.includes(resolvedValue)) {
         setSelectedVariantKeyState(resolvedValue);
         setStoredValue(resolvedValue);
+        expectedStoredValue.current = resolvedValue;
       }
     },
-    [setStoredValue, selectedVariantKey, variantKeys],
+    [setStoredValue, variantKeys],
   );
 
   const selectedVariant = React.useMemo(() => {

@@ -25,18 +25,19 @@ export function toKebabCase(str: string): string {
 }
 
 /**
- * Checks if the URL hash is relevant to a specific demo
- * Hash format is: {mainSlug}:{variantName}:{fileName} or {mainSlug}:{fileName}
+ * Check if URL hash is relevant to this specific demo
  * @param urlHash - The URL hash (without '#')
  * @param mainSlug - The main slug for the demo
- * @returns true if the hash starts with the demo's slug
+ * @returns true if the hash starts with the demo's slug or equals the demo's slug
  */
 export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string): boolean {
   if (!urlHash || !mainSlug) {
     return false;
   }
   const kebabSlug = toKebabCase(mainSlug);
-  return urlHash.startsWith(`${kebabSlug}:`);
+  // Hash is relevant if it starts with the slug followed by a colon (e.g., "hero:tailwind:file.ts")
+  // OR if it equals just the slug (e.g., "hero" after cleaning with avoidMutatingAddressBar)
+  return urlHash.startsWith(`${kebabSlug}:`) || urlHash === kebabSlug;
 }
 
 /**

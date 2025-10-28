@@ -132,12 +132,35 @@ export function useFileHashNavigation({
   const justCompletedPendingSelection = React.useRef(false);
   const hashNavigationInProgressRef = React.useRef(false);
 
+  // Track if the last variant change was user-initiated (not hash-driven)
+  const lastVariantChangeWasUserInitiated = React.useRef(false);
+
   // Track if we've already cleaned the hash after reading it (for fileHashAfterRead flag)
   const hasCleanedHashAfterRead = React.useRef(false);
 
   // Track the previous variant and file to detect actual changes
   const prevVariantKeyRef = React.useRef<string | undefined>(undefined);
   const prevSelectedFileRef = React.useRef<string | undefined>(undefined);
+
+  // Use a ref to always have the latest selectVariant without it being a dependency
+  const selectVariantRef = React.useRef(selectVariant);
+  React.useEffect(() => {
+    selectVariantRef.current = selectVariant;
+  });
+
+  // Track when variant changes without hash navigation in progress
+  React.useEffect(() => {
+    if (prevVariantKeyRef.current && prevVariantKeyRef.current !== selectedVariantKey) {
+      // Variant changed - check if this was hash-driven or user-initiated
+      if (!hashNavigationInProgressRef.current) {
+        // Variant changed but hash navigation wasn't in progress - must be user-initiated
+        lastVariantChangeWasUserInitiated.current = true;
+      } else {
+        // Hash navigation was in progress - this was hash-driven
+        lastVariantChangeWasUserInitiated.current = false;
+      }
+    }
+  }, [selectedVariantKey]);
 
   // Cleanup effect: ensure hashNavigationInProgressRef is cleared when hash changes
   // This prevents the flag from getting stuck if hash-driven navigation completes
@@ -231,7 +254,7 @@ export function useFileHashNavigation({
     }
 
     // Step 2: If no match and we can switch variants, search other variants
-    if (!matchingFileName && effectiveCode && selectVariant) {
+    if (!matchingFileName && effectiveCode && selectVariantRef.current) {
       for (const [variantKey, variant] of Object.entries(effectiveCode)) {
         // Skip current variant (already checked) and invalid variants
         if (variantKey === selectedVariantKey || !variant || typeof variant === 'string') {
@@ -268,7 +291,6 @@ export function useFileHashNavigation({
             }
           }
         }
-
         if (matchingFileName) {
           break;
         }
@@ -279,11 +301,51 @@ export function useFileHashNavigation({
       hashNavigationInProgressRef.current = true;
 
       // If the matching file is in a different variant, switch to that variant first
-      if (matchingVariantKey !== selectedVariantKey && selectVariant) {
+      // BUT only if the last variant change wasn't user-initiated - if user manually switched variants,
+      // don't switch back based on a stale hash. Let the variant change effect handle file reset.
+      const variantJustChanged = prevVariantKeyRef.current !== selectedVariantKey;
+
+      if (
+        matchingVariantKey !== selectedVariantKey &&
+        selectVariantRef.current &&
+        !(variantJustChanged && lastVariantChangeWasUserInitiated.current)
+      ) {
         // Set pending file selection and switch variant
         // The pending file will be selected in the next render via useEffect
+        // Mark that this variant change is hash-driven
+        lastVariantChangeWasUserInitiated.current = false;
         pendingFileSelection.current = matchingFileName;
-        selectVariant(matchingVariantKey);
+        selectVariantRef.current(matchingVariantKey);
+        return;
+      }
+
+      // If variant just changed due to user action and hash doesn't match, clear the hash
+      if (
+        variantJustChanged &&
+        lastVariantChangeWasUserInitiated.current &&
+        matchingVariantKey !== selectedVariantKey
+      ) {
+        // User manually switched variants, but hash points to a file in a different variant
+        // Clear or update the hash instead of switching back
+        hashNavigationInProgressRef.current = false;
+        lastVariantChangeWasUserInitiated.current = false; // Reset the flag
+        if (fileHashAfterRead === 'remove' || avoidMutatingAddressBar) {
+          setHash(null);
+        } else {
+          // Update hash to current variant's main file
+          const isInitialVariant = initialVariant
+            ? selectedVariantKey === initialVariant
+            : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+          const newHash = generateFileSlug(
+            mainSlug,
+            selectedVariant?.fileName || '',
+            selectedVariantKey,
+            isInitialVariant,
+          );
+          if (newHash) {
+            setHash(newHash);
+          }
+        }
         return;
       }
 
@@ -322,7 +384,6 @@ export function useFileHashNavigation({
     mainSlug,
     transformedFiles,
     effectiveCode,
-    selectVariant,
     selectedFileNameInternal,
     setSelectedFileNameInternal,
     avoidMutatingAddressBar,
@@ -331,7 +392,7 @@ export function useFileHashNavigation({
   ]);
 
   // Run hash check when URL hash changes to select the matching file
-  // Only depends on hash to avoid re-running when the callback recreates due to variant state changes
+  // Also re-run when variant changes to complete cross-variant navigation
   React.useEffect(() => {
     // If there's a hash on mount, treat it as user interaction
     // (The user or a link brought them to this URL with a specific file selected)
@@ -340,7 +401,7 @@ export function useFileHashNavigation({
     }
     checkUrlHashAndSelectFile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hash]);
+  }, [hash, selectedVariantKey]);
 
   // When variant switches with a pending file selection, complete the file selection
   // Use useLayoutEffect to set file synchronously during the commit phase
