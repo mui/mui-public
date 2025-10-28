@@ -98,6 +98,7 @@ interface UseCodeOpts {
   stackBlitzPrefix?: string; // StackBlitz URL prefix
   initialVariant?: string; // Initially selected variant
   initialTransform?: string; // Initially selected transform
+  fileHashMode?: 'full' | 'read' | 'remove'; // Controls URL hash management
 }
 ```
 
@@ -117,6 +118,9 @@ The hook returns a `code` object with the following properties:
 - **`selectedFile: React.ReactNode`** - Currently selected file component
 - **`selectedFileName: string | undefined`** - Name of currently selected file
 - **`selectFileName: (fileName: string) => void`** - Function to select a file (automatically updates URL hash)
+  - **Progressive Enhancement**: Attach to `<a>` tags with `href={"#" + file.slug}` for no-JS support
+  - The function will call `e.preventDefault()` after hydration
+  - Use CSS `:target` and `:has()` selectors to show/hide tabs before JS loads
 
 #### UI State
 
@@ -177,6 +181,79 @@ function CodeViewer(props) {
       {code.selectedFile}
     </div>
   );
+}
+```
+
+### Controlling URL Hash Behavior
+
+The hook provides fine-grained control over URL hash management through the `fileHashMode` option, which offers three modes to suit different use cases:
+
+#### fileHashMode
+
+Controls how the hook interacts with URL hashes for file navigation. This single option provides complete control over hash reading, writing, and cleanup behavior.
+
+**Options:**
+
+- **`'full'` (default)**: Full bidirectional hash synchronization
+  - Reads URL hash on mount to select the correct file/variant
+  - Updates URL hash when users select different files or variants
+  - Preserves complete file context in shareable links
+  - **Use case**: Standard documentation where users want shareable deep links to specific files
+
+- **`'read'`**: Read-once with cleanup
+  - Reads URL hash on mount to select the initial file/variant
+  - Cleans hash to just the demo slug after applying state (e.g., `#demo:file.tsx` → `#demo`)
+  - Does not update hash when users interact with files
+  - **Use case**: Embedded code viewers that respect initial state but keep URLs clean
+
+- **`'remove'`**: Read-once, then remove
+  - Reads URL hash on mount to select the initial file/variant
+  - Completely removes the hash after applying state (e.g., `#demo:file.tsx` → empty)
+  - Does not update hash for any user interactions
+  - **Use case**: Isolated code displays where URL pollution should be completely avoided
+
+#### Examples
+
+**Full mode (default) - Shareable deep links:**
+
+```tsx
+function StandardCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'full', // Can be omitted as it's the default
+  });
+
+  // URL updates as user navigates: #demo:styles.css
+  // Perfect for documentation where users share specific file links
+}
+```
+
+**Read mode - Clean URLs for embedded viewers:**
+
+```tsx
+function EmbeddedCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'read',
+  });
+
+  // If URL is #demo:variant:styles.css, that file is selected on mount
+  // Hash is then cleaned to #demo (file selection is preserved in state)
+  // User can select different files without changing the URL
+  // Perfect for embedded scenarios that respect initial state
+}
+```
+
+**Remove mode - Complete isolation:**
+
+```tsx
+function IsolatedCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'remove',
+  });
+
+  // If URL is #demo:file.tsx, that file is selected on mount
+  // Hash is then completely removed (file selection is preserved in state)
+  // No subsequent hash changes occur
+  // Perfect for clean, self-contained code displays
 }
 ```
 
@@ -292,6 +369,11 @@ When your code has multiple files, you should provide navigation between them. T
 > [!NOTE]
 > If you're creating demos that combine component previews with multi-file code examples, consider using [`useDemo`](../use-demo/page.mdx) instead, which handles both component rendering and file navigation.
 
+> [!TIP]
+> **Progressive Enhancement**: Use `<a>` tags with `href` attributes for file tabs to enable navigation before JavaScript loads. The `selectFileName` function will prevent default navigation after hydration, while CSS `:target` and `:has()` selectors can show/hide content based on the URL hash.
+>
+> If a user clicks a tab before JavaScript loads, the browser navigates to the hash URL. When the page hydrates, the hook reads this hash and updates the React state accordingly - **no clicks are lost** during the transition from CSS-only to JavaScript-controlled navigation.
+
 ```tsx
 function CodeWithTabs(props) {
   const code = useCode(props, { preClassName: styles.codeBlock });
@@ -302,15 +384,19 @@ function CodeWithTabs(props) {
         {code.files.length > 1 ? (
           <div className={styles.tabContainer}>
             {code.files.map((file) => (
-              <button
+              <a
                 key={file.name}
-                onClick={() => code.selectFileName(file.name)}
+                href={`#${file.slug}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  code.selectFileName(file.name);
+                }}
                 className={`${styles.tab} ${
                   code.selectedFileName === file.name ? styles.active : ''
                 }`}
               >
                 {file.name}
-              </button>
+              </a>
             ))}
           </div>
         ) : (
@@ -318,9 +404,49 @@ function CodeWithTabs(props) {
         )}
       </div>
 
-      <div className={styles.codeContent}>{code.selectedFile}</div>
+      <div className={styles.codeContent}>
+        {code.files.map((file) => (
+          <div
+            key={file.name}
+            id={file.slug}
+            className={`${styles.codeFile} ${
+              code.selectedFileName === file.name ? styles.selected : ''
+            }`}
+          >
+            {file.component}
+          </div>
+        ))}
+      </div>
     </div>
   );
+}
+```
+
+**CSS for Progressive Enhancement:**
+
+```css
+/* Hide all files by default */
+.codeFile {
+  display: none;
+}
+
+/* Show first file when no hash target exists */
+.codeContent:not(:has(.codeFile:target)) .codeFile:first-of-type {
+  display: block;
+}
+
+/* Show targeted file when hash exists */
+.codeFile:target {
+  display: block;
+}
+
+/* After JS loads, let React control visibility */
+.container:has(.tab.active) .codeFile {
+  display: none; /* Disable CSS-based visibility when JS is active */
+}
+
+.container:has(.tab.active) .codeFile.selected {
+  display: block; /* React-controlled selection */
 }
 ```
 
@@ -360,9 +486,10 @@ The hook generates URL hashes for file navigation following these patterns:
 ### URL Management Behavior
 
 - **Initial Load**: If URL contains a hash matching a file slug, that file is automatically selected
-- **File Selection**: Selecting a file updates the URL hash without adding to browser history (uses `replaceState`)
-- **Variant Changes**: When variants change, URL is updated to reflect the new variant for the current file
+- **File Selection**: By default (`fileHashMode: 'full'`), selecting a file updates the URL hash without adding to browser history (uses `replaceState`)
+- **Variant Changes**: When variants change and a hash exists for this demo, URL is updated to reflect the new variant for the current file
 - **No Auto-Hash**: URLs are only set when user explicitly selects files or when URL hash is already present
+- **Controlled Behavior**: Use `fileHashMode: 'read'` or `'remove'` to prevent hash updates while still reading initial state
 
 ## Sub-hooks Architecture
 
@@ -379,6 +506,20 @@ Handles code transforms, including delta validation and transform application.
 ### useFileNavigation
 
 Manages file selection and navigation within code variants. Features URL hash management for deep-linking and automatic slug generation for each file.
+
+### useFileHashNavigation
+
+A dedicated sub-hook that handles all URL hash management for file navigation. Controlled through the `fileHashMode` option with three distinct modes: `'full'` (default bidirectional sync), `'read'` (read-once with cleanup), and `'remove'` (read-once then remove). 
+
+**All modes read the URL hash on mount** to determine initial file and variant selection. The difference is in what happens to the hash after that initial read and whether the hook continues to update it during user interactions.
+
+This hook encapsulates the complex logic for:
+
+- Reading and parsing URL hashes to determine initial file selection (all modes)
+- Updating hashes when users select files (in `'full'` mode only)
+- Cleaning hashes after initial read: keeps demo slug in `'read'` mode, removes completely in `'remove'` mode
+- Handling variant changes and cross-variant file navigation
+- Preventing infinite loops and managing navigation state
 
 ### useUIState
 
@@ -538,3 +679,11 @@ Ensure your component is used within a `CodeHighlighter` component that provides
 - Ensure file names are unique within each variant
 - Check that `extraFiles` and main files don't have conflicting names
 - Verify transforms don't create duplicate file names
+
+### Hash Behavior Not Working as Expected
+
+- **Hash not being cleaned**: Ensure `fileHashMode` is set to `'read'` or `'remove'` and the hash belongs to the current demo
+- **Hash still updating on clicks**: Verify `fileHashMode` is set to `'read'` or `'remove'` (default is `'full'` which updates hashes)
+- **Initial file not selected**: Check that the hash format matches the generated slugs (`mainSlug:fileName` or `mainSlug:variant:fileName`)
+- **Hash removed unexpectedly**: If using `fileHashMode: 'remove'`, the hash will be removed on mount - this is expected behavior
+- **Hash persisting after navigation**: With `fileHashMode: 'read'`, the simplified demo hash is preserved; use `'remove'` if you want complete removal
