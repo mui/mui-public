@@ -2086,6 +2086,192 @@ describe('useCode integration tests', () => {
       Storage.prototype.getItem = originalGetItem;
     });
 
+    it('should allow user to manually change variants when avoidMutatingAddressBar is false', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with hash pointing to JavaScript variant
+      window.location.hash = '#demo:index.js';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // User manually changes to TypeScript
+      act(() => {
+        result.current.selectVariant('TypeScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('index.ts');
+          // Hash should be updated to reflect the variant change
+          expect(window.location.hash).toBe('#demo:type-script:index.ts');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should allow user to switch from alternative variant to default variant', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with hash pointing to TypeScript variant (alternative variant)
+      window.location.hash = '#demo:type-script:index.ts';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // User manually changes to JavaScript (default variant)
+      act(() => {
+        result.current.selectVariant('JavaScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+          expect(result.current.selectedFileName).toBe('index.js');
+          // Hash should be updated to reflect the default variant
+          expect(window.location.hash).toBe('#demo:index.js');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should allow user to manually change variants when avoidMutatingAddressBar is true', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with hash pointing to JavaScript variant
+      window.location.hash = '#demo:index.js';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+          // Hash should be cleaned to just slug
+          expect(window.location.hash).toBe('#demo');
+        },
+        { timeout: 1000 },
+      );
+
+      // User manually changes to TypeScript
+      act(() => {
+        result.current.selectVariant('TypeScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('index.ts');
+          // With avoidMutatingAddressBar, hash should stay clean (just slug)
+          expect(window.location.hash).toBe('#demo');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should not cause infinite loop when user changes variant with hash present', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: 'const x = 1;',
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with hash pointing to Tailwind variant
+      window.location.hash = '#hero:tailwind:index.tsx';
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+        },
+        { timeout: 1000 },
+      );
+
+      // User manually changes to CssModules (default variant)
+      act(() => {
+        result.current.selectVariant('CssModules');
+      });
+
+      // Wait for the change to settle
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('CssModules');
+        },
+        { timeout: 1000 },
+      );
+
+      // Verify it stayed on CssModules (no loop back to Tailwind)
+      expect(result.current.selectedVariant).toBe('CssModules');
+      expect(result.current.selectedFileName).toBe('index.tsx');
+      expect(window.location.hash).toBe('#hero:index.tsx');
+
+      // Wait a bit more to ensure no variant switching occurs
+      await new Promise((resolve) => {
+        setTimeout(resolve, 100);
+      });
+
+      // Should still be on CssModules (not alternating)
+      expect(result.current.selectedVariant).toBe('CssModules');
+      expect(window.location.hash).toBe('#hero:index.tsx');
+    });
+
     it('should not update localStorage when navigating via hash to different variant', async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'demo',

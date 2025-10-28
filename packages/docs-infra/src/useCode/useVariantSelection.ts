@@ -145,7 +145,13 @@ export function useVariantSelection({
     (value: React.SetStateAction<string>) => {
       const resolvedValue =
         typeof value === 'function' ? value(selectedVariantKeyRef.current) : value;
+
       if (variantKeys.includes(resolvedValue)) {
+        // Clear any permanent suppression when user manually changes variant
+        // This allows the user's choice to take effect even if hash navigation had set permanent suppression
+        suppressLocalStorageSync.current = false;
+        justSetProgrammatically.current = false;
+
         setSelectedVariantKeyState(resolvedValue);
         setStoredValue(resolvedValue);
         expectedStoredValue.current = resolvedValue;
