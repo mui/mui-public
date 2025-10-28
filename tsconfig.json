@@ -18,7 +18,8 @@
     { "path": "packages/docs-infra" },
     { "path": "packages/netlify-cache" },
     { "path": "tsconfig.node.json" },
-    { "path": "scripts" }
+    { "path": "scripts" },
+    { "path": "docs" }
   ],
   "files": []
 }
