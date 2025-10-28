@@ -1575,6 +1575,225 @@ describe('useCode integration tests', () => {
 
       Storage.prototype.getItem = originalGetItem;
     });
+
+    it('should not add hash when none exists and user switches tabs/files', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'advanced',
+        code: {
+          Basic: {
+            fileName: 'index.tsx',
+            source: 'export default BasicComponent;',
+            extraFiles: {
+              'styles.css': '.basic { color: blue; }',
+            },
+          },
+          Advanced: {
+            fileName: 'index.tsx',
+            source: 'export default AdvancedComponent;',
+            extraFiles: {
+              'config.ts': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      // Start with no hash
+      window.location.hash = '';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('Basic');
+        expect(result.current.selectedFileName).toBe('index.tsx');
+      });
+
+      // User switches to Advanced variant
+      act(() => {
+        result.current.selectVariant('Advanced');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Advanced');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should remain empty (not add #advanced)
+      expect(window.location.hash).toBe('');
+
+      // User selects a different file
+      act(() => {
+        result.current.selectFileName('config.ts');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('config.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should still be empty
+      expect(window.location.hash).toBe('');
+    });
+  });
+
+  describe('fileHashAfterRead flag', () => {
+    it('should completely remove hash when fileHashAfterRead is "remove"', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'advanced',
+        code: {
+          Default: {
+            fileName: 'index.tsx',
+            source: 'export default Component;',
+            extraFiles: {
+              'index.module.css': '.component { color: red; }',
+              'utils.ts': 'export const util = () => {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash including file name
+      window.location.hash = '#advanced:index.module.css';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'remove' }));
+
+      await waitFor(
+        () => {
+          // Should read the hash and update state to select the file
+          expect(result.current.selectedFileName).toBe('index.module.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be completely removed
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should remove hash with variant in URL when fileHashAfterRead is "remove"', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'helper.js': 'export const help = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+            extraFiles: {
+              'helper.ts': 'export const help = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Hash includes variant and file
+      window.location.hash = '#demo:type-script:helper.ts';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'remove' }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('helper.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be completely removed
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should not add hash when none exists with fileHashAfterRead "remove"', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test',
+        code: {
+          Basic: {
+            fileName: 'index.tsx',
+            source: 'export default BasicComponent;',
+          },
+          Advanced: {
+            fileName: 'index.tsx',
+            source: 'export default AdvancedComponent;',
+          },
+        },
+      };
+
+      // Start with no hash
+      window.location.hash = '';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'remove' }));
+
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('Basic');
+      });
+
+      // User switches to Advanced variant
+      act(() => {
+        result.current.selectVariant('Advanced');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Advanced');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should remain empty (not add one)
+      expect(window.location.hash).toBe('');
+    });
+
+    it('should clean hash to demo slug when fileHashAfterRead is "demo"', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          Default: {
+            fileName: 'index.tsx',
+            source: 'export default Hero;',
+            extraFiles: {
+              'styles.css': '.hero { color: blue; }',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#hero:styles.css';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashAfterRead: 'demo' }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('styles.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned to just demo slug
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#hero');
+        },
+        { timeout: 1000 },
+      );
+    });
   });
 
   describe('edge cases', () => {

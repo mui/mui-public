@@ -20,12 +20,26 @@ export type UseCodeOpts = {
   initialVariant?: string;
   initialTransform?: string;
   /**
-   * When true, the hook will read the hash to update state but will clean it to just the demo slug.
-   * The variant and file information is removed from the URL while state is maintained internally.
+   * When true, the hook will read the hash to update state but will not add new hashes.
+   * If a hash already exists for this demo, it will be cleaned to just the demo slug.
    * For example: `#advanced:premium:index.module.css` becomes `#advanced`
+   * If no hash exists, switching tabs/files will not add one to the URL.
    * @default false
    */
   avoidMutatingAddressBar?: boolean;
+  /**
+   * Controls what happens to the URL hash after reading it to set initial state.
+   *
+   * - `'preserve'` (default): Hash remains in URL after reading (e.g., stays as `#demo:file.tsx`)
+   * - `'demo'`: Hash is cleaned to just demo slug (e.g., `#demo:file.tsx` becomes `#demo`)
+   * - `'remove'`: Hash is completely removed from URL (e.g., `#demo:file.tsx` becomes empty)
+   *
+   * Note: This only affects the hash cleanup behavior. The `avoidMutatingAddressBar` flag
+   * controls whether new hashes are added during subsequent user interactions.
+   *
+   * @default 'preserve'
+   */
+  fileHashAfterRead?: 'preserve' | 'demo' | 'remove';
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -66,6 +80,7 @@ export function useCode<T extends {} = {}>(
     preClassName,
     preRef,
     avoidMutatingAddressBar = false,
+    fileHashAfterRead = 'preserve',
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -149,6 +164,7 @@ export function useCode<T extends {} = {}>(
     preRef,
     effectiveCode,
     avoidMutatingAddressBar,
+    fileHashAfterRead,
   });
 
   // Sub-hook: Copy Functionality

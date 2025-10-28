@@ -745,12 +745,12 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('advanced');
     });
 
-    it('should use demo-only format when user selects a file', () => {
+    it('should not add hash when user selects a file and no hash exists', () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
         extraFiles: {
-          'styles.css': 'body { margin: 0; }',
+          'styles.css': '.button { color: blue; }',
         },
       };
 
@@ -779,8 +779,8 @@ describe('useFileHashNavigation', () => {
       // Should have selected the file
       expect(setSelectedFileNameInternal).toHaveBeenCalledWith('styles.css');
 
-      // Should have set hash to demo-only format (not including filename)
-      expect(mockSetHash).toHaveBeenCalledWith('demo');
+      // Should NOT have set a hash (avoids adding hash when none exists)
+      expect(mockSetHash).not.toHaveBeenCalled();
     });
 
     it('should clean hash to just slug regardless of variant', () => {
