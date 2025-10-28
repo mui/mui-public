@@ -2,7 +2,8 @@
 import { execaCommand } from 'execa';
 import timers from 'node:timers/promises';
 import { parse } from 'node-html-parser';
-import fs from 'node:fs/promises';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 
@@ -108,6 +109,8 @@ async function writePagesToFile(pages, outPath) {
   for (const [url, pageData] of pages.entries()) {
     fileContent.targets[url] = Array.from(pageData.targets.keys());
   }
+  const dir = path.dirname(outPath);
+  await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(outPath, JSON.stringify(fileContent, null, 2), 'utf-8');
 }
 
