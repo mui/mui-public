@@ -25,22 +25,47 @@ describe('useCode integration tests', () => {
     window.localStorage.clear();
 
     originalLocation = window.location;
-    // Mock window.location with proper URL handling
-    const mockLocation = {
+
+    // Create a mock location object that we can update
+    let mockHash = '';
+    const mockLocation: any = {
       ...originalLocation,
-      hash: '',
+      get hash() {
+        return mockHash;
+      },
+      set hash(value: string) {
+        // Ensure hash includes the # if provided
+        if (value.startsWith('#')) {
+          mockHash = value;
+        } else if (value) {
+          mockHash = `#${value}`;
+        } else {
+          mockHash = '';
+        }
+      },
       pathname: '/test',
       search: '',
       href: 'http://localhost/test',
     };
+
     Object.defineProperty(window, 'location', {
       writable: true,
       value: mockLocation,
     });
 
-    // Mock history API
-    window.history.replaceState = vi.fn();
-    window.history.pushState = vi.fn();
+    // Mock history API to actually update mock location hash
+    window.history.replaceState = vi.fn((state, title, url) => {
+      if (url) {
+        const hashIndex = url.indexOf('#');
+        mockLocation.hash = hashIndex >= 0 ? url.substring(hashIndex) : '';
+      }
+    });
+    window.history.pushState = vi.fn((state, title, url) => {
+      if (url) {
+        const hashIndex = url.indexOf('#');
+        mockLocation.hash = hashIndex >= 0 ? url.substring(hashIndex) : '';
+      }
+    });
   });
 
   afterEach(() => {
@@ -1079,6 +1104,476 @@ describe('useCode integration tests', () => {
 
       // Should have updated the hash to include tailwind variant
       expect(hashUpdates.some((url: string) => url.includes('tailwind'))).toBe(true);
+    });
+  });
+
+  describe('avoidMutatingAddressBar flag', () => {
+    it('should read hash with file and clean it to remove file portion', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'advanced',
+        code: {
+          Default: {
+            fileName: 'index.tsx',
+            source: 'export default Component;',
+            extraFiles: {
+              'index.module.css': '.component { color: red; }',
+              'utils.ts': 'export const util = () => {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash including file name
+      window.location.hash = '#advanced:index.module.css';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(
+        () => {
+          // Should read the hash and update state to select the file
+          expect(result.current.selectedFileName).toBe('index.module.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned to remove file portion
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#advanced');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should clean hash when variant is included in URL', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'helper.js': 'export const help = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+            extraFiles: {
+              'helper.ts': 'export const help = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Hash includes variant and file
+      window.location.hash = '#demo:type-script:helper.ts';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('helper.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned to just demo slug (no variant, no file)
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#demo');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should handle variant changes and keep hash clean', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'hero',
+        code: {
+          CssModules: {
+            fileName: 'index.tsx',
+            source: '<Hero />',
+            extraFiles: {
+              'styles.module.css': '.hero { color: blue; }',
+            },
+          },
+          Tailwind: {
+            fileName: 'index.tsx',
+            source: '<Hero />',
+            extraFiles: {
+              'config.ts': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#hero:css-modules:styles.module.css';
+
+      const { result } = renderHook(() =>
+        useCode(contentProps, {
+          avoidMutatingAddressBar: true,
+          initialVariant: 'Tailwind',
+        }),
+      );
+
+      // Wait for variant to switch and file to be selected
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('CssModules');
+        },
+        { timeout: 1000 },
+      );
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('styles.module.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#hero');
+        },
+        { timeout: 1000 },
+      );
+
+      // User switches variant
+      act(() => {
+        result.current.selectVariant('Tailwind');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should stay clean (just slug, no variant)
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#hero');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should handle file selection while keeping hash clean', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          Default: {
+            fileName: 'main.js',
+            source: 'console.log("main");',
+            extraFiles: {
+              'helper.js': 'export const help = () => {};',
+              'config.js': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#demo';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('main.js');
+      });
+
+      // User selects different file
+      act(() => {
+        result.current.selectFileName('helper.js');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('helper.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should remain clean (no file portion added)
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#demo');
+        },
+        { timeout: 1000 },
+      );
+
+      // Select another file
+      act(() => {
+        result.current.selectFileName('config.js');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('config.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should still be clean
+      expect(window.location.hash).toBe('#demo');
+    });
+
+    it('should clean hash to just slug when on default variant main file', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'simple',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Hash includes default variant and main file
+      window.location.hash = '#simple:java-script:demo.js';
+
+      const { result } = renderHook(() =>
+        useCode(contentProps, {
+          avoidMutatingAddressBar: true,
+          initialVariant: 'JavaScript',
+        }),
+      );
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+          expect(result.current.selectedFileName).toBe('demo.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned to just slug (no variant, no file for default variant)
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#simple');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should handle cross-variant file navigation and maintain clean hash', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'multi',
+        code: {
+          JavaScript: {
+            fileName: 'index.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'index.ts',
+            source: 'const x: number = 1;',
+            extraFiles: {
+              'utils.ts': 'export const util = (): void => {};',
+            },
+          },
+        },
+      };
+
+      // Start with TypeScript variant and extra file
+      window.location.hash = '#multi:type-script:utils.ts';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('utils.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned to variant only
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#multi');
+        },
+        { timeout: 1000 },
+      );
+
+      // Switch to JavaScript variant
+      act(() => {
+        result.current.selectVariant('JavaScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should stay clean (just slug)
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#multi');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should not cause infinite loop with avoidMutatingAddressBar enabled', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test',
+        code: {
+          Default: {
+            fileName: 'index.tsx',
+            source: 'export default Component;',
+            extraFiles: {
+              'styles.css': '.component {}',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#test:styles.css';
+
+      let hookCallCount = 0;
+      const { result } = renderHook(() => {
+        hookCallCount += 1;
+        return useCode(contentProps, { avoidMutatingAddressBar: true });
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('styles.css');
+        },
+        { timeout: 1000 },
+      );
+
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#test');
+        },
+        { timeout: 1000 },
+      );
+
+      // Should not have excessive re-renders
+      expect(hookCallCount).toBeLessThan(20);
+    });
+
+    it('should handle rapid hash changes with clean URLs', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'rapid',
+        code: {
+          Default: {
+            fileName: 'main.js',
+            source: 'console.log("main");',
+            extraFiles: {
+              'a.js': 'console.log("a");',
+              'b.js': 'console.log("b");',
+              'c.js': 'console.log("c");',
+            },
+          },
+        },
+      };
+
+      window.location.hash = '#rapid:a.js';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('a.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Simulate rapid external hash changes (e.g., browser back/forward)
+      act(() => {
+        window.location.hash = '#rapid:b.js';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('b.js');
+        },
+        { timeout: 1000 },
+      );
+
+      act(() => {
+        window.location.hash = '#rapid:c.js';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('c.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should eventually stabilize to clean version
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#rapid');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should work with localStorage variant preference and clean hash', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'pref',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Mock localStorage to have TypeScript preference
+      const mockGetItem = vi.fn((key) => {
+        if (key?.includes('variant_pref')) {
+          return 'TypeScript';
+        }
+        return null;
+      });
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = mockGetItem;
+
+      // Hash includes TypeScript variant file
+      window.location.hash = '#pref:type-script:demo.ts';
+
+      const { result } = renderHook(() => useCode(contentProps, { avoidMutatingAddressBar: true }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('demo.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be cleaned to variant only
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#pref');
+        },
+        { timeout: 1000 },
+      );
+
+      Storage.prototype.getItem = originalGetItem;
     });
   });
 

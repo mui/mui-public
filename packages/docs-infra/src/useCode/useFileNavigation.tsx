@@ -91,6 +91,7 @@ interface UseFileNavigationProps {
   preRef?: React.Ref<HTMLPreElement>;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
+  avoidMutatingAddressBar?: boolean;
 }
 
 export interface UseFileNavigationResult {
@@ -118,6 +119,7 @@ export function useFileNavigation({
   preRef,
   effectiveCode,
   selectVariant,
+  avoidMutatingAddressBar,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -136,6 +138,7 @@ export function useFileNavigation({
     initialVariant,
     effectiveCode,
     selectVariant,
+    avoidMutatingAddressBar,
   });
 
   // Compute the displayed filename (transformed if applicable)

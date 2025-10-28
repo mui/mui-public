@@ -60,6 +60,24 @@ function toKebabCase(str: string): string {
   );
 }
 
+/**
+ * Generates a simplified hash with just the demo slug
+ * Used when avoidMutatingAddressBar is true
+ * @param mainSlug - The main component/demo slug
+ * @returns Generated demo slug (just the slug, no variant or file)
+ */
+function generateDemoSlug(mainSlug: string): string {
+  const kebabMainSlug = toKebabCase(mainSlug);
+
+  // Handle empty main slug case
+  if (!kebabMainSlug) {
+    return '';
+  }
+
+  // Format: just mainSlug (no variant, no file)
+  return kebabMainSlug;
+}
+
 interface UseFileHashNavigationProps {
   selectedVariant: VariantCode | null;
   selectedFileNameInternal: string | undefined;
@@ -71,6 +89,7 @@ interface UseFileHashNavigationProps {
   initialVariant?: string;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
+  avoidMutatingAddressBar?: boolean;
 }
 
 export interface UseFileHashNavigationResult {
@@ -93,6 +112,7 @@ export function useFileHashNavigation({
   initialVariant,
   effectiveCode,
   selectVariant,
+  avoidMutatingAddressBar = false,
 }: UseFileHashNavigationProps): UseFileHashNavigationResult {
   // Track user interaction locally
   const [hasUserInteraction, setHasUserInteraction] = React.useState(false);
@@ -256,6 +276,14 @@ export function useFileHashNavigation({
       hashNavigationInProgressRef.current = true;
       setSelectedFileNameInternal(matchingFileName);
       // Don't mark as user interaction - this is hash-driven
+
+      // If avoidMutatingAddressBar is true, clean up the hash to just show demo slug
+      if (avoidMutatingAddressBar) {
+        const cleanHash = generateDemoSlug(mainSlug);
+        if (cleanHash && hash !== cleanHash) {
+          setHash(cleanHash);
+        }
+      }
     } else {
       hashNavigationInProgressRef.current = false;
     }
@@ -271,6 +299,8 @@ export function useFileHashNavigation({
     selectVariant,
     selectedFileNameInternal,
     setSelectedFileNameInternal,
+    avoidMutatingAddressBar,
+    setHash,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
@@ -295,12 +325,22 @@ export function useFileHashNavigation({
       hashNavigationInProgressRef.current = true;
 
       setSelectedFileNameInternal(fileToSelect);
+
+      // If avoidMutatingAddressBar is true, clean up the hash after selecting the file
+      if (avoidMutatingAddressBar) {
+        const cleanHash = generateDemoSlug(mainSlug);
+        if (cleanHash && hash !== cleanHash) {
+          setHash(cleanHash);
+        }
+      }
     } else {
       justCompletedPendingSelection.current = false;
       if (!pendingFileSelection.current) {
         hashNavigationInProgressRef.current = false;
       }
     }
+    // Only depend on variant changes - hash/setHash are stable and shouldn't trigger re-runs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVariantKey, selectedVariant, setSelectedFileNameInternal]);
 
   // Reset selectedFileName when variant changes
@@ -433,7 +473,15 @@ export function useFileHashNavigation({
       // Only update if current hash is for the same demo (starts with mainSlug)
       // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
       if (isHashRelevantToDemo(hash, mainSlug)) {
-        setHash(fileSlug);
+        // When avoidMutatingAddressBar is true, use simplified demo slug instead of full file slug
+        if (avoidMutatingAddressBar) {
+          const cleanHash = generateDemoSlug(mainSlug);
+          if (cleanHash && hash !== cleanHash) {
+            setHash(cleanHash);
+          }
+        } else {
+          setHash(fileSlug);
+        }
       }
       // Otherwise, don't update - either no hash exists or hash is for a different demo
     }
@@ -448,6 +496,7 @@ export function useFileHashNavigation({
     hasUserInteraction,
     setHash,
     hash,
+    avoidMutatingAddressBar,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates
@@ -494,7 +543,15 @@ export function useFileHashNavigation({
 
       // Update the URL hash without adding to history (replaceState)
       if (typeof window !== 'undefined' && fileSlug && hash !== fileSlug) {
-        setHash(fileSlug); // Use the new URL hash hook
+        // When avoidMutatingAddressBar is true, use simplified demo slug instead of full file slug
+        if (avoidMutatingAddressBar) {
+          const cleanHash = generateDemoSlug(mainSlug);
+          if (cleanHash && hash !== cleanHash) {
+            setHash(cleanHash);
+          }
+        } else {
+          setHash(fileSlug);
+        }
       }
 
       hashNavigationInProgressRef.current = false;
@@ -512,6 +569,7 @@ export function useFileHashNavigation({
       markUserInteraction,
       hash,
       setSelectedFileNameInternal,
+      avoidMutatingAddressBar,
     ],
   );
 

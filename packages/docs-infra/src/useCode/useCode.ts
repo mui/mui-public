@@ -19,6 +19,13 @@ export type UseCodeOpts = {
   githubUrlPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
+  /**
+   * When true, the hook will read the hash to update state but will clean it to just the demo slug.
+   * The variant and file information is removed from the URL while state is maintained internally.
+   * For example: `#advanced:premium:index.module.css` becomes `#advanced`
+   * @default false
+   */
+  avoidMutatingAddressBar?: boolean;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -58,6 +65,7 @@ export function useCode<T extends {} = {}>(
     initialTransform,
     preClassName,
     preRef,
+    avoidMutatingAddressBar = false,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -140,6 +148,7 @@ export function useCode<T extends {} = {}>(
     preClassName,
     preRef,
     effectiveCode,
+    avoidMutatingAddressBar,
   });
 
   // Sub-hook: Copy Functionality
