@@ -427,6 +427,7 @@ export async function crawl(rawOptions) {
     appProcess = execaCommand(options.startCommand, {
       stdout: 'pipe',
       stderr: 'pipe',
+      forceKillAfterDelay: 1000,
       env: {
         FORCE_COLOR: '1',
         ...process.env,
