@@ -6,6 +6,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
+import contentType from 'content-type';
 
 const DEFAULT_CONCURRENCY = 4;
 
@@ -383,6 +384,7 @@ export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
   const startTime = Date.now();
 
+  /** @type {import('execa').ResultPromise | undefined} */
   let appProcess;
   if (options.startCommand) {
     console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
@@ -441,59 +443,76 @@ export async function crawl(rawOptions) {
           url: pageUrl,
           status: res.status,
           targets: new Map(),
-          links: [],
         };
       }
 
       // Check if the response is HTML
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('text/html')) {
-        console.warn(
-          chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${contentType}`),
-        );
+      const contentTypeHeader = res.headers.get('content-type');
+      let type = 'text/html';
+
+      if (contentTypeHeader) {
+        try {
+          const parsed = contentType.parse(contentTypeHeader);
+          type = parsed.type;
+        } catch {
+          console.warn(
+            chalk.yellow(`Warning: ${pageUrl} returned invalid content-type: ${contentTypeHeader}`),
+          );
+        }
+      }
+
+      if (type.startsWith('image/')) {
+        // Skip images
+        return {
+          url: pageUrl,
+          status: res.status,
+          targets: new Map(),
+        };
+      }
+
+      if (type !== 'text/html') {
+        console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
+
+        // TODO: Handle text/markdown. Parse content as markdown and extract links/targets.
 
         return {
           url: pageUrl,
           status: res.status,
           targets: new Map(),
-          links: [],
         };
       }
 
-      const html = await res.text();
+      const content = await res.text();
 
-      const dom = parse(html);
+      const dom = parse(content);
 
-      for (const selector of options.ignoredContent) {
-        dom.querySelectorAll(selector).forEach((elm) => {
-          elm.remove();
-        });
-      }
+      const ignoredSelector = Array.from(options.ignoredContent)
+        .flatMap((selector) => [selector, `${selector} *`])
+        .join(',');
+      const linksSelector = `a[href]:not(${ignoredSelector})`;
 
-      const pageLinks = dom.querySelectorAll('a[href]').map((a) => ({
+      const pageLinks = dom.querySelectorAll(linksSelector).map((a) => ({
         src: pageUrl,
         text: getAccessibleName(a, dom),
-        href: a.attributes.href,
+        href: a.getAttribute('href') ?? '',
       }));
 
       const pageTargets = new Map(
         dom
           .querySelectorAll('*[id]')
-          .filter((elm) => !options.ignoredTargets.has(elm.attributes.id))
-          .map((elm) => [`#${elm.attributes.id}`, {}]),
+          .filter((elm) => !options.ignoredTargets.has(elm.id))
+          .map((elm) => [`#${elm.id}`, {}]),
       );
-
-      const pageData = {
-        url: pageUrl,
-        status: res.status,
-        targets: pageTargets,
-      };
 
       for (const pageLink of pageLinks) {
         queue.add(pageLink);
       }
 
-      return pageData;
+      return {
+        url: pageUrl,
+        status: res.status,
+        targets: pageTargets,
+      };
     });
 
     crawledPages.set(pageUrl, pagePromise);
@@ -508,7 +527,8 @@ export async function crawl(rawOptions) {
   await queue.waitAll();
 
   if (appProcess) {
-    await appProcess.kill();
+    appProcess.kill();
+    await appProcess.catch(() => {});
   }
 
   const results = new Map(

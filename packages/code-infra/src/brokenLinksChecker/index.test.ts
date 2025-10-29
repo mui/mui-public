@@ -37,7 +37,7 @@ describe('Broken Links Checker', () => {
     const host = `http://localhost:${port}`;
 
     const result = await crawl({
-      startCommand: `${servePath} ${fixtureDir} -p ${port}`,
+      startCommand: `pnpm exec serve ${fixtureDir} -p ${port}`,
       host,
       ignoredPaths: [/ignored-page\.html$/],
       ignoredContent: ['.sidebar'],
