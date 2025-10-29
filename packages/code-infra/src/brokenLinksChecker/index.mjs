@@ -439,6 +439,7 @@ export async function crawl(rawOptions) {
     const serverPrefix = chalk.gray('server: ');
     appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
     appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
+    appProcess.catch(() => {});
 
     await pollUrl(options.host, 10000);
 
