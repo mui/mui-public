@@ -511,9 +511,12 @@ export async function crawl(rawOptions) {
 
       const dom = parse(content);
 
-      const ignoredSelector = Array.from(options.ignoredContent)
-        .flatMap((selector) => [selector, `${selector} *`])
-        .join(',');
+      let ignoredSelector = ':not(*)'; // matches nothing
+      if (options.ignoredContent.length > 0) {
+        ignoredSelector = Array.from(options.ignoredContent)
+          .flatMap((selector) => [selector, `${selector} *`])
+          .join(',');
+      }
       const linksSelector = `a[href]:not(${ignoredSelector})`;
 
       const pageLinks = dom.querySelectorAll(linksSelector).map((a) => ({
