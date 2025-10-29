@@ -1,8 +1,8 @@
 {
-  "extends": "../../tsconfig.js.json",
+  "extends": ["../../tsconfig.options.json", "../../tsconfig.js.json", "../../tsconfig.node.json"],
   "compilerOptions": {
     "outDir": "build"
   },
-  "include": ["."],
+  "include": ["**/*.js"],
   "exclude": ["node_modules", "build", "__fixtures__"]
 }

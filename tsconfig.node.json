@@ -1,7 +1,5 @@
 {
-  "extends": "./tsconfig.js.json",
   "compilerOptions": {
     "types": ["node"]
-  },
-  "include": ["eslint.config.*", "prettier.config.*", "babel.config.*"]
+  }
 }
