@@ -420,13 +420,15 @@ export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
   const startTime = Date.now();
 
-  /** @type {import('execa').ResultPromise | undefined} */
-  let appProcess;
+  /** @type {AbortController | null} */
+  let controller = null;
   if (options.startCommand) {
     console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
-    appProcess = execaCommand(options.startCommand, {
+    controller = new AbortController();
+    const appProcess = execaCommand(options.startCommand, {
       stdout: 'pipe',
       stderr: 'pipe',
+      cancelSignal: controller.signal,
       env: {
         FORCE_COLOR: '1',
         ...process.env,
@@ -435,8 +437,9 @@ export async function crawl(rawOptions) {
 
     // Prefix server logs
     const serverPrefix = chalk.gray('server: ');
-    appProcess.stdout?.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
-    appProcess.stderr?.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
+    appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
+    appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
+    appProcess.catch(() => {});
 
     await pollUrl(options.host, 10000);
 
@@ -549,9 +552,9 @@ export async function crawl(rawOptions) {
 
   await queue.waitAll();
 
-  if (appProcess) {
-    appProcess.kill();
-    await appProcess.catch(() => {});
+  if (controller) {
+    console.log(chalk.blue('Stopping server...'));
+    controller.abort();
   }
 
   const results = new Map(
