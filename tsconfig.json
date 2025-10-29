@@ -8,8 +8,9 @@
     { "path": "packages/code-infra" },
     { "path": "packages/docs-infra" },
     { "path": "packages/netlify-cache" },
-    { "path": "tsconfig.node.json" },
+    { "path": "tsconfig.configs.json" },
     { "path": "scripts" }
   ],
-  "files": []
+  "files": [],
+  "include": []
 }

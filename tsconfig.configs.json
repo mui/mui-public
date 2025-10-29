@@ -1,0 +1,5 @@
+{
+  "extends": ["./tsconfig.options.json", "./tsconfig.js.json", "./tsconfig.node.json"],
+  "files": ["./eslint.config.mjs", "./prettier.config.mjs", "./babel.config.js"],
+  "include": ["**/vite.config.*"]
+}

@@ -1,5 +1,4 @@
 {
-  "extends": "./tsconfig.options.json",
   "compilerOptions": {
     "resolveJsonModule": true,
     "checkJs": true,
