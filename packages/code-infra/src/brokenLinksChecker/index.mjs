@@ -420,6 +420,7 @@ export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
   const startTime = Date.now();
 
+  const controller = new AbortController();
   /** @type {import('execa').ResultPromise | undefined} */
   let appProcess;
   if (options.startCommand) {
@@ -427,7 +428,7 @@ export async function crawl(rawOptions) {
     appProcess = execaCommand(options.startCommand, {
       stdout: 'pipe',
       stderr: 'pipe',
-      forceKillAfterDelay: 1000,
+      cancelSignal: controller.signal,
       env: {
         FORCE_COLOR: '1',
         ...process.env,
@@ -549,7 +550,7 @@ export async function crawl(rawOptions) {
 
   if (appProcess) {
     console.log(chalk.blue('Stopping server...'));
-    appProcess.kill('SIGKILL');
+    controller.abort();
     await appProcess.catch(() => {});
     console.log(chalk.blue('Server stopped.'));
   }
