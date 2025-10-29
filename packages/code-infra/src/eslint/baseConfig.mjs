@@ -52,8 +52,7 @@ export function createBaseConfig({
         importPlugin.flatConfigs.react,
         jsxA11yPlugin.flatConfigs.recommended,
         reactPlugin.configs.flat.recommended,
-        // @ts-expect-error Types are messed up https://github.com/facebook/react/issues/34705
-        reactHooks.configs['flat/recommended'],
+        reactHooks.configs.flat.recommended,
         tseslint.configs.recommended,
         importPlugin.flatConfigs.typescript,
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},

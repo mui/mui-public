@@ -8,6 +8,31 @@ import { decode } from 'uint8-to-base64';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
+const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
+const textChildrenCache = new WeakMap<ElementContent[], string>();
+
+function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?: string) {
+  if (renderHast) {
+    let jsx = hastChildrenCache.get(hastChildren);
+    if (!jsx) {
+      jsx = hastToJsx({ type: 'root', children: hastChildren });
+      hastChildrenCache.set(hastChildren, jsx);
+    }
+    return jsx;
+  }
+
+  if (text !== undefined) {
+    return text;
+  }
+
+  let txt = textChildrenCache.get(hastChildren);
+  if (!txt) {
+    txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
+    textChildrenCache.set(hastChildren, txt);
+  }
+  return txt;
+}
+
 export function Pre({
   children,
   className,
@@ -116,49 +141,6 @@ export function Pre({
     }
   }, []);
 
-  const hastChildrenCache = React.useMemo<undefined | Array<React.ReactNode | null>>(
-    () => hast?.children.map(() => null),
-    [hast],
-  );
-  const textChildrenCache = React.useMemo<undefined | Array<string | null>>(
-    () => hast?.children.map(() => null),
-    [hast],
-  );
-  const renderCode = React.useCallback(
-    (index: number, hastChildren: ElementContent[], renderHast?: boolean, text?: string) => {
-      if (renderHast) {
-        const cached = hastChildrenCache?.[index];
-        if (cached) {
-          return cached;
-        }
-
-        const jsx = hastToJsx({ type: 'root', children: hastChildren });
-        if (hastChildrenCache) {
-          hastChildrenCache[index] = jsx;
-        }
-
-        return jsx;
-      }
-
-      if (text !== undefined) {
-        return text;
-      }
-
-      const cached = textChildrenCache?.[index];
-      if (cached) {
-        return cached;
-      }
-
-      const txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
-      if (textChildrenCache) {
-        textChildrenCache[index] = txt;
-      }
-
-      return txt;
-    },
-    [hastChildrenCache, textChildrenCache],
-  );
-
   const frames = React.useMemo(() => {
     return hast?.children.map((child, index) => {
       if (child.type !== 'element') {
@@ -171,7 +153,6 @@ export function Pre({
         return (
           <span key={index} className="frame" data-frame={index} ref={observeFrame}>
             {renderCode(
-              index,
               child.children,
               shouldHighlight && isVisible,
               child.properties?.dataAsString ? String(child.properties?.dataAsString) : undefined,
@@ -186,7 +167,7 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, renderCode, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
