@@ -547,7 +547,7 @@ export async function crawl(rawOptions) {
   await queue.waitAll();
 
   if (appProcess) {
-    appProcess.kill();
+    appProcess.kill('SIGKILL');
     await appProcess.catch(() => {});
   }
 
