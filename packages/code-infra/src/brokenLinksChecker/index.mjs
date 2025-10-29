@@ -11,8 +11,10 @@ import contentType from 'content-type';
 const DEFAULT_CONCURRENCY = 4;
 
 /**
- * @param {string} prefix
- * @returns {Transform}
+ * Creates a Transform stream that prefixes each line with a given string.
+ * Useful for distinguishing server logs from other output.
+ * @param {string} prefix - String to prepend to each line
+ * @returns {Transform} Transform stream that adds the prefix to each line
  */
 const prefixLines = (prefix) => {
   let leftover = '';
@@ -33,18 +35,23 @@ const prefixLines = (prefix) => {
 };
 
 /**
- * Maps pageUrl to ids of known targets on that page
+ * Maps page URLs to sets of known target IDs (anchors) on that page.
+ * Used to track which link targets (e.g., #section-id) exist on each page.
  * @typedef {Map<string, Set<string>>} LinkStructure
  */
 
 /**
+ * Serialized representation of LinkStructure for JSON storage.
+ * Converts Maps and Sets to plain objects and arrays for file persistence.
  * @typedef {Object} SerializedLinkStructure
- * @property {Record<string, string[]>} targets
+ * @property {Record<string, string[]>} targets - Object mapping page URLs to arrays of target IDs
  */
 
 /**
- * @param {string | URL} url
- * @returns {Promise<Response>}
+ * Fetches a URL and throws an error if the response is not OK.
+ * @param {string | URL} url - URL to fetch
+ * @returns {Promise<Response>} Fetch response if successful
+ * @throws {Error} If the response status is not OK (not in 200-299 range)
  */
 async function fetchUrl(url) {
   const res = await fetch(url);
@@ -55,9 +62,12 @@ async function fetchUrl(url) {
 }
 
 /**
- * @param {string} url
- * @param {number} timeout
- * @returns {Promise<void>}
+ * Polls a URL until it responds successfully or times out.
+ * Used to wait for a dev server to start.
+ * @param {string} url - URL to poll
+ * @param {number} timeout - Maximum milliseconds to wait before timing out
+ * @returns {Promise<void>} Resolves when URL responds successfully
+ * @throws {Error} If timeout is reached before URL responds
  */
 async function pollUrl(url, timeout) {
   const start = Date.now();
@@ -77,8 +87,9 @@ async function pollUrl(url, timeout) {
 }
 
 /**
- * @param {SerializedLinkStructure} data
- * @returns {LinkStructure}
+ * Converts serialized link structure (from JSON) back to Map/Set form.
+ * @param {SerializedLinkStructure} data - Serialized structure with plain objects/arrays
+ * @returns {LinkStructure} Deserialized structure using Map and Set
  */
 function deserializeLinkStructure(data) {
   const linkStructure = new Map();
@@ -89,19 +100,17 @@ function deserializeLinkStructure(data) {
 }
 
 /**
- * @typedef {Object} LinkTarget
- */
-
-/**
+ * Data about a crawled page including its URL, HTTP status, and available link targets.
  * @typedef {Object} PageData
- * @property {string} url
- * @property {number} status
- * @property {Map<string, LinkTarget>} targets
+ * @property {string} url - The normalized page URL (without trailing slash unless root)
+ * @property {number} status - HTTP status code from the response (e.g., 200, 404, 500)
+ * @property {Set<string>} targets - Set of available anchor targets on the page, keyed by hash (e.g., '#intro')
  */
 
 /**
- * @param {Map<string, PageData>} pages
- * @param {string} outPath
+ * Serializes and writes discovered page targets to a JSON file.
+ * @param {Map<string, PageData>} pages - Map of crawled pages with their targets
+ * @param {string} outPath - File path to write the JSON output
  * @returns {Promise<void>}
  */
 async function writePagesToFile(pages, outPath) {
@@ -116,10 +125,12 @@ async function writePagesToFile(pages, outPath) {
 }
 
 /**
- * Polyfill for `node.computedName` available only in chrome v112+
- * @param {import('node-html-parser').HTMLElement | null} elm
- * @param {import('node-html-parser').HTMLElement} ownerDocument
- * @returns {string}
+ * Computes the accessible name of an element according to ARIA rules.
+ * Polyfill for `node.computedName` available only in Chrome v112+.
+ * Checks in order: aria-label, aria-labelledby, label[for], img alt, innerText.
+ * @param {import('node-html-parser').HTMLElement | null} elm - Element to compute name for
+ * @param {import('node-html-parser').HTMLElement} ownerDocument - Document containing the element
+ * @returns {string} The computed accessible name, or empty string if none found
  */
 function getAccessibleName(elm, ownerDocument) {
   if (!elm) {
@@ -169,18 +180,23 @@ function getAccessibleName(elm, ownerDocument) {
 }
 
 /**
+ * Generic concurrent task queue with configurable concurrency limit.
+ * Processes tasks in FIFO order with a maximum number of concurrent workers.
  * @template T
  */
 class Queue {
+  /** Array of pending tasks waiting to be processed */
   /** @type {T[]} */
   tasks = [];
 
+  /** Set of currently running task promises */
   /** @type {Set<Promise<void>>} */
   pending = new Set();
 
   /**
-   * @param {(task: T) => Promise<void>} worker
-   * @param {number} concurrency
+   * Creates a new queue with a worker function and concurrency limit.
+   * @param {(task: T) => Promise<void>} worker - Async function to process each task
+   * @param {number} concurrency - Maximum number of tasks to run simultaneously
    */
   constructor(worker, concurrency) {
     this.worker = worker;
@@ -188,7 +204,8 @@ class Queue {
   }
 
   /**
-   * @param {T} task
+   * Adds a task to the queue and starts processing if under concurrency limit.
+   * @param {T} task - Task to add to the queue
    */
   add(task) {
     this.tasks.push(task);
@@ -206,6 +223,10 @@ class Queue {
     }
   }
 
+  /**
+   * Waits for all pending and queued tasks to complete.
+   * @returns {Promise<void>}
+   */
   async waitAll() {
     while (this.pending.size > 0) {
       // eslint-disable-next-line no-await-in-loop
@@ -215,16 +236,20 @@ class Queue {
 }
 
 /**
+ * Represents a hyperlink found during crawling.
  * @typedef {Object} Link
- * @property {string | null} src
- * @property {string | null} text
- * @property {string} href
+ * @property {string | null} src - URL of the page where this link was found, or null for seed URLs
+ * @property {string | null} text - Accessible name/text content of the link element, or null for seed URLs
+ * @property {string} href - The href attribute value (may be relative or absolute, with or without hash)
  */
 
 /**
- * @param {string} href
- * @param {RegExp[]} ignoredPaths
- * @returns {string | null}
+ * Extracts and normalizes the page URL from a link href.
+ * Returns null for external links, ignored paths, or non-standard URLs.
+ * Normalizes by removing trailing slashes (except root) and preserving query params.
+ * @param {string} href - Link href to process (e.g., '/docs/api#section?query=1')
+ * @param {RegExp[]} ignoredPaths - Array of patterns to exclude
+ * @returns {string | null} Normalized page URL with query but without hash, or null if external/ignored
  */
 function getPageUrl(href, ignoredPaths = []) {
   if (!href.startsWith('/')) {
@@ -244,26 +269,29 @@ function getPageUrl(href, ignoredPaths = []) {
 }
 
 /**
+ * Configuration options for the broken links crawler.
  * @typedef {Object} CrawlOptions
- * @property {string | null} [startCommand]
- * @property {string} host
- * @property {string | null} [outPath]
- * @property {RegExp[]} [ignoredPaths]
- * @property {string[]} [ignoredContent]
- * @property {Set<string>} [ignoredTargets]
- * @property {Map<string, Set<string>>} [knownTargets]
- * @property {string[]} [knownTargetsDownloadUrl]
- * @property {number} [concurrency]
- * @property {string[]} [seedUrls]
+ * @property {string | null} [startCommand] - Shell command to start the dev server (e.g., 'npm run dev'). If null, assumes server is already running
+ * @property {string} host - Base URL of the site to crawl (e.g., 'http://localhost:3000')
+ * @property {string | null} [outPath] - File path to write discovered link targets to. If null, targets are not persisted
+ * @property {RegExp[]} [ignoredPaths] - Array of regex patterns to exclude from crawling (e.g., [/^\/api\//] to skip /api/* routes)
+ * @property {string[]} [ignoredContent] - CSS selectors for elements whose nested links should be ignored (e.g., ['.sidebar', 'footer'])
+ * @property {Set<string>} [ignoredTargets] - Set of element IDs to ignore as link targets (defaults to '__next', '__NEXT_DATA__')
+ * @property {Map<string, Set<string>>} [knownTargets] - Pre-populated map of known valid targets to skip crawling (useful for external pages)
+ * @property {string[]} [knownTargetsDownloadUrl] - URLs to fetch known targets from (fetched JSON will be merged with knownTargets)
+ * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
+ * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
  */
 
 /**
+ * Fully resolved configuration with all optional fields filled with defaults.
  * @typedef {Required<CrawlOptions>} ResolvedCrawlOptions
  */
 
 /**
- * @param {CrawlOptions} rawOptions
- * @returns {ResolvedCrawlOptions}
+ * Resolves partial crawl options by filling in defaults for all optional fields.
+ * @param {CrawlOptions} rawOptions - Partial options from user
+ * @returns {ResolvedCrawlOptions} Fully resolved options with all defaults applied
  */
 function resolveOptions(rawOptions) {
   return {
@@ -281,11 +309,12 @@ function resolveOptions(rawOptions) {
 }
 
 /**
- * Merge multiple maps, similar to `Object.assign`
+ * Merges multiple Maps, similar to Object.assign for objects.
+ * Later sources override earlier ones for duplicate keys.
  * @template K, V
- * @param {Map<K, V>} target
- * @param {...Map<K, V>} sources
- * @returns {Map<K, V>}
+ * @param {Map<K, V>} target - Target map to merge into (will be mutated)
+ * @param {...Map<K, V>} sources - Source maps to merge from
+ * @returns {Map<K, V>} The mutated target map
  */
 function mergeMaps(target, ...sources) {
   for (const source of sources) {
@@ -297,8 +326,10 @@ function mergeMaps(target, ...sources) {
 }
 
 /**
- * @param {string[]} urls
- * @returns {Promise<LinkStructure[]>}
+ * Downloads and deserializes known link targets from remote URLs.
+ * Fetches JSON files containing serialized link structures in parallel.
+ * @param {string[]} urls - Array of URLs to fetch known targets from
+ * @returns {Promise<LinkStructure[]>} Array of deserialized link structures
  */
 async function downloadKnownTargets(urls) {
   if (urls.length === 0) {
@@ -320,8 +351,10 @@ async function downloadKnownTargets(urls) {
 }
 
 /**
- * @param {ResolvedCrawlOptions} options
- * @returns {Promise<LinkStructure>}
+ * Resolves all known targets by downloading remote ones and merging with user-provided.
+ * User-provided targets take priority over downloaded ones.
+ * @param {ResolvedCrawlOptions} options - Resolved crawl options
+ * @returns {Promise<LinkStructure>} Merged map of all known targets
  */
 async function resolveKnownTargets(options) {
   const downloaded = await downloadKnownTargets(options.knownTargetsDownloadUrl);
@@ -330,22 +363,24 @@ async function resolveKnownTargets(options) {
 }
 
 /**
+ * Represents a broken link or broken link target discovered during crawling.
  * @typedef {Object} Issue
- * @property {'broken-link' | 'broken-target'} type
- * @property {string} message
- * @property {Link} link
+ * @property {'broken-link' | 'broken-target'} type - Type of issue: 'broken-link' for 404 pages, 'broken-target' for missing anchors
+ * @property {string} message - Human-readable description of the issue (e.g., 'Target not found', 'Page returned error 404')
+ * @property {Link} link - The link object that has the issue
  */
 
 /**
+ * Results from a complete crawl operation.
  * @typedef {Object} CrawlResult
- * @property {Set<Link>} links
- * @property {Map<string, PageData>} pages
- * @property {Issue[]} issues
+ * @property {Set<Link>} links - All links discovered during the crawl
+ * @property {Map<string, PageData>} pages - All pages crawled, keyed by normalized URL
+ * @property {Issue[]} issues - All broken links and broken targets found
  */
 
 /**
- * Report broken links grouped by source page
- * @param {Issue[]} issuesList
+ * Reports broken links to stderr, grouped by source page for better readability.
+ * @param {Issue[]} issuesList - Array of issues to report
  */
 function reportIssues(issuesList) {
   if (issuesList.length === 0) {
@@ -377,8 +412,9 @@ function reportIssues(issuesList) {
 }
 
 /**
- * @param {CrawlOptions} rawOptions
- * @returns {Promise<CrawlResult>}
+ * Crawls a website starting from seed URLs, discovering all internal links and checking for broken links/targets.
+ * @param {CrawlOptions} rawOptions - Configuration options for the crawl
+ * @returns {Promise<CrawlResult>} Crawl results including all links, pages, and issues found
  */
 export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
@@ -434,19 +470,18 @@ export async function crawl(rawOptions) {
       console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
       const res = await fetch(new URL(pageUrl, options.host));
 
-      const urlData = { url: pageUrl, status: res.status };
+      /** @type {PageData} */
+      const pageData = {
+        url: pageUrl,
+        status: res.status,
+        targets: new Set(),
+      };
 
-      if (urlData.status < 200 || urlData.status >= 400) {
-        console.warn(chalk.yellow(`Warning: ${pageUrl} returned status ${urlData.status}`));
-
-        return {
-          url: pageUrl,
-          status: res.status,
-          targets: new Map(),
-        };
+      if (pageData.status < 200 || pageData.status >= 400) {
+        console.warn(chalk.yellow(`Warning: ${pageUrl} returned status ${pageData.status}`));
+        return pageData;
       }
 
-      // Check if the response is HTML
       const contentTypeHeader = res.headers.get('content-type');
       let type = 'text/html';
 
@@ -463,23 +498,13 @@ export async function crawl(rawOptions) {
 
       if (type.startsWith('image/')) {
         // Skip images
-        return {
-          url: pageUrl,
-          status: res.status,
-          targets: new Map(),
-        };
+        return pageData;
       }
 
       if (type !== 'text/html') {
         console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
-
         // TODO: Handle text/markdown. Parse content as markdown and extract links/targets.
-
-        return {
-          url: pageUrl,
-          status: res.status,
-          targets: new Map(),
-        };
+        return pageData;
       }
 
       const content = await res.text();
@@ -497,22 +522,17 @@ export async function crawl(rawOptions) {
         href: a.getAttribute('href') ?? '',
       }));
 
-      const pageTargets = new Map(
-        dom
-          .querySelectorAll('*[id]')
-          .filter((elm) => !options.ignoredTargets.has(elm.id))
-          .map((elm) => [`#${elm.id}`, {}]),
-      );
+      for (const target of dom.querySelectorAll('*[id]')) {
+        if (!options.ignoredTargets.has(target.id)) {
+          pageData.targets.add(`#${target.id}`);
+        }
+      }
 
       for (const pageLink of pageLinks) {
         queue.add(pageLink);
       }
 
-      return {
-        url: pageUrl,
-        status: res.status,
-        targets: pageTargets,
-      };
+      return pageData;
     });
 
     crawledPages.set(pageUrl, pagePromise);
@@ -541,19 +561,15 @@ export async function crawl(rawOptions) {
     await writePagesToFile(results, options.outPath);
   }
 
-  /**
-   * @typedef {Object} BrokenLinkError
-   * @property {Link} link
-   * @property {string} reason
-   */
-
+  /** Array to collect all issues found during validation */
   /** @type {Issue[]} */
   const issues = [];
 
   /**
-   * @param {Link} link
-   * @param {'broken-target' | 'broken-link'} type
-   * @param {string} message
+   * Records a broken link or target issue.
+   * @param {Link} link - The link with the issue
+   * @param {'broken-target' | 'broken-link'} type - Type of issue
+   * @param {string} message - Human-readable error message
    */
   function recordBrokenLink(link, type, message) {
     issues.push({
