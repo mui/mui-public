@@ -468,10 +468,7 @@ export async function crawl(rawOptions) {
 
     const pagePromise = Promise.resolve().then(async () => {
       console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
-      const controller = new AbortController();
-      const res = await fetch(new URL(pageUrl, options.host), {
-        signal: controller.signal,
-      });
+      const res = await fetch(new URL(pageUrl, options.host));
 
       /** @type {PageData} */
       const pageData = {
@@ -501,14 +498,12 @@ export async function crawl(rawOptions) {
 
       if (type.startsWith('image/')) {
         // Skip images
-        controller.abort();
         return pageData;
       }
 
       if (type !== 'text/html') {
         console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
         // TODO: Handle text/markdown. Parse content as markdown and extract links/targets.
-        controller.abort();
         return pageData;
       }
 
@@ -552,7 +547,7 @@ export async function crawl(rawOptions) {
   await queue.waitAll();
 
   if (appProcess) {
-    appProcess.kill();
+    appProcess.kill('SIGKILL');
     await appProcess.catch(() => {});
   }
 
