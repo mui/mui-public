@@ -547,8 +547,10 @@ export async function crawl(rawOptions) {
   await queue.waitAll();
 
   if (appProcess) {
+    console.log(chalk.blue('Stopping server...'));
     appProcess.kill('SIGKILL');
     await appProcess.catch(() => {});
+    console.log(chalk.blue('Server stopped.'));
   }
 
   const results = new Map(
