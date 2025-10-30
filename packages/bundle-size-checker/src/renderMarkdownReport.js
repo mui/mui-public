@@ -195,7 +195,7 @@ export function renderMarkdownReportContent(
 
 /**
  *
- * @param {PrInfo} prInfo
+ * @param {import('./types.js').PrInfo} prInfo
  * @param {Object} [options] - Optional parameters
  * @param {string | null} [options.actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
  * @returns {URL}
@@ -214,7 +214,7 @@ function getDetailsUrl(prInfo, options = {}) {
 
 /**
  *
- * @param {PrInfo} prInfo
+ * @param {import('./types.js').PrInfo} prInfo
  * @param {Object} [options] - Additional options
  * @param {string[]} [options.track] - Array of bundle IDs to track
  * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing

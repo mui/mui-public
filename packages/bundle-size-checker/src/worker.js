@@ -56,8 +56,8 @@ async function getPeerDependencies(packageName) {
 
 /**
  * Get sizes for a bundle
- * @param {{ entry: ObjectEntry, args: CommandLineArgs, index: number, total: number, replace?: Record<string, string> }} options
- * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
+ * @param {{ entry: import('./types.js').ObjectEntry, args: import('./types.js').CommandLineArgs, index: number, total: number, replace?: Record<string, string> }} options
+ * @returns {Promise<Array<[string, import('./types.js').SizeSnapshotEntry]>>}
  */
 export default async function getSizes({ entry, args, index, total, replace }) {
   // eslint-disable-next-line no-console -- process monitoring
