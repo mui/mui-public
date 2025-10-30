@@ -25,7 +25,7 @@ interface ObjectEntry {
   expand?: boolean; // Whether to expand the entry to include all exports
 }
 
-type EntryPoint = StringEntry | ObjectEntry;
+export type EntryPoint = StringEntry | ObjectEntry;
 
 // Bundle size checker config with optional upload config
 interface BundleSizeCheckerConfigObject {
@@ -35,7 +35,7 @@ interface BundleSizeCheckerConfigObject {
   replace?: Record<string, string>; // String replacements to apply during bundling
 }
 
-type BundleSizeCheckerConfig =
+export type BundleSizeCheckerConfig =
   | BundleSizeCheckerConfigObject
   | Promise<BundleSizeCheckerConfigObject>
   | (() => BundleSizeCheckerConfigObject | Promise<BundleSizeCheckerConfigObject>);

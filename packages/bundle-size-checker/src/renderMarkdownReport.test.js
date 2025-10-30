@@ -19,7 +19,7 @@ describe('renderMarkdownReport', () => {
   );
   const mockGetMergeBase = vi.mocked(gitModule.getMergeBase);
 
-  /** @type {PrInfo} */
+  /** @type {import('./types.js').PrInfo} */
   const mockPrInfo = {
     number: 42,
     base: {
