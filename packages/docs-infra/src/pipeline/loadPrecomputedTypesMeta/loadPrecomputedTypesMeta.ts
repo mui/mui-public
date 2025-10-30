@@ -2,7 +2,7 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import { writeFile, readFile } from 'fs/promises';
+import { writeFile, readFile, stat } from 'fs/promises';
 import type { LoaderContext } from 'webpack';
 import type { ExportNode } from 'typescript-api-extractor';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
@@ -176,19 +176,47 @@ export async function loadPrecomputedTypesMeta(
           const sourceCode = await readFile(entrypoint, 'utf-8');
           const parsed = await parseImportsAndComments(sourceCode, entrypoint);
 
-          // Look for relative exports that go up directories (e.g., '../menu/')
-          Object.keys(parsed.relative || {}).forEach((exportPath) => {
-            if (exportPath.startsWith('..')) {
-              // For '../menu/backdrop/MenuBackdrop', we want the parent 'menu' directory
-              // Split the path and take segments except the last one (the file/component name)
-              const segments = exportPath.split('/');
-              const parentPath = segments.slice(0, -1).join('/'); // '../menu/backdrop'
+          // Look for relative exports (e.g., '../menu/', './Button', etc.)
+          await Promise.all(
+            Object.keys(parsed.relative || {}).map(async (exportPath) => {
+              if (exportPath.startsWith('..') || exportPath.startsWith('.')) {
+                // Resolve to absolute path first
+                const absolutePath = path.resolve(path.dirname(entrypoint), exportPath);
 
-              // Resolve to absolute path
-              const absoluteParentPath = path.resolve(path.dirname(entrypoint), parentPath);
-              reExportedDirs.add(absoluteParentPath);
-            }
-          });
+                // Check if this path exists as a directory
+                // If not, it might be a module reference (e.g., '../menu/backdrop/MenuBackdrop' -> MenuBackdrop.tsx)
+                // In that case, we want to add the parent directory
+                try {
+                  const stats = await stat(absolutePath);
+                  if (stats.isDirectory()) {
+                    // It's a directory, add it directly
+                    reExportedDirs.add(absolutePath);
+                  }
+                } catch {
+                  // Path doesn't exist as-is. Check if it exists with common extensions
+                  const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+                  let foundAsFile = false;
+                  
+                  for (const ext of extensions) {
+                    try {
+                      const fileStats = await stat(absolutePath + ext);
+                      if (fileStats.isFile()) {
+                        // It's a file reference, add the parent directory
+                        const parentDir = path.dirname(absolutePath);
+                        reExportedDirs.add(parentDir);
+                        foundAsFile = true;
+                        break;
+                      }
+                    } catch {
+                      // Continue checking other extensions
+                    }
+                  }
+                  
+                  // If not found as file or directory, it might be a bare module reference - skip it
+                }
+              }
+            }),
+          );
         } catch (error) {
           // If we can't parse a file, just skip it
           console.warn(

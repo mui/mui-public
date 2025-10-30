@@ -444,6 +444,15 @@ export function parseExports(
             // The originalName (stored above) preserves the name before any aliasing,
             // so we can use it directly for lookups later
             if (transformedName === exportName) {
+              // DEBUG: Check for double dots BEFORE transformation
+              if (exportName.includes('Separator') && exportName.includes('..')) {
+                console.warn('[parseExports] DOUBLE DOT BEFORE TRANSFORM:', {
+                  exportName,
+                  namespaceName,
+                  'exportNode.name': exportNode.name,
+                });
+              }
+
               if (exportName.startsWith(namespaceName)) {
                 // Export already starts with namespace (e.g., "AutocompleteRootProps")
                 // Remove namespace prefix and re-add with dots
@@ -454,6 +463,16 @@ export function parseExports(
               } else if (exportName.includes('.')) {
                 // Export is already dotted (e.g., "Separator.Props" from namespace member)
                 // Just prepend the namespace
+
+                // DEBUG: Check what's being concatenated
+                if (exportName.includes('Separator')) {
+                  console.warn('[parseExports] Adding namespace prefix to dotted export:', {
+                    exportName,
+                    namespaceName,
+                    result: `${namespaceName}.${exportName}`,
+                  });
+                }
+
                 transformedName = `${namespaceName}.${exportName}`;
               } else {
                 // Export is a flat name - just add namespace prefix
@@ -822,7 +841,8 @@ export function parseExports(
         // DEBUG: Log entry creation for MenuBackdrop and MenuRoot
         if (
           sourceFile.fileName.includes('MenuBackdrop') ||
-          sourceFile.fileName.includes('MenuRoot')
+          sourceFile.fileName.includes('MenuRoot') ||
+          componentName.includes('Separator')
         ) {
           console.warn('[parseExports] Creating typeNameMap entry:', {
             flatTypeName,
@@ -837,6 +857,13 @@ export function parseExports(
         typeNameMap.set(flatTypeName, `${componentName}.${memberName}`);
 
         // Track which member names belong to which component
+        if (componentName.includes('Separator') || memberName.includes('Separator')) {
+          console.warn('[parseExports] Setting memberToComponentMap:', {
+            memberName,
+            componentName,
+            fileName: sourceFile.fileName,
+          });
+        }
         memberToComponentMap.set(memberName, componentName);
       });
 

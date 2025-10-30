@@ -201,15 +201,61 @@ export async function generateTypesMarkdown(
     md.heading(2, 'API Reference'),
   ];
 
+  console.warn('[DEBUG generateTypesMarkdown] name:', name);
+  console.warn('[DEBUG generateTypesMarkdown] types count:', types.length);
+  console.warn('[DEBUG generateTypesMarkdown] component names:', types.filter(t => t.type === 'component').map(t => t.name));
+
   // Sort types before processing
   const sortedTypes = sortTypes(types);
 
-  // Check if there's a component/hook with the same name as the namespace
-  // E.g., for "DirectionProvider", check if there's a DirectionProvider component
-  const namespaceName = name.replace(/\s+/g, ''); // "Context Menu" -> "ContextMenu"
-  const hasNamespaceComponent = types.some(
-    (t) => (t.type === 'component' || t.type === 'hook') && t.name === namespaceName,
-  );
+  // For blocks pattern: determine if we should strip the common prefix from component names
+  // E.g., if we have "Component.Root", "Component.Part" but NO standalone "Component" component,
+  // strip the "Component." prefix so they display as just "Root", "Part"
+  // However, if we have multiple namespaces like "Button.Root" and "Checkbox.Root",
+  // keep the prefixes to distinguish them
+
+  // Find all dotted component names
+  const dottedComponents = types
+    .filter((t) => t.type === 'component' || t.type === 'hook')
+    .map((t) => t.name)
+    .filter((componentName) => componentName.includes('.'));
+
+  let commonPrefix = null;
+  if (dottedComponents.length > 0) {
+    // Extract the prefix before the first dot from each name
+    const prefixes = dottedComponents.map((componentName) => componentName.split('.')[0]);
+    // Get unique prefixes
+    const uniquePrefixes = Array.from(new Set(prefixes));
+
+    // Only strip the prefix if ALL components share the SAME prefix
+    if (uniquePrefixes.length === 1) {
+      const singlePrefix = uniquePrefixes[0];
+
+      // Check if there's a standalone component with this exact name
+      const hasStandaloneComponent = types.some((t) => {
+        if (t.type !== 'component' && t.type !== 'hook') {
+          return false;
+        }
+        if (t.name !== singlePrefix) {
+          return false;
+        }
+        // For components: check if it has actual content
+        if (t.type === 'component') {
+          const hasProps = t.data.props && Object.keys(t.data.props).length > 0;
+          const hasDataAttrs =
+            t.data.dataAttributes && Object.keys(t.data.dataAttributes).length > 0;
+          const hasCssVars = t.data.cssVariables && Object.keys(t.data.cssVariables).length > 0;
+          return hasProps || hasDataAttrs || hasCssVars || !!t.data.description;
+        }
+        return true; // Hooks always have content
+      });
+
+      if (!hasStandaloneComponent) {
+        commonPrefix = singlePrefix;
+      }
+    }
+    // If there are multiple unique prefixes, don't strip anything
+  }
 
   const typeContents = await Promise.all(
     sortedTypes.map(async (typeMeta): Promise<RootContent[]> => {
@@ -219,14 +265,12 @@ export async function generateTypesMarkdown(
         const part = typeMeta.data.name;
         const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
 
-        // Strip namespace prefix from component heading if:
-        // 1. The component name starts with the namespace name
-        // 2. There's NO component/hook with the exact namespace name
-        // E.g., "ContextMenu.Backdrop" -> "Backdrop" (no ContextMenu component exists)
-        // But "DirectionProvider.Props" stays as "DirectionProvider" (DirectionProvider component exists)
+        // Strip common prefix from component heading if applicable
+        // E.g., "Component.Root" -> "Root" (when no standalone "Component" exists)
+        // But "DirectionProvider.Props" stays as "DirectionProvider" (if DirectionProvider component exists)
         const displayName =
-          part.startsWith(`${namespaceName}.`) && !hasNamespaceComponent
-            ? part.slice(namespaceName.length + 1) // Remove "ContextMenu." prefix
+          commonPrefix && part.startsWith(`${commonPrefix}.`)
+            ? part.slice(commonPrefix.length + 1) // Remove "Component." prefix
             : part;
 
         // Add subheading for the part using display name
@@ -410,15 +454,25 @@ export async function generateTypesMarkdown(
         }
       } else {
         // For 'other' types (ExportNode)
-        const part = typeMeta.data.name || 'Unknown';
+        // For re-exports, use typeMeta.name (e.g., "Separator.Props") instead of typeMeta.data.name
+        // which would be the raw export name (e.g., "SeparatorProps")
+        const part = typeMeta.reExportOf ? typeMeta.name : typeMeta.data.name || 'Unknown';
         const data = typeMeta.data; // This is now properly typed as ExportNode
 
-        // Strip namespace prefix from heading if:
-        // 1. The type name starts with the namespace name
-        // 2. There's NO component/hook with the exact namespace name
+        // Debug: check for double dots
+        if (part.includes('..')) {
+          console.warn('[generateTypesMarkdown] Double dots detected:', {
+            part,
+            'typeMeta.name': typeMeta.name,
+            'typeMeta.data.name': typeMeta.data.name,
+            'typeMeta.reExportOf': typeMeta.reExportOf,
+          });
+        }
+
+        // Strip common prefix from heading if applicable
         const displayName =
-          part.startsWith(`${namespaceName}.`) && !hasNamespaceComponent
-            ? part.slice(namespaceName.length + 1) // Remove "ContextMenu." prefix
+          commonPrefix && part.startsWith(`${commonPrefix}.`)
+            ? part.slice(commonPrefix.length + 1) // Remove "Component." prefix
             : part;
 
         // Add subheading for the part using display name
@@ -427,10 +481,10 @@ export async function generateTypesMarkdown(
         // Check if this is a re-export of another type
         if (typeMeta.reExportOf) {
           // Add a note that this is a re-export with a link back to the original
-          // Strip namespace from the component name for the anchor (same as component headings)
+          // Strip common prefix from the component name for the anchor (same as component headings)
           const componentDisplayName =
-            typeMeta.reExportOf.startsWith(`${namespaceName}.`) && !hasNamespaceComponent
-              ? typeMeta.reExportOf.slice(namespaceName.length + 1)
+            commonPrefix && typeMeta.reExportOf.startsWith(`${commonPrefix}.`)
+              ? typeMeta.reExportOf.slice(commonPrefix.length + 1)
               : typeMeta.reExportOf;
 
           // Convert to anchor format: lowercase and remove dots

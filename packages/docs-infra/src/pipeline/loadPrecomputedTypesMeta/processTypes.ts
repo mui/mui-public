@@ -174,12 +174,16 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Also collect adjacent files from all re-exported source directories
           // Use sourceFilePaths from reExportResults to find directories that were re-exported
           // Those directories should have their DataAttributes/CssVars files included
-          const allSourceFilePaths = reExportResults.flatMap((result) => result.sourceFilePaths || []);
-          
+          const allSourceFilePaths = reExportResults.flatMap(
+            (result) => result.sourceFilePaths || [],
+          );
+
           let metaFilesCount = 0;
           try {
             // For each source file path, find DataAttributes and CssVars files in that directory
-            const metaFilesPromises = allSourceFilePaths.map((sourcePath) => findMetaFiles(sourcePath));
+            const metaFilesPromises = allSourceFilePaths.map((sourcePath) =>
+              findMetaFiles(sourcePath),
+            );
             const allMetaFiles = await Promise.all(metaFilesPromises);
             const flatMetaFiles = allMetaFiles.flat();
             metaFilesCount = flatMetaFiles.length;
@@ -273,7 +277,10 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     // Process results and collect dependencies and debug info
     const variantData: Record<string, VariantResult> = {};
     const allDependencies: string[] = [];
-    const debugInfo: Record<string, { sourceFilePaths: string[]; metaFilesCount: number; adjacentFilesCount: number; }> = {};
+    const debugInfo: Record<
+      string,
+      { sourceFilePaths: string[]; metaFilesCount: number; adjacentFilesCount: number }
+    > = {};
 
     if (
       variantResults.length === 1 &&

@@ -1,5 +1,9 @@
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 
+type S = string;
+
+type t = S | string;
+
 // Define minimal NextConfig type to avoid importing from 'next'
 export interface NextConfig {
   pageExtensions?: string[];
