@@ -1,15 +1,13 @@
 {
-  // This config is for emitting declarations (.d.ts) only
-  // Actual .ts source files are transpiled via babel
-  "extends": "./tsconfig.json",
+  "extends": ["../../tsconfig.base.json", "../../tsconfig.node.json"],
   "compilerOptions": {
-    "paths": {},
+    "composite": true,
     "emitDeclarationOnly": true,
     "outDir": "./build",
     "rootDir": "./src",
-    "noEmit": false
+    "noEmit": false,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"],
-  // removing "cli" since its going to run directly and not really imported anywhere
-  "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts", "vite.config.mts"]
+  "include": ["src", "package.json"],
+  "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts", "vite.config.mts", "build"]
 }

@@ -37,8 +37,8 @@ export default {
   description: 'Multiple top-level headings in the same document.',
   tags: ['headings'],
   /**
-   * @param {import('./duplicate-h1.mjs').MdParams} params
-   * @param {import('./duplicate-h1.mjs').OnError} onError
+   * @param {MdParams} params
+   * @param {OnError} onError
    */
   function: (params, onError) => {
     /**
