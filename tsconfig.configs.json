@@ -1,5 +1,8 @@
 {
   "extends": ["./tsconfig.base.json", "./tsconfig.node.json"],
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
   "files": ["./eslint.config.mjs", "./prettier.config.mjs", "./babel.config.js"],
   "include": ["**/vite.config.*"],
   "exclude": ["**/build"]
