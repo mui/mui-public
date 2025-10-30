@@ -1,6 +1,6 @@
 /**
  * @description Represents a single bundle size snapshot
- * @typedef {Object.<string, SizeSnapshotEntry>} SizeSnapshot
+ * @typedef {Object.<string, import('./types').SizeSnapshotEntry>} SizeSnapshot
  *
  * @description Represents a single bundle size comparison
  * @typedef {Object} Size
@@ -31,7 +31,7 @@
  * @property {number} fileCounts.total - Total number of files
  */
 
-/** @type {SizeSnapshotEntry} */
+/** @type {import('./types').SizeSnapshotEntry} */
 const nullSnapshot = { parsed: 0, gzip: 0 };
 
 /**
