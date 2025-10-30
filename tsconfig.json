@@ -1,5 +1,4 @@
 {
-  "extends": "./tsconfig.options.json",
   "references": [
     { "path": "apps/code-infra-dashboard" },
     { "path": "packages/babel-plugin-minify-errors" },
