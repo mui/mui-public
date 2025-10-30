@@ -326,12 +326,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const { dryRun = false, githubRelease = false, tag = 'latest', sha } = argv;
 
     if (isCI && !argv.ci) {
-      console.error(
-        chalk.yellow(
-          '❌ Error: CI environment detected but the "--ci" flag was not passed. Pass it explicitly to run in CI.',
-        ),
+      throw new Error(
+        '❌ Error: CI environment detected but the "--ci" flag was not passed. Pass it explicitly when running in CI environments.',
       );
-      process.exit(1);
     }
     argv.ci = argv.ci ?? isCI;
 
@@ -353,8 +350,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const allPackages = await getWorkspacePackages({ publicOnly: true });
 
     if (allPackages.length === 0) {
-      console.log('⚠️  No public packages found in workspace');
-      return;
+      throw new Error('⚠️  No public packages found in the workspace.');
     }
 
     // Get version from root package.json
