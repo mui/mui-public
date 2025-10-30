@@ -331,7 +331,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           '❌ Error: CI environment detected but the "--ci" flag was not passed. Pass it explicitly to run in CI.',
         ),
       );
-      return;
+      process.exit(1);
     }
     argv.ci = argv.ci ?? isCI;
 
