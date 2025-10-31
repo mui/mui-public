@@ -65,45 +65,91 @@ async function getRepositoryInfo() {
 }
 
 /**
+ * @typedef {Object} Commit
+ * @property {string} sha - Commit SHA
+ * @property {string} message - Commit message
+ * @property {string} author - Commit author
+ */
+
+/**
  * @param {Object} param0
  * @param {string} param0.packagePath
- * @returns {Promise<{sha: string; message: string;}[]>} Commits between the tag and master
+ * @returns {Promise<Commit[]>} Commits between the tag and current HEAD for the package
  */
 async function fetchCommitsForPackage({ packagePath }) {
   /**
-   * @type {{sha: string; message: string;}[]}
+   * @type {Commit[]}
    */
   const results = [];
-  const res = $`git log --no-decorate --oneline -q ${CANARY_TAG}..master -- ${packagePath}`;
+  const fieldSeparator = '\u001f'; // ASCII unit separator is extremely unlikely to appear in git metadata
+  const formatArg = '--format=%H%x1f%s%x1f%an%x1f%ae'; // SHA, subject, author name, author email separated by unit separator
+  const res = $`git log --oneline --no-decorate ${
+    // to avoid escaping by execa
+    [formatArg]
+  } ${CANARY_TAG}..HEAD -- ${packagePath}`;
   for await (const line of res) {
-    const [rawSha, ...rest] = line.split(' ');
-    const sha = rawSha.trim();
-    const message = rest.join(' ').trim();
-    results.push({ sha, message });
-  }
-  /**
-   * @type {typeof results}
-   */
-  const userCommits = [];
-  /** @type {typeof results} */
-  const bumpCommmits = [];
-  results.forEach((commit) => {
-    if (commit.message.match(/^bump/i)) {
-      bumpCommmits.push(commit);
-    } else {
-      userCommits.push(commit);
+    const commitLine = line.trimEnd();
+    if (!commitLine) {
+      continue;
     }
-  });
-  return userCommits.concat(bumpCommmits);
+    const parts = commitLine.split(fieldSeparator);
+    if (parts.length < 3) {
+      console.error(`Failed to parse commit log line: ${commitLine}`);
+      continue;
+    }
+    const [sha, message, commitAuthor, commitEmail] = parts;
+    let author = commitAuthor;
+    // try to get github username from email
+    if (commitEmail) {
+      const emailUsername = commitEmail.split('@')[0];
+      if (emailUsername) {
+        const [, githubUserName] = emailUsername.split('+');
+        if (githubUserName) {
+          author = `@${githubUserName}`;
+        }
+      }
+    }
+    results.push({ sha, message, author });
+  }
+  return results;
+}
+
+const AUTHOR_EXCLUDE_LIST = ['renovate[bot]', 'dependabot[bot]'];
+
+/**
+ * @param {string} message
+ * @returns {string}
+ */
+function cleanupCommitMessage(message) {
+  // AI generated: clean up commit message by removing leading bracketed tokens except [breaking]
+  let msg = message || '';
+
+  // Extract and remove leading bracketed tokens like "[foo][bar] message"
+  const tokens = [];
+  const bracketRe = /^\s*\[([^\]]+)\]\s*/;
+  let match = msg.match(bracketRe);
+  while (match) {
+    tokens.push(match[1]);
+    msg = msg.slice(match[0].length);
+    match = msg.match(bracketRe);
+  }
+  msg = msg.trim();
+
+  // If any of the leading tokens is "breaking" keep that token (preserve original casing)
+  const breakingToken = tokens.find((t) => t.toLowerCase() === 'breaking');
+  const prefix = breakingToken ? `[${breakingToken}]${msg ? ' ' : ''}` : '';
+
+  return `${prefix}${msg}`.trim();
 }
 
 /**
  * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {PublicPackage[]} allPackages - All packages in the repository
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
  * @returns {Promise<Map<string, string[]>>} Map of package names to their changelogs
  */
-async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions) {
+async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canaryVersions) {
   /**
    * @type {Map<string, string[]>}
    */
@@ -112,42 +158,67 @@ async function prepareChangelogsFromGitHub(packagesToPublish, canaryVersions) {
   await Promise.all(
     packagesToPublish.map(async (pkg) => {
       const commits = await fetchCommitsForPackage({ packagePath: pkg.path });
-      if (!commits.length) {
-        return;
+      if (commits.length > 0) {
+        console.log(`Found ${commits.length} commits for package ${pkg.name}`);
       }
-      console.log(`Found ${commits.length} commits for package ${pkg.name}`);
-      const changeLogStrs = commits.map((commit) => `- ${commit.message}`);
-      const { stdout: dependencyBumpsStr } =
-        // Lists the workspace dependencies that were updated in the package
-        await $`pnpm list --exclude-peers --only-projects --json --prod -F ${pkg.name}`;
-      /**
-       * @type {{dependencies: Record<string, {from: string}>}[]}
-       */
-      const dependencyBumps = JSON.parse(dependencyBumpsStr);
-      console.log(dependencyBumps);
-      if (dependencyBumps.length > 0 && dependencyBumps[0].dependencies) {
-        const updatedDeps = Object.keys(dependencyBumps[0].dependencies ?? {});
-        if (updatedDeps.length > 0) {
-          changeLogStrs.push(
-            `- Updated dependencies:
+      const changeLogStrs = commits
+        // Exclude commits authored by bots
+        .filter(
+          // We want to allow commits from copilot or other AI tools, so only filter known bots
+          (commit) => !AUTHOR_EXCLUDE_LIST.includes(commit.author),
+        )
+        .map((commit) => `- ${cleanupCommitMessage(commit.message)} by ${commit.author}`);
 
-${updatedDeps.map((dep) => `     - ${dep} (${canaryVersions.get(dep)})`).join('\n')}`,
-          );
-        }
+      if (changeLogStrs.length > 0) {
+        changelogs.set(pkg.name, changeLogStrs);
       }
-      changelogs.set(pkg.name, changeLogStrs);
     }),
   );
+  // Second pass: check for dependency updates in other packages not part of git history
+  /**
+   * @type {Map<string, string[]>}
+   */
+  const dependencyChanges = new Map();
+  const pkgDependencies = await Promise.all(
+    allPackages.map(async (pkg) => {
+      const { stdout } =
+        await $`pnpm ls --exclude-peers --only-projects --json --prod -F ${pkg.name}`;
+      const [data] = /** @type {PublicPackage[] & {dependencies: Record<string, unknown>}[]} */ (
+        JSON.parse(stdout)
+      );
+
+      return Object.keys(data.dependencies || {});
+    }),
+  );
+  for (let i = 0; i < allPackages.length; i += 1) {
+    const pkg = allPackages[i];
+    const depsToPublish = pkgDependencies[i].filter((dep) =>
+      packagesToPublish.some((p) => p.name === dep),
+    );
+    if (depsToPublish.length === 0) {
+      continue;
+    }
+    const changelog = changelogs.get(pkg.name) ?? [];
+    changelog.push('- Updated dependencies:');
+    depsToPublish.forEach((dep) => {
+      const depVersion = canaryVersions.get(dep);
+      if (depVersion) {
+        changelog.push(`  - Updated \`${dep}@${depVersion}\``);
+      }
+    });
+    dependencyChanges.set(pkg.name, changelog);
+  }
   return changelogs;
 }
 
 /**
  * Prepare changelog data for packages
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
+ * @param {PublicPackage[]} allPackages - All packages in the repository
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
  * @returns {Promise<Map<string, string[]>>} Map of package names to their changelogs
  */
-async function prepareChangelogsForPackages(packagesToPublish, canaryVersions) {
+async function prepareChangelogsForPackages(packagesToPublish, allPackages, canaryVersions) {
   console.log('\n📝 Preparing changelogs for packages...');
 
   const repoInfo = await getRepositoryInfo();
@@ -156,7 +227,11 @@ async function prepareChangelogsForPackages(packagesToPublish, canaryVersions) {
   /**
    * @type {Map<string, string[]>}
    */
-  const changelogs = await prepareChangelogsFromGitHub(packagesToPublish, canaryVersions);
+  const changelogs = await prepareChangelogsFromGitCli(
+    packagesToPublish,
+    allPackages,
+    canaryVersions,
+  );
 
   // Log changelog content for each package
   for (const pkg of packagesToPublish) {
@@ -348,24 +423,24 @@ async function publishCanaryVersions(
   // Second pass: read and update ALL package.json files in parallel
   // Packages are already built at this point.
   const packageUpdatePromises = allPackages.map(async (pkg) => {
-    let originalPackageJson = await readPackageJson(pkg.path);
+    let basePkgJson = await readPackageJson(pkg.path);
     let pkgJsonDirectory = pkg.path;
-    if (originalPackageJson.publishConfig?.directory) {
-      pkgJsonDirectory = path.join(pkg.path, originalPackageJson.publishConfig.directory);
-      originalPackageJson = await readPackageJson(pkgJsonDirectory);
+    if (basePkgJson.publishConfig?.directory) {
+      pkgJsonDirectory = path.join(pkg.path, basePkgJson.publishConfig.directory);
+      basePkgJson = await readPackageJson(pkgJsonDirectory);
     }
 
     const canaryVersion = canaryVersions.get(pkg.name);
     if (canaryVersion) {
       const updatedPackageJson = {
-        ...originalPackageJson,
+        ...basePkgJson,
         version: canaryVersion,
         gitSha,
       };
       await writePackageJson(pkgJsonDirectory, updatedPackageJson);
       console.log(`📝 Updated ${pkg.name} package.json to ${canaryVersion}`);
     }
-    return { pkg, originalPackageJson, pkgJsonDirectory };
+    return { pkg, basePkgJson, pkgJsonDirectory };
   });
 
   const updateResults = await Promise.all(packageUpdatePromises);
@@ -376,14 +451,14 @@ async function publishCanaryVersions(
    */
   let changelogs = new Map();
   if (options.githubRelease) {
-    changelogs = await prepareChangelogsForPackages(packagesToPublish, canaryVersions);
+    changelogs = await prepareChangelogsForPackages(packagesToPublish, allPackages, canaryVersions);
   }
 
   // Third pass: publish only the changed packages using recursive publish
   let publishSuccess = false;
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, { ...options, noGitChecks: true, tag: 'canary' });
+    await publishPackages(packagesToPublish, { ...options, noGitChecks: true, tag: CANARY_TAG });
 
     packagesToPublish.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);
@@ -393,14 +468,12 @@ async function publishCanaryVersions(
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
-    const restorePromises = updateResults.map(
-      async ({ pkg, originalPackageJson, pkgJsonDirectory }) => {
-        // no need to restore package.json files in build directories
-        if (pkgJsonDirectory === pkg.path) {
-          await writePackageJson(pkg.path, originalPackageJson);
-        }
-      },
-    );
+    const restorePromises = updateResults.map(async ({ pkg, basePkgJson, pkgJsonDirectory }) => {
+      // no need to restore package.json files in build directories
+      if (pkgJsonDirectory === pkg.path) {
+        await writePackageJson(pkg.path, basePkgJson);
+      }
+    });
 
     await Promise.all(restorePromises);
   }
