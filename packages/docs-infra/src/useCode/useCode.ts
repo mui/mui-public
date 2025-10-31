@@ -19,6 +19,16 @@ export type UseCodeOpts = {
   githubUrlPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
+  /**
+   * Controls URL hash management for file navigation.
+   *
+   * - `'full'` (default): Read and write URL hashes with full detail (shareable deep links)
+   * - `'read'`: Read hash once, clean to demo slug, no further writes (embedded viewers)
+   * - `'remove'`: Read hash once, then remove completely (isolated code viewers)
+   *
+   * @default 'full'
+   */
+  fileHashMode?: 'full' | 'read' | 'remove';
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -58,6 +68,7 @@ export function useCode<T extends {} = {}>(
     initialTransform,
     preClassName,
     preRef,
+    fileHashMode = 'full',
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -104,7 +115,10 @@ export function useCode<T extends {} = {}>(
   }, [contentProps, context?.url]);
 
   // Sub-hook: UI State Management
-  const uiState = useUIState({ defaultOpen });
+  const uiState = useUIState({
+    defaultOpen,
+    mainSlug: userProps.slug,
+  });
 
   // Sub-hook: Variant Selection
   const variantSelection = useVariantSelection({
@@ -131,12 +145,14 @@ export function useCode<T extends {} = {}>(
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,
+    suppressLocalStorageSync: variantSelection.suppressLocalStorageSync,
     variantKeys: variantSelection.variantKeys,
     initialVariant,
     shouldHighlight,
     preClassName,
     preRef,
     effectiveCode,
+    fileHashMode,
   });
 
   // Sub-hook: Copy Functionality
