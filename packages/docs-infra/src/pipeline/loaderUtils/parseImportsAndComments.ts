@@ -973,7 +973,7 @@ function parseCssImports(
 }
 
 /**
- * Parses JavaScript/TypeScript import statements from source code.
+ * Parses JavaScript/TypeScript import and export-from statements from source code.
  * @param code - The source code to parse
  * @param filePath - The file path for resolving relative imports
  * @param result - Object to store relative import results
@@ -1001,13 +1001,16 @@ function parseJSImports(
     notableCommentsPrefix,
   );
 
-  // Now, parse each import statement using character-by-character parsing
+  // Now, parse each import/export statement using character-by-character parsing
   for (const { start, text } of scanResult.statements) {
     let pos = 0;
     const textLen = text.length;
 
-    // Skip 'import'
-    pos = 6; // We know it starts with 'import'
+    // Check if this is an export statement
+    const isExport = text.startsWith('export');
+
+    // Skip 'import' or 'export'
+    pos = isExport ? 6 : 6; // Both are 6 characters
     pos = skipWhitespace(text, pos);
 
     // Check for 'type' keyword
@@ -1236,11 +1239,11 @@ function parseJSImports(
 }
 
 /**
- * Detects JavaScript import statements at a given position in source code.
+ * Detects JavaScript import and export-from statements at a given position in source code.
  * @param sourceText - The source text to scan
  * @param pos - The current position in the text
  * @param positionMapper - Function to map original positions to processed positions
- * @returns Object indicating if an import was found, the next position, and statement details
+ * @returns Object indicating if an import/export was found, the next position, and statement details
  */
 function detectJavaScriptImport(
   sourceText: string,
@@ -1248,6 +1251,125 @@ function detectJavaScriptImport(
   _positionMapper: (originalPos: number) => number,
 ) {
   const ch = sourceText[pos];
+
+  // Look for 'export' keyword followed by 'from' (export ... from '...')
+  if (
+    ch === 'e' &&
+    sourceText.slice(pos, pos + 6) === 'export' &&
+    (pos === 0 || /[^a-zA-Z0-9_$]/.test(sourceText[pos - 1])) &&
+    /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
+  ) {
+    // Check if this export statement has a 'from' clause
+    const exportStart = pos;
+    const len = sourceText.length;
+    let j = pos + 6;
+
+    // Skip whitespace and look ahead for 'from' keyword
+    let hasFrom = false;
+    let tempPos = j;
+    let tempBraceDepth = 0;
+
+    while (tempPos < len) {
+      const tempCh = sourceText[tempPos];
+      if (tempCh === '{') {
+        tempBraceDepth += 1;
+      } else if (tempCh === '}') {
+        tempBraceDepth -= 1;
+      } else if (
+        sourceText.slice(tempPos, tempPos + 4) === 'from' &&
+        /\s/.test(sourceText[tempPos + 4] || '')
+      ) {
+        hasFrom = true;
+        break;
+      } else if (tempCh === ';' || (tempCh === '\n' && tempBraceDepth === 0)) {
+        break;
+      }
+      tempPos += 1;
+    }
+
+    if (!hasFrom) {
+      // This is not an export-from statement, skip it
+      return { found: false, nextPos: pos };
+    }
+
+    // Now scan to find the end of the export-from statement
+    let exportState: 'code' | 'string' | 'template' = 'code';
+    let exportQuote: string | null = null;
+    let braceDepth = 0;
+    let foundFrom = false;
+    let foundModulePath = false;
+
+    while (j < len) {
+      const cj = sourceText[j];
+      if (exportState === 'code') {
+        if (cj === ';') {
+          j += 1;
+          break;
+        }
+        if (isStringStart(cj)) {
+          exportState = cj === '`' ? 'template' : 'string';
+          exportQuote = cj;
+          if (foundFrom) {
+            foundModulePath = true;
+          }
+          j += 1;
+          continue;
+        }
+        if (cj === '{') {
+          braceDepth += 1;
+        }
+        if (cj === '}') {
+          braceDepth -= 1;
+        }
+        if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
+          foundFrom = true;
+        }
+        if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
+          let k = j;
+          while (k < len && /\s/.test(sourceText[k])) {
+            k += 1;
+          }
+          if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
+            if (sourceText[k] === ';') {
+              j = k + 1;
+            } else {
+              j = k;
+            }
+            break;
+          }
+        }
+      } else if (exportState === 'string') {
+        if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (cj === exportQuote) {
+          exportState = 'code';
+          exportQuote = null;
+        }
+        j += 1;
+        continue;
+      } else if (exportState === 'template') {
+        if (cj === '`') {
+          exportState = 'code';
+          exportQuote = null;
+        } else if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        j += 1;
+        continue;
+      }
+      j += 1;
+    }
+
+    const exportText = sourceText.slice(exportStart, j);
+    return {
+      found: true,
+      nextPos: j,
+      statement: { start: exportStart, end: j, text: exportText },
+    };
+  }
 
   // Look for 'import' keyword (not part of an identifier, and not preceded by @)
   if (
@@ -1362,11 +1484,11 @@ function detectJavaScriptImport(
 }
 
 /**
- * Parse import statements from JavaScript/TypeScript/CSS code.
+ * Parse import and export-from statements from JavaScript/TypeScript/CSS code.
  *
- * This function analyzes source code to extract all import statements, categorizing them
- * as either relative imports (local files) or external imports (packages). It supports
- * JavaScript, TypeScript, CSS, and MDX files.
+ * This function analyzes source code to extract all import and export-from statements,
+ * categorizing them as either relative imports (local files) or external imports (packages).
+ * It supports JavaScript, TypeScript, CSS, and MDX files.
  *
  * Comment processing (stripping/collecting) is performed during import parsing
  * for efficiency. Since we must already parse the entire file character-by-character
@@ -1384,11 +1506,12 @@ function detectJavaScriptImport(
  * @example
  * ```typescript
  * const result = await parseImportsAndComments(
- *   'import React from "react";\nimport { Button } from "./Button";',
+ *   'import React from "react";\nimport { Button } from "./Button";\nexport { Icon } from "./Icon";',
  *   '/src/App.tsx'
  * );
  * // result.externals['react'] contains the React import
  * // result.relative['./Button'] contains the Button import
+ * // result.relative['./Icon'] contains the Icon re-export
  * ```
  */
 export async function parseImportsAndComments(
@@ -1417,7 +1540,7 @@ export async function parseImportsAndComments(
     );
   }
 
-  // Parse JavaScript import statements
+  // Parse JavaScript import and export-from statements
   return parseJSImports(
     code,
     filePath,

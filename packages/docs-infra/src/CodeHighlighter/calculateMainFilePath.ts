@@ -1,4 +1,4 @@
-import { createSyntheticDirectories, buildPath } from './pathUtils.js';
+import { createSyntheticDirectories, buildPath } from './pathUtils';
 
 export function calculateMainFilePath(
   url: string,

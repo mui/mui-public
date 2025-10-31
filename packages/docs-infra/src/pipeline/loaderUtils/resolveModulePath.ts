@@ -49,6 +49,38 @@ export const TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.
 export const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'] as const;
 
 /**
+ * Static asset extensions that should NOT be resolved as JS modules
+ */
+const STATIC_ASSET_EXTENSIONS = [
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.json',
+  '.svg',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.otf',
+] as const;
+
+/**
+ * Checks if a file path or import path represents a static asset
+ * @param path - The file path or import path to check
+ * @returns true if it's a static asset, false if it should be resolved as a JS module
+ */
+function isStaticAsset(path: string): boolean {
+  return STATIC_ASSET_EXTENSIONS.some((ext) => path.endsWith(ext));
+}
+
+/**
  * Checks if a file path or import path represents a JavaScript/TypeScript module
  * @param path - The file path or import path to check
  * @returns true if it's a JS/TS module, false otherwise
@@ -624,16 +656,15 @@ export async function resolveImportResult(
   const staticAssets: string[] = [];
 
   for (const [importPath, { path, includeTypeDefs }] of Object.entries(importResult)) {
-    if (isJavaScriptModule(importPath)) {
-      // If the import path already has a JS/TS extension, use it as-is
-      if (JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => importPath.endsWith(ext))) {
-        jsModulesWithExtensions.push(path);
-      } else {
-        jsModulesToResolve.push({ path, includeTypeDefs });
-      }
-    } else {
+    if (isStaticAsset(importPath)) {
       // Static asset - use path as-is
       staticAssets.push(path);
+    } else if (JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => importPath.endsWith(ext))) {
+      // If the import path already has a JS/TS extension, use it as-is
+      jsModulesWithExtensions.push(path);
+    } else {
+      // Needs to be resolved
+      jsModulesToResolve.push({ path, includeTypeDefs });
     }
   }
 

@@ -434,6 +434,7 @@ async function loadExtraFiles(
       let fileUrl: string;
       let sourceData: VariantSource | undefined;
       let transforms: Transforms | undefined;
+      let nextLoadedFiles: Set<string>;
 
       if (typeof fileData === 'string') {
         // fileData is a URL/path - use it directly, don't modify it
@@ -444,12 +445,17 @@ async function loadExtraFiles(
           throw new Error(`Circular dependency detected: ${fileUrl}`);
         }
 
-        loadedFiles.add(fileUrl);
+        // Create a new set with the current file added for the recursive call
+        // Don't mutate the parent's loadedFiles set
+        nextLoadedFiles = new Set(loadedFiles);
+        nextLoadedFiles.add(fileUrl);
       } else {
         // fileData is an object with source and/or transforms
         sourceData = fileData.source;
         transforms = fileData.transforms;
         fileUrl = baseUrl; // Use base URL as fallback
+        // For inline source, just pass a copy of loadedFiles without adding current file
+        nextLoadedFiles = new Set(loadedFiles);
       }
 
       // Load the file (this will handle recursive extra files)
@@ -463,7 +469,7 @@ async function loadExtraFiles(
         sourceTransformers,
         loadSourceCache,
         transforms,
-        { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
+        { ...options, maxDepth: maxDepth - 1, loadedFiles: nextLoadedFiles },
         allFilesListed,
         knownExtraFiles,
       );
