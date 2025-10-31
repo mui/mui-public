@@ -142,6 +142,74 @@ function cleanupCommitMessage(message) {
   return `${prefix}${msg}`.trim();
 }
 
+async function getPackagesWithDependencies() {
+  /**
+   * @type {(PublicPackage & { dependencies: Record<string, unknown>; private: boolean; })[]}
+   */
+  const packagesWithDeps = JSON.parse(
+    (await $`pnpm ls -r --json --exclude-peers --only-projects --prod`).stdout,
+  );
+  /** @type {Record<string, string[]>} */
+  const directPkgDependencies = packagesWithDeps
+    .filter((pkg) => !pkg.private)
+    .reduce((acc, pkg) => {
+      if (!pkg.name) {
+        return acc;
+      }
+      const deps = Object.keys(pkg.dependencies || {});
+      if (!deps.length) {
+        return acc;
+      }
+      acc[pkg.name] = deps;
+      return acc;
+    }, /** @type {Record<string, string[]>} */ ({}));
+
+  // Compute transitive (nested) dependencies limited to workspace packages and avoid cycles.
+  const workspacePkgNames = new Set(Object.keys(directPkgDependencies));
+  const nestedMap = /** @type {Record<string, string[]>} */ ({});
+
+  /**
+   *
+   * @param {string} pkgName
+   * @returns {string[]}
+   */
+  const getTransitiveDeps = (pkgName) => {
+    /**
+     * @type {Set<string>}
+     */
+    const seen = new Set();
+    const stack = (directPkgDependencies[pkgName] || []).slice();
+
+    while (stack.length) {
+      const dep = stack.pop();
+      if (!dep || seen.has(dep)) {
+        continue;
+      }
+      // Only consider workspace packages for transitive expansion
+      if (!workspacePkgNames.has(dep)) {
+        // still record external deps as direct deps but don't traverse into them
+        seen.add(dep);
+        continue;
+      }
+      seen.add(dep);
+      const children = directPkgDependencies[dep] || [];
+      for (const c of children) {
+        if (!seen.has(c)) {
+          stack.push(c);
+        }
+      }
+    }
+
+    return Array.from(seen);
+  };
+
+  for (const name of Object.keys(directPkgDependencies)) {
+    nestedMap[name] = getTransitiveDeps(name);
+  }
+
+  return nestedMap;
+}
+
 /**
  * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
@@ -175,24 +243,11 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
     }),
   );
   // Second pass: check for dependency updates in other packages not part of git history
-  /**
-   * @type {Map<string, string[]>}
-   */
-  const dependencyChanges = new Map();
-  const pkgDependencies = await Promise.all(
-    allPackages.map(async (pkg) => {
-      const { stdout } =
-        await $`pnpm ls --exclude-peers --only-projects --json --prod -F ${pkg.name}`;
-      const [data] = /** @type {PublicPackage[] & {dependencies: Record<string, unknown>}[]} */ (
-        JSON.parse(stdout)
-      );
+  const pkgDependencies = await getPackagesWithDependencies();
 
-      return Object.keys(data.dependencies || {});
-    }),
-  );
   for (let i = 0; i < allPackages.length; i += 1) {
     const pkg = allPackages[i];
-    const depsToPublish = pkgDependencies[i].filter((dep) =>
+    const depsToPublish = (pkgDependencies[pkg.name] ?? []).filter((dep) =>
       packagesToPublish.some((p) => p.name === dep),
     );
     if (depsToPublish.length === 0) {
@@ -203,10 +258,9 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
     depsToPublish.forEach((dep) => {
       const depVersion = canaryVersions.get(dep);
       if (depVersion) {
-        changelog.push(`  - Updated \`${dep}@${depVersion}\``);
+        changelog.push(`  - Bumped \`${dep}@${depVersion}\``);
       }
     });
-    dependencyChanges.set(pkg.name, changelog);
   }
   return changelogs;
 }
