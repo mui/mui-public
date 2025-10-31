@@ -152,6 +152,16 @@ export function isPublicComponent(
 
   const hasIgnoreTag = exportNode.documentation?.tags?.some((tag) => tag.name === 'ignore');
 
+  // DEBUG: Log MenuRoot specifically
+  if (exportNode.name === 'Menu.Root') {
+    console.warn('[isPublicComponent] Checking Menu.Root:');
+    console.warn('[isPublicComponent]   isComponentType:', isComponentType(exportNode.type));
+    console.warn('[isPublicComponent]   hasIgnoreTag:', hasIgnoreTag);
+    console.warn('[isPublicComponent]   isPublic:', isPublic);
+    console.warn('[isPublicComponent]   type.kind:', (exportNode.type as any).kind);
+    console.warn('[isPublicComponent]   exportNode.type:', exportNode.type);
+  }
+
   return isComponentType(exportNode.type) && !hasIgnoreTag && isPublic;
 }
 

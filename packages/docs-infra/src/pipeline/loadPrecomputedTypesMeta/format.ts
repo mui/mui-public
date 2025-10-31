@@ -328,7 +328,18 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
   return result;
 }
 
-async function prettyFormat(type: string, typeName?: string) {
+/**
+ * Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
+ *
+ * This function wraps the type in a `type Name = ...` declaration, formats it with Prettier,
+ * and then removes or preserves the prefix based on the provided typeName and formatting.
+ *
+ * @param type - The type string to format
+ * @param typeName - Optional type name to use in the declaration. If provided and the type
+ *                   is multi-line, the `type Name = ` prefix will be preserved.
+ * @returns The formatted type string
+ */
+export async function prettyFormat(type: string, typeName?: string) {
   const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
     plugins: [prettierPluginEstree, prettierPluginTypescript],
     parser: 'typescript',

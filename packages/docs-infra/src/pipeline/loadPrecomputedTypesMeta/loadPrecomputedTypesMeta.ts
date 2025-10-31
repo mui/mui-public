@@ -166,6 +166,12 @@ export async function loadPrecomputedTypesMeta(
       url.replace('file://', ''),
     );
 
+    // DEBUG: Log entrypoints for Menu
+    if (this.resourcePath.includes('menu/types.ts')) {
+      console.warn('[loadPrecomputedTypesMeta] Menu resolvedEntrypoints:', resolvedEntrypoints);
+      console.warn('[loadPrecomputedTypesMeta] Menu resolvedVariantMap:', Array.from(resolvedVariantMap.entries()));
+    }
+
     // Parse exports from library source files to find re-exported directories
     // This helps us discover DataAttributes/CssVars files from re-exported components
     const reExportedDirs = new Set<string>();
@@ -195,23 +201,22 @@ export async function loadPrecomputedTypesMeta(
                 } catch {
                   // Path doesn't exist as-is. Check if it exists with common extensions
                   const extensions = ['.tsx', '.ts', '.jsx', '.js'];
-                  let foundAsFile = false;
-                  
+
                   for (const ext of extensions) {
                     try {
+                      // eslint-disable-next-line no-await-in-loop
                       const fileStats = await stat(absolutePath + ext);
                       if (fileStats.isFile()) {
                         // It's a file reference, add the parent directory
                         const parentDir = path.dirname(absolutePath);
                         reExportedDirs.add(parentDir);
-                        foundAsFile = true;
                         break;
                       }
                     } catch {
                       // Continue checking other extensions
                     }
                   }
-                  
+
                   // If not found as file or directory, it might be a bare module reference - skip it
                 }
               }
@@ -277,6 +282,28 @@ export async function loadPrecomputedTypesMeta(
       }
       console.warn(`  - Meta files found: ${workerResult.debug.metaFilesCount || 0}`);
       console.warn(`  - Adjacent files count: ${workerResult.debug.adjacentFilesCount || 0}`);
+
+            // DEBUG: Log exports for Menu
+      if (relativePath.includes('/menu/types')) {
+        const variantData = workerResult.variantData;
+        if (variantData) {
+          console.warn('[Menu exports] ALL variant keys:', Object.keys(variantData));
+          console.warn('[Menu exports] Keys containing Root:');
+          Object.keys(variantData).forEach((key) => {
+            if (key.includes('Root')) {
+              console.warn(`  - ${key}`);
+            }
+          });
+          
+          // Check if Menu.Root exists
+          const menuRoot = variantData['Menu.Root'];
+          if (menuRoot) {
+            console.warn('[Menu.Root] Found! exports:', menuRoot.exports?.map((exp: any) => exp.name));
+          } else {
+            console.warn('[Menu.Root] NOT FOUND in variantData keys');
+          }
+        }
+      }
     }
 
     // Reconstruct worker performance logs in main thread
