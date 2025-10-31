@@ -1,18 +1,8 @@
 {
   "compilerOptions": {
-    "composite": true,
-    "target": "ESNext",
-    "module": "ESNext",
+    "target": "es2022",
+    "module": "esnext",
     "moduleResolution": "bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "checkJs": true,
-    "allowJs": true,
-    "noEmit": true
-  },
-  "include": ["eslint.config.*", "prettier.config.*"]
+    "types": ["node"]
+  }
 }

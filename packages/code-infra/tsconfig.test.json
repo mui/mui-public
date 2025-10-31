@@ -1,0 +1,17 @@
+{
+  "extends": ["../../tsconfig.base.json", "../../tsconfig.node.json"],
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "rootDir": ".",
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts", "vite.config.mts"],
+  "exclude": ["node_modules", "build"],
+  "references": [
+    {
+      "path": "tsconfig.build.json"
+    }
+  ]
+}

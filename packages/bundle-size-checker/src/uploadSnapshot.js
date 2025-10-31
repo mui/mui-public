@@ -29,7 +29,7 @@ function sanitizeS3TagString(str) {
 /**
  * Uploads the size snapshot to S3
  * @param {string} snapshotPath - The path to the size snapshot JSON file
- * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
+ * @param {import('./types').NormalizedUploadConfig} uploadConfig - The normalized upload configuration
  * @param {string} [commitSha] - Optional commit SHA (defaults to current Git HEAD)
  * @returns {Promise<{key:string}>}
  */
