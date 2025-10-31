@@ -474,6 +474,12 @@ export function parseExports(
 ): ParsedReExports[] {
   const fileName = sourceFile.fileName;
 
+  // DEBUG: Log ALL Select-related file processing
+  if (fileName.includes('select') && !fileName.includes('node_modules')) {
+    console.warn('[parseExports] ===== PROCESSING SELECT FILE:', fileName);
+    console.warn('[parseExports] parentNamespaceName:', parentNamespaceName);
+  }
+
   // Prevent infinite recursion
   if (visited.has(fileName)) {
     return [];
@@ -768,14 +774,17 @@ export function parseExports(
     for (const reExportInfo of filteredReExportInfos) {
       // DEBUG: Log when parsing from Menu index.parts
       if (sourceFile.fileName.includes('menu/index.parts')) {
-        console.warn('[parseExports] Calling parseExports for reExportInfo from menu/index.parts:', reExportInfo.sourceFile.fileName);
+        console.warn(
+          '[parseExports] Calling parseExports for reExportInfo from menu/index.parts:',
+          reExportInfo.sourceFile.fileName,
+        );
       }
-      
+
       // Clone the visited set for each re-export branch to avoid cross-contamination
       // This allows the same file (e.g., MenuRoot.tsx) to be processed from different
       // parent contexts (e.g., Menu and ContextMenu) which may have different alias mappings
       const branchVisited = new Set(visited);
-      
+
       const recursiveResults = parseExports(
         reExportInfo.sourceFile,
         checker,
@@ -788,9 +797,17 @@ export function parseExports(
 
       // DEBUG: Log recursiveResults count for Menu
       if (sourceFile.fileName.includes('menu/index.parts')) {
-        console.warn('[parseExports] Recursive call returned', recursiveResults.length, 'results for:', reExportInfo.sourceFile.fileName);
+        console.warn(
+          '[parseExports] Recursive call returned',
+          recursiveResults.length,
+          'results for:',
+          reExportInfo.sourceFile.fileName,
+        );
         if (recursiveResults.length === 0) {
-          console.warn('[parseExports] WARNING: No results returned for:', reExportInfo.sourceFile.fileName);
+          console.warn(
+            '[parseExports] WARNING: No results returned for:',
+            reExportInfo.sourceFile.fileName,
+          );
         }
       }
 
@@ -810,9 +827,22 @@ export function parseExports(
         // Use the reExportInfo's aliasMap if it has one, otherwise use the shared alias map
         const aliasMap = reExportInfo.aliasMap.size > 0 ? reExportInfo.aliasMap : sharedAliasMap;
 
+        // Filter out identity mappings (e.g., Separator → Separator) to prevent incorrect transformations
+        // Identity mappings occur when a component re-exports another component without renaming
+        const filteredAliasMap = aliasMap
+          ? new Map(Array.from(aliasMap.entries()).filter(([key, value]) => key !== value))
+          : undefined;
+
+        // If after filtering we have no mappings left, set to undefined
+        const effectiveAliasMap =
+          filteredAliasMap && filteredAliasMap.size > 0 ? filteredAliasMap : undefined;
+
         // DEBUG: Log recursiveResults for ContextMenu and Menu
         if (reExportInfo.namespaceName === 'ContextMenu' || reExportInfo.namespaceName === 'Menu') {
-          console.warn('[parseExports-namespace] Processing namespace:', reExportInfo.namespaceName);
+          console.warn(
+            '[parseExports-namespace] Processing namespace:',
+            reExportInfo.namespaceName,
+          );
           console.warn('[parseExports-namespace] recursiveResults count:', recursiveResults.length);
           recursiveResults.forEach((result, idx) => {
             console.warn(`[parseExports-namespace] recursiveResults[${idx}]:`, {
@@ -821,7 +851,10 @@ export function parseExports(
               typeNameMapSize: result.typeNameMap?.size || 0,
             });
             if (result.name && result.name.includes('Root')) {
-              console.warn(`[parseExports-namespace]   ** Contains Root! exports:`, result.exports.map((exportNode) => exportNode.name).slice(0, 10));
+              console.warn(
+                `[parseExports-namespace]   ** Contains Root! exports:`,
+                result.exports.map((exportNode) => exportNode.name).slice(0, 10),
+              );
             }
             if (result.typeNameMap && result.typeNameMap.size > 0) {
               const entries = Array.from(result.typeNameMap.entries()).slice(0, 3);
@@ -858,8 +891,8 @@ export function parseExports(
             let transformedName = exportName;
 
             // Check each alias to see if the export name starts with the original component name
-            if (aliasMap && aliasMap.size > 0) {
-              aliasMap.forEach((aliasedName, originalName) => {
+            if (effectiveAliasMap && effectiveAliasMap.size > 0) {
+              effectiveAliasMap.forEach((aliasedName, originalName) => {
                 if (transformedName === exportName && exportNode.name.startsWith(originalName)) {
                   // DEBUG: Log MenuRoot transformation
                   if (originalName === 'MenuRoot' || exportName.includes('MenuRoot')) {
@@ -896,40 +929,126 @@ export function parseExports(
             // The originalName (stored above) preserves the name before any aliasing,
             // so we can use it directly for lookups later
             if (transformedName === exportName) {
-              // DEBUG: Check for double dots BEFORE transformation
-              if (exportName.includes('Separator') && exportName.includes('..')) {
-                console.warn('[parseExports] DOUBLE DOT BEFORE TRANSFORM:', {
-                  exportName,
-                  namespaceName,
-                  'exportNode.name': exportNode.name,
-                });
-              }
-
               if (exportName.startsWith(namespaceName)) {
                 // Export already starts with namespace (e.g., "AutocompleteRootProps")
                 // Remove namespace prefix and re-add with dots
                 const withoutNamespace = exportName.slice(namespaceName.length);
                 if (withoutNamespace) {
-                  transformedName = `${namespaceName}.${withoutNamespace}`;
+                  // Remove leading dot if present (e.g., ".Separator.Props" -> "Separator.Props")
+                  // This prevents double dots like "Select..Separator.Props"
+                  const cleanedSuffix = withoutNamespace.startsWith('.')
+                    ? withoutNamespace.slice(1)
+                    : withoutNamespace;
+
+                  // DEBUG: Log for Select Separator
+                  if (
+                    namespaceName === 'Select' &&
+                    (exportName.includes('Separator') || cleanedSuffix.includes('Separator'))
+                  ) {
+                    console.warn('[parseExports] SELECT SEPARATOR ALREADY HAS NAMESPACE:', {
+                      exportName,
+                      namespaceName,
+                      withoutNamespace,
+                      cleanedSuffix,
+                      willBecome: `${namespaceName}.${cleanedSuffix}`,
+                    });
+                  }
+
+                  transformedName = `${namespaceName}.${cleanedSuffix}`;
                 }
               } else if (exportName.includes('.')) {
                 // Export is already dotted (e.g., "Separator.Props" from namespace member)
-                // Just prepend the namespace
+                // Special case: if exportName starts with a dot (e.g., ".Props"), it's a bare member
+                // that needs a component name prepended, which should come from the member map
 
-                // DEBUG: Check what's being concatenated
-                if (exportName.includes('Separator')) {
-                  console.warn('[parseExports] Adding namespace prefix to dotted export:', {
+                // DEBUG: Log ALL Select.Separator cases to see what exportName looks like
+                if (namespaceName === 'Select' && exportName.includes('Separator')) {
+                  console.warn('[parseExports] SELECT SEPARATOR DOTTED EXPORT:', {
                     exportName,
+                    startsWithDot: exportName.startsWith('.'),
+                    firstChar: exportName[0],
                     namespaceName,
-                    result: `${namespaceName}.${exportName}`,
                   });
                 }
 
-                transformedName = `${namespaceName}.${exportName}`;
+                if (exportName.startsWith('.')) {
+                  // This is a bare namespace member like ".Props"
+                  // Just add the namespace prefix directly
+                  transformedName = `${namespaceName}${exportName}`;
+                } else {
+                  // Normal dotted name like "Separator.Props"
+                  // This could be:
+                  // 1. Component.Member where Component is the ALIASED name (e.g., "Separator.Props" where "Separator" is the alias for "SelectSeparator")
+                  // 2. Component.Member where Component is not aliased
+
+                  // Split the export name at the first dot
+                  const firstDotIndex = exportName.indexOf('.');
+                  const componentPart = exportName.slice(0, firstDotIndex);
+                  const memberPart = exportName.slice(firstDotIndex); // includes the dot
+
+                  // Check if componentPart is already an alias (i.e., it's a VALUE in the map)
+                  // For example, "Separator.Props" where "Separator" is the alias for "SelectSeparator"
+                  // In this case, "Separator" is the SHORT name, so we need to add the namespace
+                  // but NOT treat componentPart as needing transformation
+                  const isAlreadyAliased = effectiveAliasMap
+                    ? Array.from(effectiveAliasMap.values()).includes(componentPart)
+                    : false;
+
+                  if (isAlreadyAliased) {
+                    // The component part is already an alias (short name), so just add namespace
+                    // e.g., "Separator.Props" → "Select.Separator.Props" (NOT "Select.Separator..Props")
+                    transformedName = `${namespaceName}.${exportName}`;
+                  } else {
+                    // Not an alias - check if there's an alias mapping for this component
+                    let aliasedComponentPart = componentPart;
+                    if (effectiveAliasMap && effectiveAliasMap.has(componentPart)) {
+                      aliasedComponentPart = effectiveAliasMap.get(componentPart)!;
+                    }
+
+                    // Reconstruct: Namespace.AliasedComponent.Member
+                    transformedName = `${namespaceName}.${aliasedComponentPart}${memberPart}`;
+                  }
+
+                  // DEBUG: Log result for Separator in Select
+                  if (
+                    namespaceName === 'Select' &&
+                    (componentPart === 'Separator' || transformedName.includes('Separator'))
+                  ) {
+                    console.warn('[parseExports] SELECT SEPARATOR RESULT:', {
+                      transformedName,
+                      isAlreadyAliased,
+                      'has double dot': transformedName.includes('..'),
+                      componentPart,
+                      aliasedComponentPart:
+                        componentPart === 'Separator'
+                          ? effectiveAliasMap?.has('Separator')
+                            ? effectiveAliasMap.get('Separator')
+                            : 'no alias'
+                          : 'N/A',
+                    });
+                  }
+                }
               } else {
                 // Export is a flat name - just add namespace prefix
+                // DEBUG: Log for Separator in Select
+                if (namespaceName === 'Select' && exportName.includes('Separator')) {
+                  console.warn('[parseExports] SELECT SEPARATOR FLAT NAME:', {
+                    exportName,
+                    namespaceName,
+                    willBecome: `${namespaceName}.${exportName}`,
+                  });
+                }
                 transformedName = `${namespaceName}.${exportName}`;
               }
+            }
+
+            // DEBUG: Log when setting export name for Separator
+            if (transformedName.includes('Separator')) {
+              console.warn('[parseExports] SETTING EXPORT NODE NAME:', {
+                originalExportName: exportName,
+                transformedName,
+                'has double dot': transformedName.includes('..'),
+              });
             }
 
             exportNode.name = transformedName;
@@ -1033,6 +1152,41 @@ export function parseExports(
               parts[0] = transformedComponentPart;
               const transformedDottedName = `${namespace}.${parts.join('.')}`;
 
+              // DEBUG: CRITICAL - Log for ALL Select/Separator to see parts array
+              if (
+                namespace === 'Select' &&
+                (flatName.includes('Separator') || dottedName.includes('Separator'))
+              ) {
+                console.error('[parseExports] CRITICAL SELECT SEPARATOR PARTS:', {
+                  flatName,
+                  dottedName,
+                  parts,
+                  partsLength: parts.length,
+                  'parts[0]': parts[0],
+                  'parts[1]': parts[1],
+                  'parts[2]': parts[2],
+                  joined: parts.join('.'),
+                  transformedDottedName,
+                  'has double dot': transformedDottedName.includes('..'),
+                });
+              }
+
+              // DEBUG: Log for Select Separator
+              if (
+                namespace === 'Select' &&
+                (flatName.includes('Separator') || componentPart === 'Separator')
+              ) {
+                console.warn('[parseExports] SELECT SEPARATOR TYPENAMEMAP TRANSFORMATION:', {
+                  flatName,
+                  dottedName,
+                  componentPart,
+                  transformedComponentPart,
+                  parts,
+                  transformedDottedName,
+                  'has double dot': transformedDottedName.includes('..'),
+                });
+              }
+
               // DEBUG: Log transformation for Toolbar or ContextMenu
               if (
                 (namespace === 'Toolbar' &&
@@ -1076,15 +1230,29 @@ export function parseExports(
         for (const recursiveResult of recursiveResults) {
           // DEBUG: Log when processing MenuRoot.tsx results
           if (reExportInfo.sourceFile.fileName.includes('MenuRoot.tsx')) {
-            console.warn('[parseExports] Processing recursiveResult for reExportInfo.sourceFile:', reExportInfo.sourceFile.fileName);
-            console.warn('[parseExports] recursiveResult.exports.length:', recursiveResult.exports.length);
-            console.warn('[parseExports] recursiveResult.exports names:', recursiveResult.exports.map((exportNode) => exportNode.name));
+            console.warn(
+              '[parseExports] Processing recursiveResult for reExportInfo.sourceFile:',
+              reExportInfo.sourceFile.fileName,
+            );
+            console.warn(
+              '[parseExports] recursiveResult.exports.length:',
+              recursiveResult.exports.length,
+            );
+            console.warn(
+              '[parseExports] recursiveResult.exports names:',
+              recursiveResult.exports.map((exportNode) => exportNode.name),
+            );
           }
-          
+
           // Use the reExportInfo's aliasMap if it has one, otherwise use the shared alias map
           const aliasMap = reExportInfo.aliasMap.size > 0 ? reExportInfo.aliasMap : sharedAliasMap;
 
-          if (aliasMap && aliasMap.size > 0) {
+          // Check if the aliasMap contains only identity mappings (e.g., Separator -> Separator)
+          // If so, treat it as if there's no aliasMap - we don't want to process these exports
+          const hasNonIdentityMappings =
+            aliasMap && Array.from(aliasMap.entries()).some(([key, value]) => key !== value);
+
+          if (aliasMap && aliasMap.size > 0 && hasNonIdentityMappings) {
             // Apply alias mappings to individual exports
             // Include both explicitly aliased exports AND related types that share the same prefix
             const aliasedExports: ExportNode[] = [];
@@ -1114,36 +1282,53 @@ export function parseExports(
               if (aliasMap.has(exportNode.name)) {
                 // This export is explicitly aliased (e.g., AccordionRoot -> Root)
                 const aliasedName = aliasMap.get(exportNode.name)!;
-                
+
                 // DEBUG: Log when we transform MenuRoot
                 if (exportNode.name === 'MenuRoot') {
                   console.warn('[parseExports] Transforming MenuRoot to:', aliasedName);
                 }
-                
-                exportNode.name = aliasedName;
+
+                // Skip transformation if this is an identity mapping (maps to itself)
+                // but still add to aliasedExports
+                if (aliasedName !== exportNode.name) {
+                  exportNode.name = aliasedName;
+                }
                 aliasedExports.push(exportNode);
               } else {
                 // Check if this export starts with any aliased component name
                 // e.g., "AccordionRootState" starts with "AccordionRoot" which is aliased to "Root"
+                let matched = false;
                 for (const originalName of sortedOriginalNames) {
                   if (
                     exportNode.name.startsWith(originalName) &&
                     exportNode.name !== originalName
                   ) {
                     const aliasedName = aliasMap.get(originalName)!;
-                    const suffix = exportNode.name.slice(originalName.length);
 
-                    // Rename: "AccordionRootState" -> "Root.State"
-                    // Handle namespace members that already have a leading dot (e.g., ".Props")
-                    if (suffix.startsWith('.')) {
-                      exportNode.name = `${aliasedName}${suffix}`;
-                    } else {
-                      exportNode.name = `${aliasedName}.${suffix}`;
+                    // Skip transformation if this is an identity mapping (maps to itself)
+                    // but still add to aliasedExports
+                    if (aliasedName !== originalName) {
+                      const suffix = exportNode.name.slice(originalName.length);
+
+                      // Rename: "AccordionRootState" -> "Root.State"
+                      // Handle namespace members that already have a leading dot (e.g., ".Props")
+                      if (suffix.startsWith('.')) {
+                        exportNode.name = `${aliasedName}${suffix}`;
+                      } else {
+                        exportNode.name = `${aliasedName}.${suffix}`;
+                      }
                     }
 
                     aliasedExports.push(exportNode);
+                    matched = true;
                     break;
                   }
+                }
+
+                // If no alias match was found, still add to aliasedExports
+                // This handles cases where aliasMap exists but doesn't apply to this export
+                if (!matched) {
+                  aliasedExports.push(exportNode);
                 }
               }
             }
@@ -1250,16 +1435,55 @@ export function parseExports(
     // No re-exports found, parse actual exports from this file
     const { exports } = parseFromProgram(fileName, program, parserOptions);
 
+    // DEBUG: Log exports for Separator.tsx
+    if (
+      fileName.includes('Separator.tsx') &&
+      !fileName.includes('Toolbar') &&
+      !fileName.includes('Menubar')
+    ) {
+      console.warn('[parseExports] SEPARATOR.TSX RAW EXPORTS FROM WORKER:');
+      console.warn('[parseExports] File:', fileName);
+      console.warn(
+        '[parseExports] Export names:',
+        exports.map((exp) => exp.name),
+      );
+      console.warn(
+        '[parseExports] Has double dots:',
+        exports.some((exp) => exp.name.includes('..')),
+      );
+    }
+
+    // DEBUG: Log exports for Select index.parts.ts
+    if (fileName.includes('select') && fileName.includes('index.parts')) {
+      console.warn('[parseExports] SELECT index.parts.ts RAW EXPORTS FROM WORKER:');
+      console.warn('[parseExports] File:', fileName);
+      const separatorExports = exports.filter((exp) => exp.name.includes('Separator'));
+      console.warn(
+        '[parseExports] Separator exports:',
+        separatorExports.map((exp) => exp.name),
+      );
+      console.warn(
+        '[parseExports] Has double dots:',
+        separatorExports.some((exp) => exp.name.includes('..')),
+      );
+    }
+
     // DEBUG: Log exports for Menu index.parts.ts
     if (fileName.includes('/menu/index.parts.ts')) {
       console.warn('[parseExports] Menu index.parts.ts - START');
-      console.warn('[parseExports] Menu index.parts.ts exports:', exports.map((exp) => exp.name));
+      console.warn(
+        '[parseExports] Menu index.parts.ts exports:',
+        exports.map((exp) => exp.name),
+      );
       console.warn('[parseExports] Menu index.parts.ts - Processing re-exports...');
     }
 
     // DEBUG: Log exports for MenuRoot.tsx
     if (fileName.includes('/menu/root/MenuRoot.tsx')) {
-      console.warn('[parseExports] MenuRoot.tsx exports from typescript-api-extractor:', exports.map((exp) => exp.name));
+      console.warn(
+        '[parseExports] MenuRoot.tsx exports from typescript-api-extractor:',
+        exports.map((exp) => exp.name),
+      );
       console.warn('[parseExports] MenuRoot.tsx exports count:', exports.length);
       // Check MenuRoot specifically
       const menuRootExport = exports.find((exp) => exp.name === 'MenuRoot');
@@ -1672,8 +1896,13 @@ export function parseExports(
 
     // DEBUG: Log final processed exports for MenuRoot.tsx
     if (sourceFile.fileName.includes('/menu/root/MenuRoot.tsx')) {
-      console.warn('[parseExports] MenuRoot.tsx final processedExports:', processedExports.map((exp) => exp.name));
-      const menuRootExport = processedExports.find((exp) => exp.name === 'MenuRoot' || exp.name.includes('Root'));
+      console.warn(
+        '[parseExports] MenuRoot.tsx final processedExports:',
+        processedExports.map((exp) => exp.name),
+      );
+      const menuRootExport = processedExports.find(
+        (exp) => exp.name === 'MenuRoot' || exp.name.includes('Root'),
+      );
       if (menuRootExport) {
         console.warn('[parseExports] MenuRoot found in processedExports:', menuRootExport.name);
       } else {
