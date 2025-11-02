@@ -913,4 +913,263 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('demo');
     });
   });
+
+  describe('fileHashMode: remove-after-interaction', () => {
+    it('should read hash on load but not remove it', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'helper.ts': 'export const helper = () => {};',
+        },
+      };
+
+      // Set initial hash with file specified
+      mockHashValue = 'demo:helper.ts';
+
+      const setSelectedFileNameInternal = vi.fn();
+
+      renderHook(() =>
+        useFileHashNavigation({
+          selectedVariant,
+          selectedFileNameInternal: selectedVariant.fileName,
+          setSelectedFileNameInternal,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          fileHashMode: 'remove-after-interaction',
+        }),
+      );
+
+      // Should have selected the file from the hash
+      expect(setSelectedFileNameInternal).toHaveBeenCalledWith('helper.ts');
+
+      // Should NOT have removed or cleaned the hash on load
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should remove hash when user clicks a tab/file', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'styles.css': '.button { color: blue; }',
+        },
+      };
+
+      // Start with a hash containing ':'
+      mockHashValue = 'demo:component.tsx';
+
+      const setSelectedFileNameInternal = vi.fn();
+
+      const { result } = renderHook(() =>
+        useFileHashNavigation({
+          selectedVariant,
+          selectedFileNameInternal: selectedVariant.fileName,
+          setSelectedFileNameInternal,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          fileHashMode: 'remove-after-interaction',
+        }),
+      );
+
+      mockSetHash.mockClear();
+
+      // User clicks to select a different file
+      act(() => {
+        result.current.selectFileName('styles.css');
+      });
+
+      // Should have selected the file
+      expect(setSelectedFileNameInternal).toHaveBeenCalledWith('styles.css');
+
+      // Should have removed the hash (not just cleaned it)
+      expect(mockSetHash).toHaveBeenCalledWith(null);
+    });
+
+    it('should not add hash when none exists and user selects a file', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'utils.js': 'export const util = () => {};',
+        },
+      };
+
+      mockHashValue = '';
+
+      const setSelectedFileNameInternal = vi.fn();
+
+      const { result } = renderHook(() =>
+        useFileHashNavigation({
+          selectedVariant,
+          selectedFileNameInternal: selectedVariant.fileName,
+          setSelectedFileNameInternal,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          fileHashMode: 'remove-after-interaction',
+        }),
+      );
+
+      // User selects a file
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      // Should have selected the file
+      expect(setSelectedFileNameInternal).toHaveBeenCalledWith('utils.js');
+
+      // Should NOT have set a hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should remove hash when variant changes with existing hash', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      const selectedFileNameInternal = selectedVariant.fileName;
+      const setSelectedFileNameInternal = vi.fn();
+
+      // Start with a hash
+      mockHashValue = 'demo:component.tsx';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileHashNavigation({
+            selectedVariant,
+            selectedFileNameInternal,
+            setSelectedFileNameInternal,
+            transformedFiles: undefined,
+            mainSlug: 'demo',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Advanced'],
+            initialVariant: 'Default',
+            fileHashMode: 'remove-after-interaction',
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Initially should not remove hash on load
+      expect(mockSetHash).not.toHaveBeenCalled();
+
+      mockSetHash.mockClear();
+
+      // User changes to Advanced variant
+      rerender({ selectedVariantKey: 'Advanced' });
+
+      // Should remove the hash (user interaction)
+      expect(mockSetHash).toHaveBeenCalledWith(null);
+    });
+
+    it('should not update hash when variant changes and no hash exists', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      const setSelectedFileNameInternal = vi.fn();
+
+      // No initial hash
+      mockHashValue = '';
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileHashNavigation({
+            selectedVariant,
+            selectedFileNameInternal: selectedVariant.fileName,
+            setSelectedFileNameInternal,
+            transformedFiles: undefined,
+            mainSlug: 'demo',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Advanced'],
+            initialVariant: 'Default',
+            fileHashMode: 'remove-after-interaction',
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Change variant
+      rerender({ selectedVariantKey: 'Advanced' });
+
+      // Should NOT have set any hash
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+
+    it('should handle cross-variant file navigation from hash', () => {
+      const effectiveCode = {
+        Default: {
+          fileName: 'component-default.tsx',
+          source: 'const DefaultComponent = () => <div>Default</div>;',
+        },
+        Advanced: {
+          fileName: 'component-advanced.tsx',
+          source: 'const AdvancedComponent = () => <div>Advanced</div>;',
+          extraFiles: {
+            'advanced-helper.ts': 'export const helper = () => {};',
+          },
+        },
+      };
+
+      const mockSelectVariant = vi.fn();
+
+      // Set hash to a file from Advanced variant while Default is selected
+      mockHashValue = 'demo:advanced:advanced-helper.ts';
+
+      let selectedFileNameInternal = effectiveCode.Default.fileName;
+      let selectedVariant: VariantCode = effectiveCode.Default;
+      const setSelectedFileNameInternal = vi.fn((fileName: string | undefined) => {
+        selectedFileNameInternal = fileName || selectedVariant.fileName || '';
+      });
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) => {
+          selectedVariant = effectiveCode[selectedVariantKey as keyof typeof effectiveCode];
+          return useFileHashNavigation({
+            selectedVariant,
+            selectedFileNameInternal,
+            setSelectedFileNameInternal,
+            transformedFiles: undefined,
+            mainSlug: 'demo',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Advanced'],
+            initialVariant: 'Default',
+            effectiveCode,
+            selectVariant: mockSelectVariant,
+            fileHashMode: 'remove-after-interaction',
+          });
+        },
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      // Should have called selectVariant to switch to Advanced variant
+      expect(mockSelectVariant).toHaveBeenCalledWith('Advanced');
+
+      // Simulate the variant change
+      mockSelectVariant.mockClear();
+      mockSetHash.mockClear();
+      rerender({ selectedVariantKey: 'Advanced' });
+
+      // Now the file should be selected
+      expect(setSelectedFileNameInternal).toHaveBeenCalledWith('advanced-helper.ts');
+
+      // Hash should NOT be removed on load (only on user interaction)
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -28,7 +28,7 @@ export type UseCodeOpts = {
    *
    * @default 'full'
    */
-  fileHashMode?: 'full' | 'read' | 'remove';
+  fileHashMode?: 'full' | 'read' | 'remove' | 'remove-after-interaction';
 };
 
 type UserProps<T extends {} = {}> = T & {

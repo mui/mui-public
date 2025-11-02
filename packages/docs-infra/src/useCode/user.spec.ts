@@ -2376,6 +2376,123 @@ describe('useCode integration tests', () => {
     });
   });
 
+  describe("fileHashMode: 'remove-after-interaction'", () => {
+    it('should read hash on load but not remove it', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+            extraFiles: {
+              'utils.js': 'export const util = () => {};',
+            },
+          },
+        },
+      };
+
+      // Set hash before rendering - simulates user landing on page with hash
+      window.location.hash = '#test-slug:utils.js';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'remove-after-interaction' }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('utils.js');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should still be present (not removed on load)
+      expect(window.location.hash).toBe('#test-slug:utils.js');
+    });
+
+    it('should remove hash when user clicks a variant tab', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Start with hash
+      window.location.hash = '#test-slug:demo.js';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'remove-after-interaction' }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // User clicks to select TypeScript variant
+      act(() => {
+        result.current.selectVariant('TypeScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be removed after user interaction
+      expect(window.location.hash).toBe('');
+    });
+
+    it('should not add hash when none exists', async () => {
+      const contentProps: ContentProps<{}> = {
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // No initial hash
+      window.location.hash = '';
+
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'remove-after-interaction' }));
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // User clicks to select TypeScript variant
+      act(() => {
+        result.current.selectVariant('TypeScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('TypeScript');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should NOT be added
+      expect(window.location.hash).toBe('');
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty extraFiles object', async () => {
       const contentProps: ContentProps<{}> = {

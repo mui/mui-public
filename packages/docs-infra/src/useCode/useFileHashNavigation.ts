@@ -90,7 +90,7 @@ interface UseFileHashNavigationProps {
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
-  fileHashMode?: 'full' | 'read' | 'remove';
+  fileHashMode?: 'full' | 'read' | 'remove' | 'remove-after-interaction';
 }
 
 export interface UseFileHashNavigationResult {
@@ -171,7 +171,10 @@ export function useFileHashNavigation({
       // Only update hash if there's already one for this demo (don't create new hash if none exists)
       const hashMatchesThisDemo = hash && (hash === mainSlug || hash.startsWith(`${mainSlug}:`));
 
-      if (
+      if (fileHashMode === 'remove-after-interaction' && hashMatchesThisDemo) {
+        // Remove the hash when user manually changes variants
+        setHash(null);
+      } else if (
         fileHashMode !== 'remove' &&
         fileHashMode !== 'read' &&
         selectedVariant?.fileName &&
@@ -392,7 +395,7 @@ export function useFileHashNavigation({
         // Update the hash to reflect user's choice (even with avoidMutatingAddressBar)
         hashNavigationInProgressRef.current = false;
         lastVariantChangeWasUserInitiated.current = false; // Reset the flag
-        if (fileHashMode === 'remove') {
+        if (fileHashMode === 'remove' || fileHashMode === 'remove-after-interaction') {
           setHash(null);
         } else if (!matchingVariantKey || matchingVariantKey !== selectedVariantKey) {
           // Update hash if there's no variant in current hash or it's different from selected
@@ -440,6 +443,7 @@ export function useFileHashNavigation({
             }
           }
         }
+        // Note: 'remove-after-interaction' does NOT clean hash on load - it only removes on user interaction
       }
     } else {
       // No matching file in hash
@@ -505,6 +509,7 @@ export function useFileHashNavigation({
             }
           }
         }
+        // Note: 'remove-after-interaction' does NOT clean hash on load - it only removes on user interaction
       }
     } else {
       justCompletedPendingSelection.current = false;
@@ -652,6 +657,10 @@ export function useFileHashNavigation({
           if (hash) {
             setHash(null);
           }
+        } else if (fileHashMode === 'remove-after-interaction') {
+          // For remove-after-interaction, don't update hash in this automatic effect
+          // Hash removal only happens via explicit user interaction (selectFileName)
+          // This allows hash to persist on load but get removed when user clicks
         } else if (fileHashMode === 'read') {
           // Clean existing hash to just slug
           const cleanHash = generateDemoSlug(mainSlug);
@@ -723,7 +732,7 @@ export function useFileHashNavigation({
       // Update the URL hash without adding to history (replaceState)
       if (typeof window !== 'undefined' && fileSlug && hash !== fileSlug) {
         // Handle hash cleaning/removal based on flags
-        if (fileHashMode === 'remove') {
+        if (fileHashMode === 'remove' || fileHashMode === 'remove-after-interaction') {
           // Completely remove the hash from the URL
           if (hash) {
             setHash(null);
