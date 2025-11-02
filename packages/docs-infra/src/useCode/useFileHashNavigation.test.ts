@@ -710,7 +710,7 @@ describe('useFileHashNavigation', () => {
   });
 
   describe('fileHashMode', () => {
-    it("should clean up hash to demo-only format after reading file from hash (mode: 'read')", () => {
+    it("should clean up hash to demo-only format after reading file from hash (mode: 'clean')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -734,7 +734,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
-          fileHashMode: 'read',
+          fileHashMode: 'clean',
         }),
       );
 
@@ -745,7 +745,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('advanced');
     });
 
-    it("should not add hash when user selects a file and no hash exists (mode: 'read')", () => {
+    it("should not add hash when user selects a file and no hash exists (mode: 'clean')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -768,7 +768,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
           initialVariant: 'Default',
-          fileHashMode: 'read',
+          fileHashMode: 'clean',
         }),
       );
 
@@ -783,7 +783,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).not.toHaveBeenCalled();
     });
 
-    it("should clean hash to just slug regardless of variant (mode: 'read')", () => {
+    it("should clean hash to just slug regardless of variant (mode: 'clean')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -807,7 +807,7 @@ describe('useFileHashNavigation', () => {
           selectedVariantKey: 'Premium',
           variantKeys: ['Default', 'Premium'],
           initialVariant: 'Default',
-          fileHashMode: 'read',
+          fileHashMode: 'clean',
         }),
       );
 
@@ -857,7 +857,7 @@ describe('useFileHashNavigation', () => {
       expect(mockSetHash).toHaveBeenCalledWith('test:utils.js');
     });
 
-    it("should update hash on variant change with clean format (mode: 'read')", () => {
+    it("should update hash on variant change with clean format (mode: 'clean')", () => {
       const selectedVariant = {
         fileName: 'component.tsx',
         source: 'const Component = () => <div>Test</div>;',
@@ -883,7 +883,7 @@ describe('useFileHashNavigation', () => {
             selectedVariantKey,
             variantKeys: ['Default', 'Advanced'],
             initialVariant: 'Default',
-            fileHashMode: 'read',
+            fileHashMode: 'clean',
           }),
         {
           initialProps: { selectedVariantKey: 'Default' },

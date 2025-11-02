@@ -23,12 +23,13 @@ export type UseCodeOpts = {
    * Controls URL hash management for file navigation.
    *
    * - `'full'` (default): Read and write URL hashes with full detail (shareable deep links)
-   * - `'read'`: Read hash once, clean to demo slug, no further writes (embedded viewers)
+   * - `'clean'`: Read hash once, clean to demo slug, no further writes (embedded viewers)
    * - `'remove'`: Read hash once, then remove completely (isolated code viewers)
+   * - `'remove-after-interaction'`: Read hash on load, remove when user clicks tabs (clean URL after interaction)
    *
    * @default 'full'
    */
-  fileHashMode?: 'full' | 'read' | 'remove' | 'remove-after-interaction';
+  fileHashMode?: 'full' | 'clean' | 'remove' | 'remove-after-interaction';
 };
 
 type UserProps<T extends {} = {}> = T & {

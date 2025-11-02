@@ -90,7 +90,7 @@ interface UseFileHashNavigationProps {
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
-  fileHashMode?: 'full' | 'read' | 'remove' | 'remove-after-interaction';
+  fileHashMode?: 'full' | 'clean' | 'remove' | 'remove-after-interaction';
 }
 
 export interface UseFileHashNavigationResult {
@@ -176,7 +176,7 @@ export function useFileHashNavigation({
         setHash(null);
       } else if (
         fileHashMode !== 'remove' &&
-        fileHashMode !== 'read' &&
+        fileHashMode !== 'clean' &&
         selectedVariant?.fileName &&
         hashMatchesThisDemo
       ) {
@@ -430,13 +430,13 @@ export function useFileHashNavigation({
             setHash(null);
             hasCleanedHashAfterRead.current = true;
           }
-        } else if (fileHashMode === 'read') {
+        } else if (fileHashMode === 'clean') {
           // Clean up the hash to just show demo slug
           const cleanHash = generateDemoSlug(mainSlug);
           if (cleanHash && hash !== cleanHash) {
             setHash(cleanHash);
             hasCleanedHashAfterRead.current = true;
-            // If fileHashMode is 'read', suppress localStorage sync permanently
+            // If fileHashMode is 'clean', suppress localStorage sync permanently
             // This keeps the hash-driven selection active even after hash is cleaned
             if (suppressLocalStorageSync) {
               suppressLocalStorageSync('permanent');
@@ -496,13 +496,13 @@ export function useFileHashNavigation({
             setHash(null);
             hasCleanedHashAfterRead.current = true;
           }
-        } else if (fileHashMode === 'read') {
+        } else if (fileHashMode === 'clean') {
           // Clean up the hash to just show demo slug
           const cleanHash = generateDemoSlug(mainSlug);
           if (cleanHash && hash !== cleanHash) {
             setHash(cleanHash);
             hasCleanedHashAfterRead.current = true;
-            // If fileHashMode is 'read', suppress localStorage sync permanently
+            // If fileHashMode is 'clean', suppress localStorage sync permanently
             // This keeps the hash-driven selection active even after hash is cleaned
             if (suppressLocalStorageSync) {
               suppressLocalStorageSync('permanent');
@@ -661,7 +661,7 @@ export function useFileHashNavigation({
           // For remove-after-interaction, don't update hash in this automatic effect
           // Hash removal only happens via explicit user interaction (selectFileName)
           // This allows hash to persist on load but get removed when user clicks
-        } else if (fileHashMode === 'read') {
+        } else if (fileHashMode === 'clean') {
           // Clean existing hash to just slug
           const cleanHash = generateDemoSlug(mainSlug);
           if (cleanHash && hash !== cleanHash) {
@@ -737,7 +737,7 @@ export function useFileHashNavigation({
           if (hash) {
             setHash(null);
           }
-        } else if (fileHashMode === 'read') {
+        } else if (fileHashMode === 'clean') {
           // Only clean existing relevant hash, don't add a new hash if none exists
           if (isHashRelevantToDemo(hash, mainSlug)) {
             const cleanHash = generateDemoSlug(mainSlug);

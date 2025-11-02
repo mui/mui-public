@@ -638,7 +638,7 @@ describe('useCode integration tests', () => {
       Storage.prototype.getItem = originalGetItem;
     });
 
-    it("should respect hash variant on mount with fileHashMode 'read' and localStorage preference", async () => {
+    it("should respect hash variant on mount with fileHashMode 'clean' and localStorage preference", async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'hero',
         code: {
@@ -666,15 +666,15 @@ describe('useCode integration tests', () => {
       // Hash points to Tailwind variant (using kebab-case as it appears in URL)
       window.location.hash = '#hero:tailwind:index.tsx';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       // Hash should take precedence over localStorage - should load Tailwind, not CssModules
-      // With fileHashMode: 'read', hash should be cleaned to just #hero after loading
+      // With fileHashMode: 'clean', hash should be cleaned to just #hero after loading
       await waitFor(
         () => {
           expect(result.current.selectedVariant).toBe('Tailwind');
           expect(result.current.selectedFileName).toBe('index.tsx');
-          // Hash should be cleaned to just the slug with fileHashMode: 'read'
+          // Hash should be cleaned to just the slug with fileHashMode: 'clean'
           expect(window.location.hash).toBe('#hero');
         },
         { timeout: 1000 },
@@ -1355,7 +1355,7 @@ describe('useCode integration tests', () => {
     });
   });
 
-  describe("fileHashMode: 'read'", () => {
+  describe("fileHashMode: 'clean'", () => {
     it('should read hash with file and clean it to remove file portion', async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'advanced',
@@ -1374,7 +1374,7 @@ describe('useCode integration tests', () => {
       // Start with hash including file name
       window.location.hash = '#advanced:index.module.css';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -1417,7 +1417,7 @@ describe('useCode integration tests', () => {
       // Hash includes variant and file
       window.location.hash = '#demo:type-script:helper.ts';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -1461,7 +1461,7 @@ describe('useCode integration tests', () => {
 
       const { result } = renderHook(() =>
         useCode(contentProps, {
-          fileHashMode: 'read',
+          fileHashMode: 'clean',
           initialVariant: 'Tailwind',
         }),
       );
@@ -1527,7 +1527,7 @@ describe('useCode integration tests', () => {
 
       window.location.hash = '#demo';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(() => {
         expect(result.current.selectedFileName).toBe('main.js');
@@ -1589,7 +1589,7 @@ describe('useCode integration tests', () => {
 
       const { result } = renderHook(() =>
         useCode(contentProps, {
-          fileHashMode: 'read',
+          fileHashMode: 'clean',
           initialVariant: 'JavaScript',
         }),
       );
@@ -1635,7 +1635,7 @@ describe('useCode integration tests', () => {
       // Start with TypeScript variant and extra file
       window.location.hash = '#multi:type-script:utils.ts';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -1674,7 +1674,7 @@ describe('useCode integration tests', () => {
       );
     });
 
-    it("should not cause infinite loop with fileHashMode 'read' enabled", async () => {
+    it("should not cause infinite loop with fileHashMode 'clean' enabled", async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'test',
         code: {
@@ -1693,7 +1693,7 @@ describe('useCode integration tests', () => {
       let hookCallCount = 0;
       const { result } = renderHook(() => {
         hookCallCount += 1;
-        return useCode(contentProps, { fileHashMode: 'read' });
+        return useCode(contentProps, { fileHashMode: 'clean' });
       });
 
       await waitFor(
@@ -1732,7 +1732,7 @@ describe('useCode integration tests', () => {
 
       window.location.hash = '#rapid:a.js';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -1803,7 +1803,7 @@ describe('useCode integration tests', () => {
       // Hash includes TypeScript variant file
       window.location.hash = '#pref:type-script:demo.ts';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -1848,7 +1848,7 @@ describe('useCode integration tests', () => {
       // Start with no hash
       window.location.hash = '';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(() => {
         expect(result.current.selectedVariant).toBe('Basic');
@@ -2009,7 +2009,7 @@ describe('useCode integration tests', () => {
       expect(window.location.hash).toBe('');
     });
 
-    it("should clean hash to demo slug when fileHashMode is 'read'", async () => {
+    it("should clean hash to demo slug when fileHashMode is 'clean'", async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'hero',
         code: {
@@ -2025,7 +2025,7 @@ describe('useCode integration tests', () => {
 
       window.location.hash = '#hero:styles.css';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -2129,7 +2129,7 @@ describe('useCode integration tests', () => {
       );
     });
 
-    it("should allow user to manually change variants when fileHashMode is 'read'", async () => {
+    it("should allow user to manually change variants when fileHashMode is 'clean'", async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'demo',
         code: {
@@ -2147,7 +2147,7 @@ describe('useCode integration tests', () => {
       // Start with hash pointing to JavaScript variant
       window.location.hash = '#demo:index.js';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'read' }));
+      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'clean' }));
 
       await waitFor(
         () => {
@@ -2167,7 +2167,7 @@ describe('useCode integration tests', () => {
         () => {
           expect(result.current.selectedVariant).toBe('TypeScript');
           expect(result.current.selectedFileName).toBe('index.ts');
-          // With fileHashMode: 'read', hash should stay clean (just slug)
+          // With fileHashMode: 'clean', hash should stay clean (just slug)
           expect(window.location.hash).toBe('#demo');
         },
         { timeout: 1000 },

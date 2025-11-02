@@ -91,7 +91,7 @@ interface UseFileNavigationProps {
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   suppressLocalStorageSync?: (mode: boolean | 'permanent') => void;
-  fileHashMode?: 'full' | 'read' | 'remove' | 'remove-after-interaction';
+  fileHashMode?: 'full' | 'clean' | 'remove' | 'remove-after-interaction';
 }
 
 export interface UseFileNavigationResult {
