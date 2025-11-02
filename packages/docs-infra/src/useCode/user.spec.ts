@@ -2394,7 +2394,9 @@ describe('useCode integration tests', () => {
       // Set hash before rendering - simulates user landing on page with hash
       window.location.hash = '#test-slug:utils.js';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'remove-after-interaction' }));
+      const { result } = renderHook(() =>
+        useCode(contentProps, { fileHashMode: 'remove-after-interaction' }),
+      );
 
       await waitFor(
         () => {
@@ -2425,7 +2427,9 @@ describe('useCode integration tests', () => {
       // Start with hash
       window.location.hash = '#test-slug:demo.js';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'remove-after-interaction' }));
+      const { result } = renderHook(() =>
+        useCode(contentProps, { fileHashMode: 'remove-after-interaction' }),
+      );
 
       await waitFor(
         () => {
@@ -2467,7 +2471,9 @@ describe('useCode integration tests', () => {
       // No initial hash
       window.location.hash = '';
 
-      const { result } = renderHook(() => useCode(contentProps, { fileHashMode: 'remove-after-interaction' }));
+      const { result } = renderHook(() =>
+        useCode(contentProps, { fileHashMode: 'remove-after-interaction' }),
+      );
 
       await waitFor(
         () => {
