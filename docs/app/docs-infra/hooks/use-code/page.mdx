@@ -98,7 +98,7 @@ interface UseCodeOpts {
   stackBlitzPrefix?: string; // StackBlitz URL prefix
   initialVariant?: string; // Initially selected variant
   initialTransform?: string; // Initially selected transform
-  fileHashMode?: 'full' | 'read' | 'remove'; // Controls URL hash management
+  fileHashMode?: 'full' | 'clean' | 'remove' | 'remove-after-interaction'; // Controls URL hash management
 }
 ```
 
@@ -186,7 +186,7 @@ function CodeViewer(props) {
 
 ### Controlling URL Hash Behavior
 
-The hook provides fine-grained control over URL hash management through the `fileHashMode` option, which offers three modes to suit different use cases:
+The hook provides fine-grained control over URL hash management through the `fileHashMode` option, which offers four modes to suit different use cases:
 
 #### fileHashMode
 
@@ -200,7 +200,7 @@ Controls how the hook interacts with URL hashes for file navigation. This single
   - Preserves complete file context in shareable links
   - **Use case**: Standard documentation where users want shareable deep links to specific files
 
-- **`'read'`**: Read-once with cleanup
+- **`'clean'`**: Read-once with cleanup
   - Reads URL hash on mount to select the initial file/variant
   - Cleans hash to just the demo slug after applying state (e.g., `#demo:file.tsx` → `#demo`)
   - Does not update hash when users interact with files
@@ -211,6 +211,13 @@ Controls how the hook interacts with URL hashes for file navigation. This single
   - Completely removes the hash after applying state (e.g., `#demo:file.tsx` → empty)
   - Does not update hash for any user interactions
   - **Use case**: Isolated code displays where URL pollution should be completely avoided
+
+- **`'remove-after-interaction'`**: Preserve on load, remove on interaction
+  - Reads URL hash on mount to select the initial file/variant
+  - Keeps hash unchanged during automatic effects (variant changes, etc.)
+  - Removes hash only when user explicitly clicks a file tab
+  - Does not add hash back after removal
+  - **Use case**: Demos that support deep linking but clean up URLs after user engagement
 
 #### Examples
 
@@ -227,12 +234,12 @@ function StandardCodeViewer(props) {
 }
 ```
 
-**Read mode - Clean URLs for embedded viewers:**
+**Clean mode - Clean URLs for embedded viewers:**
 
 ```tsx
 function EmbeddedCodeViewer(props) {
   const code = useCode(props, {
-    fileHashMode: 'read',
+    fileHashMode: 'clean',
   });
 
   // If URL is #demo:variant:styles.css, that file is selected on mount
@@ -254,6 +261,21 @@ function IsolatedCodeViewer(props) {
   // Hash is then completely removed (file selection is preserved in state)
   // No subsequent hash changes occur
   // Perfect for clean, self-contained code displays
+}
+```
+
+**Remove-after-interaction mode - Deep linking with cleanup:**
+
+```tsx
+function DeepLinkCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'remove-after-interaction',
+  });
+
+  // If URL is #demo:variant:file.tsx, that file is selected on mount
+  // Hash remains unchanged during automatic effects (variant changes, etc.)
+  // When user clicks a file tab, hash is removed
+  // Perfect for demos that support shareable links but clean up after user engagement
 }
 ```
 
@@ -489,7 +511,7 @@ The hook generates URL hashes for file navigation following these patterns:
 - **File Selection**: By default (`fileHashMode: 'full'`), selecting a file updates the URL hash without adding to browser history (uses `replaceState`)
 - **Variant Changes**: When variants change and a hash exists for this demo, URL is updated to reflect the new variant for the current file
 - **No Auto-Hash**: URLs are only set when user explicitly selects files or when URL hash is already present
-- **Controlled Behavior**: Use `fileHashMode: 'read'` or `'remove'` to prevent hash updates while still reading initial state
+- **Controlled Behavior**: Use `fileHashMode: 'clean'`, `'remove'`, or `'remove-after-interaction'` to prevent hash updates while still reading initial state
 
 ## Sub-hooks Architecture
 
@@ -509,7 +531,7 @@ Manages file selection and navigation within code variants. Features URL hash ma
 
 ### useFileHashNavigation
 
-A dedicated sub-hook that handles all URL hash management for file navigation. Controlled through the `fileHashMode` option with three distinct modes: `'full'` (default bidirectional sync), `'read'` (read-once with cleanup), and `'remove'` (read-once then remove). 
+A dedicated sub-hook that handles all URL hash management for file navigation. Controlled through the `fileHashMode` option with four distinct modes: `'full'` (default bidirectional sync), `'clean'` (read-once with cleanup), `'remove'` (read-once then remove), and `'remove-after-interaction'` (preserve on load, remove on interaction).
 
 **All modes read the URL hash on mount** to determine initial file and variant selection. The difference is in what happens to the hash after that initial read and whether the hook continues to update it during user interactions.
 
@@ -517,7 +539,8 @@ This hook encapsulates the complex logic for:
 
 - Reading and parsing URL hashes to determine initial file selection (all modes)
 - Updating hashes when users select files (in `'full'` mode only)
-- Cleaning hashes after initial read: keeps demo slug in `'read'` mode, removes completely in `'remove'` mode
+- Cleaning hashes after initial read: keeps demo slug in `'clean'` mode, removes completely in `'remove'` mode
+- Removing hashes on user interaction only in `'remove-after-interaction'` mode
 - Handling variant changes and cross-variant file navigation
 - Preventing infinite loops and managing navigation state
 
@@ -682,8 +705,9 @@ Ensure your component is used within a `CodeHighlighter` component that provides
 
 ### Hash Behavior Not Working as Expected
 
-- **Hash not being cleaned**: Ensure `fileHashMode` is set to `'read'` or `'remove'` and the hash belongs to the current demo
-- **Hash still updating on clicks**: Verify `fileHashMode` is set to `'read'` or `'remove'` (default is `'full'` which updates hashes)
+- **Hash not being cleaned**: Ensure `fileHashMode` is set to `'clean'` or `'remove'` or `'remove-after-interaction'` and the hash belongs to the current demo
+- **Hash still updating on clicks**: Verify `fileHashMode` is set to `'clean'`, `'remove'`, or `'remove-after-interaction'` (default is `'full'` which updates hashes)
 - **Initial file not selected**: Check that the hash format matches the generated slugs (`mainSlug:fileName` or `mainSlug:variant:fileName`)
-- **Hash removed unexpectedly**: If using `fileHashMode: 'remove'`, the hash will be removed on mount - this is expected behavior
-- **Hash persisting after navigation**: With `fileHashMode: 'read'`, the simplified demo hash is preserved; use `'remove'` if you want complete removal
+- **Hash removed unexpectedly**: If using `fileHashMode: 'remove'`, the hash will be removed on mount - this is expected behavior. For `'remove-after-interaction'`, hash is only removed on user clicks
+- **Hash persisting after navigation**: With `fileHashMode: 'clean'`, the simplified demo hash is preserved; use `'remove'` if you want complete removal
+- **Hash removed before user interaction**: If using `fileHashMode: 'remove-after-interaction'`, hash should persist until user clicks a tab. Check that variant changes aren't triggering removal (they shouldn't)
