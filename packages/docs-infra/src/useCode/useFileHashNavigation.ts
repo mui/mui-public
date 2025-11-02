@@ -744,6 +744,8 @@ export function useFileHashNavigation({
           // Completely remove the hash from the URL
           if (hash) {
             setHash(null);
+            // Mark that we cleaned the hash to prevent reset to main file
+            hasCleanedHashAfterRead.current = true;
           }
         } else if (fileHashMode === 'clean') {
           // Only clean existing relevant hash, don't add a new hash if none exists

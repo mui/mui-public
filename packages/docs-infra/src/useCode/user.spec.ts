@@ -2497,6 +2497,78 @@ describe('useCode integration tests', () => {
       // Hash should NOT be added
       expect(window.location.hash).toBe('');
     });
+
+    it('should not flash default file when clicking a tab with hash present', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          Default: {
+            fileName: 'index.tsx',
+            source: 'export default Component;',
+            extraFiles: {
+              'styles.css': '.component { color: red; }',
+              'utils.ts': 'export const util = () => {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash pointing to styles.css
+      window.location.hash = '#test-slug:styles.css';
+
+      const { result } = renderHook(() =>
+        useCode(contentProps, { fileHashMode: 'remove-after-interaction' }),
+      );
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('styles.css');
+        },
+        { timeout: 1000 },
+      );
+
+      // Track all file changes to detect any flash
+      const fileChanges: string[] = [];
+
+      // Set up an effect to track file changes
+      const trackFileChanges = () => {
+        fileChanges.push(result.current.selectedFileName || 'undefined');
+      };
+
+      // Track initial state
+      trackFileChanges();
+
+      // User clicks on utils.ts tab
+      act(() => {
+        trackFileChanges(); // Track before click
+        result.current.selectFileName('utils.ts');
+        trackFileChanges(); // Track after click
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('utils.ts');
+        },
+        { timeout: 1000 },
+      );
+
+      // Track final state
+      trackFileChanges();
+
+      // Hash should be removed after user interaction
+      expect(window.location.hash).toBe('');
+
+      // CRITICAL: File should never flash back to index.tsx (the default file)
+      // The sequence should be: styles.css → utils.ts
+      // NOT: styles.css → index.tsx → utils.ts
+
+      // Should not contain index.tsx anywhere in the sequence
+      expect(fileChanges.includes('index.tsx')).toBe(false);
+
+      // Should go directly from styles.css to utils.ts
+      const uniqueFiles = Array.from(new Set(fileChanges));
+      expect(uniqueFiles).toEqual(['styles.css', 'utils.ts']);
+    });
   });
 
   describe('edge cases', () => {
