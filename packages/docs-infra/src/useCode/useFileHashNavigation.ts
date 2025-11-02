@@ -729,7 +729,15 @@ export function useFileHashNavigation({
         fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
       }
 
+      // IMPORTANT: Update file selection BEFORE removing hash
+      // This prevents a flash where removing the hash triggers a reset to the default file
+      // before the new file selection is applied
+      hashNavigationInProgressRef.current = false;
+      markUserInteraction(); // Mark that user has made an explicit selection
+      setSelectedFileNameInternal(targetFileName);
+
       // Update the URL hash without adding to history (replaceState)
+      // Do this AFTER setting the file to prevent flash
       if (typeof window !== 'undefined' && fileSlug && hash !== fileSlug) {
         // Handle hash cleaning/removal based on flags
         if (fileHashMode === 'remove' || fileHashMode === 'remove-after-interaction') {
@@ -750,10 +758,6 @@ export function useFileHashNavigation({
           setHash(fileSlug);
         }
       }
-
-      hashNavigationInProgressRef.current = false;
-      markUserInteraction(); // Mark that user has made an explicit selection
-      setSelectedFileNameInternal(targetFileName);
     },
     [
       selectedVariant,

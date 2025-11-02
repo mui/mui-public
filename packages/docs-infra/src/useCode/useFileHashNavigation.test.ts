@@ -1171,5 +1171,72 @@ describe('useFileHashNavigation', () => {
       // Hash should NOT be removed on load (only on user interaction)
       expect(mockSetHash).not.toHaveBeenCalled();
     });
+
+    it('should update file selection BEFORE removing hash when clicking a tab', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+        extraFiles: {
+          'styles.css': '.button { color: blue; }',
+        },
+      };
+
+      // Start with a hash pointing to component.tsx
+      mockHashValue = 'demo:component.tsx';
+
+      const setSelectedFileNameInternal = vi.fn();
+      const callOrder: string[] = [];
+
+      // Wrap setSelectedFileNameInternal to track call order
+      const trackedSetSelectedFile = vi.fn((fileName: string | undefined) => {
+        callOrder.push(`setFile:${fileName}`);
+        setSelectedFileNameInternal(fileName);
+      });
+
+      // Wrap mockSetHash to track call order
+      const originalMockSetHash = mockSetHash;
+      mockSetHash = vi.fn((hash: string | null) => {
+        callOrder.push(`setHash:${hash}`);
+        originalMockSetHash(hash);
+      });
+
+      const { result } = renderHook(() =>
+        useFileHashNavigation({
+          selectedVariant,
+          selectedFileNameInternal: selectedVariant.fileName,
+          setSelectedFileNameInternal: trackedSetSelectedFile,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          initialVariant: 'Default',
+          fileHashMode: 'remove-after-interaction',
+        }),
+      );
+
+      // Clear any initial calls
+      callOrder.length = 0;
+      trackedSetSelectedFile.mockClear();
+      mockSetHash.mockClear();
+
+      // User clicks on styles.css tab
+      act(() => {
+        result.current.selectFileName('styles.css');
+      });
+
+      // Verify the file was selected
+      expect(trackedSetSelectedFile).toHaveBeenCalledWith('styles.css');
+
+      // Verify the hash was removed
+      expect(mockSetHash).toHaveBeenCalledWith(null);
+
+      // CRITICAL: File selection should happen BEFORE hash removal
+      // This prevents a flash where the hash is removed (triggering reset to default file)
+      // before the new file is selected
+      expect(callOrder).toEqual(['setFile:styles.css', 'setHash:null']);
+
+      // Restore original mock
+      mockSetHash = originalMockSetHash;
+    });
   });
 });
