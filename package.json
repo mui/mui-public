@@ -64,9 +64,9 @@
     "eslint-plugin-n": "^17.23.1",
     "stylelint": "^16.25.0"
   },
-  "packageManager": "pnpm@10.19.0",
+  "packageManager": "pnpm@10.20.0",
   "engines": {
-    "pnpm": "10.19.0",
+    "pnpm": "10.20.0",
     "node": ">=22.18.0"
   }
 }
