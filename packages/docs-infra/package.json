@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
-    "@babel/standalone": "^7.28.4",
+    "@babel/standalone": "^7.28.5",
     "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
     "fflate": "^0.8.2",
