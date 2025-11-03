@@ -142,7 +142,7 @@ function cleanupCommitMessage(message) {
   return `${prefix}${msg}`.trim();
 }
 
-async function getPackagesWithDependencies() {
+async function getPackageToDependencyMap() {
   /**
    * @type {(PublicPackage & { dependencies: Record<string, unknown>; private: boolean; })[]}
    */
@@ -163,9 +163,15 @@ async function getPackagesWithDependencies() {
       acc[pkg.name] = deps;
       return acc;
     }, /** @type {Record<string, string[]>} */ ({}));
+  return directPkgDependencies;
+}
 
+/**
+ * @param {Record<string, string[]>} pkgGraph
+ */
+function resolveTransitiveDependencies(pkgGraph = {}) {
   // Compute transitive (nested) dependencies limited to workspace packages and avoid cycles.
-  const workspacePkgNames = new Set(Object.keys(directPkgDependencies));
+  const workspacePkgNames = new Set(Object.keys(pkgGraph));
   const nestedMap = /** @type {Record<string, string[]>} */ ({});
 
   /**
@@ -178,7 +184,7 @@ async function getPackagesWithDependencies() {
      * @type {Set<string>}
      */
     const seen = new Set();
-    const stack = (directPkgDependencies[pkgName] || []).slice();
+    const stack = (pkgGraph[pkgName] || []).slice();
 
     while (stack.length) {
       const dep = stack.pop();
@@ -192,7 +198,7 @@ async function getPackagesWithDependencies() {
         continue;
       }
       seen.add(dep);
-      const children = directPkgDependencies[dep] || [];
+      const children = pkgGraph[dep] || [];
       for (const c of children) {
         if (!seen.has(c)) {
           stack.push(c);
@@ -203,7 +209,7 @@ async function getPackagesWithDependencies() {
     return Array.from(seen);
   };
 
-  for (const name of Object.keys(directPkgDependencies)) {
+  for (const name of Object.keys(pkgGraph)) {
     nestedMap[name] = getTransitiveDeps(name);
   }
 
@@ -243,11 +249,12 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
     }),
   );
   // Second pass: check for dependency updates in other packages not part of git history
-  const pkgDependencies = await getPackagesWithDependencies();
+  const pkgDependencies = await getPackageToDependencyMap();
+  const transitiveDependencies = resolveTransitiveDependencies(pkgDependencies);
 
   for (let i = 0; i < allPackages.length; i += 1) {
     const pkg = allPackages[i];
-    const depsToPublish = (pkgDependencies[pkg.name] ?? []).filter((dep) =>
+    const depsToPublish = (transitiveDependencies[pkg.name] ?? []).filter((dep) =>
       packagesToPublish.some((p) => p.name === dep),
     );
     if (depsToPublish.length === 0) {
