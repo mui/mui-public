@@ -175,7 +175,7 @@ export async function publishPackages(packages, options = {}) {
 /**
  * Read package.json from a directory
  * @param {string} packagePath - Path to package directory
- * @returns {Promise<import('../cli/packageJson').PackageJson>} Parsed package.json content
+ * @returns {Promise<import('../cli/packageJson.js').PackageJson>} Parsed package.json content
  */
 export async function readPackageJson(packagePath) {
   const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');

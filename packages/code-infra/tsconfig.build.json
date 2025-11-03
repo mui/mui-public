@@ -6,7 +6,9 @@
     "outDir": "./build",
     "rootDir": "./src",
     "noEmit": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "module": "node16",
+    "moduleResolution": "node16"
   },
   "include": ["src", "package.json"],
   "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts", "vite.config.mts", "build"]

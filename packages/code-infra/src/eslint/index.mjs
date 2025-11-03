@@ -1,5 +1,5 @@
-/// <reference types="../estree-typescript" />
-/// <reference types="../untyped-plugins" />
+/// <reference types="../estree-typescript.js" />
+/// <reference types="../untyped-plugins.js" />
 
 export * from './baseConfig.mjs';
 export * from './docsConfig.mjs';

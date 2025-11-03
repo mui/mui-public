@@ -68,12 +68,12 @@ ${content}`,
 
 /**
  * @param {Object} param0
- * @param {NonNullable<import('./packageJson').PackageJson.Exports>} param0.importPath
+ * @param {NonNullable<import('./packageJson.js').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
  * @param {string} param0.cwd
  * @param {string} param0.dir
  * @param {string} param0.type
- * @param {import('./packageJson').PackageJson.ExportConditions} param0.newExports
+ * @param {import('./packageJson.js').PackageJson.ExportConditions} param0.newExports
  * @param {string} param0.typeOutExtension
  * @param {string} param0.outExtension
  * @param {boolean} param0.addTypes
@@ -139,7 +139,7 @@ async function createExportsFor({
 
 /**
  * @param {Object} param0
- * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
+ * @param {import('./packageJson.js').PackageJson} param0.packageJson - The package.json content.
  * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
@@ -154,7 +154,7 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   packageJson.type = packageJson.type || 'commonjs';
 
   /**
-   * @type {import('./packageJson').PackageJson.ExportConditions}
+   * @type {import('./packageJson.js').PackageJson.ExportConditions}
    */
   const originalExports =
     typeof packageJson.exports === 'string' || Array.isArray(packageJson.exports)
@@ -162,7 +162,7 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
       : packageJson.exports || {};
   delete packageJson.exports;
   /**
-   * @type {import('./packageJson').PackageJson.ExportConditions}
+   * @type {import('./packageJson.js').PackageJson.ExportConditions}
    */
   const newExports = {
     './package.json': './package.json',
