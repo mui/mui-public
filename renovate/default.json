@@ -110,7 +110,7 @@
     },
     {
       "groupName": "Vite & Vitest",
-      "matchPackageNames": ["esbuild"]
+      "matchPackageNames": ["esbuild", "vitest-browser-react"]
     },
     {
       "matchPackageNames": ["eslint-config-prettier"],

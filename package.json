@@ -43,11 +43,11 @@
     "@next/eslint-plugin-next": "^15.5.6",
     "@octokit/rest": "^22.0.0",
     "@tsconfig/node22": "^22.0.2",
-    "@types/node": "^22.18.12",
+    "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
-    "@vitest/coverage-v8": "^4.0.2",
+    "@vitest/coverage-v8": "^4.0.5",
     "eslint": "^9.38.0",
     "jsdom": "^27.0.1",
     "execa": "^9.6.0",
@@ -57,16 +57,16 @@
     "semver": "^7.7.3",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.2"
+    "vitest": "^4.0.5"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "eslint-plugin-n": "^17.23.1",
     "stylelint": "^16.25.0"
   },
-  "packageManager": "pnpm@10.19.0",
+  "packageManager": "pnpm@10.20.0",
   "engines": {
-    "pnpm": "10.19.0",
+    "pnpm": "10.20.0",
     "node": ">=22.18.0"
   }
 }
