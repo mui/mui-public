@@ -173,6 +173,8 @@ export function useFileHashNavigation({
 
       if (fileHashMode === 'remove-after-interaction' && hashMatchesThisDemo) {
         // Remove the hash when user manually changes variants
+        // Set flag to prevent hash navigation from processing this change
+        updatingHashFromVariantChange.current = true;
         setHash(null);
       } else if (
         fileHashMode !== 'remove' &&

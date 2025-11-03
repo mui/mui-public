@@ -2569,6 +2569,64 @@ describe('useCode integration tests', () => {
       const uniqueFiles = Array.from(new Set(fileChanges));
       expect(uniqueFiles).toEqual(['styles.css', 'utils.ts']);
     });
+
+    it('should change variant when clicking variant tab with alternate variant hash present', async () => {
+      const contentProps: ContentProps<{}> = {
+        slug: 'test-slug',
+        code: {
+          Default: {
+            fileName: 'index.tsx',
+            source: 'export default DefaultComponent;',
+            extraFiles: {
+              'styles.css': '.default { color: blue; }',
+            },
+          },
+          Advanced: {
+            fileName: 'index.tsx',
+            source: 'export default AdvancedComponent;',
+            extraFiles: {
+              'config.ts': 'export const config = {};',
+            },
+          },
+        },
+      };
+
+      // Start with hash pointing to Advanced variant (non-default)
+      window.location.hash = '#test-slug:advanced:index.tsx';
+
+      const { result } = renderHook(() =>
+        useCode(contentProps, { fileHashMode: 'remove-after-interaction' }),
+      );
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Advanced');
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should still be present (not removed on load with remove-after-interaction)
+      expect(window.location.hash).toBe('#test-slug:advanced:index.tsx');
+
+      // User clicks on Default variant tab
+      act(() => {
+        result.current.selectVariant('Default');
+      });
+
+      await waitFor(
+        () => {
+          // Variant should change to Default
+          expect(result.current.selectedVariant).toBe('Default');
+          // File should be the Default variant's main file
+          expect(result.current.selectedFileName).toBe('index.tsx');
+        },
+        { timeout: 1000 },
+      );
+
+      // Hash should be removed after user interaction
+      expect(window.location.hash).toBe('');
+    });
   });
 
   describe('edge cases', () => {
