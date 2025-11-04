@@ -8,6 +8,7 @@ import { Pre } from './Pre';
 import type { VariantCode } from '../CodeHighlighter/types';
 
 // Mock the useUrlHashState hook to prevent browser API issues
+// JSDOM doesn't fully support hash change events, so we mock this to control hash values in tests
 let mockHashValue = '';
 let mockSetHash = vi.fn();
 
@@ -25,6 +26,7 @@ describe('useFileNavigation', () => {
     mockSetHash = vi.fn();
 
     // Mock window.location and window.history
+    // JSDOM provides basic implementations, but we need to ensure they're properly configured
     Object.defineProperty(window, 'location', {
       value: {
         pathname: '/test',
@@ -64,7 +66,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Tailwind'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -122,7 +123,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Tailwind',
           variantKeys: ['Default', 'Tailwind'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -170,7 +170,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Advanced Checkbox',
           selectedVariantKey: 'Testing',
           variantKeys: ['Default', 'Testing'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -225,7 +224,6 @@ describe('useFileNavigation', () => {
           mainSlug: '',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -258,7 +256,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Special',
           variantKeys: ['Default', 'Tailwind', 'Special'],
-          initialVariant: 'Special', // Special is the initial variant, not Default
           shouldHighlight: true,
         }),
       );
@@ -266,7 +263,7 @@ describe('useFileNavigation', () => {
       expect(result.current.files).toEqual([
         {
           name: 'checkbox-special.tsx',
-          slug: 'basic:checkbox-special.tsx', // Should be treated as initial variant
+          slug: 'basic:special:checkbox-special.tsx', // Special variant includes variant name (only Default is excluded)
           component: expect.objectContaining({
             type: Pre,
             props: expect.objectContaining({
@@ -295,7 +292,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -337,7 +333,95 @@ describe('useFileNavigation', () => {
       ]);
     });
 
-    it('should update URL hash when selecting a file', () => {
+    it('should exclude variant name from slug for Default variant only', () => {
+      const selectedVariant = {
+        fileName: 'component.tsx',
+        source: 'const Component = () => <div>Component</div>;',
+        extraFiles: {
+          'utils.js': 'export const util = () => {};',
+        },
+      };
+
+      // Test Default variant - should NOT include variant name
+      const { result: defaultResult } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'MyDemo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default', 'Styled', 'Tailwind'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(defaultResult.current.files).toEqual([
+        {
+          name: 'component.tsx',
+          slug: 'my-demo:component.tsx', // No variant name for Default
+          component: expect.any(Object),
+        },
+        {
+          name: 'utils.js',
+          slug: 'my-demo:utils.js', // No variant name for Default
+          component: expect.any(Object),
+        },
+      ]);
+
+      // Test Styled variant - should include variant name
+      const { result: styledResult } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'MyDemo',
+          selectedVariantKey: 'Styled',
+          variantKeys: ['Default', 'Styled', 'Tailwind'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(styledResult.current.files).toEqual([
+        {
+          name: 'component.tsx',
+          slug: 'my-demo:styled:component.tsx', // Includes variant name
+          component: expect.any(Object),
+        },
+        {
+          name: 'utils.js',
+          slug: 'my-demo:styled:utils.js', // Includes variant name
+          component: expect.any(Object),
+        },
+      ]);
+
+      // Test Tailwind variant - should include variant name
+      const { result: tailwindResult } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'MyDemo',
+          selectedVariantKey: 'Tailwind',
+          variantKeys: ['Default', 'Styled', 'Tailwind'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(tailwindResult.current.files).toEqual([
+        {
+          name: 'component.tsx',
+          slug: 'my-demo:tailwind:component.tsx', // Includes variant name
+          component: expect.any(Object),
+        },
+        {
+          name: 'utils.js',
+          slug: 'my-demo:tailwind:utils.js', // Includes variant name
+          component: expect.any(Object),
+        },
+      ]);
+    });
+
+    it('should remove hash when selecting a file if hash already exists (fileHashMode=remove-hash)', () => {
+      // Set initial hash to simulate existing hash
+      mockHashValue = 'basic:basic-code.tsx';
+
       const selectedVariant = {
         fileName: 'BasicCode.tsx',
         source: 'const BasicCode = () => <div>Basic</div>;',
@@ -353,22 +437,21 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
+          fileHashMode: 'remove-hash',
         }),
       );
 
       // Initially should be on the main file
       expect(result.current.selectedFileName).toBe('BasicCode.tsx');
-      expect(mockSetHash).not.toHaveBeenCalled();
 
       // Select a different file
       act(() => {
         result.current.selectFileName('helperUtils.js');
       });
 
-      // Should update the URL hash with the correct slug
-      expect(mockSetHash).toHaveBeenCalledWith('basic:helper-utils.js');
+      // Should remove the hash when clicking a file (remove-hash mode)
+      expect(mockSetHash).toHaveBeenCalledWith(null);
 
       // Verify the function is available
       expect(typeof result.current.selectFileName).toBe('function');
@@ -393,7 +476,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -426,7 +508,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -438,7 +519,7 @@ describe('useFileNavigation', () => {
       expect(mockSetHash).not.toHaveBeenCalled();
     });
 
-    it('should update URL hash when variant changes', () => {
+    it('should NOT update URL hash when variant changes without existing hash', () => {
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',
@@ -455,7 +536,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'Basic',
             selectedVariantKey,
             variantKeys: ['Default', 'Tailwind'],
-            initialVariant: 'Default',
             shouldHighlight: true,
           }),
         {
@@ -466,34 +546,120 @@ describe('useFileNavigation', () => {
       // Initially on Default variant, main file
       expect(result.current.selectedFileName).toBe('checkbox-basic.tsx');
 
-      // Simulate user selecting a file first to create a hash
-      act(() => {
-        result.current.selectFileName('styles.css');
-      });
-
-      // Verify the correct hash was set for Default variant
-      expect(mockSetHash).toHaveBeenCalledWith('basic:styles.css');
-
-      // Clear the setHash mock to track new calls
-      mockSetHash.mockClear();
-
-      // Change variant - this should update the hash to include the new variant
+      // Change variant without any existing hash
       rerender({ selectedVariantKey: 'Tailwind' });
 
-      // Note: The current implementation might not automatically update hash on variant change
-      // Let's test what actually happens - the user would need to manually select the file again
-      // in the new variant context, or the hash logic might work differently
+      // Should NOT set hash when no hash existed before
+      expect(mockSetHash).not.toHaveBeenCalled();
+    });
 
-      // For now, let's test that the hook doesn't crash and still works
-      expect(result.current.selectedFileName).toBe('styles.css');
+    it('should remove hash when variant changes via dropdown with hash present', () => {
+      // Set initial hash
+      mockHashValue = 'basic:default:styles.css';
 
-      // If we select the same file again in the new variant, it should update the hash
-      act(() => {
-        result.current.selectFileName('styles.css');
-      });
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
 
-      // Now it should have the correct hash with variant
-      expect(mockSetHash).toHaveBeenCalledWith('basic:tailwind:styles.css');
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Basic',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            shouldHighlight: true,
+            fileHashMode: 'remove-hash',
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      mockSetHash.mockClear();
+
+      // User manually switches variant via dropdown
+      rerender({ selectedVariantKey: 'Tailwind' });
+
+      // Should remove hash when user switches variants (fileHashMode='remove-hash')
+      expect(mockSetHash).toHaveBeenCalledWith(null);
+    });
+
+    it('should keep variant in hash when variant changes with fileHashMode=remove-filename', () => {
+      // Set initial hash with file
+      mockHashValue = 'basic:default:styles.css';
+
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+        extraFiles: {
+          'styles.css': 'body { margin: 0; }',
+        },
+      };
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Basic',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            shouldHighlight: true,
+            fileHashMode: 'remove-filename',
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default' },
+        },
+      );
+
+      mockSetHash.mockClear();
+
+      // User manually switches to non-Default variant
+      rerender({ selectedVariantKey: 'Tailwind' });
+
+      // Should keep variant in hash but remove filename
+      expect(mockSetHash).toHaveBeenCalledWith('basic:tailwind');
+    });
+
+    it('should NOT remove hash when hash drives variant change', () => {
+      // Initial state: no hash, on Default variant
+      mockHashValue = '';
+
+      const selectedVariant = {
+        fileName: 'checkbox-basic.tsx',
+        source: 'const BasicCheckbox = () => <div>Basic</div>;',
+      };
+
+      const { rerender } = renderHook(
+        ({ selectedVariantKey, hashVariant }) =>
+          useFileNavigation({
+            selectedVariant,
+            transformedFiles: undefined,
+            mainSlug: 'Basic',
+            selectedVariantKey,
+            variantKeys: ['Default', 'Tailwind'],
+            shouldHighlight: true,
+            hashVariant,
+          }),
+        {
+          initialProps: { selectedVariantKey: 'Default', hashVariant: null as string | null },
+        },
+      );
+
+      // User manually edits hash to point to Tailwind variant
+      mockHashValue = 'basic:tailwind:checkbox-basic.tsx';
+
+      // Simulate hash change causing variant switch
+      rerender({ selectedVariantKey: 'Tailwind', hashVariant: 'Tailwind' as string | null });
+
+      // Should NOT remove hash because the hash drove the change
+      expect(mockSetHash).not.toHaveBeenCalledWith(null);
     });
 
     it('should not automatically set URL hash on initial load without user interaction', () => {
@@ -515,7 +681,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -526,15 +691,15 @@ describe('useFileNavigation', () => {
       // Should not set hash on initial load without user interaction
       expect(mockSetHash).not.toHaveBeenCalled();
 
-      // But after user selects a file, should set hash
+      // Even after user selects a file, should NOT create hash when none exists
       act(() => {
         result.current.selectFileName('index.ts');
       });
 
-      expect(mockSetHash).toHaveBeenCalledWith('basic:index.ts');
+      expect(mockSetHash).not.toHaveBeenCalled();
     });
 
-    it('should update URL hash when variant changes after initial URL hash selection', () => {
+    it('should remove hash when user switches variants after loading from hash', () => {
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',
@@ -554,8 +719,8 @@ describe('useFileNavigation', () => {
             mainSlug: 'Basic',
             selectedVariantKey,
             variantKeys: ['Default', 'Tailwind'],
-            initialVariant: 'Default',
             shouldHighlight: true,
+            fileHashMode: 'remove-hash',
           }),
         {
           initialProps: { selectedVariantKey: 'Default' },
@@ -565,18 +730,14 @@ describe('useFileNavigation', () => {
       // Should have loaded the file from the initial hash
       expect(result.current.selectedFileName).toBe('styles.css');
 
-      // Since the initial hash already matches the expected format for the current variant,
-      // no additional setHash calls should be made during initialization
-      expect(mockSetHash).not.toHaveBeenCalled();
-
       // Clear the setHash mock to track new calls from variant change
       mockSetHash.mockClear();
 
-      // Change to Tailwind variant
+      // User manually changes to Tailwind variant via dropdown
       rerender({ selectedVariantKey: 'Tailwind' });
 
-      // Should update the hash to include the new variant since user had already interacted
-      expect(mockSetHash).toHaveBeenCalledWith('basic:tailwind:styles.css');
+      // Should remove hash when user manually switches variants (not hash-driven)
+      expect(mockSetHash).toHaveBeenCalledWith(null);
     });
   });
 
@@ -601,7 +762,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'Basic',
             selectedVariantKey,
             variantKeys: ['Default', 'Tailwind'],
-            initialVariant: 'Default',
             shouldHighlight: true,
           }),
         {
@@ -639,7 +799,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'Basic', // This demo is 'basic', hash is for 'different-demo'
             selectedVariantKey,
             variantKeys: ['Default', 'Tailwind'],
-            initialVariant: 'Default',
             shouldHighlight: true,
           }),
         {
@@ -657,7 +816,7 @@ describe('useFileNavigation', () => {
       expect(mockSetHash).not.toHaveBeenCalled();
     });
 
-    it('should update hash when current hash is for same demo and variant changes', () => {
+    it('should remove hash when user manually switches variants (same demo)', () => {
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',
@@ -677,8 +836,8 @@ describe('useFileNavigation', () => {
             mainSlug: 'Basic',
             selectedVariantKey,
             variantKeys: ['Default', 'Tailwind'],
-            initialVariant: 'Default',
             shouldHighlight: true,
+            fileHashMode: 'remove-hash',
           }),
         {
           initialProps: { selectedVariantKey: 'Default' },
@@ -688,11 +847,13 @@ describe('useFileNavigation', () => {
       // Should have loaded the file from the hash but not set a new hash
       expect(mockSetHash).not.toHaveBeenCalled();
 
-      // Change variant - should update hash to include variant since it's the same demo
+      mockSetHash.mockClear();
+
+      // User manually switches variant - should remove hash
       rerender({ selectedVariantKey: 'Tailwind' });
 
-      // Should have updated the hash to include the new variant
-      expect(mockSetHash).toHaveBeenCalledWith('basic:tailwind:styles.css');
+      // Should remove hash when user manually switches variants
+      expect(mockSetHash).toHaveBeenCalledWith(null);
     });
 
     it('should handle kebab-case conversion in hash checks correctly', () => {
@@ -712,8 +873,8 @@ describe('useFileNavigation', () => {
             mainSlug: 'MyComplexDemo', // PascalCase mainSlug
             selectedVariantKey,
             variantKeys: ['Default', 'Advanced'],
-            initialVariant: 'Default',
             shouldHighlight: true,
+            fileHashMode: 'remove-hash',
           }),
         {
           initialProps: { selectedVariantKey: 'Default' },
@@ -723,14 +884,14 @@ describe('useFileNavigation', () => {
       // Should recognize the hash matches this demo (kebab-case conversion)
       expect(mockSetHash).not.toHaveBeenCalled();
 
-      // Change variant - should update hash since it matches this demo
+      // Change variant - should remove hash since it matches this demo and user manually switched
       rerender({ selectedVariantKey: 'Advanced' });
 
-      // Should have updated the hash with the new variant
-      expect(mockSetHash).toHaveBeenCalledWith('my-complex-demo:advanced:component.tsx');
+      // Should have removed the hash when user manually switches variants
+      expect(mockSetHash).toHaveBeenCalledWith(null);
     });
 
-    it('should not update hash when file selection changes but no hash exists', () => {
+    it('should not create hash when file selection changes but no hash exists', () => {
       const selectedVariant = {
         fileName: 'main.tsx',
         source: 'const Main = () => <div>Main</div>;',
@@ -749,7 +910,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -757,13 +917,13 @@ describe('useFileNavigation', () => {
       // Verify no hash set initially
       expect(mockSetHash).not.toHaveBeenCalled();
 
-      // But when user explicitly selects a file, hash should be set
+      // When user explicitly selects a file, hash should NOT be created when none exists
       act(() => {
         result.current.selectFileName('helper.ts');
       });
 
-      // This should set the hash (user interaction)
-      expect(mockSetHash).toHaveBeenCalledWith('test:helper.ts');
+      // Should still not have created a hash
+      expect(mockSetHash).not.toHaveBeenCalled();
     });
 
     it('should prevent cross-page hash persistence regression', () => {
@@ -788,7 +948,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'CheckboxDemo', // Different demo than the hash
             selectedVariantKey,
             variantKeys: ['Default', 'Styled'],
-            initialVariant: 'Default',
             shouldHighlight: true,
           }),
         {
@@ -805,7 +964,7 @@ describe('useFileNavigation', () => {
       // Hash should remain unchanged - no setHash calls
       expect(mockSetHash).not.toHaveBeenCalled();
 
-      // Even if user selects a file, it should create a new hash for this demo
+      // Even if user selects a file, it should NOT create a hash (no hash for this demo exists)
       const { result } = renderHook(() =>
         useFileNavigation({
           selectedVariant,
@@ -813,17 +972,18 @@ describe('useFileNavigation', () => {
           mainSlug: 'CheckboxDemo',
           selectedVariantKey: 'Styled',
           variantKeys: ['Default', 'Styled'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
+
+      mockSetHash.mockClear();
 
       act(() => {
         result.current.selectFileName('checkbox.tsx');
       });
 
-      // Should create hash for the new demo, not update the old one
-      expect(mockSetHash).toHaveBeenCalledWith('checkbox-demo:styled:checkbox.tsx');
+      // Should NOT create a new hash when none exists for this demo
+      expect(mockSetHash).not.toHaveBeenCalled();
     });
 
     it('should handle empty mainSlug edge case', () => {
@@ -843,7 +1003,6 @@ describe('useFileNavigation', () => {
             mainSlug: '', // Empty mainSlug
             selectedVariantKey,
             variantKeys: ['Default', 'Alternative'],
-            initialVariant: 'Default',
             shouldHighlight: true,
           }),
         {
@@ -878,7 +1037,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'ComponentDemo',
             selectedVariantKey,
             variantKeys: ['Default', 'Styled'],
-            initialVariant: 'Default',
             shouldHighlight: true,
           }),
         {
@@ -934,7 +1092,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'checkbox',
             selectedVariantKey,
             variantKeys: ['Default', 'Tailwind'],
-            initialVariant: 'Default',
             shouldHighlight: true,
             effectiveCode,
             selectVariant: mockSelectVariant,
@@ -979,7 +1136,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'button',
             selectedVariantKey,
             variantKeys: ['Default', 'Material'],
-            initialVariant: 'Default',
             shouldHighlight: true,
             effectiveCode,
             selectVariant: mockSelectVariant,
@@ -1026,7 +1182,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'component',
           selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Styled'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
           selectVariant: mockSelectVariant,
@@ -1059,7 +1214,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'fallback',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           // effectiveCode not provided - should use fallback logic
           selectVariant: mockSelectVariant,
@@ -1099,7 +1253,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'card',
             selectedVariantKey,
             variantKeys: ['Default', 'Premium'],
-            initialVariant: 'Default', // Default is initial variant
             shouldHighlight: true,
             effectiveCode,
             selectVariant: mockSelectVariant,
@@ -1143,7 +1296,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Advanced'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
           selectVariant: mockSelectVariant,
@@ -1183,7 +1335,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'component',
             selectedVariantKey,
             variantKeys: ['Default', 'Styled'],
-            initialVariant: 'Default',
             shouldHighlight: true,
             effectiveCode,
             selectVariant: mockSelectVariant,
@@ -1228,7 +1379,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'widget',
           selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Custom'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
           // selectVariant not provided
@@ -1273,7 +1423,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Basic',
           selectedVariantKey: 'Default',
           variantKeys: ['Default', 'Tailwind'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
         }),
@@ -1289,6 +1438,12 @@ describe('useFileNavigation', () => {
         { fileName: 'styles.css', slug: 'basic:styles.css', variantName: 'Default' },
         { fileName: 'helper.ts', slug: 'basic:helper.ts', variantName: 'Default' },
         // Tailwind variant files (non-initial variant)
+        // Variant-only slug for Tailwind
+        {
+          fileName: 'checkbox-tailwind.tsx',
+          slug: 'basic:tailwind',
+          variantName: 'Tailwind',
+        },
         {
           fileName: 'checkbox-tailwind.tsx',
           slug: 'basic:tailwind:checkbox-tailwind.tsx',
@@ -1329,31 +1484,37 @@ describe('useFileNavigation', () => {
           mainSlug: 'Advanced Component Demo',
           selectedVariantKey: 'Testing',
           variantKeys: ['Testing'],
-          initialVariant: 'Testing',
           shouldHighlight: true,
           effectiveCode,
         }),
       );
 
+      // Testing variant should include variant name (only Default is excluded)
       expect(result.current.allFilesSlugs).toEqual([
+        // Variant-only slug for Testing variant
         {
           fileName: 'MyComplexComponent.test.tsx',
-          slug: 'advanced-component-demo:my-complex-component.test.tsx',
+          slug: 'advanced-component-demo:testing',
+          variantName: 'Testing',
+        },
+        {
+          fileName: 'MyComplexComponent.test.tsx',
+          slug: 'advanced-component-demo:testing:my-complex-component.test.tsx',
           variantName: 'Testing',
         },
         {
           fileName: 'utilityHelpers.js',
-          slug: 'advanced-component-demo:utility-helpers.js',
+          slug: 'advanced-component-demo:testing:utility-helpers.js',
           variantName: 'Testing',
         },
         {
           fileName: 'ComponentStyles.module.css',
-          slug: 'advanced-component-demo:component-styles.module.css',
+          slug: 'advanced-component-demo:testing:component-styles.module.css',
           variantName: 'Testing',
         },
         {
           fileName: 'APIUtils.d.ts',
-          slug: 'advanced-component-demo:apiutils.d.ts',
+          slug: 'advanced-component-demo:testing:apiutils.d.ts',
           variantName: 'Testing',
         },
       ]);
@@ -1376,7 +1537,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Simple',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
         }),
@@ -1410,7 +1570,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Config',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
         }),
@@ -1430,7 +1589,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Test',
           selectedVariantKey: undefined,
           variantKeys: [],
-          initialVariant: undefined,
           shouldHighlight: true,
           effectiveCode: undefined,
         }),
@@ -1456,7 +1614,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Test',
           selectedVariantKey: 'Default',
           variantKeys: [],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
         }),
@@ -1495,7 +1652,6 @@ describe('useFileNavigation', () => {
             mainSlug: 'Test',
             selectedVariantKey,
             variantKeys: ['Default', 'Styled'],
-            initialVariant: 'Default',
             shouldHighlight: true,
             effectiveCode,
           }),
@@ -1510,6 +1666,12 @@ describe('useFileNavigation', () => {
         { fileName: 'component.tsx', slug: 'test:component.tsx', variantName: 'Default' },
         { fileName: 'styles.css', slug: 'test:styles.css', variantName: 'Default' },
         // Styled variant files (non-initial variant)
+        // Variant-only slug for Styled
+        {
+          fileName: 'styled-component.tsx',
+          slug: 'test:styled',
+          variantName: 'Styled',
+        },
         {
           fileName: 'styled-component.tsx',
           slug: 'test:styled:styled-component.tsx',
@@ -1564,35 +1726,46 @@ describe('useFileNavigation', () => {
           mainSlug: 'Demo',
           selectedVariantKey: 'Special',
           variantKeys: ['Default', 'Tailwind', 'Special'],
-          initialVariant: 'Special', // Special is the initial variant, not Default
           shouldHighlight: true,
           effectiveCode,
         }),
       );
 
-      // Since Special is the initialVariant, its files should not include variant name in slug
+      // Only Default variant files exclude variant name from slug
       expect(result.current.allFilesSlugs).toEqual([
-        // Default variant files (non-initial)
+        // Default variant files (excludes variant name)
         {
           fileName: 'default-component.tsx',
-          slug: 'demo:default:default-component.tsx',
+          slug: 'demo:default-component.tsx',
           variantName: 'Default',
         },
-        { fileName: 'default.css', slug: 'demo:default:default.css', variantName: 'Default' },
-        // Tailwind variant files (non-initial)
+        { fileName: 'default.css', slug: 'demo:default.css', variantName: 'Default' },
+        // Tailwind variant files (includes variant name)
+        // Variant-only slug for Tailwind
+        {
+          fileName: 'tailwind-component.tsx',
+          slug: 'demo:tailwind',
+          variantName: 'Tailwind',
+        },
         {
           fileName: 'tailwind-component.tsx',
           slug: 'demo:tailwind:tailwind-component.tsx',
           variantName: 'Tailwind',
         },
         { fileName: 'tailwind.css', slug: 'demo:tailwind:tailwind.css', variantName: 'Tailwind' },
-        // Special variant files (initial variant - no variant name in slug)
+        // Special variant files (includes variant name)
+        // Variant-only slug for Special
         {
           fileName: 'special-component.tsx',
-          slug: 'demo:special-component.tsx',
+          slug: 'demo:special',
           variantName: 'Special',
         },
-        { fileName: 'special.css', slug: 'demo:special.css', variantName: 'Special' },
+        {
+          fileName: 'special-component.tsx',
+          slug: 'demo:special:special-component.tsx',
+          variantName: 'Special',
+        },
+        { fileName: 'special.css', slug: 'demo:special:special.css', variantName: 'Special' },
       ]);
     });
 
@@ -1616,7 +1789,6 @@ describe('useFileNavigation', () => {
           mainSlug: '',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
         }),
@@ -1648,7 +1820,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'Test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
           effectiveCode,
         }),
@@ -1687,7 +1858,6 @@ describe('useFileNavigation', () => {
             mainSlug,
             selectedVariantKey: 'Default',
             variantKeys: ['Default'],
-            initialVariant: 'Default',
             shouldHighlight: true,
             effectiveCode,
           }),
@@ -1731,7 +1901,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -1761,7 +1930,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: false,
         }),
       );
@@ -1816,7 +1984,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -1869,7 +2036,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: false,
         }),
       );
@@ -1957,7 +2123,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: false, // Test with highlighting disabled
         }),
       );
@@ -2015,7 +2180,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: false,
         }),
       );
@@ -2059,7 +2223,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true, // This should not affect pre-created components in transformedFiles
         }),
       );
@@ -2091,7 +2254,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2113,7 +2275,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2134,7 +2295,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2155,7 +2315,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2197,7 +2356,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2243,7 +2401,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2276,7 +2433,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2304,7 +2460,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2334,7 +2489,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2377,7 +2531,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2396,7 +2549,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2417,7 +2569,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2452,7 +2603,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2490,7 +2640,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2551,7 +2700,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         }),
       );
@@ -2583,7 +2731,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         });
       });
@@ -2642,7 +2789,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         });
       });
@@ -2681,7 +2827,6 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          initialVariant: 'Default',
           shouldHighlight: true,
         });
       });

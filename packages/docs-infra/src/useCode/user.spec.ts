@@ -38,9 +38,21 @@ describe('useCode integration tests', () => {
       value: mockLocation,
     });
 
-    // Mock history API
-    window.history.replaceState = vi.fn();
-    window.history.pushState = vi.fn();
+    // Mock history API to update location.hash
+    // JSDOM doesn't automatically update window.location.hash when history methods are called,
+    // so we manually parse the URL and update the hash to simulate real browser behavior
+    window.history.replaceState = vi.fn((state, title, url) => {
+      if (typeof url === 'string') {
+        const hashIndex = url.indexOf('#');
+        mockLocation.hash = hashIndex >= 0 ? url.substring(hashIndex) : '';
+      }
+    });
+    window.history.pushState = vi.fn((state, title, url) => {
+      if (typeof url === 'string') {
+        const hashIndex = url.indexOf('#');
+        mockLocation.hash = hashIndex >= 0 ? url.substring(hashIndex) : '';
+      }
+    });
   });
 
   afterEach(() => {
@@ -329,7 +341,7 @@ describe('useCode integration tests', () => {
       );
     });
 
-    it('should not switch URL when hash specifies default variant file but localStorage has different variant', async () => {
+    it('should prioritize hash variant over localStorage preference', async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'test-slug',
         code: {
@@ -344,34 +356,25 @@ describe('useCode integration tests', () => {
         },
       };
 
-      // Mock localStorage to have TypeScript preference
-      const mockGetItem = vi.fn((key) => {
-        if (key?.includes('variant_pref')) {
-          return 'TypeScript';
-        }
-        return null;
-      });
-      const originalGetItem = Storage.prototype.getItem;
-      Storage.prototype.getItem = mockGetItem;
+      // Set localStorage to prefer TypeScript
+      window.localStorage.setItem('_docs_variant_pref:JavaScript:TypeScript', 'TypeScript');
 
-      // Hash specifies JavaScript file (default variant)
-      window.location.hash = '#test-slug:demo.js';
+      // Hash explicitly specifies JavaScript variant and file
+      window.location.hash = '#test-slug:java-script:demo.js';
 
       const { result } = renderHook(() => useCode(contentProps));
 
       await waitFor(
         () => {
-          // Should recognize file is in JavaScript variant and stay there
+          // Should use JavaScript variant from hash, ignoring localStorage
           expect(result.current.selectedVariant).toBe('JavaScript');
           expect(result.current.selectedFileName).toBe('demo.js');
         },
         { timeout: 1000 },
       );
 
-      // URL should NOT have been changed to include TypeScript variant
-      expect(window.location.hash).toBe('#test-slug:demo.js');
-
-      Storage.prototype.getItem = originalGetItem;
+      // Hash should be preserved
+      expect(window.location.hash).toBe('#test-slug:java-script:demo.js');
     });
 
     it('should respect localStorage variant preference on initial load', async () => {
@@ -388,15 +391,8 @@ describe('useCode integration tests', () => {
         },
       };
 
-      // Mock localStorage to have TypeScript preference
-      const mockGetItem = vi.fn((key) => {
-        if (key?.includes('variant_pref')) {
-          return 'TypeScript';
-        }
-        return null;
-      });
-      const originalGetItem = Storage.prototype.getItem;
-      Storage.prototype.getItem = mockGetItem;
+      // Set localStorage to prefer TypeScript (sorted variant keys with underscore prefix)
+      window.localStorage.setItem('_docs_variant_pref:JavaScript:TypeScript', 'TypeScript');
 
       const { result } = renderHook(() => useCode(contentProps));
 
@@ -406,8 +402,160 @@ describe('useCode integration tests', () => {
         },
         { timeout: 1000 },
       );
+    });
 
-      Storage.prototype.getItem = originalGetItem;
+    it('should respect localStorage when no hash and no initialVariant prop', async () => {
+      // Ensure no hash present
+      window.location.hash = '';
+
+      const contentProps: ContentProps<{}> = {
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+          Python: {
+            fileName: 'demo.py',
+            source: 'x = 1',
+          },
+        },
+      };
+
+      // Set localStorage to prefer Python (sorted variant keys with underscore prefix)
+      window.localStorage.setItem('_docs_variant_pref:JavaScript:Python:TypeScript', 'Python');
+
+      // Call useCode WITHOUT initialVariant prop
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          // Should use Python from localStorage since there's no hash and no initialVariant
+          expect(result.current.selectedVariant).toBe('Python');
+          expect(result.current.selectedFileName).toBe('demo.py');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should respect localStorage with slug defined but no hash', async () => {
+      // Ensure no hash present
+      window.location.hash = '';
+
+      const contentProps: ContentProps<{}> = {
+        slug: 'my-demo',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Set localStorage to prefer TypeScript (sorted variant keys with underscore prefix)
+      window.localStorage.setItem('_docs_variant_pref:JavaScript:TypeScript', 'TypeScript');
+
+      // Call useCode WITHOUT initialVariant prop
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          // Should use TypeScript from localStorage since there's no hash and no initialVariant
+          expect(result.current.selectedVariant).toBe('TypeScript');
+          expect(result.current.selectedFileName).toBe('demo.ts');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should apply localStorage value when it loads asynchronously after initial render', async () => {
+      // Ensure no hash present
+      window.location.hash = '';
+
+      const contentProps: ContentProps<{}> = {
+        code: {
+          CssModules: {
+            fileName: 'demo.module.css',
+            source: '.button { color: blue; }',
+          },
+          Tailwind: {
+            fileName: 'demo.tsx',
+            source: '<button className="text-blue-500">Click</button>',
+          },
+        },
+      };
+
+      // Start WITHOUT localStorage value (simulating it not loaded yet)
+      window.localStorage.removeItem('_docs_variant_pref:CssModules:Tailwind');
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      // Initially should use first variant (CssModules)
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('CssModules');
+      });
+
+      // Now simulate localStorage loading late by setting it
+      act(() => {
+        window.localStorage.setItem('_docs_variant_pref:CssModules:Tailwind', 'Tailwind');
+        // Trigger a storage event to simulate the async load
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: '_docs_variant_pref:CssModules:Tailwind',
+            newValue: 'Tailwind',
+            oldValue: null,
+            storageArea: window.localStorage,
+          }),
+        );
+      });
+
+      // Should update to Tailwind from localStorage
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('Tailwind');
+          expect(result.current.selectedFileName).toBe('demo.tsx');
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should fallback to first variant when localStorage has invalid value', async () => {
+      // Ensure no hash present
+      window.location.hash = '';
+
+      const contentProps: ContentProps<{}> = {
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      // Set localStorage to a variant that doesn't exist
+      window.localStorage.setItem('_docs_variant_pref:JavaScript:TypeScript', 'Python');
+
+      const { result } = renderHook(() => useCode(contentProps));
+
+      await waitFor(
+        () => {
+          // Should fallback to first variant (JavaScript) since Python doesn't exist
+          expect(result.current.selectedVariant).toBe('JavaScript');
+          expect(result.current.selectedFileName).toBe('demo.js');
+        },
+        { timeout: 1000 },
+      );
     });
 
     it('should prioritize hash over localStorage preference', async () => {
@@ -429,15 +577,8 @@ describe('useCode integration tests', () => {
         },
       };
 
-      // Mock localStorage to have TypeScript preference
-      const mockGetItem = vi.fn((key) => {
-        if (key?.includes('variant_pref')) {
-          return 'TypeScript';
-        }
-        return null;
-      });
-      const originalGetItem = Storage.prototype.getItem;
-      Storage.prototype.getItem = mockGetItem;
+      // Set localStorage to prefer TypeScript
+      window.localStorage.setItem('_docs_variant_pref:JavaScript:Python:TypeScript', 'TypeScript');
 
       // But hash specifies Python
       window.location.hash = '#test-slug:python:demo.py';
@@ -451,37 +592,56 @@ describe('useCode integration tests', () => {
         },
         { timeout: 1000 },
       );
-
-      Storage.prototype.getItem = originalGetItem;
     });
   });
 
   describe('cross-page navigation', () => {
-    it('should not apply hash from different demo slug', async () => {
-      const contentProps: ContentProps<{}> = {
+    it('should apply variant preference from any hash to all demos on page', async () => {
+      const demo1Props: ContentProps<{}> = {
+        slug: 'demo1',
         code: {
-          Default: {
-            fileName: 'component.js',
-            source: 'export default Component;',
-            extraFiles: {
-              'styles.css': '.component {}',
-            },
+          JavaScript: {
+            fileName: 'demo1.js',
+            source: 'console.log("demo1");',
+          },
+          TypeScript: {
+            fileName: 'demo1.ts',
+            source: 'console.log("demo1");',
           },
         },
       };
 
-      // Hash is for a different demo (different-demo vs test-slug)
-      window.location.hash = '#different-demo:styles.css';
+      const demo2Props: ContentProps<{}> = {
+        slug: 'demo2',
+        code: {
+          JavaScript: {
+            fileName: 'demo2.js',
+            source: 'console.log("demo2");',
+          },
+          TypeScript: {
+            fileName: 'demo2.ts',
+            source: 'console.log("demo2");',
+          },
+        },
+      };
 
-      const { result } = renderHook(() => useCode(contentProps));
+      // Hash points to demo1 with TypeScript variant
+      window.location.hash = '#demo1:type-script:demo1.ts';
+
+      const { result: result1 } = renderHook(() => useCode(demo1Props));
+      const { result: result2 } = renderHook(() => useCode(demo2Props));
 
       await waitFor(() => {
-        // Should ignore hash and select main file
-        expect(result.current.selectedFileName).toBe('component.js');
+        // Demo1 should use TypeScript from hash
+        expect(result1.current.selectedVariant).toBe('TypeScript');
+        expect(result1.current.selectedFileName).toBe('demo1.ts');
+        // Demo2 should ALSO use TypeScript from hash, even though hash slug is demo1
+        expect(result2.current.selectedVariant).toBe('TypeScript');
+        expect(result2.current.selectedFileName).toBe('demo2.ts');
       });
     });
 
-    it('should handle multiple demos on same page with different hashes', async () => {
+    it('should not apply file selection from hash to different demo', async () => {
       const demo1Props: ContentProps<{}> = {
         slug: 'demo1',
         code: {
@@ -518,9 +678,162 @@ describe('useCode integration tests', () => {
         // Demo1 should respond to hash and select config file
         expect(result1.current.selectedVariant).toBe('Default');
         expect(result1.current.selectedFileName).toBe('config1.js');
-        // Demo2 should ignore it and use main file
+        // Demo2 should ignore file selection and use main file (but uses same variant)
         expect(result2.current.selectedVariant).toBe('Default');
         expect(result2.current.selectedFileName).toBe('demo2.js');
+      });
+    });
+
+    it('should handle demos with different available variants gracefully', async () => {
+      const demo1Props: ContentProps<{}> = {
+        slug: 'demo1',
+        code: {
+          JavaScript: {
+            fileName: 'demo1.js',
+            source: 'console.log("demo1");',
+          },
+          TypeScript: {
+            fileName: 'demo1.ts',
+            source: 'console.log("demo1");',
+          },
+          Python: {
+            fileName: 'demo1.py',
+            source: 'print("demo1")',
+          },
+        },
+      };
+
+      const demo2Props: ContentProps<{}> = {
+        slug: 'demo2',
+        code: {
+          JavaScript: {
+            fileName: 'demo2.js',
+            source: 'console.log("demo2");',
+          },
+          TypeScript: {
+            fileName: 'demo2.ts',
+            source: 'console.log("demo2");',
+          },
+          // Note: No Python variant
+        },
+      };
+
+      // Hash specifies Python variant (which demo1 has but demo2 doesn't)
+      window.location.hash = '#demo1:python:demo1.py';
+
+      const { result: result1 } = renderHook(() => useCode(demo1Props));
+      const { result: result2 } = renderHook(() => useCode(demo2Props));
+
+      await waitFor(() => {
+        // Demo1 should use Python variant from hash
+        expect(result1.current.selectedVariant).toBe('Python');
+        expect(result1.current.selectedFileName).toBe('demo1.py');
+        // Demo2 doesn't have Python, should fallback to first available (JavaScript)
+        expect(result2.current.selectedVariant).toBe('JavaScript');
+        expect(result2.current.selectedFileName).toBe('demo2.js');
+      });
+    });
+
+    it('should apply Default variant to all demos when hash has file but no variant', async () => {
+      const demo1Props: ContentProps<{}> = {
+        slug: 'demo1',
+        code: {
+          Default: {
+            fileName: 'demo1.js',
+            source: 'console.log("demo1");',
+            extraFiles: {
+              'config1.js': 'export const config = {};',
+            },
+          },
+          TypeScript: {
+            fileName: 'demo1.ts',
+            source: 'console.log("demo1");',
+          },
+        },
+      };
+
+      const demo2Props: ContentProps<{}> = {
+        slug: 'demo2',
+        code: {
+          Default: {
+            fileName: 'demo2.js',
+            source: 'console.log("demo2");',
+          },
+          TypeScript: {
+            fileName: 'demo2.ts',
+            source: 'console.log("demo2");',
+          },
+        },
+      };
+
+      // Hash with 2 parts (slug:file) implies Default variant
+      window.location.hash = '#demo1:config1.js';
+
+      const { result: result1 } = renderHook(() => useCode(demo1Props));
+      const { result: result2 } = renderHook(() => useCode(demo2Props));
+
+      await waitFor(() => {
+        // Both demos should use Default variant
+        expect(result1.current.selectedVariant).toBe('Default');
+        expect(result1.current.selectedFileName).toBe('config1.js');
+        expect(result2.current.selectedVariant).toBe('Default');
+        expect(result2.current.selectedFileName).toBe('demo2.js');
+      });
+    });
+
+    it('should respect initialVariant prop when no hash or localStorage', async () => {
+      const contentProps: ContentProps<{}> = {
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useCode(contentProps, {
+          initialVariant: 'TypeScript',
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('TypeScript');
+        expect(result.current.selectedFileName).toBe('demo.ts');
+      });
+    });
+
+    it('should override initialVariant when hash is present', async () => {
+      window.location.hash = '#demo:java-script:demo.js';
+
+      const contentProps: ContentProps<{}> = {
+        slug: 'demo',
+        code: {
+          JavaScript: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: 'const x: number = 1;',
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useCode(contentProps, {
+          initialVariant: 'TypeScript',
+        }),
+      );
+
+      await waitFor(() => {
+        // Hash should take precedence over initialVariant
+        expect(result.current.selectedVariant).toBe('JavaScript');
+        expect(result.current.selectedFileName).toBe('demo.js');
       });
     });
   });
@@ -607,7 +920,7 @@ describe('useCode integration tests', () => {
   });
 
   describe('hash synchronization', () => {
-    it('should update hash when user manually selects file', async () => {
+    it('should NOT create hash when user manually selects file without existing hash', async () => {
       const contentProps: ContentProps<{}> = {
         code: {
           Default: {
@@ -639,10 +952,8 @@ describe('useCode integration tests', () => {
         expect(result.current.selectedFileName).toBe('utils.js');
       });
 
-      // Hash should be updated (history.replaceState should be called)
-      expect((window.history.replaceState as any).mock.calls.length).toBeGreaterThan(
-        initialHistoryCallCount,
-      );
+      // Hash should NOT be created when none exists
+      expect((window.history.replaceState as any).mock.calls.length).toBe(initialHistoryCallCount);
     });
 
     it('should handle malformed hash gracefully', async () => {
@@ -691,7 +1002,7 @@ describe('useCode integration tests', () => {
       });
     });
 
-    it('should not update hash when selection is programmatic due to variant switch', async () => {
+    it('should remove hash when user manually switches variant', async () => {
       const contentProps: ContentProps<{}> = {
         slug: 'test-slug',
         code: {
@@ -709,35 +1020,38 @@ describe('useCode integration tests', () => {
         },
       };
 
-      window.location.hash = '#test-slug:utils.js';
+      // Start with hash specifying JavaScript variant and utils file
+      window.location.hash = '#test-slug:java-script:utils.js';
 
       const { result } = renderHook(() => useCode(contentProps));
 
       await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('JavaScript');
         expect(result.current.selectedFileName).toBe('utils.js');
       });
 
-      const historyCallCountBefore = (window.history.replaceState as any).mock.calls.length;
+      // Current hash should be set
+      expect(window.location.hash).toBe('#test-slug:java-script:utils.js');
 
-      // Switch to TypeScript - utils.js doesn't exist there, so it will programmatically select demo.ts
-      act(() => {
+      // Switch to TypeScript - should remove hash and change variant
+      await act(async () => {
         result.current.selectVariant('TypeScript');
+        // Give React time to process state updates
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 0);
+        });
       });
 
-      await waitFor(
-        () => {
-          expect(result.current.selectedVariant).toBe('TypeScript');
-          expect(result.current.selectedFileName).toBe('demo.ts');
-        },
-        { timeout: 1000 },
-      );
+      // Hash should be removed when user manually switches variant (with default fileHashMode='remove-hash')
+      await waitFor(() => {
+        expect(window.location.hash).toBe('');
+      });
 
-      const historyCallCountAfter = (window.history.replaceState as any).mock.calls.length;
-
-      // The file selection was programmatic, so hash updates should be minimal
-      // Some updates are expected for variant switch and file selection, but not excessive
-      // Allow up to 15 updates (variant switch may trigger multiple effects)
-      expect(historyCallCountAfter - historyCallCountBefore).toBeLessThan(15);
+      // Variant and file should update
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('TypeScript');
+        expect(result.current.selectedFileName).toBe('demo.ts');
+      });
     });
   });
 
