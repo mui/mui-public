@@ -50,10 +50,15 @@ function processFlatMode(
   for (const file of fileMapping) {
     const fileName = file.segments[file.segments.length - 1];
     const isIndexFile = fileName.startsWith('index.');
+    const isUnderscoreIndexFile = fileName.startsWith('_index.');
 
     let candidateName: string;
 
-    if (isIndexFile) {
+    if (isUnderscoreIndexFile) {
+      // Files starting with "_index." should be treated as direct index imports
+      // e.g., "../../dir/_index.module.css" -> "index.module.css"
+      candidateName = `index${file.extension}`;
+    } else if (isIndexFile) {
       // Check if the original import was a direct index file (e.g., "./index.ext")
       const originalImportParts = file.originalImportPath.split('/');
       const isDirectIndexImport =
@@ -142,10 +147,14 @@ function processFlatMode(
               for (const file of longerFiles) {
                 const fileName = file.segments[file.segments.length - 1];
                 const isIndexFile = fileName.startsWith('index.');
+                const isUnderscoreIndexFile = fileName.startsWith('_index.');
                 const distinguishingSegment = file.segments[distinguishingIndex];
 
                 let finalName: string;
-                if (isIndexFile) {
+                if (isUnderscoreIndexFile) {
+                  // Files starting with "_index." should always use "index" as the base name
+                  finalName = `${distinguishingSegment}/index${file.extension}`;
+                } else if (isIndexFile) {
                   // Check if this was a direct index import
                   const originalImportParts = file.originalImportPath.split('/');
                   const isDirectIndexImport =
@@ -197,10 +206,14 @@ function processFlatMode(
       for (const file of conflictingFiles) {
         const fileName = file.segments[file.segments.length - 1];
         const isIndexFile = fileName.startsWith('index.');
+        const isUnderscoreIndexFile = fileName.startsWith('_index.');
         const distinguishingSegment = file.segments[distinguishingIndex];
 
         let finalName: string;
-        if (isIndexFile) {
+        if (isUnderscoreIndexFile) {
+          // Files starting with "_index." should always use "index" as the base name
+          finalName = `${distinguishingSegment}/index${file.extension}`;
+        } else if (isIndexFile) {
           // Check if this was a direct index import
           const originalImportParts = file.originalImportPath.split('/');
           const isDirectIndexImport =
