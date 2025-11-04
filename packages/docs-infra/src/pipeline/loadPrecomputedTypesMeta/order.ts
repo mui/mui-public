@@ -268,6 +268,15 @@ export const typeSuffixes = [
   'ChangeEventDetails',
   'DataAttributes',
   'CssVars',
+  'ToastObject',
+  'Orientation',
+  'Status',
+  'Value',
+  'Status',
+  'Value',
+  'ItemMetadata',
+  'ActivationDirection',
+  'ConditionalProps',
 
   '__EVERYTHING_ELSE__', // Placeholder for all other type suffixes
 ];

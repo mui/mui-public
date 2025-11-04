@@ -169,7 +169,10 @@ export async function loadPrecomputedTypesMeta(
     // DEBUG: Log entrypoints for Menu
     if (this.resourcePath.includes('menu/types.ts')) {
       console.warn('[loadPrecomputedTypesMeta] Menu resolvedEntrypoints:', resolvedEntrypoints);
-      console.warn('[loadPrecomputedTypesMeta] Menu resolvedVariantMap:', Array.from(resolvedVariantMap.entries()));
+      console.warn(
+        '[loadPrecomputedTypesMeta] Menu resolvedVariantMap:',
+        Array.from(resolvedVariantMap.entries()),
+      );
     }
 
     // Parse exports from library source files to find re-exported directories
@@ -283,7 +286,7 @@ export async function loadPrecomputedTypesMeta(
       console.warn(`  - Meta files found: ${workerResult.debug.metaFilesCount || 0}`);
       console.warn(`  - Adjacent files count: ${workerResult.debug.adjacentFilesCount || 0}`);
 
-            // DEBUG: Log exports for Menu
+      // DEBUG: Log exports for Menu
       if (relativePath.includes('/menu/types')) {
         const variantData = workerResult.variantData;
         if (variantData) {
@@ -294,11 +297,14 @@ export async function loadPrecomputedTypesMeta(
               console.warn(`  - ${key}`);
             }
           });
-          
+
           // Check if Menu.Root exists
           const menuRoot = variantData['Menu.Root'];
           if (menuRoot) {
-            console.warn('[Menu.Root] Found! exports:', menuRoot.exports?.map((exp: any) => exp.name));
+            console.warn(
+              '[Menu.Root] Found! exports:',
+              menuRoot.exports?.map((exp: any) => exp.name),
+            );
           } else {
             console.warn('[Menu.Root] NOT FOUND in variantData keys');
           }
@@ -392,6 +398,22 @@ export async function loadPrecomputedTypesMeta(
 
     // Collect all types for markdown generation
     let allTypes = Object.values(variantData).flatMap((v) => v.types);
+
+    // Deduplicate types by name - can happen when same component is exported from multiple entrypoints
+    // (e.g., DirectionProvider exported from both index.ts and DirectionProvider.tsx)
+    // Prefer components/hooks over other types when there are duplicates
+    const typesByName = new Map<string, TypesMeta>();
+    allTypes.forEach((typeMeta) => {
+      const existing = typesByName.get(typeMeta.name);
+      if (!existing) {
+        typesByName.set(typeMeta.name, typeMeta);
+      } else if (typeMeta.type === 'component' || typeMeta.type === 'hook') {
+        // Prefer components/hooks over other types
+        typesByName.set(typeMeta.name, typeMeta);
+      }
+      // else: keep existing entry (don't replace with 'other' type)
+    });
+    allTypes = Array.from(typesByName.values());
 
     // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
     allTypes = allTypes.map((typeMeta) => {

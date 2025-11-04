@@ -28,22 +28,30 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
     return idx === -1 ? arr.indexOf('__EVERYTHING_ELSE__') : idx;
   };
 
-  const parseName = (fullName: string) => {
+  const parseName = (fullName: string, isComponentOrHook: boolean) => {
     // fullName is like: "Checkbox.Root", "Checkbox.Root.Props", "Checkbox.Indicator.State"
     // We need to extract: component, part, suffix
 
     let suffix = null;
     let baseName = fullName;
 
-    // Check if it ends with a known suffix like ".Props", ".State", etc.
-    for (const suf of typeSuffixes) {
-      if (suf === '__EVERYTHING_ELSE__') {
-        continue;
-      }
-      if (fullName.endsWith(`.${suf}`)) {
-        suffix = suf;
-        baseName = fullName.substring(0, fullName.length - suf.length - 1); // Remove ".Suffix"
-        break;
+    // First check if we have a component namespace (contains a dot)
+    const hasDot = fullName.includes('.');
+
+    // Only check for type suffixes if we have a namespace AND it's not a component/hook
+    // Components like "Slider.Value" should have Value treated as a part, not a suffix
+    // But types like "Checkbox.Value" should have Value treated as a suffix
+    if (hasDot && !isComponentOrHook) {
+      // Check if it ends with a known suffix like ".Props", ".State", ".Value", etc.
+      for (const suf of typeSuffixes) {
+        if (suf === '__EVERYTHING_ELSE__') {
+          continue;
+        }
+        if (fullName.endsWith(`.${suf}`)) {
+          suffix = suf;
+          baseName = fullName.substring(0, fullName.length - suf.length - 1); // Remove ".Suffix"
+          break;
+        }
       }
     }
 
@@ -65,34 +73,41 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
     const aFullName = a.type === 'component' || a.type === 'hook' ? a.data.name : a.name;
     const bFullName = b.type === 'component' || b.type === 'hook' ? b.data.name : b.name;
 
-    const aParsed = parseName(aFullName);
-    const bParsed = parseName(bFullName);
+    const aIsComponentOrHook = a.type === 'component' || a.type === 'hook';
+    const bIsComponentOrHook = b.type === 'component' || b.type === 'hook';
 
-    // First, sort by part (Root, Trigger, Indicator, etc.)
-    const aPartIdx = getOrderIndex(namespaceParts, aParsed.part);
-    const bPartIdx = getOrderIndex(namespaceParts, bParsed.part);
+    const aParsed = parseName(aFullName, aIsComponentOrHook);
+    const bParsed = parseName(bFullName, bIsComponentOrHook);
 
-    if (aPartIdx !== bPartIdx) {
-      return aPartIdx - bPartIdx;
+    // For types with suffixes (like DirectionProvider.Props), group them with their base type
+    // by comparing base names first, then suffixes
+    const aBaseName = aParsed.suffix
+      ? aFullName.substring(0, aFullName.length - aParsed.suffix.length - 1)
+      : aFullName;
+    const bBaseName = bParsed.suffix
+      ? bFullName.substring(0, bFullName.length - bParsed.suffix.length - 1)
+      : bFullName;
+
+    // First, compare by base name (without suffix) to keep related types together
+    if (aBaseName !== bBaseName) {
+      // Sort by the part name (e.g., "Root", "Trigger", "Value", etc.)
+      // This ensures proper ordering based on namespaceParts configuration
+      const aPartIdx = getOrderIndex(namespaceParts, aParsed.part);
+      const bPartIdx = getOrderIndex(namespaceParts, bParsed.part);
+
+      if (aPartIdx !== bPartIdx) {
+        return aPartIdx - bPartIdx;
+      }
+
+      // Fallback to alphabetical for base names
+      return aBaseName.localeCompare(bBaseName);
     }
 
-    // Then by suffix (Props, State, DataAttributes, etc.)
+    // Same base name - sort by suffix (Props, State, DataAttributes, etc.)
     // Items with no suffix should come first (before .Props, .State, etc.)
     const aSuffixIdx = aParsed.suffix === null ? -1 : getOrderIndex(typeSuffixes, aParsed.suffix);
     const bSuffixIdx = bParsed.suffix === null ? -1 : getOrderIndex(typeSuffixes, bParsed.suffix);
-    if (aSuffixIdx !== bSuffixIdx) {
-      return aSuffixIdx - bSuffixIdx;
-    }
-
-    // Finally, by original name as fallback
-    if (aFullName < bFullName) {
-      return -1;
-    }
-    if (aFullName > bFullName) {
-      return 1;
-    }
-
-    return 0;
+    return aSuffixIdx - bSuffixIdx;
   });
 }
 

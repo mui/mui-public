@@ -340,13 +340,23 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
  * @returns The formatted type string
  */
 export async function prettyFormat(type: string, typeName?: string) {
-  const formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
-    plugins: [prettierPluginEstree, prettierPluginTypescript],
-    parser: 'typescript',
-    singleQuote: true,
-    semi: true,
-    printWidth: 85,
-  });
+  let formattedType: string;
+
+  try {
+    formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
+      plugins: [prettierPluginEstree, prettierPluginTypescript],
+      parser: 'typescript',
+      singleQuote: true,
+      semi: true,
+      printWidth: 85,
+    });
+  } catch (error) {
+    // If Prettier fails on extremely complex types, return the original type
+    console.warn(
+      `[prettyFormat] Prettier failed for type "${typeName || 'unknown'}": ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return type;
+  }
 
   // Improve readability by formatting complex types with Prettier.
   // Prettier either formats the type on a single line or multiple lines.
