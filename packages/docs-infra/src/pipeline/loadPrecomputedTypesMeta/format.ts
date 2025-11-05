@@ -220,6 +220,11 @@ function getShortTypeString(name: string, typeText: string): string | undefined 
     return 'string | function';
   }
 
+  // style can be React.CSSProperties or function
+  if (name === 'style') {
+    return 'React.CSSProperties | function';
+  }
+
   // render can be ReactElement or function
   if (name === 'render') {
     return 'ReactElement | function';
