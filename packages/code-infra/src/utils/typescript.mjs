@@ -8,7 +8,9 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+
 import { mapConcurrently } from '../utils/build.mjs';
+import { tsAddExplicitUndefined } from './tsAddExplicitUndefined.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -155,6 +157,8 @@ export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isM
       console.log(`Building types for ${tsconfigPath} in ${tmpDir}`);
       await emitDeclarations(tsconfigPath, tmpDir);
     }
+
+    await tsAddExplicitUndefined(tmpDir);
 
     for (const bundle of bundles) {
       const { type: bundleType, dir: bundleOutDir } = bundle;
