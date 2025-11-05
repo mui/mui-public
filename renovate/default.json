@@ -74,6 +74,11 @@
       "allowedVersions": "<=22.18"
     },
     {
+      "groupName": "node",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<=22.18"
+    },
+    {
       "matchDepTypes": ["engines"],
       "matchFileNames": ["packages/*/package.json"],
       "enabled": false
