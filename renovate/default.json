@@ -7,7 +7,7 @@
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
-    "npm:unpublishSafe"
+    "security:minimumReleaseAgeNpm"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
@@ -31,6 +31,10 @@
     {
       "matchDepTypes": ["peerDependencies"],
       "rangeStrategy": "widen"
+    },
+    {
+      "matchSourceUrls": ["https://github.com/mui/*"],
+      "minimumReleaseAge": null
     },
     {
       "groupName": "MUI public packages",
