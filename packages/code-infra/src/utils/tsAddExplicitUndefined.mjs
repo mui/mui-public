@@ -3,8 +3,6 @@ import { globby } from 'globby';
 import ts from 'typescript';
 import { mapConcurrently } from './build.mjs';
 
-const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-
 /**
  * Check if a type node contains undefined by analyzing the type structure
  * and resolving type references using the type checker
@@ -13,7 +11,7 @@ const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
  * @param {ts.TypeChecker} checker
  * @returns {boolean}
  */
-function containsUndefined(typeNode, checker) {
+export function containsUndefined(typeNode, checker) {
   // Direct undefined keyword
   if (typeNode.kind === ts.SyntaxKind.UndefinedKeyword) {
     return true;
@@ -24,7 +22,7 @@ function containsUndefined(typeNode, checker) {
     return true;
   }
 
-  // Parenthesized type
+  // Parenthesized type, eg, type A = (string | number);  // parenthesized union type
   if (ts.isParenthesizedTypeNode(typeNode)) {
     return containsUndefined(typeNode.type, checker);
   }
@@ -69,7 +67,7 @@ function containsUndefined(typeNode, checker) {
  * @param {ts.TypeNode} typeNode
  * @returns {ts.TypeNode}
  */
-function addUndefinedToType(factory, typeNode) {
+export function addUndefinedToType(factory, typeNode) {
   const undefinedNode = factory.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword);
 
   if (ts.isUnionTypeNode(typeNode)) {
@@ -81,7 +79,7 @@ function addUndefinedToType(factory, typeNode) {
 }
 
 /**
- *
+ * Create a TypeScript transformer that adds explicit undefined to optional properties. Exported for testing.
  * @param {ts.TypeChecker} checker
  * @returns {ts.TransformerFactory<ts.SourceFile>}
  */
@@ -129,26 +127,35 @@ function createTransformer(checker) {
 }
 
 /**
- * @param {string} filePath
- * @param {ts.Program} program
- * @returns {Promise<void>}
+ * Transform a source file by adding explicit undefined to optional properties.
+ * @param {ts.SourceFile} sourceFile
+ * @param {ts.TypeChecker} checker
+ * @param {ts.Printer} printer
+ * @returns {string} The transformed source code
  */
-async function processFile(filePath, program) {
-  const sourceFile = program.getSourceFile(filePath);
-
-  if (!sourceFile) {
-    console.warn(`Could not find source file for ${filePath}`);
-    return;
-  }
-
-  const checker = program.getTypeChecker();
+export function transformSourceFile(sourceFile, checker, printer) {
   const result = ts.transform(sourceFile, [createTransformer(checker)]);
   const [transformedFile] = result.transformed;
   result.dispose();
 
-  const updatedContent = printer.printFile(transformedFile);
+  return printer.printFile(transformedFile);
+}
 
-  await fs.writeFile(filePath, updatedContent);
+/**
+ * @param {string} filePath
+ * @param {ts.Program} program
+ * @param {ts.Printer} printer
+ * @returns {Promise<void>}
+ */
+async function processFile(filePath, program, printer) {
+  const sourceFile = program.getSourceFile(filePath);
+
+  if (!sourceFile) {
+    return;
+  }
+
+  const checker = program.getTypeChecker();
+  await fs.writeFile(filePath, transformSourceFile(sourceFile, checker, printer));
 }
 
 /**
@@ -163,6 +170,7 @@ export async function tsAddExplicitUndefined(dtsDirectory) {
     console.warn(`No .d.ts files found in directory: ${dtsDirectory}`);
     return;
   }
+  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const program = ts.createProgram(dtsFiles, {
     target: ts.ScriptTarget.Latest,
     module: ts.ModuleKind.ESNext,
@@ -171,5 +179,5 @@ export async function tsAddExplicitUndefined(dtsDirectory) {
     skipDefaultLibCheck: true,
   });
 
-  await mapConcurrently(dtsFiles, async (filePath) => processFile(filePath, program), 20);
+  await mapConcurrently(dtsFiles, async (filePath) => processFile(filePath, program, printer), 20);
 }
