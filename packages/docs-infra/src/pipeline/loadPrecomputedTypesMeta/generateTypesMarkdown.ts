@@ -46,13 +46,13 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
     // For types (not components/hooks), check if we have Component.Part.Suffix structure
     // Count dots to determine structure
     const parts = fullName.split('.');
-    
+
     if (parts.length === 3) {
       // "Slider.Root.Props" or "Slider.Root.CommitEventDetails"
       // component = "Slider", part = "Root", suffix = "Props" or "CommitEventDetails"
       return { component: parts[0], part: parts[1], suffix: parts[2] };
     }
-    
+
     if (parts.length === 2) {
       // "Slider.Value" (a type, not component) or "Tab.Value"
       // component = "Slider", part = null, suffix = "Value"
@@ -63,7 +63,7 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
       }
       return { component: parts[0], part: parts[1], suffix: null };
     }
-    
+
     if (parts.length === 1) {
       // "DirectionProvider" - standalone type
       return { component: null, part: parts[0], suffix: null };
