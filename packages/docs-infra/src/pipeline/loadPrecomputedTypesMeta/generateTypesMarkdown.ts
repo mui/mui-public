@@ -32,40 +32,51 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
     // fullName is like: "Checkbox.Root", "Checkbox.Root.Props", "Checkbox.Indicator.State"
     // We need to extract: component, part, suffix
 
-    let suffix = null;
-    let baseName = fullName;
-
-    // First check if we have a component namespace (contains a dot)
-    const hasDot = fullName.includes('.');
-
-    // Only check for type suffixes if we have a namespace AND it's not a component/hook
-    // Components like "Slider.Value" should have Value treated as a part, not a suffix
-    // But types like "Checkbox.Value" should have Value treated as a suffix
-    if (hasDot && !isComponentOrHook) {
-      // Check if it ends with a known suffix like ".Props", ".State", ".Value", etc.
-      for (const suf of typeSuffixes) {
-        if (suf === '__EVERYTHING_ELSE__') {
-          continue;
-        }
-        if (fullName.endsWith(`.${suf}`)) {
-          suffix = suf;
-          baseName = fullName.substring(0, fullName.length - suf.length - 1); // Remove ".Suffix"
-          break;
-        }
+    // Components/hooks are never parsed for suffixes (Slider.Value is a component part, not a type suffix)
+    if (isComponentOrHook) {
+      const lastDotIndex = fullName.lastIndexOf('.');
+      if (lastDotIndex > 0) {
+        const component = fullName.substring(0, lastDotIndex);
+        const part = fullName.substring(lastDotIndex + 1);
+        return { component, part, suffix: null };
       }
+      return { component: null, part: fullName, suffix: null };
     }
 
-    // Now baseName is like "Checkbox.Root" or "Checkbox.Indicator"
-    // Parse component.part structure
-    const lastDotIndex = baseName.lastIndexOf('.');
+    // For types (not components/hooks), check if we have Component.Part.Suffix structure
+    // Count dots to determine structure
+    const parts = fullName.split('.');
+    
+    if (parts.length === 3) {
+      // "Slider.Root.Props" or "Slider.Root.CommitEventDetails"
+      // component = "Slider", part = "Root", suffix = "Props" or "CommitEventDetails"
+      return { component: parts[0], part: parts[1], suffix: parts[2] };
+    }
+    
+    if (parts.length === 2) {
+      // "Slider.Value" (a type, not component) or "Tab.Value"
+      // component = "Slider", part = null, suffix = "Value"
+      // BUT: Only treat second part as suffix if it's in typeSuffixes array
+      // Otherwise treat as: component = "Slider", part = "Value", suffix = null
+      if (typeSuffixes.includes(parts[1])) {
+        return { component: parts[0], part: null, suffix: parts[1] };
+      }
+      return { component: parts[0], part: parts[1], suffix: null };
+    }
+    
+    if (parts.length === 1) {
+      // "DirectionProvider" - standalone type
+      return { component: null, part: parts[0], suffix: null };
+    }
+
+    // Fallback for > 3 parts (shouldn't happen, but handle gracefully)
+    const lastDotIndex = fullName.lastIndexOf('.');
     if (lastDotIndex > 0) {
-      const component = baseName.substring(0, lastDotIndex);
-      const part = baseName.substring(lastDotIndex + 1);
-      return { component, part, suffix };
+      const component = fullName.substring(0, lastDotIndex);
+      const part = fullName.substring(lastDotIndex + 1);
+      return { component, part, suffix: null };
     }
-
-    // No dot found - treat as just a part or component
-    return { component: null, part: baseName, suffix };
+    return { component: null, part: fullName, suffix: null };
   };
 
   return types.slice().sort((a, b) => {
@@ -570,7 +581,14 @@ export async function generateTypesMarkdown(
           const typeAsAny = data.type as any;
           if (typeAsAny.kind === 'typeAlias' && typeof typeAsAny.typeText === 'string') {
             // Prefer expanded type text if available, otherwise use basic typeText
-            const sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
+            let sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
+
+            // Simplify expanded array types (e.g., AccordionValue = any[] that got fully expanded)
+            // Check if this looks like an expanded Array interface with all the array methods
+            if (sourceTypeText.includes('@iterator') && sourceTypeText.length > 500) {
+              // This is likely an expanded array type - simplify to any[]
+              sourceTypeText = 'any[]';
+            }
 
             // Apply typeNameMap transformations to the type text
             let transformedTypeText = sourceTypeText;
