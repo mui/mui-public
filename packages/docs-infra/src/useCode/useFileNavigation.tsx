@@ -41,18 +41,13 @@ export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string):
 
 /**
  * Generates a file slug based on main slug, file name, and variant name
+ * All variants except "Default" include the variant name in the hash
  * @param mainSlug - The main component/demo slug
  * @param fileName - The file name
  * @param variantName - The variant name
- * @param isInitialVariant - Whether this is the initial/default variant
  * @returns Generated file slug
  */
-function generateFileSlug(
-  mainSlug: string,
-  fileName: string,
-  variantName: string,
-  isInitialVariant: boolean,
-): string {
+function generateFileSlug(mainSlug: string, fileName: string, variantName: string): string {
   // Extract base name from filename (strip extension)
   const lastDotIndex = fileName.lastIndexOf('.');
   const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
@@ -71,8 +66,9 @@ function generateFileSlug(
     return kebabFileName;
   }
 
-  // Format: mainSlug:fileName.ext (for initial variant) or mainSlug:variantName:fileName.ext
-  if (isInitialVariant) {
+  // Format: mainSlug:fileName.ext (for Default variant) or mainSlug:variantName:fileName.ext
+  // "Default" variant is treated specially and doesn't include variant name in hash
+  if (variantName === 'Default') {
     return `${kebabMainSlug}:${kebabFileName}`;
   }
 
@@ -86,11 +82,14 @@ interface UseFileNavigationProps {
   selectedVariantKey?: string;
   variantKeys?: string[];
   shouldHighlight: boolean;
-  initialVariant?: string;
   preClassName?: string;
   preRef?: React.Ref<HTMLPreElement>;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
+  fileHashMode?: 'remove-hash' | 'remove-filename';
+  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never';
+  saveVariantToLocalStorage?: (variant: string) => void;
+  hashVariant?: string | null;
 }
 
 export interface UseFileNavigationResult {
@@ -112,25 +111,20 @@ export function useFileNavigation({
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
-  initialVariant,
   shouldHighlight,
   preClassName,
   preRef,
   effectiveCode,
   selectVariant,
+  fileHashMode = 'remove-hash',
+  saveHashVariantToLocalStorage = 'on-interaction',
+  saveVariantToLocalStorage,
+  hashVariant,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
     string | undefined
   >(selectedVariant?.fileName);
-
-  // Track user interaction locally
-  const [hasUserInteraction, setHasUserInteraction] = React.useState(false);
-
-  // Helper to mark user interaction
-  const markUserInteraction = React.useCallback(() => {
-    setHasUserInteraction(true);
-  }, []);
 
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
@@ -138,6 +132,32 @@ export function useFileNavigation({
   // Track if we're waiting for a variant switch to complete, and which file to select after
   const pendingFileSelection = React.useRef<string | null>(null);
   const justCompletedPendingSelection = React.useRef(false);
+
+  // Track the previous variant key to detect user-initiated changes
+  const prevVariantKeyRef = React.useRef(selectedVariantKey);
+  const [prevVariantKeyState, setPrevVariantKeyState] = React.useState(selectedVariantKey);
+  const isInitialMount = React.useRef(true);
+
+  // Detect if the current variant change was driven by a hash change
+  // A variant change is hash-driven if the hash has a variant that matches where we're going
+  // AND we weren't already on that variant (i.e., the hash is what triggered the change)
+  const [prevHashVariant, setPrevHashVariant] = React.useState<string | null>(hashVariant || null);
+  const isHashDrivenVariantChange =
+    hashVariant === selectedVariantKey && prevVariantKeyState !== selectedVariantKey;
+
+  // Update prevHashVariant when hashVariant changes
+  React.useEffect(() => {
+    if (hashVariant !== prevHashVariant) {
+      setPrevHashVariant(hashVariant || null);
+    }
+  }, [hashVariant, prevHashVariant]);
+
+  // Update prevVariantKeyState when variant changes
+  React.useEffect(() => {
+    if (selectedVariantKey !== prevVariantKeyState) {
+      setPrevVariantKeyState(selectedVariantKey);
+    }
+  }, [selectedVariantKey, prevVariantKeyState]);
 
   // Helper function to check URL hash and switch to matching file
   const checkUrlHashAndSelectFile = React.useCallback(() => {
@@ -151,17 +171,12 @@ export function useFileNavigation({
 
     // Step 1: Check current variant (if we have one)
     if (selectedVariant) {
-      const isInitialVariant = initialVariant
-        ? selectedVariantKey === initialVariant
-        : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
-
       // Check main file
       if (selectedVariant.fileName) {
         const mainFileSlug = generateFileSlug(
           mainSlug,
           selectedVariant.fileName,
           selectedVariantKey,
-          isInitialVariant,
         );
         if (hash === mainFileSlug) {
           matchingFileName = selectedVariant.fileName;
@@ -172,12 +187,7 @@ export function useFileNavigation({
       // Check extra files
       if (!matchingFileName && selectedVariant.extraFiles) {
         for (const fileName of Object.keys(selectedVariant.extraFiles)) {
-          const fileSlug = generateFileSlug(
-            mainSlug,
-            fileName,
-            selectedVariantKey,
-            isInitialVariant,
-          );
+          const fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey);
           if (hash === fileSlug) {
             matchingFileName = fileName;
             matchingVariantKey = selectedVariantKey;
@@ -189,12 +199,7 @@ export function useFileNavigation({
       // Check transformed files
       if (!matchingFileName && transformedFiles) {
         for (const file of transformedFiles.files) {
-          const fileSlug = generateFileSlug(
-            mainSlug,
-            file.originalName,
-            selectedVariantKey,
-            isInitialVariant,
-          );
+          const fileSlug = generateFileSlug(mainSlug, file.originalName, selectedVariantKey);
           if (hash === fileSlug) {
             matchingFileName = file.originalName;
             matchingVariantKey = selectedVariantKey;
@@ -212,18 +217,9 @@ export function useFileNavigation({
           continue;
         }
 
-        const isInitialVariant = initialVariant
-          ? variantKey === initialVariant
-          : variantKeys.length === 0 || variantKey === variantKeys[0];
-
         // Check main file
         if (variant.fileName) {
-          const mainFileSlug = generateFileSlug(
-            mainSlug,
-            variant.fileName,
-            variantKey,
-            isInitialVariant,
-          );
+          const mainFileSlug = generateFileSlug(mainSlug, variant.fileName, variantKey);
           if (hash === mainFileSlug) {
             matchingFileName = variant.fileName;
             matchingVariantKey = variantKey;
@@ -234,7 +230,7 @@ export function useFileNavigation({
         // Check extra files
         if (!matchingFileName && variant.extraFiles) {
           for (const fileName of Object.keys(variant.extraFiles)) {
-            const fileSlug = generateFileSlug(mainSlug, fileName, variantKey, isInitialVariant);
+            const fileSlug = generateFileSlug(mainSlug, fileName, variantKey);
             if (hash === fileSlug) {
               matchingFileName = fileName;
               matchingVariantKey = variantKey;
@@ -262,27 +258,21 @@ export function useFileNavigation({
       // Set the file if we're in the correct variant
       pendingFileSelection.current = null;
       setSelectedFileNameInternal(matchingFileName);
-      markUserInteraction();
     }
   }, [
     hash,
     selectedVariant,
     selectedVariantKey,
-    variantKeys,
-    initialVariant,
     mainSlug,
     transformedFiles,
     effectiveCode,
     selectVariant,
-    markUserInteraction,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
-  // Only depends on hash to avoid re-running when the callback recreates due to variant state changes
   React.useEffect(() => {
     checkUrlHashAndSelectFile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hash]);
+  }, [checkUrlHashAndSelectFile]);
 
   // When variant switches with a pending file selection, complete the file selection
   React.useEffect(() => {
@@ -291,11 +281,10 @@ export function useFileNavigation({
       pendingFileSelection.current = null;
       justCompletedPendingSelection.current = true;
       setSelectedFileNameInternal(fileToSelect);
-      markUserInteraction();
     } else {
       justCompletedPendingSelection.current = false;
     }
-  }, [selectedVariantKey, selectedVariant, markUserInteraction]);
+  }, [selectedVariantKey, selectedVariant]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
@@ -319,65 +308,54 @@ export function useFileNavigation({
     }
   }, [selectedVariant, selectedFileNameInternal]);
 
-  // Update URL when variant changes (to reflect new slug for current file)
+  // Update hash when variant changes (user-initiated variant switch)
   React.useEffect(() => {
-    if (
-      !selectedVariant ||
-      typeof window === 'undefined' ||
-      !selectedFileNameInternal ||
-      !hasUserInteraction
-    ) {
+    // Skip on initial mount - let hash-driven navigation handle it
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevVariantKeyRef.current = selectedVariantKey;
       return;
     }
 
-    // Determine if this is the initial variant
-    const isInitialVariant = initialVariant
-      ? selectedVariantKey === initialVariant
-      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
+    // Only update hash if there's already a relevant hash present
+    if (typeof window === 'undefined' || !isHashRelevantToDemo(hash, mainSlug)) {
+      prevVariantKeyRef.current = selectedVariantKey;
+      return;
+    }
 
-    // Generate the new slug for the currently selected file
-    let fileSlug = '';
+    // Skip if variant hasn't actually changed
+    if (prevVariantKeyRef.current === selectedVariantKey) {
+      return;
+    }
 
-    if (transformedFiles) {
-      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
-      if (file) {
-        fileSlug = generateFileSlug(
-          mainSlug,
-          file.originalName,
-          selectedVariantKey,
-          isInitialVariant,
-        );
+    // Skip if this is a hash-driven variant change (hash is driving the variant selection)
+    if (
+      pendingFileSelection.current ||
+      justCompletedPendingSelection.current ||
+      isHashDrivenVariantChange
+    ) {
+      prevVariantKeyRef.current = selectedVariantKey;
+      return;
+    }
+
+    // User switched variants, update hash based on fileHashMode
+    // Note: localStorage is already saved by setSelectedVariantKeyAsUser
+    if (fileHashMode === 'remove-filename') {
+      // Keep variant in hash: mainSlug or mainSlug:variant (for non-Default variants)
+      const kebabMainSlug = toKebabCase(mainSlug);
+      if (selectedVariantKey === 'Default') {
+        setHash(kebabMainSlug);
+      } else {
+        const kebabVariantName = toKebabCase(selectedVariantKey);
+        setHash(`${kebabMainSlug}:${kebabVariantName}`);
       }
     } else {
-      fileSlug = generateFileSlug(
-        mainSlug,
-        selectedFileNameInternal,
-        selectedVariantKey,
-        isInitialVariant,
-      );
+      // Remove entire hash
+      setHash(null);
     }
 
-    // Only update the URL hash if it's different from current hash
-    if (fileSlug && hash !== fileSlug) {
-      // Only update if current hash is for the same demo (starts with mainSlug)
-      // Don't set hash if there's no existing hash - variant changes shouldn't add hashes
-      if (isHashRelevantToDemo(hash, mainSlug)) {
-        setHash(fileSlug);
-      }
-      // Otherwise, don't update - either no hash exists or hash is for a different demo
-    }
-  }, [
-    selectedVariant,
-    selectedFileNameInternal,
-    transformedFiles,
-    mainSlug,
-    selectedVariantKey,
-    variantKeys,
-    initialVariant,
-    hasUserInteraction,
-    setHash,
-    hash,
-  ]);
+    prevVariantKeyRef.current = selectedVariantKey;
+  }, [selectedVariantKey, hash, mainSlug, fileHashMode, setHash, isHashDrivenVariantChange]);
 
   // Compute the displayed filename (transformed if applicable)
   const selectedFileName = React.useMemo(() => {
@@ -545,16 +523,11 @@ export function useFileNavigation({
       return [];
     }
 
-    // Determine if this is the initial variant
-    const isInitialVariant = initialVariant
-      ? selectedVariantKey === initialVariant
-      : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
-
     // If we have transformed files, use them
     if (transformedFiles) {
       return transformedFiles.files.map((f) => ({
         name: f.name,
-        slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey, isInitialVariant),
+        slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: f.component,
       }));
     }
@@ -566,12 +539,7 @@ export function useFileNavigation({
     if (selectedVariant.fileName && selectedVariant.source) {
       result.push({
         name: selectedVariant.fileName,
-        slug: generateFileSlug(
-          mainSlug,
-          selectedVariant.fileName,
-          selectedVariantKey,
-          isInitialVariant,
-        ),
+        slug: generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
         component: (
           <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
             {selectedVariant.source}
@@ -598,7 +566,7 @@ export function useFileNavigation({
 
         result.push({
           name: fileName,
-          slug: generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant),
+          slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
             <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
               {source}
@@ -614,8 +582,6 @@ export function useFileNavigation({
     transformedFiles,
     mainSlug,
     selectedVariantKey,
-    variantKeys,
-    initialVariant,
     shouldHighlight,
     preClassName,
     preRef,
@@ -629,12 +595,6 @@ export function useFileNavigation({
       }
 
       let targetFileName = fileName;
-      let fileSlug = '';
-
-      // Determine if this is the initial variant
-      const isInitialVariant = initialVariant
-        ? selectedVariantKey === initialVariant
-        : variantKeys.length === 0 || selectedVariantKey === variantKeys[0];
 
       // If we have transformed files, we need to reverse-lookup the original filename
       if (transformedFiles) {
@@ -642,12 +602,6 @@ export function useFileNavigation({
         const fileByTransformedName = transformedFiles.files.find((f) => f.name === fileName);
         if (fileByTransformedName) {
           targetFileName = fileByTransformedName.originalName;
-          fileSlug = generateFileSlug(
-            mainSlug,
-            fileByTransformedName.originalName,
-            selectedVariantKey,
-            isInitialVariant,
-          );
         } else {
           // Check if the fileName is already an original name
           const fileByOriginalName = transformedFiles.files.find(
@@ -655,20 +609,32 @@ export function useFileNavigation({
           );
           if (fileByOriginalName) {
             targetFileName = fileName;
-            fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
           }
         }
-      } else {
-        // No transformed files, generate slug directly
-        fileSlug = generateFileSlug(mainSlug, fileName, selectedVariantKey, isInitialVariant);
       }
 
-      // Update the URL hash without adding to history (replaceState)
-      if (typeof window !== 'undefined' && fileSlug && hash !== fileSlug) {
-        setHash(fileSlug); // Use the new URL hash hook
+      // Handle hash removal based on fileHashMode
+      if (typeof window !== 'undefined' && isHashRelevantToDemo(hash, mainSlug)) {
+        // Save variant to localStorage if on-interaction mode (clicking a tab counts as interaction)
+        if (saveVariantToLocalStorage && saveHashVariantToLocalStorage === 'on-interaction') {
+          saveVariantToLocalStorage(selectedVariantKey);
+        }
+
+        if (fileHashMode === 'remove-filename') {
+          // Keep variant in hash: mainSlug or mainSlug:variant (for non-Default variants)
+          const kebabMainSlug = toKebabCase(mainSlug);
+          if (selectedVariantKey === 'Default') {
+            setHash(kebabMainSlug);
+          } else {
+            const kebabVariantName = toKebabCase(selectedVariantKey);
+            setHash(`${kebabMainSlug}:${kebabVariantName}`);
+          }
+        } else {
+          // Remove entire hash
+          setHash(null);
+        }
       }
 
-      markUserInteraction(); // Mark that user has made an explicit selection
       setSelectedFileNameInternal(targetFileName);
     },
     [
@@ -676,11 +642,11 @@ export function useFileNavigation({
       transformedFiles,
       mainSlug,
       selectedVariantKey,
-      variantKeys,
-      initialVariant,
-      setHash,
-      markUserInteraction,
+      fileHashMode,
       hash,
+      setHash,
+      saveHashVariantToLocalStorage,
+      saveVariantToLocalStorage,
     ],
   );
 
@@ -701,16 +667,25 @@ export function useFileNavigation({
         continue;
       }
 
-      // Determine if this is the initial variant
-      const isInitialVariant = initialVariant
-        ? variantKey === initialVariant
-        : variantKeys.length === 0 || variantKey === variantKeys[0];
+      // Add variant-only slug (points to main file of the variant)
+      // Skip for Default variant since it doesn't have variant name in hash
+      if (variant.fileName && variantKey !== 'Default') {
+        const kebabMainSlug = toKebabCase(mainSlug);
+        const kebabVariantName = toKebabCase(variantKey);
+        const variantOnlySlug = `${kebabMainSlug}:${kebabVariantName}`;
+
+        result.push({
+          fileName: variant.fileName,
+          slug: variantOnlySlug,
+          variantName: variantKey,
+        });
+      }
 
       // Add main file if it exists
       if (variant.fileName) {
         result.push({
           fileName: variant.fileName,
-          slug: generateFileSlug(mainSlug, variant.fileName, variantKey, isInitialVariant),
+          slug: generateFileSlug(mainSlug, variant.fileName, variantKey),
           variantName: variantKey,
         });
       }
@@ -720,7 +695,7 @@ export function useFileNavigation({
         Object.keys(variant.extraFiles).forEach((fileName) => {
           result.push({
             fileName,
-            slug: generateFileSlug(mainSlug, fileName, variantKey, isInitialVariant),
+            slug: generateFileSlug(mainSlug, fileName, variantKey),
             variantName: variantKey,
           });
         });
@@ -728,7 +703,7 @@ export function useFileNavigation({
     }
 
     return result;
-  }, [effectiveCode, variantKeys, initialVariant, mainSlug]);
+  }, [effectiveCode, variantKeys, mainSlug]);
 
   return {
     selectedFileName,

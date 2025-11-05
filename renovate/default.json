@@ -84,7 +84,12 @@
     },
     {
       "groupName": "eslint",
-      "matchPackageNames": ["eslint-plugin-*", "*/eslint-plugin-*"]
+      "matchPackageNames": [
+        "eslint-plugin-*",
+        "*/eslint-plugin-*",
+        // Should stay with the Next.js group
+        "!@next/eslint-plugin-next"
+      ]
     },
     {
       "groupName": "eslint",
@@ -105,7 +110,7 @@
     },
     {
       "groupName": "Vite & Vitest",
-      "matchPackageNames": ["esbuild"]
+      "matchPackageNames": ["esbuild", "vitest-browser-react"]
     },
     {
       "matchPackageNames": ["eslint-config-prettier"],

@@ -9,19 +9,19 @@
   "dependencies": {
     "@googleapis/sheets": "^9.8.0",
     "@mui/system": "^7.3.3",
-    "@mui/x-charts": "^8.13.1",
+    "@mui/x-charts": "^8.16.0",
     "@octokit/core": "^7.0.5",
     "@toolpad/studio": "^0.13.0",
     "dayjs": "^1.11.18",
     "google-auth-library": "^9.15.1",
     "graphql": "^16.11.0",
-    "graphql-request": "^7.2.0",
+    "graphql-request": "^7.3.1",
     "mysql": "^2.18.1",
-    "mysql2": "^3.15.1",
+    "mysql2": "^3.15.3",
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
-    "@types/node": "^22.18.9",
+    "@types/node": "^22.18.13",
     "@types/ssh2": "^1.15.5"
   }
 }

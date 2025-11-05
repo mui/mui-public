@@ -153,10 +153,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     const pageExtensions = [...basePageExtensions, ...additionalPageExtensions];
 
     // Build Turbopack rules
-    const turbopackRules: Record<
-      string,
-      { loaders: { loader: string; options: Record<string, unknown> }[] | string[] }
-    > = {
+    const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
         loaders: [
           {
@@ -216,7 +213,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           ...turbopackRules,
         },
       },
-      webpack: (webpackConfig: WebpackConfig, webpackOptions: WebpackOptions) => {
+      webpack: (webpackConfig: WebpackConfig, webpackOptions) => {
         // Call existing webpack function if it exists
         if (nextConfig.webpack) {
           webpackConfig = nextConfig.webpack(webpackConfig, webpackOptions);

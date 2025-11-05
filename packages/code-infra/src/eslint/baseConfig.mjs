@@ -2,6 +2,7 @@ import { includeIgnoreFile } from '@eslint/compat';
 import eslintJs from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier/flat';
+import compatPlugin from 'eslint-plugin-compat';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
@@ -51,11 +52,11 @@ export function createBaseConfig({
         importPlugin.flatConfigs.react,
         jsxA11yPlugin.flatConfigs.recommended,
         reactPlugin.configs.flat.recommended,
-        // @ts-expect-error Types are messed up https://github.com/facebook/react/issues/34705
-        reactHooks.configs['flat/recommended'],
+        reactHooks.configs.flat.recommended,
         tseslint.configs.recommended,
         importPlugin.flatConfigs.typescript,
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
+        compatPlugin.configs['flat/recommended'],
         {
           name: 'typescript-eslint-parser',
           languageOptions: {
@@ -68,6 +69,13 @@ export function createBaseConfig({
           },
           plugins: {
             'material-ui': muiPlugin,
+          },
+          settings: {
+            browserslistOpts: {
+              config: path.join(baseDirectory, '.browserslistrc'),
+              env: 'stable',
+              ignoreUnknownVersions: true,
+            },
           },
           extends: createCoreConfig({ enableReactCompiler }),
         },
