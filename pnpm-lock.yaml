@@ -20,7 +20,7 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
       '@eslint/compat':
-        specifier: ^1.4.0
+        specifier: ^1.4.1
         version: 1.4.1(eslint@9.39.1(jiti@2.6.1))
       '@mui/internal-bundle-size-checker':
         specifier: workspace:*
@@ -53,7 +53,7 @@ importers:
         specifier: ^4.0.5
         version: 4.0.7(vitest@4.0.7(@types/debug@4.1.12)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.1.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.8.1))
       eslint:
-        specifier: ^9.38.0
+        specifier: ^9.39.0
         version: 9.39.1(jiti@2.6.1)
       execa:
         specifier: ^9.6.0
@@ -384,10 +384,10 @@ importers:
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.28.5)
       '@eslint/compat':
-        specifier: ^1.4.0
+        specifier: ^1.4.1
         version: 1.4.1(eslint@9.39.1(jiti@2.6.1))
       '@eslint/js':
-        specifier: ^9.38.0
+        specifier: ^9.39.0
         version: 9.39.1
       '@eslint/json':
         specifier: ^0.14.0
@@ -477,7 +477,7 @@ importers:
         specifier: ^19.1.0-rc.2
         version: 19.1.0-rc.2(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react-hooks:
-        specifier: ^7.0.0
+        specifier: ^7.0.1
         version: 7.0.1(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-testing-library:
         specifier: ^7.13.3
@@ -565,7 +565,7 @@ importers:
         specifier: ^8.46.2
         version: 8.46.3(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
       eslint:
-        specifier: ^9.38.0
+        specifier: ^9.39.0
         version: 9.39.1(jiti@2.6.1)
       get-port:
         specifier: ^7.1.0
