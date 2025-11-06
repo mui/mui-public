@@ -230,8 +230,8 @@ describe('useDemo export configuration integration', () => {
     expect(codeSandboxCustomExport).toHaveBeenCalledTimes(1);
   });
 
-  it('should support computeVariantDeltas in export configuration', () => {
-    const computeVariantDeltas = vi.fn((variant, variantName) => ({
+  it('should support transformVariant in export configuration', () => {
+    const transformVariant = vi.fn((variant, variantName) => ({
       ...variant,
       source: `// Transformed for ${variantName}\n${variant.source}`,
     }));
@@ -239,7 +239,7 @@ describe('useDemo export configuration integration', () => {
     const { result } = renderHook(() =>
       useDemo(mockContentProps, {
         export: {
-          computeVariantDeltas,
+          transformVariant,
         },
       }),
     );
@@ -247,9 +247,9 @@ describe('useDemo export configuration integration', () => {
     // Trigger StackBlitz export
     result.current.openStackBlitz();
 
-    // Verify computeVariantDeltas was called
-    expect(computeVariantDeltas).toHaveBeenCalledTimes(1);
-    expect(computeVariantDeltas).toHaveBeenCalledWith(
+    // Verify transformVariant was called
+    expect(transformVariant).toHaveBeenCalledTimes(1);
+    expect(transformVariant).toHaveBeenCalledWith(
       expect.objectContaining({
         fileName: 'MyComponent.tsx',
         source: 'export default function MyComponent() { return <div>Hello</div>; }',
@@ -264,11 +264,11 @@ describe('useDemo export configuration integration', () => {
     vi.clearAllMocks();
     result.current.openCodeSandbox();
 
-    // Should call computeVariantDeltas for CodeSandbox too
-    expect(computeVariantDeltas).toHaveBeenCalledTimes(1);
+    // Should call transformVariant for CodeSandbox too
+    expect(transformVariant).toHaveBeenCalledTimes(1);
   });
 
-  it('should support platform-specific computeVariantDeltas functions', () => {
+  it('should support platform-specific transformVariant functions', () => {
     const stackBlitzTransform = vi.fn((variant, variantName) => ({
       ...variant,
       source: `// StackBlitz transform for ${variantName}\n${variant.source}`,
@@ -282,10 +282,10 @@ describe('useDemo export configuration integration', () => {
     const { result } = renderHook(() =>
       useDemo(mockContentProps, {
         exportStackBlitz: {
-          computeVariantDeltas: stackBlitzTransform,
+          transformVariant: stackBlitzTransform,
         },
         exportCodeSandbox: {
-          computeVariantDeltas: codeSandboxTransform,
+          transformVariant: codeSandboxTransform,
         },
       }),
     );
