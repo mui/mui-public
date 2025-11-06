@@ -230,12 +230,12 @@ export interface ExportConfig {
    * Transform function that runs at the very start of the export process
    * Can modify the variant code and metadata before any other processing happens
    * @example
-   * computeVariantDeltas: (variant, globals, variantName) => ({
+   * transformVariant: (variant, globals, variantName) => ({
    *   variant: { ...variant, source: modifiedSource },
    *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
    * })
    */
-  computeVariantDeltas?: (
+  transformVariant?: (
     variant: VariantCode,
     variantName?: string,
     globals?: VariantExtraFiles,
@@ -301,7 +301,7 @@ export function exportVariant(
     useTypescript = false,
     extraMetadataFiles = {},
     frameworkFiles = {},
-    computeVariantDeltas,
+    transformVariant,
     versions = {},
     resolveDependencies,
   } = config;
@@ -316,8 +316,9 @@ export function exportVariant(
   let { variant: processedVariantCode, metadata: processedGlobals } =
     extractCodeMetadata(variantCode);
 
-  if (computeVariantDeltas) {
-    const transformed = computeVariantDeltas(processedVariantCode, variantName, processedGlobals);
+  // Run optional transform hook to modify variant and globals before processing
+  if (transformVariant) {
+    const transformed = transformVariant(processedVariantCode, variantName, processedGlobals);
     if (transformed) {
       // Re-extract metadata after transformation
       const result = transformed.variant && extractCodeMetadata(transformed.variant);
