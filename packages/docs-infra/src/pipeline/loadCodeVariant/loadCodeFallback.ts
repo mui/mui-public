@@ -61,7 +61,7 @@ export type FallbackVariants = {
   processedGlobalsCode?: Array<Code>;
 };
 
-export async function loadFallbackCode(
+export async function loadCodeFallback(
   url: string,
   initialVariant: string,
   loaded: Code | undefined,

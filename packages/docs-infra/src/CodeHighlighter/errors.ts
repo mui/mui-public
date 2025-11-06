@@ -179,7 +179,7 @@ export class ErrorCodeHighlighterServerLoadVariantsFailure extends ErrorCodeHigh
 export class ErrorCodeHighlighterClientMissingLoadFallbackCode extends ErrorCodeHighlighterClientProvider {
   constructor(url?: string) {
     super(
-      `Missing loadFallbackCode function - loadFallbackCode is required (${url || 'No URL'}) add a <CodeProvider />`,
+      `Missing loadCodeFallback function - loadCodeFallback is required (${url || 'No URL'}) add a <CodeProvider />`,
     );
   }
 }

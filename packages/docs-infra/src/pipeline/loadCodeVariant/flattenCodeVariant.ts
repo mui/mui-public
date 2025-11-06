@@ -6,7 +6,7 @@
 
 import type { VariantCode } from '../../CodeHighlighter/types';
 import { stringOrHastToString } from '../hastUtils';
-import { addPathsToVariant } from './addPathsToCodeVariant';
+import { addPathsToVariant } from './addCodeVariantPaths';
 
 export interface FlatFile {
   source: string;

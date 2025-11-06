@@ -2334,7 +2334,7 @@ export default function Button(props: ButtonProps) {
         source: 'const main = true;',
       };
 
-      // Pre-resolved globalsCode as VariantCode (as would come from loadFallbackCode)
+      // Pre-resolved globalsCode as VariantCode (as would come from loadCodeFallback)
       const preResolvedGlobalsCode: VariantCode = {
         fileName: 'global-theme.css',
         url: 'file:///themes/global-theme.css',
@@ -2374,7 +2374,7 @@ export default function Button(props: ButtonProps) {
         source: 'const main = true;',
       };
 
-      // Mix of pre-resolved (from loadFallbackCode) and URL string (needs loading)
+      // Mix of pre-resolved (from loadCodeFallback) and URL string (needs loading)
       const preResolvedGlobalsCode: VariantCode = {
         fileName: 'theme.css',
         source: '.theme { color: red; }',
@@ -2422,7 +2422,7 @@ export default function Button(props: ButtonProps) {
     });
 
     it('should handle cross-variant globalsCode sharing correctly', async () => {
-      // Scenario: loadFallbackCode processes one variant with globalsCode
+      // Scenario: loadCodeFallback processes one variant with globalsCode
       // Then other variants processed by loadCodeVariant should still get the same globalsCode
 
       const variant: VariantCode = {
@@ -2430,7 +2430,7 @@ export default function Button(props: ButtonProps) {
         source: 'const Component = () => <div>Component</div>;',
       };
 
-      // Shared globalsCode that would be resolved by loadFallbackCode and passed to all variants
+      // Shared globalsCode that would be resolved by loadCodeFallback and passed to all variants
       const sharedGlobalsCode: VariantCode = {
         fileName: 'shared-styles.css',
         source: '.shared { font-family: Arial; }',
@@ -2468,14 +2468,14 @@ export default function Button(props: ButtonProps) {
       expect(result.dependencies).toEqual(['file:///Component.tsx']);
     });
 
-    it('should load globalsCode when loadFallbackCode skips early return', async () => {
-      // Scenario: loadFallbackCode takes early return without processing globalsCode
+    it('should load globalsCode when loadCodeFallback skips early return', async () => {
+      // Scenario: loadCodeFallback takes early return without processing globalsCode
       // loadCodeVariant should handle the globalsCode loading
 
       const variant: VariantCode = {
         fileName: 'QuickComponent.tsx',
         source: 'const QuickComponent = () => <span>Quick</span>;',
-        allFilesListed: true, // This would trigger early return in loadFallbackCode
+        allFilesListed: true, // This would trigger early return in loadCodeFallback
       };
 
       const globalsUrl = 'file:///styles/global-animations.css';

@@ -12,7 +12,7 @@ import type {
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 // Import the heavy functions
-import { loadFallbackCode } from '../pipeline/loadCodeVariant/loadFallbackCode';
+import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
 import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
 import { parseCode } from '../pipeline/loadCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
@@ -82,7 +82,7 @@ export function CodeProvider({
       loadVariantMeta,
       loadCodeMeta,
       // Provide the heavy functions
-      loadFallbackCode,
+      loadCodeFallback,
       loadCodeVariant,
       parseCode,
       parseControlledCode,

@@ -13,9 +13,9 @@ import type {
 } from './types';
 
 import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { loadFallbackCode } from '../pipeline/loadCodeVariant/loadFallbackCode';
+import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
-import { maybeInitialCodeData } from '../pipeline/loadCodeVariant/maybeInitialCodeData';
+import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { codeToFallbackProps } from './codeToFallbackProps';
@@ -338,7 +338,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
   }
 
   const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } =
-    await loadFallbackCode(url, initialVariant, props.code, {
+    await loadCodeFallback(url, initialVariant, props.code, {
       shouldHighlight: highlightAfter === 'init',
       fallbackUsesExtraFiles,
       fallbackUsesAllVariants,
@@ -425,7 +425,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
 
   // TODO: use initial.filesOrder to determing which source to use
 
-  const { initialData, reason } = maybeInitialCodeData(
+  const { initialData, reason } = maybeCodeInitialData(
     variants,
     initialKey,
     code || props.precompute,

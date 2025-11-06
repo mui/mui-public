@@ -52,7 +52,7 @@ export interface CodeContext {
   loadVariantMeta?: LoadVariantMeta;
   loadCodeMeta?: LoadCodeMeta;
   // Heavy functions moved from CodeHighlighterClient
-  loadFallbackCode?: LoadFallbackCodeFn;
+  loadCodeFallback?: LoadFallbackCodeFn;
   loadCodeVariant?: LoadVariantFn;
   parseCode?: ParseCodeFn;
   parseControlledCode?: ParseControlledCodeFn;

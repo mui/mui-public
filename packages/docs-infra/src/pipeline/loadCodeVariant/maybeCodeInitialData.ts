@@ -40,7 +40,7 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  *   more predictable and easier to reason about
  *
  * When `initialData: false` is returned, the calling component is responsible for initiating
- * asynchronous loading operations (e.g., `loadFallbackCode`, `CodeInitialSourceLoader`).
+ * asynchronous loading operations (e.g., `loadCodeFallback`, `CodeInitialSourceLoader`).
  *
  * @param variants - Array of all available variant names for this code block (e.g., ['javascript', 'typescript'])
  * @param variant - The specific variant we want to display (must exist in variants array)
@@ -64,7 +64,7 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  * @example
  * ```typescript
  * // Server-side: Check if we can render with initial source or need to load fallback
- * const { initialData, reason } = maybeInitialCodeData(
+ * const { initialData, reason } = maybeCodeInitialData(
  *   variants,
  *   initialKey,
  *   code || props.precompute,
@@ -81,7 +81,7 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  *
  * // Client-side: Check if we need to trigger loading effects
  * const { initialData, reason } = React.useMemo(() =>
- *   maybeInitialCodeData(
+ *   maybeCodeInitialData(
  *     variants,
  *     variantName,
  *     code,
@@ -95,11 +95,11 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  *   if (initialData || isControlled) {
  *     return; // No loading needed
  *   }
- *   // Trigger loadFallbackCode...
+ *   // Trigger loadCodeFallback...
  * }, [initialData, reason, ...]);
  * ```
  */
-export function maybeInitialCodeData(
+export function maybeCodeInitialData(
   variants: string[],
   variant: string,
   code?: Code,

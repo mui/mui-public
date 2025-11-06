@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
-import { loadFallbackCode } from './loadFallbackCode';
-import { maybeInitialCodeData } from './maybeInitialCodeData';
+import { loadCodeFallback } from './loadCodeFallback';
+import { maybeCodeInitialData } from './maybeCodeInitialData';
 import type {
   Code,
   LoadCodeMeta,
@@ -13,13 +13,13 @@ import type {
 } from '../../CodeHighlighter/types';
 import { loadCodeVariant } from './loadCodeVariant';
 
-// Mock loadCodeVariant since loadFallbackCode now uses it for globalsCode processing
+// Mock loadCodeVariant since loadCodeFallback now uses it for globalsCode processing
 vi.mock('./loadCodeVariant', () => ({
   loadCodeVariant: vi.fn(),
 }));
 
 /**
- * Tests for loadFallbackCode function.
+ * Tests for loadCodeFallback function.
  *
  * This test suite focuses on the core fallback logic and optimization strategies:
  * - Early return optimizations when allFilesListed=true
@@ -29,7 +29,7 @@ vi.mock('./loadCodeVariant', () => ({
  *
  * Note: URL/filename parsing is thoroughly tested in getFileNameFromUrl.test.ts
  */
-describe('loadFallbackCode', () => {
+describe('loadCodeFallback', () => {
   let mockLoadCodeMeta: MockedFunction<LoadCodeMeta>;
   let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
   let mockLoadSource: MockedFunction<LoadSource>;
@@ -247,7 +247,7 @@ describe('loadFallbackCode', () => {
         default: variantCode,
       };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -276,7 +276,7 @@ describe('loadFallbackCode', () => {
       const parsedSource = { type: 'root', children: [] } as any;
       mockParseSource.mockReturnValue(parsedSource);
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: true,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -310,7 +310,7 @@ describe('loadFallbackCode', () => {
         extraFiles: {},
       });
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -339,7 +339,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variantCode);
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -366,7 +366,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -391,7 +391,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: true,
         fallbackUsesAllVariants: false,
@@ -432,7 +432,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variant2);
 
-      const result = await loadFallbackCode('http://example.com', 'javascript', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'javascript', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: true,
@@ -492,7 +492,7 @@ describe('loadFallbackCode', () => {
         throw new Error(`Unexpected variant: ${variantName}`);
       });
 
-      const result = await loadFallbackCode('http://example.com', 'javascript', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'javascript', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: true,
@@ -518,7 +518,7 @@ describe('loadFallbackCode', () => {
       mockLoadCodeMeta.mockResolvedValue({ otherVariant: 'something' });
 
       await expect(
-        loadFallbackCode('http://example.com', 'nonexistent', undefined, {
+        loadCodeFallback('http://example.com', 'nonexistent', undefined, {
           shouldHighlight: false,
           fallbackUsesExtraFiles: false,
           fallbackUsesAllVariants: false,
@@ -532,7 +532,7 @@ describe('loadFallbackCode', () => {
 
     it('should throw error when loadCodeMeta is required but not provided', async () => {
       await expect(
-        loadFallbackCode(
+        loadCodeFallback(
           'http://example.com',
           'default',
           undefined, // no loaded code
@@ -560,7 +560,7 @@ describe('loadFallbackCode', () => {
       const loaded: Code = { default: variantCode };
 
       await expect(
-        loadFallbackCode('http://example.com', 'default', loaded, {
+        loadCodeFallback('http://example.com', 'default', loaded, {
           shouldHighlight: false,
           fallbackUsesExtraFiles: false,
           fallbackUsesAllVariants: false,
@@ -585,7 +585,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadCodeMeta.mockResolvedValue({ default: variantCode });
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         undefined, // no loaded code
@@ -622,7 +622,7 @@ describe('loadFallbackCode', () => {
         extraFiles: {},
       });
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -654,7 +654,7 @@ describe('loadFallbackCode', () => {
         source: 'const Button = () => <button>Click me</button>;',
       });
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'https://example.com',
         'default',
         {}, // loaded
@@ -700,7 +700,7 @@ describe('loadFallbackCode', () => {
         });
 
         // eslint-disable-next-line no-await-in-loop
-        const result = await loadFallbackCode(
+        const result = await loadCodeFallback(
           'https://example.com',
           'default',
           {}, // loaded
@@ -722,7 +722,7 @@ describe('loadFallbackCode', () => {
       }
     });
 
-    it('should still use loadVariantMeta when provided in loadFallbackCode', async () => {
+    it('should still use loadVariantMeta when provided in loadCodeFallback', async () => {
       const variantUrl = 'file:///src/Button.tsx';
       const customVariant: VariantCode = {
         url: variantUrl,
@@ -738,7 +738,7 @@ describe('loadFallbackCode', () => {
         source: 'const CustomButton = () => <button>Custom</button>;',
       });
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'https://example.com',
         'default',
         {}, // loaded
@@ -760,15 +760,15 @@ describe('loadFallbackCode', () => {
     });
   });
 
-  describe('Integration with maybeInitialCodeData', () => {
-    it('should produce output that passes maybeInitialCodeData validation for needsAllFiles scenario', async () => {
-      // Start with data that fails maybeInitialCodeData because extra files are URLs
+  describe('Integration with maybeCodeInitialData', () => {
+    it('should produce output that passes maybeCodeInitialData validation for needsAllFiles scenario', async () => {
+      // Start with data that fails maybeCodeInitialData because extra files are URLs
       const variantCode: VariantCode = {
         fileName: 'Component.tsx',
         url: 'http://example.com/Component.tsx',
         source: 'import { helper } from "./utils";',
         extraFiles: {
-          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeInitialCodeData
+          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeCodeInitialData
         },
         allFilesListed: false, // Would fail early return optimizations
       };
@@ -784,8 +784,8 @@ describe('loadFallbackCode', () => {
         return { source: 'fallback source', extraFiles: {} };
       });
 
-      // First, verify that maybeInitialCodeData returns false for the initial data
-      const initialValidation = maybeInitialCodeData(
+      // First, verify that maybeCodeInitialData returns false for the initial data
+      const initialValidation = maybeCodeInitialData(
         ['default'],
         'default',
         { default: variantCode },
@@ -797,8 +797,8 @@ describe('loadFallbackCode', () => {
       expect(initialValidation.initialData).toBe(false);
       expect(initialValidation.reason).toBe('Not all extra files are available');
 
-      // Now run loadFallbackCode to process the data
-      const result = await loadFallbackCode(
+      // Now run loadCodeFallback to process the data
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -813,8 +813,8 @@ describe('loadFallbackCode', () => {
         },
       );
 
-      // Verify that the processed result now passes maybeInitialCodeData validation
-      const processedValidation = maybeInitialCodeData(
+      // Verify that the processed result now passes maybeCodeInitialData validation
+      const processedValidation = maybeCodeInitialData(
         ['default'],
         'default',
         result.code,
@@ -839,7 +839,7 @@ describe('loadFallbackCode', () => {
       });
     });
 
-    it('should produce output that passes maybeInitialCodeData validation for needsHighlight scenario', async () => {
+    it('should produce output that passes maybeCodeInitialData validation for needsHighlight scenario', async () => {
       // Start with data that has string source but needs highlighting
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
@@ -851,8 +851,8 @@ describe('loadFallbackCode', () => {
       const parsedSource = { type: 'root', children: [] } as any;
       mockParseSource.mockReturnValue(parsedSource);
 
-      // Verify that maybeInitialCodeData returns false for highlighting needs
-      const initialValidation = maybeInitialCodeData(
+      // Verify that maybeCodeInitialData returns false for highlighting needs
+      const initialValidation = maybeCodeInitialData(
         ['default'],
         'default',
         { default: variantCode },
@@ -864,8 +864,8 @@ describe('loadFallbackCode', () => {
       expect(initialValidation.initialData).toBe(false);
       expect(initialValidation.reason).toBe('File needs highlighting');
 
-      // Run loadFallbackCode with highlighting enabled
-      const result = await loadFallbackCode(
+      // Run loadCodeFallback with highlighting enabled
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -880,8 +880,8 @@ describe('loadFallbackCode', () => {
         },
       );
 
-      // Verify that the processed result now passes maybeInitialCodeData validation
-      const processedValidation = maybeInitialCodeData(
+      // Verify that the processed result now passes maybeCodeInitialData validation
+      const processedValidation = maybeCodeInitialData(
         ['default'],
         'default',
         result.code,
@@ -900,7 +900,7 @@ describe('loadFallbackCode', () => {
       });
     });
 
-    it('should produce output that passes maybeInitialCodeData validation for missing source scenario', async () => {
+    it('should produce output that passes maybeCodeInitialData validation for missing source scenario', async () => {
       // Start with variant that has no source
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
@@ -914,8 +914,8 @@ describe('loadFallbackCode', () => {
         extraFiles: {},
       });
 
-      // Verify that maybeInitialCodeData returns false due to missing source
-      const initialValidation = maybeInitialCodeData(
+      // Verify that maybeCodeInitialData returns false due to missing source
+      const initialValidation = maybeCodeInitialData(
         ['default'],
         'default',
         { default: variantCode },
@@ -927,8 +927,8 @@ describe('loadFallbackCode', () => {
       expect(initialValidation.initialData).toBe(false);
       expect(initialValidation.reason).toBe('File source not found');
 
-      // Run loadFallbackCode to load the source
-      const result = await loadFallbackCode(
+      // Run loadCodeFallback to load the source
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -943,8 +943,8 @@ describe('loadFallbackCode', () => {
         },
       );
 
-      // Verify that the processed result now passes maybeInitialCodeData validation
-      const processedValidation = maybeInitialCodeData(
+      // Verify that the processed result now passes maybeCodeInitialData validation
+      const processedValidation = maybeCodeInitialData(
         ['default'],
         'default',
         result.code,
@@ -963,7 +963,7 @@ describe('loadFallbackCode', () => {
       });
     });
 
-    it('should produce output that passes maybeInitialCodeData validation for missing requested file scenario', async () => {
+    it('should produce output that passes maybeCodeInitialData validation for missing requested file scenario', async () => {
       // Start with variant that has extra files as URLs
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
@@ -985,8 +985,8 @@ describe('loadFallbackCode', () => {
         return { source: 'fallback source', extraFiles: {} };
       });
 
-      // Verify that maybeInitialCodeData returns false when requesting utils.ts file
-      const initialValidation = maybeInitialCodeData(
+      // Verify that maybeCodeInitialData returns false when requesting utils.ts file
+      const initialValidation = maybeCodeInitialData(
         ['default'],
         'default',
         { default: variantCode },
@@ -998,8 +998,8 @@ describe('loadFallbackCode', () => {
       expect(initialValidation.initialData).toBe(false);
       expect(initialValidation.reason).toBe('File is not loaded yet');
 
-      // Run loadFallbackCode to load the requested file
-      const result = await loadFallbackCode(
+      // Run loadCodeFallback to load the requested file
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1021,8 +1021,8 @@ describe('loadFallbackCode', () => {
         source: 'export const helper = () => "loaded utility";',
       });
 
-      // Verify that the processed result now passes maybeInitialCodeData validation
-      const processedValidation = maybeInitialCodeData(
+      // Verify that the processed result now passes maybeCodeInitialData validation
+      const processedValidation = maybeCodeInitialData(
         ['default'],
         'default',
         result.code,
@@ -1043,15 +1043,15 @@ describe('loadFallbackCode', () => {
       }
     });
 
-    it('should produce output that successfully passes maybeInitialCodeData validation', async () => {
-      // Scenario: Start with data that would fail maybeInitialCodeData,
-      // then verify loadFallbackCode produces data that passes
+    it('should produce output that successfully passes maybeCodeInitialData validation', async () => {
+      // Scenario: Start with data that would fail maybeCodeInitialData,
+      // then verify loadCodeFallback produces data that passes
       const variantCode: VariantCode = {
         fileName: 'Component.tsx',
         url: 'http://example.com/Component.tsx',
         source: 'import { helper } from "./utils";',
         extraFiles: {
-          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeInitialCodeData
+          'utils.ts': 'http://example.com/utils.ts', // URL - would fail maybeCodeInitialData
         },
         allFilesListed: false, // Would fail early return optimizations
       };
@@ -1067,8 +1067,8 @@ describe('loadFallbackCode', () => {
         return { source: 'fallback source', extraFiles: {} };
       });
 
-      // First, verify that maybeInitialCodeData would return false for the initial data
-      const initialValidation = maybeInitialCodeData(
+      // First, verify that maybeCodeInitialData would return false for the initial data
+      const initialValidation = maybeCodeInitialData(
         ['default'],
         'default',
         { default: variantCode },
@@ -1080,8 +1080,8 @@ describe('loadFallbackCode', () => {
       expect(initialValidation.initialData).toBe(false);
       expect(initialValidation.reason).toBe('Not all extra files are available');
 
-      // Now run loadFallbackCode to process the data
-      const result = await loadFallbackCode(
+      // Now run loadCodeFallback to process the data
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1096,8 +1096,8 @@ describe('loadFallbackCode', () => {
         },
       );
 
-      // Verify that the processed result now passes maybeInitialCodeData validation
-      const processedValidation = maybeInitialCodeData(
+      // Verify that the processed result now passes maybeCodeInitialData validation
+      const processedValidation = maybeCodeInitialData(
         ['default'],
         'default',
         result.code,
@@ -1134,7 +1134,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -1160,7 +1160,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -1185,7 +1185,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: false,
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -1212,7 +1212,7 @@ describe('loadFallbackCode', () => {
 
       const loaded: Code = { default: variantCode };
 
-      const result = await loadFallbackCode('http://example.com', 'default', loaded, {
+      const result = await loadCodeFallback('http://example.com', 'default', loaded, {
         shouldHighlight: true, // shouldHighlight=true
         fallbackUsesExtraFiles: false,
         fallbackUsesAllVariants: false,
@@ -1246,7 +1246,7 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode('/demo/example', 'default', loaded, {
+      const result = await loadCodeFallback('/demo/example', 'default', loaded, {
         shouldHighlight: true, // shouldHighlight=true
         fallbackUsesExtraFiles: false, // fallbackUsesExtraFiles=false
         fallbackUsesAllVariants: false, // fallbackUsesAllVariants=false
@@ -1301,7 +1301,7 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1368,7 +1368,7 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1441,7 +1441,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(tsVariant);
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'javascript',
         {
@@ -1508,7 +1508,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(globalsVariant);
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1571,7 +1571,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(globalsVariant);
 
-      await loadFallbackCode(
+      await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1633,7 +1633,7 @@ describe('loadFallbackCode', () => {
         return { source: 'fallback', extraFiles: {} };
       });
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1729,7 +1729,7 @@ describe('loadFallbackCode', () => {
         return { source: 'unknown', extraFiles: {} };
       });
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1810,7 +1810,7 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1864,7 +1864,7 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1917,7 +1917,7 @@ describe('loadFallbackCode', () => {
         allFilesListed: false, // Force loadCodeVariant processing
       };
 
-      // Pass globalsCode as Code object (simulating loadFallbackCode receiving it from component)
+      // Pass globalsCode as Code object (simulating loadCodeFallback receiving it from component)
       const globalsCodeAsCodeObject: Code = {
         default: {
           fileName: 'global-theme.css',
@@ -1928,7 +1928,7 @@ describe('loadFallbackCode', () => {
         },
       };
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -1946,7 +1946,7 @@ describe('loadFallbackCode', () => {
         },
       );
 
-      // Verify that loadFallbackCode resolved the Code object and passed VariantCode to loadCodeVariant
+      // Verify that loadCodeFallback resolved the Code object and passed VariantCode to loadCodeVariant
       // The mock loadCodeVariant should have been called with resolved VariantCode objects in globalsCode
       expect(mockLoadVariant).toHaveBeenCalledWith(
         'http://example.com',
@@ -1991,7 +1991,7 @@ describe('loadFallbackCode', () => {
         default: variantCode,
       };
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         loaded, // Provide loaded Code
@@ -2031,7 +2031,7 @@ describe('loadFallbackCode', () => {
 
       const globalsUrl = 'http://example.com/unused-globals.css';
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'default',
         { default: variantCode },
@@ -2094,7 +2094,7 @@ describe('loadFallbackCode', () => {
 
       mockLoadVariantMeta.mockResolvedValue(tsVariant);
 
-      const result = await loadFallbackCode(
+      const result = await loadCodeFallback(
         'http://example.com',
         'javascript', // Initial variant
         {

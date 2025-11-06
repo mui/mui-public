@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { flattenCodeVariant } from './flattenCodeVariant';
 import type { VariantCode } from '../../CodeHighlighter/types';
-import { addPathsToVariant } from './addPathsToCodeVariant';
+import { addPathsToVariant } from './addCodeVariantPaths';
 
 describe('flattenCodeVariant', () => {
   describe('basic flattening functionality', () => {

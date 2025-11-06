@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
-import { maybeInitialCodeData } from '../pipeline/loadCodeVariant/maybeInitialCodeData';
+import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
@@ -41,12 +41,12 @@ function useInitialData({
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
-  const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource, loadFallbackCode } =
+  const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource, loadCodeFallback } =
     useCodeContext();
 
   const { initialData, reason } = React.useMemo(
     () =>
-      maybeInitialCodeData(
+      maybeCodeInitialData(
         variants,
         variantName,
         code,
@@ -73,7 +73,7 @@ function useInitialData({
       throw new Errors.ErrorCodeHighlighterClientMissingUrlForFallback();
     }
 
-    if (!loadFallbackCode) {
+    if (!loadCodeFallback) {
       throw new Errors.ErrorCodeHighlighterClientMissingLoadFallbackCode(url);
     }
   }
@@ -81,7 +81,7 @@ function useInitialData({
   // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
   // Load initial data if not provided
   React.useEffect(() => {
-    if (!needsFallback || !url || !loadFallbackCode) {
+    if (!needsFallback || !url || !loadCodeFallback) {
       return;
     }
 
@@ -93,7 +93,7 @@ function useInitialData({
         console.log('Loading initial data for CodeHighlighterClient: ', reason);
       }
 
-      const loaded = await loadFallbackCode(url, variantName, code, {
+      const loaded = await loadCodeFallback(url, variantName, code, {
         shouldHighlight: highlightAfter === 'init',
         fallbackUsesExtraFiles,
         fallbackUsesAllVariants,
@@ -103,14 +103,14 @@ function useInitialData({
         loadCodeMeta,
         initialFilename: fileName,
         variants,
-        globalsCode, // Let loadFallbackCode handle processing
+        globalsCode, // Let loadCodeFallback handle processing
       }).catch((error: any) => ({ error }));
 
       if ('error' in loaded) {
         console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
       } else {
         setCode(loaded.code);
-        // Store processed globalsCode from loadFallbackCode result
+        // Store processed globalsCode from loadCodeFallback result
         if (loaded.processedGlobalsCode) {
           setProcessedGlobalsCode(loaded.processedGlobalsCode);
         }
@@ -135,7 +135,7 @@ function useInitialData({
     variants,
     globalsCode,
     setProcessedGlobalsCode,
-    loadFallbackCode,
+    loadCodeFallback,
   ]);
 }
 

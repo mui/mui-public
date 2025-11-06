@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { addPathsToVariant } from './addPathsToCodeVariant';
+import { addPathsToVariant } from './addCodeVariantPaths';
 import type { VariantCode } from '../../CodeHighlighter/types';
 
 describe('addPathsToVariant', () => {
