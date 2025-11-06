@@ -11,7 +11,7 @@ import {
 import { generateResolvedExternals } from './generateResolvedExternals';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createLoadServerSource } from '../loadServerSource';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type { Externals, VariantCode } from '../../CodeHighlighter/types';

@@ -5,7 +5,7 @@ import { createParseSource } from '../parseSource';
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';

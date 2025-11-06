@@ -4,7 +4,7 @@ import { readFile } from 'fs/promises';
 
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
-import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveImportResultWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
