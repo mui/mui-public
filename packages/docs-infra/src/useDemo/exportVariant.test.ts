@@ -881,9 +881,9 @@ describe('exportVariant', () => {
       expect(config.title).toBe('Custom Export Demo');
     });
 
-    it('should support computeVariantDeltas function type', () => {
-      // This test verifies that ExportConfig accepts a computeVariantDeltas function
-      const computeVariantDeltas = (variant: VariantCode, variantName?: string) => ({
+    it('should support transformVariant function type', () => {
+      // This test verifies that ExportConfig accepts a transformVariant function
+      const transformVariant = (variant: VariantCode, variantName?: string) => ({
         variant: {
           ...variant,
           source: `// Transformed for ${variantName}\n${variant.source}`,
@@ -891,25 +891,25 @@ describe('exportVariant', () => {
       });
 
       const config: ExportConfig = {
-        computeVariantDeltas,
+        transformVariant,
         title: 'Transformed Demo',
       };
 
       // Should compile without type errors
-      expect(config.computeVariantDeltas).toBe(computeVariantDeltas);
+      expect(config.transformVariant).toBe(transformVariant);
       expect(config.title).toBe('Transformed Demo');
     });
   });
 
-  describe('computeVariantDeltas functionality', () => {
-    it('should apply computeVariantDeltas function at the start of export', () => {
+  describe('transformVariant functionality', () => {
+    it('should apply transformVariant function at the start of export', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/MyComponent.tsx',
         fileName: 'MyComponent.tsx',
         source: 'export default function MyComponent() { return <div>Hello</div>; }',
       };
 
-      const computeVariantDeltas = (variant: VariantCode, variantName?: string) => ({
+      const transformVariant = (variant: VariantCode, variantName?: string) => ({
         variant: {
           ...variant,
           source: `// Transformed for variant: ${variantName}\n${variant.source}`,
@@ -918,7 +918,7 @@ describe('exportVariant', () => {
 
       const result = exportVariant(baseVariant, {
         variantName: 'test-variant',
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -929,14 +929,14 @@ describe('exportVariant', () => {
       );
     });
 
-    it('should handle computeVariantDeltas returning undefined (no transformation)', () => {
+    it('should handle transformVariant returning undefined (no transformation)', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/MyComponent.tsx',
         fileName: 'MyComponent.tsx',
         source: 'export default function MyComponent() { return <div>Hello</div>; }',
       };
 
-      const computeVariantDeltas = (variant: VariantCode) => {
+      const transformVariant = (variant: VariantCode) => {
         // Return undefined to indicate no transformation
         if (variant.fileName === 'MyComponent.tsx') {
           return undefined; // No transformation for this file
@@ -946,7 +946,7 @@ describe('exportVariant', () => {
 
       const result = exportVariant(baseVariant, {
         variantName: 'test-variant',
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -957,7 +957,7 @@ describe('exportVariant', () => {
       expect(result.exported.source).not.toContain('Transformed');
     });
 
-    it('should pass variantName to computeVariantDeltas function', () => {
+    it('should pass variantName to transformVariant function', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/MyComponent.tsx',
         fileName: 'MyComponent.tsx',
@@ -965,20 +965,20 @@ describe('exportVariant', () => {
       };
 
       let receivedVariantName: string | undefined;
-      const computeVariantDeltas = (variant: VariantCode, variantName?: string) => {
+      const transformVariant = (variant: VariantCode, variantName?: string) => {
         receivedVariantName = variantName;
         return { variant };
       };
 
       exportVariant(baseVariant, {
         variantName: 'custom-variant-name',
-        computeVariantDeltas,
+        transformVariant,
       });
 
       expect(receivedVariantName).toBe('custom-variant-name');
     });
 
-    it('should transform extraFiles when computeVariantDeltas modifies them', () => {
+    it('should transform extraFiles when transformVariant modifies them', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/MyComponent.tsx',
         fileName: 'MyComponent.tsx',
@@ -990,7 +990,7 @@ describe('exportVariant', () => {
         },
       };
 
-      const computeVariantDeltas = (variant: VariantCode) => ({
+      const transformVariant = (variant: VariantCode) => ({
         variant: {
           ...variant,
           extraFiles: {
@@ -1006,7 +1006,7 @@ describe('exportVariant', () => {
       });
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -1027,14 +1027,14 @@ describe('exportVariant', () => {
       }
     });
 
-    it('should work with computeVariantDeltas and other config options', () => {
+    it('should work with transformVariant and other config options', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/MyComponent.tsx',
         fileName: 'MyComponent.tsx',
         source: 'export default function MyComponent() { return <div>Hello</div>; }',
       };
 
-      const computeVariantDeltas = (variant: VariantCode) => ({
+      const transformVariant = (variant: VariantCode) => ({
         variant: {
           ...variant,
           source: `// Prefixed by transform\n${variant.source}`,
@@ -1042,7 +1042,7 @@ describe('exportVariant', () => {
       });
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         title: 'Transformed Demo',
         dependencies: { 'custom-lib': '1.0.0' },
         useTypescript: true,
@@ -1168,14 +1168,14 @@ describe('exportVariant', () => {
       expect(result.exported.extraFiles!['../package.json']).toBeDefined(); // Auto-generated package.json
     });
 
-    it('should work with computeVariantDeltas that adds metadata files', () => {
+    it('should work with transformVariant that adds metadata files', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/components/ui/Button/index.tsx',
         fileName: 'index.tsx',
         source: 'export default function Button() { return <button>Click me</button>; }',
       };
 
-      const computeVariantDeltas = (
+      const transformVariant = (
         variant: VariantCode,
         variantName?: string,
         globals?: VariantExtraFiles,
@@ -1189,7 +1189,7 @@ describe('exportVariant', () => {
       });
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -1204,7 +1204,7 @@ describe('exportVariant', () => {
       expect(result.exported.extraFiles!['../../theme.css']).toBeUndefined();
     });
 
-    it('should properly separate variant and globals scopes in computeVariantDeltas', () => {
+    it('should properly separate variant and globals scopes in transformVariant', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/MyComponent.tsx',
         fileName: 'MyComponent.tsx',
@@ -1219,7 +1219,7 @@ describe('exportVariant', () => {
       let receivedVariant: VariantCode | undefined;
       let receivedGlobals: VariantCode | undefined;
 
-      const computeVariantDeltas = (
+      const transformVariant = (
         variant: VariantCode,
         variantName?: string,
         globals?: VariantExtraFiles,
@@ -1244,7 +1244,7 @@ describe('exportVariant', () => {
       };
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -1354,8 +1354,8 @@ describe('exportVariant', () => {
     });
   });
 
-  describe('issue: computeVariantDeltas file duplication', () => {
-    it('should not duplicate files when computeVariantDeltas moves metadata files and deletes original keys', () => {
+  describe('issue: transformVariant file duplication', () => {
+    it('should not duplicate files when transformVariant moves metadata files and deletes original keys', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/components/Button/index.tsx',
         fileName: 'index.tsx',
@@ -1366,7 +1366,7 @@ describe('exportVariant', () => {
         },
       };
 
-      const computeVariantDeltas = (
+      const transformVariant = (
         variant: VariantCode,
         variantName?: string,
         globals?: VariantExtraFiles,
@@ -1398,7 +1398,7 @@ describe('exportVariant', () => {
       };
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -1433,7 +1433,7 @@ describe('exportVariant', () => {
       }
     });
 
-    it('should not duplicate metadata files when computeVariantDeltas modifies existing metadata files', () => {
+    it('should not duplicate metadata files when transformVariant modifies existing metadata files', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/components/ui/Card/index.tsx',
         fileName: 'index.tsx',
@@ -1445,7 +1445,7 @@ describe('exportVariant', () => {
         },
       };
 
-      const computeVariantDeltas = (
+      const transformVariant = (
         variant: VariantCode,
         variantName?: string,
         globals?: VariantExtraFiles,
@@ -1487,7 +1487,7 @@ describe('exportVariant', () => {
       };
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
@@ -1528,7 +1528,7 @@ describe('exportVariant', () => {
       });
     });
 
-    it('should handle complex computeVariantDeltas scenarios without duplication', () => {
+    it('should handle complex transformVariant scenarios without duplication', () => {
       const baseVariant: VariantCode = {
         url: 'file:///src/pages/Dashboard/index.tsx',
         fileName: 'index.tsx',
@@ -1541,7 +1541,7 @@ describe('exportVariant', () => {
         },
       };
 
-      const computeVariantDeltas = (
+      const transformVariant = (
         variant: VariantCode,
         variantName?: string,
         globals?: VariantExtraFiles,
@@ -1583,7 +1583,7 @@ describe('exportVariant', () => {
       };
 
       const result = exportVariant(baseVariant, {
-        computeVariantDeltas,
+        transformVariant,
         useTypescript: true,
       });
 
