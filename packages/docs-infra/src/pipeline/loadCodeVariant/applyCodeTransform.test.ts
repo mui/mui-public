@@ -183,7 +183,10 @@ describe('applyCodeTransform', () => {
         },
       };
 
-      const result = applyCodeTransforms(source, transforms, ['first-transform', 'second-transform']);
+      const result = applyCodeTransforms(source, transforms, [
+        'first-transform',
+        'second-transform',
+      ]);
       expect(result).toBe('const x = 1; // first // second');
     });
 

@@ -7,7 +7,10 @@ import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { externalsToPackages } from '../pipeline/loaderUtils';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { examineCodeVariant } from '../pipeline/loadCodeVariant/examineCodeVariant';
-import { mergeCodeMetadata, extractCodeMetadata } from '../pipeline/loadCodeVariant/mergeCodeMetadata';
+import {
+  mergeCodeMetadata,
+  extractCodeMetadata,
+} from '../pipeline/loadCodeVariant/mergeCodeMetadata';
 
 /**
  * Merges multiple file objects into a single object.
@@ -310,7 +313,8 @@ export function exportVariant(
     .join('');
 
   // Use extractCodeMetadata to properly separate metadata and non-metadata files
-  let { variant: processedVariantCode, metadata: processedGlobals } = extractCodeMetadata(variantCode);
+  let { variant: processedVariantCode, metadata: processedGlobals } =
+    extractCodeMetadata(variantCode);
 
   if (computeVariantDeltas) {
     const transformed = computeVariantDeltas(processedVariantCode, variantName, processedGlobals);

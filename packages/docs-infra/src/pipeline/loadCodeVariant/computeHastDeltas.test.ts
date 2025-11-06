@@ -309,8 +309,8 @@ describe('computeHastDeltas', () => {
       }),
     };
 
-      const result = await computeHastDeltas(parsedCode, mockParseSource);
+    const result = await computeHastDeltas(parsedCode, mockParseSource);
 
-      expect(result).toEqual(parsedCode);
+    expect(result).toEqual(parsedCode);
   });
 });

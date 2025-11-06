@@ -2604,13 +2604,18 @@ describe('loadCodeVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
-          sourceParser: undefined,
-          loadSource: mockLoadSource,
-          loadVariantMeta: mockLoadVariantMeta,
-          sourceTransformers: undefined,
-          disableParsing: true,
-        });
+        const result = await loadCodeVariant(
+          'file:///Button.tsx',
+          'default',
+          'file:///Button.tsx',
+          {
+            sourceParser: undefined,
+            loadSource: mockLoadSource,
+            loadVariantMeta: mockLoadVariantMeta,
+            sourceTransformers: undefined,
+            disableParsing: true,
+          },
+        );
 
         // Should not throw, but should warn
         expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -2732,13 +2737,18 @@ describe('loadCodeVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
-          sourceParser: undefined,
-          loadSource: mockLoadSource,
-          loadVariantMeta: mockLoadVariantMeta,
-          sourceTransformers: undefined,
-          disableParsing: true,
-        });
+        const result = await loadCodeVariant(
+          'file:///Button.tsx',
+          'default',
+          'file:///Button.tsx',
+          {
+            sourceParser: undefined,
+            loadSource: mockLoadSource,
+            loadVariantMeta: mockLoadVariantMeta,
+            sourceTransformers: undefined,
+            disableParsing: true,
+          },
+        );
 
         // extraDependencies should not cause errors since they're internal/webpack dependencies
         expect(result.code.source).toBe('const Button = () => <button>Click</button>;');

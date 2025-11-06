@@ -20,13 +20,7 @@ describe('diffHast', () => {
     const filename = 'test.ts';
     const transforms: Transforms = {};
 
-    const result = await diffHast(
-      source,
-      parsedSource,
-      filename,
-      transforms,
-      mockParseSource,
-    );
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
     expect(mockParseSource).not.toHaveBeenCalled();
     expect(result).toEqual({});
@@ -53,13 +47,7 @@ describe('diffHast', () => {
 
     mockParseSource.mockResolvedValue(transformedParsedSource);
 
-    const result = await diffHast(
-      source,
-      parsedSource,
-      filename,
-      transforms,
-      mockParseSource,
-    );
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
     expect(mockParseSource).toHaveBeenCalledWith('const x = 1; // highlighted', 'test.ts');
     expect(result['syntax-highlight']).toBeDefined();
@@ -86,13 +74,7 @@ describe('diffHast', () => {
 
     mockParseSource.mockResolvedValue(transformedParsedSource);
 
-    const result = await diffHast(
-      source,
-      parsedSource,
-      filename,
-      transforms,
-      mockParseSource,
-    );
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
     expect(mockParseSource).toHaveBeenCalledWith('const x = 1; // highlighted', 'test.ts');
     expect(result['syntax-highlight'].fileName).toBeUndefined();
