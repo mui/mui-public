@@ -1,6 +1,11 @@
 export * from './parseImportsAndComments';
 export * from './resolveModulePath';
-export * from './resolveModulePathWithFs';
+export {
+  resolveModulePathWithFs,
+  resolveModulePathsWithFs,
+  resolveImportResultWithFs,
+  resolveVariantPathsWithFs,
+} from './resolveModulePathWithFs';
 export * from './rewriteImports';
 export * from './processRelativeImports';
 export * from './getFileNameFromUrl';
