@@ -1,12 +1,12 @@
 /**
- * Tests for mergeMetadata functionality
+ * Tests for mergeCodeMetadata functionality
  */
 
 import { describe, it, expect } from 'vitest';
-import { mergeMetadata, extractMetadata } from './mergeMetadata';
-import type { VariantCode } from './types';
+import { mergeCodeMetadata, extractCodeMetadata } from './mergeCodeMetadata';
+import type { VariantCode } from '../../CodeHighlighter/types';
 
-describe('mergeMetadata', () => {
+describe('mergeCodeMetadata', () => {
   describe('basic functionality', () => {
     it('should merge metadata files without metadataPrefix', () => {
       const variant: VariantCode = {
@@ -23,7 +23,7 @@ describe('mergeMetadata', () => {
         'new-config.json': { source: '{"new": true}' },
       };
 
-      const result = mergeMetadata(variant, additionalMetadata);
+      const result = mergeCodeMetadata(variant, additionalMetadata);
 
       // Non-metadata files should remain unchanged
       expect(result.extraFiles!['helper.js']).toBeDefined();
@@ -50,7 +50,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{"config": true}' },
       };
 
-      const result = mergeMetadata(variant, additionalMetadata);
+      const result = mergeCodeMetadata(variant, additionalMetadata);
 
       // Non-metadata files should remain unchanged
       expect(result.extraFiles!['utils.js']).toBeDefined();
@@ -75,7 +75,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       // URL has deep path but no extraFiles, so maxBackNavigation = 0
       // Metadata should be at root level regardless of URL depth
@@ -93,7 +93,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata, { metadataPrefix: 'src/' });
+      const result = mergeCodeMetadata(variant, metadata, { metadataPrefix: 'src/' });
 
       // maxBackNavigation (0) + metadataPrefix depth (1) = 1 level -> ../
       expect(result.extraFiles!['../config.json']).toBeDefined();
@@ -110,7 +110,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata, { metadataPrefix: 'src/app/' });
+      const result = mergeCodeMetadata(variant, metadata, { metadataPrefix: 'src/app/' });
 
       // maxBackNavigation (0) + metadataPrefix depth (2) = 2 levels -> ../../
       expect(result.extraFiles!['../../config.json']).toBeDefined();
@@ -127,8 +127,8 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result1 = mergeMetadata(variant, metadata, { metadataPrefix: 'src/' });
-      const result2 = mergeMetadata(variant, metadata, { metadataPrefix: 'src' });
+      const result1 = mergeCodeMetadata(variant, metadata, { metadataPrefix: 'src/' });
+      const result2 = mergeCodeMetadata(variant, metadata, { metadataPrefix: 'src' });
 
       // Both should produce the same result
       expect(result1.extraFiles!['../config.json']).toBeDefined();
@@ -153,7 +153,7 @@ describe('mergeMetadata', () => {
       };
 
       // Change metadataPrefix from 'src/' to 'src/app/'
-      const result = mergeMetadata(variant, additionalMetadata, { metadataPrefix: 'src/app/' });
+      const result = mergeCodeMetadata(variant, additionalMetadata, { metadataPrefix: 'src/app/' });
 
       // Non-metadata files should remain unchanged
       expect(result.extraFiles!['helper.js']).toBeDefined();
@@ -190,7 +190,7 @@ describe('mergeMetadata', () => {
         'theme.css': { source: '.theme {}', metadata: true },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       // maxBackNavigation should be 2 (from ../../config.json)
       // So metadata should go to ../../
@@ -217,7 +217,7 @@ describe('mergeMetadata', () => {
         'new-config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata, { metadataPrefix: 'src/' });
+      const result = mergeCodeMetadata(variant, metadata, { metadataPrefix: 'src/' });
 
       // maxBackNavigation (2) + metadataPrefix (1) = 3 levels -> ../../../
       expect(result.extraFiles!['../../../new-config.json']).toBeDefined();
@@ -241,7 +241,7 @@ describe('mergeMetadata', () => {
         '../another/theme.css': { source: '.theme {}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       // Should preserve the original paths but position them at maxBackNavigation level (0)
       expect(result.extraFiles!['path/to/config.json']).toBeDefined();
@@ -259,7 +259,7 @@ describe('mergeMetadata', () => {
         },
       };
 
-      const result = mergeMetadata(variant, {});
+      const result = mergeCodeMetadata(variant, {});
 
       // Non-metadata files should remain unchanged
       expect(result.extraFiles!['helper.js']).toBeDefined();
@@ -281,7 +281,7 @@ describe('mergeMetadata', () => {
         'config/settings.json': { source: '{"setting": true}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       // All metadata files should preserve their paths and be positioned at maxBackNavigation level (0)
       expect(result.extraFiles!['../package.json']).toBeDefined();
@@ -304,7 +304,7 @@ describe('mergeMetadata', () => {
         'theme.css': { source: '.theme {}' },
       };
 
-      const result = mergeMetadata(variant, metadata, { metadataPrefix: 'src/' });
+      const result = mergeCodeMetadata(variant, metadata, { metadataPrefix: 'src/' });
 
       // maxBackNavigation (1 from ../utils.js) + metadataPrefix (1 from src/) = 2 levels -> ../../
       expect(result.extraFiles!['../../../package.json']).toBeDefined();
@@ -326,7 +326,7 @@ describe('mergeMetadata', () => {
         },
       };
 
-      const result = mergeMetadata(variant, {});
+      const result = mergeCodeMetadata(variant, {});
 
       const repositionedFile = result.extraFiles!['existing.json'];
       expect(repositionedFile).toBeDefined();
@@ -348,7 +348,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       const metadataFile = result.extraFiles!['config.json'];
       expect(metadataFile).toBeDefined();
@@ -372,7 +372,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       expect(result.extraFiles!['config.json']).toBeDefined();
     });
@@ -387,7 +387,7 @@ describe('mergeMetadata', () => {
         },
       };
 
-      const result = mergeMetadata(variant, {});
+      const result = mergeCodeMetadata(variant, {});
 
       // Should return unchanged extraFiles
       expect(result.extraFiles!['helper.js']).toBeDefined();
@@ -404,7 +404,7 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       // With no URL and no extraFiles, should place at root level
       expect(result.extraFiles!['config.json']).toBeDefined();
@@ -421,14 +421,14 @@ describe('mergeMetadata', () => {
         'config.json': { source: '{}' },
       };
 
-      const result = mergeMetadata(variant, metadata);
+      const result = mergeCodeMetadata(variant, metadata);
 
       // Should fallback to root level when URL parsing fails
       expect(result.extraFiles!['config.json']).toBeDefined();
     });
   });
 
-  describe('extractMetadata', () => {
+  describe('extractCodeMetadata', () => {
     describe('basic functionality', () => {
       it('should extract metadata files without metadataPrefix', () => {
         const variant: VariantCode = {
@@ -442,7 +442,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         // Non-metadata files should remain in variant
         expect(result.variant.extraFiles!['helper.js']).toBeDefined();
@@ -481,7 +481,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         // Non-metadata files should remain in variant
         expect(result.variant.extraFiles!['utils.js']).toBeDefined();
@@ -511,7 +511,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         // Non-metadata files should remain in variant
         expect(result.variant.extraFiles!['../helper.js']).toBeDefined();
@@ -537,7 +537,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         // Non-metadata files should remain in variant
         expect(result.variant.extraFiles!['../helper.js']).toBeDefined();
@@ -564,7 +564,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         expect(result.metadata['../package.json']).toBeDefined();
         expect(result.metadata['theme.css']).toBeDefined();
@@ -580,7 +580,7 @@ describe('mergeMetadata', () => {
           source: 'export default function MyComponent() { return <div>Hello</div>; }',
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         expect(result.variant.extraFiles).toEqual({});
         expect(result.metadata).toEqual({});
@@ -597,7 +597,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         // All files should remain in variant
         expect(result.variant.extraFiles!['helper.js']).toBeDefined();
@@ -618,7 +618,7 @@ describe('mergeMetadata', () => {
           },
         };
 
-        const result = extractMetadata(variant);
+        const result = extractCodeMetadata(variant);
 
         // Metadata should still be extracted even if it doesn't match expected pattern
         expect(result.metadata['config.json']).toBeDefined();
@@ -627,7 +627,7 @@ describe('mergeMetadata', () => {
     });
 
     describe('round-trip compatibility', () => {
-      it('should be inverse of mergeMetadata', () => {
+      it('should be inverse of mergeCodeMetadata', () => {
         const originalVariant: VariantCode = {
           url: 'file:///lib/MyComponent.tsx',
           fileName: 'MyComponent.tsx',
@@ -643,10 +643,10 @@ describe('mergeMetadata', () => {
         };
 
         // Merge metadata into variant
-        const merged = mergeMetadata(originalVariant, metadata);
+        const merged = mergeCodeMetadata(originalVariant, metadata);
 
         // Extract metadata back out
-        const extracted = extractMetadata(merged);
+        const extracted = extractCodeMetadata(merged);
 
         // Should get back the original structure
         expect(extracted.variant.extraFiles!['helper.js']).toBeDefined();
@@ -668,7 +668,7 @@ describe('mergeMetadata', () => {
         ).toBe('.theme {}');
       });
 
-      it('should be inverse of mergeMetadata with metadataPrefix', () => {
+      it('should be inverse of mergeCodeMetadata with metadataPrefix', () => {
         const originalVariant: VariantCode = {
           url: 'file:///lib/MyComponent.tsx',
           fileName: 'MyComponent.tsx',
@@ -684,10 +684,10 @@ describe('mergeMetadata', () => {
         };
 
         // Merge metadata with prefix
-        const merged = mergeMetadata(originalVariant, metadata, { metadataPrefix: 'src/' });
+        const merged = mergeCodeMetadata(originalVariant, metadata, { metadataPrefix: 'src/' });
 
         // Extract metadata back out
-        const extracted = extractMetadata(merged);
+        const extracted = extractCodeMetadata(merged);
 
         // Should preserve the relative structure
         expect(extracted.variant.extraFiles!['../helper.js']).toBeDefined();

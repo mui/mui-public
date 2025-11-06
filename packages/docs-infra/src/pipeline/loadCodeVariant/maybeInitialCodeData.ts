@@ -1,5 +1,5 @@
-import { hasAllVariants } from './hasAllVariants';
-import { Code, VariantExtraFiles, VariantSource } from './types';
+import { hasAllVariants } from './hasAllCodeVariants';
+import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/types';
 
 /**
  * Type guard function that determines if we have sufficient data to render a code highlighter
@@ -64,7 +64,7 @@ import { Code, VariantExtraFiles, VariantSource } from './types';
  * @example
  * ```typescript
  * // Server-side: Check if we can render with initial source or need to load fallback
- * const { initialData, reason } = maybeInitialData(
+ * const { initialData, reason } = maybeInitialCodeData(
  *   variants,
  *   initialKey,
  *   code || props.precompute,
@@ -81,7 +81,7 @@ import { Code, VariantExtraFiles, VariantSource } from './types';
  *
  * // Client-side: Check if we need to trigger loading effects
  * const { initialData, reason } = React.useMemo(() =>
- *   maybeInitialData(
+ *   maybeInitialCodeData(
  *     variants,
  *     variantName,
  *     code,
@@ -99,7 +99,7 @@ import { Code, VariantExtraFiles, VariantSource } from './types';
  * }, [initialData, reason, ...]);
  * ```
  */
-export function maybeInitialData(
+export function maybeInitialCodeData(
   variants: string[],
   variant: string,
   code?: Code,

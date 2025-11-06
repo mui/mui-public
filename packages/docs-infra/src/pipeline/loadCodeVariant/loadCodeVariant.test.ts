@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { loadVariant } from './loadVariant';
+import { loadCodeVariant } from './loadCodeVariant';
 import type {
   VariantCode,
   ParseSource,
   LoadSource,
   LoadVariantMeta,
   SourceTransformers,
-} from './types';
+} from '../../CodeHighlighter/types';
 
-describe('loadVariant', () => {
+describe('loadCodeVariant', () => {
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
   let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
@@ -36,7 +36,7 @@ describe('loadVariant', () => {
         source: 'const x = 1;',
       };
 
-      const result = await loadVariant('file:///test.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -62,7 +62,7 @@ describe('loadVariant', () => {
         source: 'const loaded = true;',
       });
 
-      const result = await loadVariant('file:///test.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -85,7 +85,7 @@ describe('loadVariant', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variantCode);
 
-      const result = await loadVariant('file:///test.ts', 'default', variantUrl, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variantUrl, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -108,7 +108,7 @@ describe('loadVariant', () => {
       const mockParsedSource = { type: 'root', children: [] };
       mockParseSource.mockReturnValue(mockParsedSource as any);
 
-      const result = await loadVariant('file:///test.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -132,7 +132,7 @@ describe('loadVariant', () => {
       const mockParsedSource = { type: 'root', children: [] };
       mockParseSource.mockReturnValue(mockParsedSource as any);
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -171,7 +171,7 @@ describe('loadVariant', () => {
         source: 'export const external = true;',
       });
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -214,7 +214,7 @@ describe('loadVariant', () => {
       mockParseSource.mockReturnValue(mockParsedSource as any);
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -248,7 +248,7 @@ describe('loadVariant', () => {
         // No fileName provided
       };
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -296,7 +296,7 @@ describe('loadVariant', () => {
         },
       ];
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -337,7 +337,7 @@ describe('loadVariant', () => {
         source: 'const helper = true;',
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -374,7 +374,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -416,7 +416,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -461,7 +461,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///a/b/entry.js', 'default', variant, {
+      const result = await loadCodeVariant('file:///a/b/entry.js', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -532,7 +532,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///a/b/index.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///a/b/index.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -610,7 +610,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///src/main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///src/main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -668,7 +668,7 @@ describe('loadVariant', () => {
       });
 
       await expect(
-        loadVariant('file:///main.ts', 'default', variant, {
+        loadCodeVariant('file:///main.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -700,7 +700,7 @@ describe('loadVariant', () => {
         },
       ];
 
-      const result = await loadVariant('file:///test.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -721,7 +721,7 @@ describe('loadVariant', () => {
         source: 'const x = 1;',
       };
 
-      const result = await loadVariant('file:///test.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -757,7 +757,7 @@ describe('loadVariant', () => {
         },
       ];
 
-      const result = await loadVariant('file:///test.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -793,7 +793,7 @@ describe('loadVariant', () => {
       });
 
       await expect(
-        loadVariant('file:///main.ts', 'default', variant, {
+        loadCodeVariant('file:///main.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -840,7 +840,7 @@ describe('loadVariant', () => {
       'should throw error when $name',
       async ({ variant, sourceParser, loadSource, loadVariantMeta, expectedError }) => {
         await expect(
-          loadVariant('file:///test.ts', 'default', variant, {
+          loadCodeVariant('file:///test.ts', 'default', variant, {
             sourceParser: sourceParser ? Promise.resolve(sourceParser) : undefined,
             loadSource,
             loadVariantMeta,
@@ -875,7 +875,7 @@ describe('loadVariant', () => {
       setupMock();
 
       await expect(
-        loadVariant('file:///test.ts', 'default', variant, {
+        loadCodeVariant('file:///test.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -950,7 +950,7 @@ describe('loadVariant', () => {
       setupMock(mockLoadSource);
 
       await expect(
-        loadVariant('file:///main.ts', 'default', variant, {
+        loadCodeVariant('file:///main.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -985,7 +985,7 @@ describe('loadVariant', () => {
       },
     ])('should throw error when $name', async ({ variantData, expectedError }) => {
       await expect(
-        loadVariant('file:///main.ts', 'default', variantData, {
+        loadCodeVariant('file:///main.ts', 'default', variantData, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -1008,7 +1008,7 @@ describe('loadVariant', () => {
         source: 'const helper = true;',
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1031,7 +1031,7 @@ describe('loadVariant', () => {
         extraDependencies: ['file:///bundled-dep.ts', 'https://example.com/external.js'], // Valid: absolute URLs, different from input
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1058,7 +1058,7 @@ describe('loadVariant', () => {
         extraDependencies: [''], // Edge case: empty string
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1095,7 +1095,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1126,7 +1126,7 @@ describe('loadVariant', () => {
         extraDependencies: ['file:///bundled-dep1.ts', 'file:///bundled-dep2.ts'],
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1159,7 +1159,7 @@ describe('loadVariant', () => {
         },
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1209,7 +1209,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1268,7 +1268,7 @@ describe('loadVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1300,8 +1300,8 @@ describe('loadVariant', () => {
       expect(result.code.externals).toEqual(['react', '@mui/material', 'lodash', 'axios']);
     });
 
-    it('should handle URL-only loadVariant call and return externals correctly', async () => {
-      // Test case: loadVariant called with just a URL string
+    it('should handle URL-only loadCodeVariant call and return externals correctly', async () => {
+      // Test case: loadCodeVariant called with just a URL string
       const variantUrl = 'file:///demos/CheckboxBasic.tsx';
 
       // Mock loadVariantMeta to return a basic variant
@@ -1331,7 +1331,7 @@ export default function CheckboxBasic() {
         },
       });
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         variantUrl,
         'default',
         variantUrl, // URL passed as variant (string)
@@ -1361,7 +1361,7 @@ export default function CheckboxBasic() {
     });
 
     it('should handle URL-only case with externals when loadVariantMeta is undefined', async () => {
-      // Test case: loadVariant called with URL string and no loadVariantMeta
+      // Test case: loadCodeVariant called with URL string and no loadVariantMeta
       const variantUrl = 'file:///src/components/Button.tsx';
 
       // Mock loadSource to return externals
@@ -1384,7 +1384,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         variantUrl,
         'default',
         variantUrl, // URL passed as variant (string)
@@ -1466,7 +1466,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1555,7 +1555,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1635,7 +1635,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1722,7 +1722,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadVariant('file:///main.ts', 'default', variant, {
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1754,7 +1754,7 @@ export default function Button(props: ButtonProps) {
         source: 'const Button = () => <button>Click me</button>;',
       });
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         variantUrl,
         'default',
         variantUrl, // String variant
@@ -1784,7 +1784,7 @@ export default function Button(props: ButtonProps) {
 
       mockLoadVariantMeta.mockResolvedValue(customVariant);
 
-      const result = await loadVariant(variantUrl, 'default', variantUrl, {
+      const result = await loadCodeVariant(variantUrl, 'default', variantUrl, {
         sourceParser: undefined,
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta, // Provided loadVariantMeta
@@ -1806,7 +1806,7 @@ export default function Button(props: ButtonProps) {
         // No URL provided
       };
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // undefined URL
         'default',
         variant,
@@ -1846,7 +1846,7 @@ export default function Button(props: ButtonProps) {
         // No URL provided
       };
 
-      const result = await loadVariant(
+      const result = await loadCodeVariant(
         undefined, // undefined URL
         'default',
         variant,
@@ -1880,7 +1880,7 @@ export default function Button(props: ButtonProps) {
         source: 'const global = true;',
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1916,7 +1916,7 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       });
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1954,7 +1954,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1986,7 +1986,7 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2026,7 +2026,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2052,8 +2052,8 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       };
 
-      // Mock loadVariant to be called recursively
-      const originalLoadVariant = loadVariant;
+      // Mock loadCodeVariant to be called recursively
+      const originalLoadVariant = loadCodeVariant;
 
       const result = await originalLoadVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
@@ -2085,7 +2085,7 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       });
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: undefined, // No loadVariantMeta
@@ -2113,7 +2113,7 @@ export default function Button(props: ButtonProps) {
       const invalidUrl = 'file:///invalid';
 
       await expect(
-        loadVariant(undefined, 'default', variant, {
+        loadCodeVariant(undefined, 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: undefined, // No loadVariantMeta
@@ -2134,7 +2134,7 @@ export default function Button(props: ButtonProps) {
       const invalidUrl = 'file:///some-directory/';
 
       await expect(
-        loadVariant(undefined, 'default', variant, {
+        loadCodeVariant(undefined, 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: undefined, // No loadVariantMeta
@@ -2162,7 +2162,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2204,7 +2204,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2254,7 +2254,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2304,7 +2304,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2346,7 +2346,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2396,7 +2396,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant(undefined, 'default', variant, {
+      const result = await loadCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2423,7 +2423,7 @@ export default function Button(props: ButtonProps) {
 
     it('should handle cross-variant globalsCode sharing correctly', async () => {
       // Scenario: loadFallbackCode processes one variant with globalsCode
-      // Then other variants processed by loadVariant should still get the same globalsCode
+      // Then other variants processed by loadCodeVariant should still get the same globalsCode
 
       const variant: VariantCode = {
         fileName: 'Component.tsx',
@@ -2440,7 +2440,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadVariant('file:///Component.tsx', 'typescript', variant, {
+      const result = await loadCodeVariant('file:///Component.tsx', 'typescript', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2470,7 +2470,7 @@ export default function Button(props: ButtonProps) {
 
     it('should load globalsCode when loadFallbackCode skips early return', async () => {
       // Scenario: loadFallbackCode takes early return without processing globalsCode
-      // loadVariant should handle the globalsCode loading
+      // loadCodeVariant should handle the globalsCode loading
 
       const variant: VariantCode = {
         fileName: 'QuickComponent.tsx',
@@ -2489,7 +2489,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadVariant('file:///QuickComponent.tsx', 'default', variant, {
+      const result = await loadCodeVariant('file:///QuickComponent.tsx', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2516,7 +2516,7 @@ export default function Button(props: ButtonProps) {
   });
 });
 
-describe('loadVariant - helper functions', () => {
+describe('loadCodeVariant - helper functions', () => {
   // Tests for helper function behavior through integration
 
   describe('allFilesListed validation', () => {
@@ -2554,7 +2554,7 @@ describe('loadVariant - helper functions', () => {
         });
 
         await expect(
-          loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+          loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
             sourceParser: undefined,
             loadSource: mockLoadSource,
             loadVariantMeta: mockLoadVariantMeta,
@@ -2604,7 +2604,7 @@ describe('loadVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+        const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
           sourceParser: undefined,
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -2658,7 +2658,7 @@ describe('loadVariant - helper functions', () => {
         },
       });
 
-      const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+      const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
         sourceParser: undefined,
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2697,7 +2697,7 @@ describe('loadVariant - helper functions', () => {
         allFilesListed: false, // This allows discovery of new files
       });
 
-      const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+      const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
         sourceParser: undefined,
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2732,7 +2732,7 @@ describe('loadVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+        const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
           sourceParser: undefined,
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,

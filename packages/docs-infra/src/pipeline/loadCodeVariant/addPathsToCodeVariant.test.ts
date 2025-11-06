@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { addPathsToVariant } from './addPathsToVariant';
-import type { VariantCode } from './types';
+import { addPathsToVariant } from './addPathsToCodeVariant';
+import type { VariantCode } from '../../CodeHighlighter/types';
 
 describe('addPathsToVariant', () => {
   it('should add path to basic variant with no extra files', () => {

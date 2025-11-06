@@ -1,14 +1,14 @@
 /**
- * Tests for flattenVariant functionality
+ * Tests for flattenCodeVariant functionality
  * Focuses on testing the flattening output format where keys are file paths from addPathsToVariant
  */
 
 import { describe, it, expect } from 'vitest';
-import { flattenVariant } from './flattenVariant';
-import type { VariantCode } from '../CodeHighlighter/types';
-import { addPathsToVariant } from '../CodeHighlighter/addPathsToVariant';
+import { flattenCodeVariant } from './flattenCodeVariant';
+import type { VariantCode } from '../../CodeHighlighter/types';
+import { addPathsToVariant } from './addPathsToCodeVariant';
 
-describe('flattenVariant', () => {
+describe('flattenCodeVariant', () => {
   describe('basic flattening functionality', () => {
     it('should flatten variant with no extra files', () => {
       const variant: VariantCode = {
@@ -16,7 +16,7 @@ describe('flattenVariant', () => {
         source: "console.log('index.ts')",
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({
         'index.ts': { source: "console.log('index.ts')" },
@@ -33,7 +33,7 @@ describe('flattenVariant', () => {
         },
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({
         'Demo.tsx': { source: "console.log('Demo.tsx')" },
@@ -52,7 +52,7 @@ describe('flattenVariant', () => {
         },
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({
         'index.ts': { source: "console.log('index.ts')" },
@@ -73,7 +73,7 @@ describe('flattenVariant', () => {
         },
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({
         'Demo.tsx': { source: "console.log('Demo.tsx')" },
@@ -90,7 +90,7 @@ describe('flattenVariant', () => {
         },
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({
         'helper.ts': { source: "console.log('helper.ts')" },
@@ -103,7 +103,7 @@ describe('flattenVariant', () => {
         source: "console.log('no fileName')",
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({});
     });
@@ -118,7 +118,7 @@ describe('flattenVariant', () => {
         },
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       expect(result).toEqual({
         'index.ts': { source: "console.log('index.ts')" },
@@ -141,7 +141,7 @@ describe('flattenVariant', () => {
 
       // Get the expected paths from addPathsToVariant
       const variantWithPaths = addPathsToVariant(variant);
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       // Verify that the result uses the calculated paths
       expect(result[variantWithPaths.path!]).toEqual({ source: "console.log('index.ts')" });
@@ -169,7 +169,7 @@ describe('flattenVariant', () => {
         metadataPrefix: 'src/',
       };
 
-      const result = flattenVariant(variant);
+      const result = flattenCodeVariant(variant);
 
       // Should have the paths calculated by addPathsToVariant with metadataPrefix
       expect(result['src/checkbox/index.ts']).toEqual({ source: "console.log('index.ts')" });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { transformSource } from './transformSource';
-import type { SourceTransformers, TransformSource } from './types';
+import type { SourceTransformers, TransformSource } from '../../CodeHighlighter/types';
 
 describe('transformSource', () => {
   let mockTransformer: MockedFunction<TransformSource>;

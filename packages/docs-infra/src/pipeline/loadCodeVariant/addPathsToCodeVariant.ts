@@ -3,7 +3,7 @@
  * Uses calculateMainFilePath utility and URL resolution for simplified path calculation
  */
 
-import type { VariantCode, VariantSource } from './types';
+import type { VariantCode, VariantSource } from '../../CodeHighlighter/types';
 import { calculateMaxBackNavigation, createSyntheticDirectories } from './pathUtils';
 import { calculateMainFilePath } from './calculateMainFilePath';
 

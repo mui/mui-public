@@ -1,5 +1,5 @@
 import type { Root as HastRoot } from 'hast';
-import type { Code, ParseSource } from './types';
+import type { Code, ParseSource } from '../../CodeHighlighter/types';
 
 /**
  * Pure function to parse code variants and their extraFiles.

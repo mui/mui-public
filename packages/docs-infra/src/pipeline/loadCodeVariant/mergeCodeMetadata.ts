@@ -2,7 +2,7 @@
  * Metadata merging utility for positioning metadata files relative to source files
  */
 
-import type { VariantCode, VariantExtraFiles } from './types';
+import type { VariantCode, VariantExtraFiles } from '../../CodeHighlighter/types';
 import {
   calculateMaxSourceBackNavigation,
   removeBackNavigationPrefix,
@@ -42,7 +42,7 @@ interface MergeMetadataOptions {
  * @param variant - The variant containing mixed source and metadata files
  * @returns An object with the cleaned variant and extracted metadata
  */
-export function extractMetadata(variant: VariantCode): {
+export function extractCodeMetadata(variant: VariantCode): {
   variant: VariantCode;
   metadata: VariantExtraFiles;
 } {
@@ -89,7 +89,7 @@ export function extractMetadata(variant: VariantCode): {
   };
 }
 
-export function mergeMetadata(
+export function mergeCodeMetadata(
   variant: VariantCode,
   metadataFiles: VariantExtraFiles = {},
   options: MergeMetadataOptions = {},
@@ -107,7 +107,7 @@ export function mergeMetadata(
 
   if (needsReextraction && variant.extraFiles) {
     // Extract existing metadata using the old metadataPrefix
-    const extracted = extractMetadata(variant);
+    const extracted = extractCodeMetadata(variant);
     workingVariant = extracted.variant;
     existingMetadata = extracted.metadata;
   }

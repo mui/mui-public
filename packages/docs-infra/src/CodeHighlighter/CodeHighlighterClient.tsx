@@ -4,12 +4,12 @@ import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
-import { maybeInitialData } from './maybeInitialData';
-import { hasAllVariants } from './hasAllVariants';
+import { maybeInitialCodeData } from '../pipeline/loadCodeVariant/maybeInitialCodeData';
+import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
-import { mergeMetadata } from './mergeMetadata';
+import { mergeCodeMetadata } from '../pipeline/loadCodeVariant/mergeCodeMetadata';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -46,7 +46,7 @@ function useInitialData({
 
   const { initialData, reason } = React.useMemo(
     () =>
-      maybeInitialData(
+      maybeInitialCodeData(
         variants,
         variantName,
         code,
@@ -160,7 +160,7 @@ function useAllVariants({
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource, loadVariant } = useCodeContext();
+  const { loadCodeMeta, loadVariantMeta, loadSource, loadCodeVariant } = useCodeContext();
 
   const needsData = !readyForContent && !isControlled;
 
@@ -171,7 +171,7 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingUrlForVariants();
       }
 
-      if (!loadVariant) {
+      if (!loadCodeVariant) {
         throw new Errors.ErrorCodeHighlighterClientMissingLoadVariant(url);
       }
 
@@ -219,10 +219,10 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForUnloadedUrls();
       }
     }
-  }, [code, globalsCode, loadCodeMeta, loadVariant, loadSource, needsData, url]);
+  }, [code, globalsCode, loadCodeMeta, loadCodeVariant, loadSource, needsData, url]);
 
   React.useEffect(() => {
-    if (!needsData || !url || !loadVariant) {
+    if (!needsData || !url || !loadCodeVariant) {
       return;
     }
 
@@ -274,7 +274,7 @@ function useAllVariants({
               })
               .filter((item: any): item is VariantCode | string => Boolean(item));
 
-            return loadVariant(url, name, loadedCode[name], {
+            return loadCodeVariant(url, name, loadedCode[name], {
               disableParsing: true,
               disableTransforms: true,
               loadSource,
@@ -319,7 +319,7 @@ function useAllVariants({
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
-    loadVariant,
+    loadCodeVariant,
   ]);
 
   return { readyForContent };
@@ -426,7 +426,7 @@ function useCodeTransforms({
   parsedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, getAvailableTransforms, applyTransforms } = useCodeContext();
+  const { sourceParser, getAvailableTransforms, computeHastDeltas } = useCodeContext();
   const [transformedCode, setTransformedCode] = React.useState<Code | undefined>(undefined);
 
   // Get available transforms from the current variant (separate memo for efficiency)
@@ -439,7 +439,7 @@ function useCodeTransforms({
 
   // Effect to compute transformations for all variants
   React.useEffect(() => {
-    if (!parsedCode || !sourceParser || !applyTransforms) {
+    if (!parsedCode || !sourceParser || !computeHastDeltas) {
       setTransformedCode(parsedCode);
       return;
     }
@@ -448,7 +448,7 @@ function useCodeTransforms({
     (async () => {
       try {
         const parseSource = await sourceParser;
-        const enhanced = await applyTransforms(parsedCode, parseSource);
+        const enhanced = await computeHastDeltas(parsedCode, parseSource);
         setTransformedCode(enhanced);
       } catch (error) {
         console.error(
@@ -457,7 +457,7 @@ function useCodeTransforms({
         setTransformedCode(parsedCode);
       }
     })();
-  }, [parsedCode, sourceParser, applyTransforms]);
+  }, [parsedCode, sourceParser, computeHastDeltas]);
 
   return { transformedCode, availableTransforms };
 }
@@ -523,7 +523,7 @@ function useGlobalsCodeMerging({
   readyForContent: boolean;
   variants: string[];
 }) {
-  const { loadCodeMeta, loadSource, loadVariantMeta, loadVariant } = useCodeContext();
+  const { loadCodeMeta, loadSource, loadVariantMeta, loadCodeVariant } = useCodeContext();
 
   // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
   React.useEffect(() => {
@@ -545,7 +545,7 @@ function useGlobalsCodeMerging({
       // If not all ready, fall through to loading logic below
     }
 
-    if (!loadVariant) {
+    if (!loadCodeVariant) {
       console.error(new Errors.ErrorCodeHighlighterClientMissingLoadVariantForGlobals());
       return;
     }
@@ -585,7 +585,7 @@ function useGlobalsCodeMerging({
 
                 // Need to load this variant
                 try {
-                  const result = await loadVariant(
+                  const result = await loadCodeVariant(
                     originalUrl || '', // Use the original URL if available
                     variantName,
                     codeObj[variantName], // May be undefined or string
@@ -633,7 +633,7 @@ function useGlobalsCodeMerging({
     loadSource,
     loadVariantMeta,
     variants,
-    loadVariant,
+    loadCodeVariant,
   ]);
 
   // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)
@@ -684,12 +684,12 @@ function useGlobalsCodeMerging({
         .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
-        // Use mergeMetadata for sophisticated globals merging with proper positioning
+        // Use mergeCodeMetadata for sophisticated globals merging with proper positioning
         let currentVariant = variantData;
 
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
-            // Convert globals extraFiles to metadata format for mergeMetadata
+            // Convert globals extraFiles to metadata format for mergeCodeMetadata
             const globalsMetadata: Record<string, any> = {};
 
             for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
@@ -700,8 +700,8 @@ function useGlobalsCodeMerging({
               }
             }
 
-            // Use mergeMetadata to properly position and merge the globals
-            currentVariant = mergeMetadata(currentVariant, globalsMetadata);
+            // Use mergeCodeMetadata to properly position and merge the globals
+            currentVariant = mergeCodeMetadata(currentVariant, globalsMetadata);
           }
         });
 
@@ -755,12 +755,12 @@ function usePropsCodeGlobalsMerging({
         .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
-        // Use mergeMetadata for sophisticated globals merging with proper positioning
+        // Use mergeCodeMetadata for sophisticated globals merging with proper positioning
         let currentVariant = variantData;
 
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
-            // Convert globals extraFiles to metadata format for mergeMetadata
+            // Convert globals extraFiles to metadata format for mergeCodeMetadata
             const globalsMetadata: Record<string, any> = {};
 
             for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
@@ -771,8 +771,8 @@ function usePropsCodeGlobalsMerging({
               }
             }
 
-            // Use mergeMetadata to properly position and merge the globals
-            currentVariant = mergeMetadata(currentVariant, globalsMetadata);
+            // Use mergeCodeMetadata to properly position and merge the globals
+            currentVariant = mergeCodeMetadata(currentVariant, globalsMetadata);
           }
         });
 

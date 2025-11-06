@@ -4,9 +4,9 @@
  * Uses addPathsToVariant for the core logic, then flattens the result
  */
 
-import type { VariantCode } from '../CodeHighlighter/types';
-import { stringOrHastToString } from '../pipeline/hastUtils';
-import { addPathsToVariant } from '../CodeHighlighter/addPathsToVariant';
+import type { VariantCode } from '../../CodeHighlighter/types';
+import { stringOrHastToString } from '../hastUtils';
+import { addPathsToVariant } from './addPathsToCodeVariant';
 
 export interface FlatFile {
   source: string;
@@ -22,7 +22,7 @@ export interface FlattenedFiles {
  * Resolves relative paths and handles metadata file scoping
  * Uses addPathsToVariant for path resolution logic
  */
-export function flattenVariant(variant: VariantCode): FlattenedFiles {
+export function flattenCodeVariant(variant: VariantCode): FlattenedFiles {
   const result: FlattenedFiles = {};
 
   // Use addPathsToVariant to get the structured paths
