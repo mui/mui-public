@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import type { Nodes } from 'hast';
-import { transformParsedSource } from './transformParsedSource';
-import type { ParseSource, Transforms } from './types';
+import { diffHast } from './diffHast';
+import type { ParseSource, Transforms } from '../../CodeHighlighter/types';
 
-describe('transformParsedSource', () => {
+describe('diffHast', () => {
   let mockParseSource: MockedFunction<ParseSource>;
 
   beforeEach(() => {
@@ -20,13 +20,7 @@ describe('transformParsedSource', () => {
     const filename = 'test.ts';
     const transforms: Transforms = {};
 
-    const result = await transformParsedSource(
-      source,
-      parsedSource,
-      filename,
-      transforms,
-      mockParseSource,
-    );
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
     expect(mockParseSource).not.toHaveBeenCalled();
     expect(result).toEqual({});
@@ -53,13 +47,7 @@ describe('transformParsedSource', () => {
 
     mockParseSource.mockResolvedValue(transformedParsedSource);
 
-    const result = await transformParsedSource(
-      source,
-      parsedSource,
-      filename,
-      transforms,
-      mockParseSource,
-    );
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
     expect(mockParseSource).toHaveBeenCalledWith('const x = 1; // highlighted', 'test.ts');
     expect(result['syntax-highlight']).toBeDefined();
@@ -86,13 +74,7 @@ describe('transformParsedSource', () => {
 
     mockParseSource.mockResolvedValue(transformedParsedSource);
 
-    const result = await transformParsedSource(
-      source,
-      parsedSource,
-      filename,
-      transforms,
-      mockParseSource,
-    );
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
     expect(mockParseSource).toHaveBeenCalledWith('const x = 1; // highlighted', 'test.ts');
     expect(result['syntax-highlight'].fileName).toBeUndefined();
@@ -115,7 +97,7 @@ describe('transformParsedSource', () => {
     mockParseSource.mockRejectedValue(new Error('Parse error'));
 
     await expect(
-      transformParsedSource(source, parsedSource, filename, transforms, mockParseSource),
+      diffHast(source, parsedSource, filename, transforms, mockParseSource),
     ).rejects.toThrow('Parse error');
   });
 
@@ -134,7 +116,7 @@ describe('transformParsedSource', () => {
     };
 
     await expect(
-      transformParsedSource(source, parsedSource, filename, transforms, mockParseSource),
+      diffHast(source, parsedSource, filename, transforms, mockParseSource),
     ).rejects.toThrow(); // Accept any error from the patch operation
   });
 });

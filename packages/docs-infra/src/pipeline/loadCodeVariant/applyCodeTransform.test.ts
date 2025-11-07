@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Nodes as HastNodes } from 'hast';
-import { applyTransform, applyTransforms } from './applyTransform';
+import { applyCodeTransform, applyCodeTransforms } from './applyCodeTransform';
 import { transformSource } from './transformSource';
-import { transformParsedSource } from './transformParsedSource';
-import type { VariantSource, Transforms, SourceTransformers, ParseSource } from './types';
+import { diffHast } from './diffHast';
+import type {
+  VariantSource,
+  Transforms,
+  SourceTransformers,
+  ParseSource,
+} from '../../CodeHighlighter/types';
 
-describe('applyTransform', () => {
-  describe('applyTransform', () => {
+describe('applyCodeTransform', () => {
+  describe('applyCodeTransform', () => {
     it('should apply transform to string source', () => {
       const source = 'const x = 1;';
       const transforms: Transforms = {
@@ -15,7 +20,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransform(source, transforms, 'syntax-highlight');
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight');
       expect(result).toBe('const x = 1; // highlighted');
     });
 
@@ -47,7 +52,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransform(source, transforms, 'syntax-highlight');
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight');
       expect(result).toEqual({
         type: 'root',
         children: [
@@ -90,7 +95,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransform(source, transforms, 'syntax-highlight');
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight');
       expect(result).toEqual({
         hastJson: JSON.stringify({
           type: 'root',
@@ -118,7 +123,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransform(source, transforms, 'add-types');
+      const result = applyCodeTransform(source, transforms, 'add-types');
       expect(result).toBe('const x: number = 1;\nconst y: number = 2;\nconst z: number = 3;');
     });
 
@@ -130,7 +135,7 @@ describe('applyTransform', () => {
         },
       };
 
-      expect(() => applyTransform(source, transforms, 'non-existent')).toThrow(
+      expect(() => applyCodeTransform(source, transforms, 'non-existent')).toThrow(
         'Transform "non-existent" not found in transforms',
       );
     });
@@ -143,7 +148,7 @@ describe('applyTransform', () => {
         },
       };
 
-      expect(() => applyTransform(source, transforms, 'invalid-transform')).toThrow();
+      expect(() => applyCodeTransform(source, transforms, 'invalid-transform')).toThrow();
     });
 
     it('should handle multiline source correctly', () => {
@@ -159,14 +164,14 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransform(source, transforms, 'add-comments');
+      const result = applyCodeTransform(source, transforms, 'add-comments');
       expect(result).toContain('variable x');
       expect(result).toContain('variable y');
       expect(result).toContain('variable z');
     });
   });
 
-  describe('applyTransforms', () => {
+  describe('applyCodeTransforms', () => {
     it('should apply multiple transforms in sequence', () => {
       const source = 'const x = 1;';
       const transforms: Transforms = {
@@ -178,7 +183,10 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransforms(source, transforms, ['first-transform', 'second-transform']);
+      const result = applyCodeTransforms(source, transforms, [
+        'first-transform',
+        'second-transform',
+      ]);
       expect(result).toBe('const x = 1; // first // second');
     });
 
@@ -190,7 +198,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransforms(source, transforms, []);
+      const result = applyCodeTransforms(source, transforms, []);
       expect(result).toBe('const x = 1;');
     });
 
@@ -202,7 +210,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result = applyTransforms(source, transforms, ['syntax-highlight']);
+      const result = applyCodeTransforms(source, transforms, ['syntax-highlight']);
       expect(result).toBe('const x = 1; // highlighted');
     });
 
@@ -215,7 +223,7 @@ describe('applyTransform', () => {
       };
 
       expect(() =>
-        applyTransforms(source, transforms, ['syntax-highlight', 'non-existent']),
+        applyCodeTransforms(source, transforms, ['syntax-highlight', 'non-existent']),
       ).toThrow('Transform "non-existent" not found in transforms');
     });
   });
@@ -258,7 +266,7 @@ describe('applyTransform', () => {
         };
 
         // Apply transform
-        const result = applyTransform(originalSource, transforms, 'modify-content');
+        const result = applyCodeTransform(originalSource, transforms, 'modify-content');
 
         // Verify original is unchanged
         expect(originalSource).toEqual(originalCopy);
@@ -326,7 +334,7 @@ describe('applyTransform', () => {
           },
         };
 
-        applyTransform(originalSource, transforms, 'add-highlighting');
+        applyCodeTransform(originalSource, transforms, 'add-highlighting');
 
         // Verify nested properties are not mutated
         expect(originalSource).toEqual(originalCopy);
@@ -368,7 +376,7 @@ describe('applyTransform', () => {
           },
         };
 
-        applyTransform(originalSource, transforms, 'modify-classes');
+        applyCodeTransform(originalSource, transforms, 'modify-classes');
 
         // Verify original shared array is unchanged
         expect(sharedClassNames).toEqual(originalSharedArray);
@@ -409,7 +417,7 @@ describe('applyTransform', () => {
           },
         };
 
-        const result = applyTransform(originalSource, transforms, 'update-text');
+        const result = applyCodeTransform(originalSource, transforms, 'update-text');
 
         // Verify original hastJson is unchanged
         expect(originalSource).toEqual(originalCopy);
@@ -486,7 +494,7 @@ describe('applyTransform', () => {
         };
 
         // Apply multiple transforms
-        applyTransforms(originalSource, transforms, ['first-transform', 'second-transform']);
+        applyCodeTransforms(originalSource, transforms, ['first-transform', 'second-transform']);
 
         // Verify original is completely unchanged after multiple transforms
         expect(originalSource).toEqual(originalCopy);
@@ -575,7 +583,7 @@ describe('applyTransform', () => {
           },
         };
 
-        applyTransform(originalSource, transforms, 'complex-transform');
+        applyCodeTransform(originalSource, transforms, 'complex-transform');
 
         // Verify the deeply nested original structure remains unchanged
         expect(originalSource).toEqual(originalCopy);
@@ -620,7 +628,7 @@ describe('applyTransform', () => {
       expect(transforms).toBeDefined();
 
       // Apply the real-world delta
-      const result = applyTransform(source, transforms!, 'syntax-highlight');
+      const result = applyCodeTransform(source, transforms!, 'syntax-highlight');
       expect(result).toBe('const x = 1; // highlighted\nconst y = 2; // also highlighted');
     });
 
@@ -665,7 +673,7 @@ describe('applyTransform', () => {
 
       // Since transformSource creates line-based deltas, we need to use a string source for applying them
       const stringSource = 'function test() {\n  return true;\n}'; // Equivalent text from HastNodes
-      const result = applyTransform(stringSource, transforms!, 'add-comments');
+      const result = applyCodeTransform(stringSource, transforms!, 'add-comments');
 
       // Result should be a string since we applied to string source
       expect(typeof result).toBe('string');
@@ -706,14 +714,14 @@ describe('applyTransform', () => {
 
       // Since transformSource creates line-based deltas, we need to use a string source for applying them
       const stringSource = 'console.log("hello");'; // Equivalent text from hastJson
-      const result = applyTransform(stringSource, transforms!, 'add-semicolon');
+      const result = applyCodeTransform(stringSource, transforms!, 'add-semicolon');
 
       // Result should be a string since we applied to string source
       expect(typeof result).toBe('string');
       expect(result).toContain('hello world');
     });
 
-    it('should work with transformParsedSource deltas for complex object transformations', async () => {
+    it('should work with diffHast deltas for complex object transformations', async () => {
       const sourceString = 'const greeting = "hello";';
       const originalParsed: HastNodes = {
         type: 'root',
@@ -765,8 +773,8 @@ describe('applyTransform', () => {
         },
       };
 
-      // Use transformParsedSource to create complex object deltas
-      const realTransforms = await transformParsedSource(
+      // Use diffHast to create complex object deltas
+      const realTransforms = await diffHast(
         sourceString,
         originalParsed,
         'test.js',
@@ -775,7 +783,7 @@ describe('applyTransform', () => {
       );
 
       // Apply the real parsed-source delta to the original HastNodes
-      const result = applyTransform(originalParsed, realTransforms, 'enhance-code');
+      const result = applyCodeTransform(originalParsed, realTransforms, 'enhance-code');
 
       expect(result).toEqual(
         expect.objectContaining({
@@ -830,7 +838,7 @@ describe('applyTransform', () => {
       expect(transforms).toBeDefined();
 
       // Apply multiple transforms in sequence
-      const result = applyTransforms(source, transforms!, ['add-types', 'add-comments']);
+      const result = applyCodeTransforms(source, transforms!, ['add-types', 'add-comments']);
 
       expect(result).toContain('number');
       expect(result).toContain('string');
@@ -857,11 +865,11 @@ describe('applyTransform', () => {
       const transforms1 = await transformSource(stringSource, 'test.js', sourceTransformers1);
       expect(transforms1).toBeDefined();
 
-      const result1 = applyTransform(stringSource, transforms1!, 'update-value');
+      const result1 = applyCodeTransform(stringSource, transforms1!, 'update-value');
       expect(typeof result1).toBe('string');
       expect(result1).toContain('100');
 
-      // Test HastNodes input with proper object deltas (simulating transformParsedSource behavior)
+      // Test HastNodes input with proper object deltas (simulating diffHast behavior)
       const hastNodesSource: HastNodes = {
         type: 'root',
         children: [{ type: 'text', value: 'let value = 42;' }],
@@ -880,7 +888,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result2 = applyTransform(hastNodesSource, hastNodesTransforms, 'update-value');
+      const result2 = applyCodeTransform(hastNodesSource, hastNodesTransforms, 'update-value');
       expect(typeof result2).toBe('object');
       expect(result2).toEqual(
         expect.objectContaining({
@@ -909,7 +917,7 @@ describe('applyTransform', () => {
         },
       };
 
-      const result3 = applyTransform(hastJsonSource, hastJsonTransforms, 'update-value');
+      const result3 = applyCodeTransform(hastJsonSource, hastJsonTransforms, 'update-value');
       expect(typeof result3).toBe('object');
       expect(result3).toEqual(
         expect.objectContaining({

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { maybeInitialData } from './maybeInitialData';
-import type { Code } from './types';
+import { maybeCodeInitialData } from './maybeCodeInitialData';
+import type { Code } from '../../CodeHighlighter/types';
 
-describe('maybeInitialData', () => {
+describe('maybeCodeInitialData', () => {
   describe('fileName handling', () => {
     it('should use variant.source when fileName matches variantCode.fileName', () => {
       const code: Code = {
@@ -14,7 +14,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,
@@ -46,7 +46,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,
@@ -78,7 +78,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,
@@ -107,7 +107,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,
@@ -134,7 +134,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,
@@ -163,7 +163,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,
@@ -190,7 +190,7 @@ describe('maybeInitialData', () => {
         // typescript variant is missing
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript', 'typescript'], // typescript is required but missing
         'javascript',
         code,
@@ -220,7 +220,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript', 'typescript'],
         'javascript',
         code,
@@ -247,7 +247,7 @@ describe('maybeInitialData', () => {
         },
       };
 
-      const result = maybeInitialData(
+      const result = maybeCodeInitialData(
         ['javascript'],
         'javascript',
         code,

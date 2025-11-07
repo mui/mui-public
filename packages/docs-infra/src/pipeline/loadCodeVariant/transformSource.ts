@@ -3,7 +3,7 @@ import { toText } from 'hast-util-to-text';
 import { AsyncInflateOptions, decompress, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
 import type { Nodes as HastNodes } from 'hast';
-import type { VariantSource, SourceTransformers, Transforms } from './types';
+import type { VariantSource, SourceTransformers, Transforms } from '../../CodeHighlighter/types';
 
 const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 

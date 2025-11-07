@@ -1,4 +1,4 @@
-import { Code, VariantSource } from './types';
+import { Code, VariantSource } from '../../CodeHighlighter/types';
 
 /**
  * Checks if a code source is fully loaded and ready for rendering.

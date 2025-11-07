@@ -37,7 +37,7 @@ export type ParseControlledCodeFn = (
   parseSource: ParseSource,
 ) => Code;
 
-export type ApplyTransformsFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
+export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
 
 export type GetAvailableTransformsFn = (
   parsedCode: Code | undefined,
@@ -52,11 +52,11 @@ export interface CodeContext {
   loadVariantMeta?: LoadVariantMeta;
   loadCodeMeta?: LoadCodeMeta;
   // Heavy functions moved from CodeHighlighterClient
-  loadFallbackCode?: LoadFallbackCodeFn;
-  loadVariant?: LoadVariantFn;
+  loadCodeFallback?: LoadFallbackCodeFn;
+  loadCodeVariant?: LoadVariantFn;
   parseCode?: ParseCodeFn;
   parseControlledCode?: ParseControlledCodeFn;
-  applyTransforms?: ApplyTransformsFn;
+  computeHastDeltas?: ComputeHastDeltasFn;
   getAvailableTransforms?: GetAvailableTransformsFn;
 }
 

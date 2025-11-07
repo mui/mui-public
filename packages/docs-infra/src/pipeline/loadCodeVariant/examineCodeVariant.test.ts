@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { createPathContext } from './examineVariant';
-import type { VariantCode } from './types';
+import { examineCodeVariant } from './examineCodeVariant';
+import type { VariantCode } from '../../CodeHighlighter/types';
 
 describe('examineVariant', () => {
-  describe('createPathContext', () => {
+  describe('examineCodeVariant', () => {
     describe('basic functionality', () => {
       it('should handle variant without extraFiles', () => {
         const variant: VariantCode = {
           source: 'console.log("test");',
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result).toEqual({
           hasUrl: false,
@@ -29,7 +29,7 @@ describe('examineVariant', () => {
           extraFiles: {},
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result).toEqual({
           hasUrl: false,
@@ -48,7 +48,7 @@ describe('examineVariant', () => {
           url: 'file:///docs/components/button',
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result).toEqual({
           hasUrl: true,
@@ -73,7 +73,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(2);
         expect(result.pathInwardFromRoot).toBe('');
@@ -92,7 +92,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         // Should be 2 (from ../../config.js), not 3 (ignoring ../../../metadata.json)
         expect(result.maxSourceBackNavigation).toBe(2);
@@ -112,7 +112,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.pathInwardFromRoot).toBe('');
@@ -128,7 +128,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(0);
       });
@@ -143,7 +143,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         // Should be 2 (from ../../baz/../qux.js - only consecutive ../ at start)
         // ../foo/../bar/utils.js counts as 1 (only the first ../)
@@ -161,7 +161,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         // Should be 4 (from ../../../start/forward/../../../back.js - actual resolved back steps)
         // ../foo/../../bar/utils.js resolves to 2 back steps (../foo/../../ = back 2, forward bar)
@@ -184,7 +184,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.hasMetadata).toBe(true);
       });
@@ -200,7 +200,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.hasMetadata).toBe(false);
       });
@@ -211,7 +211,7 @@ describe('examineVariant', () => {
           extraFiles: {},
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.hasMetadata).toBe(false);
       });
@@ -224,7 +224,7 @@ describe('examineVariant', () => {
           url: 'file:///docs/components/button/usage',
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         // Now implementation should parse URL structure
         expect(result.urlDirectory).toEqual(['docs', 'components', 'button', 'usage']);
@@ -240,7 +240,7 @@ describe('examineVariant', () => {
           url: 'file:///docs/system/getting-started/installation',
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         // Now implementation should parse URL structure
         expect(result.urlDirectory).toEqual(['docs', 'system', 'getting-started', 'installation']);
@@ -255,7 +255,7 @@ describe('examineVariant', () => {
           url: 'file:///',
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.urlDirectory).toEqual([]);
         expect(result.rootLevel).toBe('');
@@ -281,7 +281,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result).toEqual({
           hasUrl: true,
@@ -303,7 +303,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.pathInwardFromRoot).toBe('button');
@@ -320,7 +320,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(3);
         expect(result.pathInwardFromRoot).toBe('system/getting-started/installation');
@@ -343,7 +343,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         // maxSourceBackNavigation should be 0 because only metadata files exist
         expect(result.maxSourceBackNavigation).toBe(0);
@@ -362,7 +362,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(5);
         expect(result.pathInwardFromRoot).toBe('');
@@ -376,7 +376,7 @@ describe('examineVariant', () => {
           url: '',
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.hasUrl).toBe(false);
         expect(result.actualUrl).toBeUndefined();
@@ -388,7 +388,7 @@ describe('examineVariant', () => {
           url: undefined,
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.hasUrl).toBe(false);
         expect(result.actualUrl).toBeUndefined();
@@ -403,7 +403,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.hasMetadata).toBe(false);
@@ -422,7 +422,7 @@ describe('examineVariant', () => {
           },
         };
 
-        const result = createPathContext(variant);
+        const result = examineCodeVariant(variant);
 
         expect(result.maxSourceBackNavigation).toBe(1);
         expect(result.hasMetadata).toBe(false);

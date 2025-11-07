@@ -5,9 +5,9 @@ import type {
   VariantCode,
   LoadFallbackCodeOptions,
   LoadSource,
-} from './types';
-import { loadVariant } from './loadVariant';
-import { getFileNameFromUrl } from '../pipeline/loaderUtils';
+} from '../../CodeHighlighter/types';
+import { loadCodeVariant } from './loadCodeVariant';
+import { getFileNameFromUrl } from '../loaderUtils';
 
 // Helper function to get the source for a specific filename from a variant
 async function getFileSource(
@@ -61,7 +61,7 @@ export type FallbackVariants = {
   processedGlobalsCode?: Array<Code>;
 };
 
-export async function loadFallbackCode(
+export async function loadCodeFallback(
   url: string,
   initialVariant: string,
   loaded: Code | undefined,
@@ -269,7 +269,7 @@ export async function loadFallbackCode(
     }
   }
 
-  // Step 2b: Fall back to full loadVariant processing
+  // Step 2b: Fall back to full loadCodeVariant processing
   // Load globalsCode - convert string URLs to Code objects, keep Code objects as-is
   let globalsCodeObjects: Array<Code> | undefined;
   if (globalsCode && globalsCode.length > 0) {
@@ -312,7 +312,7 @@ export async function loadFallbackCode(
   }
 
   try {
-    const { code: loadedVariant } = await loadVariant(url, initialVariant, initial, {
+    const { code: loadedVariant } = await loadCodeVariant(url, initialVariant, initial, {
       sourceParser,
       loadSource,
       loadVariantMeta,
@@ -328,7 +328,7 @@ export async function loadFallbackCode(
     initial = loadedVariant;
   } catch (error) {
     throw new Error(
-      `Failed to load initial variant using loadVariant (variant: ${initialVariant}, url: ${url}): ${JSON.stringify(error)}`,
+      `Failed to load initial variant using loadCodeVariant (variant: ${initialVariant}, url: ${url}): ${JSON.stringify(error)}`,
     );
   }
 
@@ -379,7 +379,7 @@ export async function loadFallbackCode(
         }
 
         try {
-          const { code: loadedVariant } = await loadVariant(url, variantName, variant, {
+          const { code: loadedVariant } = await loadCodeVariant(url, variantName, variant, {
             sourceParser,
             loadSource,
             loadVariantMeta,

@@ -1,6 +1,6 @@
 import LZString from 'lz-string';
 
-import type { FlattenedFiles } from './flattenVariant';
+import type { FlattenedFiles } from '../pipeline/loadCodeVariant/flattenCodeVariant';
 
 /**
  * Compress object for CodeSandbox API

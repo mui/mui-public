@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from './resolveModulePathWithFs';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { getFileNameFromUrl } from '../loaderUtils';
 
@@ -25,7 +25,7 @@ export const loadServerCodeMeta = createLoadServerCodeMeta();
  * 3. Returns a Code object mapping variant names to their resolved file URLs
  *
  * The actual loading, parsing, and transformation of the variants is handled
- * elsewhere by the CodeHighlighter component using loadVariant.
+ * elsewhere by the CodeHighlighter component using loadCodeVariant.
  *
  * @param options - Configuration options (currently unused)
  * @returns LoadCodeMeta function that takes a URL and returns Promise<Code>

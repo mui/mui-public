@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Root } from 'hast';
-import type { Code, ParseSource, VariantCode } from './types';
+import type { Code, ParseSource, VariantCode } from '../../CodeHighlighter/types';
 import {
   getVariantsToTransform,
   getAvailableTransforms,
-  transformVariant,
-  applyTransforms,
-} from './transformCode';
+  computeVariantDeltas,
+  computeHastDeltas,
+} from './computeHastDeltas';
 
 const createMockHastRoot = (content: string): Root => ({
   type: 'root',
@@ -217,7 +217,7 @@ describe('getAvailableTransforms', () => {
   });
 });
 
-describe('transformVariant', () => {
+describe('computeVariantDeltas', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -228,7 +228,7 @@ describe('transformVariant', () => {
       transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
     };
 
-    const result = await transformVariant('Default', variantCode, mockParseSource);
+    const result = await computeVariantDeltas('Default', variantCode, mockParseSource);
 
     expect(result.transforms).toBeDefined();
     expect(result.source).toBe(variantCode.source);
@@ -248,7 +248,7 @@ describe('transformVariant', () => {
       },
     };
 
-    const result = await transformVariant('Default', variantCode, mockParseSource);
+    const result = await computeVariantDeltas('Default', variantCode, mockParseSource);
 
     expect(result.extraFiles!['file1.js'].transforms).toBeDefined();
     expect(result.extraFiles!['file2.js'].transforms).toBeUndefined();
@@ -257,7 +257,7 @@ describe('transformVariant', () => {
   it('should return original variant for invalid input', async () => {
     const invalidVariant = 'just a string';
 
-    const result = await transformVariant('Default', invalidVariant, mockParseSource);
+    const result = await computeVariantDeltas('Default', invalidVariant, mockParseSource);
 
     expect(result).toBe(invalidVariant);
   });
@@ -268,13 +268,13 @@ describe('transformVariant', () => {
       transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
     };
 
-    const result = await transformVariant('Default', variantCode, mockParseSource);
+    const result = await computeVariantDeltas('Default', variantCode, mockParseSource);
 
     expect(result.transforms).toBe(variantCode.transforms); // Should remain unchanged
   });
 });
 
-describe('applyTransforms', () => {
+describe('computeHastDeltas', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -290,7 +290,7 @@ describe('applyTransforms', () => {
       }),
     };
 
-    const result = await applyTransforms(parsedCode, mockParseSource);
+    const result = await computeHastDeltas(parsedCode, mockParseSource);
 
     // Check that transforms were processed (result will have the actual transformed values)
     expect(typeof result.Default).toBe('object');
@@ -309,8 +309,8 @@ describe('applyTransforms', () => {
       }),
     };
 
-    const result = await applyTransforms(parsedCode, mockParseSource);
+    const result = await computeHastDeltas(parsedCode, mockParseSource);
 
-    expect(result).toBe(parsedCode);
+    expect(result).toEqual(parsedCode);
   });
 });

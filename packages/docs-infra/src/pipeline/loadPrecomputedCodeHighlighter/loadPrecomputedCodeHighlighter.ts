@@ -1,11 +1,11 @@
 import type { LoaderContext } from 'webpack';
-import { loadVariant } from '../../CodeHighlighter/loadVariant';
+import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
@@ -87,9 +87,9 @@ export async function loadPrecomputedCodeHighlighter(
         }
 
         try {
-          // Use loadVariant to handle all loading, parsing, and transformation
+          // Use loadCodeVariant to handle all loading, parsing, and transformation
           // This will recursively load all dependencies using loadSource
-          const { code: processedVariant, dependencies } = await loadVariant(
+          const { code: processedVariant, dependencies } = await loadCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,

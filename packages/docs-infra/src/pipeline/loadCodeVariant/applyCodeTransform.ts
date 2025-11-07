@@ -1,6 +1,6 @@
 import { patch, clone } from 'jsondiffpatch';
 import type { Root as HastRoot } from 'hast';
-import type { VariantSource, Transforms } from './types';
+import type { VariantSource, Transforms } from '../../CodeHighlighter/types';
 
 /**
  * Applies a specific transform to a variant source and returns the transformed source
@@ -10,7 +10,7 @@ import type { VariantSource, Transforms } from './types';
  * @returns The transformed variant source in the same format as the input
  * @throws Error if the transform key doesn't exist or patching fails
  */
-export function applyTransform(
+export function applyCodeTransform(
   source: VariantSource,
   transforms: Transforms,
   transformKey: string,
@@ -33,7 +33,7 @@ export function applyTransform(
     return patched.join('\n');
   }
 
-  // For Hast node sources, deltas are typically node-based (from transformParsedSource)
+  // For Hast node sources, deltas are typically node-based (from diffHast)
   let sourceRoot: HastRoot;
   const isHastJson = 'hastJson' in source;
 
@@ -66,7 +66,7 @@ export function applyTransform(
  * @returns The transformed variant source in the same format as the input
  * @throws Error if any transform key doesn't exist or patching fails
  */
-export function applyTransforms(
+export function applyCodeTransforms(
   source: VariantSource,
   transforms: Transforms,
   transformKeys: string[],
@@ -74,7 +74,7 @@ export function applyTransforms(
   let currentSource: VariantSource = source;
 
   for (const transformKey of transformKeys) {
-    currentSource = applyTransform(currentSource, transforms, transformKey);
+    currentSource = applyCodeTransform(currentSource, transforms, transformKey);
   }
 
   return currentSource;
