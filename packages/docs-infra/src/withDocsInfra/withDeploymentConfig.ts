@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import * as os from 'os';
 /**
  * See the docs of the Netlify environment variables:
  * https://docs.netlify.com/configure-builds/environment-variables/#build-metadata.
@@ -61,7 +62,13 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     experimental: {
       scrollRestoration: true,
       workerThreads: false,
-      ...(process.env.CI ? { cpus: 2 } : {}),
+      ...(process.env.CI
+        ? {
+            cpus: process.env.NEXT_PARALLELISM
+              ? parseInt(process.env.NEXT_PARALLELISM, 10)
+              : os.availableParallelism(),
+          }
+        : {}),
       ...nextConfig.experimental,
     },
     eslint: {
