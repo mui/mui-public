@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import * as os from 'os';
+import * as os from 'node:os';
 /**
  * See the docs of the Netlify environment variables:
  * https://docs.netlify.com/configure-builds/environment-variables/#build-metadata.
