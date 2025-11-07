@@ -76,7 +76,7 @@
     {
       "groupName": "node",
       "matchPackageNames": ["@types/node"],
-      "allowedVersions": "<=22" // Only major versions are aligned with Node.js versions
+      "allowedVersions": "<=22.18"
     },
     {
       "matchDepTypes": ["engines"],
