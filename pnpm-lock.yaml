@@ -486,7 +486,7 @@ importers:
         specifier: ^16.1.0
         version: 16.1.0
       globals:
-        specifier: ^16.4.0
+        specifier: ^16.5.0
         version: 16.5.0
       globby:
         specifier: ^15.0.0
