@@ -4,10 +4,10 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.4",
+    "@mui/icons-material": "^7.3.5",
     "@mui/internal-bundle-size-checker": "workspace:*",
-    "@mui/material": "^7.3.4",
-    "@mui/x-charts": "^8.16.0",
+    "@mui/material": "^7.3.5",
+    "@mui/x-charts": "^8.17.0",
     "@octokit/rest": "^22.0.1",
     "@tanstack/react-query": "^5.90.5",
     "diff": "^8.0.2",
