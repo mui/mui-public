@@ -193,7 +193,7 @@ importers:
         specifier: ^0.13.0
         version: 0.13.0(6dc67cc6cbe907e40eab39eb256aa384)
       dayjs:
-        specifier: ^1.11.18
+        specifier: ^1.11.19
         version: 1.11.19
       google-auth-library:
         specifier: ^9.15.1
