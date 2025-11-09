@@ -199,7 +199,7 @@ importers:
         specifier: ^9.15.1
         version: 9.15.1(encoding@0.1.13)
       graphql:
-        specifier: ^16.11.0
+        specifier: ^16.12.0
         version: 16.12.0
       graphql-request:
         specifier: ^7.3.1
