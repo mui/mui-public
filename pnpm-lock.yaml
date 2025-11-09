@@ -354,7 +354,7 @@ importers:
   packages/code-infra:
     dependencies:
       '@argos-ci/core':
-        specifier: ^4.4.0
+        specifier: ^4.5.0
         version: 4.5.0
       '@babel/cli':
         specifier: ^7.28.3
