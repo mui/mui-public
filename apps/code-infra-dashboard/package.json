@@ -28,7 +28,7 @@
     "@vitejs/plugin-react": "^5.1.0",
     "netlify-cli": "^23.9.5",
     "typescript": "^5.9.3",
-    "vite": "^7.1.12",
+    "vite": "^7.2.1",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "scripts": {
