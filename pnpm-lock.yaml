@@ -163,7 +163,7 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0(vite@7.1.12(@types/node@22.19.0)(jiti@2.6.1)(terser@5.44.0)(tsx@4.20.6)(yaml@2.8.1))
       netlify-cli:
-        specifier: ^23.9.5
+        specifier: ^23.10.0
         version: 23.10.0(@types/node@22.19.0)(encoding@0.1.13)(picomatch@4.0.3)(rollup@4.52.5)
       typescript:
         specifier: ^5.9.3
