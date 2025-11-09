@@ -59,7 +59,7 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       jsdom:
-        specifier: ^27.0.1
+        specifier: ^27.1.0
         version: 27.1.0
       lerna:
         specifier: ^9.0.0
