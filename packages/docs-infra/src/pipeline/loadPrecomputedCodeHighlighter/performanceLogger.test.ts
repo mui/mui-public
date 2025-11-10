@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   logPerformance,
   createPerformanceLogger,
@@ -12,6 +12,10 @@ describe('performanceLogger', () => {
 
     beforeEach(() => {
       consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleWarnSpy.mockRestore();
     });
 
     it('should log performance entries above the notable threshold', () => {
@@ -104,6 +108,10 @@ describe('performanceLogger', () => {
 
     beforeEach(() => {
       consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleWarnSpy.mockRestore();
     });
 
     it('should create a logger that filters by context', () => {
