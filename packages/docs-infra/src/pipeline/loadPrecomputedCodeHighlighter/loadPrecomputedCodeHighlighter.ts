@@ -48,15 +48,16 @@ export async function loadPrecomputedCodeHighlighter(
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+
   let observer: PerformanceObserver | undefined = undefined;
   if (options.performance?.logging) {
     observer = new PerformanceObserver(
-      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures),
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
     );
     observer.observe({ entryTypes: ['measure'] });
   }
 
-  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
   let currentMark = performanceMeasure(
     undefined,
     { mark: 'Start', measure: 'Start' },
@@ -217,7 +218,7 @@ export async function loadPrecomputedCodeHighlighter(
     observer
       ?.takeRecords()
       ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
     callback(null, modifiedSource);
@@ -226,7 +227,7 @@ export async function loadPrecomputedCodeHighlighter(
     observer
       ?.takeRecords()
       ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures),
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
     callback(error instanceof Error ? error : new Error(String(error)));
