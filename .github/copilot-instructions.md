@@ -187,7 +187,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 
 ### Code Style & Standards
 
-- **7.1** Write type-safe code. Avoid using `any` or `unknown` unless absolutely necessary. Prefer using `unknown` over `any` and always narrow `unknown` to a specific type as soon as possible. User-facing exports should have as strong of typing as possible.
+- **7.1** Write type-safe code. Avoid using `any` or `unknown` unless absolutely necessary. Prefer using `unknown` over `any` and always narrow `unknown` to a specific type as soon as possible. Avoid using `as` type assertions except when working with well-known browser APIs or when you have verified the type through runtime checks. Prefer type guards, type predicates, and proper type narrowing over assertions. User-facing exports should have as strong of typing as possible.
 - **7.2** Use `async/await` for asynchronous code. Avoid using `.then()` and `.catch()`.
 - **7.3** Use `import { ... } from '...'` syntax for imports. Avoid using `require()`.
 - **7.4** Use ES modules and `import`/`export` syntax.

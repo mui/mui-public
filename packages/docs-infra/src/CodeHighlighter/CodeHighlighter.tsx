@@ -12,11 +12,11 @@ import type {
   VariantSource,
 } from './types';
 
-import { loadVariant } from './loadVariant';
-import { loadFallbackCode } from './loadFallbackCode';
+import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
+import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
-import { maybeInitialData } from './maybeInitialData';
-import { hasAllVariants } from './hasAllVariants';
+import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
+import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import * as Errors from './errors';
@@ -176,7 +176,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         output = 'hast';
       }
 
-      return loadVariant(variantUrl, variantName, variantCode, {
+      return loadCodeVariant(variantUrl, variantName, variantCode, {
         sourceParser: props.sourceParser,
         loadSource: props.loadSource,
         loadVariantMeta: props.loadVariantMeta,
@@ -338,7 +338,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
   }
 
   const { code, initialFilename, initialSource, initialExtraFiles, processedGlobalsCode } =
-    await loadFallbackCode(url, initialVariant, props.code, {
+    await loadCodeFallback(url, initialVariant, props.code, {
       shouldHighlight: highlightAfter === 'init',
       fallbackUsesExtraFiles,
       fallbackUsesAllVariants,
@@ -425,7 +425,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
 
   // TODO: use initial.filesOrder to determing which source to use
 
-  const { initialData, reason } = maybeInitialData(
+  const { initialData, reason } = maybeCodeInitialData(
     variants,
     initialKey,
     code || props.precompute,

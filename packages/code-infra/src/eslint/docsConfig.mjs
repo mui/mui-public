@@ -13,6 +13,7 @@ export function createDocsConfig() {
     },
     files: ['**/*.js', '**/*.mjs', '**/*.jsx', '**/*.ts', '**/*.tsx'],
     rules: {
+      'compat/compat': 'off',
       'jsx-a11y/anchor-is-valid': 'off',
       'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
     },

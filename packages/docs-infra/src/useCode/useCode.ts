@@ -19,6 +19,19 @@ export type UseCodeOpts = {
   githubUrlPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
+  /**
+   * Controls hash removal behavior when user interacts with file tabs:
+   * - 'remove-hash': Remove entire hash (default)
+   * - 'remove-filename': Remove only filename, keep variant in hash
+   */
+  fileHashMode?: 'remove-hash' | 'remove-filename';
+  /**
+   * Controls when to save hash variant to localStorage:
+   * - 'on-load': Save immediately when page loads with hash
+   * - 'on-interaction': Save only when user clicks a tab (default)
+   * - 'never': Never save hash variant to localStorage
+   */
+  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never';
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -58,6 +71,8 @@ export function useCode<T extends {} = {}>(
     initialTransform,
     preClassName,
     preRef,
+    fileHashMode = 'remove-hash',
+    saveHashVariantToLocalStorage = 'on-interaction',
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -103,8 +118,8 @@ export function useCode<T extends {} = {}>(
     } as UserProps<T>;
   }, [contentProps, context?.url]);
 
-  // Sub-hook: UI State Management
-  const uiState = useUIState({ defaultOpen });
+  // Sub-hook: UI State Management (needs slug to check for relevant hash)
+  const uiState = useUIState({ defaultOpen, mainSlug: userProps.slug });
 
   // Sub-hook: Variant Selection
   const variantSelection = useVariantSelection({
@@ -112,6 +127,7 @@ export function useCode<T extends {} = {}>(
     initialVariant,
     variantType: contentProps.variantType,
     mainSlug: userProps.slug,
+    saveHashVariantToLocalStorage,
   });
 
   // Sub-hook: Transform Management
@@ -132,11 +148,14 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,
     variantKeys: variantSelection.variantKeys,
-    initialVariant,
     shouldHighlight,
     preClassName,
     preRef,
     effectiveCode,
+    fileHashMode,
+    saveHashVariantToLocalStorage,
+    saveVariantToLocalStorage: variantSelection.saveVariantToLocalStorage,
+    hashVariant: variantSelection.hashVariant,
   });
 
   // Sub-hook: Copy Functionality

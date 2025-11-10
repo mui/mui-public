@@ -9,19 +9,19 @@ import { createStackBlitz } from './createStackBlitz';
 import { createCodeSandbox } from './createCodeSandbox';
 import { exportVariant, type ExportConfig } from './exportVariant';
 import { exportVariantAsCra } from './exportVariantAsCra';
-import { flattenVariant } from './flattenVariant';
+import { flattenCodeVariant } from '../pipeline/loadCodeVariant/flattenCodeVariant';
 
 /**
- * Demo templates use the exportVariant/exportVariantAsCra with flattenVariant pattern:
+ * Demo templates use the exportVariant/exportVariantAsCra with flattenCodeVariant pattern:
  *
  * For StackBlitz:
  * const { exported: exportedVariant, entrypoint } = exportVariant(variantCode);
- * const flattenedFiles = flattenVariant(exportedVariant);
+ * const flattenedFiles = flattenCodeVariant(exportedVariant);
  * createStackBlitzDemo({ title, description, flattenedFiles, useTypescript, initialFile: entrypoint })
  *
  * For CodeSandbox:
  * const { exported: craExport, entrypoint } = exportVariantAsCra(variantCode, { title, description, useTypescript });
- * const flattenedFiles = flattenVariant(craExport);
+ * const flattenedFiles = flattenCodeVariant(craExport);
  * createCodeSandboxDemo({ title, description, flattenedFiles, useTypescript, initialFile: entrypoint })
  * createCodeSandboxDemo({ title, description, flattenedFiles, useTypescript })
  */
@@ -150,7 +150,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     const { exported, rootFile } = exportFunction(variantCode, mergedConfig);
 
     // Flatten the variant to get a flat file structure
-    const flattenedFiles = flattenVariant(exported);
+    const flattenedFiles = flattenCodeVariant(exported);
 
     const stackBlitzDemo = createStackBlitz({
       title,
@@ -201,7 +201,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     const { exported: craExport, rootFile } = exportFunction(variantCode, mergedConfig);
 
     // Flatten the variant to get a flat file structure
-    const flattenedFiles = flattenVariant(craExport);
+    const flattenedFiles = flattenCodeVariant(craExport);
 
     const codeSandboxDemo = createCodeSandbox({
       flattenedFiles,

@@ -1,7 +1,7 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Element, Text } from 'hast';
-import { loadVariant } from '../../CodeHighlighter/loadVariant';
+import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { Code } from '../../CodeHighlighter/types';
@@ -207,13 +207,13 @@ function extractFromDl(
 }
 
 /**
- * Rehype plugin that transforms semantic HTML code structures to use loadVariant
+ * Rehype plugin that transforms semantic HTML code structures to use loadCodeVariant
  *
  * This plugin:
  * 1. Finds section and dl elements in the HTML AST
  * 2. Extracts code elements from the semantic structure (figure/dl/dd/pre/code)
  * 3. Creates variants from multiple code elements or single Default variant
- * 4. Uses loadVariant to process each variant
+ * 4. Uses loadCodeVariant to process each variant
  * 5. Stores the combined precompute data on the root element
  * 6. Clears all code element contents and replaces with error message
  */
@@ -321,13 +321,13 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               });
             }
 
-            // Process each variant with loadVariant
+            // Process each variant with loadCodeVariant
             const processedCode: Code = {};
 
             const variantPromises = Object.entries(variants).map(
               async ([variantName, variantData]) => {
                 if (variantData && typeof variantData === 'object') {
-                  const result = await loadVariant(
+                  const result = await loadCodeVariant(
                     undefined, // url - not needed for inline code
                     variantName,
                     variantData,

@@ -1,11 +1,27 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useVariantSelection } from './useVariantSelection';
 
+// Mock the useUrlHashState hook to prevent browser API issues
+// JSDOM doesn't fully support hash change events, so we mock this to control hash values in tests
+let mockHashValue: string | null = null;
+let mockSetHash = vi.fn();
+
+vi.mock('../useUrlHashState', () => ({
+  useUrlHashState: () => [mockHashValue, mockSetHash],
+}));
+
 describe('useVariantSelection', () => {
+  beforeEach(() => {
+    // Reset all mocks before each test
+    vi.clearAllMocks();
+    mockHashValue = null;
+    mockSetHash = vi.fn();
+  });
+
   it('should select first variant by default', () => {
     const effectiveCode = {
       Default: { source: 'const x = 1;', fileName: 'test.js' },
@@ -287,10 +303,13 @@ describe('useVariantSelection', () => {
       expect(result.current.selectedVariantKey).toBe('Alternative');
     });
 
-    it('should ignore localStorage when URL hash is present', () => {
-      // Mock localStorage to have TypeScript preference
+    it('should prioritize URL hash over localStorage', () => {
+      // Set hash BEFORE setting up localStorage and rendering
+      mockHashValue = 'demo:java-script:demo.js';
+
+      // Mock localStorage to return TypeScript preference
       const mockGetItem = vi.fn((key) => {
-        if (key?.includes('variant_pref')) {
+        if (key === '_docs_variant_pref:JavaScript:TypeScript') {
           return 'TypeScript';
         }
         return null;
@@ -305,16 +324,6 @@ describe('useVariantSelection', () => {
         configurable: true,
       });
 
-      // Mock window.location.hash to simulate a URL hash being present
-      Object.defineProperty(window, 'location', {
-        value: {
-          ...window.location,
-          hash: '#demo:demo.js',
-        },
-        writable: true,
-        configurable: true,
-      });
-
       const effectiveCode = {
         JavaScript: { source: 'const x = 1;', fileName: 'demo.js' },
         TypeScript: { source: 'const x: number = 1;', fileName: 'demo.ts' },
@@ -322,18 +331,9 @@ describe('useVariantSelection', () => {
 
       const { result } = renderHook(() => useVariantSelection({ effectiveCode, mainSlug: 'demo' }));
 
-      // Should ignore localStorage and use first variant (JavaScript) because hash is present
+      // Should prioritize hash and ignore localStorage
       expect(result.current.selectedVariantKey).toBe('JavaScript');
-
-      // Clean up
-      Object.defineProperty(window, 'location', {
-        value: {
-          ...window.location,
-          hash: '',
-        },
-        writable: true,
-        configurable: true,
-      });
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:JavaScript:TypeScript');
     });
 
     it('should use localStorage when URL hash is for a different demo', async () => {

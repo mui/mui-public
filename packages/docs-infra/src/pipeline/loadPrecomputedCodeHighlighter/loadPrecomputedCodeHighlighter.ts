@@ -3,22 +3,17 @@
 import path from 'path';
 
 import type { LoaderContext } from 'webpack';
-import { loadVariant } from '../../CodeHighlighter/loadVariant';
+import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
-import {
-  createPerformanceLogger,
-  logPerformance,
-  nameMark,
-  performanceMeasure,
-} from './performanceLogger';
+import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
 export type LoaderOptions = {
   performance?: {
@@ -63,9 +58,12 @@ export async function loadPrecomputedCodeHighlighter(
     observer.observe({ entryTypes: ['measure'] });
   }
 
-  const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
-  performance.mark(startMark);
-  let currentMark = startMark;
+  let currentMark = performanceMeasure(
+    undefined,
+    { mark: 'Start', measure: 'Start' },
+    [functionName, relativePath],
+    true,
+  );
 
   try {
     // Parse the source to find a single createDemo call
@@ -126,6 +124,13 @@ export async function loadPrecomputedCodeHighlighter(
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
+        const variantMark = performanceMeasure(
+          functionsInitMark,
+          { mark: 'Variant Started', measure: 'Variant Start' },
+          [functionName, variantName, relativePath],
+          true,
+        );
+
         const namedExport = demoCall.namedExports?.[variantName];
         let variant: VariantCode | string = fileUrl;
         if (namedExport) {
@@ -141,9 +146,9 @@ export async function loadPrecomputedCodeHighlighter(
         }
 
         try {
-          // Use loadVariant to handle all loading, parsing, and transformation
+          // Use loadCodeVariant to handle all loading, parsing, and transformation
           // This will recursively load all dependencies using loadSource
-          const { code: processedVariant, dependencies } = await loadVariant(
+          const { code: processedVariant, dependencies } = await loadCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,
@@ -157,8 +162,8 @@ export async function loadPrecomputedCodeHighlighter(
             },
           );
 
-          currentMark = performanceMeasure(
-            currentMark,
+          performanceMeasure(
+            variantMark,
             { mark: 'Variant Loaded', measure: 'Variant Loading' },
             [functionName, variantName, relativePath],
             true,

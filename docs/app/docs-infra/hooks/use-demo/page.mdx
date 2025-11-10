@@ -251,6 +251,8 @@ interface UseDemoOpts {
   stackBlitzPrefix?: string; // StackBlitz URL prefix
   initialVariant?: string; // Initially selected variant
   initialTransform?: string; // Initially selected transform
+  fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
+  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
 }
 ```
 
@@ -319,12 +321,35 @@ https://yoursite.com/demos/button#interactive-button:styles.css
 
 ### URL Management Behavior
 
-- **Initial Load**: If URL hash matches a file, that file is auto-selected
-- **File Selection**: Clicking file tabs updates URL without browser history pollution
-- **Variant Changes**: URL automatically updates to reflect current variant
-- **Component Integration**: Works seamlessly with demo component rendering
+**Initial Load:**
 
-For complete URL hash patterns and troubleshooting, see the [useCode URL Hash Patterns](../use-code/page.mdx#url-hash-patterns) section.
+- Hash is read to determine initial file and variant selection
+- Priority: URL hash > localStorage > `initialVariant` > first variant
+- Demos automatically expand when a relevant hash is present
+
+**User Interactions:**
+
+- **File Tab Clicks**: Hash behavior controlled by `fileHashMode` option (default: `'remove-hash'`)
+  - `'remove-hash'`: Removes entire hash on click
+  - `'remove-filename'`: Keeps variant in hash, removes filename
+- **Variant Changes**: Hash behavior controlled by `fileHashMode` option
+  - `'remove-hash'`: Removes entire hash on variant switch
+  - `'remove-filename'`: Updates hash to reflect new variant
+
+**localStorage Persistence:**
+
+- Controlled by `saveHashVariantToLocalStorage` option (default: `'on-interaction'`)
+- `'on-load'`: Hash variant saved immediately when page loads
+- `'on-interaction'`: Hash variant saved only when user clicks a file tab
+- `'never'`: Hash variant never saved to localStorage
+
+**Component Integration:**
+
+- Works seamlessly with demo component rendering
+- File selection synchronized with URL hash
+- Variant switching coordinated with hash updates
+
+For detailed information about URL hash patterns and configuration, see the [useCode URL Management](../use-code/page.mdx#controlling-url-hash-behavior) section.
 
 ## Integration Patterns
 
