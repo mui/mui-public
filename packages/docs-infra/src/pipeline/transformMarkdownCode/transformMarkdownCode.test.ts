@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { describe, it, expect } from 'vitest';
-import transformMarkdownCodeVariants from './index.js';
+import transformMarkdownCodeVariants from '.';
 
 // Processor for testing AST structure
 const astProcessor = unified().use(remarkParse).use(transformMarkdownCodeVariants);

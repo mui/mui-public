@@ -4,8 +4,12 @@ type Errors = {
   errors?: Error[];
 };
 
-export function useErrors(): Errors {
+export function useErrors(props?: Errors): Errors {
   const context = useErrorsContext();
 
-  return { errors: context?.errors };
+  // Context errors take precedence over prop errors
+  // This ensures client-side errors override server-side errors
+  const errors = context?.errors || props?.errors;
+
+  return { errors };
 }

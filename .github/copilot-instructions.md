@@ -127,7 +127,7 @@ All commands are fast in this repository, but network issues or system load can 
 
 ## Docs Infra Conventions
 
-Follow additional instructions when working in the `@mui/internal-docs-infra` (`packages/docs-infra`) package:
+Follow additional instructions when working in the `@mui/internal-docs-infra` (`packages/docs-infra`) package or `docs/app/docs-infra` docs:
 
 ### Development Process
 
@@ -165,6 +165,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **4.5** When looking for documentation, start at the `/README.md` and follow links inward.
 - **4.6** Avoid "breaking the 3rd wall" in code comments and documentation by referring to the instructions provided when working in this repository. Instead, focus on clear, concise explanations of the code itself.
 - **4.7** When writing code comments, use JSDoc style comments for all functions, but type definitions should be in TypeScript types. Avoid using JSDoc `@typedef` and `@param` tags for types. Use them only for descriptions.
+- **4.8** Use progressive disclosure in documentation. Start with simple, common use cases and gradually introduce complexity. Structure docs so readers can stop at their desired depth of understanding. Place advanced sections (like architecture details or performance tuning) at the end of the document after practical content. Follow this pattern: basic usage → configuration → common patterns → reference material → advanced features → implementation details.
 
 ### File Organization & Structure
 
@@ -186,7 +187,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 
 ### Code Style & Standards
 
-- **7.1** Write type-safe code. Avoid using `any` or `unknown` unless absolutely necessary. Prefer using `unknown` over `any` and always narrow `unknown` to a specific type as soon as possible. User-facing exports should have as strong of typing as possible.
+- **7.1** Write type-safe code. Avoid using `any` or `unknown` unless absolutely necessary. Prefer using `unknown` over `any` and always narrow `unknown` to a specific type as soon as possible. Avoid using `as` type assertions except when working with well-known browser APIs or when you have verified the type through runtime checks. Prefer type guards, type predicates, and proper type narrowing over assertions. User-facing exports should have as strong of typing as possible.
 - **7.2** Use `async/await` for asynchronous code. Avoid using `.then()` and `.catch()`.
 - **7.3** Use `import { ... } from '...'` syntax for imports. Avoid using `require()`.
 - **7.4** Use ES modules and `import`/`export` syntax.
