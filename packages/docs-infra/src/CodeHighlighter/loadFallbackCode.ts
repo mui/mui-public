@@ -8,7 +8,7 @@ import type {
 } from './types';
 import { loadVariant } from './loadVariant';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils';
-import { nameMark } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
+import { performanceMeasure } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
 async function getFileSource(
@@ -84,9 +84,12 @@ export async function loadFallbackCode(
   loaded = { ...loaded };
 
   const functionName = 'Load Fallback Code';
-  const startMark = nameMark(functionName, 'Start Loading', [url]);
-  performance.mark(startMark);
-  let currentMark = startMark;
+  let currentMark = performanceMeasure(
+    undefined,
+    { mark: 'Start', measure: 'Start' },
+    [functionName, url],
+    true,
+  );
 
   // Step 1: Ensure we have the initial variant loaded
   let initial = loaded[initialVariant];
@@ -106,14 +109,11 @@ export async function loadFallbackCode(
       throw new Error(`Initial variant "${initialVariant}" not found in loaded code.`);
     }
 
-    const loadedCodeMetaMark = nameMark(functionName, 'Loaded Code Meta', [url]);
-    performance.mark(loadedCodeMetaMark);
-    performance.measure(
-      nameMark(functionName, 'Code Meta Loading', [url]),
+    currentMark = performanceMeasure(
       currentMark,
-      loadedCodeMetaMark,
+      { mark: 'Loaded Code Meta', measure: 'Code Meta Loading' },
+      [functionName, url],
     );
-    currentMark = loadedCodeMetaMark;
   }
 
   // Check if we can return early after loadCodeMeta
@@ -146,14 +146,11 @@ export async function loadFallbackCode(
       );
     }
 
-    const loadedMainFileMark = nameMark(functionName, 'Loaded Main File', [url]);
-    performance.mark(loadedMainFileMark);
-    performance.measure(
-      nameMark(functionName, 'Main File Loading', [url]),
+    currentMark = performanceMeasure(
       currentMark,
-      loadedMainFileMark,
+      { mark: 'Loaded Main File', measure: 'Main File Loading' },
+      [functionName, url],
     );
-    currentMark = loadedMainFileMark;
 
     // If we need highlighting and have a string source, parse it
     if (shouldHighlight && typeof fileSource === 'string' && sourceParser && actualFilename) {
@@ -166,14 +163,11 @@ export async function loadFallbackCode(
         );
       }
 
-      const parsedMainFileMark = nameMark(functionName, 'Parsed Main File', [url]);
-      performance.mark(parsedMainFileMark);
-      performance.measure(
-        nameMark(functionName, 'Main File Parsing', [url]),
+      currentMark = performanceMeasure(
         currentMark,
-        parsedMainFileMark,
+        { mark: 'Parsed Main File', measure: 'Main File Parsing' },
+        [functionName, url],
       );
-      currentMark = parsedMainFileMark;
     } else if (shouldHighlight && typeof fileSource === 'string' && !actualFilename) {
       // Create basic HAST node when we can't parse due to missing filename
       // This marks that the source has passed through the parsing pipeline
@@ -217,16 +211,11 @@ export async function loadFallbackCode(
         // Use provided loadVariantMeta function
         quickVariant = await loadVariantMeta(initialVariant, initial);
 
-        const loadedInitialVariantMetaMark = nameMark(functionName, 'Loaded Initial Variant Meta', [
-          url,
-        ]);
-        performance.mark(loadedInitialVariantMetaMark);
-        performance.measure(
-          nameMark(functionName, 'Initial Variant Meta Loading', [url]),
+        currentMark = performanceMeasure(
           currentMark,
-          loadedInitialVariantMetaMark,
+          { mark: 'Loaded Initial Variant Meta', measure: 'Initial Variant Meta Loading' },
+          [functionName, url],
         );
-        currentMark = loadedInitialVariantMetaMark;
       } else {
         // Create a basic variant using fallback logic
         quickVariant = {
@@ -260,17 +249,11 @@ export async function loadFallbackCode(
           fileSource = result.source;
           actualFilename = result.filename;
 
-          const loadedInitialFileMark = nameMark(functionName, 'Loaded Initial File', [
-            initialFilename || 'unknown',
-            url,
-          ]);
-          performance.mark(loadedInitialFileMark);
-          performance.measure(
-            nameMark(functionName, 'Initial File Loading', [initialFilename || 'unknown', url]),
+          currentMark = performanceMeasure(
             currentMark,
-            loadedInitialFileMark,
+            { mark: 'Loaded Initial File', measure: 'Initial File Loading' },
+            [functionName, initialFilename || 'unknown', url],
           );
-          currentMark = loadedInitialFileMark;
         } catch (error) {
           throw new Error(
             `Failed to get source for file ${initialFilename || quickVariant.fileName} in variant ${initialVariant}: ${error}`,
@@ -283,17 +266,11 @@ export async function loadFallbackCode(
             const parseSource = await sourceParser;
             fileSource = parseSource(fileSource, actualFilename);
 
-            const parsedInitialFileMark = nameMark(functionName, 'Parsed Initial File', [
-              initialFilename || 'unknown',
-              url,
-            ]);
-            performance.mark(parsedInitialFileMark);
-            performance.measure(
-              nameMark(functionName, 'Initial File Parsing', [initialFilename || 'unknown', url]),
+            currentMark = performanceMeasure(
               currentMark,
-              parsedInitialFileMark,
+              { mark: 'Parsed Initial File', measure: 'Initial File Parsing' },
+              [functionName, initialFilename || 'unknown', url],
             );
-            currentMark = parsedInitialFileMark;
           } catch (error) {
             throw new Error(
               `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
@@ -323,14 +300,12 @@ export async function loadFallbackCode(
           loaded = { ...loaded, [initialVariant]: initial };
         }
 
-        const loadedInitialFilesMark = nameMark(functionName, 'Loaded Initial Files', [url], true);
-        performance.mark(loadedInitialFilesMark);
-        performance.measure(
-          nameMark(functionName, 'Initial Files Loading', [url], true),
+        currentMark = performanceMeasure(
           beforeInitialVariantMark,
-          loadedInitialFilesMark,
+          { mark: 'Loaded Initial Files', measure: 'Initial Files Loading' },
+          [functionName, url],
+          true,
         );
-        currentMark = loadedInitialFilesMark;
 
         // Early return - we have all the info we need
         return {
@@ -366,17 +341,11 @@ export async function loadFallbackCode(
         try {
           const codeMeta = await loadCodeMeta!(globalItem);
 
-          const loadedGlobalCodeMark = nameMark(functionName, 'Loaded Global Code Meta', [
-            globalItem,
-            url,
-          ]);
-          performance.mark(loadedGlobalCodeMark);
-          performance.measure(
-            nameMark(functionName, 'Global Code Meta Loading', [globalItem, url]),
+          currentMark = performanceMeasure(
             currentMark,
-            loadedGlobalCodeMark,
+            { mark: 'Loaded Global Code Meta', measure: 'Global Code Meta Loading' },
+            [functionName, globalItem, url],
           );
-          currentMark = loadedGlobalCodeMark;
 
           return codeMeta;
         } catch (error) {
@@ -392,14 +361,12 @@ export async function loadFallbackCode(
 
     globalsCodeObjects = await Promise.all(globalsPromises);
 
-    const loadedGlobalCodeMark = nameMark(functionName, 'Loaded Globals Meta', [url], true);
-    performance.mark(loadedGlobalCodeMark);
-    performance.measure(
-      nameMark(functionName, 'Globals Meta Loading', [url], true),
+    currentMark = performanceMeasure(
       beforeGlobalsMark,
-      loadedGlobalCodeMark,
+      { mark: 'Loaded Globals Meta', measure: 'Globals Meta Loading' },
+      [functionName, url],
+      true,
     );
-    currentMark = loadedGlobalCodeMark;
   }
 
   // Convert globalsCodeObjects to VariantCode | string for this specific variant
@@ -427,14 +394,12 @@ export async function loadFallbackCode(
       output,
     });
 
-    const loadedInitialVariantMark = nameMark(functionName, 'Loaded Initial Variant', [url], true);
-    performance.mark(loadedInitialVariantMark);
-    performance.measure(
-      nameMark(functionName, 'Initial Variant Loading', [url], true),
+    currentMark = performanceMeasure(
       currentMark,
-      loadedInitialVariantMark,
+      { mark: 'Loaded Initial Variant', measure: 'Initial Variant Loading' },
+      [functionName, url],
+      true,
     );
-    currentMark = loadedInitialVariantMark;
 
     // Update the loaded code with the processed variant
     loaded = { ...loaded, [initialVariant]: loadedVariant };
@@ -483,16 +448,11 @@ export async function loadFallbackCode(
             // Update loaded with all variants from loadCodeMeta
             loaded = { ...loaded, ...allCode };
 
-            const loadedInitialCodeMetaMark = nameMark(functionName, 'Loaded Initial Code Meta', [
-              url,
-            ]);
-            performance.mark(loadedInitialCodeMetaMark);
-            performance.measure(
-              nameMark(functionName, 'Initial Code Meta Loading', [url]),
+            currentMark = performanceMeasure(
               currentMark,
-              loadedInitialCodeMetaMark,
+              { mark: 'Loaded Initial Code Meta', measure: 'Initial Code Meta Loading' },
+              [functionName, url],
             );
-            currentMark = loadedInitialCodeMetaMark;
           } catch (error) {
             console.warn(`Failed to load code meta for variant ${variantName}: ${error}`);
             return { variantName, loadedVariant: null, fileNames: [] };
@@ -536,19 +496,12 @@ export async function loadFallbackCode(
             fileNames.push(...Object.keys(loadedVariant.extraFiles));
           }
 
-          const loadedInitialVariantMark = nameMark(
-            functionName,
-            'Loaded Initial Variant',
-            [variantName, url],
+          currentMark = performanceMeasure(
+            currentMark,
+            { mark: 'Loaded Initial Variant', measure: 'Initial Variant Loading' },
+            [functionName, variantName, url],
             true,
           );
-          performance.mark(loadedInitialVariantMark);
-          performance.measure(
-            nameMark(functionName, 'Initial Variant Loading', [variantName, url], true),
-            currentMark,
-            loadedInitialVariantMark,
-          );
-          currentMark = loadedInitialVariantMark;
 
           return { variantName, loadedVariant, fileNames };
         } catch (error) {
@@ -569,19 +522,12 @@ export async function loadFallbackCode(
       });
     }
 
-    const loadedInitialVariantsMark = nameMark(
-      functionName,
-      'Loaded Initial Variants',
-      [url],
+    currentMark = performanceMeasure(
+      beforeAllVariantMark,
+      { mark: 'Loaded Initial Variants', measure: 'Initial Variants Loading' },
+      [functionName, url],
       true,
     );
-    performance.mark(loadedInitialVariantsMark);
-    performance.measure(
-      nameMark(functionName, 'Initial Variants Loading', [url], true),
-      beforeAllVariantMark,
-      loadedInitialVariantsMark,
-    );
-    currentMark = loadedInitialVariantsMark;
   }
 
   // Ensure we have the latest initial variant data
@@ -612,12 +558,10 @@ export async function loadFallbackCode(
     finalFilename = finalInitial.fileName;
   }
 
-  const loadedInitialFileMark = nameMark(functionName, 'Loaded Initial File', [url]);
-  performance.mark(loadedInitialFileMark);
-  performance.measure(
-    nameMark(functionName, 'Initial File Loading', [url]),
+  currentMark = performanceMeasure(
     currentMark,
-    loadedInitialFileMark,
+    { mark: 'Loaded Initial File', measure: 'Initial File Loading' },
+    [functionName, url],
   );
 
   return {
