@@ -2,7 +2,7 @@
  * Variant examination utility for analyzing variant structure and paths
  */
 
-import type { VariantCode } from './types';
+import type { VariantCode } from '../../CodeHighlighter/types';
 import { getUrlParts, calculateMaxSourceBackNavigation } from './pathUtils';
 
 interface PathContextBase {
@@ -28,7 +28,7 @@ export type PathContext = PathContextWithUrl | PathContextWithoutUrl;
 /**
  * Create path context for processing files with extended information
  */
-export function createPathContext(variant: VariantCode): PathContext {
+export function examineCodeVariant(variant: VariantCode): PathContext {
   const hasMetadata = variant.extraFiles
     ? Object.values(variant.extraFiles).some((file) => typeof file === 'object' && file.metadata)
     : false;

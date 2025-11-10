@@ -2,9 +2,9 @@ import * as path from 'path-module';
 import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
 import { encode } from 'uint8-to-base64';
 import { transformSource } from './transformSource';
-import { transformParsedSource } from './transformParsedSource';
-import { getFileNameFromUrl } from '../pipeline/loaderUtils';
-import { mergeExternals } from '../pipeline/loaderUtils/mergeExternals';
+import { diffHast } from './diffHast';
+import { getFileNameFromUrl } from '../loaderUtils';
+import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type {
   VariantCode,
   VariantSource,
@@ -16,8 +16,8 @@ import type {
   LoadFileOptions,
   LoadVariantOptions,
   Externals,
-} from './types';
-import { performanceMeasure } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
+} from '../../CodeHighlighter/types';
+import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
@@ -319,7 +319,7 @@ async function loadSingleFile(
       );
 
       if (finalTransforms && !disableTransforms) {
-        finalTransforms = await transformParsedSource(
+        finalTransforms = await diffHast(
           sourceString,
           finalSource,
           normalizePathKey(fileName),
@@ -577,7 +577,7 @@ async function loadExtraFiles(
  * Supports both relative and absolute paths for extra files.
  * Uses Promise.all for efficient parallel loading of extra files.
  */
-export async function loadVariant(
+export async function loadCodeVariant(
   url: string | undefined,
   variantName: string,
   variant: VariantCode | string | undefined,
@@ -589,7 +589,7 @@ export async function loadVariant(
 
   const { sourceParser, loadSource, loadVariantMeta, sourceTransformers, globalsCode } = options;
 
-  // Create a cache for loadSource calls scoped to this loadVariant call
+  // Create a cache for loadSource calls scoped to this loadCodeVariant call
   const loadSourceCache = new Map<
     string,
     Promise<{
@@ -809,7 +809,7 @@ export async function loadVariant(
 
       // Load the globals code separately without affecting allFilesListed
       try {
-        const globalsResult = await loadVariant(
+        const globalsResult = await loadCodeVariant(
           globalsVariant.url,
           variantName,
           globalsVariant,

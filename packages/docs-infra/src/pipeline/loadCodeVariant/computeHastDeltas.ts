@@ -1,6 +1,6 @@
 import { toText } from 'hast-util-to-text';
-import type { Code, ParseSource } from './types';
-import { transformParsedSource } from './transformParsedSource';
+import type { Code, ParseSource } from '../../CodeHighlighter/types';
+import { diffHast } from './diffHast';
 
 /**
  * Pure function to identify which variants need transformation.
@@ -102,7 +102,7 @@ export function getAvailableTransforms(
  * Pure async function to transform a single variant's code and extraFiles.
  * Returns the transformed variant or the original if transformation fails.
  */
-export async function transformVariant(
+export async function computeVariantDeltas(
   variant: string,
   variantCode: any,
   parseSource: ParseSource,
@@ -125,7 +125,7 @@ export async function transformVariant(
     const hastNodes = variantCode.source;
     const sourceString = toText(hastNodes, { whitespace: 'pre' });
 
-    mainTransformResult = await transformParsedSource(
+    mainTransformResult = await diffHast(
       sourceString,
       hastNodes,
       variant, // fileName
@@ -150,7 +150,7 @@ export async function transformVariant(
             const extraHastNodes = fileContent.source;
             const extraSourceString = toText(extraHastNodes, { whitespace: 'pre' });
 
-            const extraTransformResult = await transformParsedSource(
+            const extraTransformResult = await diffHast(
               extraSourceString,
               extraHastNodes,
               fileName,
@@ -186,10 +186,14 @@ export async function transformVariant(
 }
 
 /**
- * Pure async function to apply transformations to all variants that need them.
- * Returns the enhanced code with computed transforms.
+ * Computes transform deltas for all variants in the parsed code.
+ * This function generates the transformation data that can be applied later.
+ *
+ * @param parsedCode - The parsed code object containing variants
+ * @param parseSource - The parser function to parse source strings
+ * @returns A promise that resolves to the code with computed transforms
  */
-export async function applyTransforms(parsedCode: Code, parseSource: ParseSource): Promise<Code> {
+export async function computeHastDeltas(parsedCode: Code, parseSource: ParseSource) {
   const variantsToTransform = getVariantsToTransform(parsedCode);
 
   if (variantsToTransform.length === 0) {
@@ -201,7 +205,7 @@ export async function applyTransforms(parsedCode: Code, parseSource: ParseSource
   const results = await Promise.all(
     variantsToTransform.map(async ([variant, variantCode]) => {
       try {
-        const transformedVariant = await transformVariant(variant, variantCode, parseSource);
+        const transformedVariant = await computeVariantDeltas(variant, variantCode, parseSource);
         return { variant, transformedVariant };
       } catch (error) {
         // Keep original variant if transformation fails

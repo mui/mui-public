@@ -7,9 +7,9 @@ import { transformHtmlCodePrecomputed } from './transformHtmlCodePrecomputed';
 import { transformMarkdownCode } from '../transformMarkdownCode/transformMarkdownCode';
 import type { VariantCode } from '../../CodeHighlighter/types';
 
-// Mock the loadVariant function
-vi.mock('../../CodeHighlighter/loadVariant', () => ({
-  loadVariant: vi.fn(async (url: string, variantName: string, variant: VariantCode) => {
+// Mock the loadCodeVariant function
+vi.mock('../loadCodeVariant/loadCodeVariant', () => ({
+  loadCodeVariant: vi.fn(async (url: string, variantName: string, variant: VariantCode) => {
     // Simple mock that just returns the input with some transforms applied
     return {
       code: {

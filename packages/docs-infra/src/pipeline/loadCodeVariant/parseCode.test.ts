@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Root } from 'hast';
-import type { Code, ParseSource } from './types';
+import type { Code, ParseSource } from '../../CodeHighlighter/types';
 import { parseCode } from './parseCode';
 
 // Mock parse function that returns proper HAST Root nodes

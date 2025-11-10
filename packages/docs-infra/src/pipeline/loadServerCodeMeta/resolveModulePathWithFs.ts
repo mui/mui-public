@@ -10,7 +10,7 @@ import {
   type DirectoryReader,
   type ResolveModulePathOptions,
   type TypeAwareResolveResult,
-} from './resolveModulePath';
+} from '../loaderUtils/resolveModulePath';
 
 /**
  * Node.js filesystem-based directory reader that converts Dirent objects
