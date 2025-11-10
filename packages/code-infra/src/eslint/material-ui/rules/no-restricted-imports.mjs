@@ -16,6 +16,29 @@ const moduleVisitor = /** @type {any} */ (moduleVisitorModule).default || module
  * Creates an ESLint rule that restricts imports based on their source strings using glob patterns.
  * This is similar to ESLint's built-in no-restricted-imports but with more robust pattern matching.
  * Works with both ESM (import) and CommonJS (require) imports.
+ *
+ * @example
+ * // In your eslint.config.mjs:
+ * {
+ *   rules: {
+ *     'material-ui/no-restricted-imports': [
+ *       'error',
+ *       [
+ *         {
+ *           pattern: '@mui/material/*',
+ *           message: 'Use the default import from @mui/material instead.'
+ *         },
+ *         {
+ *           pattern: '@mui/*\/internal/**',
+ *           message: 'Do not import from internal modules.'
+ *         },
+ *         {
+ *           pattern: './**\/*.css'
+ *         }
+ *       ]
+ *     ]
+ *   }
+ * }
  */
 export default /** @type {import('eslint').Rule.RuleModule} */ ({
   meta: {
