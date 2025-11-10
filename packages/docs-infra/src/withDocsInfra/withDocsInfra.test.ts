@@ -543,7 +543,9 @@ describe('withDocsInfra', () => {
             use: 'babel-loader',
           },
         },
-      };
+        dir: '/tmp',
+        totalPages: 10,
+      } as unknown as WebpackConfigContext;
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
@@ -622,7 +624,9 @@ describe('withDocsInfra', () => {
             use: 'babel-loader',
           },
         },
-      };
+        dir: '/tmp',
+        totalPages: 10,
+      } as unknown as WebpackConfigContext;
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
