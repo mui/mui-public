@@ -13,8 +13,6 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { PieChart } from '@mui/x-charts/PieChart';
-import { AnimatedLineProps, LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import {
   AxisValueFormatterContext,
@@ -22,6 +20,9 @@ import {
   PieItemIdentifier,
   PieSeriesType,
   PieValueType,
+  AnimatedLineProps,
+  LineChart,
+  PieChart,
 } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
@@ -503,12 +504,7 @@ function PackageVersionsSection({
   onVersionChange,
 }: PackageVersionsSectionProps) {
   const [searchParams] = useSearchParams();
-  const hoverStoreRef = React.useRef<HoverStore>(null);
-
-  // Create hover store once
-  if (!hoverStoreRef.current) {
-    hoverStoreRef.current = new HoverStore();
-  }
+  const [hoverStore] = React.useState(() => new HoverStore());
 
   const state = React.useMemo(
     () => (packageDetails ? getBreakdownState(packageDetails, selectedVersion) : null),
@@ -583,11 +579,7 @@ function PackageVersionsSection({
       </Breadcrumbs>
 
       {/* Visualization */}
-      <BreakdownVisualization
-        state={state}
-        onItemClick={onVersionChange}
-        hoverStore={hoverStoreRef.current}
-      />
+      <BreakdownVisualization state={state} onItemClick={onVersionChange} hoverStore={hoverStore} />
 
       {/* Historical Trends */}
       <Box sx={{ mt: 4 }}>
@@ -597,7 +589,7 @@ function PackageVersionsSection({
         <HistoricalTrendsSection
           packageDetails={packageDetails}
           selectedVersion={selectedVersion}
-          hoverStore={hoverStoreRef.current}
+          hoverStore={hoverStore}
         />
       </Box>
     </div>

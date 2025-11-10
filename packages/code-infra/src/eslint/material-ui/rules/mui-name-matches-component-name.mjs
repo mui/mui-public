@@ -88,7 +88,8 @@ const rule = {
           callee.name === 'useDefaultProps' || callee.name === 'useThemeProps';
         if (isUseDefaultPropsCall) {
           let isCalledFromCustomHook = false;
-          let { parent } = node;
+          /** @type {import('eslint').Rule.Node | null} */
+          let parent = node.parent;
           while (parent != null) {
             if (parent.type === 'FunctionExpression' || parent.type === 'FunctionDeclaration') {
               if (
@@ -112,7 +113,8 @@ const rule = {
 
         if (nameLiteral !== null) {
           let componentName = null;
-          let { parent } = node;
+          /** @type {import('eslint').Rule.Node | null} */
+          let parent = node.parent;
           while (parent != null && componentName === null) {
             if (parent.type === 'FunctionExpression' || parent.type === 'FunctionDeclaration') {
               componentName = /** @type {import('estree').Identifier} */ (parent.id).name;

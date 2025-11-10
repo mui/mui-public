@@ -1,5 +1,5 @@
 import { stringOrHastToJsx } from '../pipeline/hastUtils';
-import { applyTransform } from '../CodeHighlighter/applyTransform';
+import { applyCodeTransform } from '../pipeline/loadCodeVariant/applyCodeTransform';
 import type { VariantSource, VariantCode, Code, Transforms } from '../CodeHighlighter/types';
 
 interface TransformedFile {
@@ -111,7 +111,7 @@ export function applyTransformToSource(
     }
 
     // Apply transform
-    const result = applyTransform(source, transforms, selectedTransform);
+    const result = applyCodeTransform(source, transforms, selectedTransform);
     const transformedName = transformData.fileName || fileName;
 
     return { transformedSource: result, transformedName };
@@ -225,7 +225,7 @@ export function createTransformedFiles(
             const hasTransformDelta =
               transformData.delta && Object.keys(transformData.delta).length > 0;
             if (hasTransformDelta) {
-              transformedSource = applyTransform(source, transforms, selectedTransform);
+              transformedSource = applyCodeTransform(source, transforms, selectedTransform);
               transformedName = transformData.fileName || extraFileName;
             }
           }

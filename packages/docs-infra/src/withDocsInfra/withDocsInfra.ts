@@ -1,18 +1,5 @@
+import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
-
-// Define minimal NextConfig type to avoid importing from 'next'
-export interface NextConfig {
-  pageExtensions?: string[];
-  output?: 'export' | 'standalone' | undefined;
-  turbopack?: {
-    rules?: Record<
-      string,
-      { loaders: Array<string | { loader: string; options: Record<string, unknown> }> }
-    >;
-  };
-  webpack?: (config: WebpackConfig, options: WebpackOptions) => WebpackConfig;
-  [key: string]: any;
-}
 
 // Define webpack options interface based on Next.js webpack function signature
 export interface WebpackOptions {
@@ -156,10 +143,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     const pageExtensions = [...basePageExtensions, ...additionalPageExtensions];
 
     // Build Turbopack rules
-    const turbopackRules: Record<
-      string,
-      { loaders: { loader: string; options: Record<string, unknown> }[] | string[] }
-    > = {
+    const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
         loaders: [
           {
@@ -219,7 +203,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           ...turbopackRules,
         },
       },
-      webpack: (webpackConfig: WebpackConfig, webpackOptions: WebpackOptions) => {
+      webpack: (webpackConfig: WebpackConfig, webpackOptions) => {
         // Call existing webpack function if it exists
         if (nextConfig.webpack) {
           webpackConfig = nextConfig.webpack(webpackConfig, webpackOptions);

@@ -12,6 +12,7 @@ export const baseSpecRules = {
   name: 'Spec files rules',
   files: [`**/*.spec${EXTENSION_TS}`],
   rules: {
+    'compat/compat': 'off',
     'no-alert': 'off',
     'no-console': 'off',
     'no-empty-pattern': 'off',
@@ -62,6 +63,7 @@ export function createTestConfig(options = {}) {
         globals: globals.mocha,
       },
       rules: {
+        'compat/compat': 'off',
         // does not work with wildcard imports. Mistakes will throw at runtime anyway
         'import/named': 'off',
         'material-ui/disallow-active-element-as-key-event-target': 'error',

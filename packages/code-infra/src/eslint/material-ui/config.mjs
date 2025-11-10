@@ -305,6 +305,7 @@ const airbnbJsxA11y = {
 /**
  * @param {Object} [options]
  * @param {boolean} [options.enableReactCompiler] - Whether the config is for spec files.
+ * @returns {import('eslint').Linter.Config[]}
  */
 export function createCoreConfig(options = {}) {
   return defineConfig([

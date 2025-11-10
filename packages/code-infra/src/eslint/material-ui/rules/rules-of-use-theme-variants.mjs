@@ -32,8 +32,9 @@ export default {
      * @param {import("estree").CallExpression & import("eslint").Rule.NodeParentExtension} hookCallNode
      */
     function getComponentBlockNode(hookCallNode) {
+      /** @type {import("eslint").Rule.Node | null} */
       let node = hookCallNode.parent;
-      while (node !== undefined) {
+      while (node) {
         if (node.type === 'BlockStatement') {
           return node;
         }
