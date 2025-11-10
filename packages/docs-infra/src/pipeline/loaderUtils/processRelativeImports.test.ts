@@ -273,6 +273,23 @@ describe('processRelativeImports', () => {
       './styles.module.css': 'file:///src/styles/index.module.css',
     });
   });
+
+  it('should handle _index.module.css files as direct index imports in flat mode', () => {
+    const source = `import styles from '../../dir/_index.module.css';`;
+    const importResult = {
+      '../../dir/_index.module.css': { path: '/src/dir/_index.module.css', names: [] },
+    };
+    const resolvedPathsMap = new Map([
+      ['/src/dir/_index.module.css', '/src/dir/_index.module.css'],
+    ]);
+
+    const result = processRelativeImports(source, importResult, 'flat', true, resolvedPathsMap);
+
+    // _index.module.css should be treated as a direct index import and become "./index.module.css"
+    expect(result.extraFiles).toEqual({
+      './index.module.css': 'file:///src/dir/_index.module.css',
+    });
+  });
 });
 
 describe('processCssImports', () => {

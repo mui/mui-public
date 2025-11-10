@@ -12,11 +12,14 @@ import type {
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 // Import the heavy functions
-import { loadFallbackCode } from '../CodeHighlighter/loadFallbackCode';
-import { loadVariant } from '../CodeHighlighter/loadVariant';
-import { parseCode } from '../CodeHighlighter/parseCode';
+import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
+import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
+import { parseCode } from '../pipeline/loadCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
-import { applyTransforms, getAvailableTransforms } from '../CodeHighlighter/transformCode';
+import {
+  computeHastDeltas,
+  getAvailableTransforms,
+} from '../pipeline/loadCodeVariant/computeHastDeltas';
 
 export function CodeProvider({
   children,
@@ -79,11 +82,11 @@ export function CodeProvider({
       loadVariantMeta,
       loadCodeMeta,
       // Provide the heavy functions
-      loadFallbackCode,
-      loadVariant,
+      loadCodeFallback,
+      loadCodeVariant,
       parseCode,
       parseControlledCode,
-      applyTransforms,
+      computeHastDeltas,
       getAvailableTransforms,
     }),
     [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta],

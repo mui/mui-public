@@ -42,7 +42,9 @@ dist/
 
 build
 
-*.tsbuildinfo
-
 size-snapshot.json
 .generated
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

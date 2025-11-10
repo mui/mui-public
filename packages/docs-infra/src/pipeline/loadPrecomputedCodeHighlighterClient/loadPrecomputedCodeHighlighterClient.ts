@@ -9,9 +9,9 @@ import {
   ParsedCreateFactory,
 } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
-import { loadVariant } from '../../CodeHighlighter/loadVariant';
+import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createLoadServerSource } from '../loadServerSource';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type { Externals, VariantCode } from '../../CodeHighlighter/types';
@@ -122,8 +122,8 @@ export async function loadPrecomputedCodeHighlighterClient(
         }
 
         try {
-          // Use loadVariant to collect all dependencies and externals
-          const { dependencies, externals } = await loadVariant(
+          // Use loadCodeVariant to collect all dependencies and externals
+          const { dependencies, externals } = await loadCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,

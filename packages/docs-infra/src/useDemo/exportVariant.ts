@@ -6,8 +6,11 @@
 import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { externalsToPackages } from '../pipeline/loaderUtils';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
-import { createPathContext } from '../CodeHighlighter/examineVariant';
-import { mergeMetadata, extractMetadata } from '../CodeHighlighter/mergeMetadata';
+import { examineCodeVariant } from '../pipeline/loadCodeVariant/examineCodeVariant';
+import {
+  mergeCodeMetadata,
+  extractCodeMetadata,
+} from '../pipeline/loadCodeVariant/mergeCodeMetadata';
 
 /**
  * Merges multiple file objects into a single object.
@@ -309,14 +312,16 @@ export function exportVariant(
     .filter(Boolean)
     .join('');
 
-  // Use extractMetadata to properly separate metadata and non-metadata files
-  let { variant: processedVariantCode, metadata: processedGlobals } = extractMetadata(variantCode);
+  // Use extractCodeMetadata to properly separate metadata and non-metadata files
+  let { variant: processedVariantCode, metadata: processedGlobals } =
+    extractCodeMetadata(variantCode);
 
+  // Run optional transform hook to modify variant and globals before processing
   if (transformVariant) {
     const transformed = transformVariant(processedVariantCode, variantName, processedGlobals);
     if (transformed) {
       // Re-extract metadata after transformation
-      const result = transformed.variant && extractMetadata(transformed.variant);
+      const result = transformed.variant && extractCodeMetadata(transformed.variant);
       processedVariantCode = result?.variant || processedVariantCode;
 
       // Start fresh with only the new metadata and explicitly transformed globals
@@ -337,7 +342,7 @@ export function exportVariant(
   const sourceFilename = getFilenameFromVariant(processedVariantCode);
 
   // Get path context to understand navigation
-  const pathContext = createPathContext(variantCode);
+  const pathContext = examineCodeVariant(variantCode);
 
   // Determine if we need to rename the source file
   const ext = useTypescript ? 'tsx' : 'jsx';
@@ -616,7 +621,7 @@ export default defineConfig({
     frameworkFiles.globals || {},
   );
 
-  // Merge all files using mergeMetadata to properly position everything with 'src/' (sourcePrefix opt) prefix
+  // Merge all files using mergeCodeMetadata to properly position everything with 'src/' (sourcePrefix opt) prefix
   const allSourceFilesWithFramework = mergeFiles(
     processedVariantCode.extraFiles || {},
     generatedFiles,
@@ -629,8 +634,8 @@ export default defineConfig({
     extraFiles: allSourceFilesWithFramework,
   };
 
-  // Use mergeMetadata to position everything correctly
-  const finalVariant = mergeMetadata(finalVariantWithSources, allMetadataFiles, {
+  // Use mergeCodeMetadata to position everything correctly
+  const finalVariant = mergeCodeMetadata(finalVariantWithSources, allMetadataFiles, {
     metadataPrefix: sourcePrefix,
   });
 
