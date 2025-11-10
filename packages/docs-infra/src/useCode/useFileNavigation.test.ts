@@ -662,7 +662,7 @@ describe('useFileNavigation', () => {
       expect(mockSetHash).not.toHaveBeenCalledWith(null);
     });
 
-    it('should not automatically set URL hash on initial load', () => {
+    it('should not automatically set URL hash on initial load without user interaction', () => {
       const selectedVariant = {
         fileName: 'CheckboxBasic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',
@@ -742,7 +742,7 @@ describe('useFileNavigation', () => {
   });
 
   describe('hash update behavior', () => {
-    it('should not create hash when none exists on variant change without user interaction', () => {
+    it('should not create hash when none exists on variant change', () => {
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
         source: 'const BasicCheckbox = () => <div>Basic</div>;',

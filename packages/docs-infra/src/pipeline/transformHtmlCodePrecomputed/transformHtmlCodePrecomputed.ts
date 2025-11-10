@@ -221,7 +221,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
   return async (tree) => {
     const transformPromises: Promise<void>[] = [];
 
-    // Get the source parser and transformers (keep as promise for loadVariant)
+    // Get the source parser and transformers
     const sourceParser = createParseSource();
     const sourceTransformers = [TypescriptToJavascriptTransformer];
 
