@@ -310,11 +310,9 @@ function extractTypeAliasAsExportNode(
           // Check if it's an object type that we can expand manually
           // Only do this for actual object types (not primitives like string, number, unions, etc.)
           // Also skip React built-in types which are better left as-is
-          // eslint-disable-next-line no-bitwise
+          /* eslint-disable no-bitwise */
           const isObjectType = !!(currentType.flags & ts.TypeFlags.Object);
-          // eslint-disable-next-line no-bitwise
           const isNotUnion = !(currentType.flags & ts.TypeFlags.Union);
-          // eslint-disable-next-line no-bitwise
           const isNotPrimitive = !(
             currentType.flags &
             (ts.TypeFlags.String |
@@ -324,6 +322,7 @@ function extractTypeAliasAsExportNode(
               ts.TypeFlags.NumberLiteral |
               ts.TypeFlags.BooleanLiteral)
           );
+          /* eslint-enable no-bitwise */
           // Don't expand React.* types - they're well-known and expanding them is too verbose
           const isNotReactType =
             !furtherExpanded.includes('React.') &&
@@ -1014,17 +1013,18 @@ export function parseExports(
                     namespaceName === 'Select' &&
                     (componentPart === 'Separator' || transformedName.includes('Separator'))
                   ) {
+                    let aliasedComponentPart = 'N/A';
+                    if (componentPart === 'Separator') {
+                      aliasedComponentPart = effectiveAliasMap?.has('Separator')
+                        ? effectiveAliasMap.get('Separator') || 'no alias'
+                        : 'no alias';
+                    }
                     console.warn('[parseExports] SELECT SEPARATOR RESULT:', {
                       transformedName,
                       isAlreadyAliased,
                       'has double dot': transformedName.includes('..'),
                       componentPart,
-                      aliasedComponentPart:
-                        componentPart === 'Separator'
-                          ? effectiveAliasMap?.has('Separator')
-                            ? effectiveAliasMap.get('Separator')
-                            : 'no alias'
-                          : 'N/A',
+                      aliasedComponentPart,
                     });
                   }
                 }

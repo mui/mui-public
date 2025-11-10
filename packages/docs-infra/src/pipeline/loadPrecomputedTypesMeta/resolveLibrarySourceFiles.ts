@@ -3,7 +3,7 @@
 import fs from 'fs/promises';
 import { resolve } from 'import-meta-resolve';
 import type ts from 'typescript';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from '../loadServerCodeMeta';
 
 export interface ResolveLibrarySourceFilesOptions {
   variants: Record<string, string>;
