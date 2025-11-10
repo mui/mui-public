@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { exportVariant, type ExportConfig } from './exportVariant';
 import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { stringOrHastToString } from '../pipeline/hastUtils';
-import { flattenVariant } from './flattenVariant';
+import { flattenCodeVariant } from '../pipeline/loadCodeVariant/flattenCodeVariant';
 
 describe('exportVariant', () => {
   const baseVariantCode: VariantCode = {
@@ -1332,7 +1332,7 @@ describe('exportVariant', () => {
       expect(result.exported.extraFiles).toBeDefined();
 
       // Test flattening to verify the renamed component file appears correctly
-      const flattened = flattenVariant(result.exported);
+      const flattened = flattenCodeVariant(result.exported);
 
       // The flattened output should contain App.tsx with the component source
       // Find the App.tsx file in the flattened output
@@ -1467,8 +1467,8 @@ describe('exportVariant', () => {
 
         // Remove the renamed file from globals and add new metadata
         const newGlobals = { ...globals };
-        // The original '../theme.css' from the variant gets processed by extractMetadata
-        // We need to find and remove it from globals. Since extractMetadata can change paths,
+        // The original '../theme.css' from the variant gets processed by extractCodeMetadata
+        // We need to find and remove it from globals. Since extractCodeMetadata can change paths,
         // let's remove any theme.css files from globals
         Object.keys(newGlobals).forEach((key) => {
           if (key.includes('theme.css')) {
@@ -1563,7 +1563,7 @@ describe('exportVariant', () => {
         // Clean up globals: remove files that were moved/renamed and add new ones
         const newGlobals = { ...globals };
         // Remove the original files that were moved/renamed
-        // Since extractMetadata can change paths, search by basename
+        // Since extractCodeMetadata can change paths, search by basename
         Object.keys(newGlobals).forEach((key) => {
           if (key.includes('main.css') || key.includes('theme.css') || key.includes('app.json')) {
             delete newGlobals[key];

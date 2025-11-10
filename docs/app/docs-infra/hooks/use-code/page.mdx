@@ -98,6 +98,8 @@ interface UseCodeOpts {
   stackBlitzPrefix?: string; // StackBlitz URL prefix
   initialVariant?: string; // Initially selected variant
   initialTransform?: string; // Initially selected transform
+  fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
+  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
 }
 ```
 
@@ -117,6 +119,9 @@ The hook returns a `code` object with the following properties:
 - **`selectedFile: React.ReactNode`** - Currently selected file component
 - **`selectedFileName: string | undefined`** - Name of currently selected file
 - **`selectFileName: (fileName: string) => void`** - Function to select a file (automatically updates URL hash)
+  - **Progressive Enhancement**: Attach to `<a>` tags with `href={"#" + file.slug}` for no-JS support
+  - The function will call `e.preventDefault()` after hydration
+  - Use CSS `:target` and `:has()` selectors to show/hide tabs before JS loads
 
 #### UI State
 
@@ -177,6 +182,115 @@ function CodeViewer(props) {
       {code.selectedFile}
     </div>
   );
+}
+```
+
+### Controlling URL Hash Behavior
+
+The hook provides fine-grained control over URL hash management through two complementary options:
+
+#### fileHashMode
+
+Controls what happens to the URL hash when users interact with file tabs or switch variants.
+
+**Options:**
+
+- **`'remove-hash'` (default)**: Complete hash removal on interaction
+  - Reads URL hash on mount to select the initial file/variant
+  - Completely removes the hash when user clicks a file tab
+  - Removes the hash when user manually switches variants (e.g., via dropdown)
+  - **Use case**: Demos that support deep linking but clean up URLs after user engagement
+
+- **`'remove-filename'`**: Keep variant in hash on interaction
+  - Reads URL hash on mount to select the initial file/variant
+  - Simplifies hash to just variant when user clicks a file tab (e.g., `#demo:variant:file.tsx` → `#demo:variant`)
+  - For "Default" variant, simplifies to just the demo slug (e.g., `#demo:file.tsx` → `#demo`)
+  - Preserves variant selection in URL even after user interaction
+  - **Use case**: Demos where variant selection should remain visible in URL
+
+#### saveHashVariantToLocalStorage
+
+Controls when a hash-specified variant gets saved to localStorage for future visits.
+
+**Options:**
+
+- **`'on-load'`**: Save immediately when page loads with hash
+  - Hash variant is saved to localStorage as soon as the page loads
+  - Future visits will default to this variant even without the hash
+  - **Use case**: Persistent variant preference - once a user visits a specific variant, they keep seeing it
+
+- **`'on-interaction'` (default)**: Save only when user interacts
+  - Hash variant is NOT saved to localStorage on initial load
+  - Only saved when user explicitly clicks a file tab
+  - Allows hash navigation without affecting stored preferences
+  - **Use case**: Shareable links shouldn't override user's personal variant preference
+
+- **`'never'`**: Never save hash variant to localStorage
+  - Hash-specified variants are never persisted
+  - Each visit starts fresh with initialVariant or first variant
+  - **Use case**: Stateless demos where variant selection shouldn't be remembered
+
+#### Examples
+
+**Default behavior - Remove hash on interaction:**
+
+```tsx
+function StandardCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'remove-hash', // Can be omitted as it's the default
+    saveHashVariantToLocalStorage: 'on-interaction', // Can be omitted as it's the default
+  });
+
+  // User visits #demo:variant:file.tsx - that file is selected
+  // User clicks another file tab - hash is removed completely
+  // Variant is saved to localStorage (will be default for future visits)
+}
+```
+
+**Keep variant in URL after interaction:**
+
+```tsx
+function VariantAwareCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'remove-filename',
+  });
+
+  // User visits #demo:typescript:file.tsx - that file in TypeScript variant is selected
+  // User clicks another file tab - hash becomes #demo:typescript
+  // Variant remains visible in URL for easy sharing
+  // Variant is saved to localStorage (will be default for future visits)
+}
+```
+
+**Hash navigation without affecting preferences:**
+
+```tsx
+function ShareableCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'remove-hash',
+    saveHashVariantToLocalStorage: 'never',
+  });
+
+  // User visits #demo:variant:file.tsx - that file is selected
+  // User clicks another file tab - hash is removed
+  // Variant is NOT saved - next visit uses their preferred variant from localStorage
+  // Perfect for shareable links that don't override personal preferences
+}
+```
+
+**Persistent variant preference from first visit:**
+
+```tsx
+function StickyVariantCodeViewer(props) {
+  const code = useCode(props, {
+    fileHashMode: 'remove-filename',
+    saveHashVariantToLocalStorage: 'on-load',
+  });
+
+  // User visits #demo:tailwind:file.tsx - Tailwind variant is immediately saved
+  // Future visits default to Tailwind variant even without hash
+  // Hash is simplified to #demo:tailwind when user clicks tabs
+  // Perfect for documentation where first variant choice should stick
 }
 ```
 
@@ -292,6 +406,11 @@ When your code has multiple files, you should provide navigation between them. T
 > [!NOTE]
 > If you're creating demos that combine component previews with multi-file code examples, consider using [`useDemo`](../use-demo/page.mdx) instead, which handles both component rendering and file navigation.
 
+> [!TIP]
+> **Progressive Enhancement**: Use `<a>` tags with `href` attributes for file tabs to enable navigation before JavaScript loads. The `selectFileName` function will prevent default navigation after hydration, while CSS `:target` and `:has()` selectors can show/hide content based on the URL hash.
+>
+> If a user clicks a tab before JavaScript loads, the browser navigates to the hash URL. When the page hydrates, the hook reads this hash and updates the React state accordingly - **no clicks are lost** during the transition from CSS-only to JavaScript-controlled navigation.
+
 ```tsx
 function CodeWithTabs(props) {
   const code = useCode(props, { preClassName: styles.codeBlock });
@@ -302,15 +421,19 @@ function CodeWithTabs(props) {
         {code.files.length > 1 ? (
           <div className={styles.tabContainer}>
             {code.files.map((file) => (
-              <button
+              <a
                 key={file.name}
-                onClick={() => code.selectFileName(file.name)}
+                href={`#${file.slug}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  code.selectFileName(file.name);
+                }}
                 className={`${styles.tab} ${
                   code.selectedFileName === file.name ? styles.active : ''
                 }`}
               >
                 {file.name}
-              </button>
+              </a>
             ))}
           </div>
         ) : (
@@ -318,9 +441,49 @@ function CodeWithTabs(props) {
         )}
       </div>
 
-      <div className={styles.codeContent}>{code.selectedFile}</div>
+      <div className={styles.codeContent}>
+        {code.files.map((file) => (
+          <div
+            key={file.name}
+            id={file.slug}
+            className={`${styles.codeFile} ${
+              code.selectedFileName === file.name ? styles.selected : ''
+            }`}
+          >
+            {file.component}
+          </div>
+        ))}
+      </div>
     </div>
   );
+}
+```
+
+**CSS for Progressive Enhancement:**
+
+```css
+/* Hide all files by default */
+.codeFile {
+  display: none;
+}
+
+/* Show first file when no hash target exists */
+.codeContent:not(:has(.codeFile:target)) .codeFile:first-of-type {
+  display: block;
+}
+
+/* Show targeted file when hash exists */
+.codeFile:target {
+  display: block;
+}
+
+/* After JS loads, let React control visibility */
+.container:has(.tab.active) .codeFile {
+  display: none; /* Disable CSS-based visibility when JS is active */
+}
+
+.container:has(.tab.active) .codeFile.selected {
+  display: block; /* React-controlled selection */
 }
 ```
 
@@ -330,7 +493,9 @@ This pattern ensures a clean user experience by avoiding unnecessary tab UI when
 
 The hook generates URL hashes for file navigation following these patterns:
 
-### Initial/Default Variant
+### Default Variant
+
+When the variant name is "Default", it's omitted from the hash:
 
 ```
 #mainSlug:fileName
@@ -340,7 +505,9 @@ The hook generates URL hashes for file navigation following these patterns:
 #advanced-form:styles.css
 ```
 
-### Non-Initial Variants
+### Non-Default Variants
+
+All other variants include the variant name in the hash:
 
 ```
 #mainSlug:variantName:fileName
@@ -349,6 +516,20 @@ The hook generates URL hashes for file navigation following these patterns:
 #data-table:typescript:index.ts
 #advanced-form:styled-components:styles.css
 ```
+
+### Variant-Only Hashes
+
+Variants (except "Default") can also be referenced without a filename:
+
+```
+#mainSlug:variantName
+# Examples:
+#button-demo:tailwind
+#data-table:typescript
+#advanced-form:styled-components
+```
+
+These variant-only hashes select the main file of that variant.
 
 ### File Naming Conventions
 
@@ -359,10 +540,31 @@ The hook generates URL hashes for file navigation following these patterns:
 
 ### URL Management Behavior
 
-- **Initial Load**: If URL contains a hash matching a file slug, that file is automatically selected
-- **File Selection**: Selecting a file updates the URL hash without adding to browser history (uses `replaceState`)
-- **Variant Changes**: When variants change, URL is updated to reflect the new variant for the current file
-- **No Auto-Hash**: URLs are only set when user explicitly selects files or when URL hash is already present
+**Initial Load:**
+
+- Hash is read to determine initial file and variant selection
+- Priority: URL hash > localStorage > `initialVariant` > first variant
+
+**User Interactions:**
+
+- **File Tab Clicks**: Hash behavior controlled by `fileHashMode` option
+  - `'remove-hash'`: Removes entire hash
+  - `'remove-filename'`: Keeps variant in hash (e.g., `#demo:variant`)
+- **Variant Changes** (e.g., dropdown): Hash behavior controlled by `fileHashMode` option
+  - `'remove-hash'`: Removes entire hash
+  - `'remove-filename'`: Updates hash to reflect new variant
+
+**localStorage Persistence:**
+
+- Controlled by `saveHashVariantToLocalStorage` option
+- `'on-load'`: Hash variant saved immediately when page loads
+- `'on-interaction'`: Hash variant saved only when user clicks a file tab
+- `'never'`: Hash variant never saved to localStorage
+
+**Auto-Expansion:**
+
+- Code demos automatically expand when a relevant hash is present
+- Ensures hash-linked content is visible to users
 
 ## Sub-hooks Architecture
 
@@ -370,7 +572,14 @@ The `useCode` hook is composed of several specialized sub-hooks that can be used
 
 ### useVariantSelection
 
-Manages variant selection logic and provides variant-related data.
+Manages variant selection logic and provides variant-related data. Implements a priority system for variant selection:
+
+1. **URL hash**: Takes precedence when present
+2. **localStorage**: Used when no hash is present
+3. **initialVariant**: Fallback when no stored preference
+4. **First variant**: Final fallback
+
+The hook parses variants from URL hashes and optionally persists them to localStorage based on the `saveHashVariantToLocalStorage` configuration.
 
 ### useTransformManagement
 
@@ -378,11 +587,19 @@ Handles code transforms, including delta validation and transform application.
 
 ### useFileNavigation
 
-Manages file selection and navigation within code variants. Features URL hash management for deep-linking and automatic slug generation for each file.
+Manages file selection and navigation within code variants. Features:
+
+- URL hash management for deep-linking
+- Automatic slug generation for each file
+- Hash removal behavior controlled by `fileHashMode`
+- Cross-variant file navigation
+- Detection of user-initiated vs. hash-driven variant changes
+
+The hook generates slugs for all files across all variants, with special handling for the "Default" variant (which omits the variant name from the hash).
 
 ### useUIState
 
-Controls UI-related state like expansion management.
+Controls UI-related state like expansion management. Automatically expands code demos when a relevant URL hash is present, ensuring hash-linked content is immediately visible to users.
 
 ### useCopyFunctionality
 
@@ -538,3 +755,17 @@ Ensure your component is used within a `CodeHighlighter` component that provides
 - Ensure file names are unique within each variant
 - Check that `extraFiles` and main files don't have conflicting names
 - Verify transforms don't create duplicate file names
+
+### Hash Behavior Not Working as Expected
+
+- **Hash not being removed on interaction**: Verify `fileHashMode` is set to `'remove-hash'` (default) or `'remove-filename'`
+- **Hash removed when you want to keep variant**: Use `fileHashMode: 'remove-filename'` to preserve variant in hash
+- **Initial file not selected**: Check that the hash format matches the generated slugs:
+  - Default variant: `mainSlug:fileName`
+  - Other variants: `mainSlug:variant:fileName` or `mainSlug:variant`
+- **Variant not persisting**: Check `saveHashVariantToLocalStorage` setting:
+  - `'on-load'`: Saves immediately when page loads with hash
+  - `'on-interaction'`: Saves only when user clicks a tab (default)
+  - `'never'`: Never saves hash variants
+- **Hash variant overriding localStorage**: This is expected - hash has highest priority. Use `saveHashVariantToLocalStorage: 'never'` to prevent hash variants from being saved
+- **Code not expanding with hash**: Ensure `useUIState` is receiving the `mainSlug` parameter for auto-expansion

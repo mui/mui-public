@@ -15,15 +15,15 @@
   "license": "MIT",
   "scripts": {},
   "dependencies": {
-    "resolve": "^1.22.10"
+    "resolve": "^1.22.11"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.4",
+    "@babel/core": "^7.28.5",
     "@babel/plugin-syntax-typescript": "^7.27.1",
-    "@babel/preset-typescript": "^7.27.1",
+    "@babel/preset-typescript": "^7.28.5",
     "@types/babel__core": "^7.20.5",
-    "@types/chai": "^5.2.2",
-    "@types/node": "^22.18.9",
+    "@types/chai": "^5.2.3",
+    "@types/node": "^22.18.13",
     "@types/resolve": "^1.20.6",
     "babel-plugin-tester": "^12.0.0"
   },
