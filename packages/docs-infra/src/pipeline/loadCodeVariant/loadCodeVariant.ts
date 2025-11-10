@@ -165,10 +165,12 @@ async function loadSingleFile(
   let externalsFromSource: Externals | undefined;
 
   const functionName = 'Load Variant File';
-  let currentMark = performanceMeasure(undefined, { mark: 'Start', measure: 'Start' }, [
-    functionName,
-    url || fileName,
-  ]);
+  let currentMark = performanceMeasure(
+    undefined,
+    { mark: 'Start', measure: 'Start' },
+    [functionName, url || fileName],
+    true,
+  );
 
   // Load source if not provided
   if (!finalSource) {
