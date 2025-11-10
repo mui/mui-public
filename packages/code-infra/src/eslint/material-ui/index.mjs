@@ -3,6 +3,7 @@ import disallowReactApiInServerComponents from './rules/disallow-react-api-in-se
 import docgenIgnoreBeforeComment from './rules/docgen-ignore-before-comment.mjs';
 import muiNameMatchesComponentName from './rules/mui-name-matches-component-name.mjs';
 import noEmptyBox from './rules/no-empty-box.mjs';
+import noRestrictedImports from './rules/no-restricted-imports.mjs';
 import noRestrictedResolvedImports from './rules/no-restricted-resolved-imports.mjs';
 import noStyledBox from './rules/no-styled-box.mjs';
 import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
@@ -19,9 +20,10 @@ export default /** @type {import('eslint').ESLint.Plugin} */ ({
     'mui-name-matches-component-name': muiNameMatchesComponentName,
     'rules-of-use-theme-variants': rulesOfUseThemeVariants,
     'no-empty-box': noEmptyBox,
+    'no-restricted-imports': noRestrictedImports,
+    'no-restricted-resolved-imports': noRestrictedResolvedImports,
     'no-styled-box': noStyledBox,
     'straight-quotes': straightQuotes,
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
-    'no-restricted-resolved-imports': noRestrictedResolvedImports,
   },
 });
