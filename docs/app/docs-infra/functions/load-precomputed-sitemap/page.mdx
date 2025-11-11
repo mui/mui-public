@@ -1,0 +1,389 @@
+# Load Precomputed Sitemap
+
+The precomputed sitemap loader is a Webpack/Turbopack loader that processes markdown files at build time to create optimized search indexes and navigation data. It extracts metadata from documentation pages and generates structured sitemap data with Orama search schema.
+
+---
+
+## Overview
+
+The loader processes `createSitemap` factory calls, automatically reading and parsing imported markdown files to extract metadata, generate search-friendly data structures, and create navigation hierarchies.
+
+> [!TIP]
+> This loader is designed to work with the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) plugin which extracts metadata from MDX files.
+
+### Key Features
+
+- **Build-time metadata extraction**: Parses markdown files during compilation to extract titles, descriptions, and sections
+- **Automatic flattening**: Converts nested sitemap structure into flat page arrays for search indexing
+- **Path-based organization**: Automatically generates section titles and URL prefixes from file paths
+- **Size optimization**: Strips markdown AST nodes to reduce bundle size
+- **Orama search schema**: Provides ready-to-use schema for Orama search integration
+- **Hot reload support**: Tracks all markdown file dependencies for automatic rebuilds
+
+---
+
+## Configuration
+
+### Recommended: withDocsInfra Plugin
+
+The easiest way to configure this loader is with the [`withDocsInfra`](../with-docs-infra/page.mdx) Next.js plugin:
+
+```javascript
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // Automatically includes:
+  // - './app/sitemap/index.ts'
+  
+  // The loader is pre-configured and ready to use
+});
+```
+
+### Manual Next.js Setup
+
+If you need manual control, add the loader directly to your `next.config.mjs`:
+
+> [!NOTE]
+> The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      './app/sitemap/index.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap'],
+      },
+    },
+  },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    config.module.rules.push({
+      test: /\/sitemap\/index\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+      ],
+    });
+
+    return config;
+  },
+};
+```
+
+### File Structure
+
+The loader expects a sitemap index file that imports markdown pages:
+
+```
+app/
+├── sitemap/
+│   └── index.ts              # Factory file (processed by loader)
+├── docs-infra/
+│   ├── components/
+│   │   └── page.mdx          # Imported markdown file
+│   └── functions/
+│       └── page.mdx          # Imported markdown file
+```
+
+---
+
+## Usage
+
+### Basic Sitemap File
+
+Create an `index.ts` file using the `createSitemap` factory:
+
+```typescript
+import { createSitemap } from '../functions/createSitemap';
+import DocsInfraComponents from '../docs-infra/components/page.mdx';
+import DocsInfraFunctions from '../docs-infra/functions/page.mdx';
+
+export const sitemap = createSitemap(import.meta.url, {
+  DocsInfraComponents,
+  DocsInfraFunctions,
+});
+```
+
+### Skip Precomputation
+
+You can disable precomputation for development or testing:
+
+```typescript
+export const sitemap = createSitemap(
+  import.meta.url,
+  {
+    DocsInfraComponents,
+    DocsInfraFunctions,
+  },
+  { skipPrecompute: true }
+);
+```
+
+---
+
+## Processing Pipeline
+
+The loader follows these steps to generate sitemap data:
+
+### 1. Parse Factory Call
+
+Finds the `createSitemap` function call and extracts imported markdown files.
+
+### 2. Extract Path Metadata
+
+Generates section titles and URL prefixes from file paths:
+
+- `/app/docs-infra/components/page.mdx` → `{ title: "Docs Infra Components", prefix: "/docs-infra/components/" }`
+- `/app/docs-infra/functions/page.mdx` → `{ title: "Docs Infra Functions", prefix: "/docs-infra/functions/" }`
+
+### 3. Parse Markdown Files
+
+Reads each markdown file in parallel and extracts metadata using `markdownToMetadata`:
+
+- Page titles and descriptions
+- Section hierarchies
+- Keywords
+- OpenGraph data
+
+### 4. Optimize Data
+
+Strips unnecessary fields to reduce bundle size:
+
+- Removes `descriptionMarkdown` (markdown AST nodes)
+- Recursively removes `titleMarkdown` from section hierarchies
+- Sets empty `children` to `undefined`
+
+### 5. Generate Schema
+
+Creates an Orama-compatible search schema:
+
+```typescript
+{
+  schema: {
+    slug: 'string',
+    path: 'string',
+    title: 'string',
+    description: 'string',
+    keywords: 'string[]',
+    section: 'string',
+    prefix: 'string',
+  },
+  data: { /* sitemap sections */ }
+}
+```
+
+### 6. Replace Factory Call
+
+Inserts the precomputed data structure with schema into the source code.
+
+---
+
+## Output Structure
+
+The loader generates a structured data format:
+
+```typescript
+{
+  "precompute": {
+    "schema": {
+      "slug": "string",
+      "path": "string",
+      "title": "string",
+      "description": "string",
+      "keywords": "string[]",
+      "section": "string",
+      "prefix": "string"
+    },
+    "data": {
+      "DocsInfraComponents": {
+        "title": "Docs Infra Components",
+        "prefix": "/docs-infra/components/",
+        "pages": [
+          {
+            "slug": "code-highlighter",
+            "path": "./code-highlighter/page.mdx",
+            "title": "Code Highlighter",
+            "description": "Component for displaying code...",
+            "keywords": ["code", "syntax", "highlighting"],
+            "sections": {
+              "features": {
+                "title": "Features",
+                "children": undefined
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+## Orama Integration
+
+The precomputed data is designed to work seamlessly with Orama search:
+
+```typescript
+import { create, insertMultiple, search } from '@orama/orama';
+
+// Load the sitemap
+const { sitemap } = await import('./app/sitemap');
+
+// Create search index with the precomputed schema
+const searchIndex = await create({ 
+  schema: sitemap.precompute.schema 
+});
+
+// Flatten and insert pages
+const pages = Object.entries(sitemap.precompute.data).flatMap(
+  ([_key, section]) => {
+    return section.pages.map(page => ({
+      ...page,
+      section: section.title,
+      prefix: section.prefix,
+    }));
+  }
+);
+
+await insertMultiple(searchIndex, pages);
+
+// Search
+const results = await search(searchIndex, { term: 'code' });
+```
+
+---
+
+## Path-Based Metadata
+
+The loader automatically generates metadata from file paths:
+
+### Path Segment to Title
+
+Converts kebab-case path segments to Title Case:
+
+- `docs-infra` → `"Docs Infra"`
+- `code-highlighter` → `"Code Highlighter"`
+- `abstract-create-demo` → `"Abstract Create Demo"`
+
+### URL Prefix Generation
+
+Generates URL prefixes from the directory structure:
+
+- `/app/docs-infra/components/page.mdx` → `"/docs-infra/components/"`
+- `/app/blog/2024/page.mdx` → `"/blog/2024/"`
+- `/app/page.mdx` → `"/"`
+
+Route groups (parentheses) are automatically removed:
+
+- `/app/(shared)/page.mdx` → `"/"`
+
+---
+
+## Benefits
+
+### Build-Time Processing
+
+- Metadata extracted once during build
+- No runtime parsing overhead
+- Smaller client bundles
+
+### Search Optimization
+
+- Pre-structured data for Orama
+- Flat page arrays for efficient indexing
+- Schema provided for type safety
+
+### Hot Reload Support
+
+- All markdown files tracked as dependencies
+- Automatic rebuilds on content changes
+- Fast iteration during development
+
+---
+
+## Best Practices
+
+### File Organization
+
+- Keep sitemap index at `app/sitemap/index.ts` for consistency
+- Import all documentation pages that should be searchable
+- Use descriptive import names matching section structure
+
+### Metadata Quality
+
+- Write clear, concise page descriptions
+- Include relevant keywords for search
+- Maintain consistent section hierarchies
+
+### Performance
+
+- Let the loader handle parallel processing
+- Don't manually flatten sitemap data in source
+- Enable performance logging during optimization
+
+---
+
+## Performance
+
+The loader includes performance tracking for optimization:
+
+### Build-Time Optimization
+
+- **Parallel processing**: Reads and parses multiple markdown files simultaneously
+- **Dependency caching**: Webpack/Turbopack cache based on file contents
+- **Incremental builds**: Only reprocesses changed markdown files
+
+### Bundle Size Reduction
+
+- Strips `descriptionMarkdown` AST nodes (can be 50%+ of metadata size)
+- Removes `titleMarkdown` from section hierarchies
+- Converts empty `children: {}` to `children: undefined`
+
+### Performance Logging
+
+Enable performance logging in your loader configuration:
+
+```javascript
+{
+  performance: {
+    logging: true,
+    notableMs: 100,
+  }
+}
+```
+
+---
+
+## Error Handling
+
+### Missing Files
+
+If a markdown file cannot be found, the loader logs a warning and continues processing other files.
+
+### Parse Errors
+
+If markdown parsing fails, the loader logs the error and skips that file while processing others.
+
+### Single Factory Function
+
+Only one `createSitemap` call is allowed per file:
+
+```typescript
+// ✓ Valid
+export const sitemap = createSitemap(import.meta.url, { ... });
+
+// ✗ Invalid - multiple calls
+export const sitemap1 = createSitemap(import.meta.url, { ... });
+export const sitemap2 = createSitemap(import.meta.url, { ... });
+```
+
+---
+
+## Related
+
+- [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) - Extracts metadata from MDX files
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Configures all docs infrastructure loaders
+- [`createSitemap`](../../sitemap/page.mdx) - Factory function for creating sitemaps
