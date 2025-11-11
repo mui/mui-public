@@ -60,8 +60,13 @@ export async function mergeMetadataMarkdown(
   for (const existingPage of existingMetadata.pages) {
     const newPage = newPagesMap.get(existingPage.slug);
     if (newPage) {
-      // Page exists in both - use the new metadata
-      mergedPages.push(newPage);
+      // Page exists in both - merge the metadata, preferring new values but preserving existing ones
+      mergedPages.push({
+        ...existingPage,
+        ...newPage,
+        // Preserve sections from existing if new doesn't have them
+        sections: newPage.sections || existingPage.sections,
+      });
       addedSlugs.add(newPage.slug);
     }
     // If page doesn't exist in new metadata, it's been removed - don't include it

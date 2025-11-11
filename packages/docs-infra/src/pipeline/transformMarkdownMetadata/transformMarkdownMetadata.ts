@@ -1,6 +1,7 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Heading, Paragraph, Root } from 'mdast';
+import { dirname, relative } from 'node:path';
 import { updatePageIndex } from './updatePageIndex';
 import type { PageMetadata } from './metadataToMarkdown';
 
@@ -203,16 +204,53 @@ function convertEstreeObjectToPlain(node: any): any {
 }
 
 /**
+ * Checks if a directory name is a Next.js route group (wrapped in parentheses)
+ */
+function isRouteGroup(dirName: string): boolean {
+  return dirName.startsWith('(') && dirName.endsWith(')');
+}
+
+/**
+ * Gets the parent directory, skipping over Next.js route groups if requested
+ */
+function getParentDir(path: string, skipRouteGroups: boolean = false): string {
+  let parent = dirname(path);
+
+  if (skipRouteGroups) {
+    while (parent !== dirname(parent) && isRouteGroup(parent.split('/').pop() || '')) {
+      parent = dirname(parent);
+    }
+  }
+
+  return parent;
+}
+
+/**
  * Converts extracted metadata to PageMetadata format for index updates
  */
 function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMetadata {
-  // Extract the slug from the file path (directory name)
+  // Extract the slug from the file path (directory name containing the page)
   const parts = filePath.split('/');
   const pageFileName = parts[parts.length - 1]; // e.g., 'page.mdx'
-  const slug = parts[parts.length - 2]; // e.g., 'button' from 'button/page.mdx'
 
-  // Create relative path for the link
-  const path = `./${slug}/${pageFileName}`;
+  // Get the directory containing the page file
+  const pageDir = dirname(filePath);
+
+  // Find the slug by looking backwards for the first non-route-group directory
+  let slug = '';
+  for (let i = parts.length - 2; i >= 0; i -= 1) {
+    if (!isRouteGroup(parts[i])) {
+      slug = parts[i];
+      break;
+    }
+  }
+
+  // Calculate parent directory (skipping route groups, matching updatePageIndex behavior)
+  const parentDir = getParentDir(pageDir, true);
+
+  // Create relative path from parent to page
+  const relativePath = relative(parentDir, pageDir);
+  const path = `./${relativePath}/${pageFileName}`;
 
   return {
     slug,
@@ -518,7 +556,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       }
 
       // Add sections hierarchy if we have headings
-      if (headings.length > 1 && !mutableMetadata.sections) {
+      const hasSections =
+        mutableMetadata.sections && Object.keys(mutableMetadata.sections).length > 0;
+      if (headings.length > 1 && !hasSections) {
         mutableMetadata.sections = buildHeadingHierarchy(headings);
         shouldUpdateMetadata = true;
       }
@@ -574,32 +614,55 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         // e.g., "app/(shared)/page.mdx" becomes "app/page.mdx"
         const normalizedPath = filePath.replace(/\/\([^)]+\)/g, '');
 
-        // Check if file matches any include pattern (must be inside the directory and not the index itself)
-        // The file must start with "pattern/" to ensure it's a child, not a sibling
-        // and must not be "pattern/page.mdx" to ensure it's not the index file itself
-        const matchedIncludePattern = include.find((pattern) => {
-          return (
-            normalizedPath.startsWith(`${pattern}/`) && normalizedPath !== `${pattern}/page.mdx`
-          );
-        });
-        const isIncluded = include.length === 0 || matchedIncludePattern !== undefined;
+        // Skip if the file exactly matches an include pattern ending with /page.mdx
+        // This prevents index files from extracting metadata to their parent
+        const isIndexFile = include.some((pattern) => normalizedPath === pattern);
+        if (isIndexFile) {
+          shouldExtract = false;
+        } else {
+          // Check if file matches any include pattern (must be inside the directory and not the index itself)
+          // The file must start with "pattern/" to ensure it's a child, not a sibling
+          // and must not be "pattern/page.mdx" to ensure it's not the index file itself
+          const matchedIncludePattern = include.find((pattern) => {
+            return (
+              normalizedPath.startsWith(`${pattern}/`) && normalizedPath !== `${pattern}/page.mdx`
+            );
+          });
+          const isIncluded = include.length === 0 || matchedIncludePattern !== undefined;
 
-        // Check if file matches any exclude pattern
-        const matchedExcludePattern = exclude.find((pattern) => {
-          return normalizedPath.startsWith(`${pattern}/`);
-        });
-        const isExcluded = matchedExcludePattern !== undefined;
+          // Check if file matches any exclude pattern
+          const matchedExcludePattern = exclude.find((pattern) => {
+            return normalizedPath.startsWith(`${pattern}/`);
+          });
+          const isExcluded = matchedExcludePattern !== undefined;
 
-        shouldExtract = isIncluded && !isExcluded;
+          shouldExtract = isIncluded && !isExcluded;
+        }
       }
 
       if (shouldExtract) {
         try {
           const pageMetadata = toPageMetadata(metadata, file.path);
-          await updatePageIndex({
+          const updateOptions: Parameters<typeof updatePageIndex>[0] = {
             pagePath: file.path,
             metadata: pageMetadata,
-          });
+            updateParents: true,
+          };
+
+          // Pass through baseDir, include, and exclude if they were configured
+          if (typeof options.extractToIndex !== 'boolean') {
+            if (options.extractToIndex.baseDir) {
+              updateOptions.baseDir = options.extractToIndex.baseDir;
+            }
+            if (options.extractToIndex.include) {
+              updateOptions.include = options.extractToIndex.include;
+            }
+            if (options.extractToIndex.exclude) {
+              updateOptions.exclude = options.extractToIndex.exclude;
+            }
+          }
+
+          await updatePageIndex(updateOptions);
         } catch (error) {
           // Don't fail the build if index update fails
           console.error('Failed to update page index for', file.path, error);

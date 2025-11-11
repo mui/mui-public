@@ -373,4 +373,294 @@ An input component.
       "
     `);
   });
+
+  it('should recursively update parent indexes when updateParents is true', async () => {
+    // Create a three-level structure: app/components/button/page.mdx
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components', 'button'), { recursive: true });
+
+    // Create the top-level app index file to mark the boundary
+    await writeFile(join(TEST_DIR, 'app', 'page.mdx'), '# App\n\n', 'utf-8');
+
+    const metadata: PageMetadata = {
+      slug: 'button',
+      path: './button/page.mdx',
+      title: 'Button',
+      description: 'A button component.',
+    };
+
+    // Update with parent updating enabled and baseDir set to app
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', 'components', 'button', 'page.mdx'),
+      metadata,
+      indexTitle: 'Components',
+      updateParents: true,
+      baseDir: join(TEST_DIR, 'app'),
+    });
+
+    // Verify the immediate parent (components/page.mdx) was created
+    const componentsIndexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
+    const componentsContent = await readFile(componentsIndexPath, 'utf-8');
+    expect(componentsContent).toContain('# Components');
+    expect(componentsContent).toContain('[Button](#button)');
+
+    // Verify the grandparent (app/page.mdx) was updated
+    const appIndexPath = join(TEST_DIR, 'app', 'page.mdx');
+    const appContent = await readFile(appIndexPath, 'utf-8');
+    expect(appContent).toContain('[Components](#components)');
+    expect(appContent).toContain('[Full Docs](./components/page.mdx)');
+  });
+
+  it('should respect include filter and skip indexes outside included paths', async () => {
+    // Create a structure with both included and excluded paths
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components', 'button'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'excluded'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'excluded', 'secret'), { recursive: true });
+
+    const metadata: PageMetadata = {
+      slug: 'button',
+      path: './button/page.mdx',
+      title: 'Button',
+      description: 'A button component.',
+    };
+
+    // Update with include filter - only 'app' and 'src/app' are included
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', 'components', 'button', 'page.mdx'),
+      metadata,
+      baseDir: TEST_DIR,
+      include: ['app', 'src/app'],
+    });
+
+    // Verify the index was created (within included path)
+    const indexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
+    const indexExists = await readFile(indexPath, 'utf-8').then(
+      () => true,
+      () => false,
+    );
+    expect(indexExists).toBe(true);
+
+    // Try to update an index outside the included paths
+    const excludedMetadata: PageMetadata = {
+      slug: 'secret',
+      path: './secret/page.mdx',
+      title: 'Secret',
+      description: 'A secret page.',
+    };
+
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'excluded', 'secret', 'page.mdx'),
+      metadata: excludedMetadata,
+      baseDir: TEST_DIR,
+      include: ['app', 'src/app'],
+    });
+
+    // Verify the index was NOT created (outside included path)
+    const excludedIndexPath = join(TEST_DIR, 'excluded', 'page.mdx');
+    const excludedIndexExists = await readFile(excludedIndexPath, 'utf-8').then(
+      () => true,
+      () => false,
+    );
+    expect(excludedIndexExists).toBe(false);
+  });
+
+  it('should respect exclude filter and skip indexes in excluded paths', async () => {
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'private'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'private', 'internal'), { recursive: true });
+
+    const metadata: PageMetadata = {
+      slug: 'internal',
+      path: './internal/page.mdx',
+      title: 'Internal',
+      description: 'Internal page.',
+    };
+
+    // Update with exclude filter
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', 'private', 'internal', 'page.mdx'),
+      metadata,
+      baseDir: TEST_DIR,
+      exclude: ['app/private'],
+    });
+
+    // Verify the index was NOT created (in excluded path)
+    const indexPath = join(TEST_DIR, 'app', 'private', 'page.mdx');
+    const indexExists = await readFile(indexPath, 'utf-8').then(
+      () => true,
+      () => false,
+    );
+    expect(indexExists).toBe(false);
+  });
+
+  it('should respect filters when recursively updating parents', async () => {
+    // Create a three-level structure
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components', 'button'), { recursive: true });
+
+    // Create the top-level app index
+    await writeFile(join(TEST_DIR, 'app', 'page.mdx'), '# App\n\n', 'utf-8');
+
+    const metadata: PageMetadata = {
+      slug: 'button',
+      path: './button/page.mdx',
+      title: 'Button',
+      description: 'A button component.',
+    };
+
+    // Update with recursive parents but include filter that only allows 'app/components'
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', 'components', 'button', 'page.mdx'),
+      metadata,
+      baseDir: TEST_DIR,
+      updateParents: true,
+      include: ['app/components'],
+    });
+
+    // Verify the components index was created (within filter)
+    const componentsIndexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
+    const componentsContent = await readFile(componentsIndexPath, 'utf-8');
+    expect(componentsContent).toContain('[Button](#button)');
+
+    // Verify the app index was NOT updated (outside filter)
+    const appContent = await readFile(join(TEST_DIR, 'app', 'page.mdx'), 'utf-8');
+    expect(appContent).not.toContain('[Components](#components)');
+    expect(appContent).toBe('# App\n\n'); // Should still be the original content
+  });
+
+  it('should preserve route groups in paths when creating index', async () => {
+    // Create a structure with Next.js route groups: app/(public)/(content)/react/page.mdx
+    // Parent directory (skipping route groups): app
+    // Index created at: app/page.mdx
+    // Path in index: ./(public)/(content)/react/page.mdx (preserves route groups)
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', '(content)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', '(content)', 'react'), { recursive: true });
+
+    const metadata: PageMetadata = {
+      slug: 'react',
+      path: './(public)/(content)/react/page.mdx',
+      title: 'React',
+      description: 'React components.',
+    };
+
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', '(public)', '(content)', 'react', 'page.mdx'),
+      metadata,
+    });
+
+    // Index should be created at app/page.mdx (route groups are skipped)
+    const indexPath = join(TEST_DIR, 'app', 'page.mdx');
+    const content = await readFile(indexPath, 'utf-8');
+
+    expect(content).toContain('# App');
+    expect(content).toContain('[React](#react)');
+    // Path should preserve route groups for correct relative path from app/
+    expect(content).toContain('[Full Docs](./(public)/(content)/react/page.mdx)');
+  });
+
+  it('should include route groups in paths when recursively updating parent', async () => {
+    // Create structure: app/(public)/(content)/react/page.mdx
+    // Parent (skipping route groups): app
+    // Index created at: app/page.mdx with path ./(public)/(content)/react/page.mdx
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', '(content)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', '(content)', 'react'), { recursive: true });
+
+    const metadata: PageMetadata = {
+      slug: 'react',
+      path: './(public)/(content)/react/page.mdx',
+      title: 'React',
+      description: 'React components.',
+    };
+
+    // Enable recursive parent updates
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', '(public)', '(content)', 'react', 'page.mdx'),
+      metadata,
+      updateParents: true,
+      baseDir: join(TEST_DIR, 'app'),
+    });
+
+    // Index should be at app/page.mdx (route groups are skipped)
+    const appIndexPath = join(TEST_DIR, 'app', 'page.mdx');
+    const appContent = await readFile(appIndexPath, 'utf-8');
+    expect(appContent).toContain('[React](#react)');
+    // Path should include route groups for correct relative path from app/
+    expect(appContent).toContain('[Full Docs](./(public)/(content)/react/page.mdx)');
+  });
+
+  it('should handle multiple nested route groups correctly', async () => {
+    // Create: app/(auth)/(protected)/(admin)/settings/page.mdx
+    // Parent (skipping all route groups): app
+    // Index created at: app/page.mdx with path ./(auth)/(protected)/(admin)/settings/page.mdx
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(auth)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(auth)', '(protected)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(auth)', '(protected)', '(admin)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(auth)', '(protected)', '(admin)', 'settings'), {
+      recursive: true,
+    });
+
+    const metadata: PageMetadata = {
+      slug: 'settings',
+      path: './(auth)/(protected)/(admin)/settings/page.mdx',
+      title: 'Settings',
+      description: 'Admin settings.',
+    };
+
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', '(auth)', '(protected)', '(admin)', 'settings', 'page.mdx'),
+      metadata,
+      updateParents: true,
+      baseDir: join(TEST_DIR, 'app'),
+    });
+
+    // Index at app/page.mdx (all route groups skipped)
+    const appIndexPath = join(TEST_DIR, 'app', 'page.mdx');
+    const appContent = await readFile(appIndexPath, 'utf-8');
+    expect(appContent).toContain('[Settings](#settings)');
+    // Path should preserve all route groups
+    expect(appContent).toContain('[Full Docs](./(auth)/(protected)/(admin)/settings/page.mdx)');
+  });
+
+  it('should handle mixed route groups and regular directories', async () => {
+    // Create: app/(public)/components/(forms)/input/page.mdx
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', 'components'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', 'components', '(forms)'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', '(public)', 'components', '(forms)', 'input'), {
+      recursive: true,
+    });
+
+    const metadata: PageMetadata = {
+      slug: 'input',
+      path: './(public)/components/(forms)/input/page.mdx',
+      title: 'Input',
+      description: 'Input component.',
+    };
+
+    await updatePageIndex({
+      pagePath: join(TEST_DIR, 'app', '(public)', 'components', '(forms)', 'input', 'page.mdx'),
+      metadata,
+      updateParents: true,
+      baseDir: join(TEST_DIR, 'app'),
+    });
+
+    // The parent index is created at app/page.mdx (route groups skipped)
+    // It contains a reference to the components index (which was recursively created)
+    const appIndexPath = join(TEST_DIR, 'app', 'page.mdx');
+    const appContent = await readFile(appIndexPath, 'utf-8');
+    expect(appContent).toContain('[Components](#components)');
+    expect(appContent).toContain('[Full Docs](./(public)/components/page.mdx)');
+    // Input should be listed as a section under Components
+    expect(appContent).toContain('- Input');
+  });
 });
