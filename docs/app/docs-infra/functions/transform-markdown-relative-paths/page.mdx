@@ -156,7 +156,7 @@ You can also use the plugin directly with Remark:
 
 ```javascript
 import { remark } from 'remark';
-import { transformMarkdownRelativePaths } from '@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths';
+import transformMarkdownRelativePaths from '@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths';
 
 const processor = remark().use(transformMarkdownRelativePaths);
 

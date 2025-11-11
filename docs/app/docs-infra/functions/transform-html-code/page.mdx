@@ -22,7 +22,7 @@ This plugin is typically used in the **second stage** of a markdown-to-HTML proc
 ```typescript
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
-import { transformHtmlCode } from '@mui/internal-docs-infra/pipeline/transformHtmlCode';
+import transformHtmlCode from '@mui/internal-docs-infra/pipeline/transformHtmlCode';
 
 const processor = unified()
   .use(rehypeParse)
