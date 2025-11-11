@@ -73,7 +73,8 @@ function extractParagraphText(node: Paragraph): string {
     if (child.type === 'text') {
       text += child.value;
     } else if (child.type === 'inlineCode') {
-      text += child.value;
+      // Preserve backticks for inline code
+      text += `\`${child.value}\``;
     } else if ('children' in child) {
       // Handle nested elements like strong, emphasis, etc.
       text += extractTextFromChildren(child.children);
@@ -92,8 +93,8 @@ function extractTextFromChildren(children: any[]): string {
     if (child.type === 'text') {
       text += child.value;
     } else if (child.type === 'inlineCode') {
-      // Extract plain text without backticks for slug generation
-      text += child.value;
+      // Preserve backticks for inline code
+      text += `\`${child.value}\``;
     } else if ('children' in child) {
       // Recursively extract from nested elements (strong, emphasis, etc.)
       text += extractTextFromChildren(child.children);
@@ -349,6 +350,8 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
     let firstH1: string | null = null;
     let firstParagraphAfterH1: string | null = null;
     let metadataNode: any = null; // Track the ESM node containing metadata
+    let metaDescription: string | null = null; // Track meta tag description
+    let metaKeywords: string[] | null = null; // Track meta tag keywords
 
     // First pass: extract metadata export if it exists
     visit(root, (node: any) => {
@@ -361,7 +364,45 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       }
     });
 
-    // Second pass: extract headings and find first h1 + paragraph
+    // Second pass: look for meta tags (can appear anywhere in the document)
+    visit(root, (node: any) => {
+      if (
+        (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
+        (node.name === 'meta' || node.name === 'Meta')
+      ) {
+        // Check attributes to find the meta tag type
+        const attributes = node.attributes || [];
+        let metaName: string | null = null;
+        let contentValue: string | null = null;
+
+        for (const attr of attributes) {
+          if (attr.type === 'mdxJsxAttribute') {
+            if (attr.name === 'name') {
+              metaName = typeof attr.value === 'string' ? attr.value : null;
+            }
+            if (attr.name === 'content') {
+              // Extract the content value
+              if (typeof attr.value === 'string') {
+                contentValue = attr.value;
+              } else if (attr.value?.type === 'mdxJsxAttributeValueExpression') {
+                // Handle expression values if needed
+                contentValue = attr.value.value;
+              }
+            }
+          }
+        }
+
+        // Process based on meta tag name
+        if (metaName === 'description' && contentValue) {
+          metaDescription = contentValue;
+        } else if (metaName === 'keywords' && contentValue) {
+          // Parse keywords CSV into array
+          metaKeywords = contentValue.split(',').map((keyword) => keyword.trim());
+        }
+      }
+    });
+
+    // Third pass: extract headings and find first h1 + paragraph
     let foundFirstH1 = false;
     let nextNodeAfterH1: any = null;
     let firstParagraphMarkdown: any[] | undefined;
@@ -401,7 +442,19 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       ) {
         const paragraphNode = node as Paragraph;
         firstParagraphAfterH1 = extractParagraphText(paragraphNode);
-        firstParagraphMarkdown = paragraphNode.children; // Preserve AST nodes for formatting
+
+        // If the paragraph contains a single JSX element wrapper, unwrap it
+        // This handles cases like <Description>text</Description>
+        if (
+          paragraphNode.children.length === 1 &&
+          paragraphNode.children[0].type === 'mdxJsxTextElement'
+        ) {
+          // Use the children of the JSX element instead of the wrapper
+          firstParagraphMarkdown = paragraphNode.children[0].children;
+        } else {
+          // Preserve AST nodes for formatting
+          firstParagraphMarkdown = paragraphNode.children;
+        }
         nextNodeAfterH1 = null; // Clear the marker
       }
     });
@@ -417,15 +470,33 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
-      // Add description if missing
-      if (firstParagraphAfterH1 && !mutableMetadata.description) {
-        mutableMetadata.description = firstParagraphAfterH1;
-        shouldUpdateMetadata = true;
+      // Add description - prioritize meta tag over paragraph
+      if (!mutableMetadata.description) {
+        if (metaDescription) {
+          mutableMetadata.description = metaDescription;
+          shouldUpdateMetadata = true;
+        } else if (firstParagraphAfterH1) {
+          mutableMetadata.description = firstParagraphAfterH1;
+          shouldUpdateMetadata = true;
+        }
       }
 
-      // Add descriptionMarkdown if missing and we have the markdown nodes
-      if (firstParagraphMarkdown && !mutableMetadata.descriptionMarkdown) {
-        mutableMetadata.descriptionMarkdown = firstParagraphMarkdown;
+      // Add descriptionMarkdown if missing
+      // If we used meta tag, set to empty array since meta has no children
+      // Otherwise use the paragraph markdown nodes
+      if (!mutableMetadata.descriptionMarkdown) {
+        if (metaDescription) {
+          mutableMetadata.descriptionMarkdown = [];
+          shouldUpdateMetadata = true;
+        } else if (firstParagraphMarkdown) {
+          mutableMetadata.descriptionMarkdown = firstParagraphMarkdown;
+          shouldUpdateMetadata = true;
+        }
+      }
+
+      // Add keywords from meta tag if present
+      if (metaKeywords && !mutableMetadata.keywords) {
+        mutableMetadata.keywords = metaKeywords;
         shouldUpdateMetadata = true;
       }
 
@@ -439,9 +510,15 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
-      if (firstParagraphAfterH1 && !mutableMetadata.openGraph.description) {
-        mutableMetadata.openGraph.description = firstParagraphAfterH1;
-        shouldUpdateMetadata = true;
+      // Prioritize meta tag description over paragraph for openGraph
+      if (!mutableMetadata.openGraph.description) {
+        if (metaDescription) {
+          mutableMetadata.openGraph.description = metaDescription;
+          shouldUpdateMetadata = true;
+        } else if (firstParagraphAfterH1) {
+          mutableMetadata.openGraph.description = firstParagraphAfterH1;
+          shouldUpdateMetadata = true;
+        }
       }
 
       // Add sections hierarchy if we have headings
@@ -454,16 +531,21 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       if (shouldUpdateMetadata && metadataNode?.data?.estree) {
         updateMetadataInEstree(metadataNode.data.estree, mutableMetadata);
       }
-    } else if (firstH1 || firstParagraphAfterH1) {
-      // Create metadata if we found h1 or paragraph but no metadata export exists
+    } else if (firstH1 || firstParagraphAfterH1 || metaDescription || metaKeywords) {
+      // Create metadata if we found h1, paragraph, or meta tags but no metadata export exists
+      // Prioritize meta tag description over paragraph
+      const descriptionValue = metaDescription || firstParagraphAfterH1 || undefined;
+      const descriptionMarkdownValue = metaDescription ? [] : firstParagraphMarkdown || undefined;
+
       metadata = {
         title: firstH1 || undefined,
-        description: firstParagraphAfterH1 || undefined,
-        descriptionMarkdown: firstParagraphMarkdown || undefined,
+        description: descriptionValue,
+        descriptionMarkdown: descriptionMarkdownValue,
+        keywords: metaKeywords || undefined,
         sections: headings.length > 1 ? buildHeadingHierarchy(headings) : undefined,
         openGraph: {
           title: firstH1 || undefined,
-          description: firstParagraphAfterH1 || undefined,
+          description: descriptionValue,
         },
       };
 

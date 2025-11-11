@@ -253,6 +253,37 @@ export const metadata = {
 
 ### Adding Keywords and Open Graph
 
+When you need SEO-specific metadata or keywords, use `export const metadata` at the end of the file:
+
+```mdx
+# CodeHighlighter
+
+The CodeHighlighter component provides syntax highlighting.
+
+<!-- Page content continues... -->
+
+export const metadata = {
+  description: 'Override the first paragraph for SEO purposes',
+  keywords: ['syntax', 'highlighting', 'code', 'react', 'component'],
+  openGraph: {
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+  },
+};
+
+;
+```
+
+**Why export metadata is preferred:**
+
+- Clean source without inline tags
+- Type-safe with IDE autocomplete
+- Standard Next.js pattern
+- All metadata in one discoverable location
+
+The plugin also supports `<meta>` or `<Meta>` tags anywhere in the document for migration scenarios, though inline tags lack type safety and clutter the markdown source.
+
+### Open Graph Example
+
 Only add metadata exports for computer-specific fields that can't be derived from content:
 
 ```mdx
@@ -282,27 +313,6 @@ export const metadata = {
 > **Best Practice**: Place metadata exports at the **end** of the file. The first H1 and paragraph are for human readers—they provide all the context needed when reading the markdown source. Metadata exports are for computers (search engines, social media, tooling) and should be unobtrusive.
 
 > **Note**: This uses MDX's ES module syntax (`export const`), not traditional YAML frontmatter.
-
-### Overriding Title and Description
-
-Only override when the H1 and first paragraph aren't suitable for SEO or social media:
-
-```mdx
-# CodeHighlighter
-
-The CodeHighlighter component provides syntax highlighting.
-
-<!-- More content... -->
-
-export const metadata = {
-  // Override for SEO/social media only when the H1 isn't suitable
-  title: 'Code Highlighter - Syntax Highlighting for React',
-  description: 'A comprehensive guide to using the CodeHighlighter component with examples.',
-  keywords: ['syntax-highlighting', 'code', 'react', 'typescript'],
-};
-
-;
-```
 
 ### Section Navigation
 
@@ -724,9 +734,54 @@ This allows descriptions like "Use `transformMarkdownMetadata` to **extract** me
 
 ### Description Extraction Priority
 
-1. **Exported metadata**: `export const metadata = { description: '...' }`
-2. **First paragraph**: Text content of the first paragraph after the first H1
-3. **No description**: Returns `undefined` if none found
+1. **Inline meta tags**: `<meta name="description" content="..." />` or `<Meta name="description" content="..." />` (anywhere in document)
+2. **Exported metadata**: `export const metadata = { description: '...' }`
+3. **First paragraph**: Text content of the first paragraph after the first H1
+4. **No description**: Returns `undefined` if none found
+
+> **Note**: While inline meta tags have the highest priority when present, using `export const metadata` at the end of the file is preferred for better readability.
+
+### Keywords Extraction Priority
+
+1. **Inline meta tags**: `<meta name="keywords" content="keyword1, keyword2, keyword3" />` (anywhere in document)
+2. **Exported metadata**: `export const metadata = { keywords: ['...'] }`
+3. **No keywords**: Returns `undefined` if none found
+
+### Meta Tag Support
+
+The plugin supports both `<meta>` and `<Meta>` tags anywhere in the document:
+
+**Supported meta tags:**
+
+- `<meta name="description" content="..." />` - Page description for SEO
+- `<meta name="keywords" content="keyword1, keyword2, keyword3" />` - Comma-separated keywords
+
+**Features:**
+
+- **Case-insensitive**: Both `<meta>` and `<Meta>` work
+- **Location-flexible**: Can appear anywhere in the document (beginning, middle, end, within sections)
+- **Automatic parsing**: Keywords are automatically split by commas and trimmed
+- **Priority handling**: Meta tags override other sources when present
+
+**Example:**
+
+```mdx
+# Component Name
+
+## Section One
+
+<meta name="description" content="Custom SEO description" />
+
+Content here...
+
+## Section Two
+
+<meta name="keywords" content="react, component, ui, accessibility" />
+
+More content...
+```
+
+> **Note**: While this feature exists for flexibility and migration scenarios, `export const metadata` at the end of the file is preferred for cleaner, more maintainable documentation.
 
 ### Heading Processing
 
