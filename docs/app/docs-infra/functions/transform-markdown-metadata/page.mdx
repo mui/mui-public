@@ -32,7 +32,7 @@ The plugin automatically merges extracted metadata into your page's `export cons
 ```typescript
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import { transformMarkdownMetadata } from '@mui/internal-docs-infra/transformMarkdownMetadata';
+import { transformMarkdownMetadata } from '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata';
 
 const processor = unified()
   .use(remarkParse)
@@ -45,7 +45,7 @@ When using the plugin directly (without `withDocsInfra`), you'll need to provide
 
 ```javascript
 // next.config.js
-import { transformMarkdownMetadata } from '@mui/internal-docs-infra/transformMarkdownMetadata';
+import { transformMarkdownMetadata } from '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
@@ -494,8 +494,8 @@ Works alongside [`transformMarkdownCode`](../transform-markdown-code/page.mdx) t
 
 ```javascript
 // next.config.js
-import { transformMarkdownMetadata } from '@mui/internal-docs-infra/transformMarkdownMetadata';
-import { transformMarkdownCode } from '@mui/internal-docs-infra/transformMarkdownCode';
+import { transformMarkdownMetadata } from '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata';
+import { transformMarkdownCode } from '@mui/internal-docs-infra/pipeline/transformMarkdownCode';
 
 const withMDX = require('@next/mdx')({
   options: {

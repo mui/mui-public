@@ -20,7 +20,7 @@ Use this plugin to enhance markdown code blocks with custom data attributes for 
 ```typescript
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import { transformMarkdownCode } from '@mui/internal-docs-infra/transformMarkdownCode';
+import { transformMarkdownCode } from '@mui/internal-docs-infra/pipeline/transformMarkdownCode';
 
 const processor = unified().use(remarkParse).use(transformMarkdownCode);
 ```

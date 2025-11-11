@@ -20,7 +20,7 @@ Use this plugin to automatically clean up demo-related markdown patterns in your
 ```typescript
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import { transformMarkdownDemoLinks } from '@mui/internal-docs-infra/transformMarkdownDemoLinks';
+import { transformMarkdownDemoLinks } from '@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks';
 
 const processor = unified().use(remarkParse).use(transformMarkdownDemoLinks);
 ```
