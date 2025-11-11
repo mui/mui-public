@@ -77,6 +77,30 @@ export interface DocsInfraMdxOptions {
    * Additional rehype plugins to add to the default docs-infra plugins
    */
   additionalRehypePlugins?: Array<string | [string, ...any[]]>;
+  /**
+   * Whether to automatically extract page metadata (title, description, headings) from MDX files
+   * and maintain an index in the parent directory's page.mdx file.
+   *
+   * Can be:
+   * - `false` - Disabled
+   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: ['app/page.mdx'] }`
+   * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
+   *
+   * @default true
+   */
+  extractToIndex?:
+    | boolean
+    | {
+        /** Path prefixes that files must match to have metadata extracted */
+        include: string[];
+        /** Path prefixes to exclude from metadata extraction */
+        exclude: string[];
+      };
+  /**
+   * Base directory for path filtering. Defaults to process.cwd().
+   * Only needed when calling the plugin directly (not via withDocsInfra).
+   */
+  baseDir?: string;
 }
 
 /**
@@ -85,8 +109,37 @@ export interface DocsInfraMdxOptions {
 export function getDocsInfraMdxOptions(
   customOptions: DocsInfraMdxOptions = {},
 ): DocsInfraMdxOptions {
+  const { extractToIndex = true, baseDir } = customOptions;
+
+  // Normalize extractToIndex to options object
+  let extractToIndexOptions:
+    | false
+    | {
+        include: string[];
+        exclude: string[];
+        baseDir?: string;
+      };
+
+  if (extractToIndex === false) {
+    extractToIndexOptions = false;
+  } else if (extractToIndex === true) {
+    // Default filter: include app/ but exclude app/page.mdx
+    // Use process.cwd() as default baseDir (the directory where Next.js is running)
+    extractToIndexOptions = {
+      include: ['app/'],
+      exclude: ['app/page.mdx'],
+      baseDir: baseDir ?? process.cwd(),
+    };
+  } else {
+    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+  }
+
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
     ['remark-gfm'],
+    [
+      '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
+      { extractToIndex: extractToIndexOptions },
+    ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],

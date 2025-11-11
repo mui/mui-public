@@ -30,9 +30,21 @@ export default withDocsInfra()(nextConfig);
 import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
 import createMDX from '@next/mdx';
 
-const withMDX = createMDX(getDocsInfraMdxOptions());
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    // Control index generation
+    extractToIndex: {
+      include: ['app/docs/', 'app/api/'],
+      exclude: ['app/page.mdx', 'app/docs/internal/'],
+    },
+  }),
+});
 
-const nextConfig = withDocsInfra({
+const nextConfig = {
+  // Your Next.js config
+};
+
+export default withDocsInfra({
   // Add support for additional file extensions
   additionalPageExtensions: ['vue', 'svelte'],
 
@@ -51,11 +63,7 @@ const nextConfig = withDocsInfra({
       loaders: ['custom-loader'],
     },
   },
-})({
-  // Your existing Next.js config
-});
-
-export default withMDX(nextConfig);
+})(withMDX(nextConfig));
 ```
 
 ## Default Configurations
@@ -102,27 +110,62 @@ The plugin automatically configures loaders for these patterns:
 Use `getDocsInfraMdxOptions` to configure MDX with docs-infra plugins:
 
 ```js
-import { getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
+import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
 import createMDX from '@next/mdx';
 
-// Default docs-infra MDX plugins
-const withMDX = createMDX(getDocsInfraMdxOptions());
+// Default docs-infra MDX plugins with automatic index generation
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions(),
+});
+
+const nextConfig = {
+  // Your Next.js config
+};
+
+export default withDocsInfra()(withMDX(nextConfig));
 
 // With additional plugins
-const withMDX = createMDX(
-  getDocsInfraMdxOptions({
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
     additionalRemarkPlugins: [['remark-emoji']],
     additionalRehypePlugins: [['rehype-highlight']],
   }),
-);
+});
 
-// With custom plugin overrides
-const withMDX = createMDX(
-  getDocsInfraMdxOptions({
+// Custom plugin overrides (replaces all default plugins)
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
     remarkPlugins: [['remark-gfm'], ['custom-plugin']],
     rehypePlugins: [['custom-rehype-plugin']],
   }),
-);
+});
+```
+
+### Controlling Index Generation
+
+The `extractToIndex` option is passed via `getDocsInfraMdxOptions`, not `withDocsInfra`:
+
+```js
+// Disable index generation
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    extractToIndex: false,
+  }),
+});
+
+export default withDocsInfra()(withMDX(nextConfig));
+
+// Custom path filters for index generation
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    extractToIndex: {
+      include: ['app/docs/', 'app/api/'],
+      exclude: ['app/page.mdx', 'app/docs/internal/'],
+    },
+  }),
+});
+
+export default withDocsInfra()(withMDX(nextConfig));
 ```
 
 ## Default MDX Plugins
@@ -153,12 +196,14 @@ const withMDX = createMDX(
 
 ### DocsInfraMdxOptions
 
-| Option                    | Type    | Description                                |
-| ------------------------- | ------- | ------------------------------------------ |
-| `remarkPlugins`           | `Array` | Override default remark plugins completely |
-| `rehypePlugins`           | `Array` | Override default rehype plugins completely |
-| `additionalRemarkPlugins` | `Array` | Add plugins to default remark plugins      |
-| `additionalRehypePlugins` | `Array` | Add plugins to default rehype plugins      |
+| Option                    | Type                                                  | Default                                         | Description                                                                                                       |
+| ------------------------- | ----------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `remarkPlugins`           | `Array`                                               | See [Default MDX Plugins](#default-mdx-plugins) | Override default remark plugins completely                                                                        |
+| `rehypePlugins`           | `Array`                                               | See [Default MDX Plugins](#default-mdx-plugins) | Override default rehype plugins completely                                                                        |
+| `additionalRemarkPlugins` | `Array`                                               | `[]`                                            | Add plugins to default remark plugins                                                                             |
+| `additionalRehypePlugins` | `Array`                                               | `[]`                                            | Add plugins to default rehype plugins                                                                             |
+| `extractToIndex`          | `boolean \| { include: string[], exclude: string[] }` | `true` (with default filter)                    | Control metadata extraction to parent index files (see [Automatic Index Generation](#automatic-index-generation)) |
+| `baseDir`                 | `string`                                              | `process.cwd()`                                 | Base directory for path filtering (auto-detected, rarely needs manual configuration)                              |
 
 ## Example: Custom Demo Structure
 
@@ -195,26 +240,34 @@ Complete Next.js configuration for a docs site:
 import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
 import createMDX from '@next/mdx';
 
-const withMDX = createMDX(
-  getDocsInfraMdxOptions({
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
     additionalRemarkPlugins: [['remark-emoji']],
   }),
-);
+});
 
-const nextConfig = withDocsInfra({
-  additionalDemoPatterns: {
-    index: ['./app/**/demos/*/demo-*/index.ts'],
-    client: ['./app/**/demos/*/demo-*/client.ts'],
-  },
-})({
+const nextConfig = {
   // Your app-specific config
   experimental: {
     appDir: true,
   },
-});
+};
 
-export default withMDX(nextConfig);
+export default withDocsInfra({
+  additionalDemoPatterns: {
+    index: ['./app/**/demos/*/demo-*/index.ts'],
+    client: ['./app/**/demos/*/demo-*/client.ts'],
+  },
+})(withMDX(nextConfig));
 ```
+
+## Automatic Index Generation
+
+By default, the plugin automatically extracts page metadata and maintains parent directory indexes. See examples in [Controlling Index Generation](#controlling-index-generation) above.
+
+The default filter `{ include: ['app/'], exclude: ['app/page.mdx'] }` processes all pages in `app/` except the root page. The base directory is automatically detected from `process.cwd()`.
+
+For complete details, see the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) documentation.
 
 ## When to Use
 

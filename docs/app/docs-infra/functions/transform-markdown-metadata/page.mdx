@@ -1,0 +1,792 @@
+# transformMarkdownMetadata
+
+A remark plugin that extracts metadata from MDX files and optionally updates parent directory index pages. This plugin automatically collects page titles, descriptions, keywords, hierarchical section structures, and Open Graph data to create searchable, navigable documentation indexes.
+
+## Overview
+
+Use this plugin to extract comprehensive metadata from your MDX documentation pages. It parses both ES module metadata exports (`export const metadata = {...}`) and document content (headings, descriptions) to build structured metadata that powers navigation, search, and content discovery.
+
+The plugin automatically merges extracted metadata into your page's `export const metadata` object:
+
+1. **Metadata extraction**: Extracts title, description, and sections from page content
+2. **Smart merging**: Fills in missing fields in existing metadata exports
+3. **Auto-creation**: Creates metadata export if none exists
+4. **Index updates**: Optionally updates parent directory's `page.mdx` with an auto-generated index
+
+> **Note**: The plugin modifies the AST during build time to add or update the `export const metadata` object in your MDX files. User-defined metadata fields are never overwritten—the plugin only fills in missing values.
+
+## Key Features
+
+- **Automatic title extraction**: Finds the first H1 heading as the page title
+- **Description parsing**: Extracts the first paragraph as the page description
+- **Hierarchical sections**: Builds a nested tree of all H2-H6 headings with slugs
+- **Formatting preservation**: Maintains inline code, bold, italics in section titles
+- **Metadata merging**: Automatically updates the page's `export const metadata` object
+- **Smart defaults**: Only fills in missing fields—never overwrites user-defined values
+- **ES module metadata**: Works with Next.js [metadata object](https://nextjs.org/docs/app/api-reference/functions/generate-metadata#the-metadata-object) format
+- **Open Graph support**: Extracts OG metadata for social media previews
+- **Index auto-generation**: Maintains parent directory indexes automatically
+
+## Installation & Usage
+
+```typescript
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import { transformMarkdownMetadata } from '@mui/internal-docs-infra/transformMarkdownMetadata';
+
+const processor = unified()
+  .use(remarkParse)
+  .use(transformMarkdownMetadata, { extractToIndex: true });
+```
+
+### With Next.js and MDX
+
+When using the plugin directly (without `withDocsInfra`), you'll need to provide the `baseDir` for path filtering to work correctly:
+
+```javascript
+// next.config.js
+import { transformMarkdownMetadata } from '@mui/internal-docs-infra/transformMarkdownMetadata';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+const currentDirname = dirname(fileURLToPath(import.meta.url));
+
+const withMDX = require('@next/mdx')({
+  options: {
+    remarkPlugins: [
+      [
+        transformMarkdownMetadata,
+        {
+          extractToIndex: {
+            include: ['app/'],
+            exclude: ['app/page.mdx'],
+            baseDir: currentDirname, // Required for path filtering with absolute paths
+          },
+        },
+      ],
+    ],
+  },
+});
+
+module.exports = withMDX({
+  // your Next.js config
+});
+```
+
+> **Note**: The `baseDir` is needed because Next.js provides absolute file paths to remark plugins. The plugin strips this prefix to match against your include/exclude patterns.
+
+### With withDocsInfra Plugin
+
+The [`withDocsInfra`](../../functions/with-docs-infra/page.mdx) Next.js plugin automatically includes this with the correct configuration:
+
+```javascript
+// next.config.js
+import createMDX from '@next/mdx';
+import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
+
+// Create MDX with docs-infra configuration
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    // Automatically includes extractToIndex with default filter
+    // { include: ['app/'], exclude: ['app/page.mdx'], baseDir: process.cwd() }
+  }),
+});
+
+const nextConfig = {
+  // Your custom configuration
+};
+
+export default withDocsInfra()(withMDX(nextConfig));
+
+// Or disable index generation
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    extractToIndex: false,
+  }),
+});
+
+export default withDocsInfra()(withMDX(nextConfig));
+
+// Or customize path filters
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    extractToIndex: {
+      include: ['app/docs/', 'app/api/'],
+      exclude: ['app/page.mdx', 'app/docs/internal/'],
+    },
+  }),
+});
+
+export default withDocsInfra()(withMDX(nextConfig));
+```
+
+## Configuration
+
+### extractToIndex
+
+**Type**: `boolean | { include: string[], exclude: string[], baseDir?: string }`  
+**Default**: `false`
+
+Controls automatic extraction of page metadata to parent directory index files.
+
+When enabled, the plugin extracts metadata (title, description, headings) from MDX files and maintains an index in the parent directory's `page.mdx` file.
+
+**Options:**
+
+- `false` - Disabled (no index updates)
+- `true` - Enabled with default filter: `{ include: ['app/'], exclude: ['app/page.mdx'], baseDir: process.cwd() }`
+- `{ include: string[], exclude: string[], baseDir?: string }` - Enabled with custom path filters
+
+**Path matching** uses prefix matching - a file matches if its path starts with any include pattern and doesn't start with any exclude pattern.
+
+**Fields:**
+
+- `include` (string[]): Path prefixes that files must start with to be indexed
+- `exclude` (string[]): Path prefixes to exclude from indexing
+- `baseDir` (string, optional): Base directory to strip from absolute file paths before matching. When using `getDocsInfraMdxOptions()`, this defaults to `process.cwd()`. When calling the plugin directly, you should provide this for accurate path filtering.
+
+```typescript
+// Extract but don't update index
+.use(transformMarkdownMetadata)
+
+// Extract and update parent index with default filter
+.use(transformMarkdownMetadata, { extractToIndex: true })
+
+// Custom path filter (when using directly, provide baseDir for accurate matching)
+.use(transformMarkdownMetadata, {
+  extractToIndex: {
+    include: ['app/docs/', 'app/components/'],
+    exclude: ['app/docs/internal/', 'app/page.mdx'],
+    baseDir: '/path/to/your/project' // e.g., dirname(fileURLToPath(import.meta.url))
+  }
+})
+```
+
+**Default Filter Rationale:**
+
+The default `{ include: ['app/'], exclude: ['app/page.mdx'] }` is designed for Next.js App Router:
+
+- **Includes `app/`**: Processes all pages in the app directory
+- **Excludes `app/page.mdx`**: Prevents creating a root `/page.mdx` file, which would conflict with your site's home page
+- **Route groups**: Next.js route groups like `(shared)` are automatically removed when matching, so `app/(shared)/page.mdx` is treated as `app/page.mdx` and correctly excluded
+
+This ensures index pages are created at every level except the root, providing web-native navigation without interfering with your site structure.
+
+## Basic Example
+
+The simplest usage—write natural markdown and let the plugin extract metadata automatically:
+
+**Input MDX:**
+
+```mdx
+# Button Component
+
+A versatile button component with multiple variants and sizes.
+
+## Installation
+
+Install the package using your preferred package manager.
+
+## Usage
+
+Import and use the button in your React components.
+```
+
+**Extracted Metadata:**
+
+```json
+{
+  "title": "Button Component",
+  "description": "A versatile button component with multiple variants and sizes.",
+  "sections": {
+    "installation": {
+      "title": "Installation",
+      "titleMarkdown": [{ "type": "text", "value": "Installation" }],
+      "children": {}
+    },
+    "usage": {
+      "title": "Usage",
+      "titleMarkdown": [{ "type": "text", "value": "Usage" }],
+      "children": {}
+    }
+  }
+}
+```
+
+This is the recommended pattern—clean, readable markdown with automatic metadata extraction.
+
+## Common Patterns
+
+### Recommended: Content-First Approach
+
+Write natural markdown and let the plugin extract metadata automatically:
+
+```mdx
+# Button Component
+
+A versatile button component with multiple variants and sizes.
+
+## Installation
+
+Install the package using your preferred package manager.
+
+## Usage
+
+Import and use the button in your React components.
+
+export const metadata = {
+  keywords: ['button', 'interactive', 'form'],
+};
+
+;
+```
+
+**Benefits:**
+
+- No redundant metadata—the H1 is the title, first paragraph is the description
+- Clean, readable markdown source
+- Metadata exports only for computer-specific fields (keywords, Open Graph, etc.)
+- Placed at the end so they don't distract readers
+
+### Adding Keywords and Open Graph
+
+Only add metadata exports for computer-specific fields that can't be derived from content:
+
+```mdx
+# CodeHighlighter
+
+The CodeHighlighter component provides syntax highlighting.
+
+<!-- Page content -->
+
+export const metadata = {
+  keywords: ['syntax', 'highlighting', 'code', 'react'],
+  openGraph: {
+    images: [
+      {
+        url: '/og-code-highlighter.png',
+        width: 1200,
+        height: 630,
+        alt: 'Code Highlighter Preview',
+      },
+    ],
+  },
+};
+
+;
+```
+
+> **Best Practice**: Place metadata exports at the **end** of the file. The first H1 and paragraph are for human readers—they provide all the context needed when reading the markdown source. Metadata exports are for computers (search engines, social media, tooling) and should be unobtrusive.
+
+> **Note**: This uses MDX's ES module syntax (`export const`), not traditional YAML frontmatter.
+
+### Overriding Title and Description
+
+Only override when the H1 and first paragraph aren't suitable for SEO or social media:
+
+```mdx
+# CodeHighlighter
+
+The CodeHighlighter component provides syntax highlighting.
+
+<!-- More content... -->
+
+export const metadata = {
+  // Override for SEO/social media only when the H1 isn't suitable
+  title: 'Code Highlighter - Syntax Highlighting for React',
+  description: 'A comprehensive guide to using the CodeHighlighter component with examples.',
+  keywords: ['syntax-highlighting', 'code', 'react', 'typescript'],
+};
+
+;
+```
+
+### Section Navigation
+
+Use extracted sections for automatic navigation:
+
+```tsx
+// Example component using extracted metadata
+import { metadata } from './page.mdx';
+
+export function TableOfContents() {
+  return (
+    <nav>
+      {Object.entries(metadata.sections || {}).map(([slug, section]) => (
+        <a key={slug} href={`#${slug}`}>
+          {section.title}
+        </a>
+      ))}
+    </nav>
+  );
+}
+```
+
+## Best Practices
+
+### File Organization
+
+- **One page per directory**: Use `page.mdx` for each route
+- **Consistent naming**: Stick to kebab-case for directory names
+- **Index placement**: Let the plugin manage index files
+
+### Heading Structure
+
+- **Single H1**: Use only one H1 per page (the title)
+- **Logical hierarchy**: Don't skip heading levels (H2 → H3, not H2 → H4)
+- **Descriptive titles**: Write clear, searchable section titles
+- **Formatting**: Use inline code for function names, APIs
+
+### Metadata Export
+
+- **Content first**: Let the H1 and first paragraph provide title and description
+- **Minimal metadata**: Only export what can't be derived from content
+- **Keywords**: Add relevant, searchable keywords at the end of the file
+- **Open Graph**: Add OG metadata at the end when sharing on social media
+- **End placement**: Always place `export const metadata` at the end of the file
+
+### Index Management
+
+- **Manual ordering**: Reorder items in the editable section as needed
+- **Let auto-generate**: New pages will appear in the auto-generated section
+- **Review regularly**: Check index pages when adding new content
+
+## Index Generation
+
+When `extractToIndex: true` is enabled, the plugin automatically maintains index pages:
+
+### Directory Structure
+
+```
+app/components/
+├── page.mdx          # Auto-generated index
+├── button/
+│   └── page.mdx      # Button component docs
+├── checkbox/
+│   └── page.mdx      # Checkbox component docs
+└── input/
+    └── page.mdx      # Input component docs
+```
+
+### Generated Index Format
+
+The parent `page.mdx` is automatically created/updated:
+
+```mdx
+# Components
+
+[//]: # 'This file is autogenerated, but the following order can be modified'
+
+- [Button](./button/page.mdx) - A versatile button component
+- [Checkbox](./checkbox/page.mdx) - Toggle selection states
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Button
+
+A versatile button component
+
+- Keywords: button, click, action
+- Sections:
+  - Installation
+  - Usage
+    - Basic Usage
+    - Advanced Usage
+
+[Read more](./button/page.mdx)
+
+## Checkbox
+
+Toggle selection states
+
+- Keywords: checkbox, selection, form
+- Sections:
+  - Props
+  - Examples
+
+[Read more](./checkbox/page.mdx)
+
+## Input
+
+Text input component.
+
+- Keywords: input, form, text
+- Sections:
+  - Variants
+
+[Read more](./input/page.mdx)
+```
+
+### Index Features
+
+- **Editable section**: Brief list above the "DO NOT EDIT" marker can be manually reordered
+- **Auto-generated section**: Detailed page entries automatically added below the marker
+- **Two-part structure**: Concise links above, full details below
+- **Relative links**: All paths are relative for portability
+- **Hierarchical sections**: Nested sections shown with indentation (non-clickable)
+- **Full descriptions**: Complete page descriptions in the auto-generated section
+- **Keywords and sections**: Displayed as bullet lists under each page
+
+### Web-Native Navigation
+
+A key benefit of auto-generated index pages is improved navigation UX. When users remove segments from the URL path (a common power-user pattern), they land on a meaningful index page instead of a 404:
+
+```
+/components/checkbox/page.mdx  →  User removes "checkbox"
+/components/page.mdx           →  Lands on components index (not 404)
+```
+
+This creates a natural hierarchy where every directory level has content. Index pages don't need to be linked from your home page or site navigation—they can even be marked with `noindex` for SEO if you prefer they don't appear in search results. They exist purely to provide a web-native browsing experience for users exploring your documentation structure.
+
+**Example metadata for an unlisted index:**
+
+```mdx
+# Components
+
+<!-- Auto-generated content -->
+
+export const metadata = {
+  robots: { index: false },
+};
+
+;
+```
+
+### Automatic Index Structure
+
+Let the plugin generate index pages automatically throughout your documentation:
+
+```
+app/docs/
+├── page.mdx              # Auto-generated
+├── getting-started/
+│   └── page.mdx
+├── components/
+│   ├── page.mdx          # Auto-generated
+│   ├── button/
+│   │   └── page.mdx
+│   └── input/
+│       └── page.mdx
+└── api/
+    ├── page.mdx          # Auto-generated
+    └── reference/
+        └── page.mdx
+```
+
+## Integration with Other Plugins
+
+### With transformMarkdownCode
+
+Works alongside [`transformMarkdownCode`](../transform-markdown-code/page.mdx) to enhance documentation:
+
+```javascript
+// next.config.js
+import { transformMarkdownMetadata } from '@mui/internal-docs-infra/transformMarkdownMetadata';
+import { transformMarkdownCode } from '@mui/internal-docs-infra/transformMarkdownCode';
+
+const withMDX = require('@next/mdx')({
+  options: {
+    remarkPlugins: [[transformMarkdownMetadata, { extractToIndex: true }], transformMarkdownCode],
+  },
+});
+```
+
+### Full Documentation Pipeline
+
+Typical plugin order for comprehensive docs processing:
+
+```javascript
+const remarkPlugins = [
+  remarkGfm, // GitHub Flavored Markdown
+  [transformMarkdownMetadata, { extractToIndex: true }], // Extract metadata & build indexes
+  transformMarkdownCode, // Transform code blocks
+  transformMarkdownDemoLinks, // Handle demo links
+  transformMarkdownBlockquoteCallouts, // Style callouts
+];
+```
+
+## Advanced Examples
+
+### Nested Sections
+
+The plugin builds hierarchical section trees from your heading structure:
+
+**Input MDX:**
+
+```mdx
+# API Reference
+
+Complete API documentation for the component.
+
+## Props
+
+Configure the component with these props.
+
+### Required Props
+
+Props that must be provided.
+
+### Optional Props
+
+Props with default values.
+
+## Methods
+
+Public methods available on the component.
+```
+
+**Extracted Sections:**
+
+```json
+{
+  "props": {
+    "title": "Props",
+    "titleMarkdown": [{ "type": "text", "value": "Props" }],
+    "children": {
+      "required-props": {
+        "title": "Required Props",
+        "titleMarkdown": [{ "type": "text", "value": "Required Props" }],
+        "children": {}
+      },
+      "optional-props": {
+        "title": "Optional Props",
+        "titleMarkdown": [{ "type": "text", "value": "Optional Props" }],
+        "children": {}
+      }
+    }
+  },
+  "methods": {
+    "title": "Methods",
+    "titleMarkdown": [{ "type": "text", "value": "Methods" }],
+    "children": {}
+  }
+}
+```
+
+### Formatted Section Titles
+
+The plugin preserves inline code, bold, and italic formatting in section titles:
+
+**Input MDX:**
+
+```mdx
+# Utilities
+
+## `parseSource()`
+
+Parse source code into AST nodes.
+
+## **Performance** Optimization
+
+Tips for improving performance.
+
+## _Advanced_ Topics
+
+Deep dive into advanced features.
+```
+
+**Extracted Sections:**
+
+```json
+{
+  "parsesource": {
+    "title": "parseSource()",
+    "titleMarkdown": [{ "type": "inlineCode", "value": "parseSource()" }],
+    "children": {}
+  },
+  "performance-optimization": {
+    "title": "Performance Optimization",
+    "titleMarkdown": [
+      { "type": "strong", "children": [{ "type": "text", "value": "Performance" }] },
+      { "type": "text", "value": " Optimization" }
+    ],
+    "children": {}
+  },
+  "advanced-topics": {
+    "title": "Advanced Topics",
+    "titleMarkdown": [
+      { "type": "emphasis", "children": [{ "type": "text", "value": "Advanced" }] },
+      { "type": "text", "value": " Topics" }
+    ],
+    "children": {}
+  }
+}
+```
+
+### Complete Metadata Export
+
+Example with all available fields:
+
+**Input MDX:**
+
+```mdx
+# Custom Title
+
+Custom description text.
+
+Page content here.
+
+export const metadata = {
+  keywords: ['react', 'components', 'ui'],
+  openGraph: {
+    title: 'OG Title',
+    description: 'OG Description',
+    images: [
+      {
+        url: '/images/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Preview Image',
+      },
+    ],
+  },
+};
+
+;
+```
+
+**Extracted Metadata:**
+
+```json
+{
+  "title": "Custom Title",
+  "description": "Custom description text.",
+  "keywords": ["react", "components", "ui"],
+  "openGraph": {
+    "title": "OG Title",
+    "description": "OG Description",
+    "images": [
+      {
+        "url": "/images/og-image.png",
+        "width": 1200,
+        "height": 630,
+        "alt": "Preview Image"
+      }
+    ]
+  },
+  "sections": {
+    /* ... */
+  }
+}
+```
+
+## Reference: Metadata Structure
+
+The plugin extracts and generates metadata in the following structure:
+
+```typescript
+interface ExtractedMetadata {
+  title?: string;
+  description?: string;
+  descriptionMarkdown?: PhrasingContent[]; // Markdown AST nodes preserving formatting
+  keywords?: string[];
+  sections?: HeadingHierarchy;
+  openGraph?: {
+    title?: string;
+    description?: string;
+    images?: Array<{
+      url: string;
+      width: number;
+      height: number;
+      alt: string;
+    }>;
+  };
+}
+
+type HeadingHierarchy = {
+  [slug: string]: {
+    title: string; // Plain text for display
+    titleMarkdown: PhrasingContent[]; // Markdown AST nodes preserving formatting
+    children: HeadingHierarchy;
+  };
+};
+```
+
+### Dual Storage for Descriptions
+
+Similar to section titles, the plugin preserves both plain text and formatted markdown for descriptions:
+
+- **Plain text** (`description`): Used for meta tags, search indexing, and SEO
+- **AST nodes** (`descriptionMarkdown`): Preserves original formatting like inline code, bold, italics, and links
+
+This allows descriptions like "Use `transformMarkdownMetadata` to **extract** metadata" to render with proper formatting while still having clean text available for search engines and social media previews.
+
+## Reference: Plugin Behavior
+
+### Title Extraction Priority
+
+1. **Exported metadata**: `export const metadata = { title: 'Custom' }`
+2. **First H1 heading**: `# Page Title`
+3. **Directory name**: Falls back to directory name if no title found
+
+### Description Extraction Priority
+
+1. **Exported metadata**: `export const metadata = { description: '...' }`
+2. **First paragraph**: Text content of the first paragraph after the first H1
+3. **No description**: Returns `undefined` if none found
+
+### Heading Processing
+
+- **H1 (page title)**: Used as the page title, not included in sections
+- **H2-H6 (sections)**: Built into hierarchical section tree
+- **Slug generation**: Converts titles to URL-friendly slugs
+  - Lowercase conversion
+  - Non-alphanumeric characters replaced with hyphens
+  - Leading/trailing hyphens removed
+  - Preserves numbers
+
+### Formatting Preservation
+
+The plugin maintains formatting in section titles through dual storage:
+
+- **Plain text** (`title`): Used for display, slugs, and search
+- **AST nodes** (`titleMarkdown`): Preserves original formatting for rendering
+
+This allows rendering with backticks, bold, italics while still having clean text for URLs and indexing.
+
+## Error Handling
+
+The plugin handles errors gracefully:
+
+- **Missing title**: Falls back to directory name
+- **No description**: Returns `undefined`
+- **Invalid metadata export**: Logs error and continues
+- **File system errors**: Logs warning but doesn't fail build
+- **Malformed headings**: Skips invalid headings, processes rest
+
+## Performance Considerations
+
+### Dual Storage Benefits
+
+The plugin stores both plain text and AST nodes for section titles:
+
+- **Plain text**: Fast slug generation and text search (~37ms average)
+- **AST nodes**: Preserves formatting for accurate rendering
+- **Build-time processing**: All extraction happens during build, zero runtime cost
+
+### Index Update Efficiency
+
+The plugin's incremental update strategy is particularly valuable in Next.js:
+
+- **Only reprocess changed pages**: When you edit one MDX file, only that file's metadata is re-extracted and merged into the index. This is crucial for Next.js performance—you don't need to reparse all sibling pages to recompute the parent index.
+- **Fast rebuilds**: Changing a single component's documentation triggers minimal work during development and production builds
+- **Smart merging**: The plugin merges new metadata into the existing index structure, preserving manual edits in the editable section
+- **Relative paths**: All links use relative paths, enabling you to move entire directory structures without breaking the index
+
+## Related Functions
+
+- [`transformMarkdownCode`](../transform-markdown-code/page.mdx) - Transform code blocks in documentation
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin with all docs features
+
+export const metadata = {
+  keywords: [
+    'remark',
+    'plugin',
+    'metadata',
+    'extraction',
+    'mdx',
+    'documentation',
+    'index-generation',
+    'nextjs',
+  ],
+};
