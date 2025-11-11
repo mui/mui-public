@@ -493,13 +493,22 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         // e.g., "app/(shared)/page.mdx" becomes "app/page.mdx"
         const normalizedPath = filePath.replace(/\/\([^)]+\)/g, '');
 
-        // Check if file matches any include pattern (prefix match)
-        const isIncluded =
-          include.length === 0 || include.some((pattern) => normalizedPath.startsWith(pattern));
+        // Check if file matches any include pattern (must be inside the directory and not the index itself)
+        // The file must start with "pattern/" to ensure it's a child, not a sibling
+        // and must not be "pattern/page.mdx" to ensure it's not the index file itself
+        const matchedIncludePattern = include.find((pattern) => {
+          return (
+            normalizedPath.startsWith(`${pattern}/`) &&
+            normalizedPath !== `${pattern}/page.mdx`
+          );
+        });
+        const isIncluded = include.length === 0 || matchedIncludePattern !== undefined;
 
-        // Check if file matches any exclude pattern (prefix match)
-        const isExcluded =
-          exclude.length > 0 && exclude.some((pattern) => normalizedPath.startsWith(pattern));
+        // Check if file matches any exclude pattern
+        const matchedExcludePattern = exclude.find((pattern) => {
+          return normalizedPath.startsWith(`${pattern}/`);
+        });
+        const isExcluded = matchedExcludePattern !== undefined;
 
         shouldExtract = isIncluded && !isExcluded;
       }
