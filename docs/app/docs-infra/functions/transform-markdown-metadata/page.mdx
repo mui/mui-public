@@ -58,7 +58,7 @@ const withMDX = require('@next/mdx')({
         transformMarkdownMetadata,
         {
           extractToIndex: {
-            include: ['app/'],
+            include: ['app'],
             exclude: [],
             baseDir: currentDirname, // Required for path filtering with absolute paths
           },
@@ -88,7 +88,7 @@ import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/
 const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     // Automatically includes extractToIndex with default filter
-    // { include: ['app/'], exclude: [], baseDir: process.cwd() }
+    // { include: ['app', 'src/app'], exclude: [], baseDir: process.cwd() }
     // Index files are automatically excluded
   }),
 });
@@ -112,8 +112,8 @@ export default withDocsInfra()(withMDX(nextConfig));
 const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     extractToIndex: {
-      include: ['app/docs/', 'app/api/'],
-      exclude: ['app/docs/internal/'],
+      include: ['app/docs', 'app/api'],
+      exclude: ['app/docs/internal'],
     },
   }),
 });
@@ -137,15 +137,17 @@ Index files themselves (e.g., `pattern/page.mdx` where `pattern` is in the inclu
 **Options:**
 
 - `false` - Disabled (no index updates)
-- `true` - Enabled with default filter: `{ include: ['app/'], exclude: [], baseDir: process.cwd() }`
+- `true` - Enabled with default filter: `{ include: ['app', 'src/app'], exclude: [], baseDir: process.cwd() }`
 - `{ include: string[], exclude: string[], baseDir?: string }` - Enabled with custom path filters
 
 **Path matching** uses prefix matching - a file matches if its path starts with any include pattern and doesn't start with any exclude pattern. Files matching `pattern/page.mdx` (where `pattern` is in the include list) are automatically skipped as they are index files themselves.
 
+> **Important**: Patterns should **not** include trailing slashes. The plugin automatically appends `/` during matching. Use `'app'` not `'app/'`, and `'src/app'` not `'src/app/'`.
+
 **Fields:**
 
-- `include` (string[]): Path prefixes that files must start with to be indexed
-- `exclude` (string[]): Path prefixes to exclude from indexing
+- `include` (string[]): Path prefixes that files must start with to be indexed (without trailing slashes)
+- `exclude` (string[]): Path prefixes to exclude from indexing (without trailing slashes)
 - `baseDir` (string, optional): Base directory to strip from absolute file paths before matching. When using `getDocsInfraMdxOptions()`, this defaults to `process.cwd()`. When calling the plugin directly, you should provide this for accurate path filtering.
 
 ```typescript
@@ -158,8 +160,8 @@ Index files themselves (e.g., `pattern/page.mdx` where `pattern` is in the inclu
 // Custom path filter (when using directly, provide baseDir for accurate matching)
 .use(transformMarkdownMetadata, {
   extractToIndex: {
-    include: ['app/docs/', 'app/components/'],
-    exclude: ['app/docs/internal/'],
+    include: ['app/docs', 'app/components'],
+    exclude: ['app/docs/internal'],
     baseDir: '/path/to/your/project' // e.g., dirname(fileURLToPath(import.meta.url))
   }
 })
@@ -167,9 +169,10 @@ Index files themselves (e.g., `pattern/page.mdx` where `pattern` is in the inclu
 
 **Default Filter Rationale:**
 
-The default `{ include: ['app/'], exclude: [] }` is designed for Next.js App Router:
+The default `{ include: ['app', 'src/app'], exclude: [] }` is designed for Next.js App Router projects:
 
-- **Includes `app/`**: Processes all pages in the app directory
+- **Includes `app` and `src/app`**: Processes pages in both common Next.js directory structures
+- **No trailing slashes**: Patterns should not have trailing slashes (they're added automatically during matching)
 - **Automatic index exclusion**: Index files like `app/page.mdx`, `app/components/page.mdx` are automatically skipped to prevent them from creating parent indexes
 - **Route groups**: Next.js route groups like `(shared)` are automatically removed when matching, so `app/(shared)/page.mdx` is treated as `app/page.mdx`
 

@@ -34,8 +34,8 @@ const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     // Control index generation
     extractToIndex: {
-      include: ['app/docs/', 'app/api/'],
-      exclude: ['app/docs/internal/'],
+      include: ['app/docs', 'app/api'],
+      exclude: ['app/docs/internal'],
     },
   }),
 });
@@ -159,8 +159,8 @@ export default withDocsInfra()(withMDX(nextConfig));
 const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     extractToIndex: {
-      include: ['app/docs/', 'app/api/'],
-      exclude: ['app/docs/internal/'],
+      include: ['app/docs', 'app/api'],
+      exclude: ['app/docs/internal'],
     },
   }),
 });
@@ -265,7 +265,7 @@ export default withDocsInfra({
 
 By default, the plugin automatically extracts page metadata and maintains parent directory indexes. See examples in [Controlling Index Generation](#controlling-index-generation) above.
 
-The default filter `{ include: ['app/'], exclude: [] }` processes all pages in `app/`. Index files (e.g., `app/page.mdx`, `app/components/page.mdx`) are automatically excluded to prevent them from creating parent indexes. The base directory is automatically detected from `process.cwd()`.
+The default filter `{ include: ['app', 'src/app'], exclude: [] }` processes all pages in both `app/` and `src/app/` directories (without trailing slashes - they're added automatically during matching). Index files (e.g., `app/page.mdx`, `app/components/page.mdx`) are automatically excluded to prevent them from creating parent indexes. The base directory is automatically detected from `process.cwd()`.
 
 For complete details, see the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) documentation.
 

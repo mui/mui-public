@@ -125,11 +125,11 @@ export function getDocsInfraMdxOptions(
   if (extractToIndex === false) {
     extractToIndexOptions = false;
   } else if (extractToIndex === true) {
-    // Default filter: include all files under app/
+    // Default filter: include all files under app/ and src/app/
     // Index files (pattern/page.mdx) are automatically excluded by the matching logic
     // Use process.cwd() as default baseDir (the directory where Next.js is running)
     extractToIndexOptions = {
-      include: ['app/'],
+      include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
     };
