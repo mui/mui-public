@@ -32,6 +32,7 @@
     "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
+    "./pipeline/loadPrecomputedSitemap": "./src/pipeline/loadPrecomputedSitemap/index.ts",
     "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
     "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",

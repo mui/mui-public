@@ -216,6 +216,14 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           },
         ],
       },
+      './app/sitemap/index.ts': {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+            options: { performance },
+          },
+        ],
+      },
     };
 
     // Add additional demo patterns to Turbopack rules
@@ -294,6 +302,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
+          ],
+        });
+
+        // Sitemap loader
+        webpackConfig.module.rules.push({
+          test: new RegExp('/sitemap/index\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
               options: { performance },
             },
           ],
