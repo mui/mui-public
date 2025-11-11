@@ -70,7 +70,12 @@ function headingHierarchyToMarkdown(
   for (const node of Object.values(hierarchy)) {
     const { titleMarkdown, children } = node;
     // Convert AST nodes back to markdown string with preserved formatting
-    const titleString = astNodesToMarkdown(titleMarkdown);
+    let titleString = astNodesToMarkdown(titleMarkdown);
+    
+    // Escape numbered list syntax (e.g., "1. Text" -> "1\. Text")
+    // This prevents markdown from treating "- 1. Text" as a nested ordered list
+    titleString = titleString.replace(/^(\d+)\.\s/, '$1\\. ');
+    
     result += `${indent}- ${titleString}\n`;
     if (Object.keys(children).length > 0) {
       result += headingHierarchyToMarkdown(children, basePath, depth + 1);
@@ -138,8 +143,9 @@ function parseHeadingSections(listNode: any): HeadingHierarchy {
   const stack: Array<{ depth: number; node: HeadingHierarchy }> = [{ depth: -1, node: hierarchy }];
 
   // Helper to calculate depth from list nesting
-  function processListItems(items: any[], baseDepth: number) {
-    for (const item of items) {
+  function processListItems(items: any[], baseDepth: number, parentIsOrdered: boolean = false, startIndex: number = 1) {
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i];
       if (item.type !== 'listItem') {
         continue;
       }
@@ -170,7 +176,7 @@ function parseHeadingSections(listNode: any): HeadingHierarchy {
         titleMarkdown = stripPositions(itemParagraph.children || []);
 
         // Extract plain text for slug generation
-        title = itemParagraph.children
+        let rawTitle = itemParagraph.children
           .map((child: any) => {
             if (child.type === 'text') {
               return child.value;
@@ -187,7 +193,21 @@ function parseHeadingSections(listNode: any): HeadingHierarchy {
           .join('')
           .trim();
 
-        // Generate slug from plain text
+        // Unescape numbered list syntax (e.g., "1\. Text" -> "1. Text")
+        // This handles titles that were escaped during serialization
+        rawTitle = rawTitle.replace(/^(\d+)\\\.\s/, '$1. ');
+
+        // If this is from an ordered list, prepend the number
+        if (parentIsOrdered) {
+          const itemNumber = startIndex + i;
+          title = `${itemNumber}. ${rawTitle}`;
+          // Update titleMarkdown to include the number
+          titleMarkdown = [{ type: 'text', value: title }];
+        } else {
+          title = rawTitle;
+        }
+
+        // Generate slug from the title (with number if applicable)
         slug = title
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
@@ -209,10 +229,15 @@ function parseHeadingSections(listNode: any): HeadingHierarchy {
         parent[slug] = newNode;
         stack.push({ depth: baseDepth, node: newNode.children });
 
-        // Check for nested list
-        const nestedList = item.children?.find((child: any) => child.type === 'list');
-        if (nestedList && nestedList.children) {
-          processListItems(nestedList.children, baseDepth + 1);
+        // Check for nested lists (can be ordered or unordered)
+        const nestedLists = item.children?.filter((child: any) => child.type === 'list');
+        for (const nestedList of nestedLists || []) {
+          if (nestedList.children) {
+            const nestedIsOrdered = nestedList.ordered === true;
+            const nestedStart = nestedList.start || 1;
+            // Always increment depth for true nesting
+            processListItems(nestedList.children, baseDepth + 1, nestedIsOrdered, nestedStart);
+          }
         }
       }
     }

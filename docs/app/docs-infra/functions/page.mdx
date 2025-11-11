@@ -189,6 +189,10 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
     - Options
     - Custom Factory Functions
   - Processing Pipeline
+    - 1\. Parse Factory Call
+    - 2\. Resolve File Paths
+    - 3\. Process Variants
+    - 4\. Inserts Precompute Value
   - Output Structure
   - Error Handling
     - Single Factory Function per File
@@ -267,6 +271,10 @@ The precompute client loader is a Webpack/Turbopack loader that enables build-ti
     - Multiple Variants
     - Custom Client Factory Functions
   - Processing Pipeline
+    - 1\. Parse Factory Call
+    - 2\. Resolve Variant Paths
+    - 3\. Collect Externals
+    - 4\. Inject Externals
   - Output Structure
     - Externals Format
   - Error Handling
