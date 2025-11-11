@@ -271,8 +271,9 @@ export function metadataToMarkdownAst(data: PagesMetadata): Root {
   // Add page list (editable section)
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
-    const description =
-      page.openGraph?.description || page.description || 'No description available';
+    let description = page.openGraph?.description || page.description || 'No description available';
+    // Replace newlines with spaces to keep description on a single line
+    description = description.replace(/\n/g, ' ');
 
     children.push(paragraph([text('- '), link(page.path, pageTitle), text(` - ${description}`)]));
   }
@@ -283,6 +284,7 @@ export function metadataToMarkdownAst(data: PagesMetadata): Root {
   // Add detailed page sections (non-editable)
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
+    // Note: We don't replace newlines here to allow natural line breaks in detailed sections
     const description =
       page.openGraph?.description || page.description || 'No description available';
     const keywords = page.keywords || [];
@@ -375,7 +377,7 @@ export function metadataToMarkdown(data: PagesMetadata): string {
     // Use descriptionMarkdown to preserve formatting if available
     let description: string;
     if (page.descriptionMarkdown && page.descriptionMarkdown.length > 0) {
-      description = astNodesToMarkdown(page.descriptionMarkdown);
+      description = astNodesToMarkdown(page.descriptionMarkdown).replace(/\n/g, ' ');
     } else {
       description = page.openGraph?.description || page.description || 'No description available';
     }
@@ -392,6 +394,7 @@ export function metadataToMarkdown(data: PagesMetadata): string {
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
     // Use descriptionMarkdown to preserve formatting if available
+    // Note: We don't replace newlines here to allow natural line breaks in detailed sections
     let description: string;
     if (page.descriptionMarkdown && page.descriptionMarkdown.length > 0) {
       description = astNodesToMarkdown(page.descriptionMarkdown);

@@ -35,7 +35,6 @@ import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
 export default withDocsInfra({
   // Automatically includes:
   // - './app/sitemap/index.ts'
-  
   // The loader is pre-configured and ready to use
 });
 ```
@@ -60,10 +59,7 @@ const nextConfig = {
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/sitemap\/index\.ts$/,
-      use: [
-        defaultLoaders.babel,
-        '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-      ],
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap'],
     });
 
     return config;
@@ -116,7 +112,7 @@ export const sitemap = createSitemap(
     DocsInfraComponents,
     DocsInfraFunctions,
   },
-  { skipPrecompute: true }
+  { skipPrecompute: true },
 );
 ```
 
@@ -233,20 +229,18 @@ import { create, insertMultiple, search } from '@orama/orama';
 const { sitemap } = await import('./app/sitemap');
 
 // Create search index with the precomputed schema
-const searchIndex = await create({ 
-  schema: sitemap.precompute.schema 
+const searchIndex = await create({
+  schema: sitemap.precompute.schema,
 });
 
 // Flatten and insert pages
-const pages = Object.entries(sitemap.precompute.data).flatMap(
-  ([_key, section]) => {
-    return section.pages.map(page => ({
-      ...page,
-      section: section.title,
-      prefix: section.prefix,
-    }));
-  }
-);
+const pages = Object.entries(sitemap.precompute.data).flatMap(([_key, section]) => {
+  return section.pages.map((page) => ({
+    ...page,
+    section: section.title,
+    prefix: section.prefix,
+  }));
+});
 
 await insertMultiple(searchIndex, pages);
 
