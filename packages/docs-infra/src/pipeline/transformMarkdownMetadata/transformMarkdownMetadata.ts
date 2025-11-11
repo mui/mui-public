@@ -352,9 +352,13 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
     let metadataNode: any = null; // Track the ESM node containing metadata
     let metaDescription: string | null = null; // Track meta tag description
     let metaKeywords: string[] | null = null; // Track meta tag keywords
+    let foundFirstH1 = false;
+    let nextNodeAfterH1: any = null;
+    let firstParagraphMarkdown: any[] | undefined;
 
-    // First pass: extract metadata export if it exists
-    visit(root, (node: any) => {
+    // Single pass: extract metadata export, meta tags, headings, and first paragraph
+    visit(root, (node: any, index, parent) => {
+      // Extract metadata export if it exists
       if (node.type === 'mdxjsEsm' && node.data?.estree) {
         const extracted = parseMetadataFromEstree(node.data.estree);
         if (extracted) {
@@ -362,10 +366,8 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           metadataNode = node; // Keep reference to the node
         }
       }
-    });
 
-    // Second pass: look for meta tags (can appear anywhere in the document)
-    visit(root, (node: any) => {
+      // Look for meta tags (can appear anywhere in the document)
       if (
         (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
         (node.name === 'meta' || node.name === 'Meta')
@@ -400,14 +402,8 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           metaKeywords = contentValue.split(',').map((keyword) => keyword.trim());
         }
       }
-    });
 
-    // Third pass: extract headings and find first h1 + paragraph
-    let foundFirstH1 = false;
-    let nextNodeAfterH1: any = null;
-    let firstParagraphMarkdown: any[] | undefined;
-
-    visit(root, (node: any, index, parent) => {
+      // Extract headings
       if (node.type === 'heading') {
         const heading = node as Heading;
         const text = extractTextFromChildren(heading.children);
