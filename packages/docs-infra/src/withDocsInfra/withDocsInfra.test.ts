@@ -735,7 +735,7 @@ describe('getDocsInfraMdxOptions', () => {
         '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
         {
           extractToIndex: {
-            include: ['app/'],
+            include: ['app', 'src/app'],
             exclude: [],
             baseDir: process.cwd(),
           },
@@ -764,7 +764,7 @@ describe('getDocsInfraMdxOptions', () => {
         '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
         {
           extractToIndex: {
-            include: ['app/'],
+            include: ['app', 'src/app'],
             exclude: [],
             baseDir: process.cwd(),
           },

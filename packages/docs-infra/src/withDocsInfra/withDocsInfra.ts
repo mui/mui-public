@@ -85,7 +85,7 @@ export interface DocsInfraMdxOptions {
    *
    * Can be:
    * - `false` - Disabled
-   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: [] }`
+   * - `true` - Enabled with default filter: `{ include: ['app', 'src/app'], exclude: [] }`
    * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
    *
    * @default true
