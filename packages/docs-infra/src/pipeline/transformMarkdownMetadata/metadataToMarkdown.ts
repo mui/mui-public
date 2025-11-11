@@ -440,7 +440,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     if (node.type === 'heading') {
       const headingNode = node as HeadingNode;
       if (headingNode.depth === 1) {
-        title = extractTextFromNode(headingNode);
+        title = extractPlainTextFromNode(headingNode);
         currentSection = 'header';
         return;
       }
@@ -455,7 +455,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           | LinkNode
           | undefined;
         if (linkNode) {
-          const pageTitle = extractTextFromNode(linkNode);
+          const pageTitle = extractPlainTextFromNode(linkNode);
           const path = linkNode.url;
           const slug = extractSlugFromPath(path);
 
@@ -494,7 +494,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             }
           }
 
-          const pageTitle = extractTextFromNode(headingNode);
+          const pageTitle = extractPlainTextFromNode(headingNode);
           // Find the page in the existing pages array by matching the title
           const existingPage = pages.find((p) => p.title === pageTitle);
           if (existingPage) {
@@ -546,6 +546,10 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         // Parse description (first paragraph after title, not in a list)
         if (!currentPage.description && parent?.type !== 'listItem') {
           currentPage.description = paragraphText;
+          // Store the AST nodes with position info stripped for clean serialization
+          if (paragraphNode.children) {
+            currentPage.descriptionMarkdown = stripPositions(paragraphNode.children);
+          }
           if (!currentPage.openGraph) {
             currentPage.openGraph = {};
           }
@@ -598,11 +602,51 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
 }
 
 /**
+ * Extracts plain text content from any mdast node without markdown formatting
+ * Used for titles and other places where we don't want markdown syntax
+ */
+function extractPlainTextFromNode(node: any): string {
+  if (node.type === 'text') {
+    return node.value;
+  }
+  if (node.type === 'inlineCode') {
+    return node.value;
+  }
+  if (node.children) {
+    const extractedText = node.children
+      .map((child: any) => extractPlainTextFromNode(child))
+      .join('');
+    // For paragraph nodes, replace newlines with spaces and normalize whitespace
+    if (node.type === 'paragraph') {
+      return extractedText.replace(/\s+/g, ' ').trim();
+    }
+    return extractedText;
+  }
+  return '';
+}
+
+/**
  * Extracts text content from any mdast node
+ * Preserves markdown formatting like inline code and links
  */
 function extractTextFromNode(node: any): string {
   if (node.type === 'text') {
     return node.value;
+  }
+  if (node.type === 'inlineCode') {
+    return `\`${node.value}\``;
+  }
+  if (node.type === 'link') {
+    const linkText = node.children.map((child: any) => extractTextFromNode(child)).join('');
+    return `[${linkText}](${node.url})`;
+  }
+  if (node.type === 'emphasis') {
+    const emphasisText = node.children.map((child: any) => extractTextFromNode(child)).join('');
+    return `*${emphasisText}*`;
+  }
+  if (node.type === 'strong') {
+    const strongText = node.children.map((child: any) => extractTextFromNode(child)).join('');
+    return `**${strongText}**`;
   }
   if (node.children) {
     const extractedText = node.children.map((child: any) => extractTextFromNode(child)).join('');
