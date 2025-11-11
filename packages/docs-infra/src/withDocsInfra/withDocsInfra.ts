@@ -81,9 +81,11 @@ export interface DocsInfraMdxOptions {
    * Whether to automatically extract page metadata (title, description, headings) from MDX files
    * and maintain an index in the parent directory's page.mdx file.
    *
+   * Index files themselves (e.g., pattern/page.mdx) are automatically excluded from extraction.
+   *
    * Can be:
    * - `false` - Disabled
-   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: ['app/page.mdx'] }`
+   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: [] }`
    * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
    *
    * @default true
@@ -123,11 +125,12 @@ export function getDocsInfraMdxOptions(
   if (extractToIndex === false) {
     extractToIndexOptions = false;
   } else if (extractToIndex === true) {
-    // Default filter: include app/ but exclude app/page.mdx
+    // Default filter: include all files under app/
+    // Index files (pattern/page.mdx) are automatically excluded by the matching logic
     // Use process.cwd() as default baseDir (the directory where Next.js is running)
     extractToIndexOptions = {
       include: ['app/'],
-      exclude: ['app/page.mdx'],
+      exclude: [],
       baseDir: baseDir ?? process.cwd(),
     };
   } else {

@@ -59,7 +59,7 @@ const withMDX = require('@next/mdx')({
         {
           extractToIndex: {
             include: ['app/'],
-            exclude: ['app/page.mdx'],
+            exclude: [],
             baseDir: currentDirname, // Required for path filtering with absolute paths
           },
         },
@@ -73,7 +73,7 @@ module.exports = withMDX({
 });
 ```
 
-> **Note**: The `baseDir` is needed because Next.js provides absolute file paths to remark plugins. The plugin strips this prefix to match against your include/exclude patterns.
+> **Note**: The `baseDir` is needed because Next.js provides absolute file paths to remark plugins. The plugin strips this prefix to match against your include/exclude patterns. Index files (e.g., `app/page.mdx`, `app/components/page.mdx`) are automatically excluded.
 
 ### With withDocsInfra Plugin
 
@@ -88,7 +88,8 @@ import { withDocsInfra, getDocsInfraMdxOptions } from '@mui/internal-docs-infra/
 const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     // Automatically includes extractToIndex with default filter
-    // { include: ['app/'], exclude: ['app/page.mdx'], baseDir: process.cwd() }
+    // { include: ['app/'], exclude: [], baseDir: process.cwd() }
+    // Index files are automatically excluded
   }),
 });
 
@@ -112,7 +113,7 @@ const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     extractToIndex: {
       include: ['app/docs/', 'app/api/'],
-      exclude: ['app/page.mdx', 'app/docs/internal/'],
+      exclude: ['app/docs/internal/'],
     },
   }),
 });
@@ -131,13 +132,15 @@ Controls automatic extraction of page metadata to parent directory index files.
 
 When enabled, the plugin extracts metadata (title, description, headings) from MDX files and maintains an index in the parent directory's `page.mdx` file.
 
+Index files themselves (e.g., `pattern/page.mdx` where `pattern` is in the include list) are automatically excluded from extraction.
+
 **Options:**
 
 - `false` - Disabled (no index updates)
-- `true` - Enabled with default filter: `{ include: ['app/'], exclude: ['app/page.mdx'], baseDir: process.cwd() }`
+- `true` - Enabled with default filter: `{ include: ['app/'], exclude: [], baseDir: process.cwd() }`
 - `{ include: string[], exclude: string[], baseDir?: string }` - Enabled with custom path filters
 
-**Path matching** uses prefix matching - a file matches if its path starts with any include pattern and doesn't start with any exclude pattern.
+**Path matching** uses prefix matching - a file matches if its path starts with any include pattern and doesn't start with any exclude pattern. Files matching `pattern/page.mdx` (where `pattern` is in the include list) are automatically skipped as they are index files themselves.
 
 **Fields:**
 
@@ -156,7 +159,7 @@ When enabled, the plugin extracts metadata (title, description, headings) from M
 .use(transformMarkdownMetadata, {
   extractToIndex: {
     include: ['app/docs/', 'app/components/'],
-    exclude: ['app/docs/internal/', 'app/page.mdx'],
+    exclude: ['app/docs/internal/'],
     baseDir: '/path/to/your/project' // e.g., dirname(fileURLToPath(import.meta.url))
   }
 })
@@ -164,13 +167,13 @@ When enabled, the plugin extracts metadata (title, description, headings) from M
 
 **Default Filter Rationale:**
 
-The default `{ include: ['app/'], exclude: ['app/page.mdx'] }` is designed for Next.js App Router:
+The default `{ include: ['app/'], exclude: [] }` is designed for Next.js App Router:
 
 - **Includes `app/`**: Processes all pages in the app directory
-- **Excludes `app/page.mdx`**: Prevents creating a root `/page.mdx` file, which would conflict with your site's home page
-- **Route groups**: Next.js route groups like `(shared)` are automatically removed when matching, so `app/(shared)/page.mdx` is treated as `app/page.mdx` and correctly excluded
+- **Automatic index exclusion**: Index files like `app/page.mdx`, `app/components/page.mdx` are automatically skipped to prevent them from creating parent indexes
+- **Route groups**: Next.js route groups like `(shared)` are automatically removed when matching, so `app/(shared)/page.mdx` is treated as `app/page.mdx`
 
-This ensures index pages are created at every level except the root, providing web-native navigation without interfering with your site structure.
+This ensures index pages are created at every level without unwanted parent indexes or interference with your site structure.
 
 ## Basic Example
 

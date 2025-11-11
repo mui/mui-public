@@ -11,13 +11,16 @@ export interface TransformMarkdownMetadataOptions {
    * When enabled, the plugin extracts metadata (title, description, headings) from MDX files
    * and maintains an index in the parent directory's page.mdx file.
    *
+   * Index files themselves (e.g., pattern/page.mdx) are automatically excluded from extraction.
+   *
    * Can be:
    * - `false` - Disabled
-   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: ['app/page.mdx'] }`
+   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: [] }`
    * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
    *
    * Path matching uses prefix matching - a file matches if it starts with any include path
-   * and doesn't start with any exclude path.
+   * and doesn't start with any exclude path. Files that are index files themselves
+   * (matching pattern/page.mdx) are automatically skipped.
    */
   extractToIndex?:
     | boolean
@@ -498,8 +501,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         // and must not be "pattern/page.mdx" to ensure it's not the index file itself
         const matchedIncludePattern = include.find((pattern) => {
           return (
-            normalizedPath.startsWith(`${pattern}/`) &&
-            normalizedPath !== `${pattern}/page.mdx`
+            normalizedPath.startsWith(`${pattern}/`) && normalizedPath !== `${pattern}/page.mdx`
           );
         });
         const isIncluded = include.length === 0 || matchedIncludePattern !== undefined;
