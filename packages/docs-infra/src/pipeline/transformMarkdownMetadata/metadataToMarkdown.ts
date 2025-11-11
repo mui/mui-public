@@ -71,11 +71,11 @@ function headingHierarchyToMarkdown(
     const { titleMarkdown, children } = node;
     // Convert AST nodes back to markdown string with preserved formatting
     let titleString = astNodesToMarkdown(titleMarkdown);
-    
+
     // Escape numbered list syntax (e.g., "1. Text" -> "1\. Text")
     // This prevents markdown from treating "- 1. Text" as a nested ordered list
     titleString = titleString.replace(/^(\d+)\.\s/, '$1\\. ');
-    
+
     result += `${indent}- ${titleString}\n`;
     if (Object.keys(children).length > 0) {
       result += headingHierarchyToMarkdown(children, basePath, depth + 1);
@@ -143,7 +143,12 @@ function parseHeadingSections(listNode: any): HeadingHierarchy {
   const stack: Array<{ depth: number; node: HeadingHierarchy }> = [{ depth: -1, node: hierarchy }];
 
   // Helper to calculate depth from list nesting
-  function processListItems(items: any[], baseDepth: number, parentIsOrdered: boolean = false, startIndex: number = 1) {
+  function processListItems(
+    items: any[],
+    baseDepth: number,
+    parentIsOrdered: boolean = false,
+    startIndex: number = 1,
+  ) {
     for (let i = 0; i < items.length; i += 1) {
       const item = items[i];
       if (item.type !== 'listItem') {

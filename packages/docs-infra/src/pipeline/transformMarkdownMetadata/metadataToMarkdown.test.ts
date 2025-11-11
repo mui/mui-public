@@ -818,7 +818,7 @@ A pattern for isomorphic components.
     expect(result?.pages).toHaveLength(1);
     const page = result?.pages[0];
     expect(page?.sections).toBeDefined();
-    
+
     // Should have all 7 sections
     expect(Object.keys(page?.sections || {})).toEqual([
       'server-client-boundary-constraints',
@@ -836,7 +836,7 @@ A pattern for isomorphic components.
       titleMarkdown: [{ type: 'text', value: '1. Early rendering with fallback values' }],
       children: {},
     });
-    
+
     expect(page?.sections?.['2-conditional-async-operations']).toEqual({
       title: '2. Conditional async operations',
       titleMarkdown: [{ type: 'text', value: '2. Conditional async operations' }],
