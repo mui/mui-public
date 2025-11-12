@@ -197,22 +197,58 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
   // Derive index title from directory name if not provided
   const indexTitle = options.indexTitle ?? kebabToTitleCase(basename(parentDir));
 
-  // Ensure the file exists (proper-lockfile requires it)
+  // Step 1: Read the file without acquiring a lock to check if we need to make changes
+  let existingContent = '';
   try {
-    await readFile(indexPath, 'utf-8');
+    existingContent = await readFile(indexPath, 'utf-8');
   } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      // Create an empty file so we can lock it
-      await writeFile(indexPath, '', 'utf-8');
-    } else {
+    if (error.code !== 'ENOENT') {
       throw error;
+    }
+    // File doesn't exist - we'll need to create it
+  }
+
+  // Step 2: Parse existing content and check if our specific page needs updating
+  const existingMarkdown = existingContent.trim() ? existingContent : undefined;
+  let existingPages: PageMetadata[] = [];
+  if (existingMarkdown) {
+    const parsed = await markdownToMetadata(existingMarkdown);
+    if (parsed) {
+      existingPages = parsed.pages;
     }
   }
 
+  // Step 3: Check if our specific page already exists with the same metadata
+  const existingPageIndex = existingPages.findIndex((p) => p.slug === metadata.slug);
+  if (existingPageIndex >= 0) {
+    const existingPage = existingPages[existingPageIndex];
+    // Compare our page's metadata - if identical, we can skip the update
+    const existingPageJson = JSON.stringify(existingPage);
+    const newPageJson = JSON.stringify(metadata);
+    if (existingPageJson === newPageJson) {
+      // Our page is already up-to-date, no need to acquire lock or write
+      return;
+    }
+  }
+
+  // Our page is missing or outdated, we need to update the index
+  // Update or add the page in the existing pages
+  if (existingPageIndex >= 0) {
+    existingPages[existingPageIndex] = metadata;
+  } else {
+    existingPages.push(metadata);
+  }
+
+  // Step 4: Ensure the file exists before locking (proper-lockfile requires an existing file)
+  if (!existingContent) {
+    await writeFile(indexPath, '', 'utf-8');
+  }
+
   let release: (() => Promise<void>) | undefined;
+  let mergedPages: PageMetadata[] = []; // Store merged pages for parent update
 
   try {
-    // Acquire lock on the index file
+    // Step 5: Acquire lock on the index file
     release = await lockfile.lock(indexPath, {
       retries: {
         retries: 300,
@@ -224,53 +260,53 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
       ...lockOptions,
     });
 
-    // Read existing index markdown (if it exists)
-    let existingMarkdown: string | undefined;
-    let existingPages: PageMetadata[] = [];
+    // Step 6: Re-read and re-merge to catch any concurrent updates from other processes
+    // This ensures we don't lose updates from other pages being processed in parallel
+    let currentContent = '';
     try {
-      const content = await readFile(indexPath, 'utf-8');
-      // Only use content if it's not empty
-      if (content.trim()) {
-        existingMarkdown = content;
-        const parsed = await markdownToMetadata(content);
-        if (parsed) {
-          existingPages = parsed.pages;
-        }
-      }
+      currentContent = await readFile(indexPath, 'utf-8');
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
         throw error;
       }
-      // File doesn't exist, that's okay
+      // File was deleted while waiting - that's okay, we'll create it
     }
 
-    // Update or add the page in the existing pages
-    const pageIndex = existingPages.findIndex((p) => p.slug === metadata.slug);
-    if (pageIndex >= 0) {
-      // Update existing page
-      existingPages[pageIndex] = metadata;
+    const currentMarkdown = currentContent.trim() ? currentContent : undefined;
+    let currentPages: PageMetadata[] = [];
+    if (currentMarkdown) {
+      const parsed = await markdownToMetadata(currentMarkdown);
+      if (parsed) {
+        currentPages = parsed.pages;
+      }
+    }
+
+    // Update or add our page in the current pages (catching concurrent updates)
+    const currentPageIndex = currentPages.findIndex((p) => p.slug === metadata.slug);
+    if (currentPageIndex >= 0) {
+      currentPages[currentPageIndex] = metadata;
     } else {
-      // Add new page
-      existingPages.push(metadata);
+      currentPages.push(metadata);
     }
 
-    // Merge the metadata
-    const updatedMarkdown = await mergeMetadataMarkdown(existingMarkdown, {
+    // Store for parent update
+    mergedPages = currentPages;
+
+    // Re-merge with the latest content
+    const finalMarkdown = await mergeMetadataMarkdown(currentMarkdown, {
       title: indexTitle,
-      pages: existingPages,
+      pages: currentPages,
     });
 
-    // Defensive check: never write empty content
-    if (!updatedMarkdown || !updatedMarkdown.trim()) {
-      console.error(`[updatePageIndex] ERROR: Generated empty markdown for ${indexPath}`);
-      console.error(`[updatePageIndex] existingMarkdown length: ${existingMarkdown?.length ?? 0}`);
-      console.error(`[updatePageIndex] existingPages count: ${existingPages.length}`);
-      console.error(`[updatePageIndex] metadata:`, JSON.stringify(metadata, null, 2));
+    // Defensive check
+    if (!finalMarkdown || !finalMarkdown.trim()) {
       throw new Error(`Cannot write empty content to ${indexPath}`);
     }
 
-    // Write the updated markdown
-    await writeFile(indexPath, updatedMarkdown, 'utf-8');
+    // Step 7: Write only if the final content differs from what's currently on disk
+    if (currentContent !== finalMarkdown) {
+      await writeFile(indexPath, finalMarkdown, 'utf-8');
+    }
   } finally {
     // Always release the lock
     if (release) {
@@ -285,9 +321,9 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
 
     // Only continue if we're not at the filesystem root
     if (grandParentDir !== parentDir) {
-      // Read the current index file we just updated to extract its metadata (including sections)
-      const indexContent = await readFile(indexPath, 'utf-8');
-      const parsedIndex = await markdownToMetadata(indexContent);
+      // CRITICAL: Use the merged pages from Step 6, not a re-read of the file
+      // Re-reading could get a stale version if other processes are still writing
+      // mergedPages already contains ALL pages after the merge in Step 6
 
       // Calculate the relative path from grandparent to this index, preserving route groups
       const relativePathFromGrandparent = relative(grandParentDir, parentDir);
@@ -300,22 +336,20 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
         description: 'No description available',
       };
 
-      // If we successfully parsed the index, extract sections from it
-      // The sections are the child pages listed in the index (as H2 headings)
-      if (parsedIndex && parsedIndex.pages && parsedIndex.pages.length > 0) {
-        // Convert child pages to sections format (top-level only, no nested children)
+      // Convert child pages to sections format (no subsections, just page names)
+      // Use mergedPages which contains the complete merged state
+      if (mergedPages.length > 0) {
         const sections: HeadingHierarchy = {};
-        for (const childPage of parsedIndex.pages) {
+        for (const childPage of mergedPages) {
           sections[childPage.slug] = {
             title: childPage.title || childPage.slug,
             titleMarkdown: childPage.title
               ? [{ type: 'text', value: childPage.title }]
               : [{ type: 'text', value: childPage.slug }],
-            children: {}, // Don't include nested children in the parent index
+            children: {}, // Don't include any subsections in parent index
           };
         }
         indexMetadata.sections = sections;
-        indexMetadata.title = parsedIndex.title || indexTitle;
       }
 
       // Recursively update the parent index (will create it if it doesn't exist)

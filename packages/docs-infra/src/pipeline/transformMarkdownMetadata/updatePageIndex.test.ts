@@ -663,4 +663,93 @@ An input component.
     // Input should be listed as a section under Components
     expect(appContent).toContain('- Input');
   });
+
+  it('should not lose child pages when multiple concurrent updates occur', async () => {
+    // This test ensures that when multiple child directories update the same parent index
+    // concurrently, all child pages are preserved in the final index.
+    // This prevents a race condition where re-reading the file during parent updates
+    // could cause some pages to be lost.
+
+    await mkdir(join(TEST_DIR, 'app'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'overview'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'components'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'handbook'), { recursive: true });
+    await mkdir(join(TEST_DIR, 'app', 'utils'), { recursive: true });
+
+    const overviewMeta: PageMetadata = {
+      slug: 'overview',
+      path: './overview/page.mdx',
+      title: 'Overview',
+      description: 'Overview section.',
+    };
+
+    const componentsMeta: PageMetadata = {
+      slug: 'components',
+      path: './components/page.mdx',
+      title: 'Components',
+      description: 'Components section.',
+    };
+
+    const handbookMeta: PageMetadata = {
+      slug: 'handbook',
+      path: './handbook/page.mdx',
+      title: 'Handbook',
+      description: 'Handbook section.',
+    };
+
+    const utilsMeta: PageMetadata = {
+      slug: 'utils',
+      path: './utils/page.mdx',
+      title: 'Utils',
+      description: 'Utils section.',
+    };
+
+    // Simulate concurrent updates by running all updates in parallel
+    await Promise.all([
+      updatePageIndex({
+        pagePath: join(TEST_DIR, 'app', 'overview', 'page.mdx'),
+        metadata: overviewMeta,
+        updateParents: true,
+        baseDir: join(TEST_DIR, 'app'),
+      }),
+      updatePageIndex({
+        pagePath: join(TEST_DIR, 'app', 'components', 'page.mdx'),
+        metadata: componentsMeta,
+        updateParents: true,
+        baseDir: join(TEST_DIR, 'app'),
+      }),
+      updatePageIndex({
+        pagePath: join(TEST_DIR, 'app', 'handbook', 'page.mdx'),
+        metadata: handbookMeta,
+        updateParents: true,
+        baseDir: join(TEST_DIR, 'app'),
+      }),
+      updatePageIndex({
+        pagePath: join(TEST_DIR, 'app', 'utils', 'page.mdx'),
+        metadata: utilsMeta,
+        updateParents: true,
+        baseDir: join(TEST_DIR, 'app'),
+      }),
+    ]);
+
+    // Verify that ALL four child pages are present in the parent index
+    const appIndexPath = join(TEST_DIR, 'app', 'page.mdx');
+    const appContent = await readFile(appIndexPath, 'utf-8');
+
+    // All four pages should be present
+    expect(appContent).toContain('[Overview](#overview)');
+    expect(appContent).toContain('[Components](#components)');
+    expect(appContent).toContain('[Handbook](#handbook)');
+    expect(appContent).toContain('[Utils](#utils)');
+
+    // Verify all sections are present
+    expect(appContent).toContain('## Overview');
+    expect(appContent).toContain('## Components');
+    expect(appContent).toContain('## Handbook');
+    expect(appContent).toContain('## Utils');
+
+    // Count the number of H2 headings to ensure we have exactly 4
+    const h2Count = (appContent.match(/^## /gm) || []).length;
+    expect(h2Count).toBe(4);
+  });
 });
