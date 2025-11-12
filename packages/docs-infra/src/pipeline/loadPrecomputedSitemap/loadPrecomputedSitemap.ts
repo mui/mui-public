@@ -71,10 +71,32 @@ function extractPrefixAndTitle(
   // Extract the directory path (remove filename)
   const dirPath = path.dirname(relativePath);
 
-  // Split into segments and filter out 'app' and current directory markers
-  const segments = dirPath
-    .split(path.sep)
-    .filter((seg) => seg !== 'app' && seg !== '.' && seg !== '');
+  // Split into segments
+  const allSegments = dirPath.split(path.sep);
+
+  // Filter out segments:
+  // - Remove leading 'src' and 'app' directory markers (only if they're at the start)
+  // - Remove Next.js route groups (segments in parentheses like '(public)')
+  // - Remove current directory markers ('.' and empty strings)
+  const segments = allSegments.filter((seg, index) => {
+    // Remove 'src' only if it's the first segment
+    if (seg === 'src' && index === 0) {
+      return false;
+    }
+    // Remove 'app' only if it's the first or second segment (after 'src')
+    if (seg === 'app' && (index === 0 || (index === 1 && allSegments[0] === 'src'))) {
+      return false;
+    }
+    // Filter out Next.js route groups (e.g., '(public)', '(content)')
+    if (seg.startsWith('(') && seg.endsWith(')')) {
+      return false;
+    }
+    // Filter out current directory markers
+    if (seg === '.' || seg === '') {
+      return false;
+    }
+    return true;
+  });
 
   // Generate prefix with leading and trailing slashes
   const prefix = segments.length > 0 ? `/${segments.join('/')}/` : '/';
