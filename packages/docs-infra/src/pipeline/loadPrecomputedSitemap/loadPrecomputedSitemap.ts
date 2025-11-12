@@ -14,6 +14,7 @@ import {
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import { markdownToMetadata } from '../transformMarkdownMetadata/metadataToMarkdown';
+import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 
 export type LoaderOptions = {
   performance?: {
@@ -234,13 +235,51 @@ export async function loadPrecomputedSitemap(
     };
 
     // Replace the factory function call with the precomputed sitemap data
-    const modifiedSource = replacePrecomputeValue(source, precomputeData, sitemapCall);
+    let modifiedSource = replacePrecomputeValue(source, precomputeData, sitemapCall);
 
     performanceMeasure(
       currentMark,
       { mark: 'replaced precompute', measure: 'precompute replacement' },
       [functionName, relativePath],
     );
+
+    // Rewrite MDX imports to const declarations since we've precomputed the data
+    if (sitemapCall.importsAndComments) {
+      const { relative } = sitemapCall.importsAndComments;
+
+      // Build a set of MDX imports to rewrite
+      const importPathsToRewrite = new Set<string>();
+      const importResult: Record<
+        string,
+        {
+          positions: Array<{ start: number; end: number }>;
+          names: Array<{ name: string; alias?: string; type: string }>;
+        }
+      > = {};
+
+      for (const [importPath, importData] of Object.entries(relative)) {
+        // Check if this is an MDX file
+        if (importPath.endsWith('.mdx')) {
+          // Add to the set of imports to rewrite
+          importPathsToRewrite.add(importPath);
+          importResult[importPath] = {
+            positions: importData.positions,
+            names: importData.names,
+          };
+        }
+      }
+
+      // Rewrite the import statements to const declarations if there are any MDX imports
+      if (importPathsToRewrite.size > 0) {
+        modifiedSource = rewriteImportsToNull(modifiedSource, importPathsToRewrite, importResult);
+
+        currentMark = performanceMeasure(
+          currentMark,
+          { mark: 'rewritten imports', measure: 'import rewriting' },
+          [functionName, relativePath],
+        );
+      }
+    }
 
     // log any pending performance entries before completing
     observer
