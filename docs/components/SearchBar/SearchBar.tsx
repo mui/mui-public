@@ -1,10 +1,10 @@
 'use client';
 import * as React from 'react';
 import { create, insertMultiple, search as performSearch } from '@orama/orama';
-import { pluginEmbeddings } from '@orama/plugin-embeddings';
-import '@tensorflow/tfjs-backend-webgl';
-
+import { createChannel } from 'bidc';
+import { pluginEmbeddings } from '@mui/internal-docs-infra/pipeline/generateEmbeddings';
 import classes from './SearchBar.module.css';
+import type { ReceivePayload, ReceiveResponse } from './searchWorker';
 
 export function SearchBar({
   sitemap: sitemapImport,
@@ -15,10 +15,70 @@ export function SearchBar({
   const [searchTerm, setSearchTerm] = React.useState('');
   const [results, setResults] = React.useState<any>(null);
 
+  const [ready, setReady] = React.useState<boolean>(false);
+  const worker = React.useRef<Worker | null>(null);
+  const generateEmbeddings = React.useRef<((text: string) => Promise<number[]>) | null>(null);
+
+  // We use the `useEffect` hook to set up the worker as soon as the `App` component is mounted.
   React.useEffect(() => {
+    if (!worker.current) {
+      // Create the worker if it does not yet exist.
+      worker.current = new Worker(new URL('./searchWorker', import.meta.url), {
+        type: 'module',
+      });
+    }
+
+    const { send, receive } = createChannel(worker.current);
+
+    // Create a callback function for messages from the worker thread.
+    receive((event: ReceiveResponse): void => {
+      switch (event.status) {
+        case 'initiate':
+          setReady(false);
+          break;
+        case 'download':
+          break;
+        case 'progress':
+          console.log(event);
+          break;
+        case 'done':
+          break;
+        case 'ready':
+          setReady(true);
+          break;
+        case 'complete':
+          // should be handled by send()
+          break;
+        default:
+          console.warn('Unknown message status:', event);
+      }
+    });
+
+    generateEmbeddings.current = async (text: string): Promise<number[]> => {
+      const response = await send<Event, ReceivePayload, ReceiveResponse>({
+        type: 'generate',
+        text,
+      });
+
+      if (response.status !== 'complete') {
+        throw new Error(`Embedding generation failed: ${JSON.stringify(response)}`);
+      }
+
+      return response.output;
+    };
+
+    send({ type: 'check' });
+  });
+
+  React.useEffect(() => {
+    if (!ready) {
+      return;
+    }
+
     const embeddingsPlugin = pluginEmbeddings({
       embeddings: {
         defaultProperty: 'embeddings',
+        generateEmbedding: generateEmbeddings.current,
       },
     });
 
@@ -50,7 +110,7 @@ export function SearchBar({
         setIndex(searchIndex as any);
       }),
     );
-  }, [sitemapImport]);
+  }, [ready, sitemapImport]);
 
   const handleSearch = React.useCallback(
     async (term: string) => {

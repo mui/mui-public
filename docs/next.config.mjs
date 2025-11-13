@@ -21,6 +21,7 @@ const withMDX = createMDX({
         'app/code-infra',
       ],
     },
+    generateEmbeddings: true,
   }),
 });
 

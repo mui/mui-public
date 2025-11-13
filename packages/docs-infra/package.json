@@ -22,6 +22,7 @@
     "./usePreference": "./src/usePreference/index.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
+    "./pipeline/generateEmbeddings": "./src/pipeline/generateEmbeddings/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
     "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
@@ -68,6 +69,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "@babel/standalone": "^7.28.5",
+    "@huggingface/transformers": "^3.7.6",
     "@wooorm/starry-night": "^3.8.0",
     "clipboard-copy": "^4.0.1",
     "fflate": "^0.8.2",
@@ -84,6 +86,7 @@
     "vscode-oniguruma": "^2.0.1"
   },
   "devDependencies": {
+    "@orama/orama": "^3.1.16",
     "@testing-library/react": "^16.3.0",
     "@types/babel__standalone": "^7.1.9",
     "@types/babel__traverse": "^7.28.0",
@@ -105,23 +108,11 @@
     "unified": "^11.0.5"
   },
   "peerDependencies": {
-    "@orama/plugin-embeddings": "^3.1.16",
-    "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "next": "^13.5.1 || ^14 || ^15.0.0",
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
-    "@orama/plugin-embeddings": {
-      "optional": true
-    },
-    "@tensorflow/tfjs": {
-      "optional": true
-    },
-    "@tensorflow/tfjs-backend-wasm": {
-      "optional": true
-    },
     "@types/react": {
       "optional": true
     },

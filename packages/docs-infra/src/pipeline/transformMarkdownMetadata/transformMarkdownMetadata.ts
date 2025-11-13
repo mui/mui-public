@@ -4,7 +4,7 @@ import type { Heading, Paragraph, Root } from 'mdast';
 import { dirname, relative } from 'node:path';
 import { updatePageIndex } from './updatePageIndex';
 import type { PageMetadata } from './metadataToMarkdown';
-import { generateEmbeddings } from './generateEmbeddings';
+import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
 
 export interface TransformMarkdownMetadataOptions {
   /**

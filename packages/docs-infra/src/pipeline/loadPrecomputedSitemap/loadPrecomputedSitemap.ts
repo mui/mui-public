@@ -252,7 +252,7 @@ export async function loadPrecomputedSitemap(
         title: 'string',
         description: 'string',
         keywords: 'string[]',
-        embeddings: 'vector[512]',
+        embeddings: 'vector[384]',
       },
       data: sitemapData,
     };
