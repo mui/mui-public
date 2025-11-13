@@ -16,7 +16,7 @@ export async function getEmbeddingsPipeline(
   if (!(globalThis as any)[EMBEDDINGS_PIPELINE_KEY]) {
     (globalThis as any)[EMBEDDINGS_PIPELINE_KEY] = await pipeline(TASK, MODEL, {
       progress_callback,
-      dtype: 'fp32',
+      dtype: 'auto',
     });
   }
 

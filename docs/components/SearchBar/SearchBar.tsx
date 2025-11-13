@@ -39,7 +39,6 @@ export function SearchBar({
         case 'download':
           break;
         case 'progress':
-          console.log(event);
           break;
         case 'done':
           break;
