@@ -1,6 +1,9 @@
 'use client';
 import * as React from 'react';
 import { create, insertMultiple, search as performSearch } from '@orama/orama';
+import { pluginEmbeddings } from '@orama/plugin-embeddings';
+import '@tensorflow/tfjs-backend-webgl';
+
 import classes from './SearchBar.module.css';
 
 export function SearchBar({
@@ -13,28 +16,40 @@ export function SearchBar({
   const [results, setResults] = React.useState<any>(null);
 
   React.useEffect(() => {
-    sitemapImport().then(({ sitemap }) => {
-      if (!sitemap) {
-        console.error('Sitemap is undefined');
-        return;
-      }
-
-      const searchIndex = create({ schema: sitemap.schema });
-
-      // Flatten the sitemap data structure to a single array of pages
-      const pages = Object.entries(sitemap.data).flatMap(
-        ([_sectionKey, sectionData]: [string, any]) => {
-          return (sectionData.pages || []).map((page: any) => ({
-            ...page,
-            section: sectionData.title,
-            prefix: sectionData.prefix,
-          }));
-        },
-      );
-
-      insertMultiple(searchIndex, pages);
-      setIndex(searchIndex as any);
+    const embeddingsPlugin = pluginEmbeddings({
+      embeddings: {
+        defaultProperty: 'embeddings',
+      },
     });
+
+    sitemapImport().then(({ sitemap }) =>
+      embeddingsPlugin.then((plugin) => {
+        if (!sitemap) {
+          console.error('Sitemap is undefined');
+          return;
+        }
+
+        // https://github.com/oramasearch/orama/issues/925#issuecomment-3220962578
+        // @ts-expect-error - workaround for TS issue with OramaPlugin type
+        plugin.beforeSearch.constructor = (async () => {}).constructor;
+
+        const searchIndex = create({ schema: sitemap.schema, plugins: [plugin] });
+
+        // Flatten the sitemap data structure to a single array of pages
+        const pages = Object.entries(sitemap.data).flatMap(
+          ([_sectionKey, sectionData]: [string, any]) => {
+            return (sectionData.pages || []).map((page: any) => ({
+              ...page,
+              section: sectionData.title,
+              prefix: sectionData.prefix,
+            }));
+          },
+        );
+
+        insertMultiple(searchIndex, pages);
+        setIndex(searchIndex as any);
+      }),
+    );
   }, [sitemapImport]);
 
   const handleSearch = React.useCallback(
@@ -43,7 +58,7 @@ export function SearchBar({
         setResults(null);
         return;
       }
-      const searchResults = await performSearch(index, { term });
+      const searchResults = await performSearch(index, { term, mode: 'vector', similarity: 0.1 });
       setResults(searchResults);
     },
     [index],

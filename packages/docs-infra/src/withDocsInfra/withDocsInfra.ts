@@ -103,6 +103,19 @@ export interface DocsInfraMdxOptions {
    * Only needed when calling the plugin directly (not via withDocsInfra).
    */
   baseDir?: string;
+  /**
+   * Enable generation of embeddings for full text content.
+   * When enabled, generates 512-dimensional vector embeddings from page content
+   * for semantic search capabilities.
+   *
+   * Note: Requires optional peer dependencies to be installed:
+   * - @orama/plugin-embeddings
+   * - @tensorflow/tfjs
+   * - @tensorflow/tfjs-backend-wasm
+   *
+   * @default false
+   */
+  generateEmbeddings?: boolean;
 }
 
 /**
@@ -111,7 +124,7 @@ export interface DocsInfraMdxOptions {
 export function getDocsInfraMdxOptions(
   customOptions: DocsInfraMdxOptions = {},
 ): DocsInfraMdxOptions {
-  const { extractToIndex = true, baseDir } = customOptions;
+  const { extractToIndex = true, baseDir, generateEmbeddings = false } = customOptions;
 
   // Normalize extractToIndex to options object
   let extractToIndexOptions:
@@ -141,7 +154,7 @@ export function getDocsInfraMdxOptions(
     ['remark-gfm'],
     [
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
-      { extractToIndex: extractToIndexOptions },
+      { extractToIndex: extractToIndexOptions, generateEmbeddings },
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],

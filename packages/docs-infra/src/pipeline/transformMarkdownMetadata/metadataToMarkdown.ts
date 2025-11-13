@@ -359,6 +359,11 @@ export function metadataToMarkdownAst(data: PagesMetadata): Root {
       } as any);
     }
 
+    // Add embeddings as a comment if available
+    if (page.embeddings && page.embeddings.length > 0) {
+      children.push(comment(`Embeddings: ${JSON.stringify(page.embeddings)}`));
+    }
+
     // Add read more link
     children.push(paragraph([link(page.path, 'Read more')]));
   }
@@ -441,6 +446,12 @@ export function metadataToMarkdown(data: PagesMetadata): string {
       lines.push('');
     }
 
+    // Add embeddings as a comment if available
+    if (page.embeddings && page.embeddings.length > 0) {
+      lines.push(`[//]: # 'Embeddings: ${JSON.stringify(page.embeddings)}'`);
+      lines.push('');
+    }
+
     // Add read more link
     lines.push(`[Read more](${page.path})`);
     lines.push('');
@@ -472,6 +483,16 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       }
       if (defNode.title?.includes('DO NOT EDIT AFTER THIS LINE')) {
         currentSection = 'details';
+        return;
+      }
+      // Parse embeddings from comment
+      if (currentPage && defNode.title?.includes('Embeddings:')) {
+        const embeddingsText = defNode.title.replace('Embeddings:', '').trim();
+        try {
+          currentPage.embeddings = JSON.parse(embeddingsText);
+        } catch (error) {
+          console.error('Failed to parse embeddings:', error);
+        }
         return;
       }
     }

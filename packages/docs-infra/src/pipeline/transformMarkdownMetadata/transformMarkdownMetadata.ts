@@ -4,6 +4,7 @@ import type { Heading, Paragraph, Root } from 'mdast';
 import { dirname, relative } from 'node:path';
 import { updatePageIndex } from './updatePageIndex';
 import type { PageMetadata } from './metadataToMarkdown';
+import { generateEmbeddings } from './generateEmbeddings';
 
 export interface TransformMarkdownMetadataOptions {
   /**
@@ -33,6 +34,19 @@ export interface TransformMarkdownMetadataOptions {
         /** Base directory to strip from file paths before matching (e.g., '/path/to/project/docs') */
         baseDir?: string;
       };
+  /**
+   * Enable generation of embeddings for full text content.
+   * When enabled, generates 512-dimensional vector embeddings from page content
+   * for semantic search capabilities.
+   *
+   * Note: Requires optional peer dependencies to be installed:
+   * - @orama/plugin-embeddings
+   * - @tensorflow/tfjs
+   * - @tensorflow/tfjs-backend-wasm
+   *
+   * @default false
+   */
+  generateEmbeddings?: boolean;
 }
 
 export interface ExtractedMetadata {
@@ -41,6 +55,7 @@ export interface ExtractedMetadata {
   descriptionMarkdown?: any[]; // AST nodes preserving formatting (inline code, bold, italics, links)
   keywords?: string[];
   sections?: HeadingHierarchy;
+  embeddings?: number[];
   openGraph?: {
     title?: string;
     description?: string;
@@ -99,6 +114,25 @@ function extractTextFromChildren(children: any[]): string {
     } else if ('children' in child) {
       // Recursively extract from nested elements (strong, emphasis, etc.)
       text += extractTextFromChildren(child.children);
+    }
+  }
+  return text;
+}
+
+/**
+ * Extracts plain text from children nodes (without formatting markers)
+ */
+function extractPlainTextFromChildren(children: any[]): string {
+  let text = '';
+  for (const child of children) {
+    if (child.type === 'text') {
+      text += child.value;
+    } else if (child.type === 'inlineCode') {
+      // Include inline code without backticks
+      text += child.value;
+    } else if ('children' in child) {
+      // Recursively extract from nested elements
+      text += extractPlainTextFromChildren(child.children);
     }
   }
   return text;
@@ -261,6 +295,7 @@ function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMeta
     keywords: metadata.keywords,
     sections: metadata.sections,
     openGraph: metadata.openGraph,
+    embeddings: metadata.embeddings,
   };
 }
 
@@ -393,8 +428,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
     let foundFirstH1 = false;
     let nextNodeAfterH1: any = null;
     let firstParagraphMarkdown: any[] | undefined;
+    const fullTextParts: string[] = []; // Collect text parts for fullText - headings and content alternating
 
-    // Single pass: extract metadata export, meta tags, headings, and first paragraph
+    // Single pass: extract metadata export, meta tags, headings, first paragraph, and full text
     visit(root, (node: any, index, parent) => {
       // Extract metadata export if it exists
       if (node.type === 'mdxjsEsm' && node.data?.estree) {
@@ -491,7 +527,100 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         }
         nextNodeAfterH1 = null; // Clear the marker
       }
+
+      // Extract full text content (excluding code blocks and metadata)
+      // When we encounter a heading, push the heading text and then create a new empty slot for content
+      if (node.type === 'heading') {
+        const heading = node as Heading;
+        const text = extractPlainTextFromChildren(heading.children).replace(/\s+/g, ' ').trim();
+        if (text) {
+          fullTextParts.push(text); // Add heading
+          fullTextParts.push(''); // Create slot for content after this heading
+        }
+        return;
+      }
+
+      // Skip multiline code blocks
+      if (node.type === 'code') {
+        return;
+      }
+
+      // Skip metadata exports and JSX imports
+      if (node.type === 'mdxjsEsm' || node.type === 'import') {
+        return;
+      }
+
+      // Skip meta tags (they don't contribute to page content)
+      if (
+        (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
+        (node.name === 'meta' || node.name === 'Meta')
+      ) {
+        return;
+      }
+
+      // Handle paragraphs for full text
+      if (node.type === 'paragraph') {
+        const text = extractPlainTextFromChildren(node.children).replace(/\s+/g, ' ').trim();
+        if (text) {
+          // Append to the last slot (current section's content)
+          if (fullTextParts.length === 0) {
+            fullTextParts.push(text);
+          } else {
+            const lastIndex = fullTextParts.length - 1;
+            fullTextParts[lastIndex] = fullTextParts[lastIndex]
+              ? `${fullTextParts[lastIndex]} ${text}`
+              : text;
+          }
+        }
+      }
+
+      // Handle lists - condense into comma-separated items
+      if (node.type === 'list') {
+        const listItems: string[] = [];
+        for (const item of node.children || []) {
+          if (item.type === 'listItem') {
+            const itemText = extractPlainTextFromChildren(item.children || [])
+              .replace(/\s+/g, ' ')
+              .trim();
+            if (itemText) {
+              listItems.push(itemText);
+            }
+          }
+        }
+        if (listItems.length > 0) {
+          const text = listItems.join(', ');
+          // Append to the last slot (current section's content)
+          if (fullTextParts.length === 0) {
+            fullTextParts.push(text);
+          } else {
+            const lastIndex = fullTextParts.length - 1;
+            fullTextParts[lastIndex] = fullTextParts[lastIndex]
+              ? `${fullTextParts[lastIndex]} ${text}`
+              : text;
+          }
+        }
+      }
+
+      // Handle blockquotes - their paragraphs will be picked up by the paragraph handler above
     });
+
+    // Build full text from collected parts
+    const fullText = fullTextParts
+      .map((part) => {
+        const trimmed = part.trim();
+        if (!trimmed) {
+          return '';
+        }
+        // Add period if it doesn't end with punctuation
+        if (!/[.!?]$/.test(trimmed)) {
+          return `${trimmed}.`;
+        }
+        return trimmed;
+      })
+      .filter((part) => part.length > 0)
+      .join(' ');
+
+    const embeddings = options.generateEmbeddings ? generateEmbeddings(fullText) : null;
 
     // Fill in missing title and description if we have them from content
     let shouldUpdateMetadata = false;
@@ -563,6 +692,12 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
+      // Add embeddings if missing
+      if (!mutableMetadata.embeddings && embeddings) {
+        mutableMetadata.embeddings = await embeddings;
+        shouldUpdateMetadata = true;
+      }
+
       // Update the metadata in the ESTree if we added any fields
       if (shouldUpdateMetadata && metadataNode?.data?.estree) {
         updateMetadataInEstree(metadataNode.data.estree, mutableMetadata);
@@ -573,12 +708,15 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       const descriptionValue = metaDescription || firstParagraphAfterH1 || undefined;
       const descriptionMarkdownValue = metaDescription ? [] : firstParagraphMarkdown || undefined;
 
+      const embeddingsValue = embeddings ? await embeddings : undefined;
+
       metadata = {
         title: firstH1 || undefined,
         description: descriptionValue,
         descriptionMarkdown: descriptionMarkdownValue,
         keywords: metaKeywords || undefined,
         sections: headings.length > 1 ? buildHeadingHierarchy(headings) : undefined,
+        embeddings: embeddingsValue,
         openGraph: {
           title: firstH1 || undefined,
           description: descriptionValue,

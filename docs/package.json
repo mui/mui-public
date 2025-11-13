@@ -15,6 +15,8 @@
     "@mui/internal-docs-infra": "workspace:^",
     "@next/mdx": "^15.3.4",
     "@orama/orama": "^3.1.16",
+    "@orama/plugin-embeddings": "^3.1.16",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
     "@types/mdx": "^2.0.13",
     "next": "v15.5.2",
     "react": "^19.0.0",
