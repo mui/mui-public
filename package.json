@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "eslint": "eslint . --cache --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
-    "eslint:ci": "eslint . --report-unused-disable-directives --ext .js,.ts,.tsx --max-warnings 0",
+    "eslint": "eslint . --cache --report-unused-disable-directives --max-warnings 0",
+    "eslint:ci": "eslint . --report-unused-disable-directives --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .lintignore --branch master",
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "node ./update-netlify-ignore.mjs @apps/code-infra-dashboard",
     "test": "vitest",
+    "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "tsc -b --verbose",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "eslint-plugin-n": "^17.23.1",
+    "markdownlint-cli2": "^0.19.0",
     "stylelint": "^16.25.0"
   },
   "packageManager": "pnpm@10.20.0",
