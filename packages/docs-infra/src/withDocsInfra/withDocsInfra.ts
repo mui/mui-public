@@ -49,6 +49,14 @@ export interface WithDocsInfraOptions {
    */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
   /**
+   * Performance logging options
+   */
+  performance?: {
+    logging: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+  };
+  /**
    * Defer AST parsing option for code highlighter output.
    * 'gzip' - Default, outputs gzipped HAST for best performance.
    * 'json' - Outputs JSON HAST, requires client-side parsing.
@@ -116,6 +124,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
+    performance = {},
     deferCodeParsing = 'gzip',
   } = options;
 
@@ -136,12 +145,17 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { output },
+            options: { performance, output },
           },
         ],
       },
       [clientDemoPathPattern]: {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            options: { performance },
+          },
+        ],
       },
     };
 
@@ -152,7 +166,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { output },
+              options: { performance, output },
             },
           ],
         };
@@ -162,7 +176,12 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     if (additionalDemoPatterns.client) {
       additionalDemoPatterns.client.forEach((pattern) => {
         turbopackRules[pattern] = {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
+          ],
         };
       });
     }
@@ -204,7 +223,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { output },
+              options: { performance, output },
             },
           ],
         });
@@ -214,7 +233,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           test: new RegExp('/demos/[^/]+/client\\.ts$'),
           use: [
             defaultLoaders.babel,
-            '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
           ],
         });
 
@@ -235,7 +257,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: { output },
+                  options: { performance, output },
                 },
               ],
             });
@@ -256,7 +278,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               test: new RegExp(`${regexPattern}$`),
               use: [
                 defaultLoaders.babel,
-                '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+                {
+                  loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+                  options: { performance },
+                },
               ],
             });
           });

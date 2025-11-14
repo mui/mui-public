@@ -8,6 +8,7 @@ import type {
 } from '../../CodeHighlighter/types';
 import { loadCodeVariant } from './loadCodeVariant';
 import { getFileNameFromUrl } from '../loaderUtils';
+import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
 async function getFileSource(
@@ -82,6 +83,14 @@ export async function loadCodeFallback(
   } = options;
   loaded = { ...loaded };
 
+  const functionName = 'Load Fallback Code';
+  let currentMark = performanceMeasure(
+    undefined,
+    { mark: 'Start', measure: 'Start' },
+    [functionName, url],
+    true,
+  );
+
   // Step 1: Ensure we have the initial variant loaded
   let initial = loaded[initialVariant];
   if (!initial) {
@@ -99,6 +108,12 @@ export async function loadCodeFallback(
     if (!initial) {
       throw new Error(`Initial variant "${initialVariant}" not found in loaded code.`);
     }
+
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'Loaded Code Meta', measure: 'Code Meta Loading' },
+      [functionName, url],
+    );
   }
 
   // Check if we can return early after loadCodeMeta
@@ -131,6 +146,12 @@ export async function loadCodeFallback(
       );
     }
 
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'Loaded Main File', measure: 'Main File Loading' },
+      [functionName, url],
+    );
+
     // If we need highlighting and have a string source, parse it
     if (shouldHighlight && typeof fileSource === 'string' && sourceParser && actualFilename) {
       try {
@@ -141,6 +162,12 @@ export async function loadCodeFallback(
           `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
         );
       }
+
+      currentMark = performanceMeasure(
+        currentMark,
+        { mark: 'Parsed Main File', measure: 'Main File Parsing' },
+        [functionName, url],
+      );
     } else if (shouldHighlight && typeof fileSource === 'string' && !actualFilename) {
       // Create basic HAST node when we can't parse due to missing filename
       // This marks that the source has passed through the parsing pipeline
@@ -183,6 +210,12 @@ export async function loadCodeFallback(
       if (loadVariantMeta) {
         // Use provided loadVariantMeta function
         quickVariant = await loadVariantMeta(initialVariant, initial);
+
+        currentMark = performanceMeasure(
+          currentMark,
+          { mark: 'Loaded Initial Variant Meta', measure: 'Initial Variant Meta Loading' },
+          [functionName, url],
+        );
       } else {
         // Create a basic variant using fallback logic
         quickVariant = {
@@ -190,6 +223,8 @@ export async function loadCodeFallback(
           fileName: getFileNameFromUrl(initial).fileName,
         };
       }
+
+      const beforeInitialVariantMark = currentMark;
 
       loaded = { ...loaded, [initialVariant]: quickVariant };
       initial = quickVariant;
@@ -213,6 +248,12 @@ export async function loadCodeFallback(
           const result = await getFileSource(quickVariant, initialFilename, loadSource);
           fileSource = result.source;
           actualFilename = result.filename;
+
+          currentMark = performanceMeasure(
+            currentMark,
+            { mark: 'Loaded Initial File', measure: 'Initial File Loading' },
+            [functionName, initialFilename || 'unknown', url],
+          );
         } catch (error) {
           throw new Error(
             `Failed to get source for file ${initialFilename || quickVariant.fileName} in variant ${initialVariant}: ${error}`,
@@ -224,6 +265,12 @@ export async function loadCodeFallback(
           try {
             const parseSource = await sourceParser;
             fileSource = parseSource(fileSource, actualFilename);
+
+            currentMark = performanceMeasure(
+              currentMark,
+              { mark: 'Parsed Initial File', measure: 'Initial File Parsing' },
+              [functionName, initialFilename || 'unknown', url],
+            );
           } catch (error) {
             throw new Error(
               `Failed to parse source for highlighting (variant: ${initialVariant}, file: ${actualFilename}): ${JSON.stringify(error)}`,
@@ -253,6 +300,13 @@ export async function loadCodeFallback(
           loaded = { ...loaded, [initialVariant]: initial };
         }
 
+        currentMark = performanceMeasure(
+          beforeInitialVariantMark,
+          { mark: 'Loaded Initial Files', measure: 'Initial Files Loading' },
+          [functionName, url],
+          true,
+        );
+
         // Early return - we have all the info we need
         return {
           code: loaded,
@@ -269,6 +323,8 @@ export async function loadCodeFallback(
     }
   }
 
+  const beforeGlobalsMark = currentMark;
+
   // Step 2b: Fall back to full loadCodeVariant processing
   // Load globalsCode - convert string URLs to Code objects, keep Code objects as-is
   let globalsCodeObjects: Array<Code> | undefined;
@@ -283,7 +339,15 @@ export async function loadCodeFallback(
       if (typeof globalItem === 'string') {
         // String URL - load Code object via loadCodeMeta
         try {
-          return await loadCodeMeta!(globalItem);
+          const codeMeta = await loadCodeMeta!(globalItem);
+
+          currentMark = performanceMeasure(
+            currentMark,
+            { mark: 'Loaded Global Code Meta', measure: 'Global Code Meta Loading' },
+            [functionName, globalItem, url],
+          );
+
+          return codeMeta;
         } catch (error) {
           throw new Error(
             `Failed to load globalsCode from URL: ${globalItem}. Error: ${JSON.stringify(error)}`,
@@ -296,6 +360,13 @@ export async function loadCodeFallback(
     });
 
     globalsCodeObjects = await Promise.all(globalsPromises);
+
+    currentMark = performanceMeasure(
+      beforeGlobalsMark,
+      { mark: 'Loaded Globals Meta', measure: 'Globals Meta Loading' },
+      [functionName, url],
+      true,
+    );
   }
 
   // Convert globalsCodeObjects to VariantCode | string for this specific variant
@@ -323,6 +394,13 @@ export async function loadCodeFallback(
       output,
     });
 
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'Loaded Initial Variant', measure: 'Initial Variant Loading' },
+      [functionName, url],
+      true,
+    );
+
     // Update the loaded code with the processed variant
     loaded = { ...loaded, [initialVariant]: loadedVariant };
     initial = loadedVariant;
@@ -345,6 +423,8 @@ export async function loadCodeFallback(
 
   // Step 4: Handle fallbackUsesAllVariants - load all variants to get all possible files
   if (fallbackUsesAllVariants) {
+    const beforeAllVariantMark = currentMark;
+
     // Determine all variants to process - use provided variants or infer from loaded code
     const allVariants = variants || Object.keys(loaded || {});
 
@@ -367,6 +447,12 @@ export async function loadCodeFallback(
             variant = allCode[variantName];
             // Update loaded with all variants from loadCodeMeta
             loaded = { ...loaded, ...allCode };
+
+            currentMark = performanceMeasure(
+              currentMark,
+              { mark: 'Loaded Initial Code Meta', measure: 'Initial Code Meta Loading' },
+              [functionName, url],
+            );
           } catch (error) {
             console.warn(`Failed to load code meta for variant ${variantName}: ${error}`);
             return { variantName, loadedVariant: null, fileNames: [] };
@@ -410,6 +496,13 @@ export async function loadCodeFallback(
             fileNames.push(...Object.keys(loadedVariant.extraFiles));
           }
 
+          currentMark = performanceMeasure(
+            currentMark,
+            { mark: 'Loaded Initial Variant', measure: 'Initial Variant Loading' },
+            [functionName, variantName, url],
+            true,
+          );
+
           return { variantName, loadedVariant, fileNames };
         } catch (error) {
           // Log but don't fail - we want to get as many file names as possible
@@ -428,6 +521,13 @@ export async function loadCodeFallback(
         fileNames.forEach((fileName) => allFileNames.add(fileName));
       });
     }
+
+    currentMark = performanceMeasure(
+      beforeAllVariantMark,
+      { mark: 'Loaded Initial Variants', measure: 'Initial Variants Loading' },
+      [functionName, url],
+      true,
+    );
   }
 
   // Ensure we have the latest initial variant data
@@ -457,6 +557,12 @@ export async function loadCodeFallback(
     finalFileSource = finalInitial.source || '';
     finalFilename = finalInitial.fileName;
   }
+
+  currentMark = performanceMeasure(
+    currentMark,
+    { mark: 'Loaded Initial File', measure: 'Initial File Loading' },
+    [functionName, url],
+  );
 
   return {
     code: loaded,
