@@ -31,7 +31,7 @@
     {
       "description": "Custom manager for MUI public repository digests",
       "customType": "regex",
-      "managerFilePatterns": [".circleci/**/*.yml"],
+      "managerFilePatterns": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],
       "matchStrings": [
         // For circleci config files
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
@@ -44,7 +44,7 @@
     {
       "description": "Custom manager for Playwright Docker image versions",
       "customType": "regex",
-      "fileMatch": [".circleci/**/*.yml"],
+      "fileMatch": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],
       "matchStrings": [
         // For Playwright Docker image versions
         "playwright-img-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
