@@ -29,6 +29,7 @@
   "ignorePaths": ["**/node_modules/**", "**/examples/**", "**/__tests__/**", "**/__fixtures__/**"],
   "customManagers": [
     {
+      "description": "Custom manager for MUI public repository digests",
       "customType": "regex",
       "managerFilePatterns": [".circleci/**/*.yml"],
       "matchStrings": [
@@ -41,12 +42,14 @@
       "datasourceTemplate": "git-refs"
     },
     {
+      "description": "Custom manager for Playwright Docker image versions",
       "customType": "regex",
       "fileMatch": [".circleci/**/*.yml"],
       "matchStrings": [
         // For Playwright Docker image versions
         "playwright-img-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
       ],
+      "depNameTemplate": "code-infra-playwright",
       "packageNameTemplate": "mcr.microsoft.com/playwright",
       "datasourceTemplate": "docker"
     }
