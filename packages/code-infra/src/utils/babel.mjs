@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-/// <reference types="../untyped-plugins" />
+/// <reference types="../untyped-plugins.js" />
 
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { globby } from 'globby';

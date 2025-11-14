@@ -1,11 +1,6 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": ["../../tsconfig.base.json", "../../tsconfig.node.json"],
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "skipLibCheck": true,
-    "module": "es2020",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
     "types": ["react", "node"]
   },
   "include": ["src"]

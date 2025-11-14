@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noEmit": true,
+    "composite": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "checkJs": true,
+    "allowJs": true
+  }
+}
