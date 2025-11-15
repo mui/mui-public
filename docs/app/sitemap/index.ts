@@ -1,0 +1,14 @@
+import { createSitemap } from '../../functions/createSitemap';
+import DocsInfraComponents from '../docs-infra/components/page.mdx';
+import DocsInfraConventions from '../docs-infra/conventions/page.mdx';
+import DocsInfraFunctions from '../docs-infra/functions/page.mdx';
+import DocsInfraHooks from '../docs-infra/hooks/page.mdx';
+import DocsInfraPatterns from '../docs-infra/patterns/page.mdx';
+
+export const sitemap = createSitemap(import.meta.url, {
+  DocsInfraComponents,
+  DocsInfraConventions,
+  DocsInfraFunctions,
+  DocsInfraHooks,
+  DocsInfraPatterns,
+});

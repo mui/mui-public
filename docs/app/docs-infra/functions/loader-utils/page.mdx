@@ -38,7 +38,7 @@ graph TD
 Parses import statements from JavaScript/TypeScript source code and extracts import information.
 
 ```typescript
-import { parseImports } from '@mui/internal-docs-infra/loaderUtils';
+import { parseImports } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const source = `
 import React from 'react';
@@ -79,7 +79,7 @@ console.log(result);
 Resolves module paths to actual file paths using filesystem directory reading.
 
 ```typescript
-import { resolveModulePath } from '@mui/internal-docs-infra/loaderUtils';
+import { resolveModulePath } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 // Basic resolution
 const resolved = await resolveModulePath('/src/components/Button', directoryReader);
@@ -117,7 +117,7 @@ console.log(typeAware);
 Transforms resolved imports based on different storage strategies.
 
 ```typescript
-import { processRelativeImports } from '@mui/internal-docs-infra/loaderUtils';
+import { processRelativeImports } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const result = processRelativeImports(
   source,
@@ -165,7 +165,7 @@ console.log(result);
 Extracts file names and extensions from URLs and file paths.
 
 ```typescript
-import { getFileNameFromUrl } from '@mui/internal-docs-infra/loaderUtils';
+import { getFileNameFromUrl } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const meta = getFileNameFromUrl('file:///src/components/Button.tsx');
 console.log(meta); // { fileName: 'Button.tsx', extension: '.tsx' }
@@ -184,7 +184,7 @@ console.log(url); // { fileName: 'file.js', extension: '.js' }
 Extracts and formats human-readable names and URL-friendly slugs from file paths.
 
 ```typescript
-import { extractNameAndSlugFromUrl } from '@mui/internal-docs-infra/loaderUtils';
+import { extractNameAndSlugFromUrl } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 // Handles index files (uses parent directory name)
 const demo = extractNameAndSlugFromUrl('file:///app/components/demos/advanced-keyboard/index.ts');
@@ -212,13 +212,13 @@ console.log(kebab); // { name: 'Button Group', slug: 'button-group' }
 Converts an array of external import paths to a packages object for dependency tracking.
 
 ```typescript
-import { externalsToPackages } from '@mui/internal-docs-infra/loaderUtils';
+import { externalsToPackages } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const externals = [
   'react',
   'react-dom',
   '@mui/internal-docs-infra/CodeHighlighter',
-  '@mui/internal-docs-infra/parseSource',
+  '@mui/internal-docs-infra/pipeline/parseSource',
   'lodash/get',
   'some-package/submodule/deep',
   '@/components/Button', // path alias - filtered out
@@ -247,7 +247,7 @@ console.log(packages);
 Merges multiple externals objects, combining imports from the same module and deduplicating.
 
 ```typescript
-import { mergeExternals } from '@mui/internal-docs-infra/loaderUtils';
+import { mergeExternals } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import type { Externals } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 const externals1: Externals = {
@@ -282,7 +282,7 @@ console.log(merged);
 Rewrites import statements in source code based on a mapping.
 
 ```typescript
-import { rewriteImports } from '@mui/internal-docs-infra/loaderUtils';
+import { rewriteImports } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const source = `
 import Component from '../components/Component';
@@ -309,7 +309,7 @@ import {
   resolveModulePathWithFs,
   resolveImportResultWithFs,
   resolveVariantPathsWithFs,
-} from '@mui/internal-docs-infra/loaderUtils';
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 // Basic resolution with Node.js filesystem
 const resolved = await resolveModulePathWithFs('/src/components/Button');
@@ -335,7 +335,7 @@ import {
   parseImports,
   resolveImportResultWithFs,
   processRelativeImports,
-} from '@mui/internal-docs-infra/loaderUtils';
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 async function processCodeImports(source: string, filePath: string) {
   // 1. Parse imports from source
