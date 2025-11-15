@@ -86,13 +86,21 @@ function shouldIncludePath(path: string, include?: string[], exclude?: string[])
 export interface UpdatePageIndexOptions {
   /**
    * The path to the page file (e.g., './app/components/button/page.mdx')
+   * OR the path to the index file itself when using metadataList
    */
   pagePath: string;
 
   /**
    * The metadata extracted from the page
+   * Either provide this for a single update, or metadataList for batch updates
    */
-  metadata: PageMetadata;
+  metadata?: PageMetadata;
+
+  /**
+   * Array of metadata for batch updates
+   * When provided, all metadata will be merged in a single file lock/write operation
+   */
+  metadataList?: PageMetadata[];
 
   /**
    * The title for the index file (e.g., 'Components')
@@ -168,6 +176,7 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
   const {
     pagePath,
     metadata,
+    metadataList,
     indexFileName = 'page.mdx',
     lockOptions = {},
     baseDir,
@@ -176,11 +185,23 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
     exclude,
   } = options;
 
-  // Resolve the parent directory and index file path
-  // Skip over Next.js route groups (directories wrapped in parentheses)
-  const pageDir = dirname(pagePath);
-  const parentDir = getParentDir(pageDir, true);
-  const indexPath = resolve(parentDir, indexFileName);
+  // Validate that either metadata or metadataList is provided
+  if (!metadata && (!metadataList || metadataList.length === 0)) {
+    throw new Error('Either metadata or metadataList must be provided');
+  }
+
+  // Determine if we're doing a batch update
+  const isBatchUpdate = !!metadataList;
+  const metadataArray = isBatchUpdate ? metadataList : [metadata!];
+
+  // Resolve the index file path
+  // For batch updates, pagePath is the index file itself
+  // For single updates, pagePath is a child page and we need the parent's index
+  const indexPath = isBatchUpdate
+    ? resolve(pagePath)
+    : resolve(getParentDir(dirname(pagePath), true), indexFileName);
+
+  const parentDir = dirname(indexPath);
 
   // Check if this index path should be processed based on include/exclude filters
   if (baseDir) {
@@ -218,25 +239,29 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
     }
   }
 
-  // Step 3: Check if our specific page already exists with the same metadata
-  const existingPageIndex = existingPages.findIndex((p) => p.slug === metadata.slug);
-  if (existingPageIndex >= 0) {
-    const existingPage = existingPages[existingPageIndex];
-    // Compare our page's metadata - if identical, we can skip the update
-    const existingPageJson = JSON.stringify(existingPage);
-    const newPageJson = JSON.stringify(metadata);
-    if (existingPageJson === newPageJson) {
-      // Our page is already up-to-date, no need to acquire lock or write
-      return;
+  // Step 3: Check if any of our metadata items need updating
+  let needsUpdate = false;
+  for (const metaItem of metadataArray) {
+    const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
+    if (existingPageIndex >= 0) {
+      const existingPage = existingPages[existingPageIndex];
+      // Compare metadata - if different, we need to update
+      const existingPageJson = JSON.stringify(existingPage);
+      const newPageJson = JSON.stringify(metaItem);
+      if (existingPageJson !== newPageJson) {
+        needsUpdate = true;
+        break;
+      }
+    } else {
+      // Page doesn't exist, we need to add it
+      needsUpdate = true;
+      break;
     }
   }
 
-  // Our page is missing or outdated, we need to update the index
-  // Update or add the page in the existing pages
-  if (existingPageIndex >= 0) {
-    existingPages[existingPageIndex] = metadata;
-  } else {
-    existingPages.push(metadata);
+  if (!needsUpdate) {
+    // All pages are already up-to-date, no need to acquire lock or write
+    return;
   }
 
   // Step 4: Ensure the file exists before locking (proper-lockfile requires an existing file)
@@ -281,12 +306,14 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
       }
     }
 
-    // Update or add our page in the current pages (catching concurrent updates)
-    const currentPageIndex = currentPages.findIndex((p) => p.slug === metadata.slug);
-    if (currentPageIndex >= 0) {
-      currentPages[currentPageIndex] = metadata;
-    } else {
-      currentPages.push(metadata);
+    // Update or add all metadata items in the current pages (catching concurrent updates)
+    for (const metaItem of metadataArray) {
+      const currentPageIndex = currentPages.findIndex((p) => p.slug === metaItem.slug);
+      if (currentPageIndex >= 0) {
+        currentPages[currentPageIndex] = metaItem;
+      } else {
+        currentPages.push(metaItem);
+      }
     }
 
     // Store for parent update

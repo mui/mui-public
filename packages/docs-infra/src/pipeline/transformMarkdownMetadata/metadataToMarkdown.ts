@@ -323,17 +323,56 @@ export function metadataToMarkdownAst(data: PagesMetadata): Root {
       } as any);
     }
 
-    // Add metadata list (keywords and sections combined)
+    // Add metadata list (keywords, parts, props, data attributes, CSS variables, and sections combined)
     const hasKeywords = keywords.length > 0;
+    const hasParts = page.parts && page.parts.length > 0;
+    const hasProps = page.props && page.props.length > 0;
+    const hasDataAttributes = page.dataAttributes && page.dataAttributes.length > 0;
+    const hasCssVariables = page.cssVariables && page.cssVariables.length > 0;
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
 
-    if (hasKeywords || hasSections) {
+    if (
+      hasKeywords ||
+      hasParts ||
+      hasProps ||
+      hasDataAttributes ||
+      hasCssVariables ||
+      hasSections
+    ) {
       const metadataListItems: any[] = [];
 
       if (hasKeywords) {
         metadataListItems.push({
           type: 'listItem',
           children: [paragraph(`Keywords: ${keywords.join(', ')}`)],
+        });
+      }
+
+      if (hasParts && page.parts) {
+        metadataListItems.push({
+          type: 'listItem',
+          children: [paragraph(`Parts: ${page.parts.join(', ')}`)],
+        });
+      }
+
+      if (hasProps && page.props) {
+        metadataListItems.push({
+          type: 'listItem',
+          children: [paragraph(`Props: ${page.props.join(', ')}`)],
+        });
+      }
+
+      if (hasDataAttributes && page.dataAttributes) {
+        metadataListItems.push({
+          type: 'listItem',
+          children: [paragraph(`Data Attributes: ${page.dataAttributes.join(', ')}`)],
+        });
+      }
+
+      if (hasCssVariables && page.cssVariables) {
+        metadataListItems.push({
+          type: 'listItem',
+          children: [paragraph(`CSS Variables: ${page.cssVariables.join(', ')}`)],
         });
       }
 
@@ -430,13 +469,36 @@ export function metadataToMarkdown(data: PagesMetadata): string {
       lines.push('');
     }
 
-    // Add metadata list (keywords and sections)
+    // Add metadata list (keywords, parts, props, data attributes, CSS variables, and sections)
     const hasKeywords = keywords.length > 0;
+    const hasParts = page.parts && page.parts.length > 0;
+    const hasProps = page.props && page.props.length > 0;
+    const hasDataAttributes = page.dataAttributes && page.dataAttributes.length > 0;
+    const hasCssVariables = page.cssVariables && page.cssVariables.length > 0;
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
 
-    if (hasKeywords || hasSections) {
+    if (
+      hasKeywords ||
+      hasParts ||
+      hasProps ||
+      hasDataAttributes ||
+      hasCssVariables ||
+      hasSections
+    ) {
       if (hasKeywords) {
         lines.push(`- Keywords: ${keywords.join(', ')}`);
+      }
+      if (hasParts && page.parts) {
+        lines.push(`- Parts: ${page.parts.join(', ')}`);
+      }
+      if (hasProps && page.props) {
+        lines.push(`- Props: ${page.props.join(', ')}`);
+      }
+      if (hasDataAttributes && page.dataAttributes) {
+        lines.push(`- Data Attributes: ${page.dataAttributes.join(', ')}`);
+      }
+      if (hasCssVariables && page.cssVariables) {
+        lines.push(`- CSS Variables: ${page.cssVariables.join(', ')}`);
       }
       if (hasSections && page.sections) {
         const sectionLines = headingHierarchyToMarkdown(page.sections, page.path, 1); // Start at depth 1 for indentation
@@ -588,6 +650,34 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           if (paragraphText.startsWith('Keywords:')) {
             const keywordsText = paragraphText.replace('Keywords:', '').trim();
             currentPage.keywords = keywordsText.split(',').map((k) => k.trim());
+            return;
+          }
+
+          // Parse parts
+          if (paragraphText.startsWith('Parts:')) {
+            const partsText = paragraphText.replace('Parts:', '').trim();
+            currentPage.parts = partsText.split(',').map((p) => p.trim());
+            return;
+          }
+
+          // Parse props
+          if (paragraphText.startsWith('Props:')) {
+            const propsText = paragraphText.replace('Props:', '').trim();
+            currentPage.props = propsText.split(',').map((p) => p.trim());
+            return;
+          }
+
+          // Parse data attributes
+          if (paragraphText.startsWith('Data Attributes:')) {
+            const dataAttributesText = paragraphText.replace('Data Attributes:', '').trim();
+            currentPage.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+            return;
+          }
+
+          // Parse CSS variables
+          if (paragraphText.startsWith('CSS Variables:')) {
+            const cssVariablesText = paragraphText.replace('CSS Variables:', '').trim();
+            currentPage.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
             return;
           }
 
