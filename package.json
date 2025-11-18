@@ -19,7 +19,9 @@
     "clean": "pnpm -r exec rm -rf build",
     "docs:dev": "pnpm -F \"./docs\" run dev",
     "docs:build": "pnpm -F \"./docs\" run build",
-    "docs:start": "pnpm -F \"./docs\" run start"
+    "docs:start": "pnpm -F \"./docs\" run start",
+    "docs:infra": "pnpm -F \"./docs\" run docs-infra",
+    "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'"
   },
   "pnpm": {
     "packageExtensions": {

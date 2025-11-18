@@ -33,6 +33,15 @@ export interface TransformMarkdownMetadataOptions {
         exclude: string[];
         /** Base directory to strip from file paths before matching (e.g., '/path/to/project/docs') */
         baseDir?: string;
+        /** Only update existing indexes, don't create new ones */
+        onlyUpdateIndexes?: boolean;
+        /**
+         * Directory to write marker files when indexes are updated.
+         * Path is relative to baseDir.
+         * Set to false to disable marker file creation.
+         * @default false
+         */
+        markerDir?: string | false;
       };
   /**
    * Enable generation of embeddings for full text content.
@@ -791,7 +800,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             updateParents: true,
           };
 
-          // Pass through baseDir, include, and exclude if they were configured
+          // Pass through baseDir, include, exclude, onlyUpdateIndexes, and markerDir if they were configured
           if (typeof options.extractToIndex !== 'boolean') {
             if (options.extractToIndex.baseDir) {
               updateOptions.baseDir = options.extractToIndex.baseDir;
@@ -801,6 +810,12 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             }
             if (options.extractToIndex.exclude) {
               updateOptions.exclude = options.extractToIndex.exclude;
+            }
+            if (options.extractToIndex.onlyUpdateIndexes !== undefined) {
+              updateOptions.onlyUpdateIndexes = options.extractToIndex.onlyUpdateIndexes;
+            }
+            if (options.extractToIndex.markerDir !== undefined) {
+              updateOptions.markerDir = options.extractToIndex.markerDir;
             }
           }
 

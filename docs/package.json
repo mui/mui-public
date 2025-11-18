@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build-exp": "next build --turbopack",
-    "start": "serve ./out"
+    "start": "serve ./out",
+    "docs-infra": "docs-infra",
+    "validate": "docs-infra validate --command 'pnpm validate'"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-beta.1",
