@@ -42,6 +42,12 @@ export interface TransformMarkdownMetadataOptions {
          * @default false
          */
         markerDir?: string | false;
+        /**
+         * Throw an error if the index is out of date or missing.
+         * Useful for CI environments to ensure indexes are committed.
+         * @default false
+         */
+        errorIfOutOfDate?: boolean;
       };
   /**
    * Enable generation of embeddings for full text content.
@@ -816,6 +822,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             }
             if (options.extractToIndex.markerDir !== undefined) {
               updateOptions.markerDir = options.extractToIndex.markerDir;
+            }
+            if (options.extractToIndex.errorIfOutOfDate !== undefined) {
+              updateOptions.errorIfOutOfDate = options.extractToIndex.errorIfOutOfDate;
             }
           }
 

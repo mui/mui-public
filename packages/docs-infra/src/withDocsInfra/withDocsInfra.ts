@@ -116,6 +116,13 @@ export interface DocsInfraMdxOptions {
    * @default false
    */
   generateEmbeddings?: boolean;
+  /**
+   * Throw an error if any index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   *
+   * @default false
+   */
+  errorIfIndexOutOfDate?: boolean;
 }
 
 /**
@@ -124,7 +131,12 @@ export interface DocsInfraMdxOptions {
 export function getDocsInfraMdxOptions(
   customOptions: DocsInfraMdxOptions = {},
 ): DocsInfraMdxOptions {
-  const { extractToIndex = true, baseDir, generateEmbeddings = false } = customOptions;
+  const {
+    extractToIndex = true,
+    baseDir,
+    generateEmbeddings = false,
+    errorIfIndexOutOfDate = Boolean(process.env.CI),
+  } = customOptions;
 
   // Normalize extractToIndex to options object
   let extractToIndexOptions:
@@ -154,7 +166,12 @@ export function getDocsInfraMdxOptions(
     ['remark-gfm'],
     [
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
-      { extractToIndex: extractToIndexOptions, generateEmbeddings },
+      {
+        extractToIndex: extractToIndexOptions,
+        generateEmbeddings,
+        markerPath: '.next/cache/docs-infra/index-updates',
+        errorIfIndexOutOfDate,
+      },
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],

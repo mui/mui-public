@@ -727,7 +727,7 @@ describe('withDocsInfra', () => {
 
 describe('getDocsInfraMdxOptions', () => {
   it('should return default MDX options when no custom options provided', () => {
-    const result = getDocsInfraMdxOptions();
+    const result = getDocsInfraMdxOptions({ errorIfIndexOutOfDate: false });
 
     expect(result.remarkPlugins).toEqual([
       ['remark-gfm'],
@@ -740,6 +740,8 @@ describe('getDocsInfraMdxOptions', () => {
             baseDir: process.cwd(),
           },
           generateEmbeddings: false,
+          markerPath: '.next/cache/docs-infra/index-updates',
+          errorIfIndexOutOfDate: false,
         },
       ],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
@@ -757,6 +759,7 @@ describe('getDocsInfraMdxOptions', () => {
     const result = getDocsInfraMdxOptions({
       additionalRemarkPlugins: [['remark-emoji']],
       additionalRehypePlugins: [['rehype-highlight']],
+      errorIfIndexOutOfDate: false,
     });
 
     expect(result.remarkPlugins).toEqual([
@@ -770,6 +773,8 @@ describe('getDocsInfraMdxOptions', () => {
             baseDir: process.cwd(),
           },
           generateEmbeddings: false,
+          markerPath: '.next/cache/docs-infra/index-updates',
+          errorIfIndexOutOfDate: false,
         },
       ],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],

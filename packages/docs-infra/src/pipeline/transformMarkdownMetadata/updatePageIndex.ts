@@ -161,6 +161,13 @@ export interface UpdatePageIndexOptions {
    * @default false
    */
   markerDir?: string | false;
+
+  /**
+   * Throw an error if the index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default false
+   */
+  errorIfOutOfDate?: boolean;
 }
 
 /**
@@ -201,6 +208,7 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
     exclude,
     onlyUpdateIndexes = false,
     markerDir = false,
+    errorIfOutOfDate = false,
   } = options;
 
   // Validate that either metadata or metadataList is provided
@@ -252,6 +260,16 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
     if (onlyUpdateIndexes) {
       return;
     }
+
+    // If errorIfOutOfDate is true, throw an error for missing index
+    if (errorIfOutOfDate) {
+      const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
+      throw new Error(
+        `Index file is missing: ${relativeIndexPath}\n` +
+          `Please run next build locally and commit the updated index files.\n` +
+          `Don't forget to add it to the \`app/sitemap/index.ts\` to list it publicly.`,
+      );
+    }
   }
 
   // Step 1.5: Verify the file has the autogeneration marker if it exists
@@ -296,6 +314,15 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
   if (!needsUpdate) {
     // All pages are already up-to-date, no need to acquire lock or write
     return;
+  }
+
+  // If errorIfOutOfDate is true, throw an error instead of updating
+  if (errorIfOutOfDate) {
+    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
+    throw new Error(
+      `Index file is out of date: ${relativeIndexPath}\n` +
+        `Please run the validation command (or next build) locally and commit the updated index files.`,
+    );
   }
 
   // Step 4: Ensure the file exists before locking (proper-lockfile requires an existing file)
@@ -440,6 +467,7 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
         exclude,
         onlyUpdateIndexes,
         markerDir,
+        errorIfOutOfDate,
       });
     }
   }
