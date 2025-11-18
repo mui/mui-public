@@ -1193,7 +1193,7 @@ A button component.
       // Read what was written
       const writtenContent = await readFile(indexPath, 'utf-8');
 
-      // Parse back and use the same data for second call  
+      // Parse back and use the same data for second call
       const parsed = await import('./metadataToMarkdown').then((m) =>
         m.markdownToMetadata(writtenContent),
       );

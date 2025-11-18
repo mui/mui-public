@@ -13,7 +13,6 @@ import {
 import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata/transformMarkdownMetadata';
 
 type Args = {
-  ci: boolean;
   paths?: string[];
   command?: string;
 };
@@ -58,11 +57,6 @@ const runValidate: CommandModule<{}, Args> = {
   describe: 'Ensures that committed files match expected output',
   builder: (yargs) => {
     return yargs
-      .option('ci', {
-        type: 'boolean',
-        description: 'Run in CI mode - throws error if indexes need updating',
-        default: false,
-      })
       .option('command', {
         type: 'string',
         description: 'Command to suggest when indexes are out of date',
@@ -78,7 +72,8 @@ const runValidate: CommandModule<{}, Args> = {
   },
   handler: async (args) => {
     const cwd = process.cwd();
-    const { ci, paths = [], command = 'pnpm docs-infra validate' } = args;
+    const { paths = [], command = 'pnpm docs-infra validate' } = args;
+    const ci = Boolean(process.env.CI);
 
     await Promise.all([
       (async () => {
