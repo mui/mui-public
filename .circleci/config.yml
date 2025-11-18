@@ -68,6 +68,14 @@ jobs:
       - run:
           name: TypeScript
           command: pnpm typescript
+  docs_validate:
+    <<: *default-job
+    steps:
+      - checkout
+      - install_js
+      - run:
+          name: Validate the documentation files
+          command: pnpm docs:validate
   test_static:
     <<: *default-job
     steps:
@@ -123,6 +131,9 @@ workflows:
           <<: *default-context
       - test_lint:
           <<: *default-context
+      - docs_validate:
+          <<: *default-context
+          name: 'Validating Docs'
       - test_static:
           <<: *default-context
       - test_unit:
