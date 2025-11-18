@@ -119,12 +119,17 @@ const runValidate: CommandModule<{}, Args> = {
         console.log(chalk.yellow(`\nProcessing ${pageMdxFiles.length} page.mdx files...\n`));
 
         // Process each file through the unified pipeline
+        // Auto-detect include paths: use 'src/app' if src/app exists, otherwise 'app'
+        const includePatterns = searchDirs.some((dir) => dir.includes('src/app'))
+          ? ['src/app']
+          : ['app'];
+
         const processor = unified()
           .use(remarkParse)
           .use(remarkMdx)
           .use(transformMarkdownMetadata, {
             extractToIndex: {
-              include: ['app'],
+              include: includePatterns,
               exclude: [],
               baseDir: cwd,
               onlyUpdateIndexes: true,
