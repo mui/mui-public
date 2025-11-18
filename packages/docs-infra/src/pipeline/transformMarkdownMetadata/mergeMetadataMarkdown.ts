@@ -5,6 +5,10 @@ import type { PagesMetadata, PageMetadata } from './metadataToMarkdown';
  * Merges new page metadata with existing markdown content, preserving the order
  * of pages from the existing markdown when available.
  *
+ * Pages are matched by their `path` property (e.g., './button/page.mdx'), not by slug.
+ * This allows multiple pages to have the same slug (anchor) while still being treated
+ * as distinct pages.
+ *
  * @param existingMarkdown - The existing markdown content (or undefined if none exists)
  * @param newMetadata - The new metadata to merge in
  * @returns The updated markdown content with merged metadata
@@ -12,8 +16,8 @@ import type { PagesMetadata, PageMetadata } from './metadataToMarkdown';
  * @example
  * ```ts
  * const existingMarkdown = `# Components
- * - [Button](./button/page.mdx) - A button
- * - [Checkbox](./checkbox/page.mdx) - A checkbox
+ * - [Button](#button) - [Full Docs](./button/page.mdx) - A button
+ * - [Checkbox](#checkbox) - [Full Docs](./checkbox/page.mdx) - A checkbox
  * `;
  *
  * const newMetadata = {
@@ -46,37 +50,46 @@ export async function mergeMetadataMarkdown(
     return metadataToMarkdown(newMetadata);
   }
 
-  // Create a map of new pages by slug for quick lookup
+  // Create a map of new pages by path for quick lookup
   const newPagesMap = new Map<string, PageMetadata>();
   for (const page of newMetadata.pages) {
-    newPagesMap.set(page.slug, page);
+    newPagesMap.set(page.path, page);
   }
 
   // Build the merged pages array, preserving order from existing markdown
   const mergedPages: PageMetadata[] = [];
-  const addedSlugs = new Set<string>();
+  const addedPaths = new Set<string>();
 
   // First, add all pages that exist in the existing markdown, in their original order
   for (const existingPage of existingMetadata.pages) {
-    const newPage = newPagesMap.get(existingPage.slug);
+    const newPage = newPagesMap.get(existingPage.path);
     if (newPage) {
-      // Page exists in both - merge the metadata, preferring new values but preserving existing ones
-      mergedPages.push({
-        ...existingPage,
+      // Page exists in both - merge the metadata, preferring new values
+      // Only exclude descriptionMarkdown if newPage provides a new description
+      const { descriptionMarkdown, ...existingPageWithoutDescriptionMarkdown } = existingPage;
+      const merged = {
+        ...(newPage.description ? existingPageWithoutDescriptionMarkdown : existingPage),
         ...newPage,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
-      });
-      addedSlugs.add(newPage.slug);
+        // Merge openGraph, but ensure description comes from newPage if it has one
+        openGraph:
+          newPage.openGraph ??
+          (newPage.description
+            ? { ...existingPage.openGraph, description: newPage.description }
+            : existingPage.openGraph),
+      };
+      mergedPages.push(merged);
+      addedPaths.add(newPage.path);
     }
     // If page doesn't exist in new metadata, it's been removed - don't include it
   }
 
   // Then, add any new pages that weren't in the existing markdown
   for (const newPage of newMetadata.pages) {
-    if (!addedSlugs.has(newPage.slug)) {
+    if (!addedPaths.has(newPage.path)) {
       mergedPages.push(newPage);
-      addedSlugs.add(newPage.slug);
+      addedPaths.add(newPage.path);
     }
   }
 

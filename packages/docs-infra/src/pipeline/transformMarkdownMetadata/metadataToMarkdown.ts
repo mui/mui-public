@@ -774,9 +774,10 @@ function extractPlainTextFromNode(node: any): string {
     const extractedText = node.children
       .map((child: any) => extractPlainTextFromNode(child))
       .join('');
-    // For paragraph nodes, replace newlines with spaces and normalize whitespace
+    // For paragraph nodes, replace sequences of regular whitespace (spaces, tabs, newlines)
+    // with a single space, but preserve non-breaking spaces and other special whitespace
     if (node.type === 'paragraph') {
-      return extractedText.replace(/\s+/g, ' ').trim();
+      return extractedText.replace(/[ \t\n\r]+/g, ' ').trim();
     }
     return extractedText;
   }

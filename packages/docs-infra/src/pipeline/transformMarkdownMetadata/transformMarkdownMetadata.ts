@@ -289,14 +289,23 @@ function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMeta
   // Get the directory containing the page file
   const pageDir = dirname(filePath);
 
-  // Find the slug by looking backwards for the first non-route-group directory
-  let slug = '';
+  // Find the directory name by looking backwards for the first non-route-group directory
+  let dirName = '';
   for (let i = parts.length - 2; i >= 0; i -= 1) {
     if (!isRouteGroup(parts[i])) {
-      slug = parts[i];
+      dirName = parts[i];
       break;
     }
   }
+
+  // Generate slug from title if available, otherwise from directory name
+  // This ensures consistency with section slug generation (kebab-case for multi-word, lowercase for camelCase)
+  const slug = metadata.title
+    ? metadata.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+    : dirName;
 
   // Calculate parent directory (skipping route groups, matching updatePageIndex behavior)
   const parentDir = getParentDir(pageDir, true);
