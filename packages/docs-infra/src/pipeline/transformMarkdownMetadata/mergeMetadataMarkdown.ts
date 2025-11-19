@@ -74,6 +74,8 @@ export async function mergeMetadataMarkdown(
       const merged = {
         ...(newPage.description ? existingPageWithoutDescriptionMarkdown : existingPage),
         ...newPage,
+        // Preserve tags from existing (user-managed, program should never delete tags)
+        tags: existingPage.tags,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
         // Merge openGraph, but ensure description comes from newPage if it has one
@@ -92,7 +94,12 @@ export async function mergeMetadataMarkdown(
   // Then, add any new pages that weren't in the existing markdown
   for (const newPage of newMetadata.pages) {
     if (!addedPaths.has(newPage.path)) {
-      pages.push(newPage);
+      // This is a new page - automatically add the [New] tag
+      const pageWithTag = {
+        ...newPage,
+        tags: newPage.tags ? [...newPage.tags, 'New'] : ['New'],
+      };
+      pages.push(pageWithTag);
       addedPaths.add(newPage.path);
     }
   }

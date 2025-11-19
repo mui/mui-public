@@ -47,6 +47,8 @@ export interface PageMetadata extends ExtractedMetadata {
   slug: string;
   /** The relative path to the page's MDX file */
   path: string;
+  /** Tags for this entry (e.g., 'New', 'Hot', 'Beta') */
+  tags?: string[];
 }
 
 export interface PagesMetadata {
@@ -279,13 +281,24 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
 
-    // Format: - [Title](#slug) - [Full Docs](./path/page.mdx)
+    // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+    const paragraphChildren: any[] = [link(`#${page.slug}`, pageTitle)];
+
+    // Add tags if present (directly after component name)
+    if (page.tags && page.tags.length > 0) {
+      for (const tag of page.tags) {
+        paragraphChildren.push(text(` [${tag}]`));
+      }
+    }
+
+    // Add separator and Full Docs link
+    paragraphChildren.push(text(' - '));
+    paragraphChildren.push(link(page.path, 'Full Docs'));
+
     listItems.push({
       type: 'listItem',
       spread: false,
-      children: [
-        paragraph([link(`#${page.slug}`, pageTitle), text(' - '), link(page.path, 'Full Docs')]),
-      ],
+      children: [paragraph(paragraphChildren)],
     });
   }
 
@@ -440,8 +453,20 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
   // Add page list (editable section)
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
-    // New format: - [Title](#slug) - [Full Docs](./path/page.mdx)
-    lines.push(`- [${pageTitle}](#${page.slug}) - [Full Docs](${page.path})`);
+    // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+    let line = `- [${pageTitle}](#${page.slug})`;
+
+    // Add tags if present (directly after component name)
+    if (page.tags && page.tags.length > 0) {
+      for (const tag of page.tags) {
+        line += ` [${tag}]`;
+      }
+    }
+
+    // Add separator and Full Docs link
+    line += ` - [Full Docs](${page.path})`;
+
+    lines.push(line);
   }
 
   lines.push('');
@@ -582,7 +607,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     if (currentSection === 'editable' && node.type === 'paragraph' && parent?.type === 'listItem') {
       const paragraphNode = node as ParagraphNode;
       if (paragraphNode.children) {
-        // Format: - [Title](#slug) - [Full Docs](./path/page.mdx)
+        // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
         // Look for the first link (section link with #slug)
         const sectionLink = paragraphNode.children.find((child: any) => child.type === 'link') as
           | LinkNode
@@ -598,13 +623,39 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           const slug = sectionLink.url.replace('#', ''); // Extract slug from #slug
           const path = docsLink.url; // Get path from full docs link
 
-          // Only extract slug, path, and title from the editable list
+          // Extract tags from text nodes between the section link and full docs link
+          // Tags are in the format [Tag] where Tag can be New, Hot, Beta, etc.
+          const tags: string[] = [];
+          let foundSectionLink = false;
+          let foundDocsLink = false;
+          for (const child of paragraphNode.children) {
+            if (child === sectionLink) {
+              foundSectionLink = true;
+              continue;
+            }
+            if (child === docsLink) {
+              foundDocsLink = true;
+              break;
+            }
+            if (foundSectionLink && !foundDocsLink && child.type === 'text') {
+              // Match [Tag] patterns in the text
+              const tagRegex = /\[(\w+)\]/g;
+              let match = tagRegex.exec(child.value);
+              while (match !== null) {
+                tags.push(match[1]);
+                match = tagRegex.exec(child.value);
+              }
+            }
+          }
+
+          // Only extract slug, path, title, and tags from the editable list
           // The description will be filled in from the details section
           pages.push({
             slug,
             path,
             title: pageTitle,
             description: 'No description available', // Will be updated from details section
+            tags: tags.length > 0 ? tags : undefined,
             openGraph: {
               title: pageTitle,
               description: 'No description available', // Will be updated from details section
