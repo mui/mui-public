@@ -51,7 +51,13 @@ describe('metadataToMarkdown', () => {
 
       ![A simple button](https://example.com/button.png)
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Keywords: interactive, input
+
+      </details>
 
       [//]: # 'Embeddings: [0.1,0.2,0.3]'
 
@@ -307,7 +313,13 @@ A button component.
 
 ![A simple button](https://example.com/button.png)
 
+<details>
+
+<summary>Outline</summary>
+
 - Keywords: interactive, input
+
+</details>
 
 [//]: # 'Embeddings: [0.1,0.2,0.3]'
 
@@ -509,7 +521,13 @@ A more detailed button component description.
 
 ![Button image](https://example.com/button.png)
 
+<details>
+
+<summary>Outline</summary>
+
 - Keywords: interactive, clickable
+
+</details>
 
 [Read more](./button/page.mdx)
 `;
@@ -869,6 +887,10 @@ describe('round-trip conversion', () => {
 
 A pattern for isomorphic components.
 
+<details>
+
+<summary>Outline</summary>
+
 - Sections:
   - Server-Client Boundary Constraints
   - 1\\. Early rendering with fallback values
@@ -877,6 +899,8 @@ A pattern for isomorphic components.
   - 4\\. Lazy-load heavy functions
   - Implementation Checklist
   - Real-World Usage
+
+</details>
 
 [Read more](./props-context-layering/page.mdx)
 `;
@@ -1340,6 +1364,10 @@ A guide to building forms.
 
 A button component.
 
+<details>
+
+<summary>Outline</summary>
+
 - Exports:
   - Button - Root
     - Props: className, disabled, onClick
@@ -1347,6 +1375,8 @@ A button component.
     - CSS Variables: --button-bg, --button-color
   - Button - Icon
     - Props: size, color
+
+</details>
 
 [Read more](./button/page.mdx)
 `;
@@ -1381,12 +1411,18 @@ A button component.
 
 A checkbox component.
 
+<details>
+
+<summary>Outline</summary>
+
 - Exports:
   - Checkbox - Root
     - Props: checked, onChange
     - Data Attributes: data-checked
   - Checkbox - Indicator
     - CSS Variables: --indicator-size
+
+</details>
 
 [Read more](./checkbox/page.mdx)
 `;
@@ -1418,6 +1454,10 @@ A checkbox component.
 
 An accordion component.
 
+<details>
+
+<summary>Outline</summary>
+
 - Keywords: collapsible, expandable
 - Sections:
   - Overview
@@ -1427,6 +1467,8 @@ An accordion component.
     - Props: defaultValue, multiple
   - Accordion - Item
     - Props: value, disabled
+
+</details>
 
 [Read more](./accordion/page.mdx)
 `;
@@ -1522,6 +1564,10 @@ An accordion component.
 
 A menu component.
 
+<details>
+
+<summary>Outline</summary>
+
 - Exports:
   - Menu - Root
     - Props: open, onOpenChange
@@ -1531,6 +1577,8 @@ A menu component.
   - Menu - Separator
   - Menu - Arrow
     - CSS Variables: --arrow-size
+
+</details>
 
 [Read more](./menu/page.mdx)
 `;

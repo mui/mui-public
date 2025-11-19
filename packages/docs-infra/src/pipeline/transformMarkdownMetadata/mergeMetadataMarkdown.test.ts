@@ -401,7 +401,13 @@ Old description.
 
       ![Button preview](https://example.com/button.png)
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Keywords: interactive, input
+
+      </details>
 
       [Read more](./button/page.mdx)
       "
@@ -680,6 +686,10 @@ Old checkbox description.
 
       A tooltip component.
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Exports:
         - Tooltip - Root
           - Props: className
@@ -690,6 +700,8 @@ Old checkbox description.
           - Data Attributes: data-align, data-open, data-side
           - CSS Variables: --anchor-height, --anchor-width, --transform-origin
         - Tooltip - Portal
+
+      </details>
 
       [Read more](./tooltip/page.mdx)
       "

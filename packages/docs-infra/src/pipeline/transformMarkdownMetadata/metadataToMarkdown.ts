@@ -565,10 +565,26 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
         }
       }
 
+      // Wrap metadata in details/summary tags
+      children.push({
+        type: 'html',
+        value: '<details>',
+      } as any);
+      children.push(paragraph(''));
+      children.push({
+        type: 'html',
+        value: '<summary>Outline</summary>',
+      } as any);
+      children.push(paragraph(''));
       children.push({
         type: 'list',
         ordered: false,
         children: metadataListItems,
+      } as any);
+      children.push(paragraph(''));
+      children.push({
+        type: 'html',
+        value: '</details>',
       } as any);
     }
 
@@ -689,6 +705,10 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
     let hasMetadataContent = false;
 
     if (hasKeywords || hasSections || hasExports) {
+      lines.push('<details>');
+      lines.push('');
+      lines.push('<summary>Outline</summary>');
+      lines.push('');
       if (hasKeywords) {
         lines.push(`- Keywords: ${keywords.join(', ')}`);
         hasMetadataContent = true;
@@ -721,6 +741,8 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
         }
         hasMetadataContent = true;
       }
+      lines.push('');
+      lines.push('</details>');
       // Only add blank line if we actually added metadata content
       if (hasMetadataContent) {
         lines.push('');

@@ -234,7 +234,13 @@ Old description.
 
       ![Button preview](https://example.com/button.png)
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Keywords: interactive, input
+
+      </details>
 
       [Read more](./button/page.mdx)
       "
@@ -791,12 +797,18 @@ An input component.
 
       An alert dialog component.
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Exports:
         - Alert Dialog - Root
         - Alert Dialog - Trigger
         - Alert Dialog - Popup
         - Alert Dialog - Portal
         - Alert Dialog - Backdrop
+
+      </details>
 
       [Read more](./alert-dialog/page.mdx)
       "
@@ -846,6 +858,10 @@ An input component.
 
       A tooltip component.
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Exports:
         - Tooltip - Root
           - Props: className
@@ -855,6 +871,8 @@ An input component.
           - Props: defaultOpen, open, side
           - Data Attributes: data-align, data-open, data-side
           - CSS Variables: --anchor-height, --anchor-width, --transform-origin
+
+      </details>
 
       [Read more](./tooltip/page.mdx)
       "
@@ -914,10 +932,16 @@ A button component.
 
       A button component.
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Exports:
         - Button - Root
           - Props: className, disabled, onClick
         - Button - Icon
+
+      </details>
 
       [Read more](./button/page.mdx)
       "
@@ -977,10 +1001,16 @@ A button component.
 
       A checkbox component.
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Exports:
         - Checkbox - Root
           - Props: checked, className, disabled
         - Checkbox - Indicator
+
+      </details>
 
       [Read more](./checkbox/page.mdx)
 
@@ -988,11 +1018,17 @@ A button component.
 
       A switch component.
 
+      <details>
+
+      <summary>Outline</summary>
+
       - Exports:
         - Switch - Root
           - Props: checked, className, onCheckedChange
           - Data Attributes: data-checked, data-disabled
         - Switch - Thumb
+
+      </details>
 
       [Read more](./switch/page.mdx)
       "
