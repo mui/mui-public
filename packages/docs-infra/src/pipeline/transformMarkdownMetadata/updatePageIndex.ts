@@ -449,9 +449,15 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
 
       // Convert child pages to sections format (no subsections, just page names)
       // Use mergedPages which contains the complete merged state
+      // Skip single-link entries (external links) as they don't have detail sections
       if (mergedPages.length > 0) {
         const sections: HeadingHierarchy = {};
         for (const childPage of mergedPages) {
+          // Skip entries that don't have detail sections (external links, etc.)
+          if (childPage.skipDetailSection) {
+            continue;
+          }
+
           sections[childPage.slug] = {
             title: childPage.title || childPage.slug,
             titleMarkdown: childPage.title

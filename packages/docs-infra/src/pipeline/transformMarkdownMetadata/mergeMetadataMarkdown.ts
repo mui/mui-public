@@ -76,6 +76,8 @@ export async function mergeMetadataMarkdown(
         ...newPage,
         // Preserve tags from existing (user-managed, program should never delete tags)
         tags: existingPage.tags,
+        // Preserve skipDetailSection from existing (user-managed for external links)
+        skipDetailSection: existingPage.skipDetailSection,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
         // Merge openGraph, but ensure description comes from newPage if it has one
