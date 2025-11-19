@@ -5,6 +5,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
+import * as semver from 'semver';
 
 import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '../utils/build.mjs';
 
@@ -22,6 +23,7 @@ import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '.
  * @property {boolean} skipMainCheck - Whether to skip checking for main field in package.json.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
+ * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
  */
 
 const validBundles = [
@@ -334,6 +336,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         description:
           'Files/Directories to be copied to the output directory. Can be a glob pattern.',
         default: [],
+      })
+      .option('enableReactCompiler', {
+        type: 'boolean',
+        default: false,
+        description: 'Whether to use the React compiler.',
       });
   },
   async handler(args) {
@@ -348,12 +355,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipTsc,
       skipBabelRuntimeCheck = false,
       skipPackageJson = false,
+      enableReactCompiler = false,
     } = args;
 
     const cwd = process.cwd();
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck });
+    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
@@ -388,6 +396,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       esm: 'esm',
     };
     const sourceDir = path.join(cwd, 'src');
+    const reactVersion =
+      semver.minVersion(packageJson.peerDependencies?.react || '')?.version ?? 'latest';
+
+    if (enableReactCompiler) {
+      const mode = process.env.MUI_REACT_COMPILER_MODE ?? 'opt-in';
+      console.log(
+        `[feature] Building with React compiler enabled. The compiler mode is "${mode}" right now.${mode === 'opt-in' ? ' Use explicit "use memo" directives in your components to enable the React compiler for them.' : ''}`,
+      );
+    }
 
     // js build start
     await Promise.all(
@@ -415,6 +432,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
             pkgVersion: packageJson.version,
             ignores: extraIgnores,
             outExtension,
+            reactCompiler: enableReactCompiler
+              ? {
+                  reactVersion: reactVersion || 'latest',
+                }
+              : undefined,
           }),
         );
 

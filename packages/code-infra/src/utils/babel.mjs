@@ -2,10 +2,10 @@
 /// <reference types="../untyped-plugins" />
 
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { $ } from 'execa';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { $ } from 'execa';
 import { BASE_IGNORES } from './build.mjs';
 
 const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
@@ -70,6 +70,8 @@ export async function cjsCopy({ from, to }) {
  * @param {boolean} [options.verbose=false] - Whether to enable verbose logging.
  * @param {boolean} [options.optimizeClsx=false] - Whether to enable clsx call optimization transform.
  * @param {boolean} [options.removePropTypes=true] - Whether to enable removal of React prop types.
+ * @param {Object} [options.reactCompiler] - Whether to use the React compiler.
+ * @param {string} [options.reactCompiler.reactVersion] - The React version to use with the React compiler.
  * @param {string[]} [options.ignores] - The globs to be ignored by Babel.
  * @param {string} options.cwd - The package root directory.
  * @param {string} options.pkgVersion - The package version.
@@ -94,6 +96,7 @@ export async function babelBuild({
   removePropTypes = false,
   verbose = false,
   ignores = [],
+  reactCompiler,
 }) {
   console.log(
     `Transpiling files to "${path.relative(path.dirname(sourceDir), outDir)}" for "${bundle}" bundle.`,
@@ -111,6 +114,8 @@ export async function babelBuild({
   ) {
     configFile = path.join(workspaceDir, 'babel.config.mjs');
   }
+
+  const reactVersion = reactCompiler?.reactVersion;
   const env = {
     NODE_ENV: 'production',
     BABEL_ENV: bundle === 'esm' ? 'stable' : 'node',
@@ -120,6 +125,8 @@ export async function babelBuild({
     MUI_BABEL_RUNTIME_VERSION: babelRuntimeVersion,
     MUI_OUT_FILE_EXTENSION: outExtension ?? '.js',
     ...getVersionEnvVariables(pkgVersion),
+    MUI_REACT_COMPILER: reactVersion ? '1' : '0',
+    MUI_REACT_COMPILER_REACT_VERSION: reactVersion,
   };
   const res = await $({
     stdio: 'inherit',
