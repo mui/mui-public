@@ -76,6 +76,7 @@ jobs:
       - run:
           name: Build docs-infra package
           command: pnpm docs:lib
+      - install_js
       - run:
           name: Validate the documentation files
           command: pnpm docs:validate
