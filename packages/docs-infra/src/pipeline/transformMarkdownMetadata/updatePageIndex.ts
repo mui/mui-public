@@ -53,8 +53,8 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
  * @returns true if the path should be included, false otherwise
  */
 function shouldIncludePath(path: string, include?: string[], exclude?: string[]): boolean {
-  // Normalize path separators to forward slashes
-  const normalizedPath = path.replace(/\\/g, '/');
+  // Normalize path separators to forward slashes and remove Next.js route groups
+  const normalizedPath = path.replace(/\\/g, '/').replace(/\/\([^)]+\)/g, '');
 
   // Check exclude patterns first
   if (exclude && exclude.length > 0) {

@@ -780,9 +780,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         // e.g., "app/(shared)/page.mdx" becomes "app/page.mdx"
         const normalizedPath = filePath.replace(/\/\([^)]+\)/g, '');
 
-        // Skip if the file exactly matches an include pattern ending with /page.mdx
+        // Skip if the file is an index file (pattern/page.mdx)
         // This prevents index files from extracting metadata to their parent
-        const isIndexFile = include.some((pattern) => normalizedPath === pattern);
+        const isIndexFile = include.some((pattern) => {
+          return normalizedPath === `${pattern}/page.mdx`;
+        });
         if (isIndexFile) {
           shouldExtract = false;
         } else {
