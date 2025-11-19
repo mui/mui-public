@@ -21,7 +21,8 @@
     "docs:build": "pnpm -F \"./docs\" run build",
     "docs:start": "pnpm -F \"./docs\" run start",
     "docs:infra": "pnpm -F \"./docs\" run docs-infra",
-    "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'"
+    "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
+    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build"
   },
   "pnpm": {
     "packageExtensions": {
