@@ -51,6 +51,15 @@ export interface PageMetadata extends ExtractedMetadata {
   tags?: string[];
   /** Skip generating detail section for this entry (for external links) */
   skipDetailSection?: boolean;
+  /** Component exports with their API metadata */
+  exports?: Record<
+    string,
+    {
+      props?: string[];
+      dataAttributes?: string[];
+      cssVariables?: string[];
+    }
+  >;
 }
 
 export interface PagesMetadata {
@@ -135,6 +144,101 @@ function stripPositions(nodes: any[]): any[] {
     }
     return rest;
   });
+}
+
+/**
+ * Parses exports metadata from a nested list structure
+ * Expects format:
+ * - Exports:
+ *   - ComponentName - PartName
+ *     - Props: a, b, c
+ *     - Data Attributes: x, y
+ *     - CSS Variables: --var1, --var2
+ */
+function parseExportsFromListItem(listItem: any): PageMetadata['exports'] {
+  const exports: PageMetadata['exports'] = {};
+
+  // Find the nested list within this list item
+  const nestedList = listItem.children?.find((child: any) => child.type === 'list');
+
+  if (!nestedList?.children) {
+    return exports;
+  }
+
+  // Parse each export (part) from the nested list
+  for (const exportListItem of nestedList.children) {
+    if (exportListItem.type !== 'listItem') {
+      continue;
+    }
+
+    // Find the paragraph with the part name (e.g., ComponentName - PartName)
+    const exportParagraph = exportListItem.children?.find(
+      (child: any) => child.type === 'paragraph',
+    );
+    if (!exportParagraph) {
+      continue;
+    }
+
+    // Extract the part name from the text node
+    const textNode = exportParagraph.children?.find((child: any) => child.type === 'text');
+    if (!textNode) {
+      continue;
+    }
+
+    // Parse the part name (e.g., "ComponentName - PartName" -> "PartName")
+    const fullPartName = textNode.value || '';
+    const partName = fullPartName.split(' - ').pop() || fullPartName;
+
+    // Find the nested list with props/dataAttributes/cssVariables
+    const partMetadataList = exportListItem.children?.find((child: any) => child.type === 'list');
+    if (!partMetadataList) {
+      continue;
+    }
+
+    // Initialize the part metadata (only add properties that have content)
+    const partMetadata: {
+      props?: string[];
+      dataAttributes?: string[];
+      cssVariables?: string[];
+    } = {};
+
+    // Parse each metadata item
+    for (const metadataItem of partMetadataList.children) {
+      if (metadataItem.type !== 'listItem') {
+        continue;
+      }
+
+      const metadataParagraph = metadataItem.children?.find(
+        (child: any) => child.type === 'paragraph',
+      );
+      if (!metadataParagraph) {
+        continue;
+      }
+
+      const metadataText = extractPlainTextFromNode(metadataParagraph);
+
+      if (metadataText.startsWith('Props:')) {
+        const propsText = metadataText.replace('Props:', '').trim();
+        if (propsText) {
+          partMetadata.props = propsText.split(',').map((p) => p.trim());
+        }
+      } else if (metadataText.startsWith('Data Attributes:')) {
+        const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
+        if (dataAttributesText) {
+          partMetadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+        }
+      } else if (metadataText.startsWith('CSS Variables:')) {
+        const cssVariablesText = metadataText.replace('CSS Variables:', '').trim();
+        if (cssVariablesText) {
+          partMetadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+        }
+      }
+    }
+
+    exports[partName] = partMetadata;
+  }
+
+  return exports;
 }
 
 /**
@@ -360,56 +464,18 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
       } as any);
     }
 
-    // Add metadata list (keywords, parts, props, data attributes, CSS variables, and sections combined)
+    // Add metadata list (keywords, sections, and exports combined)
     const hasKeywords = keywords.length > 0;
-    const hasParts = page.parts && page.parts.length > 0;
-    const hasProps = page.props && page.props.length > 0;
-    const hasDataAttributes = page.dataAttributes && page.dataAttributes.length > 0;
-    const hasCssVariables = page.cssVariables && page.cssVariables.length > 0;
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
+    const hasExports = page.exports && Object.keys(page.exports).length > 0;
 
-    if (
-      hasKeywords ||
-      hasParts ||
-      hasProps ||
-      hasDataAttributes ||
-      hasCssVariables ||
-      hasSections
-    ) {
+    if (hasKeywords || hasSections || hasExports) {
       const metadataListItems: any[] = [];
 
       if (hasKeywords) {
         metadataListItems.push({
           type: 'listItem',
           children: [paragraph(`Keywords: ${keywords.join(', ')}`)],
-        });
-      }
-
-      if (hasParts && page.parts) {
-        metadataListItems.push({
-          type: 'listItem',
-          children: [paragraph(`Parts: ${page.parts.join(', ')}`)],
-        });
-      }
-
-      if (hasProps && page.props) {
-        metadataListItems.push({
-          type: 'listItem',
-          children: [paragraph(`Props: ${page.props.join(', ')}`)],
-        });
-      }
-
-      if (hasDataAttributes && page.dataAttributes) {
-        metadataListItems.push({
-          type: 'listItem',
-          children: [paragraph(`Data Attributes: ${page.dataAttributes.join(', ')}`)],
-        });
-      }
-
-      if (hasCssVariables && page.cssVariables) {
-        metadataListItems.push({
-          type: 'listItem',
-          children: [paragraph(`CSS Variables: ${page.cssVariables.join(', ')}`)],
         });
       }
 
@@ -426,6 +492,65 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
             },
           ],
         });
+      }
+
+      if (hasExports && page.exports) {
+        const exportsListItems: any[] = [];
+        for (const [partName, partMetadata] of Object.entries(page.exports)) {
+          const partListItems: any[] = [];
+
+          if (partMetadata.props && partMetadata.props.length > 0) {
+            partListItems.push({
+              type: 'listItem',
+              children: [paragraph(`Props: ${partMetadata.props.join(', ')}`)],
+            });
+          }
+
+          if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
+            partListItems.push({
+              type: 'listItem',
+              children: [paragraph(`Data Attributes: ${partMetadata.dataAttributes.join(', ')}`)],
+            });
+          }
+
+          if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
+            partListItems.push({
+              type: 'listItem',
+              children: [paragraph(`CSS Variables: ${partMetadata.cssVariables.join(', ')}`)],
+            });
+          }
+
+          if (partListItems.length > 0) {
+            exportsListItems.push({
+              type: 'listItem',
+              children: [
+                {
+                  type: 'paragraph',
+                  children: [{ type: 'text', value: `${page.title} - ${partName}` }],
+                },
+                {
+                  type: 'list',
+                  ordered: false,
+                  children: partListItems,
+                },
+              ],
+            });
+          }
+        }
+
+        if (exportsListItems.length > 0) {
+          metadataListItems.push({
+            type: 'listItem',
+            children: [
+              paragraph('Exports:'),
+              {
+                type: 'list',
+                ordered: false,
+                children: exportsListItems,
+              },
+            ],
+          });
+        }
       }
 
       children.push({
@@ -543,41 +668,34 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
       lines.push('');
     }
 
-    // Add metadata list (keywords, parts, props, data attributes, CSS variables, and sections)
+    // Add metadata list (keywords, sections, and exports)
     const hasKeywords = keywords.length > 0;
-    const hasParts = page.parts && page.parts.length > 0;
-    const hasProps = page.props && page.props.length > 0;
-    const hasDataAttributes = page.dataAttributes && page.dataAttributes.length > 0;
-    const hasCssVariables = page.cssVariables && page.cssVariables.length > 0;
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
+    const hasExports = page.exports && Object.keys(page.exports).length > 0;
 
-    if (
-      hasKeywords ||
-      hasParts ||
-      hasProps ||
-      hasDataAttributes ||
-      hasCssVariables ||
-      hasSections
-    ) {
+    if (hasKeywords || hasSections || hasExports) {
       if (hasKeywords) {
         lines.push(`- Keywords: ${keywords.join(', ')}`);
-      }
-      if (hasParts && page.parts) {
-        lines.push(`- Parts: ${page.parts.join(', ')}`);
-      }
-      if (hasProps && page.props) {
-        lines.push(`- Props: ${page.props.join(', ')}`);
-      }
-      if (hasDataAttributes && page.dataAttributes) {
-        lines.push(`- Data Attributes: ${page.dataAttributes.join(', ')}`);
-      }
-      if (hasCssVariables && page.cssVariables) {
-        lines.push(`- CSS Variables: ${page.cssVariables.join(', ')}`);
       }
       if (hasSections && page.sections) {
         const sectionLines = headingHierarchyToMarkdown(page.sections, page.path, 1); // Start at depth 1 for indentation
         lines.push('- Sections:');
         lines.push(sectionLines.trimEnd());
+      }
+      if (hasExports && page.exports) {
+        lines.push('- Exports:');
+        for (const [partName, partMetadata] of Object.entries(page.exports)) {
+          lines.push(`  - ${page.title} - ${partName}`);
+          if (partMetadata.props && partMetadata.props.length > 0) {
+            lines.push(`    - Props: ${partMetadata.props.join(', ')}`);
+          }
+          if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
+            lines.push(`    - Data Attributes: ${partMetadata.dataAttributes.join(', ')}`);
+          }
+          if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
+            lines.push(`    - CSS Variables: ${partMetadata.cssVariables.join(', ')}`);
+          }
+        }
       }
       lines.push('');
     }
@@ -800,31 +918,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             return;
           }
 
-          // Parse parts
-          if (paragraphText.startsWith('Parts:')) {
-            const partsText = paragraphText.replace('Parts:', '').trim();
-            currentPage.parts = partsText.split(',').map((p) => p.trim());
-            return;
-          }
-
-          // Parse props
-          if (paragraphText.startsWith('Props:')) {
-            const propsText = paragraphText.replace('Props:', '').trim();
-            currentPage.props = propsText.split(',').map((p) => p.trim());
-            return;
-          }
-
-          // Parse data attributes
-          if (paragraphText.startsWith('Data Attributes:')) {
-            const dataAttributesText = paragraphText.replace('Data Attributes:', '').trim();
-            currentPage.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
-            return;
-          }
-
-          // Parse CSS variables
-          if (paragraphText.startsWith('CSS Variables:')) {
-            const cssVariablesText = paragraphText.replace('CSS Variables:', '').trim();
-            currentPage.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+          // Parse exports - they're in a nested list within the same parent list item
+          if (paragraphText.startsWith('Exports:')) {
+            currentPage.exports = parseExportsFromListItem(parent as any);
             return;
           }
 
