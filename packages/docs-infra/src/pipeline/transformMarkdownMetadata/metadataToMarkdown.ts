@@ -49,6 +49,8 @@ export interface PageMetadata extends ExtractedMetadata {
   path: string;
   /** Tags for this entry (e.g., 'New', 'Hot', 'Beta') */
   tags?: string[];
+  /** Skip generating detail section for this entry (for external links) */
+  skipDetailSection?: boolean;
 }
 
 export interface PagesMetadata {
@@ -281,19 +283,35 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
 
-    // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
-    const paragraphChildren: any[] = [link(`#${page.slug}`, pageTitle)];
+    // Check if this is a single-link entry (external link or no detail section)
+    const isSingleLink = page.skipDetailSection || false;
 
-    // Add tags if present (directly after component name)
-    if (page.tags && page.tags.length > 0) {
-      for (const tag of page.tags) {
-        paragraphChildren.push(text(` [${tag}]`));
+    let paragraphChildren: any[];
+    if (isSingleLink) {
+      // Format: - [Title](./path) [Tag1] [Tag2]
+      paragraphChildren = [link(page.path, pageTitle)];
+
+      // Add tags if present (directly after link)
+      if (page.tags && page.tags.length > 0) {
+        for (const tag of page.tags) {
+          paragraphChildren.push(text(` [${tag}]`));
+        }
       }
-    }
+    } else {
+      // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+      paragraphChildren = [link(`#${page.slug}`, pageTitle)];
 
-    // Add separator and Full Docs link
-    paragraphChildren.push(text(' - '));
-    paragraphChildren.push(link(page.path, 'Full Docs'));
+      // Add tags if present (directly after component name)
+      if (page.tags && page.tags.length > 0) {
+        for (const tag of page.tags) {
+          paragraphChildren.push(text(` [${tag}]`));
+        }
+      }
+
+      // Add separator and Full Docs link
+      paragraphChildren.push(text(' - '));
+      paragraphChildren.push(link(page.path, 'Full Docs'));
+    }
 
     listItems.push({
       type: 'listItem',
@@ -453,18 +471,35 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
   // Add page list (editable section)
   for (const page of pages) {
     const pageTitle = page.openGraph?.title || page.title || page.slug;
-    // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
-    let line = `- [${pageTitle}](#${page.slug})`;
 
-    // Add tags if present (directly after component name)
-    if (page.tags && page.tags.length > 0) {
-      for (const tag of page.tags) {
-        line += ` [${tag}]`;
+    // Check if this is a single-link entry (external link or no detail section)
+    const isSingleLink = page.skipDetailSection || false;
+
+    let line: string;
+    if (isSingleLink) {
+      // Format: - [Title](./path) [Tag1] [Tag2]
+      line = `- [${pageTitle}](${page.path})`;
+
+      // Add tags if present (directly after link)
+      if (page.tags && page.tags.length > 0) {
+        for (const tag of page.tags) {
+          line += ` [${tag}]`;
+        }
       }
-    }
+    } else {
+      // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+      line = `- [${pageTitle}](#${page.slug})`;
 
-    // Add separator and Full Docs link
-    line += ` - [Full Docs](${page.path})`;
+      // Add tags if present (directly after component name)
+      if (page.tags && page.tags.length > 0) {
+        for (const tag of page.tags) {
+          line += ` [${tag}]`;
+        }
+      }
+
+      // Add separator and Full Docs link
+      line += ` - [Full Docs](${page.path})`;
+    }
 
     lines.push(line);
   }
@@ -477,6 +512,11 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
 
   // Add detailed page sections (non-editable)
   for (const page of pages) {
+    // Skip detail section for single-link entries (external links)
+    if (page.skipDetailSection) {
+      continue;
+    }
+
     const pageTitle = page.openGraph?.title || page.title || page.slug;
     // Use descriptionMarkdown to preserve formatting if available
     // Note: We don't replace newlines here to allow natural line breaks in detailed sections
@@ -607,18 +647,65 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     if (currentSection === 'editable' && node.type === 'paragraph' && parent?.type === 'listItem') {
       const paragraphNode = node as ParagraphNode;
       if (paragraphNode.children) {
-        // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
-        // Look for the first link (section link with #slug)
-        const sectionLink = paragraphNode.children.find((child: any) => child.type === 'link') as
-          | LinkNode
-          | undefined;
+        // Look for links in the paragraph
+        const links = paragraphNode.children.filter(
+          (child: any) => child.type === 'link',
+        ) as LinkNode[];
 
-        // Look for the second link (full docs link)
-        const docsLink = paragraphNode.children.filter((child: any) => child.type === 'link')[1] as
-          | LinkNode
-          | undefined;
+        if (links.length === 0) {
+          // No links found, skip this item
+          return;
+        }
 
-        if (sectionLink && docsLink) {
+        if (links.length === 1) {
+          // Single link format: - [Title](./path) [Tag1] [Tag2]
+          // This is for external links or pages that don't have detail sections
+          const singleLink = links[0];
+          const pageTitle = extractPlainTextFromNode(singleLink);
+          const path = singleLink.url;
+
+          // Generate slug from title for consistency
+          const slug = titleToSlug(pageTitle);
+
+          // Extract tags from text nodes after the link
+          // Tags are in the format [Tag] where Tag can be New, Hot, Beta, External, etc.
+          const tags: string[] = [];
+          let foundLink = false;
+          for (const child of paragraphNode.children) {
+            if (child === singleLink) {
+              foundLink = true;
+              continue;
+            }
+            if (foundLink && child.type === 'text') {
+              // Match [Tag] patterns in the text
+              const tagRegex = /\[(\w+)\]/g;
+              let match = tagRegex.exec(child.value);
+              while (match !== null) {
+                tags.push(match[1]);
+                match = tagRegex.exec(child.value);
+              }
+            }
+          }
+
+          // These entries are preserved as-is in the editable section
+          // They won't have detail sections generated
+          pages.push({
+            slug,
+            path,
+            title: pageTitle,
+            description: 'No description available',
+            tags: tags.length > 0 ? tags : undefined,
+            skipDetailSection: true, // Mark as external/single-link entry
+            openGraph: {
+              title: pageTitle,
+              description: 'No description available',
+            },
+          });
+        } else if (links.length >= 2) {
+          // Two-link format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+          const sectionLink = links[0];
+          const docsLink = links[1];
+
           const pageTitle = extractPlainTextFromNode(sectionLink);
           const slug = sectionLink.url.replace('#', ''); // Extract slug from #slug
           const path = docsLink.url; // Get path from full docs link
