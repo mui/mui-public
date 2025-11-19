@@ -67,7 +67,7 @@
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
       "schedule": null,
-      "additionalReviewers": ["mui/infra"],
+      "reviewers": ["mui/infra"],
       "minimumReleaseAge": null
     },
     {
