@@ -367,23 +367,31 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
       }
     }
 
-    // Update or add all metadata items in the current pages (catching concurrent updates)
-    for (const metaItem of metadataArray) {
-      const currentPageIndex = currentPages.findIndex((p) => p.slug === metaItem.slug);
-      if (currentPageIndex >= 0) {
-        currentPages[currentPageIndex] = metaItem;
-      } else {
-        currentPages.push(metaItem);
-      }
+    // For batch updates, merge the metadata items with existing pages
+    // Build a map keyed by path (not slug) to match mergeMetadataMarkdown's logic
+    const updatedPagesMap = new Map<string, PageMetadata>();
+
+    // First, add all current pages
+    for (const page of currentPages) {
+      updatedPagesMap.set(page.path, page);
     }
 
-    // Store for parent update
-    mergedPages = currentPages;
+    // Then update/add the new metadata items
+    for (const metaItem of metadataArray) {
+      updatedPagesMap.set(metaItem.path, metaItem);
+    }
 
-    // Re-merge with the latest content
+    // Convert back to array - this is the COMPLETE list of pages that should exist
+    const allPages = Array.from(updatedPagesMap.values());
+
+    // Store for parent update
+    mergedPages = allPages;
+
+    // Re-merge with the latest content, passing the COMPLETE list of pages
+    // mergeMetadataMarkdown will preserve the order from currentMarkdown
     const finalMarkdown = await mergeMetadataMarkdown(currentMarkdown, {
       title: indexTitle,
-      pages: currentPages,
+      pages: allPages,
     });
 
     // Defensive check
