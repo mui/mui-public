@@ -1538,7 +1538,7 @@ A menu component.
       const result = await markdownToMetadata(markdown);
 
       expect(result).not.toBeNull();
-      // Parts with no properties (like Separator) should not be included in exports
+      // Parts with no properties (like Separator) are preserved
       expect(result?.pages[0].exports).toEqual({
         Root: {
           props: ['open', 'onOpenChange'],
@@ -1550,6 +1550,7 @@ A menu component.
         Arrow: {
           cssVariables: ['--arrow-size'],
         },
+        Separator: {},
       });
     });
 

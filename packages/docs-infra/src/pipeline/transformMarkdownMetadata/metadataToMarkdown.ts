@@ -191,9 +191,6 @@ function parseExportsFromListItem(listItem: any): PageMetadata['exports'] {
 
     // Find the nested list with props/dataAttributes/cssVariables
     const partMetadataList = exportListItem.children?.find((child: any) => child.type === 'list');
-    if (!partMetadataList) {
-      continue;
-    }
 
     // Initialize the part metadata (only add properties that have content)
     const partMetadata: {
@@ -202,39 +199,42 @@ function parseExportsFromListItem(listItem: any): PageMetadata['exports'] {
       cssVariables?: string[];
     } = {};
 
-    // Parse each metadata item
-    for (const metadataItem of partMetadataList.children) {
-      if (metadataItem.type !== 'listItem') {
-        continue;
-      }
-
-      const metadataParagraph = metadataItem.children?.find(
-        (child: any) => child.type === 'paragraph',
-      );
-      if (!metadataParagraph) {
-        continue;
-      }
-
-      const metadataText = extractPlainTextFromNode(metadataParagraph);
-
-      if (metadataText.startsWith('Props:')) {
-        const propsText = metadataText.replace('Props:', '').trim();
-        if (propsText) {
-          partMetadata.props = propsText.split(',').map((p) => p.trim());
+    if (partMetadataList) {
+      // Parse each metadata item
+      for (const metadataItem of partMetadataList.children) {
+        if (metadataItem.type !== 'listItem') {
+          continue;
         }
-      } else if (metadataText.startsWith('Data Attributes:')) {
-        const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
-        if (dataAttributesText) {
-          partMetadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+
+        const metadataParagraph = metadataItem.children?.find(
+          (child: any) => child.type === 'paragraph',
+        );
+        if (!metadataParagraph) {
+          continue;
         }
-      } else if (metadataText.startsWith('CSS Variables:')) {
-        const cssVariablesText = metadataText.replace('CSS Variables:', '').trim();
-        if (cssVariablesText) {
-          partMetadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+
+        const metadataText = extractPlainTextFromNode(metadataParagraph);
+
+        if (metadataText.startsWith('Props:')) {
+          const propsText = metadataText.replace('Props:', '').trim();
+          if (propsText) {
+            partMetadata.props = propsText.split(',').map((p) => p.trim());
+          }
+        } else if (metadataText.startsWith('Data Attributes:')) {
+          const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
+          if (dataAttributesText) {
+            partMetadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+          }
+        } else if (metadataText.startsWith('CSS Variables:')) {
+          const cssVariablesText = metadataText.replace('CSS Variables:', '').trim();
+          if (cssVariablesText) {
+            partMetadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+          }
         }
       }
     }
 
+    // Always add the part, even if it has no properties (preserve empty parts)
     exports[partName] = partMetadata;
   }
 
@@ -520,6 +520,7 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
             });
           }
 
+          // Always add the part, even if it has no properties
           if (partListItems.length > 0) {
             exportsListItems.push({
               type: 'listItem',
@@ -532,6 +533,17 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
                   type: 'list',
                   ordered: false,
                   children: partListItems,
+                },
+              ],
+            });
+          } else {
+            // Part with no properties - just add the part name
+            exportsListItems.push({
+              type: 'listItem',
+              children: [
+                {
+                  type: 'paragraph',
+                  children: [{ type: 'text', value: `${page.title} - ${partName}` }],
                 },
               ],
             });
@@ -673,31 +685,46 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
 
+    // Track if we actually add any metadata content
+    let hasMetadataContent = false;
+
     if (hasKeywords || hasSections || hasExports) {
       if (hasKeywords) {
         lines.push(`- Keywords: ${keywords.join(', ')}`);
+        hasMetadataContent = true;
       }
       if (hasSections && page.sections) {
         const sectionLines = headingHierarchyToMarkdown(page.sections, page.path, 1); // Start at depth 1 for indentation
         lines.push('- Sections:');
         lines.push(sectionLines.trimEnd());
+        hasMetadataContent = true;
       }
       if (hasExports && page.exports) {
         lines.push('- Exports:');
         for (const [partName, partMetadata] of Object.entries(page.exports)) {
+          const hasProps = partMetadata.props && partMetadata.props.length > 0;
+          const hasDataAttributes =
+            partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0;
+          const hasCssVariables = partMetadata.cssVariables && partMetadata.cssVariables.length > 0;
+
+          // Always list the part, even if it has no properties
           lines.push(`  - ${page.title} - ${partName}`);
-          if (partMetadata.props && partMetadata.props.length > 0) {
-            lines.push(`    - Props: ${partMetadata.props.join(', ')}`);
+          if (hasProps) {
+            lines.push(`    - Props: ${partMetadata.props!.join(', ')}`);
           }
-          if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
-            lines.push(`    - Data Attributes: ${partMetadata.dataAttributes.join(', ')}`);
+          if (hasDataAttributes) {
+            lines.push(`    - Data Attributes: ${partMetadata.dataAttributes!.join(', ')}`);
           }
-          if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
-            lines.push(`    - CSS Variables: ${partMetadata.cssVariables.join(', ')}`);
+          if (hasCssVariables) {
+            lines.push(`    - CSS Variables: ${partMetadata.cssVariables!.join(', ')}`);
           }
         }
+        hasMetadataContent = true;
       }
-      lines.push('');
+      // Only add blank line if we actually added metadata content
+      if (hasMetadataContent) {
+        lines.push('');
+      }
     }
 
     // Add embeddings as a comment if available

@@ -760,7 +760,13 @@ An input component.
       path: './alert-dialog/page.mdx',
       title: 'Alert Dialog',
       description: 'An alert dialog component.',
-      parts: ['Root', 'Trigger', 'Popup', 'Portal', 'Backdrop'],
+      exports: {
+        Root: {},
+        Trigger: {},
+        Popup: {},
+        Portal: {},
+        Backdrop: {},
+      },
     };
 
     await updatePageIndex({
@@ -785,7 +791,12 @@ An input component.
 
       An alert dialog component.
 
-      - Parts: Root, Trigger, Popup, Portal, Backdrop
+      - Exports:
+        - Alert Dialog - Root
+        - Alert Dialog - Trigger
+        - Alert Dialog - Popup
+        - Alert Dialog - Portal
+        - Alert Dialog - Backdrop
 
       [Read more](./alert-dialog/page.mdx)
       "
@@ -798,10 +809,19 @@ An input component.
       path: './tooltip/page.mdx',
       title: 'Tooltip',
       description: 'A tooltip component.',
-      parts: ['Root', 'Trigger', 'Popup'],
-      props: ['align', 'className', 'defaultOpen', 'open', 'side'],
-      dataAttributes: ['data-align', 'data-open', 'data-side'],
-      cssVariables: ['--anchor-height', '--anchor-width', '--transform-origin'],
+      exports: {
+        Root: {
+          props: ['className'],
+        },
+        Trigger: {
+          props: ['align'],
+        },
+        Popup: {
+          props: ['defaultOpen', 'open', 'side'],
+          dataAttributes: ['data-align', 'data-open', 'data-side'],
+          cssVariables: ['--anchor-height', '--anchor-width', '--transform-origin'],
+        },
+      },
     };
 
     await updatePageIndex({
@@ -826,10 +846,15 @@ An input component.
 
       A tooltip component.
 
-      - Parts: Root, Trigger, Popup
-      - Props: align, className, defaultOpen, open, side
-      - Data Attributes: data-align, data-open, data-side
-      - CSS Variables: --anchor-height, --anchor-width, --transform-origin
+      - Exports:
+        - Tooltip - Root
+          - Props: className
+        - Tooltip - Trigger
+          - Props: align
+        - Tooltip - Popup
+          - Props: defaultOpen, open, side
+          - Data Attributes: data-align, data-open, data-side
+          - CSS Variables: --anchor-height, --anchor-width, --transform-origin
 
       [Read more](./tooltip/page.mdx)
       "
@@ -860,8 +885,12 @@ A button component.
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
-      parts: ['Root', 'Icon'],
-      props: ['className', 'disabled', 'onClick'],
+      exports: {
+        Root: {
+          props: ['className', 'disabled', 'onClick'],
+        },
+        Icon: {},
+      },
     };
 
     await updatePageIndex({
@@ -885,8 +914,10 @@ A button component.
 
       A button component.
 
-      - Parts: Root, Icon
-      - Props: className, disabled, onClick
+      - Exports:
+        - Button - Root
+          - Props: className, disabled, onClick
+        - Button - Icon
 
       [Read more](./button/page.mdx)
       "
@@ -900,17 +931,25 @@ A button component.
         path: './checkbox/page.mdx',
         title: 'Checkbox',
         description: 'A checkbox component.',
-        parts: ['Root', 'Indicator'],
-        props: ['checked', 'className', 'disabled'],
+        exports: {
+          Root: {
+            props: ['checked', 'className', 'disabled'],
+          },
+          Indicator: {},
+        },
       },
       {
         slug: 'switch',
         path: './switch/page.mdx',
         title: 'Switch',
         description: 'A switch component.',
-        parts: ['Root', 'Thumb'],
-        props: ['checked', 'className', 'onCheckedChange'],
-        dataAttributes: ['data-checked', 'data-disabled'],
+        exports: {
+          Root: {
+            props: ['checked', 'className', 'onCheckedChange'],
+            dataAttributes: ['data-checked', 'data-disabled'],
+          },
+          Thumb: {},
+        },
       },
     ];
 
@@ -938,8 +977,10 @@ A button component.
 
       A checkbox component.
 
-      - Parts: Root, Indicator
-      - Props: checked, className, disabled
+      - Exports:
+        - Checkbox - Root
+          - Props: checked, className, disabled
+        - Checkbox - Indicator
 
       [Read more](./checkbox/page.mdx)
 
@@ -947,9 +988,11 @@ A button component.
 
       A switch component.
 
-      - Parts: Root, Thumb
-      - Props: checked, className, onCheckedChange
-      - Data Attributes: data-checked, data-disabled
+      - Exports:
+        - Switch - Root
+          - Props: checked, className, onCheckedChange
+          - Data Attributes: data-checked, data-disabled
+        - Switch - Thumb
 
       [Read more](./switch/page.mdx)
       "

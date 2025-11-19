@@ -647,10 +647,20 @@ Old checkbox description.
           path: './tooltip/page.mdx',
           title: 'Tooltip',
           description: 'A tooltip component.',
-          parts: ['Root', 'Trigger', 'Popup', 'Portal'],
-          props: ['align', 'className', 'defaultOpen', 'open', 'side'],
-          dataAttributes: ['data-align', 'data-open', 'data-side'],
-          cssVariables: ['--anchor-height', '--anchor-width', '--transform-origin'],
+          exports: {
+            Root: {
+              props: ['className'],
+            },
+            Trigger: {
+              props: ['align'],
+            },
+            Popup: {
+              props: ['defaultOpen', 'open', 'side'],
+              dataAttributes: ['data-align', 'data-open', 'data-side'],
+              cssVariables: ['--anchor-height', '--anchor-width', '--transform-origin'],
+            },
+            Portal: {},
+          },
         },
       ],
     };
@@ -670,10 +680,16 @@ Old checkbox description.
 
       A tooltip component.
 
-      - Parts: Root, Trigger, Popup, Portal
-      - Props: align, className, defaultOpen, open, side
-      - Data Attributes: data-align, data-open, data-side
-      - CSS Variables: --anchor-height, --anchor-width, --transform-origin
+      - Exports:
+        - Tooltip - Root
+          - Props: className
+        - Tooltip - Trigger
+          - Props: align
+        - Tooltip - Popup
+          - Props: defaultOpen, open, side
+          - Data Attributes: data-align, data-open, data-side
+          - CSS Variables: --anchor-height, --anchor-width, --transform-origin
+        - Tooltip - Portal
 
       [Read more](./tooltip/page.mdx)
       "
@@ -689,10 +705,19 @@ Old checkbox description.
           path: './alert-dialog/page.mdx',
           title: 'Alert Dialog',
           description: 'An alert dialog component.',
-          parts: ['Root', 'Trigger', 'Popup', 'Backdrop'],
-          props: ['className', 'defaultOpen', 'modal', 'onOpenChange', 'open'],
-          dataAttributes: ['data-open', 'data-closed'],
-          cssVariables: ['--popup-height', '--popup-width'],
+          exports: {
+            Root: {
+              props: ['className'],
+            },
+            Trigger: {
+              props: ['defaultOpen', 'modal', 'onOpenChange', 'open'],
+              dataAttributes: ['data-open', 'data-closed'],
+            },
+            Popup: {
+              cssVariables: ['--popup-height', '--popup-width'],
+            },
+            Backdrop: {},
+          },
         },
       ],
     };
@@ -711,10 +736,19 @@ Old checkbox description.
     expect(page?.slug).toBe('alert-dialog');
     expect(page?.title).toBe('Alert Dialog');
     expect(page?.description).toBe('An alert dialog component.');
-    expect(page?.parts).toEqual(['Root', 'Trigger', 'Popup', 'Backdrop']);
-    expect(page?.props).toEqual(['className', 'defaultOpen', 'modal', 'onOpenChange', 'open']);
-    expect(page?.dataAttributes).toEqual(['data-open', 'data-closed']);
-    expect(page?.cssVariables).toEqual(['--popup-height', '--popup-width']);
+    expect(page?.exports).toEqual({
+      Root: {
+        props: ['className'],
+      },
+      Trigger: {
+        props: ['defaultOpen', 'modal', 'onOpenChange', 'open'],
+        dataAttributes: ['data-open', 'data-closed'],
+      },
+      Popup: {
+        cssVariables: ['--popup-height', '--popup-width'],
+      },
+      Backdrop: {},
+    });
   });
 
   it('should update existing page when title changes instead of creating duplicate', async () => {
