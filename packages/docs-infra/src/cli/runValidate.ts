@@ -204,7 +204,9 @@ const runValidate: CommandModule<{}, Args> = {
             });
 
             if (updatedPaths.size > 0) {
-              pathsArg = ` ${Array.from(updatedPaths).join(' ')}`;
+              pathsArg = ` ${Array.from(updatedPaths)
+                .map((p) => (/^[a-zA-Z0-9/_.-]+$/.test(p) ? p : `"${p}"`))
+                .join(' ')}`;
             }
           }
 
