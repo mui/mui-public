@@ -4,5 +4,11 @@
   "schedule": "* 5-9 * * 7",
   "lockFileMaintenance": {
     "schedule": "* 0-4 3 * *"
-  }
+  },
+  "packageRules": [
+    {
+      "matchPackageNames": ["https://github.com/mui/mui-public"],
+      "enabled": false
+    }
+  ]
 }
