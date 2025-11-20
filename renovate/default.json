@@ -37,7 +37,7 @@
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
       ],
       "currentValueTemplate": "master",
-      "depNameTemplate": "code-infra-circleci",
+      "depNameTemplate": "code-infra-orb",
       "packageNameTemplate": "https://github.com/mui/mui-public",
       "datasourceTemplate": "git-refs"
     },
@@ -65,7 +65,7 @@
     },
     {
       "groupName": "MUI infra packages",
-      "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
+      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
       "schedule": null,
       "reviewers": ["mui/infra"],
       "minimumReleaseAge": null
