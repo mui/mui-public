@@ -71,10 +71,6 @@ export interface ExtractedMetadata {
   keywords?: string[];
   sections?: HeadingHierarchy;
   embeddings?: number[];
-  parts?: string[]; // Component parts (e.g., ['Root', 'Trigger', 'Popup'])
-  props?: string[]; // Component props (deduplicated from all parts)
-  dataAttributes?: string[]; // Data attributes (deduplicated from all parts)
-  cssVariables?: string[]; // CSS variables (deduplicated from all parts)
   openGraph?: {
     title?: string;
     description?: string;

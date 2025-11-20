@@ -766,7 +766,7 @@ An input component.
       path: './alert-dialog/page.mdx',
       title: 'Alert Dialog',
       description: 'An alert dialog component.',
-      exports: {
+      parts: {
         Root: {},
         Trigger: {},
         Popup: {},
@@ -821,7 +821,7 @@ An input component.
       path: './tooltip/page.mdx',
       title: 'Tooltip',
       description: 'A tooltip component.',
-      exports: {
+      parts: {
         Root: {
           props: ['className'],
         },
@@ -903,7 +903,7 @@ A button component.
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
-      exports: {
+      parts: {
         Root: {
           props: ['className', 'disabled', 'onClick'],
         },
@@ -955,7 +955,7 @@ A button component.
         path: './checkbox/page.mdx',
         title: 'Checkbox',
         description: 'A checkbox component.',
-        exports: {
+        parts: {
           Root: {
             props: ['checked', 'className', 'disabled'],
           },
@@ -967,7 +967,7 @@ A button component.
         path: './switch/page.mdx',
         title: 'Switch',
         description: 'A switch component.',
-        exports: {
+        parts: {
           Root: {
             props: ['checked', 'className', 'onCheckedChange'],
             dataAttributes: ['data-checked', 'data-disabled'],

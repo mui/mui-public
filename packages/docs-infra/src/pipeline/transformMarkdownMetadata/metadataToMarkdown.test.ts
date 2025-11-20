@@ -1282,7 +1282,7 @@ A guide to building forms.
             path: './button/page.mdx',
             title: 'Button',
             description: 'A button component.',
-            exports: {
+            parts: {
               Root: {
                 props: ['className', 'disabled', 'onClick'],
                 dataAttributes: ['data-active', 'data-disabled'],
@@ -1317,7 +1317,7 @@ A guide to building forms.
             path: './checkbox/page.mdx',
             title: 'Checkbox',
             description: 'A checkbox component.',
-            exports: {
+            parts: {
               Root: {
                 props: ['checked', 'onChange'],
                 dataAttributes: ['data-checked'],
@@ -1385,8 +1385,8 @@ A button component.
 
       expect(result).not.toBeNull();
       expect(result?.pages).toHaveLength(1);
-      expect(result?.pages[0].exports).toBeDefined();
-      expect(result?.pages[0].exports).toEqual({
+      expect(result?.pages[0].parts).toBeDefined();
+      expect(result?.pages[0].parts).toEqual({
         Root: {
           props: ['className', 'disabled', 'onClick'],
           dataAttributes: ['data-active', 'data-disabled'],
@@ -1430,7 +1430,7 @@ A checkbox component.
       const result = await markdownToMetadata(markdown);
 
       expect(result).not.toBeNull();
-      expect(result?.pages[0].exports).toEqual({
+      expect(result?.pages[0].parts).toEqual({
         Root: {
           props: ['checked', 'onChange'],
           dataAttributes: ['data-checked'],
@@ -1480,7 +1480,7 @@ An accordion component.
       expect(page?.keywords).toEqual(['collapsible', 'expandable']);
       expect(page?.sections).toBeDefined();
       expect(Object.keys(page?.sections || {})).toEqual(['overview', 'examples']);
-      expect(page?.exports).toEqual({
+      expect(page?.parts).toEqual({
         Root: {
           props: ['defaultValue', 'multiple'],
         },
@@ -1499,7 +1499,7 @@ An accordion component.
             path: './dialog/page.mdx',
             title: 'Dialog',
             description: 'A dialog component.',
-            exports: {
+            parts: {
               Root: {
                 props: ['open', 'onOpenChange'],
               },
@@ -1533,7 +1533,7 @@ An accordion component.
             path: './button/page.mdx',
             title: 'Button',
             description: 'A button component.',
-            exports: {
+            parts: {
               Root: {
                 props: ['className'],
               },
@@ -1587,7 +1587,7 @@ A menu component.
 
       expect(result).not.toBeNull();
       // Parts with no properties (like Separator) are preserved
-      expect(result?.pages[0].exports).toEqual({
+      expect(result?.pages[0].parts).toEqual({
         Root: {
           props: ['open', 'onOpenChange'],
         },
@@ -1611,7 +1611,7 @@ A menu component.
             path: './button/page.mdx',
             title: 'Button',
             description: 'A button component.',
-            exports: {
+            parts: {
               Root: {
                 props: ['className', 'disabled'],
               },
@@ -1646,6 +1646,281 @@ A menu component.
       expect(partParagraph.type).toBe('paragraph');
       expect(partParagraph.children[0].type).toBe('text');
       expect(partParagraph.children[0].value).toBe('Button - Root');
+    });
+
+    describe('exports field (without component prefix)', () => {
+      it('should serialize exports field with just export names', () => {
+        const data: PagesMetadata = {
+          title: 'Components',
+          pages: [
+            {
+              slug: 'checkbox',
+              path: './checkbox/page.mdx',
+              title: 'Checkbox',
+              description: 'A checkbox component.',
+              exports: {
+                Root: {
+                  props: ['checked', 'className', 'disabled'],
+                  dataAttributes: ['data-checked', 'data-disabled'],
+                },
+                Indicator: {
+                  props: ['className'],
+                  dataAttributes: ['data-checked'],
+                },
+              },
+            },
+          ],
+        };
+
+        const result = metadataToMarkdown(data);
+
+        // Check that exports are listed without component name prefix
+        expect(result).toContain('- Exports:');
+        expect(result).toContain('  - Root');
+        expect(result).toContain('    - Props: checked, className, disabled');
+        expect(result).toContain('    - Data Attributes: data-checked, data-disabled');
+        expect(result).toContain('  - Indicator');
+        expect(result).toContain('    - Props: className');
+        expect(result).toContain('    - Data Attributes: data-checked');
+      });
+
+      it('should serialize parts and exports separately', () => {
+        const data: PagesMetadata = {
+          title: 'Components',
+          pages: [
+            {
+              slug: 'checkbox',
+              path: './checkbox/page.mdx',
+              title: 'Checkbox',
+              description: 'A checkbox component.',
+              parts: {
+                Root: {
+                  props: ['checked', 'onChange'],
+                  dataAttributes: ['data-checked'],
+                },
+                Indicator: {
+                  cssVariables: ['--indicator-size'],
+                },
+              },
+              exports: {
+                Checkbox: {
+                  props: ['className', 'disabled'],
+                  dataAttributes: ['data-disabled'],
+                },
+              },
+            },
+          ],
+        };
+
+        const result = metadataToMarkdown(data);
+
+        // Parts should be listed with component name prefix and metadata
+        expect(result).toContain('- Exports:');
+        expect(result).toContain('  - Checkbox - Root');
+        expect(result).toContain('    - Props: checked, onChange');
+        expect(result).toContain('    - Data Attributes: data-checked');
+        expect(result).toContain('  - Checkbox - Indicator');
+        expect(result).toContain('    - CSS Variables: --indicator-size');
+        // Exports should be listed with just the export name (no prefix)
+        expect(result).toContain('  - Checkbox');
+        expect(result).toContain('    - Props: className, disabled');
+        expect(result).toContain('    - Data Attributes: data-disabled');
+      });
+
+      it('should parse exports field from markdown', async () => {
+        const markdown = `# Components
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+- [Checkbox](#checkbox) - [Full Docs](./checkbox/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Checkbox
+
+A checkbox component.
+
+<details>
+
+<summary>Outline</summary>
+
+- Exports:
+  - Root
+    - Props: checked, onChange
+    - Data Attributes: data-checked
+  - Indicator
+    - CSS Variables: --indicator-size
+
+</details>
+
+[Read more](./checkbox/page.mdx)
+`;
+
+        const result = await markdownToMetadata(markdown);
+
+        expect(result).not.toBeNull();
+        expect(result?.pages[0].exports).toEqual({
+          Root: {
+            props: ['checked', 'onChange'],
+            dataAttributes: ['data-checked'],
+          },
+          Indicator: {
+            cssVariables: ['--indicator-size'],
+          },
+        });
+      });
+
+      it('should parse combined parts and exports from markdown', async () => {
+        const markdown = `# Components
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+- [Checkbox](#checkbox) - [Full Docs](./checkbox/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Checkbox
+
+A checkbox component.
+
+<details>
+
+<summary>Outline</summary>
+
+- Exports:
+  - Checkbox - Root
+    - Props: checked, onChange
+    - Data Attributes: data-checked
+  - Checkbox - Indicator
+    - CSS Variables: --indicator-size
+  - Checkbox
+    - Props: className, disabled
+    - Data Attributes: data-disabled
+
+</details>
+
+[Read more](./checkbox/page.mdx)
+`;
+
+        const result = await markdownToMetadata(markdown);
+
+        expect(result).not.toBeNull();
+        expect(result?.pages[0].parts).toEqual({
+          Root: {
+            props: ['checked', 'onChange'],
+            dataAttributes: ['data-checked'],
+          },
+          Indicator: {
+            cssVariables: ['--indicator-size'],
+          },
+        });
+        expect(result?.pages[0].exports).toEqual({
+          Checkbox: {
+            props: ['className', 'disabled'],
+            dataAttributes: ['data-disabled'],
+          },
+        });
+      });
+
+      it('should preserve exports through round-trip conversion', async () => {
+        const original: PagesMetadata = {
+          title: 'Components',
+          pages: [
+            {
+              slug: 'button',
+              path: './button/page.mdx',
+              title: 'Button',
+              description: 'A button component.',
+              exports: {
+                Root: {
+                  props: ['className', 'disabled'],
+                  dataAttributes: ['data-active'],
+                },
+                Icon: {
+                  props: ['size'],
+                },
+              },
+            },
+          ],
+        };
+
+        const markdown = metadataToMarkdown(original);
+        const parsed = await markdownToMetadata(markdown);
+
+        expect(parsed?.pages[0].exports).toEqual(original.pages[0].exports);
+      });
+
+      it('should handle exports in AST format', () => {
+        const data: PagesMetadata = {
+          title: 'Components',
+          pages: [
+            {
+              slug: 'button',
+              path: './button/page.mdx',
+              title: 'Button',
+              description: 'A button component.',
+              exports: {
+                Root: {
+                  props: ['className', 'disabled'],
+                },
+              },
+            },
+          ],
+        };
+
+        const ast = metadataToMarkdownAst(data);
+
+        // Find the exports list in the detail section
+        const lists = ast.children.filter((node) => node.type === 'list') as any[];
+        const metadataList = lists[1]; // The second list should be the metadata list
+
+        expect(metadataList).toBeDefined();
+
+        // Find the exports list item
+        const exportsItem = metadataList.children.find(
+          (item: any) =>
+            item.type === 'listItem' && item.children[0]?.children[0]?.value?.includes('Exports:'),
+        ) as any;
+
+        expect(exportsItem).toBeDefined();
+
+        // Check the nested exports list
+        const exportsList = exportsItem.children.find((child: any) => child.type === 'list');
+        expect(exportsList).toBeDefined();
+
+        // Check the export name is just "Root" (no component prefix)
+        const exportItem = exportsList.children[0];
+        const exportParagraph = exportItem.children[0];
+        expect(exportParagraph.type).toBe('paragraph');
+        expect(exportParagraph.children[0].type).toBe('text');
+        expect(exportParagraph.children[0].value).toBe('Root');
+      });
+
+      it('should handle empty exports objects', () => {
+        const data: PagesMetadata = {
+          title: 'Components',
+          pages: [
+            {
+              slug: 'separator',
+              path: './separator/page.mdx',
+              title: 'Separator',
+              description: 'A separator component.',
+              exports: {
+                Root: {},
+              },
+            },
+          ],
+        };
+
+        const result = metadataToMarkdown(data);
+
+        // Should list the export name even without properties
+        expect(result).toContain('- Exports:');
+        expect(result).toContain('  - Root');
+        expect(result).not.toContain('Props:');
+        expect(result).not.toContain('Data Attributes:');
+        expect(result).not.toContain('CSS Variables:');
+      });
     });
   });
 });

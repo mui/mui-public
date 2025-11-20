@@ -653,7 +653,7 @@ Old checkbox description.
           path: './tooltip/page.mdx',
           title: 'Tooltip',
           description: 'A tooltip component.',
-          exports: {
+          parts: {
             Root: {
               props: ['className'],
             },

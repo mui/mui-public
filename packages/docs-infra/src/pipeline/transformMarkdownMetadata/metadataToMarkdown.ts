@@ -51,7 +51,16 @@ export interface PageMetadata extends ExtractedMetadata {
   tags?: string[];
   /** Skip generating detail section for this entry (for external links) */
   skipDetailSection?: boolean;
-  /** Component exports with their API metadata */
+  /** Component parts with their API metadata (for multi-part components) */
+  parts?: Record<
+    string,
+    {
+      props?: string[];
+      dataAttributes?: string[];
+      cssVariables?: string[];
+    }
+  >;
+  /** Component exports with their API metadata (used for both single and multi-part components) */
   exports?: Record<
     string,
     {
@@ -155,23 +164,27 @@ function stripPositions(nodes: any[]): any[] {
  *     - Data Attributes: x, y
  *     - CSS Variables: --var1, --var2
  */
-function parseExportsFromListItem(listItem: any): PageMetadata['exports'] {
+function parseExportsFromListItem(listItem: any): {
+  exports?: PageMetadata['exports'];
+  parts?: PageMetadata['parts'];
+} {
   const exports: PageMetadata['exports'] = {};
+  const parts: PageMetadata['parts'] = {};
 
   // Find the nested list within this list item
   const nestedList = listItem.children?.find((child: any) => child.type === 'list');
 
   if (!nestedList?.children) {
-    return exports;
+    return { exports };
   }
 
-  // Parse each export (part) from the nested list
+  // Parse each export/part item from the nested list
   for (const exportListItem of nestedList.children) {
     if (exportListItem.type !== 'listItem') {
       continue;
     }
 
-    // Find the paragraph with the part name (e.g., ComponentName - PartName)
+    // Find the paragraph with the export/part name
     const exportParagraph = exportListItem.children?.find(
       (child: any) => child.type === 'paragraph',
     );
@@ -179,29 +192,30 @@ function parseExportsFromListItem(listItem: any): PageMetadata['exports'] {
       continue;
     }
 
-    // Extract the part name from the text node
+    // Extract the name from the text node
     const textNode = exportParagraph.children?.find((child: any) => child.type === 'text');
     if (!textNode) {
       continue;
     }
 
-    // Parse the part name (e.g., "ComponentName - PartName" -> "PartName")
-    const fullPartName = textNode.value || '';
-    const partName = fullPartName.split(' - ').pop() || fullPartName;
+    const fullName = textNode.value || '';
+
+    // Check if this is a part (has dash) or export (no dash)
+    const hasDash = fullName.includes(' - ');
 
     // Find the nested list with props/dataAttributes/cssVariables
-    const partMetadataList = exportListItem.children?.find((child: any) => child.type === 'list');
+    const metadataList = exportListItem.children?.find((child: any) => child.type === 'list');
 
-    // Initialize the part metadata (only add properties that have content)
-    const partMetadata: {
+    // Initialize the metadata (only add properties that have content)
+    const metadata: {
       props?: string[];
       dataAttributes?: string[];
       cssVariables?: string[];
     } = {};
 
-    if (partMetadataList) {
+    if (metadataList) {
       // Parse each metadata item
-      for (const metadataItem of partMetadataList.children) {
+      for (const metadataItem of metadataList.children) {
         if (metadataItem.type !== 'listItem') {
           continue;
         }
@@ -218,27 +232,39 @@ function parseExportsFromListItem(listItem: any): PageMetadata['exports'] {
         if (metadataText.startsWith('Props:')) {
           const propsText = metadataText.replace('Props:', '').trim();
           if (propsText) {
-            partMetadata.props = propsText.split(',').map((p) => p.trim());
+            metadata.props = propsText.split(',').map((p) => p.trim());
           }
         } else if (metadataText.startsWith('Data Attributes:')) {
           const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
           if (dataAttributesText) {
-            partMetadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+            metadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
           }
         } else if (metadataText.startsWith('CSS Variables:')) {
           const cssVariablesText = metadataText.replace('CSS Variables:', '').trim();
           if (cssVariablesText) {
-            partMetadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+            metadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
           }
         }
       }
     }
 
-    // Always add the part, even if it has no properties (preserve empty parts)
-    exports[partName] = partMetadata;
+    if (hasDash) {
+      // This is a part name (e.g., "ComponentName - PartName")
+      const partName = fullName.split(' - ').pop() || fullName;
+      // Always add the part, even if it has no properties
+      parts[partName] = metadata;
+    } else {
+      // This is an export name (no dash)
+      const exportName = fullName;
+      // Always add the export, even if it has no properties
+      exports[exportName] = metadata;
+    }
   }
 
-  return exports;
+  return {
+    exports: Object.keys(exports).length > 0 ? exports : undefined,
+    parts: Object.keys(parts).length > 0 ? parts : undefined,
+  };
 }
 
 /**
@@ -464,12 +490,13 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
       } as any);
     }
 
-    // Add metadata list (keywords, sections, and exports combined)
+    // Add metadata list (keywords, sections, parts, and exports combined)
     const hasKeywords = keywords.length > 0;
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
+    const hasParts = page.parts && Object.keys(page.parts).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
 
-    if (hasKeywords || hasSections || hasExports) {
+    if (hasKeywords || hasSections || hasParts || hasExports) {
       const metadataListItems: any[] = [];
 
       if (hasKeywords) {
@@ -494,59 +521,122 @@ export function metadataToMarkdownAst(data: PagesMetadata, editableMarker?: stri
         });
       }
 
-      if (hasExports && page.exports) {
+      if (hasParts || hasExports) {
         const exportsListItems: any[] = [];
-        for (const [partName, partMetadata] of Object.entries(page.exports)) {
-          const partListItems: any[] = [];
 
-          if (partMetadata.props && partMetadata.props.length > 0) {
-            partListItems.push({
-              type: 'listItem',
-              children: [paragraph(`Props: ${partMetadata.props.join(', ')}`)],
-            });
+        // First, add all parts with their metadata (use dash format)
+        if (hasParts && page.parts) {
+          for (const [partName, partMetadata] of Object.entries(page.parts)) {
+            const partListItems: any[] = [];
+
+            if (partMetadata.props && partMetadata.props.length > 0) {
+              partListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Props: ${partMetadata.props.join(', ')}`)],
+              });
+            }
+
+            if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
+              partListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Data Attributes: ${partMetadata.dataAttributes.join(', ')}`)],
+              });
+            }
+
+            if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
+              partListItems.push({
+                type: 'listItem',
+                children: [paragraph(`CSS Variables: ${partMetadata.cssVariables.join(', ')}`)],
+              });
+            }
+
+            // Add the part with dash separator
+            if (partListItems.length > 0) {
+              exportsListItems.push({
+                type: 'listItem',
+                children: [
+                  {
+                    type: 'paragraph',
+                    children: [{ type: 'text', value: `${page.title} - ${partName}` }],
+                  },
+                  {
+                    type: 'list',
+                    ordered: false,
+                    children: partListItems,
+                  },
+                ],
+              });
+            } else {
+              // Part with no properties - just add the part name with dash
+              exportsListItems.push({
+                type: 'listItem',
+                children: [
+                  {
+                    type: 'paragraph',
+                    children: [{ type: 'text', value: `${page.title} - ${partName}` }],
+                  },
+                ],
+              });
+            }
           }
+        }
 
-          if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
-            partListItems.push({
-              type: 'listItem',
-              children: [paragraph(`Data Attributes: ${partMetadata.dataAttributes.join(', ')}`)],
-            });
-          }
+        // Then add all exports with their metadata (no dash format)
+        if (hasExports && page.exports) {
+          for (const [exportName, exportMetadata] of Object.entries(page.exports)) {
+            const exportListItems: any[] = [];
 
-          if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
-            partListItems.push({
-              type: 'listItem',
-              children: [paragraph(`CSS Variables: ${partMetadata.cssVariables.join(', ')}`)],
-            });
-          }
+            if (exportMetadata.props && exportMetadata.props.length > 0) {
+              exportListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Props: ${exportMetadata.props.join(', ')}`)],
+              });
+            }
 
-          // Always add the part, even if it has no properties
-          if (partListItems.length > 0) {
-            exportsListItems.push({
-              type: 'listItem',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', value: `${page.title} - ${partName}` }],
-                },
-                {
-                  type: 'list',
-                  ordered: false,
-                  children: partListItems,
-                },
-              ],
-            });
-          } else {
-            // Part with no properties - just add the part name
-            exportsListItems.push({
-              type: 'listItem',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', value: `${page.title} - ${partName}` }],
-                },
-              ],
-            });
+            if (exportMetadata.dataAttributes && exportMetadata.dataAttributes.length > 0) {
+              exportListItems.push({
+                type: 'listItem',
+                children: [
+                  paragraph(`Data Attributes: ${exportMetadata.dataAttributes.join(', ')}`),
+                ],
+              });
+            }
+
+            if (exportMetadata.cssVariables && exportMetadata.cssVariables.length > 0) {
+              exportListItems.push({
+                type: 'listItem',
+                children: [paragraph(`CSS Variables: ${exportMetadata.cssVariables.join(', ')}`)],
+              });
+            }
+
+            // Always add the export, even if it has no properties
+            if (exportListItems.length > 0) {
+              exportsListItems.push({
+                type: 'listItem',
+                children: [
+                  {
+                    type: 'paragraph',
+                    children: [{ type: 'text', value: exportName }],
+                  },
+                  {
+                    type: 'list',
+                    ordered: false,
+                    children: exportListItems,
+                  },
+                ],
+              });
+            } else {
+              // Export with no properties - just add the export name
+              exportsListItems.push({
+                type: 'listItem',
+                children: [
+                  {
+                    type: 'paragraph',
+                    children: [{ type: 'text', value: exportName }],
+                  },
+                ],
+              });
+            }
           }
         }
 
@@ -696,15 +786,16 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
       lines.push('');
     }
 
-    // Add metadata list (keywords, sections, and exports)
+    // Add metadata list (keywords, sections, parts, and exports)
     const hasKeywords = keywords.length > 0;
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
+    const hasParts = page.parts && Object.keys(page.parts).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
 
     // Track if we actually add any metadata content
     let hasMetadataContent = false;
 
-    if (hasKeywords || hasSections || hasExports) {
+    if (hasKeywords || hasSections || hasParts || hasExports) {
       lines.push('<details>');
       lines.push('');
       lines.push('<summary>Outline</summary>');
@@ -719,24 +810,56 @@ export function metadataToMarkdown(data: PagesMetadata, editableMarker?: string)
         lines.push(sectionLines.trimEnd());
         hasMetadataContent = true;
       }
-      if (hasExports && page.exports) {
+      // Handle both parts and exports
+      // Parts and exports are combined into a single "Exports:" section
+      // Parts use format "ComponentName - PartName" (written with dash)
+      // Exports use just "ExportName" (written without dash)
+      if (hasParts || hasExports) {
         lines.push('- Exports:');
-        for (const [partName, partMetadata] of Object.entries(page.exports)) {
-          const hasProps = partMetadata.props && partMetadata.props.length > 0;
-          const hasDataAttributes =
-            partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0;
-          const hasCssVariables = partMetadata.cssVariables && partMetadata.cssVariables.length > 0;
 
-          // Always list the part, even if it has no properties
-          lines.push(`  - ${page.title} - ${partName}`);
-          if (hasProps) {
-            lines.push(`    - Props: ${partMetadata.props!.join(', ')}`);
+        // First, list all parts with their metadata (use dash format)
+        if (hasParts && page.parts) {
+          for (const [partName, partMetadata] of Object.entries(page.parts)) {
+            const hasProps = partMetadata.props && partMetadata.props.length > 0;
+            const hasDataAttributes =
+              partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0;
+            const hasCssVariables =
+              partMetadata.cssVariables && partMetadata.cssVariables.length > 0;
+
+            lines.push(`  - ${page.title} - ${partName}`);
+
+            if (hasProps) {
+              lines.push(`    - Props: ${partMetadata.props!.join(', ')}`);
+            }
+            if (hasDataAttributes) {
+              lines.push(`    - Data Attributes: ${partMetadata.dataAttributes!.join(', ')}`);
+            }
+            if (hasCssVariables) {
+              lines.push(`    - CSS Variables: ${partMetadata.cssVariables!.join(', ')}`);
+            }
           }
-          if (hasDataAttributes) {
-            lines.push(`    - Data Attributes: ${partMetadata.dataAttributes!.join(', ')}`);
-          }
-          if (hasCssVariables) {
-            lines.push(`    - CSS Variables: ${partMetadata.cssVariables!.join(', ')}`);
+        }
+
+        // Then list all exports with their metadata (no dash format)
+        if (hasExports && page.exports) {
+          for (const [exportName, exportMetadata] of Object.entries(page.exports)) {
+            const hasProps = exportMetadata.props && exportMetadata.props.length > 0;
+            const hasDataAttributes =
+              exportMetadata.dataAttributes && exportMetadata.dataAttributes.length > 0;
+            const hasCssVariables =
+              exportMetadata.cssVariables && exportMetadata.cssVariables.length > 0;
+
+            lines.push(`  - ${exportName}`);
+
+            if (hasProps) {
+              lines.push(`    - Props: ${exportMetadata.props!.join(', ')}`);
+            }
+            if (hasDataAttributes) {
+              lines.push(`    - Data Attributes: ${exportMetadata.dataAttributes!.join(', ')}`);
+            }
+            if (hasCssVariables) {
+              lines.push(`    - CSS Variables: ${exportMetadata.cssVariables!.join(', ')}`);
+            }
           }
         }
         hasMetadataContent = true;
@@ -969,7 +1092,13 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
 
           // Parse exports - they're in a nested list within the same parent list item
           if (paragraphText.startsWith('Exports:')) {
-            currentPage.exports = parseExportsFromListItem(parent as any);
+            const result = parseExportsFromListItem(parent as any);
+            if (result.exports) {
+              currentPage.exports = result.exports;
+            }
+            if (result.parts) {
+              currentPage.parts = result.parts;
+            }
             return;
           }
 
