@@ -37,9 +37,10 @@
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
       ],
       "currentValueTemplate": "master",
-      "depNameTemplate": "code-infra",
+      "depNameTemplate": "code-infra-orb",
       "packageNameTemplate": "https://github.com/mui/mui-public",
-      "datasourceTemplate": "git-refs"
+      "datasourceTemplate": "git-refs",
+      "versioningTemplate": "git"
     },
     {
       "description": "Custom manager for Playwright Docker image versions",
