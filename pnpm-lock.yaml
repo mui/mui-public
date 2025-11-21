@@ -661,6 +661,15 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.6
         version: 3.7.6
+      '@orama/orama':
+        specifier: ^3.1.16
+        version: 3.1.16
+      '@orama/stemmers':
+        specifier: ^3.1.16
+        version: 3.1.16
+      '@orama/stopwords':
+        specifier: ^3.1.16
+        version: 3.1.16
       '@wooorm/starry-night':
         specifier: ^3.8.0
         version: 3.8.0
@@ -710,15 +719,6 @@ importers:
         specifier: ^18.0.0
         version: 18.0.0
     devDependencies:
-      '@orama/orama':
-        specifier: ^3.1.16
-        version: 3.1.16
-      '@orama/stemmers':
-        specifier: ^3.1.16
-        version: 3.1.16
-      '@orama/stopwords':
-        specifier: ^3.1.16
-        version: 3.1.16
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
