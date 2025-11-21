@@ -3,8 +3,8 @@ import type { Plugin } from 'unified';
 import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } from 'mdast';
 import type { Program, Property, Expression } from 'estree';
 import { dirname, relative } from 'node:path';
-import { updatePageIndex } from './updatePageIndex';
-import type { PageMetadata } from './metadataToMarkdown';
+import { syncPageIndex } from '../syncPageIndex';
+import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
 import type {
   TransformMarkdownMetadataOptions,
@@ -266,7 +266,7 @@ function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMeta
         .replace(/^-|-$/g, '')
     : dirName;
 
-  // Calculate parent directory (skipping route groups, matching updatePageIndex behavior)
+  // Calculate parent directory (skipping route groups, matching syncPageIndex behavior)
   const parentDir = getParentDir(pageDir, true);
 
   // Create relative path from parent to page
@@ -840,7 +840,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       if (shouldExtract) {
         try {
           const pageMetadata = toPageMetadata(metadata, file.path);
-          const updateOptions: Parameters<typeof updatePageIndex>[0] = {
+          const updateOptions: Parameters<typeof syncPageIndex>[0] = {
             pagePath: file.path,
             metadata: pageMetadata,
             updateParents: true,
@@ -868,7 +868,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             }
           }
 
-          await updatePageIndex(updateOptions);
+          await syncPageIndex(updateOptions);
         } catch (error) {
           // Don't fail the build if index update fails
           console.error('Failed to update page index for', file.path, error);

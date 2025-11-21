@@ -4,7 +4,7 @@ import * as lockfile from 'proper-lockfile';
 import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
-import type { HeadingHierarchy } from './types';
+import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 
 /**
  * Converts a kebab-case string to Title Case
@@ -83,7 +83,7 @@ function shouldIncludePath(path: string, include?: string[], exclude?: string[])
   return false;
 }
 
-export interface UpdatePageIndexOptions {
+export interface SyncPageIndexOptions {
   /**
    * The path to the page file (e.g., './app/components/button/page.mdx')
    * OR the path to the index file itself when using metadataList
@@ -183,7 +183,7 @@ export interface UpdatePageIndexOptions {
  *
  * @example
  * ```ts
- * await updatePageIndex({
+ * await syncPageIndex({
  *   pagePath: './app/components/button/page.mdx',
  *   metadata: {
  *     slug: 'button',
@@ -195,7 +195,7 @@ export interface UpdatePageIndexOptions {
  * });
  * ```
  */
-export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<void> {
+export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void> {
   const {
     pagePath,
     metadata,
@@ -470,7 +470,7 @@ export async function updatePageIndex(options: UpdatePageIndexOptions): Promise<
       }
 
       // Recursively update the parent index (will create it if it doesn't exist)
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: indexPath,
         metadata: indexMetadata,
         indexFileName,

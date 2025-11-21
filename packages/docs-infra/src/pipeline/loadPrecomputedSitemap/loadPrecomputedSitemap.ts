@@ -13,7 +13,7 @@ import {
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { markdownToMetadata } from '../transformMarkdownMetadata/metadataToMarkdown';
+import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { Sitemap, SitemapSection } from './types';

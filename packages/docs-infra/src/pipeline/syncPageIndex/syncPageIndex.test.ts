@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { updatePageIndex } from './updatePageIndex';
+import { syncPageIndex } from './syncPageIndex';
 import type { PageMetadata } from './metadataToMarkdown';
 
-const TEST_DIR = join(__dirname, '.test-updatePageIndex');
+const TEST_DIR = join(__dirname, '.test-syncPageIndex');
 
-describe('updatePageIndex', () => {
+describe('syncPageIndex', () => {
   beforeEach(async () => {
     // Create test directory
     await mkdir(TEST_DIR, { recursive: true });
@@ -27,7 +27,7 @@ describe('updatePageIndex', () => {
       description: 'A button component.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -80,7 +80,7 @@ A checkbox component.
       description: 'A button component.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -133,7 +133,7 @@ Old description.
       description: 'Updated button component with new features.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -161,7 +161,7 @@ Old description.
       description: 'A button component.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -210,7 +210,7 @@ Old description.
       },
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -280,7 +280,7 @@ An input component.
       description: 'A button component.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -322,7 +322,7 @@ An input component.
       description: 'A checkbox component.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', 'components', 'checkbox', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -350,7 +350,7 @@ An input component.
     };
 
     // Don't provide indexTitle - should derive "Ui Components" from "ui-components"
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'ui-components', 'button', 'page.mdx'),
       metadata,
     });
@@ -398,7 +398,7 @@ An input component.
     };
 
     // Update with parent updating enabled and baseDir set to app
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -435,7 +435,7 @@ An input component.
     };
 
     // Update with include filter - only 'app' and 'src/app' are included
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', 'components', 'button', 'page.mdx'),
       metadata,
       baseDir: TEST_DIR,
@@ -458,7 +458,7 @@ An input component.
       description: 'A secret page.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'excluded', 'secret', 'page.mdx'),
       metadata: excludedMetadata,
       baseDir: TEST_DIR,
@@ -487,7 +487,7 @@ An input component.
     };
 
     // Update with exclude filter
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', 'private', 'internal', 'page.mdx'),
       metadata,
       baseDir: TEST_DIR,
@@ -520,7 +520,7 @@ An input component.
     };
 
     // Update with recursive parents but include filter that only allows 'app/components'
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', 'components', 'button', 'page.mdx'),
       metadata,
       baseDir: TEST_DIR,
@@ -556,7 +556,7 @@ An input component.
       description: 'React components.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', '(public)', '(content)', 'react', 'page.mdx'),
       metadata,
     });
@@ -588,7 +588,7 @@ An input component.
     };
 
     // Enable recursive parent updates
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', '(public)', '(content)', 'react', 'page.mdx'),
       metadata,
       updateParents: true,
@@ -622,7 +622,7 @@ An input component.
       description: 'Admin settings.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', '(auth)', '(protected)', '(admin)', 'settings', 'page.mdx'),
       metadata,
       updateParents: true,
@@ -654,7 +654,7 @@ An input component.
       description: 'Input component.',
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'app', '(public)', 'components', '(forms)', 'input', 'page.mdx'),
       metadata,
       updateParents: true,
@@ -713,25 +713,25 @@ An input component.
 
     // Simulate concurrent updates by running all updates in parallel
     await Promise.all([
-      updatePageIndex({
+      syncPageIndex({
         pagePath: join(TEST_DIR, 'app', 'overview', 'page.mdx'),
         metadata: overviewMeta,
         updateParents: true,
         baseDir: join(TEST_DIR, 'app'),
       }),
-      updatePageIndex({
+      syncPageIndex({
         pagePath: join(TEST_DIR, 'app', 'components', 'page.mdx'),
         metadata: componentsMeta,
         updateParents: true,
         baseDir: join(TEST_DIR, 'app'),
       }),
-      updatePageIndex({
+      syncPageIndex({
         pagePath: join(TEST_DIR, 'app', 'handbook', 'page.mdx'),
         metadata: handbookMeta,
         updateParents: true,
         baseDir: join(TEST_DIR, 'app'),
       }),
-      updatePageIndex({
+      syncPageIndex({
         pagePath: join(TEST_DIR, 'app', 'utils', 'page.mdx'),
         metadata: utilsMeta,
         updateParents: true,
@@ -775,7 +775,7 @@ An input component.
       },
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'alert-dialog', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -836,7 +836,7 @@ An input component.
       },
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'tooltip', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -911,7 +911,7 @@ A button component.
       },
     };
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
       metadata,
       indexTitle: 'Components',
@@ -979,7 +979,7 @@ A button component.
 
     const indexPath = join(TEST_DIR, 'components', 'page.mdx');
 
-    await updatePageIndex({
+    await syncPageIndex({
       pagePath: indexPath,
       metadataList,
       indexTitle: 'Components',
@@ -1044,7 +1044,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1072,7 +1072,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1095,7 +1095,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1120,7 +1120,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1147,7 +1147,7 @@ A button component.
       };
 
       // First update to create the index
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1158,7 +1158,7 @@ A button component.
       await rm(markerDir, { recursive: true, force: true }).catch(() => {});
 
       // Second update with same data should not create a marker
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1184,7 +1184,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1212,7 +1212,7 @@ A button component.
       };
 
       await expect(
-        updatePageIndex({
+        syncPageIndex({
           pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
           metadata,
           indexTitle: 'Components',
@@ -1238,7 +1238,7 @@ A button component.
       };
 
       await expect(
-        updatePageIndex({
+        syncPageIndex({
           pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
           metadata,
           indexTitle: 'Components',
@@ -1259,7 +1259,7 @@ A button component.
       };
 
       // First create the index
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1277,7 +1277,7 @@ A button component.
 
       // Second call with parsed data should not throw since it matches exactly
       await expect(
-        updatePageIndex({
+        syncPageIndex({
           pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
           metadata: parsedMeta,
           indexTitle: 'Components',
@@ -1301,7 +1301,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1327,7 +1327,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1358,7 +1358,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Components',
@@ -1393,7 +1393,7 @@ A button component.
         description: 'A button component.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'components', 'forms', 'button', 'page.mdx'),
         metadata,
         indexTitle: 'Button Docs',
@@ -1459,7 +1459,7 @@ A guide to using TypeScript.
         description: 'A guide to building forms.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'handbook', 'forms', 'page.mdx'),
         metadata: formsMetadata,
         indexTitle: 'Forms',
@@ -1487,7 +1487,7 @@ A guide to using TypeScript.
       await writeFile(join(TEST_DIR, 'docs', 'handbook', 'page.mdx'), handbookIndex, 'utf-8');
 
       // Update forms page to trigger parent update
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'docs', 'handbook', 'forms', 'page.mdx'),
         metadata: formsMetadata,
         indexTitle: 'Forms',
@@ -1538,7 +1538,7 @@ Internal documentation.
         description: 'Updated documentation.',
       };
 
-      await updatePageIndex({
+      await syncPageIndex({
         pagePath: join(TEST_DIR, 'resources', 'docs', 'page.mdx'),
         metadata: docsMetadata,
         indexTitle: 'Documentation',
