@@ -1,4 +1,4 @@
-import { createSitemap } from '../../functions/createSitemap';
+import { createSitemap } from '@mui/internal-docs-infra/createSitemap';
 import DocsInfraComponents from '../docs-infra/components/page.mdx';
 import DocsInfraConventions from '../docs-infra/conventions/page.mdx';
 import DocsInfraFunctions from '../docs-infra/functions/page.mdx';

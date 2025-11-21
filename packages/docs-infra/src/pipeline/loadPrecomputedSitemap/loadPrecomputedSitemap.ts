@@ -16,7 +16,7 @@ import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replac
 import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
-import type { Sitemap, SitemapSection } from './types';
+import type { Sitemap, SitemapSection } from '../../createSitemap/types';
 
 export type LoaderOptions = {
   performance?: {

@@ -1,11 +1,11 @@
 import type {
+  Sitemap,
   SitemapPage,
   SitemapSection,
   SitemapPart,
   SitemapExport,
   SitemapSectionData,
-  Sitemap,
-} from '../pipeline/loadPrecomputedSitemap/types';
+} from '../createSitemap/types';
 
 /**
  * Base search result structure that can be extended by consumers
@@ -112,7 +112,9 @@ export interface UseSearchOptions {
   formatResult?: <TDocument = unknown>(
     hit: import('@orama/orama').Result<TDocument>,
   ) => SearchResult;
-} /**
+}
+
+/**
  * Return value from useSearch hook
  */
 export interface UseSearchResult {
