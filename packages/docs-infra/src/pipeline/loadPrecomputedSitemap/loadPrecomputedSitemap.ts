@@ -15,6 +15,8 @@ import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseC
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import { markdownToMetadata } from '../transformMarkdownMetadata/metadataToMarkdown';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
+import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
+import type { Sitemap, SitemapSection } from './types';
 
 export type LoaderOptions = {
   performance?: {
@@ -41,11 +43,11 @@ function pathSegmentToTitle(segment: string): string {
 /**
  * Recursively removes titleMarkdown fields from a heading hierarchy
  */
-function stripTitleMarkdown(hierarchy: any): any {
-  const result: any = {};
+function stripTitleMarkdown(hierarchy: HeadingHierarchy): Record<string, SitemapSection> {
+  const result: Record<string, SitemapSection> = {};
   for (const [key, value] of Object.entries(hierarchy)) {
     if (typeof value === 'object' && value !== null) {
-      const { titleMarkdown, children, ...rest } = value as any;
+      const { titleMarkdown, children, ...rest } = value;
       const strippedChildren = children ? stripTitleMarkdown(children) : {};
       result[key] = {
         ...rest,
@@ -171,7 +173,7 @@ export async function loadPrecomputedSitemap(
     );
 
     // Read and parse each markdown file
-    const sitemapData: Record<string, any> = {};
+    const sitemapData: Sitemap['data'] = {};
     const allDependencies: string[] = [];
 
     // Process all markdown files in parallel
@@ -245,7 +247,7 @@ export async function loadPrecomputedSitemap(
     // Add Orama schema for search indexing
     // See: https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
     // Schema matches PageMetadata interface (slug, path, title, description, keywords, sections, openGraph)
-    const precomputeData = {
+    const precomputeData: Sitemap = {
       schema: {
         slug: 'string',
         path: 'string',

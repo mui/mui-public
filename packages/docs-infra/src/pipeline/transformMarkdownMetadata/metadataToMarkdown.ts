@@ -2,7 +2,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import type { Heading, Paragraph, Image, Link, Root } from 'mdast';
-import type { ExtractedMetadata, HeadingHierarchy } from './transformMarkdownMetadata';
+import type { ExtractedMetadata, HeadingHierarchy } from './types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
 
 type HeadingNode = Heading;

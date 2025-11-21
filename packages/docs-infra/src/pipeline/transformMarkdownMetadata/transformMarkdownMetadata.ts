@@ -1,99 +1,16 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
-import type { Heading, Paragraph, Root } from 'mdast';
+import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } from 'mdast';
+import type { Program, Property, Expression } from 'estree';
 import { dirname, relative } from 'node:path';
 import { updatePageIndex } from './updatePageIndex';
 import type { PageMetadata } from './metadataToMarkdown';
 import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
-
-export interface TransformMarkdownMetadataOptions {
-  /**
-   * Controls automatic extraction of page metadata to parent directory index files.
-   *
-   * When enabled, the plugin extracts metadata (title, description, headings) from MDX files
-   * and maintains an index in the parent directory's page.mdx file.
-   *
-   * Index files themselves (e.g., pattern/page.mdx) are automatically excluded from extraction.
-   *
-   * Can be:
-   * - `false` - Disabled
-   * - `true` - Enabled with default filter: `{ include: ['app/'], exclude: [] }`
-   * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
-   *
-   * Path matching uses prefix matching - a file matches if it starts with any include path
-   * and doesn't start with any exclude path. Files that are index files themselves
-   * (matching pattern/page.mdx) are automatically skipped.
-   */
-  extractToIndex?:
-    | boolean
-    | {
-        /** Path prefixes that files must match to have metadata extracted */
-        include: string[];
-        /** Path prefixes to exclude from metadata extraction */
-        exclude: string[];
-        /** Base directory to strip from file paths before matching (e.g., '/path/to/project/docs') */
-        baseDir?: string;
-        /** Only update existing indexes, don't create new ones */
-        onlyUpdateIndexes?: boolean;
-        /**
-         * Directory to write marker files when indexes are updated.
-         * Path is relative to baseDir.
-         * Set to false to disable marker file creation.
-         * @default false
-         */
-        markerDir?: string | false;
-        /**
-         * Throw an error if the index is out of date or missing.
-         * Useful for CI environments to ensure indexes are committed.
-         * @default false
-         */
-        errorIfOutOfDate?: boolean;
-      };
-  /**
-   * Enable generation of embeddings for full text content.
-   * When enabled, generates 512-dimensional vector embeddings from page content
-   * for semantic search capabilities.
-   *
-   * Note: Requires optional peer dependencies to be installed:
-   * - @orama/plugin-embeddings
-   * - @tensorflow/tfjs
-   * - @tensorflow/tfjs-backend-wasm
-   *
-   * @default false
-   */
-  generateEmbeddings?: boolean;
-}
-
-export interface ExtractedMetadata {
-  title?: string;
-  description?: string;
-  descriptionMarkdown?: any[]; // AST nodes preserving formatting (inline code, bold, italics, links)
-  keywords?: string[];
-  sections?: HeadingHierarchy;
-  embeddings?: number[];
-  openGraph?: {
-    title?: string;
-    description?: string;
-    images?: Array<{
-      url: string;
-      width: number;
-      height: number;
-      alt: string;
-    }>;
-  };
-}
-
-/**
- * Represents a hierarchical structure of headings.
- * Each heading is keyed by its slug, with title and nested children.
- */
-export type HeadingHierarchy = {
-  [slug: string]: {
-    title: string; // Plain text for display and slug generation
-    titleMarkdown: any[]; // AST nodes preserving formatting (backticks, bold, italics)
-    children: HeadingHierarchy;
-  };
-};
+import type {
+  TransformMarkdownMetadataOptions,
+  HeadingHierarchy,
+  ExtractedMetadata,
+} from './types';
 
 /**
  * Extracts text content from paragraph nodes
@@ -118,7 +35,7 @@ function extractParagraphText(node: Paragraph): string {
 /**
  * Recursively extracts text from children nodes
  */
-function extractTextFromChildren(children: any[]): string {
+function extractTextFromChildren(children: PhrasingContent[]): string {
   let text = '';
   for (const child of children) {
     if (child.type === 'text') {
@@ -137,7 +54,7 @@ function extractTextFromChildren(children: any[]): string {
 /**
  * Extracts plain text from children nodes (without formatting markers)
  */
-function extractPlainTextFromChildren(children: any[]): string {
+function extractPlainTextFromChildren(children: PhrasingContent[]): string {
   let text = '';
   for (const child of children) {
     if (child.type === 'text') {
@@ -158,7 +75,7 @@ function extractPlainTextFromChildren(children: any[]): string {
  * Skips the first H1 (page title) and starts from H2
  */
 function buildHeadingHierarchy(
-  headings: Array<{ depth: number; text: string; children: any[] }>,
+  headings: Array<{ depth: number; text: string; children: PhrasingContent[] }>,
 ): HeadingHierarchy {
   // Skip the first heading (H1 - page title)
   const contentHeadings = headings.slice(1);
@@ -186,10 +103,10 @@ function buildHeadingHierarchy(
       .replace(/^-|-$/g, '');
 
     // Create new node for this heading
-    const newNode = {
+    const newNode: HeadingHierarchy[string] = {
       title: heading.text, // Plain text for display
       titleMarkdown: heading.children, // AST nodes preserving formatting
-      children: {} as HeadingHierarchy,
+      children: {},
     };
     parent[slug] = newNode;
 
@@ -203,7 +120,7 @@ function buildHeadingHierarchy(
 /**
  * Parses the metadata object from an ESTree node
  */
-function parseMetadataFromEstree(estree: any): ExtractedMetadata | null {
+function parseMetadataFromEstree(estree: Program): ExtractedMetadata | null {
   try {
     const body = estree?.body || [];
     for (const node of body) {
@@ -213,9 +130,13 @@ function parseMetadataFromEstree(estree: any): ExtractedMetadata | null {
       ) {
         const declarations = node.declaration.declarations || [];
         for (const decl of declarations) {
-          if (decl.id?.name === 'metadata' && decl.init?.type === 'ObjectExpression') {
+          if (
+            decl.id?.type === 'Identifier' &&
+            decl.id.name === 'metadata' &&
+            decl.init?.type === 'ObjectExpression'
+          ) {
             // Convert ESTree ObjectExpression to plain object
-            return convertEstreeObjectToPlain(decl.init);
+            return convertEstreeObjectToPlain(decl.init) as ExtractedMetadata | null;
           }
         }
       }
@@ -229,25 +150,67 @@ function parseMetadataFromEstree(estree: any): ExtractedMetadata | null {
 /**
  * Converts an ESTree ObjectExpression to a plain JavaScript object
  */
-function convertEstreeObjectToPlain(node: any): any {
-  if (node.type === 'ObjectExpression') {
-    const obj: any = {};
-    for (const prop of node.properties) {
-      if (prop.type === 'Property' && prop.key) {
-        const key = prop.key.name || prop.key.value;
-        obj[key] = convertEstreeObjectToPlain(prop.value);
+function convertEstreeObjectToPlain(
+  node: unknown,
+): string | number | boolean | null | undefined | Record<string, unknown> | unknown[] {
+  if (
+    typeof node === 'object' &&
+    node !== null &&
+    'type' in node &&
+    node.type === 'ObjectExpression'
+  ) {
+    const obj: Record<string, unknown> = {};
+    if ('properties' in node && Array.isArray(node.properties)) {
+      for (const prop of node.properties) {
+        if (
+          typeof prop === 'object' &&
+          prop !== null &&
+          'type' in prop &&
+          prop.type === 'Property' &&
+          'key' in prop &&
+          prop.key
+        ) {
+          let key = '';
+          if ('name' in prop.key && typeof prop.key.name === 'string') {
+            key = prop.key.name;
+          } else if ('value' in prop.key) {
+            key = String(prop.key.value);
+          }
+          if (key && 'value' in prop) {
+            obj[key] = convertEstreeObjectToPlain(prop.value);
+          }
+        }
       }
     }
     return obj;
   }
-  if (node.type === 'ArrayExpression') {
-    return node.elements.map((el: any) => convertEstreeObjectToPlain(el));
+  if (
+    typeof node === 'object' &&
+    node !== null &&
+    'type' in node &&
+    node.type === 'ArrayExpression' &&
+    'elements' in node &&
+    Array.isArray(node.elements)
+  ) {
+    return node.elements.map((el) => convertEstreeObjectToPlain(el));
   }
-  if (node.type === 'Literal') {
-    return node.value;
+  if (
+    typeof node === 'object' &&
+    node !== null &&
+    'type' in node &&
+    node.type === 'Literal' &&
+    'value' in node
+  ) {
+    return node.value as string | number | boolean | null;
   }
-  if (node.type === 'Identifier') {
-    return node.name;
+  if (
+    typeof node === 'object' &&
+    node !== null &&
+    'type' in node &&
+    node.type === 'Identifier' &&
+    'name' in node
+  ) {
+    return node.name as string;
   }
   return undefined;
 }
@@ -326,7 +289,12 @@ function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMeta
 /**
  * Converts a plain value to an ESTree literal or expression
  */
-function valueToEstree(value: any): any {
+function valueToEstree(value: unknown): {
+  type: string;
+  value?: unknown;
+  elements?: unknown[];
+  properties?: unknown[];
+} {
   if (value === null || value === undefined) {
     return { type: 'Literal', value: null };
   }
@@ -368,7 +336,7 @@ function valueToEstree(value: any): any {
 /**
  * Updates the metadata object in an existing ESTree
  */
-function updateMetadataInEstree(estree: any, metadata: ExtractedMetadata): void {
+function updateMetadataInEstree(estree: Program, metadata: ExtractedMetadata): void {
   const body = estree?.body || [];
   for (const node of body) {
     if (
@@ -377,21 +345,49 @@ function updateMetadataInEstree(estree: any, metadata: ExtractedMetadata): void 
     ) {
       const declarations = node.declaration.declarations || [];
       for (const decl of declarations) {
-        if (decl.id?.name === 'metadata' && decl.init?.type === 'ObjectExpression') {
+        if (
+          decl.id?.type === 'Identifier' &&
+          decl.id.name === 'metadata' &&
+          decl.init?.type === 'ObjectExpression'
+        ) {
           // Merge new metadata into existing object
           const existingProps = decl.init.properties || [];
           const existingKeys = new Set(
             existingProps
-              .filter((prop: any) => prop.type === 'Property')
-              .map((prop: any) => prop.key?.name || prop.key?.value),
+              .filter((prop) => prop.type === 'Property')
+              .map((prop) => {
+                if ('name' in prop.key) {
+                  return (prop.key as { name: string }).name;
+                }
+                if ('value' in prop.key) {
+                  return String((prop.key as { value: unknown }).value || '');
+                }
+                return '';
+              }),
           );
 
           // Add missing properties
           const metadataObj = valueToEstree(metadata);
-          for (const prop of metadataObj.properties) {
-            const key = prop.key.name;
-            if (!existingKeys.has(key)) {
-              existingProps.push(prop);
+          if (
+            typeof metadataObj === 'object' &&
+            metadataObj !== null &&
+            'properties' in metadataObj &&
+            Array.isArray(metadataObj.properties)
+          ) {
+            for (const prop of metadataObj.properties) {
+              if (
+                typeof prop === 'object' &&
+                prop !== null &&
+                'key' in prop &&
+                typeof prop.key === 'object' &&
+                prop.key !== null &&
+                'name' in prop.key
+              ) {
+                const key = prop.key.name;
+                if (key && !existingKeys.has(String(key))) {
+                  existingProps.push(prop as Property);
+                }
+              }
             }
           }
           return;
@@ -404,7 +400,11 @@ function updateMetadataInEstree(estree: any, metadata: ExtractedMetadata): void 
 /**
  * Creates a new metadata export node
  */
-function createMetadataExport(metadata: ExtractedMetadata): any {
+function createMetadataExport(metadata: ExtractedMetadata): {
+  type: 'mdxjsEsm';
+  value: string;
+  data: { estree: Program };
+} {
   const metadataObj = valueToEstree(metadata);
 
   return {
@@ -423,13 +423,14 @@ function createMetadataExport(metadata: ExtractedMetadata): any {
                 {
                   type: 'VariableDeclarator',
                   id: { type: 'Identifier', name: 'metadata' },
-                  init: metadataObj,
+                  init: metadataObj as Expression,
                 },
               ],
               kind: 'const',
             },
             specifiers: [],
             source: null,
+            attributes: [],
           },
         ],
       },
@@ -442,49 +443,71 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 ) => {
   return async (tree, file) => {
     const root = tree as Root;
-    const headings: Array<{ depth: number; text: string; children: any[] }> = [];
+    const headings: Array<{ depth: number; text: string; children: PhrasingContent[] }> = [];
     let metadata: ExtractedMetadata | null = null;
     let firstH1: string | null = null;
     let firstParagraphAfterH1: string | null = null;
-    let metadataNode: any = null; // Track the ESM node containing metadata
+    let metadataNode: Nodes | null = null; // Track the ESM node containing metadata
     let metaDescription: string | null = null; // Track meta tag description
     let metaKeywords: string[] | null = null; // Track meta tag keywords
     let foundFirstH1 = false;
-    let nextNodeAfterH1: any = null;
-    let firstParagraphMarkdown: any[] | undefined;
+    let nextNodeAfterH1: Nodes | null = null;
+    let firstParagraphMarkdown: PhrasingContent[] | undefined;
     const fullTextParts: string[] = []; // Collect text parts for fullText - headings and content alternating
 
     // Single pass: extract metadata export, meta tags, headings, first paragraph, and full text
-    visit(root, (node: any, index, parent) => {
+    visit(root, (node, index, parent) => {
       // Extract metadata export if it exists
-      if (node.type === 'mdxjsEsm' && node.data?.estree) {
-        const extracted = parseMetadataFromEstree(node.data.estree);
+      if (
+        node.type === 'mdxjsEsm' &&
+        'data' in node &&
+        node.data &&
+        typeof node.data === 'object' &&
+        'estree' in node.data &&
+        node.data.estree
+      ) {
+        const extracted = parseMetadataFromEstree(node.data.estree as Program);
         if (extracted) {
           metadata = extracted;
-          metadataNode = node; // Keep reference to the node
+          metadataNode = node;
         }
       }
 
       // Look for meta tags (can appear anywhere in the document)
       if (
         (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
+        'name' in node &&
         (node.name === 'meta' || node.name === 'Meta')
       ) {
         // Check attributes to find the meta tag type
-        const attributes = node.attributes || [];
+        const attributes =
+          'attributes' in node && Array.isArray(node.attributes) ? node.attributes : [];
         let metaName: string | null = null;
         let contentValue: string | null = null;
 
         for (const attr of attributes) {
-          if (attr.type === 'mdxJsxAttribute') {
-            if (attr.name === 'name') {
+          if (
+            typeof attr === 'object' &&
+            attr !== null &&
+            'type' in attr &&
+            attr.type === 'mdxJsxAttribute' &&
+            'name' in attr
+          ) {
+            if (attr.name === 'name' && 'value' in attr) {
               metaName = typeof attr.value === 'string' ? attr.value : null;
             }
-            if (attr.name === 'content') {
+            if (attr.name === 'content' && 'value' in attr) {
               // Extract the content value
               if (typeof attr.value === 'string') {
                 contentValue = attr.value;
-              } else if (attr.value?.type === 'mdxJsxAttributeValueExpression') {
+              } else if (
+                typeof attr.value === 'object' &&
+                attr.value !== null &&
+                'type' in attr.value &&
+                attr.value.type === 'mdxJsxAttributeValueExpression' &&
+                'value' in attr.value &&
+                typeof attr.value.value === 'string'
+              ) {
                 // Handle expression values if needed
                 contentValue = attr.value.value;
               }
@@ -517,10 +540,14 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           foundFirstH1 = true;
 
           // Mark that we need to check the next node
-          if (parent && index !== undefined) {
-            const parentNode = parent as any;
-            if (parentNode.children && index + 1 < parentNode.children.length) {
-              nextNodeAfterH1 = parentNode.children[index + 1];
+          if (
+            parent &&
+            index !== undefined &&
+            'children' in parent &&
+            Array.isArray(parent.children)
+          ) {
+            if (index + 1 < parent.children.length) {
+              nextNodeAfterH1 = parent.children[index + 1];
             }
           }
         }
@@ -541,10 +568,12 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         // This handles cases like <Description>text</Description>
         if (
           paragraphNode.children.length === 1 &&
-          paragraphNode.children[0].type === 'mdxJsxTextElement'
+          paragraphNode.children[0].type === 'mdxJsxTextElement' &&
+          'children' in paragraphNode.children[0] &&
+          Array.isArray(paragraphNode.children[0].children)
         ) {
           // Use the children of the JSX element instead of the wrapper
-          firstParagraphMarkdown = paragraphNode.children[0].children;
+          firstParagraphMarkdown = paragraphNode.children[0].children as PhrasingContent[];
         } else {
           // Preserve AST nodes for formatting
           firstParagraphMarkdown = paragraphNode.children;
@@ -569,14 +598,15 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         return;
       }
 
-      // Skip metadata exports and JSX imports
-      if (node.type === 'mdxjsEsm' || node.type === 'import') {
+      // Skip metadata exports
+      if (node.type === 'mdxjsEsm') {
         return;
       }
 
       // Skip meta tags (they don't contribute to page content)
       if (
         (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
+        'name' in node &&
         (node.name === 'meta' || node.name === 'Meta')
       ) {
         return;
@@ -599,11 +629,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       }
 
       // Handle lists - condense into comma-separated items
-      if (node.type === 'list') {
+      if (node.type === 'list' && 'children' in node && Array.isArray(node.children)) {
         const listItems: string[] = [];
-        for (const item of node.children || []) {
-          if (item.type === 'listItem') {
-            const itemText = extractPlainTextFromChildren(item.children || [])
+        for (const item of node.children) {
+          if (item.type === 'listItem' && 'children' in item && Array.isArray(item.children)) {
+            const itemText = extractPlainTextFromChildren(item.children as PhrasingContent[])
               .replace(/\s+/g, ' ')
               .trim();
             if (itemText) {
@@ -723,8 +753,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       }
 
       // Update the metadata in the ESTree if we added any fields
-      if (shouldUpdateMetadata && metadataNode?.data?.estree) {
-        updateMetadataInEstree(metadataNode.data.estree, mutableMetadata);
+      if (shouldUpdateMetadata && metadataNode) {
+        const esmNode = metadataNode as { type: string; data?: { estree?: Program } };
+        if (esmNode.data?.estree) {
+          updateMetadataInEstree(esmNode.data.estree, mutableMetadata);
+        }
       }
     } else if (firstH1 || firstParagraphAfterH1 || metaDescription || metaKeywords) {
       // Create metadata if we found h1, paragraph, or meta tags but no metadata export exists
@@ -749,7 +782,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 
       // Create a new metadata export and add it to the tree
       const metadataExport = createMetadataExport(metadata);
-      root.children.unshift(metadataExport as any);
+      root.children.unshift(metadataExport as RootContent);
     }
 
     // Update parent index if requested and file path matches filters

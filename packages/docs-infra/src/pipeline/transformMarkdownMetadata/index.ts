@@ -11,10 +11,6 @@ export {
   markdownToMetadata,
 } from './metadataToMarkdown';
 export type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
-export type {
-  ExtractedMetadata,
-  TransformMarkdownMetadataOptions,
-} from './transformMarkdownMetadata';
 
 // Export metadata merge function
 export { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
