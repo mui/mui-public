@@ -1,0 +1,127 @@
+import { ESLintUtils, AST_NODE_TYPES } from '@typescript-eslint/utils';
+
+const createRule = ESLintUtils.RuleCreator(
+  (name) =>
+    `https://github.com/mui/mui-public/blob/master/packages/code-infra/src/eslint/material-ui/rules/${name}.mjs`,
+);
+
+const RULE_NAME = 'add-undef-to-optional';
+const REACT = {
+  LIB: 'React',
+  REACT_NODE: 'ReactNode',
+};
+
+/**
+ * Checks whether the given type node includes 'undefined' either directly,
+ * via union, or via type references that eventually include 'undefined'.
+ * Treats 'any' and 'unknown' as including 'undefined' and skips React's ReactNode.
+ *
+ * @param {import('@typescript-eslint/types').TSESTree.TSTypeAnnotation['typeAnnotation'] | undefined} typeNode
+ * @param {Map<string, any>} typeDefinitions
+ * @returns {boolean}
+ */
+function acceptsUndefined(typeNode, typeDefinitions) {
+  if (!typeNode) {
+    return false;
+  }
+
+  switch (typeNode.type) {
+    case AST_NODE_TYPES.TSUnionType: {
+      return typeNode.types.some((t) => acceptsUndefined(t, typeDefinitions));
+    }
+    case AST_NODE_TYPES.TSUndefinedKeyword:
+    case AST_NODE_TYPES.TSAnyKeyword:
+    case AST_NODE_TYPES.TSUnknownKeyword:
+      return true;
+    case AST_NODE_TYPES.TSTypeReference: {
+      // Check if it's a reference to 'undefined' itself
+      if (
+        typeNode.typeName &&
+        typeNode.typeName.type === AST_NODE_TYPES.Identifier &&
+        typeNode.typeName.name === 'undefined'
+      ) {
+        return true;
+      }
+      // Check if it's ReactNode (which already includes undefined)
+      if (typeNode.typeName) {
+        if (typeNode.typeName.type === AST_NODE_TYPES.Identifier) {
+          const typeName = typeNode.typeName.name;
+          // ReactNode already includes undefined
+          if (typeName === REACT.REACT_NODE) {
+            return true;
+          }
+          // If we have a local definition, check it
+          if (typeDefinitions.has(typeName)) {
+            const typeDefinition = typeDefinitions.get(typeName);
+            return acceptsUndefined(typeDefinition, typeDefinitions);
+          }
+        }
+        // Check for React.ReactNode
+        if (
+          typeNode.typeName.type === AST_NODE_TYPES.TSQualifiedName &&
+          typeNode.typeName.left.type === AST_NODE_TYPES.Identifier &&
+          typeNode.typeName.left.name === REACT.LIB &&
+          typeNode.typeName.right.name === REACT.REACT_NODE
+        ) {
+          return true;
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return false;
+}
+
+export default createRule({
+  meta: {
+    docs: {
+      description: 'Ensures that optional properties include undefined in their type.',
+    },
+    messages: {
+      addUndefined:
+        'Optional property "{{ propName }}" type does not explicitly include undefined. Add "| undefined".',
+    },
+    type: 'suggestion',
+    fixable: 'code',
+    schema: [],
+  },
+  name: RULE_NAME,
+  defaultOptions: [],
+  create(context) {
+    const typeDefinitions = new Map();
+
+    return {
+      // Collect type alias definitions, ie, type Foo = ...
+      TSTypeAliasDeclaration(node) {
+        if (node.id && node.typeAnnotation) {
+          typeDefinitions.set(node.id.name, node.typeAnnotation);
+        }
+      },
+      // only checks optional properties in types/interfaces
+      TSPropertySignature(node) {
+        if (!node.optional || !node.typeAnnotation) {
+          return;
+        }
+        const typeNode = node.typeAnnotation.typeAnnotation;
+        if (!typeNode || acceptsUndefined(typeNode, typeDefinitions)) {
+          return;
+        }
+        const source = context.sourceCode;
+        context.report({
+          node: node.key ?? node,
+          messageId: 'addUndefined',
+          data: {
+            propName: source.getText(node.key),
+          },
+          fix(fixer) {
+            // wrap in parentheses to preserve precedence even for simple types
+            // prettier can handle formatting
+            return fixer.replaceText(typeNode, `(${source.getText(typeNode)}) | undefined`);
+          },
+        });
+      },
+    };
+  },
+});
