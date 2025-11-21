@@ -29,7 +29,7 @@ spec:
         rows:
           $$jsExpression: >-
             (() => {
-              const nonProductScopeLabels = ['support: commercial', 'support: docs-feedback']
+              const nonProductScopeLabels = ['support: docs-feedback']
 
               return materialUI.rows
                 .concat(muix.rows)
