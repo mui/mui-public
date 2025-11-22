@@ -46,13 +46,12 @@
     }
   },
   "bin": {
-    "code-infra": "./bin/code-infra.mjs"
+    "code-infra": "./src/code-infra.mjs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typescript": "tsc -p tsconfig.json",
-    "test": "pnpm -w test --project @mui/internal-code-infra",
-    "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
+    "test": "pnpm -w test --project @mui/internal-code-infra"
   },
   "dependencies": {
     "@argos-ci/core": "^4.5.0",
@@ -138,7 +137,6 @@
     "typescript-eslint": "^8.46.3"
   },
   "files": [
-    "bin",
     "build",
     "src",
     "README.md",

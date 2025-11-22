@@ -11,7 +11,7 @@ import * as url from 'node:url';
 /**
  * Attempts to load and parse a single config file
  * @param {string} configPath - Path to the configuration file
- * @returns {Promise<BundleSizeCheckerConfigObject | null>} The parsed config or null if file doesn't exist
+ * @returns {Promise<import('./types').BundleSizeCheckerConfigObject | null>} The parsed config or null if file doesn't exist
  * @throws {Error} If the file exists but has invalid format
  */
 async function loadConfigFile(configPath) {
@@ -20,7 +20,7 @@ async function loadConfigFile(configPath) {
     const configUrl = new URL(`file://${configPath}`);
     const { default: config } = await import(configUrl.href);
 
-    /** @type {BundleSizeCheckerConfigObject | null} */
+    /** @type {import('./types').BundleSizeCheckerConfigObject | null} */
     let resolvedConfig = null;
     // Handle configs that might be Promise-returning functions
     if (config instanceof Promise) {
@@ -44,13 +44,13 @@ async function loadConfigFile(configPath) {
 
 /**
  * Validates and normalizes an upload configuration object
- * @param {UploadConfig} uploadConfig - The upload configuration to normalize
+ * @param {import('./types').UploadConfig} uploadConfig - The upload configuration to normalize
  * @param {Object} ciInfo - CI environment information
  * @param {string} [ciInfo.branch] - Branch name from CI environment
  * @param {boolean} [ciInfo.isPr] - Whether this is a pull request from CI environment
  * @param {string} [ciInfo.prBranch] - PR branch name from CI environment
  * @param {string} [ciInfo.slug] - Repository slug from CI environment
- * @returns {NormalizedUploadConfig} - Normalized upload config
+ * @returns {import('./types').NormalizedUploadConfig} - Normalized upload config
  * @throws {Error} If required fields are missing
  */
 export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
@@ -123,9 +123,9 @@ function isPackageTopLevel(importSrc) {
 
 /**
  * Normalizes entries to ensure they have a consistent format and ids are unique
- * @param {EntryPoint[]} entries - The array of entries from the config
+ * @param {import('./types').EntryPoint[]} entries - The array of entries from the config
  * @param {string} configPath - The path to the configuration file
- * @returns {Promise<ObjectEntry[]>} - Normalized entries with uniqueness enforced
+ * @returns {Promise<import('./types').ObjectEntry[]>} - Normalized entries with uniqueness enforced
  */
 async function normalizeEntries(entries, configPath) {
   const usedIds = new Set();
@@ -201,9 +201,9 @@ async function normalizeEntries(entries, configPath) {
 
 /**
  * Apply default values to the configuration using CI environment
- * @param {BundleSizeCheckerConfigObject} config - The loaded configuration
+ * @param {import('./types').BundleSizeCheckerConfigObject} config - The loaded configuration
  * @param {string} configPath - The path to the configuration file
- * @returns {Promise<NormalizedBundleSizeCheckerConfig>} Configuration with defaults applied
+ * @returns {Promise<import('./types').NormalizedBundleSizeCheckerConfig>} Configuration with defaults applied
  * @throws {Error} If required fields are missing
  */
 async function applyConfigDefaults(config, configPath) {
@@ -220,7 +220,7 @@ async function applyConfigDefaults(config, configPath) {
   }
 
   // Clone the config to avoid mutating the original
-  /** @type {NormalizedBundleSizeCheckerConfig} */
+  /** @type {import('./types').NormalizedBundleSizeCheckerConfig} */
   const result = {
     entrypoints: await normalizeEntries(config.entrypoints, configPath),
     upload: null, // Default to disabled
@@ -261,7 +261,7 @@ async function applyConfigDefaults(config, configPath) {
 /**
  * Attempts to load the config file from the given directory
  * @param {string} rootDir - The directory to search for the config file
- * @returns {Promise<NormalizedBundleSizeCheckerConfig>} A promise that resolves to the normalized config object
+ * @returns {Promise<import('./types').NormalizedBundleSizeCheckerConfig>} A promise that resolves to the normalized config object
  */
 export async function loadConfig(rootDir) {
   const configPaths = [

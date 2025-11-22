@@ -46,8 +46,8 @@ function createReplacePlugin(replacements) {
 
 /**
  * Creates vite configuration for bundle size checking
- * @param {ObjectEntry} entry - Entry point (string or object)
- * @param {CommandLineArgs} args
+ * @param {import('./types.js').ObjectEntry} entry - Entry point (string or object)
+ * @param {import('./types.js').CommandLineArgs} args
  * @param {Record<string, string>} [replacements] - String replacements to apply
  * @returns {Promise<{ config:import('vite').InlineConfig, treemapPath: string }>}
  */
@@ -217,7 +217,7 @@ function walkDependencyTree(chunkKey, manifest, visited = new Set()) {
  * Process vite output to extract bundle sizes
  * @param {import('vite').Rollup.RollupOutput['output']} output - The Vite output
  * @param {string} entryName - The entry name
- * @returns {Promise<Map<string, SizeSnapshotEntry>>} - Map of bundle names to size information
+ * @returns {Promise<Map<string, import('./types.js').SizeSnapshotEntry>>} - Map of bundle names to size information
  */
 async function processBundleSizes(output, entryName) {
   const chunksByFileName = new Map(output.map((chunk) => [chunk.fileName, chunk]));
@@ -270,15 +270,19 @@ async function processBundleSizes(output, entryName) {
   });
 
   const chunkEntries = await Promise.all(chunkPromises);
-  return new Map(/** @type {[string, SizeSnapshotEntry][]} */ (chunkEntries.filter(Boolean)));
+  return new Map(
+    /** @type {[string, import('./types.js').SizeSnapshotEntry][]} */ (
+      chunkEntries.filter(Boolean)
+    ),
+  );
 }
 
 /**
  * Get sizes for a vite bundle
- * @param {ObjectEntry} entry - The entry configuration
- * @param {CommandLineArgs} args - Command line arguments
+ * @param {import('./types.js').ObjectEntry} entry - The entry configuration
+ * @param {import('./types.js').CommandLineArgs} args - Command line arguments
  * @param {Record<string, string>} [replacements] - String replacements to apply
- * @returns {Promise<{ sizes: Map<string, SizeSnapshotEntry>, treemapPath: string }>}
+ * @returns {Promise<{ sizes: Map<string, import('./types.js').SizeSnapshotEntry>, treemapPath: string }>}
  */
 export async function getBundleSizes(entry, args, replacements) {
   // Create vite configuration

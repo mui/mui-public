@@ -57,9 +57,9 @@ const rootDir = process.cwd();
 
 /**
  * creates size snapshot for every bundle
- * @param {CommandLineArgs} args
- * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
- * @returns {Promise<Array<[string, SizeSnapshotEntry]>>}
+ * @param {import('./types.js').CommandLineArgs} args
+ * @param {import('./types.js').NormalizedBundleSizeCheckerConfig} config - The loaded configuration
+ * @returns {Promise<Array<[string, import('./types.js').SizeSnapshotEntry]>>}
  */
 async function getBundleSizes(args, config) {
   const worker = new Piscina({
@@ -158,7 +158,7 @@ async function postInitialPrComment() {
 
 /**
  * Report command handler
- * @param {ReportCommandArgs} argv - Command line arguments
+ * @param {import('./types.js').ReportCommandArgs} argv - Command line arguments
  */
 async function reportCommand(argv) {
   const { pr, owner: argOwner, repo: argRepo } = argv;
@@ -204,7 +204,7 @@ async function reportCommand(argv) {
 
 /**
  * Main runner function
- * @param {CommandLineArgs} argv - Command line arguments
+ * @param {import('./types.js').CommandLineArgs} argv - Command line arguments
  */
 async function run(argv) {
   const { output, concurrency } = argv;
@@ -304,7 +304,7 @@ async function run(argv) {
 
 yargs(process.argv.slice(2))
   .command(
-    /** @type {import('yargs').CommandModule<{}, CommandLineArgs>} */ ({
+    /** @type {import('yargs').CommandModule<{}, import('./types.js').CommandLineArgs>} */ ({
       command: '$0',
       describe: 'Saves a size snapshot in size-snapshot.json',
       builder: (cmdYargs) => {
@@ -347,7 +347,7 @@ yargs(process.argv.slice(2))
     }),
   )
   .command(
-    /** @type {import('yargs').CommandModule<{}, ReportCommandArgs>} */ ({
+    /** @type {import('yargs').CommandModule<{}, import('./types.js').ReportCommandArgs>} */ ({
       command: 'report',
       describe: 'Generate a markdown report for a pull request',
       builder: (cmdYargs) => {
