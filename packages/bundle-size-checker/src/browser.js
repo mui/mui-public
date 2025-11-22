@@ -1,2 +1,2 @@
-export { calculateSizeDiff } from './sizeDiff.js';
-export { fetchSnapshot } from './fetchSnapshot.js';
+export * from './sizeDiff.js';
+export * from './fetchSnapshot.js';
