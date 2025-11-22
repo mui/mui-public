@@ -1,3 +1,5 @@
+import * as semver from 'semver';
+
 /**
  * @typedef {'esm' | 'cjs'} BundleType
  */
@@ -24,9 +26,10 @@ export function getOutExtension(bundle, isType = false) {
  * @param {Record<string, any>} packageJson
  * @param {Object} [options]
  * @param {boolean} [options.skipMainCheck=false] - Whether to skip checking for main field in package.json.
+ * @param {boolean} [options.enableReactCompiler=false] - Whether to enable React compiler checks.
  */
 export function validatePkgJson(packageJson, options = {}) {
-  const { skipMainCheck = false } = options;
+  const { skipMainCheck = false, enableReactCompiler = false } = options;
   /**
    * @type {string[]}
    */
@@ -59,6 +62,29 @@ export function validatePkgJson(packageJson, options = {}) {
     if (packageJson.types || packageJson.typings) {
       errors.push(
         `Remove the field "types/typings" from "${packageJson.name}" package.json. Add it as "exports["."]" instead.`,
+      );
+    }
+  }
+
+  const reactVersion = packageJson.peerDependencies?.react;
+  if (enableReactCompiler) {
+    if (!reactVersion) {
+      errors.push(
+        'When building with React compiler, "react" must be specified as a peerDependency in package.json.',
+      );
+    }
+    const minSupportedReactVersion = semver.minVersion(reactVersion);
+    if (!minSupportedReactVersion) {
+      errors.push(
+        `Unable to determine the minimum supported React version from the peerDependency range: "${reactVersion}".`,
+      );
+    } else if (
+      semver.lt(minSupportedReactVersion, '19.0.0') &&
+      !packageJson.peerDependencies?.['react-compiler-runtime'] &&
+      !packageJson.dependencies?.['react-compiler-runtime']
+    ) {
+      errors.push(
+        'When building with React compiler for React versions below 19, "react-compiler-runtime" must be specified as a dependency or peerDependency in package.json.',
       );
     }
   }
