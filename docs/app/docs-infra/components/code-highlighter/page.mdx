@@ -121,11 +121,11 @@ The precomputation is handled by a webpack loader that processes demo files at b
 
 **Important**: Precomputation only works:
 
-- [✓] In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
-- [✓] Using `createDemo()`
-- [✓] In both main demos and nested demo examples
-- [x] Not in direct `CodeHighlighter` usage
-- [x] Not in files outside the configured loader pattern
+- ✓ In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
+- ✓ Using `createDemo()`
+- ✓ In both main demos and nested demo examples
+- 🞫 Not in direct `CodeHighlighter` usage
+- 🞫 Not in files outside the configured loader pattern
 
 ## Advanced Features
 
@@ -361,9 +361,9 @@ Use the factory pattern optimal performance:
 
 **Advantages:**
 
-- [✓] Faster initial load times
-- [✓] Isomorphic rendering support
-- [✓] Automatic caching based on dependencies for each demo
+- ✓ Faster initial load times
+- ✓ Isomorphic rendering support
+- ✓ Automatic caching based on dependencies for each demo
 
 **Requirements:**
 
@@ -376,15 +376,15 @@ Use direct `CodeHighlighter` for dynamic content:
 
 **Advantages:**
 
-- [✓] Works with dynamic content
-- [✓] Flexible component structure
-- [✓] Can still benefit from the page level cache
+- ✓ Works with dynamic content
+- ✓ Flexible component structure
+- ✓ Can still benefit from the page level cache
 
 **Trade-offs:**
 
-- [x] Slower initial rendering
-- [x] No per-demo build-time cache
-- [x] Can only be used within a Server Component
+- 🞫 Slower initial rendering
+- 🞫 No per-demo build-time cache
+- 🞫 Can only be used within a Server Component
 
 ### Client Rendering
 
@@ -392,15 +392,15 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 
 **Advantages:**
 
-- [✓] Works with dynamic content fetched on the client
-- [✓] Doesn't require an API or server-side rendering
-- [✓] Can be used anywhere in the app
-- [✓] Flexible component structure
+- ✓ Works with dynamic content fetched on the client
+- ✓ Doesn't require an API or server-side rendering
+- ✓ Can be used anywhere in the app
+- ✓ Flexible component structure
 
 **Trade-offs:**
 
-- [x] Slower initial rendering
-- [x] Requires loading and highlighting functions to be bundled
+- 🞫 Slower initial rendering
+- 🞫 Requires loading and highlighting functions to be bundled
 - x No automatic caching
 
 ## API Reference
