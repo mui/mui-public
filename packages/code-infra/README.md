@@ -2,6 +2,38 @@
 
 Scripts and configs to be used across MUI repos.
 
+## ESLint Plugin
+
+This package includes a custom ESLint plugin (`material-ui`) with rules specific to MUI projects.
+
+### Available Rules
+
+- `material-ui/no-restricted-imports` - Restricts imports based on source string patterns using glob matching. Useful for preventing imports from internal modules or enforcing import conventions.
+
+  ```js
+  // In your eslint.config.mjs:
+  {
+    rules: {
+      'material-ui/no-restricted-imports': [
+        'error',
+        [
+          {
+            pattern: '@mui/material/*',
+            message: 'Use the default import from @mui/material instead.'
+          },
+          {
+            pattern: '@mui/*/internal/**',
+            message: 'Do not import from internal modules.'
+          }
+        ]
+      ]
+    }
+  }
+  ```
+
+- `material-ui/no-restricted-resolved-imports` - Similar to `no-restricted-imports` but matches against resolved file paths instead of import source strings.
+- Other rules - See `src/eslint/material-ui/rules/` for the full list of available rules.
+
 ## Publishing packages
 
 1. Go to the publish action -
