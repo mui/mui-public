@@ -17,6 +17,7 @@ const code = await loadServerCodeMeta('file:///app/components/button/demos/basic
 ```
 
 The function:
+
 - Reads the demo index file
 - Finds the `createDemo()` or `createDemoWithVariants()` call
 - Resolves variant file paths to absolute URLs
@@ -73,9 +74,7 @@ When variants use named exports instead of default exports:
 //   { Basic: BasicForm, Advanced: AdvancedForm }
 // );
 
-const code = await loadServerCodeMeta(
-  'file:///app/components/form/demos/validation/index.ts',
-);
+const code = await loadServerCodeMeta('file:///app/components/form/demos/validation/index.ts');
 
 // Returns:
 // {
@@ -132,15 +131,15 @@ async function DemoPage() {
 ### loadServerCodeMeta
 
 ```ts
-function loadServerCodeMeta(url: string): Promise<Code>
+function loadServerCodeMeta(url: string): Promise<Code>;
 ```
 
 Loads code metadata from a demo index file.
 
 **Parameters:**
 
-| Parameter | Type     | Description                                       |
-| --------- | -------- | ------------------------------------------------- |
+| Parameter | Type     | Description                                      |
+| --------- | -------- | ------------------------------------------------ |
 | `url`     | `string` | File URL to the demo index file (with `file://`) |
 
 **Returns**: Promise resolving to a `Code` object mapping variant names to file URLs or metadata.
@@ -150,17 +149,15 @@ Loads code metadata from a demo index file.
 ### createLoadServerCodeMeta
 
 ```ts
-function createLoadServerCodeMeta(
-  options?: CreateLoadCodeMetaOptions,
-): LoadCodeMeta
+function createLoadServerCodeMeta(options?: CreateLoadCodeMetaOptions): LoadCodeMeta;
 ```
 
 Factory function that creates a custom `loadCodeMeta` function.
 
 **Parameters:**
 
-| Parameter | Type                          | Description               |
-| --------- | ----------------------------- | ------------------------- |
+| Parameter | Type                         | Description                     |
+| --------- | ---------------------------- | ------------------------------- |
 | `options` | `CreateLoadCodeMetaOptions?` | Configuration (currently empty) |
 
 **Returns**: A `LoadCodeMeta` function.
@@ -196,6 +193,7 @@ interface CreateLoadCodeMetaOptions {
 5. **Build Code Object**: Creates the final `Code` object with variant metadata
 
 The function handles:
+
 - Single and multiple variant demos
 - Named exports vs default exports
 - File path resolution with filesystem lookups

@@ -36,6 +36,7 @@ const result = await loadCodeVariant(
 ```
 
 The function:
+
 - Loads source code from files or URLs
 - Applies syntax highlighting (HAST transformation)
 - Generates language transforms (e.g., TypeScript → JavaScript)
@@ -70,7 +71,7 @@ const result = await loadCodeVariant(
 const loadSource = async (url) => {
   const source = await readFile(url);
   const extraFiles = await findDependencies(url); // e.g., CSS imports, relative imports
-  
+
   return {
     source,
     extraFiles: {
@@ -277,19 +278,19 @@ function loadCodeVariant(
   variantName: string,
   variant: VariantCode | string | undefined,
   options?: LoadVariantOptions,
-): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }>
+): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }>;
 ```
 
 Loads and processes a code variant with recursive extra file loading.
 
 **Parameters:**
 
-| Parameter     | Type                              | Description                                    |
-| ------------- | --------------------------------- | ---------------------------------------------- |
-| `url`         | `string \| undefined`             | File URL for the variant                       |
-| `variantName` | `string`                          | Name of the variant (for error messages)       |
-| `variant`     | `VariantCode \| string \| undefined` | Variant data or URL                           |
-| `options`     | `LoadVariantOptions?`             | Loading and processing options                 |
+| Parameter     | Type                                 | Description                              |
+| ------------- | ------------------------------------ | ---------------------------------------- |
+| `url`         | `string \| undefined`                | File URL for the variant                 |
+| `variantName` | `string`                             | Name of the variant (for error messages) |
+| `variant`     | `VariantCode \| string \| undefined` | Variant data or URL                      |
+| `options`     | `LoadVariantOptions?`                | Loading and processing options           |
 
 **Options:**
 
@@ -312,7 +313,7 @@ function loadCodeFallback(
   initialVariant: string,
   loaded: Code | undefined,
   options?: LoadFallbackCodeOptions,
-): Promise<FallbackVariants>
+): Promise<FallbackVariants>;
 ```
 
 Loads minimal data needed for fallback rendering.
@@ -322,7 +323,7 @@ Loads minimal data needed for fallback rendering.
 ### parseCode
 
 ```ts
-function parseCode(code: Code, parseSource: ParseSource): Code
+function parseCode(code: Code, parseSource: ParseSource): Code;
 ```
 
 Parses string sources in code objects to HAST nodes.
@@ -330,7 +331,7 @@ Parses string sources in code objects to HAST nodes.
 ### flattenCodeVariant
 
 ```ts
-function flattenCodeVariant(variant: VariantCode): FlattenedFiles
+function flattenCodeVariant(variant: VariantCode): FlattenedFiles;
 ```
 
 Flattens variant structure to file paths.
@@ -360,7 +361,7 @@ function applyCodeTransform(
   source: VariantSource,
   transforms: Transforms,
   transformKey: string,
-): VariantSource
+): VariantSource;
 ```
 
 Applies a transform to variant source (e.g., TypeScript → JavaScript).
@@ -372,7 +373,7 @@ function applyCodeTransforms(
   source: VariantSource,
   transforms: Transforms,
   transformKeys: string[],
-): VariantSource
+): VariantSource;
 ```
 
 Applies multiple transforms in sequence.
@@ -384,7 +385,7 @@ function mergeCodeMetadata(
   variant: VariantCode,
   metadataFiles?: VariantExtraFiles,
   options?: MergeMetadataOptions,
-): VariantCode
+): VariantCode;
 ```
 
 Merges metadata files with proper positioning.
@@ -395,7 +396,7 @@ Merges metadata files with proper positioning.
 function extractCodeMetadata(variant: VariantCode): {
   variant: VariantCode;
   metadata: VariantExtraFiles;
-}
+};
 ```
 
 Extracts metadata files from variant.
@@ -403,7 +404,7 @@ Extracts metadata files from variant.
 ### examineCodeVariant
 
 ```ts
-function examineCodeVariant(variant: VariantCode): PathContext
+function examineCodeVariant(variant: VariantCode): PathContext;
 ```
 
 Analyzes variant structure for path information.
@@ -411,11 +412,7 @@ Analyzes variant structure for path information.
 ### hasAllVariants
 
 ```ts
-function hasAllVariants(
-  variants: string[],
-  code: Code,
-  needsHighlight?: boolean,
-): boolean
+function hasAllVariants(variants: string[], code: Code, needsHighlight?: boolean): boolean;
 ```
 
 Checks if all variants are fully loaded.
@@ -423,7 +420,7 @@ Checks if all variants are fully loaded.
 ### addPathsToVariant
 
 ```ts
-function addPathsToVariant(variant: VariantCode): VariantCode
+function addPathsToVariant(variant: VariantCode): VariantCode;
 ```
 
 Adds flat path properties to variant files.
@@ -454,6 +451,7 @@ Button.tsx
 ```
 
 The loader:
+
 - Resolves relative paths using URL resolution
 - Detects circular dependencies
 - Loads files in parallel for performance
@@ -550,27 +548,35 @@ The loader tracks loaded files and throws errors on circular dependencies:
 ### Common Errors
 
 **Circular dependency detected:**
+
 ```
 Error: Circular dependency detected: file:///path/to/file.ts
 ```
+
 Fix: Restructure imports to remove circular references.
 
 **Invalid extraFiles:**
+
 ```
 Error: Invalid extraFiles from loadSource: key "file:///..." appears to be an absolute path.
 ```
+
 Fix: Use relative paths as keys in extraFiles.
 
 **Missing loadSource:**
+
 ```
 Error: "loadSource" function is required when source is not provided
 ```
+
 Fix: Provide `loadSource` in options or include source inline.
 
 **Transform not found:**
+
 ```
 Error: Transform "javascript" not found in transforms
 ```
+
 Fix: Ensure sourceTransformers generated the requested transform.
 
 ---

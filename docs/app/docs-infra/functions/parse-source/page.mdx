@@ -17,6 +17,7 @@ const highlighted = parseSource('const x = 42;', 'example.js');
 ```
 
 The parser automatically:
+
 - Detects the language from the file extension
 - Applies syntax highlighting
 - Adds line gutter elements
@@ -126,7 +127,7 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 ### createParseSource
 
 ```ts
-function createParseSource(): Promise<ParseSource>
+function createParseSource(): Promise<ParseSource>;
 ```
 
 Initializes Starry Night and returns a configured `parseSource` function. This only needs to be called once per application.
@@ -138,16 +139,16 @@ Initializes Starry Night and returns a configured `parseSource` function. This o
 ### parseSource
 
 ```ts
-function parseSource(source: string, fileName: string): HastNode[]
+function parseSource(source: string, fileName: string): HastNode[];
 ```
 
 Parses source code into a HAST tree with syntax highlighting.
 
 **Parameters:**
 
-| Parameter  | Type     | Description                                      |
-| ---------- | -------- | ------------------------------------------------ |
-| `source`   | `string` | The source code to parse and highlight          |
+| Parameter  | Type     | Description                                       |
+| ---------- | -------- | ------------------------------------------------- |
+| `source`   | `string` | The source code to parse and highlight            |
 | `fileName` | `string` | File name (used to detect language via extension) |
 
 **Returns**: HAST `Root` node containing highlighted code structure.
@@ -245,6 +246,6 @@ const result = parseSource('', 'empty.js');
 ## Related
 
 - [Starry Night](https://github.com/wooorm/starry-night) - The underlying syntax highlighter
-- [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX  
+- [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses parseSource for syntax highlighting
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time optimization using parseSource

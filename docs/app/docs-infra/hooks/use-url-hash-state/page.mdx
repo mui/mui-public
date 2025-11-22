@@ -20,7 +20,7 @@ The hook synchronizes state with the URL hash, enabling shareable links and brow
 
 ### Tab Navigation
 
-```tsx
+````tsx
 import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
 
 function TabNavigation() {
@@ -69,7 +69,7 @@ function NavigationExample() {
     </div>
   );
 }
-```
+````
 
 ### Complex State Persistence
 
@@ -327,8 +327,8 @@ A tuple containing:
 
 ### setHash Parameters
 
-| Parameter | Type             | Default | Description                                                  |
-| --------- | ---------------- | ------- | ------------------------------------------------------------ |
+| Parameter | Type             | Default | Description                                                 |
+| --------- | ---------------- | ------- | ----------------------------------------------------------- |
 | `value`   | `string \| null` | -       | New hash value to set, or `null` to clear the hash          |
 | `replace` | `boolean`        | `true`  | Whether to use `replaceState` (true) or `pushState` (false) |
 
