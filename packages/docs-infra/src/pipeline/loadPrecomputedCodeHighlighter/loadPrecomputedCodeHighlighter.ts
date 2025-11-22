@@ -1,3 +1,7 @@
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
+
 import type { LoaderContext } from 'webpack';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
@@ -9,10 +13,18 @@ import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePa
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
+import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
 export type LoaderOptions = {
+  performance?: {
+    logging?: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+  };
   output?: 'hast' | 'hastJson' | 'hastGzip';
 };
+
+const functionName = 'Load Precomputed Code Highlighter';
 
 /**
  * Webpack loader that processes demo files and precomputes variant data.
@@ -32,9 +44,36 @@ export async function loadPrecomputedCodeHighlighter(
   const callback = this.async();
   this.cacheable();
 
+  const options = this.getOptions();
+  const performanceNotableMs = options.performance?.notableMs ?? 100;
+  const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
+
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+
+  let observer: PerformanceObserver | undefined = undefined;
+  if (options.performance?.logging) {
+    observer = new PerformanceObserver(
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
+    );
+    observer.observe({ entryTypes: ['measure'] });
+  }
+
+  let currentMark = performanceMeasure(
+    undefined,
+    { mark: 'Start', measure: 'Start' },
+    [functionName, relativePath],
+    true,
+  );
+
   try {
     // Parse the source to find a single createDemo call
     const demoCall = await parseCreateFactoryCall(source, this.resourcePath);
+
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'Parsed Factory', measure: 'Factory Parsing' },
+      [functionName, relativePath],
+    );
 
     // If no createDemo call found, return the source unchanged
     if (!demoCall) {
@@ -55,6 +94,12 @@ export async function loadPrecomputedCodeHighlighter(
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
     const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants || {});
 
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'Paths Resolved', measure: 'Path Resolution' },
+      [functionName, relativePath],
+    );
+
     // Create loader functions
     const loadSource = createLoadServerSource({
       includeDependencies: true,
@@ -69,9 +114,23 @@ export async function loadPrecomputedCodeHighlighter(
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();
 
+    const functionsInitMark = performanceMeasure(
+      currentMark,
+      { mark: 'Functions Init', measure: 'Functions Init' },
+      [functionName, relativePath],
+    );
+    currentMark = functionsInitMark;
+
     // Process variants in parallel
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
       async ([variantName, fileUrl]) => {
+        const variantMark = performanceMeasure(
+          functionsInitMark,
+          { mark: 'Variant Started', measure: 'Variant Start' },
+          [functionName, variantName, relativePath],
+          true,
+        );
+
         const namedExport = demoCall.namedExports?.[variantName];
         let variant: VariantCode | string = fileUrl;
         if (namedExport) {
@@ -103,6 +162,13 @@ export async function loadPrecomputedCodeHighlighter(
             },
           );
 
+          performanceMeasure(
+            variantMark,
+            { mark: 'Variant Loaded', measure: 'Variant Loading' },
+            [functionName, variantName, relativePath],
+            true,
+          );
+
           return {
             variantName,
             variantData: processedVariant, // processedVariant is a complete VariantCode
@@ -126,8 +192,21 @@ export async function loadPrecomputedCodeHighlighter(
       }
     }
 
+    currentMark = performanceMeasure(
+      functionsInitMark,
+      { mark: 'All Variants Loaded', measure: 'Complete Variants Loading' },
+      [functionName, relativePath],
+      true,
+    );
+
     // Replace the factory function call with the actual precomputed data
     const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
+
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'Replaced Precompute', measure: 'Precompute Replacement' },
+      [functionName, relativePath],
+    );
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
@@ -135,8 +214,22 @@ export async function loadPrecomputedCodeHighlighter(
       this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
     });
 
+    // log any pending performance entries before completing
+    observer
+      ?.takeRecords()
+      ?.forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
+      );
+    observer?.disconnect();
     callback(null, modifiedSource);
   } catch (error) {
+    // log any pending performance entries before completing
+    observer
+      ?.takeRecords()
+      ?.forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
+      );
+    observer?.disconnect();
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }
