@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  code-infra: https://raw.githubusercontent.com/mui/mui-public/refs/heads/master/.circleci/orbs/code-infra.yml
+
 parameters:
   workflow:
     description: The name of the workflow to run
@@ -8,75 +11,35 @@ parameters:
 
 default-job: &default-job
   working_directory: /tmp/mui
-  docker:
-    - image: cimg/node:22.18
-  environment:
-    DANGER_DISABLE_TRANSPILATION: 'true'
+  executor: code-infra/mui-node
 
 default-context: &default-context
   context:
     - org-global
-
-commands:
-  install_js:
-    steps:
-      - run:
-          name: Install corepack
-          # See https://stackoverflow.com/a/73411601
-          command: corepack enable --install-directory ~/bin
-      - run:
-          name: View install environment
-          command: |
-            node --version
-      - run:
-          name: Install js dependencies
-          command: pnpm install
 
 jobs:
   checkout:
     <<: *default-job
     steps:
       - checkout
-      - install_js
+      - code-infra/install-deps
       - run:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
-      - run:
-          name: '`pnpm dedupe` was run?'
-          command: |
-            # #default-branch-switch
-            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
-            then
-                echo "no changes to dependencies detected, skipping..."
-            else
-                pnpm dedupe --check
-            fi
   test_lint:
     <<: *default-job
     steps:
       - checkout
-      - install_js
-      - run:
-          name: ESLint
-          command: pnpm eslint:ci
-      - run:
-          name: TypeScript
-          command: pnpm typescript
+      - code-infra/install-deps
+      - code-infra/eslint
+      - code-infra/stylelint
+      - code-infra/markdownlint
   test_static:
     <<: *default-job
     steps:
       - checkout
-      - install_js
-      - run:
-          name: '`pnpm prettier` changes committed?'
-          command: |
-            # #target-branch-reference
-            if [[ $(git diff --name-status master | grep pnpm-lock) == "" ]];
-            then
-                pnpm prettier --check
-            else
-                pnpm exec prettier --check . --ignore-path .lintignore
-            fi
+      - code-infra/install-deps
+      - code-infra/check-static-changes
       - run:
           # make sure the netlify ignore command has the correct dependencies
           name: '`pnpm update-netlify-ignore` changes committed?'
@@ -87,7 +50,7 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - install_js
+      - code-infra/install-deps
       - run:
           name: 'Run tests'
           command: pnpm test
@@ -95,17 +58,11 @@ jobs:
     <<: *default-job
     steps:
       - checkout
-      - install_js
+      - code-infra/install-deps
       - run:
           name: Build packages
           command: pnpm release:build
-      - run:
-          name: create and upload a size snapshot
-          command: |
-            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
-            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
-            export AWS_REGION=$AWS_REGION_ARTIFACTS
-            pnpm size:snapshot
+      - code-infra/upload-size-snapshot
 
 workflows:
   version: 2
