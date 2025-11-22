@@ -1,0 +1,250 @@
+# Built Factories Pattern
+
+At its core, a factory only needs a URL. In TypeScript we can rely on `import.meta.url` as the starting point for any operation.
+
+```ts
+// src/objects/object.ts
+import { createObject } from '../createObject';
+
+export const object = createObject(import.meta.url);
+```
+
+We treat `file:///src/objects/object.ts` as the factory's input.
+By using the module URL, we can lean on filesystem-based routing.
+
+Because we defined `createObject`, we control how it works.
+We know that object names follow the pattern `file:///src/objects/(?<object>[^/]+)\.ts`.
+From any layer (build time, server runtime, or client render), we can derive the object name `object`.
+
+We can perform any async task to produce the `object` instance: read the filesystem, query a database, or call an external API.
+
+But the index file for this object stays the same. This lets you change `createObject` without affecting potentially hundreds of index files.
+
+The index file can be copy-pasted many times; only customized factories differ.
+
+## Build
+
+During build time, a loader can access `import.meta.url` and know which object is being created. It can then inject the object into an options parameter:
+
+```ts
+// src/objects/object.ts
+import { createObject } from '../createObject';
+
+export const object = createObject(import.meta.url, { precompute: {} });
+```
+
+The loader returns this after creating the object instance. `createObject` can then skip async work and return the precomputed object.
+
+This is powerful for filesystem‑derived objects, because loaders can declare dependent files. When those change, the cache is busted.
+
+So if you had a store at `data/objects/object.json`, you could read it during build. If it changes, the object is re-created.
+
+This especially helps when objects are expensive to create.
+
+Not all objects need build-time creation. Some can't be precomputed. The index file shouldn't need to change if you later decide to create objects during a client render.
+
+## Options
+
+Factories can take options to augment behavior. For example, you might override the derived name:
+
+```ts
+// src/objects/object.ts
+import { createObject } from '../createObject';
+
+export const object = createObject(import.meta.url, { name: 'CustomObjectName' });
+```
+
+They can also accept flags:
+
+```ts
+export const object = createObject(import.meta.url, { isVisible: true });
+```
+
+Or functions:
+
+```ts
+export const object = createObject(import.meta.url, { getName: () => 'CustomObjectName' });
+```
+
+Or additional data:
+
+```ts
+export const object = createObject(import.meta.url, { data: { key: 'value' } });
+```
+
+Anything useful for creating the object can go in options.
+
+## Imported Sources
+
+Sometimes the object is created using an importable source.
+
+A simple example: a code snippet from an external module:
+
+```ts
+// src/externalModule.ts
+// This is an external function
+export const externalFunction = () => {
+  // Some implementation
+};
+```
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet';
+import { externalFunction } from '../externalModule';
+
+export const snippet = createSnippet(import.meta.url, externalFunction);
+```
+
+At build time the snippet could be injected:
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet'
+import { externalFunction } from '../externalModule'
+
+export const snippet = createSnippet(import.meta.url, externalFunction, precompute: `// This is an external function
+export const externalFunction = () => {
+  // Some implementation
+}
+`)
+```
+
+Then `createSnippet` has both the executable function and its source text.
+
+Sometimes objects have variations users can choose from, each imported as a source.
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet';
+import { externalFunctionA } from '../externalModuleA';
+import { externalFunctionB } from '../externalModuleB';
+
+export const snippet = createSnippet(import.meta.url, {
+  A: externalFunctionA,
+  B: externalFunctionB,
+});
+```
+
+which could be precomputed as:
+
+```ts
+// src/objects/object.ts
+import { createSnippet } from '../createSnippet';
+import { externalFunctionA } from '../externalModuleA';
+import { externalFunctionB } from '../externalModuleB';
+
+export const snippet = createSnippet(
+  import.meta.url,
+  { A: externalFunctionA, B: externalFunctionB },
+  {
+    precompute: {
+      A: `// This is an external function A
+export const externalFunctionA = () => {
+  // Some implementation
+}
+`,
+      B: `// This is an external function B
+export const externalFunctionB = () => {
+  // Some implementation
+}
+`,
+    },
+  },
+);
+```
+
+You can also add options when using imported sources:
+
+```ts
+export const snippet = createSnippet(
+  import.meta.url,
+  { A: externalFunctionA, B: externalFunctionB },
+  { stripComments: true },
+);
+```
+
+If the snippet isn't generated at build time, we still have enough info to load the code on the server or client.
+
+## Strong Typing
+
+Next.js has challenges defining TypeScript types for exports in `page.tsx` files.
+
+This pattern avoids them because it mandates a factory function that supplies types.
+
+## Centralized Configuration
+
+The actual `createObject` factory centralizes shared behavior across all objects created with it.
+
+For example:
+
+```ts
+// src/createObject.ts
+const DEBUG = true;
+
+export const createObject = (url: string, options: any) => {
+  const { object, headers } = fetch(url.replace('file:///', 'http://example.com/'));
+  if (DEBUG) {
+    return { object, headers };
+  }
+
+  return { object };
+};
+```
+
+Changing the config inside `createObject` affects all objects created with it.
+
+This is instrumental in a library that provides abstract factories:
+
+```ts
+// src/createObject.ts
+import abstractCreateObject from 'lib/abstractCreateObject';
+
+export const createObject = abstractCreateObject({
+  debug: true,
+});
+```
+
+You can migrate between an abstract factory maintained elsewhere and a custom implementation without moving the config.
+
+You can also pass one factory's result into another; each can be cached by its own dependency graph.
+
+## Aligned with Next.js App Router
+
+```
+/app/component/page.tsx <-- 'component' page
+/app/component/layout.tsx <-- 'component' layout
+/app/component/object.ts <-- 'component' object (using createObject factory)
+/app/component/snippets/simple/index.ts <-- 'component' snippet 'simple' (using createSnippet factory)
+/app/component/snippets/simple/page.tsx <-- 'component' snippet 'simple' page using ./index
+```
+
+Names come from the filesystem instead of being hardcoded twice in factory params.
+
+This pattern can extend Next.js filesystem-based routing.
+
+## Essential Implementation Notes
+
+Keep the mental model simple:
+
+**Call shape:** `createX(import.meta.url, variants?, options?)`. The URL is the identity. Variants are optional. Options are optional.
+
+**Variants:** A single component becomes the `Default` variant. An object literal lists named variants (`{ TypeScript, JavaScript }`). That's all most cases need.
+
+**One per file:** Use exactly one factory call per file. Loaders enforce this for deterministic transforms.
+
+**Precompute:** Build tooling can replace `precompute: true` (or an existing object) with generated data (`precompute: { ... }`). Server precompute injects variant code metadata; client precompute injects only an externals map. Runtime code doesn't change—only the factory implementation or loader evolves.
+
+**Options:** Pass metadata (`name`, `slug`, flags). Unknown keys are fine; they flow through. Use `skipPrecompute: true` to leave the call untouched.
+
+**Server vs Client:** A server factory (no `'use client'`) declares variants and can precompute heavy code metadata. A separate client factory file (with `'use client'`) has no variants—tooling looks at the sibling server file to know them—and only injects the externals it truly needs.
+
+**Composition:** You can expose a lightweight client wrapper as a variant inside the server factory to strictly control what reaches the client bundle.
+
+**Benefit:** Precomputation removes runtime syntax highlighting + dependency resolution cost, shrinking client work.
+
+These basics are enough to adopt the pattern. For implementation details, see the related function docs above.
+
+### Server / Client Boundary Constraint
+
+A single factory call runs entirely on either the server or the client—never both. If you need specific imports or data to ship to the client bundle you must define a _separate_ client factory file (with `'use client'`). The server factory can reference that client factory (e.g. as a variant or option), but it cannot implicitly “bridge” code across the boundary. This explicit duplication (one factory per boundary) guarantees predictable bundle contents.

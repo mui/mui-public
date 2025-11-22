@@ -31,6 +31,9 @@ jobs:
     steps:
       - checkout
       - code-infra/install-deps
+      - run:
+          name: Docs Infra Build
+          command: pnpm -F './packages/docs-infra' run build
       - code-infra/eslint
       - code-infra/stylelint
       - code-infra/markdownlint

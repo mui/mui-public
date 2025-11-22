@@ -1,0 +1,335 @@
+# Use Preference
+
+The `usePreference` hook provides specialized preference management for code demo variants and transformations. It builds on `useLocalStorageState` with intelligent storage key generation, prefix support, and automatic optimization for single-option scenarios.
+
+## Basic Usage
+
+import { DemoUsePreferenceVariantSelector } from './demos/variant-selector';
+
+<DemoUsePreferenceVariantSelector.Title />
+
+The hook remembers user preferences across sessions. Try selecting different variants and refreshing the page - your choice will be preserved.
+
+<DemoUsePreferenceVariantSelector />
+
+[See Demo](./demos/variant-selector/)
+
+---
+
+## Common Patterns
+
+### Variant Preferences
+
+```tsx
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
+
+function ButtonVariantSelector() {
+  // For multiple variants - will persist to localStorage
+  const [variant, setVariant] = usePreference(
+    'variant',
+    ['contained', 'outlined', 'text'], // Multiple options
+    () => 'contained',
+  );
+
+  return (
+    <div>
+      <p>Current variant: {variant}</p>
+      {['contained', 'outlined', 'text'].map((option) => (
+        <button
+          key={option}
+          onClick={() => setVariant(option)}
+          style={{
+            fontWeight: variant === option ? 'bold' : 'normal',
+          }}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Transform Preferences
+
+Code language or format selection.
+
+```tsx
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
+
+function CodeLanguageToggle() {
+  const [language, setLanguage] = usePreference(
+    'transform',
+    ['typescript', 'javascript'],
+    () => 'typescript',
+  );
+
+  return (
+    <div>
+      <label>
+        <input
+          type="radio"
+          checked={language === 'typescript'}
+          onChange={() => setLanguage('typescript')}
+        />
+        TypeScript
+      </label>
+      <label>
+        <input
+          type="radio"
+          checked={language === 'javascript'}
+          onChange={() => setLanguage('javascript')}
+        />
+        JavaScript
+      </label>
+    </div>
+  );
+}
+```
+
+---
+
+## Advanced Usage
+
+### With Custom Prefix
+
+```tsx
+import { usePreference, PreferencesProvider } from '@mui/internal-docs-infra/usePreference';
+
+function CustomPrefixDemo() {
+  return (
+    <PreferencesProvider value={{ prefix: 'my-app' }}>
+      <ComponentWithPreferences />
+    </PreferencesProvider>
+  );
+}
+
+}
+
+function ComponentWithPreferences() {
+  // Storage key will be: "my-app_variant:contained:outlined:text"
+  const [variant, setVariant] = usePreference(
+    'variant',
+    ['contained', 'outlined', 'text'],
+    () => 'contained',
+  );
+
+  return (
+    <select value={variant || 'contained'} onChange={(e) => setVariant(e.target.value)}>
+      <option value="contained">Contained</option>
+      <option value="outlined">Outlined</option>
+      <option value="text">Text</option>
+    </select>
+  );
+}
+```
+
+### Multiple Preferences
+
+Manage multiple independent preferences in a single component.
+
+```tsx
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
+
+function DemoConfigPanel() {
+  const [size, setSize] = usePreference('variant', ['small', 'medium', 'large'], () => 'medium');
+
+  const [color, setColor] = usePreference(
+    'variant',
+    ['primary', 'secondary', 'error'],
+    () => 'primary',
+  );
+
+  const [format, setFormat] = usePreference(
+    'transform',
+    ['typescript', 'javascript'],
+    () => 'typescript',
+  );
+
+  return (
+    <div>
+      <select value={size || 'medium'} onChange={(e) => setSize(e.target.value)}>
+        <option>small</option>
+        <option>medium</option>
+        <option>large</option>
+      </select>
+
+      <select value={color || 'primary'} onChange={(e) => setColor(e.target.value)}>
+        <option>primary</option>
+        <option>secondary</option>
+        <option>error</option>
+      </select>
+
+      <select value={format || 'typescript'} onChange={(e) => setFormat(e.target.value)}>
+        <option>typescript</option>
+        <option>javascript</option>
+      </select>
+    </div>
+  );
+}
+```
+
+---
+
+## API Reference
+
+```typescript
+const [preference, setPreference] = usePreference(type, name, initializer);
+```
+
+### Parameters
+
+| Parameter     | Type                                       | Description                                             |
+| ------------- | ------------------------------------------ | ------------------------------------------------------- |
+| `type`        | `'variant' \| 'transform'`                 | Type of preference (affects storage prefix)             |
+| `name`        | `string \| string[]`                       | Variant/transform name(s). Array gets sorted and joined |
+| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function                               |
+
+### Returns
+
+| Property        | Type                                                   | Description                   |
+| --------------- | ------------------------------------------------------ | ----------------------------- |
+| `preference`    | `string \| null`                                       | Current preference value      |
+| `setPreference` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update preference |
+
+### TypeScript Types
+
+```typescript
+function usePreference(
+  type: 'variant' | 'transform',
+  name: string | string[],
+  initializer?: string | null | (() => string | null),
+): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+
+interface PreferencesContext {
+  prefix?: string;
+}
+```
+
+---
+
+## How It Works
+
+### Intelligent Optimization
+
+The hook automatically skips localStorage for single-option scenarios:
+
+````
+
+### Demo Configuration Panel
+
+```tsx
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
+
+function DemoConfigPanel() {
+  const [size, setSize] = usePreference('variant', ['small', 'medium', 'large'], () => 'medium');
+
+  const [color, setColor] = usePreference(
+    'variant',
+    ['primary', 'secondary', 'error'],
+    () => 'primary',
+  );
+
+  const [format, setFormat] = usePreference(
+    'transform',
+    ['typescript', 'javascript'],
+    () => 'typescript',
+  );
+
+  return (
+    <div className="demo-config">
+      <h4>Demo Configuration</h4>
+
+      <label>
+        Size:
+        <select value={size || 'medium'} onChange={(e) => setSize(e.target.value)}>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </label>
+
+      <label>
+        Color:
+        <select value={color || 'primary'} onChange={(e) => setColor(e.target.value)}>
+          <option value="primary">Primary</option>
+          <option value="secondary">Secondary</option>
+          <option value="error">Error</option>
+        </select>
+      </label>
+
+      <label>
+        Code Format:
+        <select value={format || 'typescript'} onChange={(e) => setFormat(e.target.value)}>
+          <option value="typescript">TypeScript</option>
+          <option value="javascript">JavaScript</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+````
+
+## How It Works
+
+### Storage Key Generation
+
+The hook generates localStorage keys based on the type and name parameters:
+
+```typescript
+// Single option - no localStorage needed
+usePreference('variant', ['contained']);
+// → Storage key: null (behaves like useState)
+
+// Multiple options - creates stable key
+usePreference('variant', ['contained', 'outlined', 'text']);
+// → Storage key: "_docs_variant_pref:contained:outlined:text"
+```
+
+### Storage Key Generation
+
+Keys are generated based on type and name:
+
+```typescript
+const key = React.useMemo(() => {
+  if (!Array.isArray(name)) {
+    return name; // Single string always persists
+  }
+
+  if (name.length <= 1) {
+    return null; // Single option - no need to persist choice
+  }
+
+  return [...name].sort().join(':'); // Multiple options - create stable key
+}, [name]);
+```
+
+### Prefix System
+
+Default prefixes can be overridden via context:
+
+```typescript
+// Default: "_docs_variant_pref" or "_docs_transform_pref"
+// With custom prefix: "{prefix}_variant" or "{prefix}_transform"
+```
+
+---
+
+- **Demo variant selection** - When users can choose between component variants
+- **Code transform preferences** - TypeScript/JavaScript, different syntax styles
+- **Multi-option scenarios** - Any case where users choose from multiple options
+- **Persistent UI state** - Remember user choices across sessions
+
+**When NOT to use:**
+
+- **Single options** - Hook automatically optimizes this case (no persistence)
+- **Non-demo preferences** - Use `useLocalStorageState` directly for general preferences
+- **Complex objects** - This hook is designed for string preferences only
+
+---
+
+## Related
+
+- [`useLocalStorageState`](../use-local-storage-state/page.mdx) - Underlying persistence mechanism
+- [`PreferencesProvider`](../../components/preferences-provider/page.mdx) - Context provider for custom prefixes
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Common use case for variant preferences
