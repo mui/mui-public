@@ -25,10 +25,10 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/semver": "^7.7.1",
-    "@vitejs/plugin-react": "^5.1.0",
+    "@vitejs/plugin-react": "^5.1.1",
     "netlify-cli": "^23.10.0",
     "typescript": "^5.9.3",
-    "vite": "^7.2.1",
+    "vite": "^7.2.4",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "scripts": {
