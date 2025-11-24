@@ -20,7 +20,7 @@ The hook synchronizes state with the URL hash, enabling shareable links and brow
 
 ### Tab Navigation
 
-```tsx
+````tsx
 import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
 
 function TabNavigation() {
@@ -38,8 +38,6 @@ function TabNavigation() {
     </nav>
   );
 }
-```
-
 ---
 
 ## Common Patterns
@@ -60,6 +58,8 @@ function NavigationExample() {
 
   return (
     <div>
+      return (
+    <div>
       <button type="button" onClick={() => goToSection('intro', true)}>
         Go to Intro (new history entry)
       </button>
@@ -69,11 +69,45 @@ function NavigationExample() {
     </div>
   );
 }
-```
+````
 
 ### Complex State Persistence
 
 Store complex state as JSON in the URL hash.
+
+```tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function DemoPage() {
+  const [hash, setHash] = useUrlHashState();
+
+  // Parse hash as JSON for complex state
+  const demoState = React.useMemo(() => {
+    if (!hash) return { variant: 'default', size: 'medium' };
+    try {
+      return JSON.parse(decodeURIComponent(hash));
+    } catch {
+      return { variant: 'default', size: 'medium' };
+    }
+  }, [hash]);
+
+  const updateDemoState = (updates: Partial<typeof demoState>) => {
+    const newState = { ...demoState, ...updates };
+    setHash(encodeURIComponent(JSON.stringify(newState)));
+  };
+
+  return (
+    <div>
+      <Demo config={demoState} />
+      <Controls state={demoState} onChange={updateDemoState} />
+    </div>
+  );
+}
+```
+
+### Auto-scrolling to Sections
+
+Automatically scroll to sections when hash changes.
 
 ```tsx
 import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
@@ -206,58 +240,62 @@ Use the [fragment delimiter convention](../../conventions/fragment-delimeters/pa
 function HierarchicalNavigation() {
   const [hash, setHash] = useUrlHashState();
 
-  // Parse hierarchical fragments like \"api:props\" or \"demos:button:outlined\"
+  // Parse hierarchical fragments like "api:props" or "demos:button:outlined"
   const segments = hash?.split(':') || [];
   const [section, subsection, variant] = segments;
 
   return (
     <div>
-    {/* Primary navigation */}
-    <nav>
-      <button
-        type=\"button\"
-        onClick={() => setHash('api')}
-        className={section === 'api' ? 'active' : ''}
-      >
-        API
-      </button>
-      <button
-        type=\"button\"
-        onClick={() => setHash('demos')}
-        className={section === 'demos' ? 'active' : ''}
-      >
-        Demos
-      </button>
-    </nav>      {/* Secondary navigation within API section */}
-    {section === 'api' && (
+      {/* Primary navigation */}
       <nav>
         <button
-          type=\"button\"
-          onClick={() => setHash('api:props')}
-          className={subsection === 'props' ? 'active' : ''}
+          type="button"
+          onClick={() => setHash('api')}
+          className={section === 'api' ? 'active' : ''}
         >
-          Props
+          API
         </button>
         <button
-          type=\"button\"
-          onClick={() => setHash('api:methods')}
-          className={subsection === 'methods' ? 'active' : ''}
+          type="button"
+          onClick={() => setHash('demos')}
+          className={section === 'demos' ? 'active' : ''}
         >
-          Methods
+          Demos
         </button>
       </nav>
-    )}      {/* Demo variants */}
+
+      {/* Secondary navigation within API section */}
+      {section === 'api' && (
+        <nav>
+          <button
+            type="button"
+            onClick={() => setHash('api:props')}
+            className={subsection === 'props' ? 'active' : ''}
+          >
+            Props
+          </button>
+          <button
+            type="button"
+            onClick={() => setHash('api:methods')}
+            className={subsection === 'methods' ? 'active' : ''}
+          >
+            Methods
+          </button>
+        </nav>
+      )}
+
+      {/* Demo variants */}
       {section === 'demos' && subsection === 'button' && (
         <nav>
           <button
-            type=\"button\"
+            type="button"
             onClick={() => setHash('demos:button:outlined')}
             className={variant === 'outlined' ? 'active' : ''}
           >
             Outlined
           </button>
           <button
-            type=\"button\"
+            type="button"
             onClick={() => setHash('demos:button:contained')}
             className={variant === 'contained' ? 'active' : ''}
           >

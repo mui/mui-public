@@ -129,7 +129,97 @@ function ComponentWithPreferences() {
 Manage multiple independent preferences in a single component.
 
 ```tsx
-import { usePreference} from '@mui/internal-docs-infra/usePreference';
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
+
+function DemoConfigPanel() {
+  const [size, setSize] = usePreference('variant', ['small', 'medium', 'large'], () => 'medium');
+
+  const [color, setColor] = usePreference(
+    'variant',
+    ['primary', 'secondary', 'error'],
+    () => 'primary',
+  );
+
+  const [format, setFormat] = usePreference(
+    'transform',
+    ['typescript', 'javascript'],
+    () => 'typescript',
+  );
+
+  return (
+    <div>
+      <select value={size || 'medium'} onChange={(e) => setSize(e.target.value)}>
+        <option>small</option>
+        <option>medium</option>
+        <option>large</option>
+      </select>
+
+      <select value={color || 'primary'} onChange={(e) => setColor(e.target.value)}>
+        <option>primary</option>
+        <option>secondary</option>
+        <option>error</option>
+      </select>
+
+      <select value={format || 'typescript'} onChange={(e) => setFormat(e.target.value)}>
+        <option>typescript</option>
+        <option>javascript</option>
+      </select>
+    </div>
+  );
+}
+```
+
+---
+
+## API Reference
+
+```typescript
+const [preference, setPreference] = usePreference(type, name, initializer);
+```
+
+### Parameters
+
+| Parameter     | Type                                       | Description                                             |
+| ------------- | ------------------------------------------ | ------------------------------------------------------- |
+| `type`        | `'variant' \| 'transform'`                 | Type of preference (affects storage prefix)             |
+| `name`        | `string \| string[]`                       | Variant/transform name(s). Array gets sorted and joined |
+| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function                               |
+
+### Returns
+
+| Property        | Type                                                   | Description                   |
+| --------------- | ------------------------------------------------------ | ----------------------------- |
+| `preference`    | `string \| null`                                       | Current preference value      |
+| `setPreference` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update preference |
+
+### TypeScript Types
+
+```typescript
+function usePreference(
+  type: 'variant' | 'transform',
+  name: string | string[],
+  initializer?: string | null | (() => string | null),
+): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+
+interface PreferencesContext {
+  prefix?: string;
+}
+```
+
+---
+
+## How It Works
+
+### Intelligent Optimization
+
+The hook automatically skips localStorage for single-option scenarios:
+
+````
+
+### Demo Configuration Panel
+
+```tsx
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
 
 function DemoConfigPanel() {
   const [size, setSize] = usePreference('variant', ['small', 'medium', 'large'], () => 'medium');
@@ -195,6 +285,10 @@ usePreference('variant', ['contained']);
 usePreference('variant', ['contained', 'outlined', 'text']);
 // → Storage key: "_docs_variant_pref:contained:outlined:text"
 ```
+
+### Storage Key Generation
+
+Keys are generated based on type and name:
 
 ```typescript
 const key = React.useMemo(() => {
