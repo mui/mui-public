@@ -194,15 +194,6 @@ export async function writePackageJson(packagePath, packageJson) {
 }
 
 /**
- * Get current git SHA
- * @returns {Promise<string>} Current git commit SHA
- */
-export async function getCurrentGitSha() {
-  const result = await $`git rev-parse HEAD`;
-  return result.stdout.trim();
-}
-
-/**
  * Resolve a package@version specifier to an exact version
  * @param {string} packageSpec - Package specifier in format "package@version"
  * @returns {Promise<string>} Exact version string

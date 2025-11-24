@@ -1,4 +1,4 @@
-# useDemo Hook
+# Use Demo
 
 The `useDemo` hook extends `useCode` functionality to provide a complete demo rendering solution that combines component previews with code display. It's specifically designed for creating interactive demonstrations where users can see both working React components and their source code.
 
@@ -377,7 +377,7 @@ export function DemoContent(props: ContentProps<{}>) {
 This content component is used with the demo factory pattern, not as a direct child of `CodeHighlighter`:
 
 ```tsx
-// [✓] Correct - Demo factory usage
+// ✓ Correct - Demo factory usage
 const ButtonDemo = createDemo({
   name: 'Button Demo',
   code: buttonCode,
@@ -385,7 +385,7 @@ const ButtonDemo = createDemo({
   Content: DemoContent,
 });
 
-// [x] Incorrect - Never use DemoContent as a direct child
+// × Incorrect - Never use DemoContent as a direct child
 <CodeHighlighter>
   <DemoContent /> {/* This won't work */}
 </CodeHighlighter>;
@@ -397,10 +397,10 @@ const ButtonDemo = createDemo({
 
 ```tsx
 export function DemoContent(props: ContentProps<{}>) {
-  const demo = useDemo(props, { preClassName: styles.codeBlock }); // [✓] Pass props directly
+  const demo = useDemo(props, { preClassName: styles.codeBlock }); // ✓ Pass props directly
 
-  // [x] Never access props.name, props.code, etc.
-  // [✓] Use demo.name, demo.selectedFile, etc.
+  // × Never access props.name, props.code, etc.
+  // ✓ Use demo.name, demo.selectedFile, etc.
 
   return (
     <div className={styles.container}>

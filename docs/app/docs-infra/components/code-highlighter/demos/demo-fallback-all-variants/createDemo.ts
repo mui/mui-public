@@ -7,7 +7,6 @@ import {
 
 import { DemoContentLoading } from './DemoContentLoading';
 import { DemoContent } from '../DemoContent';
-import { DemoTitle } from '../DemoTitle';
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -18,7 +17,6 @@ import { DemoTitle } from '../DemoTitle';
 export const createDemo = createDemoFactory({
   DemoContentLoading,
   DemoContent,
-  DemoTitle,
   fallbackUsesAllVariants: true,
 });
 
@@ -32,6 +30,5 @@ export const createDemo = createDemoFactory({
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContentLoading,
   DemoContent,
-  DemoTitle,
   fallbackUsesAllVariants: true,
 });

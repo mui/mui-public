@@ -12,11 +12,9 @@ import path from 'node:path';
 import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
-import gitUrlParse from 'git-url-parse';
 import * as semver from 'semver';
 
 import {
-  getCurrentGitSha,
   getPackageVersionInfo,
   getWorkspacePackages,
   publishPackages,
@@ -24,6 +22,7 @@ import {
   semverMax,
   writePackageJson,
 } from '../utils/pnpm.mjs';
+import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
 
 /**
  * @typedef {Object} Args
@@ -39,29 +38,6 @@ const CANARY_TAG = 'canary';
  */
 function getOctokit() {
   return new Octokit({ authStrategy: createActionAuth });
-}
-
-/**
- * Get current repository info from git remote
- * @returns {Promise<{owner: string, repo: string}>} Repository owner and name
- */
-async function getRepositoryInfo() {
-  try {
-    const result = await $`git remote get-url origin`;
-    const url = result.stdout.trim();
-
-    const parsed = gitUrlParse(url);
-    if (parsed.source !== 'github.com') {
-      throw new Error('Repository is not hosted on GitHub');
-    }
-
-    return {
-      owner: parsed.owner,
-      repo: parsed.name,
-    };
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to get repository info: ${error.message}`);
-  }
 }
 
 /**

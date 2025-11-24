@@ -121,11 +121,11 @@ The precomputation is handled by a webpack loader that processes demo files at b
 
 **Important**: Precomputation only works:
 
-- [✓] In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
-- [✓] Using `createDemo()`
-- [✓] In both main demos and nested demo examples
-- [x] Not in direct `CodeHighlighter` usage
-- [x] Not in files outside the configured loader pattern
+- ✓ In files matching the webpack loader pattern (default: `./app/**/demos/*/index.ts`)
+- ✓ Using `createDemo()`
+- ✓ In both main demos and nested demo examples
+- × Not in direct `CodeHighlighter` usage
+- × Not in files outside the configured loader pattern
 
 ## Advanced Features
 
@@ -157,16 +157,15 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 ---
 
-import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-init';
+import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
 
-<DemoCodeHighlighterCodeHighlightInit.Title />
+<DemoCodeHighlighterCodeHighlightIdle.Title />
 
-Generally, since hydration occurs quickly, a slight delay is acceptable to prioritize faster content rendering.
-For demos shown above the fold, you might want highlighting to show immediately on initial render.
+For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
 
-<DemoCodeHighlighterCodeHighlightInit />
+<DemoCodeHighlighterCodeHighlightIdle />
 
-[See Demo](./demos/code-highlight-init/)
+[See Demo](./demos/code-highlight-idle/)
 
 ---
 
@@ -232,12 +231,6 @@ You can do so by using the [`CodeProvider`](../code-provider/page.mdx) component
 `CodeHighlighter` also supports controlled scenarios where you need to manage code state externally. This is useful for interactive demos where code changes affect other parts of your application or when you need to synchronize code across multiple components.
 
 You can use the [`CodeControllerContext`](../code-controller-context/page.mdx) for this purpose, which provides a controlled environment for managing code state in interactive scenarios.
-
-## Benchmarking
-
-We have created some demos that showcase the performance of various configurations.
-
-[See Performance Considerations](./bench/page.mdx)
 
 ## Authoring Recommendations
 
@@ -368,9 +361,9 @@ Use the factory pattern optimal performance:
 
 **Advantages:**
 
-- [✓] Faster initial load times
-- [✓] Isomorphic rendering support
-- [✓] Automatic caching based on dependencies for each demo
+- ✓ Faster initial load times
+- ✓ Isomorphic rendering support
+- ✓ Automatic caching based on dependencies for each demo
 
 **Requirements:**
 
@@ -383,15 +376,15 @@ Use direct `CodeHighlighter` for dynamic content:
 
 **Advantages:**
 
-- [✓] Works with dynamic content
-- [✓] Flexible component structure
-- [✓] Can still benefit from the page level cache
+- ✓ Works with dynamic content
+- ✓ Flexible component structure
+- ✓ Can still benefit from the page level cache
 
 **Trade-offs:**
 
-- [x] Slower initial rendering
-- [x] No per-demo build-time cache
-- [x] Can only be used within a Server Component
+- × Slower initial rendering
+- × No per-demo build-time cache
+- × Can only be used within a Server Component
 
 ### Client Rendering
 
@@ -399,15 +392,15 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 
 **Advantages:**
 
-- [✓] Works with dynamic content fetched on the client
-- [✓] Doesn't require an API or server-side rendering
-- [✓] Can be used anywhere in the app
-- [✓] Flexible component structure
+- ✓ Works with dynamic content fetched on the client
+- ✓ Doesn't require an API or server-side rendering
+- ✓ Can be used anywhere in the app
+- ✓ Flexible component structure
 
 **Trade-offs:**
 
-- [x] Slower initial rendering
-- [x] Requires loading and highlighting functions to be bundled
+- × Slower initial rendering
+- × Requires loading and highlighting functions to be bundled
 - x No automatic caching
 
 ## API Reference

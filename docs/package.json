@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build-exp": "next build --turbopack",
-    "start": "serve ./out"
+    "start": "serve ./export"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-beta.1",
@@ -22,8 +22,7 @@
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "use-editable": "^2.3.3",
-    "vscode-oniguruma": "^2.0.1",
-    "web-vitals": "^5.1.0"
+    "vscode-oniguruma": "^2.0.1"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.2",

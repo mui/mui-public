@@ -39,6 +39,7 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
   return {
     trailingSlash: true,
     reactStrictMode: true,
+    productionBrowserSourceMaps: true,
     ...nextConfig,
     env: {
       // production | staging | pull-request | development

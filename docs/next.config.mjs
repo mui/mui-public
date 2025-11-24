@@ -18,13 +18,11 @@ const withMDX = createMDX({
 const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
+  distDir: 'export',
 };
 
 export default withBundleAnalyzer(
   withDocsInfra({
-    performance: {
-      logging: true,
-    },
     // Add demo-* patterns specific to this docs site
     additionalDemoPatterns: {
       // Note: The demo-* pattern below is specific to our internal docs structure

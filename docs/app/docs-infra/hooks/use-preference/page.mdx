@@ -1,38 +1,22 @@
-# usePreference
+# Use Preference
 
 The `usePreference` hook provides specialized preference management for code demo variants and transformations. It builds on `useLocalStorageState` with intelligent storage key generation, prefix support, and automatic optimization for single-option scenarios.
 
-## Features
+## Basic Usage
 
-- **Specialized for demos** - Designed for variant and transform preferences
-- **Intelligent storage** - Only persists when there are multiple options to choose from
-- **Automatic key generation** - Creates storage keys from variant/transform names
-- **Prefix support** - Configurable prefixes via PreferencesProvider
-- **localStorage persistence** - Built on useLocalStorageState for cross-tab sync
-- **Smart optimization** - Skips storage for single-option scenarios
+import { DemoUsePreferenceVariantSelector } from './demos/variant-selector';
 
-## API
+<DemoUsePreferenceVariantSelector.Title />
 
-```typescript
-const [preference, setPreference] = usePreference(type, name, initializer);
-```
+The hook remembers user preferences across sessions. Try selecting different variants and refreshing the page - your choice will be preserved.
 
-### Parameters
+<DemoUsePreferenceVariantSelector />
 
-| Parameter     | Type                                       | Description                                             |
-| ------------- | ------------------------------------------ | ------------------------------------------------------- |
-| `type`        | `'variant' \| 'transform'`                 | Type of preference (affects storage prefix)             |
-| `name`        | `string \| string[]`                       | Variant/transform name(s). Array gets sorted and joined |
-| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function                               |
+[See Demo](./demos/variant-selector/)
 
-### Returns
+---
 
-| Property        | Type                                                   | Description                   |
-| --------------- | ------------------------------------------------------ | ----------------------------- |
-| `preference`    | `string \| null`                                       | Current preference value      |
-| `setPreference` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update preference |
-
-## Usage Examples
+## Common Patterns
 
 ### Variant Preferences
 
@@ -68,13 +52,15 @@ function ButtonVariantSelector() {
 
 ### Transform Preferences
 
+Code language or format selection.
+
 ```tsx
 import { usePreference } from '@mui/internal-docs-infra/usePreference';
 
-function CodeLanguageSelector() {
+function CodeLanguageToggle() {
   const [language, setLanguage] = usePreference(
     'transform',
-    ['typescript', 'javascript'], // Multiple languages available
+    ['typescript', 'javascript'],
     () => 'typescript',
   );
 
@@ -101,23 +87,9 @@ function CodeLanguageSelector() {
 }
 ```
 
-### Single Option (No Persistence)
+---
 
-```tsx
-import { usePreference } from '@mui/internal-docs-infra/usePreference';
-
-function SingleVariantDemo() {
-  // Only one variant - no localStorage persistence (key will be null)
-  const [variant, setVariant] = usePreference(
-    'variant',
-    ['contained'], // Single option
-    () => 'contained',
-  );
-
-  // This behaves like useState since there's no choice to remember
-  return <p>Only variant available: {variant}</p>;
-}
-```
+## Advanced Usage
 
 ### With Custom Prefix
 
@@ -130,6 +102,8 @@ function CustomPrefixDemo() {
       <ComponentWithPreferences />
     </PreferencesProvider>
   );
+}
+
 }
 
 function ComponentWithPreferences() {
@@ -149,6 +123,98 @@ function ComponentWithPreferences() {
   );
 }
 ```
+
+### Multiple Preferences
+
+Manage multiple independent preferences in a single component.
+
+```tsx
+import { usePreference } from '@mui/internal-docs-infra/usePreference';
+
+function DemoConfigPanel() {
+  const [size, setSize] = usePreference('variant', ['small', 'medium', 'large'], () => 'medium');
+
+  const [color, setColor] = usePreference(
+    'variant',
+    ['primary', 'secondary', 'error'],
+    () => 'primary',
+  );
+
+  const [format, setFormat] = usePreference(
+    'transform',
+    ['typescript', 'javascript'],
+    () => 'typescript',
+  );
+
+  return (
+    <div>
+      <select value={size || 'medium'} onChange={(e) => setSize(e.target.value)}>
+        <option>small</option>
+        <option>medium</option>
+        <option>large</option>
+      </select>
+
+      <select value={color || 'primary'} onChange={(e) => setColor(e.target.value)}>
+        <option>primary</option>
+        <option>secondary</option>
+        <option>error</option>
+      </select>
+
+      <select value={format || 'typescript'} onChange={(e) => setFormat(e.target.value)}>
+        <option>typescript</option>
+        <option>javascript</option>
+      </select>
+    </div>
+  );
+}
+```
+
+---
+
+## API Reference
+
+```typescript
+const [preference, setPreference] = usePreference(type, name, initializer);
+```
+
+### Parameters
+
+| Parameter     | Type                                       | Description                                             |
+| ------------- | ------------------------------------------ | ------------------------------------------------------- |
+| `type`        | `'variant' \| 'transform'`                 | Type of preference (affects storage prefix)             |
+| `name`        | `string \| string[]`                       | Variant/transform name(s). Array gets sorted and joined |
+| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function                               |
+
+### Returns
+
+| Property        | Type                                                   | Description                   |
+| --------------- | ------------------------------------------------------ | ----------------------------- |
+| `preference`    | `string \| null`                                       | Current preference value      |
+| `setPreference` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update preference |
+
+### TypeScript Types
+
+```typescript
+function usePreference(
+  type: 'variant' | 'transform',
+  name: string | string[],
+  initializer?: string | null | (() => string | null),
+): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+
+interface PreferencesContext {
+  prefix?: string;
+}
+```
+
+---
+
+## How It Works
+
+### Intelligent Optimization
+
+The hook automatically skips localStorage for single-option scenarios:
+
+````
 
 ### Demo Configuration Panel
 
@@ -202,7 +268,7 @@ function DemoConfigPanel() {
     </div>
   );
 }
-```
+````
 
 ## How It Works
 
@@ -211,21 +277,18 @@ function DemoConfigPanel() {
 The hook generates localStorage keys based on the type and name parameters:
 
 ```typescript
-// For variant preferences
-// Single string name
-usePreference('variant', 'contained');
-// → Storage key: "_docs_variant_pref:contained"
+// Single option - no localStorage needed
+usePreference('variant', ['contained']);
+// → Storage key: null (behaves like useState)
 
-// Array of names (sorted and joined)
-usePreference('variant', ['outlined', 'contained', 'text']);
+// Multiple options - creates stable key
+usePreference('variant', ['contained', 'outlined', 'text']);
 // → Storage key: "_docs_variant_pref:contained:outlined:text"
-
-// For transform preferences
-usePreference('transform', ['typescript', 'javascript']);
-// → Storage key: "_docs_transform_pref:javascript:typescript"
 ```
 
-### Intelligent Optimization
+### Storage Key Generation
+
+Keys are generated based on type and name:
 
 ```typescript
 const key = React.useMemo(() => {
@@ -243,125 +306,27 @@ const key = React.useMemo(() => {
 
 ### Prefix System
 
+Default prefixes can be overridden via context:
+
 ```typescript
-// Default prefixes
-const defaultPrefixes = {
-  variant: '_docs_variant_pref',
-  transform: '_docs_transform_pref',
-};
-
-// With custom prefix from context
-// usePreference('variant', ['a', 'b']) with prefix "my-app"
-// → Storage key: "my-app_variant:a:b"
+// Default: "_docs_variant_pref" or "_docs_transform_pref"
+// With custom prefix: "{prefix}_variant" or "{prefix}_transform"
 ```
 
-### Context Integration
-
-```tsx
-export interface PreferencesContext {
-  prefix?: string;
-}
-
-// Usage
-<PreferencesProvider value={{ prefix: 'my-docs-site' }}>
-  <App />
-</PreferencesProvider>;
-```
-
-## Storage Key Examples
-
-| Type                | Name                    | Generated Key                      |
-| ------------------- | ----------------------- | ---------------------------------- |
-| `variant`           | `'contained'`           | `_docs_variant_pref:contained`     |
-| `variant`           | `['text', 'outlined']`  | `_docs_variant_pref:outlined:text` |
-| `variant`           | `['single']`            | `null` (no persistence)            |
-| `transform`         | `['ts', 'js']`          | `_docs_transform_pref:js:ts`       |
-| With prefix `'app'` | `variant`, `['a', 'b']` | `app_variant:a:b`                  |
-
-## Integration with CodeHighlighter
-
-```tsx
-import { usePreference } from '@mui/internal-docs-infra/usePreference';
-import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-
-function CodeDemo({ availableVariants, availableTransforms }) {
-  const [selectedVariant, setSelectedVariant] = usePreference(
-    'variant',
-    availableVariants,
-    () => availableVariants[0],
-  );
-
-  const [selectedTransform, setSelectedTransform] = usePreference(
-    'transform',
-    availableTransforms,
-    () => availableTransforms[0],
-  );
-
-  return (
-    <div>
-      {/* Variant selector only shows if multiple variants */}
-      {availableVariants.length > 1 && (
-        <VariantSelector
-          variants={availableVariants}
-          selected={selectedVariant}
-          onChange={setSelectedVariant}
-        />
-      )}
-
-      {/* Transform selector only shows if multiple transforms */}
-      {availableTransforms.length > 1 && (
-        <TransformSelector
-          transforms={availableTransforms}
-          selected={selectedTransform}
-          onChange={setSelectedTransform}
-        />
-      )}
-
-      <CodeHighlighter
-        variant={selectedVariant}
-        transform={selectedTransform}
-        // ... other props
-      />
-    </div>
-  );
-}
-```
-
-## Performance Optimizations
-
-1. **Memoized key generation** - Storage key only recalculated when name changes
-2. **Conditional persistence** - Single options skip localStorage entirely
-3. **Stable array keys** - Sorted arrays ensure consistent storage keys
-4. **Built on useLocalStorageState** - Inherits cross-tab sync and SSR safety
-
-## When to Use
+---
 
 - **Demo variant selection** - When users can choose between component variants
 - **Code transform preferences** - TypeScript/JavaScript, different syntax styles
 - **Multi-option scenarios** - Any case where users choose from multiple options
 - **Persistent UI state** - Remember user choices across sessions
 
-## When NOT to Use
+**When NOT to use:**
 
-- **Single options** - Hook automatically optimizes this case
+- **Single options** - Hook automatically optimizes this case (no persistence)
 - **Non-demo preferences** - Use `useLocalStorageState` directly for general preferences
-- **Complex objects** - This hook is designed for string preferences
+- **Complex objects** - This hook is designed for string preferences only
 
-## TypeScript Support
-
-```typescript
-// Hook signature
-function usePreference(
-  type: 'variant' | 'transform',
-  name: string | string[],
-  initializer?: string | null | (() => string | null),
-): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
-
-// Context types
-interface PreferencesContext {
-  prefix?: string;
-}
-```
+---
 
 ## Related
 
