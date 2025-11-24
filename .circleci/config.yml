@@ -33,7 +33,7 @@ jobs:
       - code-infra/install-deps
       - run:
           name: Docs Infra Build
-          command: pnpm -F docs:lib
+          command: pnpm docs:lib
       - code-infra/eslint
       - code-infra/stylelint
       - code-infra/markdownlint
