@@ -1,14 +1,4 @@
 {
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noEmit": true
-  },
   "references": [
     { "path": "apps/code-infra-dashboard" },
     { "path": "packages/babel-plugin-minify-errors" },
@@ -17,8 +7,9 @@
     { "path": "packages/code-infra" },
     { "path": "packages/docs-infra" },
     { "path": "packages/netlify-cache" },
-    { "path": "tsconfig.node.json" },
+    { "path": "tsconfig.configs.json" },
     { "path": "scripts" }
   ],
-  "files": []
+  "files": [],
+  "include": []
 }
