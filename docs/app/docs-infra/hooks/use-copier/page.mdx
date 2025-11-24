@@ -1,60 +1,3 @@
-<<<<<<< HEAD
-# useCopier
-
-The `useCopier` hook provides robust clipboard copy functionality with success state management, error handling, and customizable callbacks. It's designed for code blocks, buttons, and interactive elements that need copy-to-clipboard functionality.
-
-## Features
-
-- **Flexible content source** - Accepts static strings or dynamic functions
-- **Success state tracking** - Provides `recentlySuccessful` state for UI feedback
-- **Configurable timeout** - Customizable reset timer for success state
-- **Error handling** - Built-in error handling with optional callback
-- **Event integration** - Supports additional onClick handlers
-- **Memory safe** - Automatic cleanup of timeouts
-
-## API
-
-```typescript
-const { copy, recentlySuccessful } = useCopier(contents, options);
-```
-
-### Parameters
-
-| Parameter  | Type                                    | Description                                    |
-| ---------- | --------------------------------------- | ---------------------------------------------- |
-| `contents` | `string \| (() => string \| undefined)` | Static text or function returning text to copy |
-| `options`  | `UseCopierOpts`                         | Optional configuration object                  |
-
-### Options
-
-| Option     | Type                                                   | Default | Description                          |
-| ---------- | ------------------------------------------------------ | ------- | ------------------------------------ |
-| `onCopied` | `() => void`                                           | -       | Callback fired after successful copy |
-| `onError`  | `(error: unknown) => void`                             | -       | Callback fired when copy fails       |
-| `onClick`  | `(event: React.MouseEvent<HTMLButtonElement>) => void` | -       | Additional click handler             |
-| `timeout`  | `number`                                               | `2000`  | Duration (ms) to show success state  |
-
-### Returns
-
-| Property             | Type                                                   | Description                          |
-| -------------------- | ------------------------------------------------------ | ------------------------------------ |
-| `copy`               | `(event: React.MouseEvent<HTMLButtonElement>) => void` | Function to trigger copy operation   |
-| `recentlySuccessful` | `boolean`                                              | Whether copy was recently successful |
-
-## Usage Examples
-
-### Basic Copy Button
-
-```tsx
-import { useCopier } from '@mui/internal-docs-infra/useCopier';
-
-function CopyButton({ text }: { text: string }) {
-  const { copy, recentlySuccessful } = useCopier(text);
-
-  return <button onClick={copy}>{recentlySuccessful ? 'Copied!' : 'Copy'}</button>;
-}
-```
-=======
 # Use Copier
 
 The `useCopier` hook provides robust clipboard copy functionality with success state management, error handling, and customizable callbacks. It's designed for code blocks, buttons, and interactive elements that need copy-to-clipboard functionality.
@@ -75,7 +18,6 @@ A simple example showing how to copy text from an input field.
 [See Demo](./demos/text-input-copy/)
 
 ## Advanced Usage
->>>>>>> master
 
 ### Dynamic Content
 
