@@ -284,7 +284,7 @@ The externals are the actual resolved import values, not descriptors. This allow
 Only one `create*Client` function call is allowed per file:
 
 ```typescript
-// 🞫 Multiple calls will cause a build error
+// × Multiple calls will cause a build error
 'use client';
 
 export const DemoClient1 = createDemoClient(/* ... */);

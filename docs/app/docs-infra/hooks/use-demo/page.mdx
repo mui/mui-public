@@ -385,7 +385,7 @@ const ButtonDemo = createDemo({
   Content: DemoContent,
 });
 
-// 🞫 Incorrect - Never use DemoContent as a direct child
+// × Incorrect - Never use DemoContent as a direct child
 <CodeHighlighter>
   <DemoContent /> {/* This won't work */}
 </CodeHighlighter>;
@@ -399,7 +399,7 @@ const ButtonDemo = createDemo({
 export function DemoContent(props: ContentProps<{}>) {
   const demo = useDemo(props, { preClassName: styles.codeBlock }); // ✓ Pass props directly
 
-  // 🞫 Never access props.name, props.code, etc.
+  // × Never access props.name, props.code, etc.
   // ✓ Use demo.name, demo.selectedFile, etc.
 
   return (
