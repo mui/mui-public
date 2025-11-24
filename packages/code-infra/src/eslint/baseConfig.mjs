@@ -3,7 +3,7 @@ import eslintJs from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier/flat';
 import compatPlugin from 'eslint-plugin-compat';
-import importPlugin from 'eslint-plugin-import';
+import importXPlugin from 'eslint-plugin-import-x';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
@@ -48,13 +48,13 @@ export function createBaseConfig({
       files: [`**/*${EXTENSION_TS}`],
       extends: defineConfig([
         eslintJs.configs.recommended,
-        importPlugin.flatConfigs.recommended,
-        importPlugin.flatConfigs.react,
+        /** @type {any} */ (importXPlugin.flatConfigs.recommended),
+        importXPlugin.flatConfigs.react,
         jsxA11yPlugin.flatConfigs.recommended,
         reactPlugin.configs.flat.recommended,
         reactHooks.configs.flat.recommended,
         tseslint.configs.recommended,
-        importPlugin.flatConfigs.typescript,
+        importXPlugin.flatConfigs.typescript,
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
         compatPlugin.configs['flat/recommended'],
         {
@@ -106,7 +106,7 @@ export function createBaseConfig({
       name: 'ESM JS files',
       files: ['**/*.mjs'],
       rules: {
-        'import/extensions': [
+        'import-x/extensions': [
           'error',
           'ignorePackages',
           {

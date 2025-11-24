@@ -28,7 +28,7 @@ export default /** @type {import('eslint').Linter.Config[]} */ (
         'material-ui/no-empty-box': 'off',
       },
       settings: {
-        'import/resolver': {
+        'import-x/resolver': {
           typescript: {
             project: ['tsconfig.json'],
           },
@@ -62,7 +62,7 @@ export default /** @type {import('eslint').Linter.Config[]} */ (
       files: [`packages/bundle-size-checker/**/*${EXTENSION_TS}`],
       rules: {
         // Allow .js file extensions in import statements for ESM compatibility
-        'import/extensions': [
+        'import-x/extensions': [
           'error',
           'ignorePackages',
           {
