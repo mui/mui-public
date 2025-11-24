@@ -161,14 +161,14 @@ import { TypesCodeProvider } from './types';
 
 ## Comparison with Other Components
 
-| Feature                | CodeProvider                        | Code Controller            | CodeHighlighter               |
-| ---------------------- | ----------------------------------- | -------------------------- | ----------------------------- |
-| **Purpose**            | Client-side highlighting & fetching | Interactive code editing   | Displaying code with previews |
-| **State management**   | [x] No shared state                 | [✓] Shared editing state   | [x] Component-level only      |
-| **Dynamic loading**    | [✓] Custom loading functions        | [x] Static content focused | [✓] Various loading options   |
-| **User editing**       | [x] Display only                    | [✓] Real-time editing      | [x] Display only              |
-| **Build optimization** | [x] Client-side only                | [✓] Can use precomputation | [✓] Build-time optimization   |
-| **Use case**           | Dynamic code display                | Code playgrounds           | Documentation sites           |
+| Feature                | CodeProvider                        | Code Controller          | CodeHighlighter               |
+| ---------------------- | ----------------------------------- | ------------------------ | ----------------------------- |
+| **Purpose**            | Client-side highlighting & fetching | Interactive code editing | Displaying code with previews |
+| **State management**   | × No shared state                   | ✓ Shared editing state   | × Component-level only        |
+| **Dynamic loading**    | ✓ Custom loading functions          | × Static content focused | ✓ Various loading options     |
+| **User editing**       | × Display only                      | ✓ Real-time editing      | × Display only                |
+| **Build optimization** | × Client-side only                  | ✓ Can use precomputation | ✓ Build-time optimization     |
+| **Use case**           | Dynamic code display                | Code playgrounds         | Documentation sites           |
 
 ## Troubleshooting
 

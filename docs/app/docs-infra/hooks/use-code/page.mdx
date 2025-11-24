@@ -1,4 +1,4 @@
-# useCode Hook
+# Use Code
 
 The `useCode` hook provides programmatic access to code display, editing, and transformation functionality within `CodeHighlighter` components. It's designed for scenarios where you need fine-grained control over code behavior or want to build custom code interfaces that focus purely on code management, without component rendering.
 
@@ -93,9 +93,6 @@ Optional configuration object for customizing hook behavior.
 interface UseCodeOpts {
   defaultOpen?: boolean; // Whether to start expanded
   copy?: any; // Copy functionality options
-  githubUrlPrefix?: string; // GitHub URL prefix for links
-  codeSandboxUrlPrefix?: string; // CodeSandbox URL prefix
-  stackBlitzPrefix?: string; // StackBlitz URL prefix
   initialVariant?: string; // Initially selected variant
   initialTransform?: string; // Initially selected transform
   fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction

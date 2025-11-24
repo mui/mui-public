@@ -4,7 +4,7 @@
 
 .tabsList {
   display: flex;
-  gap: 0px;
+  gap: 0;
   overflow-x: auto;
   max-width: 100%;
   padding-top: 14px;
@@ -29,7 +29,7 @@
 }
 
 .tab {
-  padding: 10px 8px 8px 8px;
+  padding: 10px 8px 8px;
   border: 1px solid #d0cdd7;
   border-bottom: none;
   background-color: transparent;
@@ -73,7 +73,7 @@
 }
 
 .tabFirst {
-  border-radius: 12px 0 0 0;
+  border-radius: 12px 0 0;
 }
 
 .tabLast {

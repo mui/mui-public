@@ -28,17 +28,10 @@
   border-color: #9a5cd0;
 }
 
-.checkbox .checkmark:after {
+.checkbox .checkmark::after {
   content: '';
   position: absolute;
   display: none;
-}
-
-.checkbox input:checked + .checkmark:after {
-  display: block;
-}
-
-.checkbox .checkmark:after {
   left: 7px;
   top: 3px;
   width: 4px;
@@ -46,6 +39,10 @@
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
+}
+
+.checkbox input:checked + .checkmark::after {
+  display: block;
 }
 
 .sr-only {
