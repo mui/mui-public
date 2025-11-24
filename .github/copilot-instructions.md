@@ -51,7 +51,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Repository Structure
 
-```
+```txt
 packages/
 ├── babel-plugin-display-name/     # Babel plugin for component display names
 ├── babel-plugin-minify-errors/    # Babel plugin for error minification
@@ -141,8 +141,8 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 ### Code Architecture & Design
 
 - **2.1** Avoid using Node.js native modules like `fs` or `path` or Browser only APIs (like `window` or `document`) when functionality can be achieved using isomorphic code that can also run in the browser and Node.js. When necessary, isolate platform specific code behind interfaces or abstractions so that it can later be replaced in browser environments.
-- **2.2** Ship the package as `0.x.0` releases so you can introduce breaking changes that improve the developer experience. Work toward a stable `1.0.0` by anticipating how today’s APIs will evolve.
-  - Each folder’s `index.ts` should re-export from `src/{functionName}/{functionName}.ts`.
+- **2.2** Ship the package as `0.x.0` releases so you can introduce breaking changes that improve the developer experience. Work toward a stable `1.0.0` by anticipating how today's APIs will evolve.
+  - Each folder's `index.ts` should re-export from `src/{functionName}/{functionName}.ts`.
   - Category exports should re-export from `src/{category}/{functionName}/{functionName}.ts`.
 - **2.3** When functions within the main function file become large or complex, they should be split into separate files within the same folder. For example, if `src/useCode/useCode.ts` becomes large, a large function can be moved to `src/useCode/useFileNavigation.ts` where `useFileNavigation` is the helper function's name.
 - **2.4** Value progressive complexity for developers using the library. Start with straightforward defaults and layer optional extension points or advanced behavior that teams can opt into. Keep complex internals behind simple interfaces to enable incremental adoption, easier testing, and maintainable abstractions.

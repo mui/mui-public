@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # useCopier
 
 The `useCopier` hook provides robust clipboard copy functionality with success state management, error handling, and customizable callbacks. It's designed for code blocks, buttons, and interactive elements that need copy-to-clipboard functionality.
@@ -53,6 +54,28 @@ function CopyButton({ text }: { text: string }) {
   return <button onClick={copy}>{recentlySuccessful ? 'Copied!' : 'Copy'}</button>;
 }
 ```
+=======
+# Use Copier
+
+The `useCopier` hook provides robust clipboard copy functionality with success state management, error handling, and customizable callbacks. It's designed for code blocks, buttons, and interactive elements that need copy-to-clipboard functionality.
+
+> [!NOTE]
+> When using [`CodeHighlighter`](../../components/code-highlighter/page.mdx), the [`useCode`](../use-code/page.mdx) and [`useDemo`](../use-demo/page.mdx) hooks already provide built-in copy functionality, so `useCopier` is not needed.
+
+## Basic Usage
+
+import { DemoUseCopierTextInputCopy } from './demos/text-input-copy';
+
+<DemoUseCopierTextInputCopy.Title />
+
+A simple example showing how to copy text from an input field.
+
+<DemoUseCopierTextInputCopy />
+
+[See Demo](./demos/text-input-copy/)
+
+## Advanced Usage
+>>>>>>> master
 
 ### Dynamic Content
 
@@ -122,31 +145,57 @@ function AnalyticsCopyButton({ text, label }: { text: string; label: string }) {
 }
 ```
 
-### Integration with Code Highlighter
+---
 
-```tsx
-import { useCopier } from '@mui/internal-docs-infra/useCopier';
-import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+## API Reference
 
-function CodeBlockWithCopy({ code, language }: { code: string; language: string }) {
-  const { copy, recentlySuccessful } = useCopier(() => {
-    // Get the current code, potentially from a transformed state
-    return getCurrentCode();
-  });
-
-  return (
-    <div className="code-block">
-      <div className="code-header">
-        <span>{language}</span>
-        <button onClick={copy} className="copy-button">
-          {recentlySuccessful ? <>✓ Copied</> : <>📋 Copy</>}
-        </button>
-      </div>
-      <CodeHighlighter code={code} language={language} />
-    </div>
-  );
-}
+```typescript
+const { copy, recentlySuccessful } = useCopier(contents, options);
 ```
+
+### Parameters
+
+| Parameter  | Type                                    | Description                                    |
+| ---------- | --------------------------------------- | ---------------------------------------------- |
+| `contents` | `string \| (() => string \| undefined)` | Static text or function returning text to copy |
+| `options`  | `UseCopierOpts`                         | Optional configuration object                  |
+
+### Options
+
+| Option     | Type                                                   | Default | Description                          |
+| ---------- | ------------------------------------------------------ | ------- | ------------------------------------ |
+| `onCopied` | `() => void`                                           | -       | Callback fired after successful copy |
+| `onError`  | `(error: unknown) => void`                             | -       | Callback fired when copy fails       |
+| `onClick`  | `(event: React.MouseEvent<HTMLButtonElement>) => void` | -       | Additional click handler             |
+| `timeout`  | `number`                                               | `2000`  | Duration (ms) to show success state  |
+
+### Returns
+
+| Property             | Type                                                   | Description                          |
+| -------------------- | ------------------------------------------------------ | ------------------------------------ |
+| `copy`               | `(event: React.MouseEvent<HTMLButtonElement>) => void` | Function to trigger copy operation   |
+| `recentlySuccessful` | `boolean`                                              | Whether copy was recently successful |
+
+### TypeScript Types
+
+```typescript
+export type UseCopierOpts = {
+  onCopied?: () => void;
+  onError?: (error: unknown) => void;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  timeout?: number;
+};
+
+export function useCopier(
+  contents: (() => string | undefined) | string,
+  opts?: UseCopierOpts,
+): {
+  copy: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  recentlySuccessful: boolean;
+};
+```
+
+---
 
 ## How It Works
 
@@ -176,26 +225,7 @@ Copy operations can fail for various reasons:
 
 The hook provides the `onError` callback to handle these cases gracefully.
 
-## TypeScript Support
-
-The hook is fully typed with proper TypeScript definitions:
-
-```typescript
-export type UseCopierOpts = {
-  onCopied?: () => void;
-  onError?: (error: unknown) => void;
-  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  timeout?: number;
-};
-
-export function useCopier(
-  contents: (() => string | undefined) | string,
-  opts?: UseCopierOpts,
-): {
-  copy: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  recentlySuccessful: boolean;
-};
-```
+---
 
 ## When to Use
 

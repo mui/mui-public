@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build-exp": "next build --turbopack",
-    "start": "serve ./out",
+    "start": "serve ./export",
     "docs-infra": "docs-infra",
     "validate": "docs-infra validate --command 'pnpm validate'"
   },

@@ -1,4 +1,4 @@
-# Precompute Loader
+# Load Precomputed Code Highlighter
 
 The precompute loader is a Webpack/Turbopack loader that enables build-time optimization of code examples by processing demo files and precomputing syntax highlighting, TypeScript transformations, and dependency resolution.
 
@@ -263,11 +263,11 @@ interface PrecomputedData {
 Only one `create*` function call is allowed per file:
 
 ```typescript
-// [x] Multiple calls will cause a build error
+// × Multiple calls will cause a build error
 export const Demo1 = createDemo(/* ... */);
 export const Demo2 = createDemo(/* ... */); // Error!
 
-// [✓] Use separate files instead
+// ✓ Use separate files instead
 // demo-1/index.ts
 export const Demo1 = createDemo(/* ... */);
 

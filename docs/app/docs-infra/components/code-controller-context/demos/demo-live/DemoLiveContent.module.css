@@ -25,7 +25,7 @@
   gap: 8px;
 }
 
-.headerContainer:before {
+.headerContainer::before {
   content: '';
   position: absolute;
   top: 0;

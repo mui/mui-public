@@ -5,6 +5,7 @@ import presetTypescript from '@babel/preset-typescript';
 import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
 import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
+import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
@@ -17,6 +18,8 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {'cjs' | 'esm'} param0.bundle
  * @param {string | null} param0.outExtension - Specify the output file extension.
  * @param {string} param0.runtimeVersion
+ * @param {string} [param0.reactCompilerReactVersion]
+ * @param {string} [param0.reactCompilerMode]
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -27,6 +30,8 @@ export function getBaseConfig({
   bundle,
   runtimeVersion,
   outExtension,
+  reactCompilerReactVersion,
+  reactCompilerMode,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -66,6 +71,24 @@ export function getBaseConfig({
       'babel-plugin-transform-inline-environment-variables',
     ],
   ];
+
+  if (reactCompilerReactVersion) {
+    /**
+     * @typedef {import('babel-plugin-react-compiler').PluginOptions} ReactCompilerOptions
+     */
+    /** @type {ReactCompilerOptions} */
+    const reactCompilerOptions = {
+      target: /** @type {ReactCompilerOptions["target"]} */ (
+        reactCompilerReactVersion.split('.')[0] // comes from the package's peerDependencies
+      ),
+      enableReanimatedCheck: false,
+      compilationMode: reactCompilerMode ?? 'annotation',
+      // Skip components with errors instead of failing the build
+      panicThreshold: 'none',
+    };
+    // The plugin must be the first one to run
+    plugins.unshift([pluginReactCompiler, reactCompilerOptions, 'babel-plugin-react-compiler']);
+  }
 
   if (removePropTypes) {
     plugins.push([
@@ -153,5 +176,7 @@ export default function getBabelConfig(api) {
     optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
     noResolveImports,
+    reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
+    reactCompilerMode: process.env.MUI_REACT_COMPILER_MODE,
   });
 }

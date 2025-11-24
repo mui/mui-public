@@ -29,6 +29,7 @@ const withMDX = createMDX({
 const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
+  distDir: 'export',
 };
 
 export default withBundleAnalyzer(

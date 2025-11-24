@@ -68,11 +68,11 @@ console.log(result);
 
 **Features:**
 
-- [✓] **Type-aware parsing** - Detects `import type` statements and marks them with `includeTypeDefs: true`
-- [✓] **All import patterns** - Named imports, default imports, namespace imports, side-effect imports
-- [✓] **Relative path resolution** - Converts relative imports to absolute paths
-- [✓] **Mixed import handling** - Handles both type and value imports from the same module
-- [✓] **Non-JS asset support** - Handles CSS, images, and other static assets
+- ✓ **Type-aware parsing** - Detects `import type` statements and marks them with `includeTypeDefs: true`
+- ✓ **All import patterns** - Named imports, default imports, namespace imports, side-effect imports
+- ✓ **Relative path resolution** - Converts relative imports to absolute paths
+- ✓ **Mixed import handling** - Handles both type and value imports from the same module
+- ✓ **Non-JS asset support** - Handles CSS, images, and other static assets
 
 ### resolveModulePath
 
@@ -101,11 +101,11 @@ console.log(typeAware);
 
 **Features:**
 
-- [✓] **Type-aware resolution** - Different extension priorities for type vs value imports
-- [✓] **Index file support** - Resolves `Button` to `Button/index.tsx`
-- [✓] **Extension priority** - Follows TypeScript resolution rules
-- [✓] **Optimized filesystem access** - Single directory read when possible
-- [✓] **Batch resolution** - Efficient resolution of multiple paths
+- ✓ **Type-aware resolution** - Different extension priorities for type vs value imports
+- ✓ **Index file support** - Resolves `Button` to `Button/index.tsx`
+- ✓ **Extension priority** - Follows TypeScript resolution rules
+- ✓ **Optimized filesystem access** - Single directory read when possible
+- ✓ **Batch resolution** - Efficient resolution of multiple paths
 
 **Extension Priorities:**
 
@@ -201,11 +201,11 @@ console.log(kebab); // { name: 'Button Group', slug: 'button-group' }
 
 **Features:**
 
-- [✓] **Index file handling** - Uses parent directory name for `index.*` files
-- [✓] **Extension stripping** - Removes all file extensions (`.js`, `.d.ts`, `.module.css`, etc.)
-- [✓] **camelCase conversion** - Converts `customButton` to `Custom Button` / `custom-button`
-- [✓] **kebab-case conversion** - Converts `button-group` to `Button Group` / `button-group`
-- [✓] **URL protocol support** - Handles `file://` URLs and regular paths
+- ✓ **Index file handling** - Uses parent directory name for `index.*` files
+- ✓ **Extension stripping** - Removes all file extensions (`.js`, `.d.ts`, `.module.css`, etc.)
+- ✓ **camelCase conversion** - Converts `customButton` to `Custom Button` / `custom-button`
+- ✓ **kebab-case conversion** - Converts `button-group` to `Button Group` / `button-group`
+- ✓ **URL protocol support** - Handles `file://` URLs and regular paths
 
 ### externalsToPackages
 
@@ -237,10 +237,10 @@ console.log(packages);
 
 **Features:**
 
-- [✓] **Scoped package handling** - Extracts `@scope/package` from longer paths
-- [✓] **Submodule extraction** - Converts `lodash/get` to `lodash`
-- [✓] **Path alias filtering** - Ignores imports starting with `@/`
-- [✓] **Deduplication** - Returns unique packages as object keys
+- ✓ **Scoped package handling** - Extracts `@scope/package` from longer paths
+- ✓ **Submodule extraction** - Converts `lodash/get` to `lodash`
+- ✓ **Path alias filtering** - Ignores imports starting with `@/`
+- ✓ **Deduplication** - Returns unique packages as object keys
 
 ### mergeExternals
 
@@ -273,9 +273,9 @@ console.log(merged);
 
 **Features:**
 
-- [✓] **Import deduplication** - Removes duplicate imports by name, type, and isType
-- [✓] **Module merging** - Combines imports from the same module across multiple externals
-- [✓] **Type preservation** - Maintains import metadata (default, named, type imports)
+- ✓ **Import deduplication** - Removes duplicate imports by name, type, and isType
+- ✓ **Module merging** - Combines imports from the same module across multiple externals
+- ✓ **Type preservation** - Maintains import metadata (default, named, type imports)
 
 ### rewriteImports
 
