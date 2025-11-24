@@ -4,12 +4,14 @@
   margin-bottom: 20px;
   background: color(display-p3 0.995 0.988 0.996);
   background: #fefcfe;
+  color: color(display-p3 0.128 0.122 0.147);
+  color: #211f26;
 }
 
 .container {
   max-width: 792px;
   margin: 0 auto;
-  padding: 0 20px 12px 20px;
+  padding: 0 20px 12px;
 }
 
 .header {
@@ -36,9 +38,6 @@
   font-size: 14px;
   background: color(display-p3 0.995 0.971 0.974);
   background: #fff7f8;
-}
-
-.body code {
   color: color(display-p3 0.728 0.211 0.311);
   color: #ca244d;
   text-decoration-color: color(display-p3 0.728 0.211 0.311);
@@ -70,11 +69,6 @@
 .body a:visited {
   color: color(display-p3 0.473 0.281 0.687);
   color: #8145b5;
-}
-
-.body {
-  color: color(display-p3 0.128 0.122 0.147);
-  color: #211f26;
 }
 
 .body h1,

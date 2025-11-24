@@ -1,0 +1,590 @@
+# Load Code Variant
+
+The `loadCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
+
+> [!NOTE]
+> This module is primarily used internally by [`CodeHighlighter`](../../components/code-highlighter/page.mdx) for runtime code loading and processing. Most users won't need to call these functions directly.
+
+## Basic Usage
+
+### Loading a Code Variant
+
+```ts
+import { loadCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+// Load and process a single variant
+const result = await loadCodeVariant(
+  'file:///app/components/button/Button.tsx',
+  'default',
+  {
+    fileName: 'Button.tsx',
+    url: 'file:///app/components/button/Button.tsx',
+  },
+  {
+    sourceParser: createParseSource(),
+    loadSource: myLoadSourceFunction,
+    sourceTransformers: [typescriptToJavaScript],
+  },
+);
+
+// Returns:
+// {
+//   code: { fileName: 'Button.tsx', source: /* HAST nodes */, transforms: { ... } },
+//   dependencies: ['file:///app/components/button/Button.tsx'],
+//   externals: {}
+// }
+```
+
+The function:
+
+- Loads source code from files or URLs
+- Applies syntax highlighting (HAST transformation)
+- Generates language transforms (e.g., TypeScript → JavaScript)
+- Recursively loads extra files (CSS, utils, etc.)
+- Tracks dependencies for caching and hot reloading
+
+---
+
+## Common Patterns
+
+### Loading with Extra Files
+
+Extra files can be specified directly in the variant, or returned automatically by your `loadSource` function:
+
+```ts
+// Option 1: Specify extraFiles in the variant
+const result = await loadCodeVariant(
+  'file:///app/components/button/Button.tsx',
+  'default',
+  {
+    fileName: 'Button.tsx',
+    source: buttonSource,
+    extraFiles: {
+      'Button.module.css': 'file:///app/components/button/Button.module.css',
+      '../utils/helpers.ts': 'file:///app/components/utils/helpers.ts',
+    },
+  },
+  options,
+);
+
+// Option 2: Return extraFiles from loadSource (automatically loaded)
+const loadSource = async (url) => {
+  const source = await readFile(url);
+  const extraFiles = await findDependencies(url); // e.g., CSS imports, relative imports
+
+  return {
+    source,
+    extraFiles: {
+      'Button.module.css': 'file:///app/components/button/Button.module.css',
+      '../utils/helpers.ts': 'file:///app/components/utils/helpers.ts',
+    },
+  };
+};
+
+// Both approaches result in all files loaded and highlighted recursively
+// result.code.extraFiles contains processed CSS and helpers
+```
+
+### Loading with Global Dependencies
+
+Add shared dependencies (like package.json or global configs) to all variants:
+
+```ts
+const result = await loadCodeVariant(
+  'file:///app/components/button/Button.tsx',
+  'default',
+  variant,
+  {
+    ...options,
+    globalsCode: [
+      { fileName: 'package.json', source: packageJsonContent },
+      'file:///app/tsconfig.json',
+    ],
+  },
+);
+
+// Global files are merged with metadata flag for filtering
+```
+
+### Parsing Code for Display
+
+Convert code objects to HAST for rendering:
+
+```ts
+import { parseCode } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const code = {
+  default: {
+    fileName: 'Example.tsx',
+    source: 'const x = 1;', // String source
+  },
+};
+
+const parsed = parseCode(code, parseSource);
+// Converts string sources to HAST nodes for rendering
+```
+
+### Flattening for File Systems
+
+Convert nested variant structure to flat file paths:
+
+```ts
+import { flattenCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const variant = {
+  url: 'file:///src/components/button/Button.tsx',
+  fileName: 'Button.tsx',
+  source: buttonSource,
+  extraFiles: {
+    '../shared/utils.ts': { source: utilsSource },
+    '../../package.json': { source: pkgSource, metadata: true },
+  },
+};
+
+const flattened = flattenCodeVariant(variant);
+// Returns:
+// {
+//   'src/components/button/Button.tsx': { source: buttonSource },
+//   'src/components/shared/utils.ts': { source: utilsSource },
+//   'src/package.json': { source: pkgSource, metadata: true }
+// }
+```
+
+### Checking Data Availability
+
+Determine if you have enough data to render without loading:
+
+```ts
+import { maybeCodeInitialData } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const { initialData, reason } = maybeCodeInitialData(
+  ['typescript', 'javascript'],
+  'typescript',
+  code,
+  undefined,
+  true, // needsHighlight
+  false, // needsAllFiles
+  false, // needsAllVariants
+);
+
+if (initialData) {
+  // Ready to render immediately
+  return <CodeDisplay {...initialData} />;
+} else {
+  // Need to load more data
+  console.log('Missing data:', reason);
+}
+```
+
+---
+
+## Advanced Usage
+
+### Loading Fallback Data
+
+Use `loadCodeFallback` to load the minimal data needed for initial render:
+
+```ts
+import { loadCodeFallback } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const fallback = await loadCodeFallback(
+  'file:///app/demos/example/index.ts',
+  'default', // initialVariant
+  existingCode, // may be undefined
+  {
+    loadCodeMeta,
+    loadVariantMeta,
+    loadSource,
+    sourceParser,
+    variants: ['default', 'typescript'],
+    fallbackUsesExtraFiles: true,
+    fallbackUsesAllVariants: false,
+  },
+);
+
+// Returns minimal data for initial render:
+// {
+//   code: { default: { ... } },
+//   initialFilename: 'Example.tsx',
+//   initialSource: /* HAST nodes */,
+//   allFileNames: ['Example.tsx', 'Example.module.css'],
+// }
+```
+
+### Applying Transforms
+
+Apply TypeScript-to-JavaScript transforms to rendered code:
+
+```ts
+import { applyCodeTransform } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const jsSource = applyCodeTransform(
+  tsSource, // Original TypeScript HAST
+  transforms, // From variant.transforms
+  'javascript', // Transform key
+);
+
+// Returns JavaScript version of the source as HAST
+```
+
+### Merging Metadata Files
+
+Position metadata files (package.json, configs) relative to source files:
+
+```ts
+import { mergeCodeMetadata } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const merged = mergeCodeMetadata(
+  variant,
+  {
+    'package.json': { source: pkgJson },
+    'tsconfig.json': { source: tsConfig },
+  },
+  { metadataPrefix: 'src/' },
+);
+
+// Positions metadata files at correct depth based on source structure
+```
+
+### Examining Variant Structure
+
+Analyze variant structure for path resolution:
+
+```ts
+import { examineCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+
+const context = examineCodeVariant(variant);
+// Returns:
+// {
+//   hasUrl: true,
+//   hasMetadata: true,
+//   maxSourceBackNavigation: 2,
+//   urlDirectory: ['src', 'components', 'button'],
+//   rootLevel: 'src',
+//   pathInwardFromRoot: 'components/button',
+//   actualUrl: 'file:///src/components/button/Button.tsx'
+// }
+```
+
+---
+
+## API Reference
+
+### loadCodeVariant
+
+```ts
+function loadCodeVariant(
+  url: string | undefined,
+  variantName: string,
+  variant: VariantCode | string | undefined,
+  options?: LoadVariantOptions,
+): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }>;
+```
+
+Loads and processes a code variant with recursive extra file loading.
+
+**Parameters:**
+
+| Parameter     | Type                                 | Description                              |
+| ------------- | ------------------------------------ | ---------------------------------------- |
+| `url`         | `string \| undefined`                | File URL for the variant                 |
+| `variantName` | `string`                             | Name of the variant (for error messages) |
+| `variant`     | `VariantCode \| string \| undefined` | Variant data or URL                      |
+| `options`     | `LoadVariantOptions?`                | Loading and processing options           |
+
+**Options:**
+
+- `sourceParser` - Promise resolving to parse function
+- `loadSource` - Function to load source from URLs
+- `loadVariantMeta` - Function to resolve variant metadata
+- `sourceTransformers` - Array of source transformers
+- `globalsCode` - Global dependencies to merge
+- `disableTransforms` - Skip transform generation
+- `disableParsing` - Skip HAST parsing
+- `output` - Output format ('hastJson' | 'hastGzip')
+
+**Returns:** Promise with `code`, `dependencies`, and `externals`.
+
+### loadCodeFallback
+
+```ts
+function loadCodeFallback(
+  url: string,
+  initialVariant: string,
+  loaded: Code | undefined,
+  options?: LoadFallbackCodeOptions,
+): Promise<FallbackVariants>;
+```
+
+Loads minimal data needed for fallback rendering.
+
+**Returns:** Object with `code`, `initialFilename`, `initialSource`, `initialExtraFiles`, `allFileNames`, and `processedGlobalsCode`.
+
+### parseCode
+
+```ts
+function parseCode(code: Code, parseSource: ParseSource): Code;
+```
+
+Parses string sources in code objects to HAST nodes.
+
+### flattenCodeVariant
+
+```ts
+function flattenCodeVariant(variant: VariantCode): FlattenedFiles;
+```
+
+Flattens variant structure to file paths.
+
+**Returns:** Object mapping file paths to `{ source: string; metadata?: boolean }`.
+
+### maybeCodeInitialData
+
+```ts
+function maybeCodeInitialData(
+  variants: string[],
+  variant: string,
+  code?: Code,
+  fileName?: string,
+  needsHighlight?: boolean,
+  needsAllFiles?: boolean,
+  needsAllVariants?: boolean,
+): { initialData: false | { ... }; reason?: string }
+```
+
+Type guard to check if sufficient data exists for rendering.
+
+### applyCodeTransform
+
+```ts
+function applyCodeTransform(
+  source: VariantSource,
+  transforms: Transforms,
+  transformKey: string,
+): VariantSource;
+```
+
+Applies a transform to variant source (e.g., TypeScript → JavaScript).
+
+### applyCodeTransforms
+
+```ts
+function applyCodeTransforms(
+  source: VariantSource,
+  transforms: Transforms,
+  transformKeys: string[],
+): VariantSource;
+```
+
+Applies multiple transforms in sequence.
+
+### mergeCodeMetadata
+
+```ts
+function mergeCodeMetadata(
+  variant: VariantCode,
+  metadataFiles?: VariantExtraFiles,
+  options?: MergeMetadataOptions,
+): VariantCode;
+```
+
+Merges metadata files with proper positioning.
+
+### extractCodeMetadata
+
+```ts
+function extractCodeMetadata(variant: VariantCode): {
+  variant: VariantCode;
+  metadata: VariantExtraFiles;
+};
+```
+
+Extracts metadata files from variant.
+
+### examineCodeVariant
+
+```ts
+function examineCodeVariant(variant: VariantCode): PathContext;
+```
+
+Analyzes variant structure for path information.
+
+### hasAllVariants
+
+```ts
+function hasAllVariants(variants: string[], code: Code, needsHighlight?: boolean): boolean;
+```
+
+Checks if all variants are fully loaded.
+
+### addPathsToVariant
+
+```ts
+function addPathsToVariant(variant: VariantCode): VariantCode;
+```
+
+Adds flat path properties to variant files.
+
+---
+
+## How It Works
+
+### Loading Pipeline
+
+1. **Resolve Variant** - If variant is a string URL, load metadata via `loadVariantMeta`
+2. **Load Main File** - Load source code via `loadSource` if not provided
+3. **Apply Transforms** - Generate language variants (TypeScript → JavaScript)
+4. **Parse Source** - Convert strings to HAST nodes via `sourceParser`
+5. **Process Extra Files** - Recursively load and process dependencies
+6. **Merge Globals** - Add global dependencies with metadata flags
+7. **Track Dependencies** - Return all URLs for caching/hot reloading
+
+### Extra Files Resolution
+
+Extra files support relative paths that are resolved recursively:
+
+```
+Button.tsx
+├── Button.module.css (same directory)
+├── ../utils/helpers.ts (parent directory)
+└── ../../package.json (grandparent, metadata)
+```
+
+The loader:
+
+- Resolves relative paths using URL resolution
+- Detects circular dependencies
+- Loads files in parallel for performance
+- Preserves metadata flags for filtering
+
+### Transform Generation
+
+When `sourceTransformers` are provided:
+
+1. Checks file extension (`.ts`, `.tsx`, etc.)
+2. Transforms source to target language
+3. Generates JSON diff delta
+4. Stores delta in `transforms` object
+
+Transforms are applied on-demand during rendering via `applyCodeTransform`.
+
+### Metadata Positioning
+
+The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:
+
+```
+Without metadataPrefix:
+├── Button.tsx (source)
+├── utils.ts (source)
+├── package.json (metadata)
+└── tsconfig.json (metadata)
+
+With metadataPrefix: 'src/':
+├── src/
+│   ├── Button.tsx (source)
+│   └── utils.ts (source)
+├── package.json (metadata - stays at root)
+└── tsconfig.json (metadata - stays at root)
+```
+
+This ensures metadata files remain accessible at the project root while source files are scoped within their directory.
+
+---
+
+## When to Use
+
+- **Runtime loading** - When code isn't precomputed at build time
+- **Client-side rendering** - Loading code in browser environments
+- **Server-side rendering** - Processing code in Next.js server components
+- **Dynamic content** - When demos are generated from APIs or databases
+
+**When NOT to use:**
+
+- **Build-time optimization** - Use the [webpack loader](../load-precomputed-code-highlighter/page.mdx) instead
+- **Static demos** - Pass precomputed code directly to `CodeHighlighter`
+- **Simple highlighting** - Use [`parseSource`](../parse-source/page.mdx) directly for basic needs
+
+---
+
+## Performance Considerations
+
+### Parallel Loading
+
+The loader uses `Promise.all` to load extra files in parallel:
+
+```ts
+// Loads all files simultaneously
+extraFiles: {
+  'styles.css': 'url1',
+  'utils.ts': 'url2',
+  'types.ts': 'url3',
+}
+// All three load in parallel, not sequentially
+```
+
+### Caching
+
+`loadSource` calls are cached within a single `loadCodeVariant` execution to prevent duplicate requests for the same file.
+
+### Circular Dependency Detection
+
+The loader tracks loaded files and throws errors on circular dependencies:
+
+```ts
+// This would throw an error:
+// A.tsx imports ../B.tsx
+// B.tsx imports ../A.tsx
+```
+
+### Output Formats
+
+- `output: 'hastJson'` - JSON stringified HAST (development)
+- `output: 'hastGzip'` - Compressed HAST (production, smaller bundles)
+
+---
+
+## Error Handling
+
+### Common Errors
+
+**Circular dependency detected:**
+
+```
+Error: Circular dependency detected: file:///path/to/file.ts
+```
+
+Fix: Restructure imports to remove circular references.
+
+**Invalid extraFiles:**
+
+```
+Error: Invalid extraFiles from loadSource: key "file:///..." appears to be an absolute path.
+```
+
+Fix: Use relative paths as keys in extraFiles.
+
+**Missing loadSource:**
+
+```
+Error: "loadSource" function is required when source is not provided
+```
+
+Fix: Provide `loadSource` in options or include source inline.
+
+**Transform not found:**
+
+```
+Error: Transform "javascript" not found in transforms
+```
+
+Fix: Ensure sourceTransformers generated the requested transform.
+
+---
+
+## Related
+
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this module for runtime loading
+- [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time alternative
+- [`parseSource`](../parse-source/page.mdx) - Syntax highlighting function
+- [`loadServerSource`](../load-server-source/page.mdx) - Server-side source loading
+- [`transformTypescriptToJavascript`](../transform-typescript-to-javascript/page.mdx) - TypeScript transformer

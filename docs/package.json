@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && docs-infra post-build",
+    "build": "next build",
     "build-exp": "next build --turbopack",
-    "start": "serve ./out"
+    "start": "serve ./export"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-beta.1",

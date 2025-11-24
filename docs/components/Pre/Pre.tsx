@@ -2,7 +2,6 @@ import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import type { CodeHighlighterProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { CodeContent } from '../CodeContent';
-import { CodeContentLoading } from '../CodeContentLoading';
 
 type PreProps = {
   'data-precompute'?: string;
@@ -22,14 +21,5 @@ export function Pre(props: PreProps) {
     props['data-precompute'],
   ) as CodeHighlighterProps<object>['precompute'];
 
-  return (
-    <CodeHighlighter
-      url="file://index.js"
-      precompute={precompute}
-      Content={CodeContent}
-      ContentLoading={CodeContentLoading}
-      fallbackUsesAllVariants
-      highlightAfter="idle"
-    />
-  );
+  return <CodeHighlighter url="file://index.js" precompute={precompute} Content={CodeContent} />;
 }

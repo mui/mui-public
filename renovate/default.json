@@ -27,6 +27,33 @@
   "internalChecksFilter": "strict",
   "ignorePresets": [":ignoreModulesAndTests"],
   "ignorePaths": ["**/node_modules/**", "**/examples/**", "**/__tests__/**", "**/__fixtures__/**"],
+  "customManagers": [
+    {
+      "description": "Custom manager for MUI public repository digests",
+      "customType": "regex",
+      "fileMatch": ["(^|\\/)?\\.circleci\\/.+\\.ya?ml$"],
+      "matchStrings": [
+        // For circleci config files
+        "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
+      ],
+      "currentValueTemplate": "master",
+      "depNameTemplate": "code-infra-orb",
+      "packageNameTemplate": "https://github.com/mui/mui-public",
+      "datasourceTemplate": "git-refs"
+    },
+    {
+      "description": "Custom manager for Playwright Docker image versions",
+      "customType": "regex",
+      "fileMatch": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],
+      "matchStrings": [
+        // For Playwright Docker image versions
+        "playwright-img-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
+      ],
+      "depNameTemplate": "code-infra-playwright",
+      "packageNameTemplate": "mcr.microsoft.com/playwright",
+      "datasourceTemplate": "docker"
+    }
+  ],
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
@@ -38,9 +65,9 @@
     },
     {
       "groupName": "MUI infra packages",
-      "matchPackageNames": ["@mui/internal-*", "@mui/docs"],
+      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
       "schedule": null,
-      "additionalReviewers": ["mui/infra"],
+      "reviewers": ["mui/infra"],
       "minimumReleaseAge": null
     },
     {
