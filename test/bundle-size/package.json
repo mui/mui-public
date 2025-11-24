@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "radix-ui": "^1.4.3",
-    "@base-ui-components/react": "latest",
+    "@base-ui-components/react": "^1.0.0-beta.6",
     "@mui/x-charts-pro": "^8.17.0",
     "@mui/internal-docs-infra": "workspace:*"
   }
