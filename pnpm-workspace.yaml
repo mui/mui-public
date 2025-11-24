@@ -2,6 +2,7 @@ packages:
   - 'packages/*'
   - 'apps/*'
   - 'test/*'
+  - 'docs'
 overrides:
   # This is a workaround for the issue when the same type refers to @types/eslint for one instance
   # and to eslint for another instance, causing a conflict.

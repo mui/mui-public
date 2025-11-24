@@ -1,0 +1,344 @@
+# Load Precomputed Code Highlighter
+
+The precompute loader is a Webpack/Turbopack loader that enables build-time optimization of code examples by processing demo files and precomputing syntax highlighting, TypeScript transformations, and dependency resolution.
+
+---
+
+## Overview
+
+The loader processes demo files that use the `createDemo` factory pattern, automatically resolving and processing all code variants at build time rather than runtime.
+
+> [!TIP]
+> For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
+
+> [!NOTE]
+> The loader works with any `create*` function, not just `createDemo`. You could have `app/components/my-component/snippets/example/index.ts` with `createSnippet()`, or any other factory function that follows the same pattern.
+
+### Key Features
+
+- **Build-time syntax highlighting**: Uses [Starry Night](https://github.com/wooorm/starry-night) for syntax highlighting during compilation
+- **TypeScript transformation**: Automatically converts TypeScript examples to JavaScript variants
+- **Dependency tracking**: Resolves and tracks all file dependencies for hot reloading
+- **Recursive loading**: Handles complex dependency trees automatically
+- **Factory pattern support**: Works with `createDemo()`, `createSnippet()`, or any `create*()` calls in index.ts files
+
+---
+
+## Configuration
+
+### Recommended: withDocsInfra Plugin
+
+The easiest way to configure this loader is with the [`withDocsInfra`](../with-docs-infra/page.mdx) Next.js plugin:
+
+```javascript
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // Automatically includes:
+  // - './app/**/demos/*/index.ts'
+  // - './src/demo-data/*/index.ts' (for globals)
+
+  // Add custom patterns if needed
+  additionalDemoPatterns: {
+    index: ['./app/**/snippets/*/index.ts'],
+  },
+});
+```
+
+### Manual Next.js Setup
+
+If you need manual control, add the loader directly to your `next.config.mjs`:
+
+> [!NOTE]
+> The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      './app/**/demos/*/index.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+      },
+      // Add pattern for global demo data
+      './src/demo-data/*/index.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+      },
+    },
+  },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    config.module.rules.push({
+      test: /\/demos\/[^/]+\/index\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+      ],
+    });
+
+    // Add rule for global demo data
+    config.module.rules.push({
+      test: /\/demo-data\/[^/]+\/index\.ts$/,
+      use: [
+        defaultLoaders.babel,
+        '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+      ],
+    });
+
+    return config;
+  },
+};
+```
+
+### File Structure
+
+The loader expects files with `create*` factory functions following this pattern:
+
+```
+app/
+├── components/
+│   └── my-component/
+│       ├── demos/
+│       │   ├── basic-demo/
+│       │   │   ├── index.ts      # ← createDemo() processed here
+│       │   │   ├── React.tsx
+│       │   │   └── Vue.vue
+│       │   └── advanced-demo/
+│       │       ├── index.ts      # ← And here
+│       │       ├── TypeScript.ts
+│       │       └── JavaScript.js
+│       └── snippets/
+│           └── example/
+│               ├── index.ts      # ← createSnippet() processed here
+│               └── Component.tsx
+```
+
+---
+
+## Usage
+
+### Basic Demo File
+
+Create an `index.ts` file with the factory pattern:
+
+```typescript
+import { createDemo } from '../createDemo';
+import Default from './Default';
+
+export const BasicDemo = createDemo(import.meta.url, Default);
+```
+
+### Multiple Variants
+
+The loader handles multiple code variants automatically:
+
+```typescript
+import { createDemoWithVariants } from '../createDemo';
+import CssModules from './Component.tsx';
+import Tailwind from './Component.jsx';
+
+export const MultiVariantDemo = createDemoWithVariants(import.meta.url, { CssModules, Tailwind });
+```
+
+### Options
+
+You can pass options to the factory function, such as a `name` and `slug` override:
+
+```typescript
+import { createDemoWithVariants } from '../createDemo';
+import CssModules from './Component.tsx';
+import Tailwind from './Component.jsx';
+
+export const MultiVariantDemo = createDemoWithVariants(
+  import.meta.url,
+  { CssModules, Tailwind },
+  { name: 'Multi-variant Example', slug: 'multi' },
+);
+```
+
+### Custom Factory Functions
+
+The loader works with any `create*` function. To use custom factory functions like `createSnippet()`, extend your configuration:
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      './app/**/demos/*/index.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+      },
+      // Add pattern for snippets directory
+      './app/**/snippets/*/index.ts': {
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
+      },
+    },
+  },
+};
+```
+
+Then create your custom factory file:
+
+```typescript
+import { createSnippet } from '../createSnippet';
+import Example from './Example';
+
+export const ComponentSnippet = createSnippet(import.meta.url, Example);
+```
+
+---
+
+## Processing Pipeline
+
+The loader follows these steps to precompute your code examples:
+
+### 1. Parse Factory Call
+
+Finds your `create*` function call and extracts the variants and options.
+
+### 2. Resolve File Paths
+
+Converts relative imports to absolute file paths for each variant.
+
+### 3. Process Variants
+
+- Loads each variant file and its dependencies
+- Applies syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night)
+- Converts TypeScript to JavaScript when needed
+- Tracks all files for hot reloading
+
+### 4. Inserts Precompute Value
+
+Inserts `precompute` into your source with the processed data.
+
+```typescript
+// Your source before processing
+export const Demo = createDemo(import.meta.url, Component);
+
+// After processing (simplified)
+export const Demo = createDemo(
+  import.meta.url,
+  Component,
+  {
+    precompute: {
+      Default: {
+        fileName: "Component.tsx",
+        source: /* syntax highlighted HAST nodes */,
+        transforms: { /* JavaScript version */ }
+      }
+    }
+  }
+);
+```
+
+---
+
+## Output Structure
+
+The loader replaces the factory function call with a data structure containing:
+
+```typescript
+interface PrecomputedData {
+  [variantName: string]: {
+    fileName: string; // Main file name
+    source: HastNode[]; // Syntax highlighted AST
+    extraFiles: {
+      // Additional dependencies
+      [path: string]: HastNode[];
+    };
+    transforms: {
+      // Language variants
+      [language: string]: HastNode[];
+    };
+  };
+}
+```
+
+---
+
+## Error Handling
+
+### Single Factory Function per File
+
+Only one `create*` function call is allowed per file:
+
+```typescript
+// × Multiple calls will cause a build error
+export const Demo1 = createDemo(/* ... */);
+export const Demo2 = createDemo(/* ... */); // Error!
+
+// ✓ Use separate files instead
+// demo-1/index.ts
+export const Demo1 = createDemo(/* ... */);
+
+// demo-2/index.ts
+export const Demo2 = createDemo(/* ... */);
+```
+
+### Missing Files
+
+If a variant file cannot be found, the loader will log a warning and skip that variant, but continue processing other variants.
+
+### Invalid Function Signature
+
+Your `create*` function must follow this pattern:
+
+```typescript
+createDemo(
+  import.meta.url, // Required: file URL
+  component, // Required: component object
+  { options }, // Optional: options object
+);
+```
+
+```typescript
+createDemoWithVariants(
+  import.meta.url, // Required: file URL
+  { variants }, // Required: variant object
+  { options }, // Optional: options object
+);
+```
+
+---
+
+## Benefits
+
+### Build-time Optimization
+
+- Syntax highlighting computed once during build
+- No runtime parsing or processing overhead
+- Smaller client bundles (no syntax highlighting libraries)
+
+### Developer Experience
+
+- Automatic TypeScript to JavaScript conversion
+- Hot reloading tracks all dependencies
+- Clear error messages for configuration issues
+
+### Performance
+
+- Pre-computed HAST nodes ready for rendering
+- Reduced time-to-interactive for code examples
+- Efficient caching through webpack dependency system
+
+---
+
+## Best Practices
+
+### File Organization
+
+- Keep demo files focused and single-purpose
+- Use descriptive variant names (`TypeScript`, `JavaScript`, `CSS`)
+- Organize related demos in subdirectories
+
+### Dependency Management
+
+- Prefer relative imports for demo files
+- Keep dependency trees shallow when possible
+- Use meaningful file names for better debugging
+
+### Configuration
+
+- Set appropriate `maxDepth` limits for recursion
+- Use specific file patterns in Turbopack rules
+- Test builds with various demo complexity levels

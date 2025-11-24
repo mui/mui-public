@@ -1,0 +1,291 @@
+# Code Externals Context
+
+The `CodeExternalsContext` is a simple React context that provides access to external dependencies (modules and components) for demo components. It's primarily used internally by demo client providers created with [`abstractCreateDemoClient`](../../functions/abstract-create-demo-client/page.mdx) to make precomputed externals available to child components.
+
+## Features
+
+- **Simple External Access**: Provides external modules through React context
+- **Build-time Integration**: Receives precomputed externals from webpack/turbopack loaders
+- **Provider Pattern**: Used by demo client providers to supply externals
+- **Type Safety**: Simple typed interface for external module access
+
+## API
+
+### Context Interface
+
+```typescript
+interface CodeExternalsContext {
+  externals?: Record<string, Module>;
+}
+
+type Module = {}; // Can be any imported module or object
+```
+
+### Hook Interface
+
+```typescript
+function useCodeExternals(): CodeExternalsContext | undefined;
+```
+
+## Usage
+
+### Basic Hook Usage
+
+The primary way to access externals is through the `useCodeExternals` hook:
+
+```tsx
+import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
+
+function DemoComponent() {
+  const externalsContext = useCodeExternals();
+  const externals = externalsContext?.externals || {};
+
+  // Access specific externals
+  const React = externals.react;
+  const { Button } = externals['@mui/material'] || {};
+
+  return <Button>Demo Button</Button>;
+}
+```
+
+### Integration with Demo Clients
+
+Demo clients are transformed by the build system to automatically provide this context. Here's what happens:
+
+**Before (source code):**
+
+```tsx
+// demo/client.ts
+'use client';
+import { createDemoClient } from '../createDemoClient';
+
+export const DemoExampleClient = createDemoClient(import.meta.url);
+```
+
+**After (build system transformation):**
+
+```tsx
+// demo/client.ts - Transformed by loader
+'use client';
+import React from 'react';
+import { Button } from '@mui/material';
+import { createDemoClient } from '../createDemoClient';
+
+export const DemoExampleClient = createDemoClient(import.meta.url, {
+  precompute: {
+    externals: {
+      react: React,
+      '@mui/material': { Button },
+    },
+  },
+});
+
+// The client provider will make these externals available via CodeExternalsContext
+```
+
+## Implementation Details
+
+### Context Structure
+
+The context provides a simple interface:
+
+```typescript
+const context = {
+  externals: {
+    react: React, // Default import
+    '@mui/material': { Button }, // Named imports as object
+    '@mui/system': { styled }, // Single named import
+    './local-module': { helper }, // Local modules
+  },
+};
+```
+
+## Common Patterns
+
+### Safe External Access
+
+```tsx
+function SafeExternalDemo() {
+  const externalsContext = useCodeExternals();
+
+  if (!externalsContext?.externals) {
+    return <div>No externals available</div>;
+  }
+
+  const { react: React, '@mui/material': MUI = {} } = externalsContext.externals;
+  const { Button } = MUI;
+
+  if (!Button) {
+    return <div>Button component not available</div>;
+  }
+
+  return <Button>Safe Button</Button>;
+}
+```
+
+### Integration with Live Code Execution
+
+When building live demo components that execute code dynamically, externals provide the scope for code execution. Here's how the provider and consumer work together:
+
+**Provider Setup (Demo Client):**
+
+```tsx
+// demo/client.tsx - The demo client provides externals context
+'use client';
+
+import * as React from 'react';
+import { Button } from '@mui/material';
+import { CodeExternalsContext } from '@mui/internal-docs-infra/CodeExternalsContext';
+
+// This would typically be created by abstractCreateDemoClient
+const externals = {
+  react: React,
+  '@mui/material': { Button },
+  // Other external dependencies...
+};
+
+function DemoProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <CodeExternalsContext.Provider value={{ externals }}>{children}</CodeExternalsContext.Provider>
+  );
+}
+
+export { DemoProvider };
+```
+
+**Consumer (Live Code Runner):**
+
+```tsx
+'use client';
+
+import * as React from 'react';
+import { useRunner } from 'react-runner';
+import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
+
+function LiveCodeRunner({ code }: { code: string }) {
+  const externalsContext = useCodeExternals();
+
+  const scope = React.useMemo(() => {
+    let externals = externalsContext?.externals;
+    if (!externals) {
+      // Fallback if no externals context available
+      externals = { imports: { react: React } };
+    }
+
+    // Format externals for react-runner
+    return { import: { ...externals } };
+  }, [externalsContext]);
+
+  const { element, error } = useRunner({ code, scope });
+
+  if (error) {
+    return <div style={{ color: 'red' }}>Error: {error}</div>;
+  }
+
+  return element;
+}
+
+// Complete demo with provider
+function CompleteLiveDemo() {
+  const [code, setCode] = React.useState(`
+    import React from 'react';
+    import { Button } from '@mui/material';
+    
+    export default function Example() {
+      return <Button variant="contained">Live Demo!</Button>;
+    }
+  `);
+
+  return (
+    <DemoProvider>
+      <div>
+        <textarea
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          style={{ width: '100%', height: 200 }}
+        />
+        <div>
+          <h4>Live Preview:</h4>
+          <LiveCodeRunner code={code} />
+        </div>
+      </div>
+    </DemoProvider>
+  );
+}
+```
+
+### Conditional Rendering with Externals
+
+```tsx
+function ConditionalDemo() {
+  const externalsContext = useCodeExternals();
+  const externals = externalsContext?.externals || {};
+
+  const hasButton = externals['@mui/material']?.Button;
+  const hasTypography = externals['@mui/material']?.Typography;
+
+  return (
+    <div>
+      {hasButton && <externals['@mui/material'].Button>Button Available</externals['@mui/material'].Button>}
+      {hasTypography && <externals['@mui/material'].Typography>Typography Available</externals['@mui/material'].Typography>}
+      {!hasButton && !hasTypography && <div>No MUI components available</div>}
+    </div>
+  );
+}
+```
+
+### Debug Available Externals
+
+```tsx
+function ExternalDebugger() {
+  const externalsContext = useCodeExternals();
+  const externals = externalsContext?.externals || {};
+
+  return (
+    <details>
+      <summary>Available Externals ({Object.keys(externals).length})</summary>
+      <ul>
+        {Object.entries(externals).map(([key, value]) => (
+          <li key={key}>
+            <strong>{key}:</strong> {typeof value}
+            {value && typeof value === 'object' && !React.isValidElement(value) && (
+              <ul>
+                {Object.keys(value).map((subKey) => (
+                  <li key={subKey}>{subKey}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+```
+
+## When to Use
+
+- **Demo Components**: When building components that need access to externally provided modules
+- **Client-side Components**: In components that are children of demo client providers
+- **Dynamic Module Access**: When you need runtime access to modules provided by the build system
+
+## When Not to Use
+
+- **Regular Components**: Use normal imports for components outside of demo contexts
+- **Server Components**: This context is client-side only
+- **Static Imports**: When you can use regular ES module imports
+
+## Integration with Build System
+
+The context works seamlessly with the docs-infra build system:
+
+1. **Build Time**: Webpack/Turbopack loaders analyze demo code and collect external dependencies
+2. **Code Generation**: Loaders inject import statements and create externals objects
+3. **Runtime**: Demo client providers supply externals through this context
+4. **Component Access**: Child components use `useCodeExternals` to access the externals
+
+## Related
+
+- **[`abstractCreateDemoClient`](../../functions/abstract-create-demo-client/page.mdx)**: Creates providers that supply this context
+- **[`loadPrecomputedCodeHighlighterClient`](../../functions/load-precomputed-code-highlighter-client/page.mdx)**: Loader that injects externals
+- **[`CodeHighlighter`](../code-highlighter/page.mdx)**: Main component for code highlighting and demos

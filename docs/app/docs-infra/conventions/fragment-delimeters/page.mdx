@@ -1,0 +1,178 @@
+# Fragment Delimiters
+
+We use `:` to express hierarchy inside URL fragments. Example: `https://example.com/page#section:subsection` uses `:` to separate a primary section (`section`) from a nested part (`subsection`). The full value appears in an element’s `id`, e.g. <span id="section:subsection">`section:subsection`</span>.
+
+## Rationale
+
+We need a delimiter that clearly separates logical segments without clashing with ordinary heading slugs or requiring extra query parameters. `:` fits that role:
+
+- **Readable** - Stands out more than `-` or `_`, which already saturate slugs.
+- **Low collision** - Our slug generation collapses most punctuation to `-`; literal colons almost never appear organically.
+- **Familiar mental model** - Common in namespace-like contexts (design tokens, type references, etc.).
+- **Standards compliant** - RFC 3986 lists `:` in the reserved _gen-delims_ set (Section 2.2). The fragment syntax (Section 3.5) does not define internal structure, and Appendix A (`pchar`) allows `:`. That leaves the colon semantically free for client-side interpretation. If a literal colon must appear within a segment, encode it as `%3A` so parsing treats it as data, not a separator (e.g. `#token:pattern%3Aliteral:details` → `token`, `pattern:literal`, `details`).
+
+## Syntax
+
+Typical patterns (1-3 levels):
+
+```
+#<primary>
+#<primary>:<secondary>
+#<primary>:<secondary>:<tertiary>
+```
+
+Guidelines:
+
+- Segments MUST be non-empty.
+- Avoid more than 3 levels unless the extra depth is justified and documented.
+- Use kebab-case (`lowercase-with-dashes`).
+- Do not ascribe meaning to positions beyond the second segment unless documented.
+- REQUIRED: Any surfaced multi-segment fragment (shown in the UI or copy-link affordance) MUST have a real DOM element whose `id` exactly matches the full fragment.
+
+## Examples
+
+| Use case                              | Fragment                  | Meaning                      |
+| ------------------------------------- | ------------------------- | ---------------------------- |
+| Section + tab                         | `api:props`               | Props tab inside API section |
+| Demo + variant                        | `button-demo:styled`      | Styled variant of a demo     |
+| Composite (section → grouping → item) | `theming:palette:primary` | Primary palette subsection   |
+| Code view mode                        | `code-sample:ts`          | Show TypeScript version      |
+
+## Do / Don't
+
+Do:
+
+- Use `:` only for stable parent→child (or mode) hierarchy.
+- Normalize stray trailing colons (`section:` → `section`).
+- Validate user input before constructing IDs to prevent injected delimiters.
+
+Don't:
+
+- Overload `:` with arbitrary flags that aren't structural.
+- Mix delimiter styles (e.g. `section/sub:part`).
+- Expose transient UI state (scroll position, ephemeral filters, temporary sorts) in the URL.
+
+## Interoperability
+
+- **Headings** - Default MDX headings remain single-segment; multi-segment IDs are required only when the UI exposes structured state (tabs, variants, language switches) via deep links.
+- **Interpretation** - Each full fragment like `api:props` must map to an actual element for consistent scrolling and focus. Secondary (and tertiary) segments then drive local state (which tab / variant) after the primary region is in view.
+- **Backwards compatibility** - Primary-only fragments (`#api`) keep working. Multi-segment forms layer precision without breaking earlier links.
+
+### History Behavior
+
+Goal: The Back button should move between major sections, not every small variant change.
+
+- Primary segment change → new history entry.
+- Only secondary / tertiary change → update current entry instead of adding one.
+- Effect: Back navigation traverses sections; variant toggles are skipped.
+- Rationale: Minimizes noisy history entries that users rarely intend to revisit in order.
+
+If a feature must record variant transitions individually, document the exception and its justification.
+
+### Text Fragment Compatibility
+
+Modern browsers support the [Text Fragment](https://wicg.github.io/scroll-to-text-fragment/) syntax: `#:~:text=...` which allows deep linking to arbitrary text ranges. We MUST avoid colliding with this mechanism.
+
+Rules:
+
+- Treat everything starting at the first occurrence of `:~:text=` as reserved for the browser. Our hierarchical parsing stops before that sequence.
+- Do not generate IDs (or segments) that themselves contain `:~:`.
+- When sharing links, prefer placing our structured fragment _before_ any text fragment directive. Example: `#api:props:~:text=Primary%20Color` — our hierarchy is `api:props`; the remainder is the text fragment directive.
+- If a user arrives with a text fragment appended, we apply normal logic to the portion before `:~:` and let the UA handle highlighting the text range.
+
+Parser note (conceptual): Split off the reserved suffix first, then process hierarchy on the remaining prefix.
+
+## Accessibility
+
+Colon-separated IDs are neutral for assistive tech. Ensure:
+
+- The element for each fragment (especially the full multi-segment form) is focusable or associated with a landmark / heading.
+- Interactive mode switches (tabs, language toggles) reflect active state via appropriate roles and `aria-*` attributes.
+
+## HTML `id` Safety
+
+Standards summary:
+
+- **HTML** - `id` must be unique and free of whitespace; `:` is allowed.
+- **URL + fragment matching** - Browsers compare the fragment string to element IDs verbatim; no special meaning is assigned to `:`.
+- **RFC 3986** - Fragment grammar allows `:`; no internal semantics are imposed.
+
+Practical rules:
+
+- Uniqueness: Every full multi-segment value (e.g. `theming:palette:primary`) must be unique.
+- Stability: Changing a primary segment breaks inbound links; avoid unless necessary.
+- Whitespace: Reject IDs with spaces/newlines before adding hierarchy.
+- CSS: Escape colons in raw CSS selectors:
+
+  ```css
+  /* Incorrect (interpreted as pseudo-class) */
+  /* #api:props { ... } */
+
+  /* Correct */
+  #api\:props {
+  }
+  #theming\:palette\:primary {
+  }
+  ```
+
+  JavaScript helper:
+
+  ```ts
+  function idToCssSelector(id) {
+    return `#${id.replace(/:/g, '\\:')}`;
+  }
+  ```
+
+- Testing: Prefer `data-*` attributes over complex escaped selectors.
+- Slugification: Remove or replace colons from raw heading text before appending structural segments.
+- One-to-one mapping: Each emitted multi-segment fragment corresponds to a concrete element (heading, panel container, etc.).
+
+Edge cases:
+
+- Empty segment (`section::variant`) → invalid; fail fast.
+- Trailing colon (`section:`) → normalize to `section`.
+- Encoded colon (`%3A`) remains data; do not decode before splitting.
+
+Migration strategy (if delimiter ever changes):
+
+1. Attempt exact match.
+2. Optionally translate old delimiter to new and retry.
+3. Fallback to primary segment only.
+
+## Implementation (Conceptual)
+
+1. If the fragment contains `:~:text=`, separate the prefix (hierarchy) from the text fragment suffix; ignore the suffix for hierarchy parsing.
+2. Split the (possibly shortened) fragment into ordered segments.
+3. Locate element matching the full hierarchical fragment (else fall back to primary; treat absence as a defect to fix, not a permanent mode).
+4. Scroll / focus that element.
+5. Apply UI state inferred from remaining segments.
+6. Record history only on primary changes.
+
+## Future Considerations
+
+- Range targeting (e.g. `component:lines-10-20`) would need a clearly documented pattern.
+- Structured JSON-in-fragment rejected (verbosity, readability).
+
+## FAQ
+
+**Why not `-`?** Already pervasive in slugs; parsing hierarchy would be unreliable.
+
+**Why not `/`?** Interferes with routing assumptions and is less copy/paste friendly in some contexts.
+
+**Do we percent-encode `:`?** Not for structural separators. Only encode when a literal colon is part of the content within a single segment.
+
+**Multiple flags like `:dark:compact`?** Combine into a single variant token instead of stacking arbitrary segments.
+
+---
+
+If you add a new semantic layer (new segment meaning), update this document and reference the change (issue / PR).
+
+## References
+
+- [HTML Living Standard - `id` attribute](https://html.spec.whatwg.org/multipage/dom.html#the-id-attribute)
+- [URL Standard - fragment component definition](https://url.spec.whatwg.org/#concept-url-fragment)
+- [RFC 3986 - Section 2.2 Reserved Characters](https://datatracker.ietf.org/doc/html/rfc3986#section-2.2)
+- [RFC 3986 - Section 3.5 Fragment](https://datatracker.ietf.org/doc/html/rfc3986#section-3.5)
+- [RFC 3986 - Appendix A (ABNF / pchar)](https://datatracker.ietf.org/doc/html/rfc3986#appendix-A)
+- [MDN - Fragment identifiers](https://developer.mozilla.org/docs/Web/URI/Fragment)
+- [MDN - CSS identifier escaping](https://developer.mozilla.org/docs/Web/CSS/Identifier#escaping)

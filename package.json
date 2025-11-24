@@ -18,8 +18,9 @@
     "size:snapshot": "pnpm -F ./test/bundle-size check",
     "size:why": "pnpm size:snapshot --analyze",
     "clean": "pnpm -r exec rm -rf build",
-    "docs:build": "pnpm -F \"./packages/docs-infra\" run build",
-    "docs:test": "pnpm -F \"./packages/docs-infra\" run test"
+    "docs:dev": "pnpm -F \"./docs\" run dev",
+    "docs:build": "pnpm -F \"./docs\" run build",
+    "docs:start": "pnpm -F \"./docs\" run start"
   },
   "pnpm": {
     "packageExtensions": {
