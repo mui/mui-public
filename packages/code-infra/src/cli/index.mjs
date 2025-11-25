@@ -6,6 +6,7 @@ import cmdArgosPush from './cmdArgosPush.mjs';
 import cmdBuild from './cmdBuild.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdExtractErrorCodes from './cmdExtractErrorCodes.mjs';
+import cmdGenerateChangelog from './cmdGenerateChangelog.mjs';
 import cmdGithubAuth from './cmdGithubAuth.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
 import cmdPublish from './cmdPublish.mjs';
@@ -23,6 +24,7 @@ yargs()
   .command(cmdBuild)
   .command(cmdCopyFiles)
   .command(cmdExtractErrorCodes)
+  .command(cmdGenerateChangelog)
   .command(cmdGithubAuth)
   .command(cmdListWorkspaces)
   .command(cmdPublish)

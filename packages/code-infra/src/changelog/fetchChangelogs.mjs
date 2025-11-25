@@ -1,25 +1,15 @@
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 
-import { persistentAuthStrategy } from './github.mjs';
-import { getRepositoryInfo } from './git.mjs';
+import { getRepositoryInfo } from '../utils/git.mjs';
+import { persistentAuthStrategy } from '../utils/github.mjs';
 
 /**
  * @typedef {import('@octokit/rest').Octokit} OctokitType
  */
 
 /**
- * @typedef {'team' | 'first_timer' | 'contributor'} AuthorAssociation
- */
-
-/**
- * @typedef {Object} FetchedCommitDetails
- * @property {string} sha
- * @property {string} message
- * @property {string[]} labels
- * @property {number} prNumber
- * @property {string} html_url
- * @property {{login: string; association: AuthorAssociation} | null} author
+ * @typedef {import('./types').FetchedCommitDetails} FetchedCommitDetails
  */
 
 /**
@@ -127,6 +117,8 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       labels,
       prNumber,
       html_url: pr.data.html_url,
+      mergedAt: pr.data.merged_at,
+      createdAt: pr.data.created_at,
       author: pr.data.user?.login
         ? {
             login: pr.data.user.login,
@@ -142,7 +134,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 /**
  *
  * @param {import('@octokit/rest').RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]["author_association"]} input
- * @returns {AuthorAssociation}
+ * @returns {Exclude<import('./types').FetchedCommitDetails["author"], null>["association"]}
  */
 function getAuthorAssociation(input) {
   switch (input) {
