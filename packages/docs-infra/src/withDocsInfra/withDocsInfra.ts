@@ -104,19 +104,6 @@ export interface DocsInfraMdxOptions {
    */
   baseDir?: string;
   /**
-   * Enable generation of embeddings for full text content.
-   * When enabled, generates 512-dimensional vector embeddings from page content
-   * for semantic search capabilities.
-   *
-   * Note: Requires optional peer dependencies to be installed:
-   * - @orama/plugin-embeddings
-   * - @tensorflow/tfjs
-   * - @tensorflow/tfjs-backend-wasm
-   *
-   * @default false
-   */
-  generateEmbeddings?: boolean;
-  /**
    * Throw an error if any index is out of date or missing.
    * Useful for CI environments to ensure indexes are committed.
    *
@@ -134,7 +121,6 @@ export function getDocsInfraMdxOptions(
   const {
     extractToIndex = true,
     baseDir,
-    generateEmbeddings = false,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
   } = customOptions;
 
@@ -168,7 +154,6 @@ export function getDocsInfraMdxOptions(
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
       {
         extractToIndex: extractToIndexOptions,
-        generateEmbeddings,
         markerPath: '.next/cache/docs-infra/index-updates',
         errorIfIndexOutOfDate,
       },

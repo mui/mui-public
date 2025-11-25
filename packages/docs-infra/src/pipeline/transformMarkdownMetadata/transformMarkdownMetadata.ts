@@ -5,7 +5,6 @@ import type { Program, Property, Expression } from 'estree';
 import { dirname, relative } from 'node:path';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
-import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
 import type {
   TransformMarkdownMetadataOptions,
   HeadingHierarchy,
@@ -658,24 +657,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       // Handle blockquotes - their paragraphs will be picked up by the paragraph handler above
     });
 
-    // Build full text from collected parts
-    const fullText = fullTextParts
-      .map((part) => {
-        const trimmed = part.trim();
-        if (!trimmed) {
-          return '';
-        }
-        // Add period if it doesn't end with punctuation
-        if (!/[.!?]$/.test(trimmed)) {
-          return `${trimmed}.`;
-        }
-        return trimmed;
-      })
-      .filter((part) => part.length > 0)
-      .join(' ');
-
-    const embeddings = options.generateEmbeddings ? generateEmbeddings(fullText) : null;
-
     // Fill in missing title and description if we have them from content
     let shouldUpdateMetadata = false;
     if (metadata) {
@@ -746,12 +727,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
-      // Add embeddings if missing
-      if (!mutableMetadata.embeddings && embeddings) {
-        mutableMetadata.embeddings = await embeddings;
-        shouldUpdateMetadata = true;
-      }
-
       // Update the metadata in the ESTree if we added any fields
       if (shouldUpdateMetadata && metadataNode) {
         const esmNode = metadataNode as { type: string; data?: { estree?: Program } };
@@ -765,15 +740,12 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       const descriptionValue = metaDescription || firstParagraphAfterH1 || undefined;
       const descriptionMarkdownValue = metaDescription ? [] : firstParagraphMarkdown || undefined;
 
-      const embeddingsValue = embeddings ? await embeddings : undefined;
-
       metadata = {
         title: firstH1 || undefined,
         description: descriptionValue,
         descriptionMarkdown: descriptionMarkdownValue,
         keywords: metaKeywords || undefined,
         sections: headings.length > 1 ? buildHeadingHierarchy(headings) : undefined,
-        embeddings: embeddingsValue,
         openGraph: {
           title: firstH1 || undefined,
           description: descriptionValue,

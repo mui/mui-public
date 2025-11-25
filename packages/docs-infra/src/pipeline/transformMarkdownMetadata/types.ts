@@ -46,19 +46,6 @@ export interface TransformMarkdownMetadataOptions {
          */
         errorIfOutOfDate?: boolean;
       };
-  /**
-   * Enable generation of embeddings for full text content.
-   * When enabled, generates 512-dimensional vector embeddings from page content
-   * for semantic search capabilities.
-   *
-   * Note: Requires optional peer dependencies to be installed:
-   * - @orama/plugin-embeddings
-   * - @tensorflow/tfjs
-   * - @tensorflow/tfjs-backend-wasm
-   *
-   * @default false
-   */
-  generateEmbeddings?: boolean;
 }
 
 /**

@@ -29,7 +29,6 @@
     "./useSearch/types": "./src/useSearch/types.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
-    "./pipeline/generateEmbeddings": "./src/pipeline/generateEmbeddings/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
     "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
@@ -78,7 +77,6 @@
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "@babel/standalone": "^7.28.5",
-    "@huggingface/transformers": "^3.7.6",
     "@orama/orama": "^3.1.16",
     "@orama/stemmers": "^3.1.16",
     "@orama/stopwords": "^3.1.16",
