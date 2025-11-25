@@ -17,8 +17,8 @@
       "default": "./src/babel-config.mjs"
     },
     "./changelog": {
-      "types": "./build/utils/changelog.d.mts",
-      "default": "./src/utils/changelog.mjs"
+      "types": "./build/changelog/index.d.mts",
+      "default": "./src/changelog/index.mjs"
     },
     "./eslint": {
       "types": "./build/eslint/index.d.mts",
