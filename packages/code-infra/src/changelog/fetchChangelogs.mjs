@@ -1,25 +1,11 @@
 import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 
-import { persistentAuthStrategy } from './github.mjs';
-import { getRepositoryInfo } from './git.mjs';
+import { getRepositoryInfo } from '../utils/git.mjs';
+import { persistentAuthStrategy } from '../utils/github.mjs';
 
 /**
  * @typedef {import('@octokit/rest').Octokit} OctokitType
- */
-
-/**
- * @typedef {'team' | 'first_timer' | 'contributor'} AuthorAssociation
- */
-
-/**
- * @typedef {Object} FetchedCommitDetails
- * @property {string} sha
- * @property {string} message
- * @property {string[]} labels
- * @property {number} prNumber
- * @property {string} html_url
- * @property {{login: string; association: AuthorAssociation} | null} author
  */
 
 /**
@@ -54,7 +40,7 @@ export async function findLatestTaggedVersion(opts) {
  * Automatically handles GitHub OAuth authentication if none provided.
  *
  * @param {FetchCommitsOptions & {octokit?: OctokitType}} opts
- * @returns {Promise<FetchedCommitDetails[]>}
+ * @returns {Promise<import('./types').FetchedCommitDetails[]>}
  */
 export async function fetchCommitsBetweenRefs(opts) {
   const octokit =
@@ -78,7 +64,7 @@ export async function fetchCommitsBetweenRefs(opts) {
  *
  * @param {FetchCommitsOptions & { octokit: OctokitType}} param0
  *
- * @returns {Promise<FetchedCommitDetails[]>}
+ * @returns {Promise<import('./types').FetchedCommitDetails[]>}
  */
 async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui' }) {
   /**
@@ -121,7 +107,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 
     const labels = pr.data.labels.map((label) => label.name);
 
-    return /** @type {FetchedCommitDetails} */ ({
+    return /** @type {import('./types').FetchedCommitDetails} */ ({
       sha: commit.sha,
       message: commit.commit.message,
       labels,
@@ -142,7 +128,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 /**
  *
  * @param {import('@octokit/rest').RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]["author_association"]} input
- * @returns {AuthorAssociation}
+ * @returns {Exclude<import('./types').FetchedCommitDetails["author"], null>["association"]}
  */
 function getAuthorAssociation(input) {
   switch (input) {
