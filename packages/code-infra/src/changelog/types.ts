@@ -370,14 +370,9 @@ export interface GenerateChangelogOptions {
   date: Date;
 
   /**
-   * Path to changelog config file (default: 'changelog.config.mjs').
-   */
-  configPath?: string;
-
-  /**
    * Changelog configuration (if not loading from file).
    */
-  config?: ChangelogConfig;
+  config: ChangelogConfig;
 }
 
 /**

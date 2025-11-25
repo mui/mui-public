@@ -1,5 +1,4 @@
 import { fetchCommitsBetweenRefs } from './fetchChangelogs.mjs';
-import { loadChangelogConfig } from './loadChangelogConfig.mjs';
 import { filterCommits } from './filterCommits.mjs';
 import { categorizeCommits } from './categorizeCommits.mjs';
 import { buildSections } from './buildSections.mjs';
@@ -18,17 +17,6 @@ import { formatChangelog, extractContributorsFromAllCommits } from './formatChan
  * @returns {Promise<GenerateChangelogResult>} Changelog result with markdown and sections
  */
 export async function generateChangelog(options) {
-  // Load configuration
-  /** @type {ChangelogConfig} */
-  let config;
-
-  if (options.config) {
-    config = options.config;
-  } else {
-    const configPath = options.configPath || 'changelog.config.mjs';
-    config = await loadChangelogConfig(configPath);
-  }
-
   // Fetch commits from GitHub
   const allCommits = await fetchCommitsBetweenRefs({
     repo: options.repo,
@@ -36,6 +24,7 @@ export async function generateChangelog(options) {
     lastRelease: options.lastRelease,
     release: options.release,
   });
+  const config = options.config;
 
   // Extract contributors from ALL commits (excluding only excludeAuthors)
   // This ensures contributors are credited even if their commits are filtered out
