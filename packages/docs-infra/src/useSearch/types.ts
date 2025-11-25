@@ -1,3 +1,4 @@
+import { Orama, SearchParams } from '@orama/orama';
 import type {
   Sitemap,
   SitemapPage,
@@ -27,6 +28,8 @@ export interface BaseSearchResult {
  */
 export interface PageSearchResult extends BaseSearchResult {
   type: 'page';
+  page?: string;
+  pageKeywords?: string;
   sections?: string;
   subsections?: string;
 }
@@ -90,6 +93,8 @@ export type {
   Sitemap,
 };
 
+export type SearchResults = { group: string; items: SearchResult[] }[];
+
 /**
  * Options for configuring search behavior
  */
@@ -114,14 +119,19 @@ export interface UseSearchOptions {
   ) => SearchResult;
 }
 
+export type SearchBy<T> = Pick<
+  SearchParams<Orama<T>>,
+  'facets' | 'groupBy' | 'limit' | 'offset' | 'where'
+>;
+
 /**
  * Return value from useSearch hook
  */
-export interface UseSearchResult {
+export interface UseSearchResult<T> {
   /**
    * Current search results
    */
-  results: SearchResult[];
+  results: SearchResults;
 
   /**
    * Whether the search index is ready
@@ -131,12 +141,12 @@ export interface UseSearchResult {
   /**
    * Function to update search value and get new results
    */
-  search: (value: string) => Promise<void>;
+  search: (value: string, by?: SearchBy<T>) => Promise<void>;
 
   /**
    * Default results shown when search is empty
    */
-  defaultResults: SearchResult[];
+  defaultResults: SearchResults;
 
   /**
    * Build a URL from a search result

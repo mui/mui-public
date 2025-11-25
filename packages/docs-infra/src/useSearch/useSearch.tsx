@@ -8,6 +8,8 @@ import type {
   SearchResult,
   SitemapPage,
   SitemapSectionData,
+  SearchBy,
+  SearchResults,
 } from './types';
 
 /**
@@ -27,6 +29,8 @@ interface SearchDocument {
   props?: string;
   dataAttributes?: string;
   cssVariables?: string;
+  page?: string;
+  pageKeywords?: string;
   section?: string;
   subsection?: string;
   sections?: string;
@@ -45,6 +49,8 @@ const searchSchema = {
   prefix: 'string',
   path: 'string',
   keywords: 'string',
+  page: 'string',
+  pageKeywords: 'string',
   sections: 'string',
   subsections: 'string',
   part: 'string',
@@ -147,13 +153,16 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
   // Add base page result
   results.push({
     type: 'page',
+    page: page.title,
     title: page.title,
     slug: page.slug,
     path: page.path,
     description: page.description,
     sectionTitle: sectionData.title,
     prefix: sectionData.prefix,
-    ...flattened,
+    sections: flattened.sections,
+    subsections: flattened.subsections,
+    pageKeywords: flattened.keywords,
   });
 
   // Add entries for each part
@@ -165,14 +174,14 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
         export: `${page.slug}.${partName}`,
         slug: partName.toLowerCase(),
         path: page.path,
-        title: page.title ? `${page.title} - ${partName}` : partName,
+        title: page.title ? `${page.title} ‣ ${partName}` : partName,
         description: page.description,
         sectionTitle: sectionData.title,
         prefix: sectionData.prefix,
         props: partData.props ? partData.props.join(' ') : '',
         dataAttributes: partData.dataAttributes ? partData.dataAttributes.join(' ') : '',
         cssVariables: partData.cssVariables ? partData.cssVariables.join(' ') : '',
-        keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+        keywords: flattened.keywords,
       });
     }
   }
@@ -197,7 +206,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
         props: exportData.props ? exportData.props.join(' ') : '',
         dataAttributes: exportData.dataAttributes ? exportData.dataAttributes.join(' ') : '',
         cssVariables: exportData.cssVariables ? exportData.cssVariables.join(' ') : '',
-        keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+        keywords: flattened.keywords,
       });
     }
   }
@@ -209,27 +218,27 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
       section: sectionItem.title,
       slug: `${page.slug}#${sectionItem.slug}`,
       path: page.path,
-      title: page.title ? `${page.title} - ${sectionItem.title}` : sectionItem.title,
+      title: page.title ? `${page.title} ‣ ${sectionItem.title}` : sectionItem.title,
       description: page.description,
       sectionTitle: sectionData.title,
       prefix: sectionData.prefix,
-      keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+      keywords: flattened.keywords,
     });
   }
 
   // Add entries for each subsection
   for (const subsectionItem of subsections) {
-    const fullTitle = subsectionItem.parentTitles.join(' - ');
+    const fullTitle = subsectionItem.parentTitles.join(' ‣ ');
     results.push({
       type: 'subsection',
       subsection: fullTitle,
       slug: `${page.slug}#${subsectionItem.slug.toLowerCase()}`,
       path: page.path,
-      title: page.title ? `${page.title} - ${fullTitle}` : fullTitle,
+      title: page.title ? `${page.title} ‣ ${fullTitle}` : fullTitle,
       description: page.description,
       sectionTitle: sectionData.title,
       prefix: sectionData.prefix,
-      keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+      keywords: flattened.keywords,
     });
   }
 
@@ -308,12 +317,12 @@ function defaultFormatResult(hit: OramaHit): SearchResult {
  * @param options Configuration options for search behavior
  * @returns Search state and functions
  */
-export function useSearch(options: UseSearchOptions): UseSearchResult {
+export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSchema> {
   const {
     sitemap: sitemapImport,
     maxDefaultResults = 10,
     tolerance = 1,
-    limit = 20,
+    limit: defaultLimit = 20,
     boost,
     enableStemming = true,
     flattenPage = defaultFlattenPage,
@@ -321,8 +330,8 @@ export function useSearch(options: UseSearchOptions): UseSearchResult {
   } = options;
 
   const [index, setIndex] = React.useState<Orama<SearchSchema> | null>(null);
-  const [defaultResults, setDefaultResults] = React.useState<SearchResult[]>([]);
-  const [results, setResults] = React.useState<SearchResult[]>([]);
+  const [defaultResults, setDefaultResults] = React.useState<SearchResults>([]);
+  const [results, setResults] = React.useState<SearchResults>([]);
 
   React.useEffect(() => {
     (async () => {
@@ -364,14 +373,19 @@ export function useSearch(options: UseSearchOptions): UseSearchResult {
 
       await Promise.all(pages.map((page) => insert(searchIndex, page)));
 
+      const pageResultsGrouped = [{ group: 'Default', items: pageResults }];
+
       setIndex(searchIndex);
-      setDefaultResults(pageResults);
-      setResults(pageResults);
+      setDefaultResults(pageResultsGrouped);
+      setResults(pageResultsGrouped);
     })();
   }, [sitemapImport, maxDefaultResults, flattenPage, enableStemming]);
 
   const search = React.useCallback(
-    async (value: string) => {
+    async (
+      value: string,
+      { facets, groupBy, limit = defaultLimit, where }: SearchBy<SearchSchema> = {},
+    ) => {
       if (!index || !value.trim()) {
         setResults([]);
         return;
@@ -379,15 +393,27 @@ export function useSearch(options: UseSearchOptions): UseSearchResult {
 
       const searchResults = await oramaSearch(index, {
         term: value,
+        facets,
+        groupBy,
+        where,
         limit,
         tolerance,
         boost,
       });
 
+      if (searchResults.groups) {
+        const groupedResults: SearchResults = searchResults.groups.map((group) => ({
+          group: group.values.join(' '),
+          items: group.result.map(formatResult),
+        }));
+        setResults(groupedResults);
+        return;
+      }
+
       const formattedResults: SearchResult[] = searchResults.hits.map(formatResult);
-      setResults(formattedResults);
+      setResults([{ group: 'Default', items: formattedResults }]);
     },
-    [index, limit, tolerance, boost, formatResult],
+    [index, defaultLimit, tolerance, boost, formatResult],
   );
 
   /**
