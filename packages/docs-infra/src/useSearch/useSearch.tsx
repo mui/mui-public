@@ -2,7 +2,7 @@ import * as React from 'react';
 import {
   create,
   ElapsedTime,
-  insert,
+  insertMultiple,
   search as oramaSearch,
   type Orama,
   type Result,
@@ -360,6 +360,17 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
                 stemming: true,
                 language,
                 stemmer,
+                stemmerSkipProperties: [
+                  'type',
+                  'slug',
+                  'sectionTitle',
+                  'page',
+                  'part',
+                  'export',
+                  'dataAttributes',
+                  'cssVariables',
+                  'props',
+                ],
                 stopWords: englishStopwords,
               },
             }
@@ -382,7 +393,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         });
       });
 
-      await Promise.all(pages.map((page) => insert(searchIndex, page)));
+      insertMultiple(searchIndex, pages);
 
       const pageResultsGrouped = [{ group: 'Default', items: pageResults }];
 
