@@ -796,4 +796,67 @@ Features list here.`;
     expect(metadataJs).toContain('description: "A modal dialog component for important messages."');
     expect(metadataJs).toContain('keywords: ["modal", "dialog", "overlay", "popup"]');
   });
+
+  it('should append titleSuffix to title in exported metadata', async () => {
+    const input = `# Button Component
+
+A versatile button component.`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, { titleSuffix: ' | My Site' });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // The exported title should have the suffix
+    expect(metadataJs).toContain('title: "Button Component | My Site"');
+    // openGraph title should still have the original title (no suffix)
+    expect(metadataJs).toContain('title: "Button Component"');
+  });
+
+  it('should append titleSuffix when updating existing metadata', async () => {
+    const input = `export const metadata = {
+  keywords: ['button', 'ui'],
+};
+
+# Button Component
+
+A versatile button component.`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, { titleSuffix: ' | Base UI' });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // The exported title should have the suffix
+    expect(metadataJs).toContain('title: "Button Component | Base UI"');
+  });
+
+  it('should not append titleSuffix when there is no title', async () => {
+    const input = `Some content without a heading.`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, { titleSuffix: ' | My Site' });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    // No metadata should be created since there's no h1 or description
+    expect(metadataJs).toBeNull();
+  });
 });

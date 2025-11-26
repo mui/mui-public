@@ -731,7 +731,12 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       if (shouldUpdateMetadata && metadataNode) {
         const esmNode = metadataNode as { type: string; data?: { estree?: Program } };
         if (esmNode.data?.estree) {
-          updateMetadataInEstree(esmNode.data.estree, mutableMetadata);
+          // Apply titleSuffix only to the exported metadata, not to the internal metadata
+          const exportMetadata =
+            options.titleSuffix && mutableMetadata.title
+              ? { ...mutableMetadata, title: mutableMetadata.title + options.titleSuffix }
+              : mutableMetadata;
+          updateMetadataInEstree(esmNode.data.estree, exportMetadata);
         }
       }
     } else if (firstH1 || firstParagraphAfterH1 || metaDescription || metaKeywords) {
@@ -753,7 +758,12 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       };
 
       // Create a new metadata export and add it to the tree
-      const metadataExport = createMetadataExport(metadata);
+      // Apply titleSuffix only to the exported metadata, not to the internal metadata
+      const exportMetadata =
+        options.titleSuffix && metadata.title
+          ? { ...metadata, title: metadata.title + options.titleSuffix }
+          : metadata;
+      const metadataExport = createMetadataExport(exportMetadata);
       root.children.unshift(metadataExport as RootContent);
     }
 

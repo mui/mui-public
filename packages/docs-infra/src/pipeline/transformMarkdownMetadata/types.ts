@@ -5,6 +5,20 @@ import type { PhrasingContent } from 'mdast';
  */
 export interface TransformMarkdownMetadataOptions {
   /**
+   * A suffix to append to the title when saving it to the `export const metadata` object.
+   * This suffix is not included in the metadata used for index extraction or returned metadata.
+   *
+   * Useful for adding site-wide title suffixes like " | My Site" to page metadata.
+   *
+   * @example
+   * ```ts
+   * transformMarkdownMetadata({ titleSuffix: ' | Base UI' })
+   * // Title "Button" becomes "Button | Base UI" in the export
+   * ```
+   */
+  titleSuffix?: string;
+
+  /**
    * Controls automatic extraction of page metadata to parent directory index files.
    *
    * When enabled, the plugin extracts metadata (title, description, headings) from MDX files
