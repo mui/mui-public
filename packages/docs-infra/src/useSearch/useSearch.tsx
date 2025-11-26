@@ -1,5 +1,12 @@
 import * as React from 'react';
-import { create, insert, search as oramaSearch, type Orama, type Result } from '@orama/orama';
+import {
+  create,
+  ElapsedTime,
+  insert,
+  search as oramaSearch,
+  type Orama,
+  type Result,
+} from '@orama/orama';
 import { stemmer, language } from '@orama/stemmers/english';
 import { stopwords as englishStopwords } from '@orama/stopwords/english';
 import type {
@@ -331,7 +338,11 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
   const [index, setIndex] = React.useState<Orama<SearchSchema> | null>(null);
   const [defaultResults, setDefaultResults] = React.useState<SearchResults>([]);
-  const [results, setResults] = React.useState<SearchResults>([]);
+  const [results, setResults] = React.useState<{
+    results: SearchResults;
+    count: number;
+    elapsed: ElapsedTime;
+  }>({ results: [], count: 0, elapsed: { raw: 0, formatted: '0ms' } });
 
   React.useEffect(() => {
     (async () => {
@@ -377,7 +388,11 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
       setIndex(searchIndex);
       setDefaultResults(pageResultsGrouped);
-      setResults(pageResultsGrouped);
+      setResults({
+        results: pageResultsGrouped,
+        count: pageResults.length,
+        elapsed: { raw: 0, formatted: '0ms' },
+      });
     })();
   }, [sitemapImport, maxDefaultResults, flattenPage, enableStemming]);
 
@@ -387,7 +402,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
       { facets, groupBy, limit = defaultLimit, where }: SearchBy<SearchSchema> = {},
     ) => {
       if (!index || !value.trim()) {
-        setResults([]);
+        setResults({ results: [], count: 0, elapsed: { raw: 0, formatted: '0ms' } });
         return;
       }
 
@@ -400,18 +415,20 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         tolerance,
         boost,
       });
+      const count = searchResults.count;
+      const elapsed = searchResults.elapsed;
 
       if (searchResults.groups) {
         const groupedResults: SearchResults = searchResults.groups.map((group) => ({
           group: group.values.join(' '),
           items: group.result.map(formatResult),
         }));
-        setResults(groupedResults);
+        setResults({ results: groupedResults, count, elapsed });
         return;
       }
 
       const formattedResults: SearchResult[] = searchResults.hits.map(formatResult);
-      setResults([{ group: 'Default', items: formattedResults }]);
+      setResults({ results: [{ group: 'Default', items: formattedResults }], count, elapsed });
     },
     [index, defaultLimit, tolerance, boost, formatResult],
   );

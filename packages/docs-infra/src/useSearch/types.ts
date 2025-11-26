@@ -1,4 +1,4 @@
-import { Orama, SearchParams } from '@orama/orama';
+import { ElapsedTime, Orama, SearchParams } from '@orama/orama';
 import type {
   Sitemap,
   SitemapPage,
@@ -131,7 +131,7 @@ export interface UseSearchResult<T> {
   /**
    * Current search results
    */
-  results: SearchResults;
+  results: { results: SearchResults; count: number; elapsed: ElapsedTime };
 
   /**
    * Whether the search index is ready
