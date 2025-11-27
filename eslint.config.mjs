@@ -41,7 +41,14 @@ export default /** @type {import('eslint').Linter.Config[]} */ (
         // matching the pattern of the test runner
         `**/*${EXTENSION_TEST_FILE}`,
       ],
-      extends: createTestConfig(),
+      extends: createTestConfig({ useMocha: false, useVitest: true }),
+    },
+    {
+      files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
+      rules: {
+        // TODO @dav-is
+        'vitest/no-conditional-expect': 'off',
+      },
     },
     {
       files: ['docs/**/*'],

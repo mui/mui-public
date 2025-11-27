@@ -115,6 +115,7 @@ pluginTester({
               ),
             );
 
+            // eslint-disable-next-line vitest/valid-expect
             expect(actualErrorCodes).to.deep.equal(expectedErrorCodes);
           } finally {
             fs.unlinkSync(temporaryErrorCodesPath);
