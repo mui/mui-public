@@ -59,6 +59,13 @@ export interface TransformMarkdownMetadataOptions {
          * @default false
          */
         errorIfOutOfDate?: boolean;
+        /**
+         * Use the first visible paragraph as the description in the extracted index,
+         * even if a meta tag description is present.
+         * This does not affect the `export const metadata` which will still use the meta tag.
+         * @default false
+         */
+        useVisibleDescription?: boolean;
       };
 }
 

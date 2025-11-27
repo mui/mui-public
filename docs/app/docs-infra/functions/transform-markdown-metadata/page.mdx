@@ -123,6 +123,26 @@ export default withDocsInfra()(withMDX(nextConfig));
 
 ## Configuration
 
+### titleSuffix
+
+**Type**: `string`  
+**Default**: `undefined`
+
+A suffix to append to the title in the exported `metadata` object. This is useful for adding site-wide title suffixes like " | My Site" to page metadata for SEO.
+
+The suffix is only applied to the `export const metadata` title—it does not affect:
+- The `openGraph.title` (keeps the original title for social sharing)
+- The title used in index extraction
+- Any internal metadata processing
+
+```typescript
+// Adds " | Base UI" to all page titles in the metadata export
+.use(transformMarkdownMetadata, { titleSuffix: ' | Base UI' })
+
+// Input: # Button Component
+// Result: export const metadata = { title: "Button Component | Base UI", ... }
+```
+
 ### extractToIndex
 
 **Type**: `boolean | { include: string[], exclude: string[], baseDir?: string }`  
@@ -149,6 +169,7 @@ Index files themselves (e.g., `pattern/page.mdx` where `pattern` is in the inclu
 - `include` (string[]): Path prefixes that files must start with to be indexed (without trailing slashes)
 - `exclude` (string[]): Path prefixes to exclude from indexing (without trailing slashes)
 - `baseDir` (string, optional): Base directory to strip from absolute file paths before matching. When using `getDocsInfraMdxOptions()`, this defaults to `process.cwd()`. When calling the plugin directly, you should provide this for accurate path filtering.
+- `useVisibleDescription` (boolean, optional): When `true`, uses the first visible paragraph after the H1 as the description in the extracted index, even when a `<meta>` tag provides the SEO description. This is useful when you want different descriptions for SEO (meta tag) vs. the index page (visible content). Default: `false`.
 
 ```typescript
 // Extract but don't update index
@@ -163,6 +184,14 @@ Index files themselves (e.g., `pattern/page.mdx` where `pattern` is in the inclu
     include: ['app/docs', 'app/components'],
     exclude: ['app/docs/internal'],
     baseDir: '/path/to/your/project' // e.g., dirname(fileURLToPath(import.meta.url))
+  }
+})
+
+// Use visible paragraph for index, meta tag for SEO
+.use(transformMarkdownMetadata, {
+  extractToIndex: {
+    include: ['app/components'],
+    useVisibleDescription: true
   }
 })
 ```

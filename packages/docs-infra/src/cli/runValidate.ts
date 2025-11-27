@@ -15,6 +15,7 @@ import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata
 type Args = {
   paths?: string[];
   command?: string;
+  useVisibleDescription?: boolean;
 };
 
 const completeMessage = (message: string) => `✓ ${chalk.green(message)}`;
@@ -62,6 +63,12 @@ const runValidate: CommandModule<{}, Args> = {
         description: 'Command to suggest when indexes are out of date',
         default: 'pnpm docs-infra validate',
       })
+      .option('useVisibleDescription', {
+        type: 'boolean',
+        description:
+          'Use the first visible paragraph as description in extracted index instead of meta tag',
+        default: false,
+      })
       .positional('paths', {
         type: 'string',
         array: true,
@@ -72,7 +79,11 @@ const runValidate: CommandModule<{}, Args> = {
   },
   handler: async (args) => {
     const cwd = process.cwd();
-    const { paths = [], command = 'pnpm docs-infra validate' } = args;
+    const {
+      paths = [],
+      command = 'pnpm docs-infra validate',
+      useVisibleDescription = false,
+    } = args;
     const ci = Boolean(process.env.CI);
 
     await Promise.all([
@@ -129,6 +140,7 @@ const runValidate: CommandModule<{}, Args> = {
               baseDir: cwd,
               onlyUpdateIndexes: true,
               markerDir,
+              useVisibleDescription,
             },
           });
 

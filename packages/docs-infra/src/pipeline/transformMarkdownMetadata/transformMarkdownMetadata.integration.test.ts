@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkMdx from 'remark-mdx';
 import { toJs } from 'estree-util-to-js';
 import { visit } from 'unist-util-visit';
 import { transformMarkdownMetadata } from './transformMarkdownMetadata';
+
+// Mock syncPageIndex to capture calls
+vi.mock('../syncPageIndex', () => ({
+  syncPageIndex: vi.fn().mockResolvedValue(undefined),
+}));
 
 /**
  * Helper to extract and stringify the metadata export from an MDX AST
@@ -565,6 +570,28 @@ The checkbox accepts...`;
     expect(metadataJs).toContain('title: "Advanced Component"');
   });
 
+  it('should handle multi-line JSX component wrapper', async () => {
+    const input = `# Accordion Component
+
+<Subtitle>
+  A set of collapsible panels with headings.
+</Subtitle>
+
+## Features`;
+
+    const processor = unified().use(remarkParse).use(remarkMdx).use(transformMarkdownMetadata);
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // Should extract description from multi-line JSX element
+    expect(metadataJs).toContain('description: "A set of collapsible panels with headings."');
+    expect(metadataJs).toContain('title: "Accordion Component"');
+  });
+
   it('should extract description from Meta tag with lowercase name', async () => {
     const input = `# Accordion Component
 
@@ -858,5 +885,121 @@ A versatile button component.`;
     const metadataJs = extractMetadataJs(tree);
     // No metadata should be created since there's no h1 or description
     expect(metadataJs).toBeNull();
+  });
+
+  it('should use visible paragraph in extracted index when useVisibleDescription is true', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Button Component
+
+A versatile button for actions.
+
+<meta name="description" content="SEO optimized button description." />
+
+## Props`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+          useVisibleDescription: true,
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/button/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    // Exported metadata should still use meta tag description
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toContain('description: "SEO optimized button description."');
+
+    // syncPageIndex should receive the visible paragraph
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.description).toBe('A versatile button for actions.');
+  });
+
+  it('should use meta tag in extracted index when useVisibleDescription is false', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Checkbox Component
+
+A checkbox for selections.
+
+<meta name="description" content="SEO optimized checkbox description." />
+
+## Props`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+          useVisibleDescription: false,
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/checkbox/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    // Both should use the meta tag description
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toContain('description: "SEO optimized checkbox description."');
+
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.description).toBe('SEO optimized checkbox description.');
+  });
+
+  it('should use visible JSX wrapper text in extracted index when useVisibleDescription is true', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Input Component
+
+<Description>A text input for user entry.</Description>
+
+<Meta name="description" content="SEO optimized input description." />
+
+## Props`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+          useVisibleDescription: true,
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/input/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    // Exported metadata should use meta tag description
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toContain('description: "SEO optimized input description."');
+
+    // syncPageIndex should receive the JSX wrapper text
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.description).toBe('A text input for user entry.');
   });
 });

@@ -236,10 +236,21 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
   return parent;
 }
 
+interface ToPageMetadataOptions {
+  /** Override description with the visible paragraph (ignoring meta tag) */
+  visibleDescription?: string;
+  /** Override descriptionMarkdown with the visible paragraph markdown */
+  visibleDescriptionMarkdown?: PhrasingContent[];
+}
+
 /**
  * Converts extracted metadata to PageMetadata format for index updates
  */
-function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMetadata {
+function toPageMetadata(
+  metadata: ExtractedMetadata,
+  filePath: string,
+  options: ToPageMetadataOptions = {},
+): PageMetadata {
   // Extract the slug from the file path (directory name containing the page)
   const parts = filePath.split('/');
   const pageFileName = parts[parts.length - 1]; // e.g., 'page.mdx'
@@ -276,8 +287,8 @@ function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMeta
     slug,
     path,
     title: metadata.title,
-    description: metadata.description,
-    descriptionMarkdown: metadata.descriptionMarkdown,
+    description: options.visibleDescription ?? metadata.description,
+    descriptionMarkdown: options.visibleDescriptionMarkdown ?? metadata.descriptionMarkdown,
     keywords: metadata.keywords,
     sections: metadata.sections,
     openGraph: metadata.openGraph,
@@ -580,6 +591,31 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         nextNodeAfterH1 = null; // Clear the marker
       }
 
+      // Check if this is a JSX flow element right after the first h1 (multi-line JSX like <Subtitle>...</Subtitle>)
+      // This handles cases where the JSX element spans multiple lines and becomes a block-level element
+      if (
+        foundFirstH1 &&
+        !firstParagraphAfterH1 &&
+        nextNodeAfterH1 &&
+        node === nextNodeAfterH1 &&
+        node.type === 'mdxJsxFlowElement' &&
+        'name' in node &&
+        node.name !== 'meta' &&
+        node.name !== 'Meta' &&
+        'children' in node &&
+        Array.isArray(node.children)
+      ) {
+        // Extract text from the JSX element's children
+        const textContent = extractPlainTextFromChildren(node.children as PhrasingContent[])
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (textContent) {
+          firstParagraphAfterH1 = textContent;
+          firstParagraphMarkdown = node.children as PhrasingContent[];
+        }
+        nextNodeAfterH1 = null; // Clear the marker
+      }
+
       // Extract full text content (excluding code blocks and metadata)
       // When we encounter a heading, push the heading text and then create a new empty slot for content
       if (node.type === 'heading') {
@@ -821,7 +857,18 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 
       if (shouldExtract) {
         try {
-          const pageMetadata = toPageMetadata(metadata, file.path);
+          // Determine if we should use visible description instead of meta tag
+          const useVisibleDescription =
+            typeof options.extractToIndex !== 'boolean' &&
+            options.extractToIndex.useVisibleDescription;
+
+          const pageMetadataOptions: ToPageMetadataOptions = {};
+          if (useVisibleDescription && firstParagraphAfterH1) {
+            pageMetadataOptions.visibleDescription = firstParagraphAfterH1;
+            pageMetadataOptions.visibleDescriptionMarkdown = firstParagraphMarkdown;
+          }
+
+          const pageMetadata = toPageMetadata(metadata, file.path, pageMetadataOptions);
           const updateOptions: Parameters<typeof syncPageIndex>[0] = {
             pagePath: file.path,
             metadata: pageMetadata,
