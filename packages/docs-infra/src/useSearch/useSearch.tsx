@@ -24,6 +24,7 @@ import type {
  */
 interface SearchDocument {
   type: string;
+  group: string;
   title: string;
   description: string;
   slug: string;
@@ -49,6 +50,7 @@ interface SearchDocument {
  */
 const searchSchema = {
   type: 'string',
+  group: 'string',
   title: 'string',
   description: 'string',
   slug: 'string',
@@ -160,6 +162,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
   // Add base page result
   results.push({
     type: 'page',
+    group: 'Pages',
     page: page.title,
     title: page.title,
     slug: page.slug,
@@ -177,6 +180,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
     for (const [partName, partData] of Object.entries(page.parts)) {
       results.push({
         type: 'part',
+        group: 'API Reference',
         part: partName,
         export: `${page.slug}.${partName}`,
         slug: partName.toLowerCase(),
@@ -203,6 +207,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
           : exportName.toLowerCase();
       results.push({
         type: 'export',
+        group: 'API Reference',
         export: exportSlug,
         slug: page.slug,
         path: page.path,
@@ -222,6 +227,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
   for (const sectionItem of sections) {
     results.push({
       type: 'section',
+      group: 'Sections',
       section: sectionItem.title,
       slug: `${page.slug}#${sectionItem.slug}`,
       path: page.path,
@@ -238,6 +244,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
     const fullTitle = subsectionItem.parentTitles.join(' ‣ ');
     results.push({
       type: 'subsection',
+      group: 'Sections',
       subsection: fullTitle,
       slug: `${page.slug}#${subsectionItem.slug.toLowerCase()}`,
       path: page.path,
@@ -362,6 +369,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
                 stemmer,
                 stemmerSkipProperties: [
                   'type',
+                  'group',
                   'slug',
                   'sectionTitle',
                   'page',

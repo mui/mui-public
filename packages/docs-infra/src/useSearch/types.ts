@@ -21,6 +21,7 @@ export interface BaseSearchResult {
   prefix: string;
   keywords?: string;
   score?: number;
+  group?: string;
 }
 
 /**
