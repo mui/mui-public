@@ -19,6 +19,31 @@ import type {
   SearchResults,
 } from './types';
 
+// https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
+// Removed words that might be meaningful in a software documentation context
+const stopWords = englishStopwords.filter(
+  (word) =>
+    word !== 'about' &&
+    word !== 'between' &&
+    word !== 'before' &&
+    word !== 'after' &&
+    word !== 'above' &&
+    word !== 'below' &&
+    word !== 'once' &&
+    word !== 'then' &&
+    word !== 'where' &&
+    word !== 'to' &&
+    word !== 'from' &&
+    word !== 'up' &&
+    word !== 'down' &&
+    word !== 'in' &&
+    word !== 'out' &&
+    word !== 'on' &&
+    word !== 'off' &&
+    word !== 'over' &&
+    word !== 'under',
+);
+
 /**
  * Type for our search document structure
  */
@@ -379,7 +404,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
                   'cssVariables',
                   'props',
                 ],
-                stopWords: englishStopwords,
+                stopWords,
               },
             }
           : undefined,
@@ -421,7 +446,11 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
       { facets, groupBy, limit = defaultLimit, where }: SearchBy<SearchSchema> = {},
     ) => {
       if (!index || !value.trim()) {
-        setResults({ results: [], count: 0, elapsed: { raw: 0, formatted: '0ms' } });
+        setResults({
+          results: defaultResults,
+          count: defaultResults.length,
+          elapsed: { raw: 0, formatted: '0ms' },
+        });
         return;
       }
 
@@ -433,6 +462,25 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         limit,
         tolerance,
         boost,
+        sortBy: ([_, aScore, aDocument], [__, bScore, bDocument]) => {
+          // Prioritize exact matches
+          const aExact =
+            aDocument.title.toLowerCase() === value.toLowerCase() ||
+            aDocument.slug.toLowerCase() === value.toLowerCase();
+          const bExact =
+            bDocument.title.toLowerCase() === value.toLowerCase() ||
+            bDocument.slug.toLowerCase() === value.toLowerCase();
+
+          if (aExact && !bExact) {
+            return -1;
+          }
+          if (!aExact && bExact) {
+            return 1;
+          }
+
+          // Then sort by score descending
+          return bScore - aScore;
+        },
       });
       const count = searchResults.count;
       const elapsed = searchResults.elapsed;
@@ -449,7 +497,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
       const formattedResults: SearchResult[] = searchResults.hits.map(formatResult);
       setResults({ results: [{ group: 'Default', items: formattedResults }], count, elapsed });
     },
-    [index, defaultLimit, tolerance, boost, formatResult],
+    [index, defaultLimit, defaultResults, tolerance, boost, formatResult],
   );
 
   /**
