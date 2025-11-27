@@ -4,11 +4,12 @@ import * as path from 'node:path';
 import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
 
 /**
- * @typedef {Omit<import('./cmdBuild.mjs').Args, 'hasLargeFiles' | 'skipBundlePackageJson' | 'skipMainCheck' | 'cjsOutDir' | 'skipBabelRuntimeCheck' | 'skipTsc' | 'buildTypes'> & {sourceMap?: boolean; skipTypes?: boolean}} BaseArgs
- */
-
-/**
- * @typedef {BaseArgs & { bundler: 'tsdown' | 'rslib'}} Args
+ * @typedef {Object} Args
+ * @property {import('../utils/build.mjs').BundleType[]} bundle
+ * @property {boolean} verbose
+ * @property {boolean} skipTypes
+ * @property {boolean} sourceMap
+ * @property {string[]} [copy]
  */
 
 /**
@@ -20,23 +21,11 @@ import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
  */
 const validBundles = ['esm', 'cjs'];
 
-/**
- * @type {Args['bundler'][]}
- */
-const validBundlers = ['tsdown'];
-
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build-new',
   describe: 'Builds the package for publishing.',
   builder: (yargs) =>
     yargs
-      .option('bundler', {
-        demandOption: true,
-        type: 'string',
-        choices: validBundlers,
-        description: 'The bundler to use for building the package.',
-        default: 'tsdown',
-      })
       .option('bundle', {
         array: true,
         demandOption: true,
@@ -60,30 +49,22 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Enable source maps for the build.',
       })
-      .option('skipPackageJson', {
-        type: 'boolean',
-        default: false,
-        description: 'Skip generating the package.json file in the bundle output.',
+      .option('copy', {
+        type: 'string',
+        array: true,
+        description:
+          'Files/Directories to be copied to the output directory. Can be a glob pattern.',
+        default: [],
       }),
-  async handler({ bundler, ...args }) {
+  async handler(args) {
     let pkgName = '';
     await markFn('build-new', async () => {
       const cwd = process.cwd();
       const pkgJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
-
-      if (!bundler) {
-        throw new Error('No bundler specified');
-      }
-      pkgName = pkgJson.name;
-      console.log(`⚒️ Building ${pkgJson.name} with 📦 "${bundler}"`);
       validatePkgJson(pkgJson);
+      pkgName = pkgJson.name;
 
-      switch (bundler) {
-        case 'tsdown':
-        default:
-          await import('../bundlers/tsdown.mjs').then(({ build }) => build(args, pkgJson));
-          break;
-      }
+      await import('../bundlers/tsdown.mjs').then(({ build }) => build(args, pkgJson));
     });
     console.log(
       `✅ Built "${pkgName}" in ${(measureFn('build-new').duration / 1000).toFixed(3)}s.`,

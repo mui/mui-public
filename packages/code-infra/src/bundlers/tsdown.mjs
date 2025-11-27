@@ -1,13 +1,14 @@
 /* eslint-disable no-console */
-import { builtinModules } from 'node:module';
 import * as fs from 'node:fs/promises';
+import { builtinModules } from 'node:module';
 import { build as tsdown } from 'tsdown';
 import {
+  generateEntriesFromExports,
   getTsConfigPath,
   getVersionEnvVariables,
-  generateEntriesFromExports,
   writePkgJson,
 } from '../utils/build.mjs';
+import { copyFiles } from '../utils/copyFiles.mjs';
 
 /**
  * @TODOs -
@@ -19,7 +20,7 @@ import {
  */
 
 /**
- * @typedef {import('../cli/cmdBuildNew.mjs').BaseArgs} Args
+ * @typedef {import('../cli/cmdBuildNew.mjs').Args} Args
  */
 
 /**
@@ -95,6 +96,8 @@ export async function build(args, pkgJson) {
       css: bannerText,
     },
     minify: 'dce-only',
+    hash: false,
+    name: pkgJson.name,
   };
 
   /**
@@ -213,5 +216,13 @@ export async function build(args, pkgJson) {
 
   await writePkgJson(pkgJson, outChunks, nullEntries, {
     usePkgType: true,
+  });
+
+  // tsdown's --copy arg doesn't support glob patterns.
+  await copyFiles({
+    cwd,
+    globs: args.copy ?? [],
+    buildDir: outDir,
+    verbose: args.verbose,
   });
 }
