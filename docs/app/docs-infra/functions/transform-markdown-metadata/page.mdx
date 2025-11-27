@@ -131,6 +131,7 @@ export default withDocsInfra()(withMDX(nextConfig));
 A suffix to append to the title in the exported `metadata` object. This is useful for adding site-wide title suffixes like " | My Site" to page metadata for SEO.
 
 The suffix is only applied to the `export const metadata` title—it does not affect:
+
 - The `openGraph.title` (keeps the original title for social sharing)
 - The title used in index extraction
 - Any internal metadata processing
