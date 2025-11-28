@@ -55,12 +55,11 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
      * Reports a forbidden API usage.
      * @param {import('estree').Node} node - The AST node to report
      * @param {string} apiName - The name of the forbidden API
-     * @param {'Using' | 'Importing'} action - Whether the API is being used or imported
      */
-    function reportForbiddenApi(node, apiName, action) {
+    function reportForbiddenApi(node, apiName) {
       context.report({
         node,
-        message: `${action} '${apiName}' is forbidden if the file doesn't have a 'use client' directive.`,
+        message: `Using '${apiName}' is forbidden if the file doesn't have a 'use client' directive.`,
         fix: createFix,
       });
     }
@@ -84,7 +83,7 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
               specifier.imported.type === 'Identifier' &&
               REACT_CLIENT_APIS.has(specifier.imported.name)
             ) {
-              reportForbiddenApi(specifier, `${specifier.imported.name}' from 'react`, 'Importing');
+              reportForbiddenApi(specifier, specifier.imported.name);
             }
           }
         }
@@ -93,11 +92,11 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
         for (const specifier of node.specifiers) {
           if (specifier.type === 'ImportSpecifier' && specifier.imported.type === 'Identifier') {
             if (SERVER_COMPONENT_FORBIDDEN_APIS.has(specifier.imported.name)) {
-              reportForbiddenApi(specifier, specifier.imported.name, 'Importing');
+              reportForbiddenApi(specifier, specifier.imported.name);
             }
           } else if (specifier.type === 'ImportDefaultSpecifier') {
             if (SERVER_COMPONENT_FORBIDDEN_APIS.has(specifier.local.name)) {
-              reportForbiddenApi(specifier, specifier.local.name, 'Importing');
+              reportForbiddenApi(specifier, specifier.local.name);
             }
           }
         }
@@ -115,7 +114,7 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
           node.callee.property.type === 'Identifier' &&
           REACT_CLIENT_APIS.has(node.callee.property.name)
         ) {
-          reportForbiddenApi(node, `React.${node.callee.property.name}`, 'Using');
+          reportForbiddenApi(node, `React.${node.callee.property.name}`);
         }
 
         // Check for direct calls to forbidden APIs
@@ -123,7 +122,7 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
           node.callee.type === 'Identifier' &&
           SERVER_COMPONENT_FORBIDDEN_APIS.has(node.callee.name)
         ) {
-          reportForbiddenApi(node, node.callee.name, 'Using');
+          reportForbiddenApi(node, node.callee.name);
         }
       },
     };

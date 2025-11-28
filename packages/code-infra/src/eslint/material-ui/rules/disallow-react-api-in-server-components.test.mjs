@@ -182,7 +182,7 @@ React.createContext();`,
       errors: [
         {
           message:
-            "Importing 'useState' from 'react' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useState' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: `'use client';
@@ -194,7 +194,7 @@ import { useState } from 'react';`,
       errors: [
         {
           message:
-            "Importing 'useContext' from 'react' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useContext' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: `'use client';
@@ -205,8 +205,7 @@ import { useContext } from 'react';`,
       code: `import { useRef } from 'react';`,
       errors: [
         {
-          message:
-            "Importing 'useRef' from 'react' is forbidden if the file doesn't have a 'use client' directive.",
+          message: "Using 'useRef' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: `'use client';
@@ -218,11 +217,11 @@ import { useRef } from 'react';`,
       errors: [
         {
           message:
-            "Importing 'useState' from 'react' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useState' is forbidden if the file doesn't have a 'use client' directive.",
         },
         {
           message:
-            "Importing 'useEffect' from 'react' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useEffect' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: `'use client';
@@ -235,7 +234,7 @@ import { useState, useEffect } from 'react';`,
       errors: [
         {
           message:
-            "Importing 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: `'use client';
@@ -247,7 +246,7 @@ import { useIsoLayoutEffect } from '@mui/utils';`,
       errors: [
         {
           message:
-            "Importing 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: `'use client';
@@ -285,7 +284,7 @@ import { useState } from 'react';`,
       errors: [
         {
           message:
-            "Importing 'useState' from 'react' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useState' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: null,
@@ -297,7 +296,7 @@ import { useIsoLayoutEffect } from '@mui/utils';`,
       errors: [
         {
           message:
-            "Importing 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
+            "Using 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: null,
