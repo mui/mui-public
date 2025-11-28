@@ -1,12 +1,14 @@
 /// @ts-check
 
 const REACT_CLIENT_APIS = new Set([
-  'useState',
+  'createContext',
+  'useContext',
   'useEffect',
   'useLayoutEffect',
   'useReducer',
+  'useRef',
+  'useState',
   'useTransition',
-  'createContext',
 ]);
 
 /**
