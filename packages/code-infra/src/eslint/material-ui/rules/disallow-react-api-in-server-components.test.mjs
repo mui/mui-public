@@ -59,7 +59,7 @@ import { useIsoLayoutEffect } from '@mui/utils';`,
       code: `'use client';
 useIsoLayoutEffect(() => {});`,
     },
-    // APIs not in the blacklist are allowed
+    // APIs not in the forbidden list are allowed
     {
       name: 'React.memo is allowed',
       code: `React.memo(() => {});`,
@@ -228,7 +228,7 @@ import { useRef } from 'react';`,
       output: `'use client';
 import { useState, useEffect } from 'react';`,
     },
-    // Blacklisted APIs (useIsoLayoutEffect)
+    // Forbidden APIs (useIsoLayoutEffect)
     {
       name: 'import useIsoLayoutEffect without use client directive',
       code: `import { useIsoLayoutEffect } from '@mui/utils';`,

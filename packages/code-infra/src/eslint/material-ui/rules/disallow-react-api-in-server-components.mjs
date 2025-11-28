@@ -15,9 +15,9 @@ const REACT_CLIENT_APIS = new Set([
 ]);
 
 /**
- * Additional APIs that should be blacklisted under server components.
+ * Additional APIs that are forbidden in server components.
  */
-const SERVER_COMPONENT_BLACKLISTED_APIS = new Set(['useIsoLayoutEffect']);
+const SERVER_COMPONENT_FORBIDDEN_APIS = new Set(['useIsoLayoutEffect']);
 
 /**
  * @param {import('eslint').AST.Program} ast
@@ -51,6 +51,20 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
       return fixer.insertTextBefore(firstToken, "'use client';\n");
     }
 
+    /**
+     * Reports a forbidden API usage.
+     * @param {import('estree').Node} node - The AST node to report
+     * @param {string} apiName - The name of the forbidden API
+     * @param {'Using' | 'Importing'} action - Whether the API is being used or imported
+     */
+    function reportForbiddenApi(node, apiName, action) {
+      context.report({
+        node,
+        message: `${action} '${apiName}' is forbidden if the file doesn't have a 'use client' directive.`,
+        fix: createFix,
+      });
+    }
+
     return {
       /** @param {import('eslint').AST.Program} node */
       Program(node) {
@@ -70,32 +84,20 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
               specifier.imported.type === 'Identifier' &&
               REACT_CLIENT_APIS.has(specifier.imported.name)
             ) {
-              context.report({
-                node: specifier,
-                message: `Importing '${specifier.imported.name}' from 'react' is forbidden if the file doesn't have a 'use client' directive.`,
-                fix: createFix,
-              });
+              reportForbiddenApi(specifier, `${specifier.imported.name}' from 'react`, 'Importing');
             }
           }
         }
 
-        // Check for blacklisted APIs imported from anywhere
+        // Check for forbidden APIs imported from anywhere
         for (const specifier of node.specifiers) {
           if (specifier.type === 'ImportSpecifier' && specifier.imported.type === 'Identifier') {
-            if (SERVER_COMPONENT_BLACKLISTED_APIS.has(specifier.imported.name)) {
-              context.report({
-                node: specifier,
-                message: `Importing '${specifier.imported.name}' is forbidden if the file doesn't have a 'use client' directive.`,
-                fix: createFix,
-              });
+            if (SERVER_COMPONENT_FORBIDDEN_APIS.has(specifier.imported.name)) {
+              reportForbiddenApi(specifier, specifier.imported.name, 'Importing');
             }
           } else if (specifier.type === 'ImportDefaultSpecifier') {
-            if (SERVER_COMPONENT_BLACKLISTED_APIS.has(specifier.local.name)) {
-              context.report({
-                node: specifier,
-                message: `Importing '${specifier.local.name}' is forbidden if the file doesn't have a 'use client' directive.`,
-                fix: createFix,
-              });
+            if (SERVER_COMPONENT_FORBIDDEN_APIS.has(specifier.local.name)) {
+              reportForbiddenApi(specifier, specifier.local.name, 'Importing');
             }
           }
         }
@@ -113,23 +115,15 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
           node.callee.property.type === 'Identifier' &&
           REACT_CLIENT_APIS.has(node.callee.property.name)
         ) {
-          context.report({
-            node,
-            message: `Using 'React.${node.callee.property.name}' is forbidden if the file doesn't have a 'use client' directive.`,
-            fix: createFix,
-          });
+          reportForbiddenApi(node, `React.${node.callee.property.name}`, 'Using');
         }
 
-        // Check for direct calls to blacklisted APIs
+        // Check for direct calls to forbidden APIs
         if (
           node.callee.type === 'Identifier' &&
-          SERVER_COMPONENT_BLACKLISTED_APIS.has(node.callee.name)
+          SERVER_COMPONENT_FORBIDDEN_APIS.has(node.callee.name)
         ) {
-          context.report({
-            node,
-            message: `Using '${node.callee.name}' is forbidden if the file doesn't have a 'use client' directive.`,
-            fix: createFix,
-          });
+          reportForbiddenApi(node, node.callee.name, 'Using');
         }
       },
     };
