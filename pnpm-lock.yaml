@@ -655,6 +655,9 @@ importers:
       '@orama/orama':
         specifier: ^3.1.16
         version: 3.1.16
+      '@orama/plugin-qps':
+        specifier: ^3.1.16
+        version: 3.1.16
       '@orama/stemmers':
         specifier: ^3.1.16
         version: 3.1.16
@@ -4314,6 +4317,9 @@ packages:
   '@orama/orama@3.1.16':
     resolution: {integrity: sha512-scSmQBD8eANlMUOglxHrN1JdSW8tDghsPuS83otqealBiIeMukCQMOf/wc0JJjDXomqwNdEQFLXLGHrU6PGxuA==}
     engines: {node: '>= 20.0.0'}
+
+  '@orama/plugin-qps@3.1.16':
+    resolution: {integrity: sha512-/CIhC7GIx4kFEju3pjey9C4Q6feIn+xIkLKk4O+OASAKaocvygs4Q1A004utsQT+gFgD1va4309rDMV1SJ/1yA==}
 
   '@orama/stemmers@3.1.16':
     resolution: {integrity: sha512-DdkAkhDvWD12HZez+kniLxRK4hxf1f1y+7OHxv47HIdZPYUx1Y+7Z7dX/8nM7+jrq7sa7M0wLCYOpdhVXOYEBg==}
@@ -18104,6 +18110,10 @@ snapshots:
   '@opentelemetry/semantic-conventions@1.28.0': {}
 
   '@orama/orama@3.1.16': {}
+
+  '@orama/plugin-qps@3.1.16':
+    dependencies:
+      '@orama/orama': 3.1.16
 
   '@orama/stemmers@3.1.16': {}
 

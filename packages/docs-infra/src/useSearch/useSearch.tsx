@@ -7,6 +7,7 @@ import {
   type Orama,
   type Result,
 } from '@orama/orama';
+import { pluginQPS } from '@orama/plugin-qps';
 import { stemmer, language } from '@orama/stemmers/english';
 import { stopwords as englishStopwords } from '@orama/stopwords/english';
 import type {
@@ -408,6 +409,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
               },
             }
           : undefined,
+        plugins: [pluginQPS()],
       });
 
       // Flatten the sitemap data structure to a single array of pages
