@@ -1,4 +1,5 @@
 import mochaPlugin from 'eslint-plugin-mocha';
+import vitestPlugin from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
@@ -45,12 +46,14 @@ export const baseSpecRules = {
 /**
  * @param {Object} [options]
  * @param {boolean} [options.useMocha]
+ * @param {boolean} [options.useVitest]
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createTestConfig(options = {}) {
-  const { useMocha = true } = options;
+  const { useMocha = true, useVitest = false } = options;
   return defineConfig(
     useMocha ? mochaPlugin.configs.recommended : {},
+    useVitest ? vitestPlugin.configs.recommended : {},
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
