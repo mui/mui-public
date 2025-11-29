@@ -1,7 +1,9 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Navigation } from '@/components/Navigation';
 import styles from '../layout.module.css';
+import { sitemap } from '../sitemap';
 
 export const metadata: Metadata = {
   title: 'MUI Docs Infra Documentation',
@@ -18,7 +20,10 @@ export default function RootLayout({
       <div className={styles.header}>
         <Link href="/docs-infra">MUI Docs Infra</Link>
       </div>
-      <div className={styles.container}>{children}</div>
+      <div className={styles.contentWrapper}>
+        <Navigation sitemap={sitemap} />
+        <div className={styles.container}>{children}</div>
+      </div>
     </div>
   );
 }

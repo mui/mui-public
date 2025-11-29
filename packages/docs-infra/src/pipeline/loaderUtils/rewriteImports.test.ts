@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rewriteImports } from './rewriteImports.js';
+import { rewriteImports, removeImports, rewriteImportsToNull } from './rewriteImports.js';
 
 describe('rewriteImports', () => {
   describe('basic functionality', () => {
@@ -415,6 +415,300 @@ export { default as Utils } from '@/utils';`);
       expect(result).toBe(
         `import './this-is-a-very-very-very-long-replacement-path'; import './short'; import './medium-length-path';`,
       );
+    });
+  });
+});
+
+describe('removeImports', () => {
+  describe('basic functionality', () => {
+    it('should remove a single import statement', () => {
+      const source = `import { foo } from './bar';
+console.log('test');`;
+      const importPathsToRemove = new Set(['./bar']);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }], // Position of "'./bar'"
+        },
+      };
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      expect(result).toBe(`console.log('test');`);
+    });
+
+    it('should remove multiple import statements', () => {
+      const source = `import { foo } from './bar';
+import { baz } from './qux';
+import { other } from './keep';
+console.log('test');`;
+      const importPathsToRemove = new Set(['./bar', './qux']);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+        './qux': {
+          positions: [{ start: 49, end: 56 }],
+        },
+        './keep': {
+          positions: [{ start: 80, end: 88 }],
+        },
+      };
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      expect(result).toBe(`import { other } from './keep';
+console.log('test');`);
+    });
+
+    it('should handle empty set of imports to remove', () => {
+      const source = `import { foo } from './bar';
+console.log('test');`;
+      const importPathsToRemove = new Set<string>();
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+      };
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      expect(result).toBe(source);
+    });
+
+    it('should handle imports not in the removal set', () => {
+      const source = `import { foo } from './bar';
+import { baz } from './keep';`;
+      const importPathsToRemove = new Set(['./bar']);
+      const importResult = {
+        './bar': {
+          positions: [{ start: 20, end: 27 }],
+        },
+        './keep': {
+          positions: [{ start: 49, end: 57 }],
+        },
+      };
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      expect(result).toBe(`import { baz } from './keep';`);
+    });
+  });
+
+  describe('MDX import removal', () => {
+    it('should remove MDX imports while preserving other imports', () => {
+      const source = `import { createSitemap } from './createSitemap';
+import ComponentsIndex from './components/page.mdx';
+import OverviewIndex from './overview/page.mdx';
+
+export const Sitemap = createSitemap(import.meta.url, {
+  components: ComponentsIndex,
+  overview: OverviewIndex,
+});`;
+      const importPathsToRemove = new Set(['./components/page.mdx', './overview/page.mdx']);
+      const importResult = {
+        './components/page.mdx': {
+          positions: [{ start: 74, end: 100 }],
+        },
+        './overview/page.mdx': {
+          positions: [{ start: 131, end: 154 }],
+        },
+      };
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      expect(result).toBe(`import { createSitemap } from './createSitemap';
+
+export const Sitemap = createSitemap(import.meta.url, {
+  components: ComponentsIndex,
+  overview: OverviewIndex,
+});`);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle source with no imports', () => {
+      const source = `console.log('test');`;
+      const importPathsToRemove = new Set(['./bar']);
+      const importResult = {};
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      expect(result).toBe(source);
+    });
+
+    it('should handle multiple imports on the same line', () => {
+      const source = `import './a'; import './b';
+console.log('test');`;
+      const importPathsToRemove = new Set(['./a']);
+      const importResult = {
+        './a': {
+          positions: [{ start: 7, end: 12 }],
+        },
+        './b': {
+          positions: [{ start: 22, end: 27 }],
+        },
+      };
+
+      const result = removeImports(source, importPathsToRemove, importResult);
+      // Note: This removes the entire line, including './b'
+      expect(result).toBe(`console.log('test');`);
+    });
+  });
+});
+
+describe('rewriteImportsToNull', () => {
+  describe('basic functionality', () => {
+    it('should rewrite a default import to const declaration', () => {
+      const source = `import Component from './component.mdx';
+console.log(Component);`;
+      const importPathsToRewrite = new Set(['./component.mdx']);
+      const importResult = {
+        './component.mdx': {
+          positions: [{ start: 22, end: 39 }],
+          names: [{ name: 'Component', type: 'default' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`const Component = null;
+console.log(Component);`);
+    });
+
+    it('should rewrite multiple imports to const declarations', () => {
+      const source = `import ComponentA from './a.mdx';
+import ComponentB from './b.mdx';
+console.log(ComponentA, ComponentB);`;
+      const importPathsToRewrite = new Set(['./a.mdx', './b.mdx']);
+      const importResult = {
+        './a.mdx': {
+          positions: [{ start: 23, end: 32 }],
+          names: [{ name: 'ComponentA', type: 'default' }],
+        },
+        './b.mdx': {
+          positions: [{ start: 58, end: 67 }],
+          names: [{ name: 'ComponentB', type: 'default' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`const ComponentA = null;
+const ComponentB = null;
+console.log(ComponentA, ComponentB);`);
+    });
+
+    it('should preserve non-MDX imports', () => {
+      const source = `import { createSitemap } from './createSitemap';
+import ComponentA from './a.mdx';
+console.log(createSitemap, ComponentA);`;
+      const importPathsToRewrite = new Set(['./a.mdx']);
+      const importResult = {
+        './a.mdx': {
+          positions: [{ start: 73, end: 82 }],
+          names: [{ name: 'ComponentA', type: 'default' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`import { createSitemap } from './createSitemap';
+const ComponentA = null;
+console.log(createSitemap, ComponentA);`);
+    });
+
+    it('should handle imports with semicolons', () => {
+      const source = `import Component from './component.mdx';`;
+      const importPathsToRewrite = new Set(['./component.mdx']);
+      const importResult = {
+        './component.mdx': {
+          positions: [{ start: 22, end: 39 }],
+          names: [{ name: 'Component', type: 'default' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`const Component = null;`);
+    });
+
+    it('should handle imports without semicolons', () => {
+      const source = `import Component from './component.mdx'
+console.log(Component)`;
+      const importPathsToRewrite = new Set(['./component.mdx']);
+      const importResult = {
+        './component.mdx': {
+          positions: [{ start: 22, end: 39 }],
+          names: [{ name: 'Component', type: 'default' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`const Component = null;
+console.log(Component)`);
+    });
+  });
+
+  describe('named imports', () => {
+    it('should handle named imports with aliases', () => {
+      const source = `import { Component as Comp } from './component.mdx';`;
+      const importPathsToRewrite = new Set(['./component.mdx']);
+      const importResult = {
+        './component.mdx': {
+          positions: [{ start: 34, end: 53 }],
+          names: [{ name: 'Component', alias: 'Comp', type: 'named' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`const Comp = null;`);
+    });
+
+    it('should handle multiple named imports', () => {
+      const source = `import { A, B, C } from './components.mdx';`;
+      const importPathsToRewrite = new Set(['./components.mdx']);
+      const importResult = {
+        './components.mdx': {
+          positions: [{ start: 24, end: 44 }],
+          names: [
+            { name: 'A', type: 'named' },
+            { name: 'B', type: 'named' },
+            { name: 'C', type: 'named' },
+          ],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`const A = null;
+const B = null;
+const C = null;`);
+    });
+  });
+
+  describe('realistic sitemap scenario', () => {
+    it('should rewrite MDX imports in a sitemap file', () => {
+      const source = `import { createSitemap } from './createSitemap';
+import DocsInfraComponents from './docs-infra/components/page.mdx';
+import DocsInfraFunctions from './docs-infra/functions/page.mdx';
+
+export const sitemap = createSitemap(import.meta.url, {
+  DocsInfraComponents,
+  DocsInfraFunctions,
+});`;
+      const importPathsToRewrite = new Set([
+        './docs-infra/components/page.mdx',
+        './docs-infra/functions/page.mdx',
+      ]);
+      const importResult = {
+        './docs-infra/components/page.mdx': {
+          positions: [{ start: 81, end: 115 }],
+          names: [{ name: 'DocsInfraComponents', type: 'default' }],
+        },
+        './docs-infra/functions/page.mdx': {
+          positions: [{ start: 148, end: 181 }],
+          names: [{ name: 'DocsInfraFunctions', type: 'default' }],
+        },
+      };
+
+      const result = rewriteImportsToNull(source, importPathsToRewrite, importResult);
+      expect(result).toBe(`import { createSitemap } from './createSitemap';
+const DocsInfraComponents = null;
+const DocsInfraFunctions = null;
+
+export const sitemap = createSitemap(import.meta.url, {
+  DocsInfraComponents,
+  DocsInfraFunctions,
+});`);
     });
   });
 });
