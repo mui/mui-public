@@ -25,6 +25,7 @@ import type {
 const stopWords = englishStopwords.filter(
   (word) =>
     word !== 'about' &&
+    word !== 'but' &&
     word !== 'between' &&
     word !== 'before' &&
     word !== 'after' &&
