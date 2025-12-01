@@ -21,6 +21,14 @@ import { filterRuntimeExternals } from './filterRuntimeExternals';
 import { injectImportsIntoSource } from './injectImportsIntoSource';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 
+/**
+ * Normalizes a file path by converting Windows-style backslashes to forward slashes.
+ * Needed because webpack's this.resourcePath returns OS-specific separators.
+ */
+function normalizePathSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
 export type LoaderOptions = {};
 
 /**
@@ -42,9 +50,12 @@ export async function loadPrecomputedCodeHighlighterClient(
   this.cacheable();
 
   try {
+    // Normalize path separators for cross-platform compatibility (Windows uses backslashes)
+    const normalizedResourcePath = normalizePathSeparators(this.resourcePath);
+
     // Parse the source to find a single createDemoClient call
     // Use metadataOnly mode since client calls only have (url, options?) arguments
-    const demoCall = await parseCreateFactoryCall(source, this.resourcePath, {
+    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath, {
       metadataOnly: true,
     });
 
@@ -74,6 +85,8 @@ export async function loadPrecomputedCodeHighlighterClient(
     // The client.ts and index.ts should be in the same directory
     const clientDir = path.dirname(this.resourcePath);
     const indexPath = path.join(clientDir, 'index.ts');
+    // Normalize for parseCreateFactoryCall which expects forward slashes
+    const normalizedIndexPath = normalizePathSeparators(indexPath);
 
     // Read and parse the index.ts file to get variant information
     let indexDemoCall: ParsedCreateFactory | null = null;
@@ -83,7 +96,7 @@ export async function loadPrecomputedCodeHighlighterClient(
       // Add index.ts as a dependency for hot reloading
       this.addDependency(indexPath);
 
-      indexDemoCall = await parseCreateFactoryCall(indexSource, indexPath);
+      indexDemoCall = await parseCreateFactoryCall(indexSource, normalizedIndexPath);
     } catch (error) {
       // If we can't read index.ts, we can't determine variants
       console.warn(`Could not read ${indexPath} to determine variants for client: ${error}`);

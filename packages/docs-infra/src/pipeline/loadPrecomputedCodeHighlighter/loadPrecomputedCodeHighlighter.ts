@@ -15,6 +15,14 @@ import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
+/**
+ * Normalizes a file path by converting Windows-style backslashes to forward slashes.
+ * Needed because webpack's this.resourcePath returns OS-specific separators.
+ */
+function normalizePathSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
 export type LoaderOptions = {
   performance?: {
     logging?: boolean;
@@ -65,9 +73,12 @@ export async function loadPrecomputedCodeHighlighter(
     true,
   );
 
+  // Normalize path separators for cross-platform compatibility (Windows uses backslashes)
+  const normalizedResourcePath = normalizePathSeparators(this.resourcePath);
+
   try {
     // Parse the source to find a single createDemo call
-    const demoCall = await parseCreateFactoryCall(source, this.resourcePath);
+    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath);
 
     currentMark = performanceMeasure(
       currentMark,
