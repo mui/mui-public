@@ -229,7 +229,7 @@ describe('withDocsInfra', () => {
 
       expect(webpackResult.module?.rules).toHaveLength(2);
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/index\\.ts$'),
+        test: new RegExp('[/\\\\]demos/[^/\\\\]+[/\\\\]index\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {
@@ -239,7 +239,7 @@ describe('withDocsInfra', () => {
         ],
       });
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/client\\.ts$'),
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]client\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {
@@ -550,7 +550,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/index\\.ts$'),
+        test: new RegExp('[/\\\\]demos/[^/\\\\]+[/\\\\]index\\.ts$'),
         use: [
           mockWebpackOptions.defaultLoaders.babel,
           {
@@ -561,7 +561,7 @@ describe('withDocsInfra', () => {
       });
 
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/client\\.ts$'),
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]client\\.ts$'),
         use: [
           mockWebpackOptions.defaultLoaders.babel,
           {

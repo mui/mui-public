@@ -221,7 +221,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
         // Add loader for demo index files
         webpackConfig.module.rules.push({
-          test: new RegExp('/demos/[^/]+/index\\.ts$'),
+          test: new RegExp('[/\\\\]demos/[^/\\\\]+[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
@@ -233,7 +233,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
         // Client files for live demos - processes externals
         webpackConfig.module.rules.push({
-          test: new RegExp('/demos/[^/]+/client\\.ts$'),
+          test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]client\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
@@ -247,12 +247,20 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         if (additionalDemoPatterns.index) {
           additionalDemoPatterns.index.forEach((pattern) => {
             // Convert Turbopack pattern to webpack regex
+            // Pattern like './app/**/demos/*/demo-*/index.ts'
+            // Should match paths like '/app/components/demos/Button/demo-variant/index.ts'
+            // Use placeholders to avoid corrupting character classes during replacement
+            const SEP = 'PATH_SEP_PLACEHOLDER';
+            const NOT_SEP = 'NOT_PATH_SEP_PLACEHOLDER';
             const regexPattern = pattern
-              .replace(/^\.\//, '/') // Remove leading ./
+              .replace(/^\.\//, '') // Remove leading ./
               .replace(/\*\*\//g, 'DOUBLE_STAR_PLACEHOLDER') // Replace **/ with placeholder
-              .replace(/\*/g, '[^/]+') // Replace single * with single dir pattern
+              .replace(/\*/g, NOT_SEP) // Replace single * with placeholder
               .replace(/\./g, '\\.') // Escape dots
-              .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/]+/)*'); // Replace placeholder with zero or more directories
+              .replace(/DOUBLE_STAR_PLACEHOLDER/g, `(?:${NOT_SEP}${SEP})*`) // Replace placeholder with zero or more directories
+              .replace(/\//g, SEP) // Convert all path separators to placeholder
+              .replace(new RegExp(NOT_SEP, 'g'), '[^/\\\\]+') // Replace NOT_SEP with actual pattern
+              .replace(new RegExp(SEP, 'g'), '[/\\\\]'); // Replace SEP with actual pattern
 
             webpackConfig.module!.rules!.push({
               test: new RegExp(`${regexPattern}$`),
@@ -273,9 +281,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             const regexPattern = pattern
               .replace(/^\.\//, '/') // Remove leading ./
               .replace(/\*\*\//g, 'DOUBLE_STAR_PLACEHOLDER') // Replace **/ with placeholder
-              .replace(/\*/g, '[^/]+') // Replace single * with single dir pattern
+              .replace(/\*/g, '[^/\\\\]+') // Replace single * with single dir pattern
               .replace(/\./g, '\\.') // Escape dots
-              .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/]+/)*'); // Replace placeholder with zero or more directories
+              .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/\\\\]+/)*'); // Replace placeholder with zero or more directories
 
             webpackConfig.module!.rules!.push({
               test: new RegExp(`${regexPattern}$`),

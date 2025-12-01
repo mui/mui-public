@@ -69,7 +69,7 @@ const nextConfig = {
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
-      test: /\/demos\/[^/]+\/index\.ts$/,
+      test: /[/\\]demos[/\\][^/\\]+[/\\]index\.ts$/,
       use: [
         defaultLoaders.babel,
         '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -78,7 +78,7 @@ const nextConfig = {
 
     // Add rule for global demo data
     config.module.rules.push({
-      test: /\/demo-data\/[^/]+\/index\.ts$/,
+      test: /[/\\]demo-data[/\\][^/\\]+[/\\]index\.ts$/,
       use: [
         defaultLoaders.babel,
         '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
