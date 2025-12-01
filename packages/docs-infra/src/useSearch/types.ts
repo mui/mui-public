@@ -149,7 +149,7 @@ export interface UseSearchResult<T> {
   /**
    * Default results shown when search is empty
    */
-  defaultResults: SearchResults;
+  defaultResults: { results: SearchResults; count: number; elapsed: ElapsedTime };
 
   /**
    * Build a URL from a search result

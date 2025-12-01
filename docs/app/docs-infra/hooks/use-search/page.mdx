@@ -120,10 +120,12 @@ Configure how many results to return:
 ```tsx
 const { search, defaultResults } = useSearch({
   sitemap: () => import('./sitemap'),
-  maxDefaultResults: 10, // Default: 10
+  maxDefaultResults: 10, // Default: undefined (all pages)
   limit: 20, // Default: 20
 });
 ```
+
+When `maxDefaultResults` is `undefined`, all pages are included in the default results (but not headings, exports, or parts).
 
 ### Category Grouping
 
@@ -138,21 +140,44 @@ const { search } = useSearch({
 
 ### Field Boosting
 
-Boost specific fields to prioritize certain result types:
+Boost specific fields to prioritize certain result types. You can import `defaultSearchBoost` and extend it:
 
 ```tsx
+import { useSearch, defaultSearchBoost } from '@mui/internal-docs-infra/useSearch';
+
 const { search } = useSearch({
   sitemap: () => import('./sitemap'),
   boost: {
-    type: 3,
-    title: 2,
-    slug: 2,
-    section: 2,
-    export: 1.5,
-    part: 1.5,
-    description: 1.3,
+    ...defaultSearchBoost,
+    title: 3, // Override specific values
   },
 });
+```
+
+The default boost values are:
+
+```typescript
+export const defaultSearchBoost = {
+  type: 100,
+  group: 100,
+  slug: 2,
+  path: 2,
+  title: 2,
+  page: 6,
+  pageKeywords: 15,
+  description: 1.5,
+  part: 1.5,
+  export: 1.3,
+  sectionTitle: 50,
+  section: 3,
+  subsection: 2.5,
+  props: 1.5,
+  dataAttributes: 1.5,
+  cssVariables: 1.5,
+  sections: 0.7,
+  subsections: 0.3,
+  keywords: 1.5,
+};
 ```
 
 ---
@@ -348,10 +373,14 @@ The `options` parameter supports:
 
 ### `defaultResults`
 
-Array of grouped default results shown when search is empty:
+Default results shown when search is empty, in the same format as `results`:
 
 ```typescript
-defaultResults: SearchResults;
+defaultResults: {
+  results: SearchResults; // Array of grouped results
+  count: number; // Total number of default results
+  elapsed: ElapsedTime; // Always { raw: 0, formatted: '0ms' }
+}
 ```
 
 ### `buildResultUrl`
@@ -458,7 +487,7 @@ interface UseSearchResult<T> {
   /** Function to update search value and get new results */
   search: (value: string, by?: SearchBy<T>) => Promise<void>;
   /** Default results shown when search is empty */
-  defaultResults: SearchResults;
+  defaultResults: { results: SearchResults; count: number; elapsed: ElapsedTime };
   /** Build a URL from a search result */
   buildResultUrl: (result: SearchResult) => string;
 }

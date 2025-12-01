@@ -356,6 +356,28 @@ function defaultFormatResult(hit: OramaHit): SearchResult {
   };
 }
 
+export const defaultSearchBoost = {
+  type: 100,
+  group: 100,
+  slug: 2,
+  path: 2,
+  title: 2,
+  page: 6,
+  pageKeywords: 15,
+  description: 1.5,
+  part: 1.5,
+  export: 1.3,
+  sectionTitle: 50,
+  section: 3,
+  subsection: 2.5,
+  props: 1.5,
+  dataAttributes: 1.5,
+  cssVariables: 1.5,
+  sections: 0.7,
+  subsections: 0.3,
+  keywords: 1.5,
+};
+
 /**
  * Hook for managing search functionality with Orama
  *
@@ -365,17 +387,21 @@ function defaultFormatResult(hit: OramaHit): SearchResult {
 export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSchema> {
   const {
     sitemap: sitemapImport,
-    maxDefaultResults = 10,
+    maxDefaultResults,
     tolerance = 1,
     limit: defaultLimit = 20,
-    boost,
+    boost = defaultSearchBoost,
     enableStemming = true,
     flattenPage = defaultFlattenPage,
     formatResult = defaultFormatResult,
   } = options;
 
   const [index, setIndex] = React.useState<Orama<SearchSchema> | null>(null);
-  const [defaultResults, setDefaultResults] = React.useState<SearchResults>([]);
+  const [defaultResults, setDefaultResults] = React.useState<{
+    results: SearchResults;
+    count: number;
+    elapsed: ElapsedTime;
+  }>({ results: [], count: 0, elapsed: { raw: 0, formatted: '0ms' } });
   const [results, setResults] = React.useState<{
     results: SearchResults;
     count: number;
@@ -419,31 +445,46 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
       // Flatten the sitemap data structure to a single array of pages
       const pages: SearchResult[] = [];
-      const pageResults: SearchResult[] = [];
+      const pageResultsByGroup: Record<string, SearchResult[]> = {};
+      let pageResultsCount = 0;
 
       Object.entries(sitemap.data).forEach(([_sectionKey, sectionData]) => {
         (sectionData.pages || []).forEach((page: SitemapPage) => {
           const flattened = flattenPage(page, sectionData, options.includeCategoryInGroup || false);
           pages.push(...flattened);
 
-          // Add the first result (page type) to default results
-          if (pageResults.length < maxDefaultResults && flattened.length > 0) {
-            pageResults.push(flattened[0]);
+          // Add the first result (page type) to default results, grouped by their group
+          if (
+            (maxDefaultResults === undefined || pageResultsCount < maxDefaultResults) &&
+            flattened.length > 0
+          ) {
+            const pageResult = flattened[0];
+            const group = pageResult.group || 'Pages';
+            if (!pageResultsByGroup[group]) {
+              pageResultsByGroup[group] = [];
+            }
+            pageResultsByGroup[group].push(pageResult);
+            pageResultsCount += 1;
           }
         });
       });
 
       insertMultiple(searchIndex, pages);
 
-      const pageResultsGrouped = [{ group: 'Default', items: pageResults }];
+      const pageResultsGrouped = Object.entries(pageResultsByGroup).map(([group, items]) => ({
+        group,
+        items,
+      }));
+
+      const defaultResultsValue = {
+        results: pageResultsGrouped,
+        count: pageResultsCount,
+        elapsed: { raw: 0, formatted: '0ms' } as ElapsedTime,
+      };
 
       setIndex(searchIndex);
-      setDefaultResults(pageResultsGrouped);
-      setResults({
-        results: pageResultsGrouped,
-        count: pageResults.length,
-        elapsed: { raw: 0, formatted: '0ms' },
-      });
+      setDefaultResults(defaultResultsValue);
+      setResults(defaultResultsValue);
     })();
   }, [
     sitemapImport,
@@ -459,11 +500,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
       { facets, groupBy, limit = defaultLimit, where }: SearchBy<SearchSchema> = {},
     ) => {
       if (!index || !value.trim()) {
-        setResults({
-          results: defaultResults,
-          count: defaultResults.length,
-          elapsed: { raw: 0, formatted: '0ms' },
-        });
+        setResults(defaultResults);
         return;
       }
 
