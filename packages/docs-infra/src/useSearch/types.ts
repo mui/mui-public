@@ -112,6 +112,8 @@ export interface UseSearchOptions {
   enableStemming?: boolean;
   /** Boost values for different result types and fields */
   boost?: Partial<Record<string, number>>;
+  /** Include page categories in groups: "Overview Pages" vs "Pages" */
+  includeCategoryInGroup?: boolean;
   /** Custom function to flatten sitemap pages into search results */
   flattenPage?: (page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[];
   /** Custom function to format Orama search hits into typed results */

@@ -107,7 +107,11 @@ type OramaHit = Result<SearchDocument>;
 /**
  * Default function to flatten a sitemap page into search results
  */
-function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData): SearchResult[] {
+function defaultFlattenPage(
+  page: SitemapPage,
+  sectionData: SitemapSectionData,
+  includeCategoryInGroup: boolean,
+): SearchResult[] {
   const results: SearchResult[] = [];
 
   // Extract top-level sections and all subsections with their slugs
@@ -188,7 +192,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
   // Add base page result
   results.push({
     type: 'page',
-    group: 'Pages',
+    group: includeCategoryInGroup ? `${sectionData.title} Pages` : 'Pages',
     page: page.title,
     title: page.title,
     slug: page.slug,
@@ -418,7 +422,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
       Object.entries(sitemap.data).forEach(([_sectionKey, sectionData]) => {
         (sectionData.pages || []).forEach((page: SitemapPage) => {
-          const flattened = flattenPage(page, sectionData);
+          const flattened = flattenPage(page, sectionData, options.includeCategoryInGroup || false);
           pages.push(...flattened);
 
           // Add the first result (page type) to default results
@@ -440,7 +444,13 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         elapsed: { raw: 0, formatted: '0ms' },
       });
     })();
-  }, [sitemapImport, maxDefaultResults, flattenPage, enableStemming]);
+  }, [
+    sitemapImport,
+    maxDefaultResults,
+    flattenPage,
+    enableStemming,
+    options.includeCategoryInGroup,
+  ]);
 
   const search = React.useCallback(
     async (
