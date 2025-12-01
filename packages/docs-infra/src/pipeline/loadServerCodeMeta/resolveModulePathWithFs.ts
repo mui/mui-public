@@ -13,8 +13,22 @@ import {
 } from '../loaderUtils/resolveModulePath';
 
 /**
+ * Normalizes a file path by converting Windows-style backslashes to forward slashes.
+ * This ensures consistent path handling across platforms when bridging between
+ * Node.js filesystem APIs (which return OS-specific paths) and the isomorphic
+ * resolver functions (which expect forward slashes).
+ *
+ * @param filePath - The path to normalize
+ * @returns The normalized path with forward slashes
+ */
+function normalizePathSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
  * Node.js filesystem-based directory reader that converts Dirent objects
  * to the DirectoryEntry interface expected by the resolver functions.
+ * Note: fs.readdir accepts both forward and backslashes on all platforms.
  */
 const nodeDirectoryReader: DirectoryReader = async (path: string): Promise<DirectoryEntry[]> => {
   const entries = await readdir(path, { withFileTypes: true });
@@ -48,7 +62,9 @@ export async function resolveModulePathWithFs(
   options: ResolveModulePathOptions = {},
   includeTypeDefs?: boolean,
 ): Promise<string | TypeAwareResolveResult> {
-  return resolveModulePath(modulePath, nodeDirectoryReader, options, includeTypeDefs);
+  // Normalize Windows backslashes to forward slashes before passing to isomorphic resolver
+  const normalizedPath = normalizePathSeparators(modulePath);
+  return resolveModulePath(normalizedPath, nodeDirectoryReader, options, includeTypeDefs);
 }
 
 /**
@@ -63,7 +79,9 @@ export async function resolveModulePathsWithFs(
   modulePaths: string[],
   options: ResolveModulePathOptions = {},
 ): Promise<Map<string, string>> {
-  return resolveModulePaths(modulePaths, nodeDirectoryReader, options);
+  // Normalize Windows backslashes to forward slashes before passing to isomorphic resolver
+  const normalizedPaths = modulePaths.map(normalizePathSeparators);
+  return resolveModulePaths(normalizedPaths, nodeDirectoryReader, options);
 }
 
 /**

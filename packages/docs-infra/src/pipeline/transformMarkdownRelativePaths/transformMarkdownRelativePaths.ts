@@ -7,6 +7,14 @@ import type { Plugin } from 'unified';
 import type { Link } from 'mdast';
 
 /**
+ * Normalizes a file path by converting Windows-style backslashes to forward slashes.
+ * This ensures consistent path handling when converting filesystem paths to URLs.
+ */
+function normalizePathSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
  * Remark plugin that strips page file extensions from URLs.
  * Removes /page.tsx, /page.jsx, /page.js, /page.mdx, /page.md from both absolute and relative URLs.
  * For relative URLs (both ./ and ../), converts them to absolute paths based on the current file's location.
@@ -25,12 +33,14 @@ export const transformMarkdownRelativePaths: Plugin = () => {
         node.url = node.url.replace(/\/page\.(tsx|jsx|js|mdx|md)(\?[^#]*)?(#.*)?$/g, '$2$3');
 
         if ((node.url.startsWith('./') || node.url.startsWith('../')) && file.path) {
-          const currentDir = path.dirname(file.path);
+          // Normalize path separators for cross-platform compatibility (Windows uses backslashes)
+          const normalizedFilePath = normalizePathSeparators(file.path);
+          const currentDir = path.posix.dirname(normalizedFilePath);
           const appIndex = currentDir.indexOf('/app/');
           const baseDir = appIndex !== -1 ? currentDir.substring(appIndex + 4) : '/';
 
-          // Resolve the relative path from the current directory
-          const resolvedPath = path.resolve('/', baseDir, node.url);
+          // Resolve the relative path from the current directory using POSIX paths for URLs
+          const resolvedPath = path.posix.resolve('/', baseDir, node.url);
           node.url = resolvedPath;
         }
 

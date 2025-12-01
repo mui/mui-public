@@ -3,6 +3,8 @@ import type { LoaderContext } from 'webpack';
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import { readFile } from 'fs/promises';
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
 
 import {
   parseCreateFactoryCall,
@@ -70,8 +72,8 @@ export async function loadPrecomputedCodeHighlighterClient(
 
     // For client files, we need to read the corresponding index.ts to get variants
     // The client.ts and index.ts should be in the same directory
-    const clientDir = this.resourcePath.substring(0, this.resourcePath.lastIndexOf('/'));
-    const indexPath = `${clientDir}/index.ts`;
+    const clientDir = path.dirname(this.resourcePath);
+    const indexPath = path.join(clientDir, 'index.ts');
 
     // Read and parse the index.ts file to get variant information
     let indexDemoCall: ParsedCreateFactory | null = null;

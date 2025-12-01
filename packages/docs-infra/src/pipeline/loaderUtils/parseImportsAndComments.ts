@@ -1,6 +1,4 @@
-// webpack does not like node: imports
-// eslint-disable-next-line n/prefer-node-protocol
-import path from 'path';
+import * as path from 'path-module';
 
 /**
  * Represents a single import name with its properties.
