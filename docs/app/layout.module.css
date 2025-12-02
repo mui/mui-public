@@ -29,7 +29,7 @@
 
 .contentWrapper {
   display: grid;
-  grid-template-columns: 280px minmax(0, 792px) 280px;
+  grid-template-columns: 280px minmax(0, 832px) 280px;
   justify-content: center;
   flex: 1;
 }
@@ -84,6 +84,7 @@
   background-color: #fbf7fe;
   border-bottom: 1px solid color(display-p3 0.86 0.774 0.942);
   border-bottom: 1px solid #e0c4f4;
+  padding-left: 70px;
 }
 
 .header a {
@@ -92,6 +93,16 @@
   color: color(display-p3 0.234 0.132 0.363);
   color: #402060;
   text-decoration: none;
+  z-index: 1001;
+}
+
+.headerContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 20px;
+  max-width: 1392px;
 }
 
 .body code {

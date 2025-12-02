@@ -1,7 +1,21 @@
 'use client';
 import * as React from 'react';
-import { SearchBar } from '@/components/SearchBar';
+import { Search as SearchComponent } from '@/components/Search';
 
-export function Search() {
-  return <SearchBar sitemap={() => import('./sitemap')} />;
+const sitemap = () => import('./sitemap');
+
+export function Search({
+  enableKeyboardShortcut = false,
+  containedScroll = false,
+}: {
+  enableKeyboardShortcut?: boolean;
+  containedScroll?: boolean;
+}) {
+  return (
+    <SearchComponent
+      sitemap={sitemap}
+      enableKeyboardShortcut={enableKeyboardShortcut}
+      containedScroll={containedScroll}
+    />
+  );
 }

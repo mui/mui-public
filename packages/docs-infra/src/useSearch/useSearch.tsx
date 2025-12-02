@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import {
   create,
@@ -25,7 +26,7 @@ import type {
 const stopWords = englishStopwords.filter(
   (word) =>
     word !== 'about' &&
-    word !== 'but' &&
+    word !== 'but' && // start of button
     word !== 'between' &&
     word !== 'before' &&
     word !== 'after' &&
@@ -469,7 +470,32 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         });
       });
 
-      insertMultiple(searchIndex, pages);
+      // Insert a dummy document with all fields to ensure QPS plugin initializes stats for all properties.
+      // This is needed because QPS only creates stats for properties that have data inserted.
+      // Using empty strings ensures no false matches while still initializing the stats.
+      const dummyDoc = {
+        type: '',
+        group: '',
+        title: '',
+        description: '',
+        slug: '',
+        sectionTitle: '',
+        prefix: '',
+        path: '',
+        keywords: '',
+        page: '',
+        pageKeywords: '',
+        sections: '',
+        subsections: '',
+        part: '',
+        export: '',
+        props: '',
+        dataAttributes: '',
+        cssVariables: '',
+        section: '',
+        subsection: '',
+      };
+      await insertMultiple(searchIndex, [dummyDoc, ...pages]);
 
       const pageResultsGrouped = Object.entries(pageResultsByGroup).map(([group, items]) => ({
         group,

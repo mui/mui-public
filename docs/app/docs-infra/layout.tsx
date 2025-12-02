@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Navigation } from '@/components/Navigation';
 import styles from '../layout.module.css';
 import { sitemap } from '../sitemap';
+import { Search } from '../search';
 
 export const metadata: Metadata = {
   title: 'MUI Docs Infra Documentation',
@@ -18,7 +19,10 @@ export default function RootLayout({
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        <Link href="/docs-infra">MUI Docs Infra</Link>
+        <div className={styles.headerContainer}>
+          <Link href="/docs-infra">MUI Docs Infra</Link>
+          <Search enableKeyboardShortcut containedScroll />
+        </div>
       </div>
       <div className={styles.contentWrapper}>
         <Navigation sitemap={sitemap} />
