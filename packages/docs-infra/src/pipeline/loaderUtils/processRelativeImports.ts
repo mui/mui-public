@@ -1,6 +1,7 @@
 import { rewriteImports } from './rewriteImports';
 import { isJavaScriptModule } from './resolveModulePath';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
+import { pathToFileUrl } from './pathToFileUrl';
 
 export type StoreAtMode = 'canonical' | 'import' | 'flat';
 
@@ -238,7 +239,7 @@ function processFlatMode(
 
   // Fourth pass: build the extraFiles mapping
   finalNames.forEach((finalName, resolvedPath) => {
-    extraFiles[`./${finalName}`] = `file://${resolvedPath}`;
+    extraFiles[`./${finalName}`] = pathToFileUrl(resolvedPath);
   });
 
   return {
@@ -268,7 +269,7 @@ function processBasicImports(
     // Process each import to determine final names with simple conflict resolution
     Object.entries(importResult).forEach(([_relativePath, importInfo]) => {
       const resolvedPath = importInfo.path; // For CSS, this is already resolved by parseImports
-      const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
+      const fileUrl = pathToFileUrl(resolvedPath);
       const { fileName, extension } = getFileNameFromUrl(fileUrl);
 
       let finalName = fileName;
@@ -297,8 +298,7 @@ function processBasicImports(
 
     // Create extraFiles entries
     finalNames.forEach((finalName, resolvedPath) => {
-      const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
-      extraFiles[`./${finalName}`] = fileUrl;
+      extraFiles[`./${finalName}`] = pathToFileUrl(resolvedPath);
     });
 
     // Apply import path replacements using position-based rewriting
@@ -333,8 +333,7 @@ function processBasicImports(
     // Process each import for extraFiles
     Object.entries(importResult).forEach(([relativePath, importInfo]) => {
       const resolvedPath = importInfo.path;
-      const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
-      extraFiles[relativePath] = fileUrl; // Always use original path for extraFiles
+      extraFiles[relativePath] = pathToFileUrl(resolvedPath); // Always use original path for extraFiles
     });
 
     // Apply import path replacements using position-based rewriting
@@ -359,8 +358,7 @@ function processBasicImports(
   // Canonical mode - no rewriting needed
   Object.entries(importResult).forEach(([relativePath, importInfo]) => {
     const resolvedPath = importInfo.path;
-    const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
-    extraFiles[relativePath] = fileUrl; // Use original import path
+    extraFiles[relativePath] = pathToFileUrl(resolvedPath); // Use original import path
   });
 
   return {
@@ -463,8 +461,7 @@ function processJsImports(
       }
     }
 
-    const fileUrl = resolvedPath.startsWith('http') ? resolvedPath : `file://${resolvedPath}`;
-    extraFiles[keyPath] = fileUrl;
+    extraFiles[keyPath] = pathToFileUrl(resolvedPath);
   });
 
   return {

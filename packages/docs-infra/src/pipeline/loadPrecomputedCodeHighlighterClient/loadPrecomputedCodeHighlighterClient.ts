@@ -5,6 +5,8 @@ import type { LoaderContext } from 'webpack';
 import { readFile } from 'fs/promises';
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 
 import {
   parseCreateFactoryCall,
@@ -199,8 +201,9 @@ export async function loadPrecomputedCodeHighlighterClient(
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
-      // Strip 'file://' prefix if present before adding to webpack's dependency tracking
-      this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
+      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
+      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
     });
 
     callback(null, modifiedSource);

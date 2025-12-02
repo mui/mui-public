@@ -1,4 +1,5 @@
 import { getFileNameFromUrl } from './getFileNameFromUrl';
+import { pathToFileUrl } from './pathToFileUrl';
 
 /**
  * Isomorphic path joining function that works in both Node.js and browser environments.
@@ -703,8 +704,8 @@ export async function resolveVariantPaths(
   for (const [variantName, variantPath] of Object.entries(variants)) {
     const resolvedVariantPath = resolvedVariantPaths.get(variantPath);
     if (resolvedVariantPath) {
-      // Store as a file URL
-      variantMap.set(variantName, `file://${resolvedVariantPath}`);
+      // Store as a file URL (pathToFileUrl handles Windows drive letters correctly)
+      variantMap.set(variantName, pathToFileUrl(resolvedVariantPath));
     }
   }
 

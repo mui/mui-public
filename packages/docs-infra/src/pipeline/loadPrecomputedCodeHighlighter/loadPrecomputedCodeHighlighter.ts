@@ -1,6 +1,8 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 
 import type { LoaderContext } from 'webpack';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
@@ -221,8 +223,9 @@ export async function loadPrecomputedCodeHighlighter(
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
-      // Strip 'file://' prefix if present before adding to webpack's dependency tracking
-      this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
+      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
+      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
     });
 
     // log any pending performance entries before completing

@@ -14,12 +14,8 @@ import {
 
 /**
  * Normalizes a file path by converting Windows-style backslashes to forward slashes.
- * This ensures consistent path handling across platforms when bridging between
- * Node.js filesystem APIs (which return OS-specific paths) and the isomorphic
- * resolver functions (which expect forward slashes).
- *
- * @param filePath - The path to normalize
- * @returns The normalized path with forward slashes
+ * This is needed because many path-handling functions expect forward slashes,
+ * but Node.js filesystem APIs return OS-specific separators on Windows.
  */
 function normalizePathSeparators(filePath: string): string {
   return filePath.replace(/\\/g, '/');

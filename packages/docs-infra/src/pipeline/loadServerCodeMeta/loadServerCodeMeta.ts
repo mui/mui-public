@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from './resolveModulePathWithFs';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
@@ -32,8 +34,9 @@ export const loadServerCodeMeta = createLoadServerCodeMeta();
  */
 export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {}): LoadCodeMeta {
   return async function loadCodeMeta(url: string): Promise<Code> {
-    // Remove file:// prefix if present to get file path
-    const filePath = url.replace('file://', '');
+    // Convert file:// URL to proper file system path
+    // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
     // Read the source file to find createDemo calls
     const source = await readFile(filePath, 'utf-8');

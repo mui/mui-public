@@ -1,6 +1,8 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import { readFile } from 'fs/promises';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
@@ -35,8 +37,9 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
   const { includeDependencies = true, storeAt = 'flat' } = options;
 
   return async function loadSource(url: string) {
-    // Remove file:// prefix if present
-    const filePath = url.replace('file://', '');
+    // Convert file:// URL to proper file system path
+    // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
     // Read the file
     const source = await readFile(filePath, 'utf8');
