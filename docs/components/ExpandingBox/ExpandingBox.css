@@ -143,7 +143,7 @@
 }
 
 :hover:not(:focus-visible) > .expanding-box-head[data-collapsed='true'] > :nth-child(2) {
-  transform: translate(0px, -4px) scaleX(1.025);
+  transform: translate(0, -4px) scaleX(1.025);
 }
 
 .expanding-box-head > :nth-child(3) {
@@ -214,7 +214,7 @@
 }
 
 :hover:not(:focus-visible) > .expanding-box-foot[data-collapsed='true'] > :nth-child(2) {
-  transform: translate(0px, 4px) scaleX(1.025);
+  transform: translate(0, 4px) scaleX(1.025);
 }
 
 .expanding-box-foot > :nth-child(3) {
@@ -253,6 +253,7 @@
   ::view-transition-group(expanding-box-bottom-right-border) {
     /* https://pqina.nl/blog/css-spring-animation-with-linear-easing-function/ live Stiffness (0.3) Damping (1) */
     animation-duration: 333ms;
+    /* stylelint-disable-next-line declaration-property-value-no-unknown -- linear() is valid CSS */
     animation-timing-function: linear(
       0,
       -0.009,
