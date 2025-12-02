@@ -54,6 +54,10 @@
 .nav {
   height: 100%;
   transition: transform 0.3s ease-in-out;
+
+  :root[data-navigating] & {
+    view-transition-name: side-nav;
+  }
 }
 
 .list {
@@ -165,5 +169,16 @@
 
   .navOpen {
     transform: translateX(0);
+  }
+}
+
+@supports (view-transition-name: none) {
+  ::view-transition-old(side-nav) {
+    animation-duration: 200ms;
+  }
+
+  ::view-transition-new(side-nav) {
+    animation-delay: 200ms;
+    animation-duration: 150ms;
   }
 }
