@@ -173,14 +173,3 @@
   color: initial;
   background: initial;
 }
-
-@supports (view-transition-name: none) {
-  ::view-transition-old(main-content) {
-    animation-duration: 200ms;
-  }
-
-  ::view-transition-new(main-content) {
-    animation-delay: 200ms;
-    animation-duration: 150ms;
-  }
-}
