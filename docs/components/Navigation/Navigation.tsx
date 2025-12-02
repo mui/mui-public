@@ -2,10 +2,13 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import type { Sitemap } from '@mui/internal-docs-infra/createSitemap/types';
 import styles from './Navigation.module.css';
 
-export function Navigation({ sitemap }: { sitemap?: { schema: {}; data: {} } }) {
+export function Navigation({ sitemap }: { sitemap: Sitemap }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const pathname = usePathname();
 
   const toggleNav = () => setIsOpen(!isOpen);
   const closeNav = () => setIsOpen(false);
@@ -28,7 +31,7 @@ export function Navigation({ sitemap }: { sitemap?: { schema: {}; data: {} } }) 
         <ul className={styles.list}>
           {Object.entries(sitemap?.data || {})
             .filter(([sectionName]) => sectionName.startsWith('DocsInfra'))
-            .map(([sectionName, section]: [string, any]) => {
+            .map(([sectionName, section]) => {
               const displayName = sectionName.slice('DocsInfra'.length);
 
               return (
@@ -36,15 +39,24 @@ export function Navigation({ sitemap }: { sitemap?: { schema: {}; data: {} } }) 
                   <span className={styles.sectionTitle}>{displayName}</span>
                   {section.pages && (
                     <ul className={styles.pageList}>
-                      {section.pages.map((page: any, i: number) => {
+                      {section.pages.map((page, i) => {
                         const url = page.path
                           ? `/docs-infra/${displayName.toLowerCase()}/${page.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
                           : '#';
+                        const isSelected = pathname === url;
 
                         return (
                           <li key={i} className={styles.pageItem}>
-                            <Link href={url} className={styles.pageLink} onClick={closeNav}>
+                            <Link
+                              href={url}
+                              className={`${styles.pageLink} ${isSelected ? styles.selected : ''}`}
+                              onClick={closeNav}
+                              aria-current={isSelected ? 'page' : undefined}
+                            >
                               {page.title}
+                              {page.tags?.includes('New') && (
+                                <span className={styles.new}>New</span>
+                              )}
                             </Link>
                           </li>
                         );
