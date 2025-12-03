@@ -118,7 +118,12 @@ export async function resolveVariantPathsWithFs(
   variants: Record<string, string>,
   options: ResolveModulePathOptions = {},
 ): Promise<Map<string, string>> {
-  return resolveVariantPaths(variants, nodeDirectoryReader, options);
+  // Normalize Windows backslashes to forward slashes before passing to isomorphic resolver
+  const normalizedVariants: Record<string, string> = {};
+  for (const [name, path] of Object.entries(variants)) {
+    normalizedVariants[name] = normalizePathSeparators(path);
+  }
+  return resolveVariantPaths(normalizedVariants, nodeDirectoryReader, options);
 }
 
 // Re-export types for convenience
