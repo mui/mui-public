@@ -57,7 +57,7 @@ export async function loadPrecomputedCodeHighlighterClient(
 
     // Parse the source to find a single createDemoClient call
     // Use metadataOnly mode since client calls only have (url, options?) arguments
-    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath, {
+    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath, path, {
       metadataOnly: true,
     });
 
@@ -98,7 +98,7 @@ export async function loadPrecomputedCodeHighlighterClient(
       // Add index.ts as a dependency for hot reloading
       this.addDependency(indexPath);
 
-      indexDemoCall = await parseCreateFactoryCall(indexSource, normalizedIndexPath);
+      indexDemoCall = await parseCreateFactoryCall(indexSource, normalizedIndexPath, path);
     } catch (error) {
       // If we can't read index.ts, we can't determine variants
       console.warn(`Could not read ${indexPath} to determine variants for client: ${error}`);

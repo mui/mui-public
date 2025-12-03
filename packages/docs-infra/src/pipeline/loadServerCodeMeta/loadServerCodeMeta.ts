@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import * as path from 'node:path';
 
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from './resolveModulePathWithFs';
@@ -36,13 +37,16 @@ export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {
   return async function loadCodeMeta(url: string): Promise<Code> {
     // Convert file:// URL to proper file system path
     // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
-    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
+    const rawFilePath = url.startsWith('file://') ? fileURLToPath(url) : url;
+    // Normalize to forward slashes for consistent handling
+    const filePath = rawFilePath.replace(/\\/g, '/');
 
     // Read the source file to find createDemo calls
     const source = await readFile(filePath, 'utf-8');
 
     // Parse the source to find createDemo call with variants
-    const demoCall = await parseCreateFactoryCall(source, filePath);
+    // Pass Node.js path module for proper Windows path support
+    const demoCall = await parseCreateFactoryCall(source, filePath, path);
 
     if (!demoCall || !demoCall.variants) {
       // Return empty code object if no variants found

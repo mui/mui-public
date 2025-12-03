@@ -1,3 +1,4 @@
+import * as path from 'path-module';
 import { describe, it, expect } from 'vitest';
 import { parseCreateFactoryCall, parseAllCreateFactoryCalls } from './parseCreateFactoryCall';
 
@@ -13,7 +14,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).not.toBeNull();
     expect(result!.variants).toEqual({
@@ -33,7 +34,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).not.toBeNull();
     expect(result!.variants).toEqual({
@@ -50,7 +51,7 @@ describe('parseCreateFactoryCall', () => {
       import Component from './Component';
       createDemo(import.meta.url,Component);
     `;
-    const compactResult = await parseCreateFactoryCall(compactCode, '/src/demo.ts');
+    const compactResult = await parseCreateFactoryCall(compactCode, '/src/demo.ts', path);
     expect(compactResult!.variants).toEqual({ Default: '/src/Component' });
 
     // Spaced style
@@ -58,7 +59,7 @@ describe('parseCreateFactoryCall', () => {
       import Component from './Component';
       createDemo( import.meta.url , Component );
     `;
-    const spacedResult = await parseCreateFactoryCall(spacedCode, '/src/demo.ts');
+    const spacedResult = await parseCreateFactoryCall(spacedCode, '/src/demo.ts', path);
     expect(spacedResult!.variants).toEqual({ Default: '/src/Component' });
 
     // Multiline style
@@ -69,7 +70,7 @@ describe('parseCreateFactoryCall', () => {
         Component
       );
     `;
-    const multilineResult = await parseCreateFactoryCall(multilineCode, '/src/demo.ts');
+    const multilineResult = await parseCreateFactoryCall(multilineCode, '/src/demo.ts', path);
     expect(multilineResult!.variants).toEqual({ Default: '/src/Component' });
   });
 
@@ -79,7 +80,7 @@ describe('parseCreateFactoryCall', () => {
       import Component from './Component';
       createDemo(import.meta.url,Component,{name:'Test'});
     `;
-    const compactResult = await parseCreateFactoryCall(compactCode, '/src/demo.ts');
+    const compactResult = await parseCreateFactoryCall(compactCode, '/src/demo.ts', path);
     expect(compactResult!.variants).toEqual({ Default: '/src/Component' });
     expect(compactResult!.options).toEqual({ name: 'Test' });
 
@@ -95,7 +96,7 @@ describe('parseCreateFactoryCall', () => {
         }
       );
     `;
-    const multilineResult = await parseCreateFactoryCall(multilineCode, '/src/demo.ts');
+    const multilineResult = await parseCreateFactoryCall(multilineCode, '/src/demo.ts', path);
     expect(multilineResult!.variants).toEqual({ Default: '/src/Component' });
     expect(multilineResult!.options).toEqual({ name: 'Test Demo', skipPrecompute: true });
   });
@@ -108,7 +109,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result!.variants).toEqual({
       Component: '/src/Component',
@@ -122,7 +123,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component: Comp }, { name: 'Test' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result!.variants).toEqual({
       Component: '/src/Component',
@@ -145,7 +146,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).not.toBeNull();
     expect(result!.url).toBe('import.meta.url');
@@ -173,7 +174,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
@@ -186,7 +187,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
@@ -199,7 +200,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid variants argument in createDemo call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
     );
   });
@@ -213,7 +214,7 @@ describe('parseCreateFactoryCall', () => {
     const filePath = '/src/demo.ts';
 
     // Should throw error for the first missing component it encounters
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid variants argument in createDemo call in /src/demo.ts. Component 'Unknown1' is not imported. Make sure to import it first.",
     );
   });
@@ -226,7 +227,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       'Invalid variants argument in createDemo call in /src/demo.ts. Expected a valid component identifier, but got: ""not an object""',
     );
   });
@@ -242,7 +243,7 @@ describe('parseCreateFactoryCall', () => {
         });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result!.options).toEqual({
       name: 'Double quotes',
@@ -257,7 +258,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, {}, { name: 'Minimal' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result!.options).toEqual({
       name: 'Minimal',
@@ -279,7 +280,7 @@ describe('parseCreateFactoryCall', () => {
         });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result!.options).toEqual({
       name: 'Test Demo',
@@ -314,7 +315,7 @@ describe('parseCreateFactoryCall', () => {
         });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     // Only known options should be parsed
     expect(result!.options).toEqual({
@@ -351,7 +352,7 @@ describe('parseCreateFactoryCall', () => {
         });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     // All options should be parsed including custom ones
     expect(result!.options).toEqual({
@@ -384,7 +385,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Comp1, Comp2 }, { name: 'Test' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result!.variants).toEqual({
       Comp1: '/src/components',
@@ -414,7 +415,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
     const filePath = '/src/demos/styling/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).not.toBeNull();
     expect(result!.variants).toEqual({
@@ -437,7 +438,7 @@ describe('parseCreateFactoryCall', () => {
         createCode(import.meta.url, { Default: Component }, { name: 'Code Example' });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).not.toBeNull();
     expect(result!.functionName).toBe('createCode');
@@ -452,7 +453,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Example: Component });
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).not.toBeNull();
     expect(result!.functionName).toBe('createDemo');
@@ -469,7 +470,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid URL argument in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: require('url').pathToFileURL(__filename).toString()",
     );
   });
@@ -481,7 +482,7 @@ describe('parseCreateFactoryCall', () => {
         // No createDemo call
       `;
     const filePath = '/src/demo.ts';
-    const result = await parseCreateFactoryCall(code, filePath);
+    const result = await parseCreateFactoryCall(code, filePath, path);
 
     expect(result).toBeNull();
   });
@@ -496,7 +497,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       'Multiple create* factory calls found in /src/demo.ts. Only one create* call per file is supported. Found 2 calls.',
     );
   });
@@ -509,7 +510,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid URL argument in createDemo call in /src/demo.ts. Expected 'import.meta.url' but got: './file.ts'",
     );
   });
@@ -522,7 +523,7 @@ describe('parseCreateFactoryCall', () => {
       `;
     const filePath = '/src/demo.ts';
 
-    await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+    await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
       "Invalid createDemo call in /src/demo.ts. Expected 2-3 arguments (url, variants, options?) but got 1 arguments. Functions starting with 'create' must follow the convention: create*(url, variants, options?)",
     );
   });
@@ -534,7 +535,7 @@ describe('parseCreateFactoryCall', () => {
       import Component from './Component';
       createDemo(import.meta.url, { Component });
     `;
-    const resultNoOptions = await parseCreateFactoryCall(codeNoOptions, '/src/demo.ts');
+    const resultNoOptions = await parseCreateFactoryCall(codeNoOptions, '/src/demo.ts', path);
     expect(resultNoOptions!.hasOptions).toBe(false);
     expect(resultNoOptions!.structuredOptions).toBeUndefined();
 
@@ -543,7 +544,7 @@ describe('parseCreateFactoryCall', () => {
       import Component from './Component';
       createDemo(import.meta.url, { Component }, {});
     `;
-    const resultEmptyOptions = await parseCreateFactoryCall(codeEmptyOptions, '/src/demo.ts');
+    const resultEmptyOptions = await parseCreateFactoryCall(codeEmptyOptions, '/src/demo.ts', path);
     expect(resultEmptyOptions!.hasOptions).toBe(true);
     expect(resultEmptyOptions!.structuredOptions).toEqual({});
 
@@ -552,7 +553,7 @@ describe('parseCreateFactoryCall', () => {
       import Component from './Component';
       createDemo(import.meta.url, { Component }, { name: 'Test' });
     `;
-    const resultWithOptions = await parseCreateFactoryCall(codeWithOptions, '/src/demo.ts');
+    const resultWithOptions = await parseCreateFactoryCall(codeWithOptions, '/src/demo.ts', path);
     expect(resultWithOptions!.hasOptions).toBe(true);
     expect(resultWithOptions!.structuredOptions).toEqual({ name: "'Test'" }); // Structured format preserves quotes
   });
@@ -570,7 +571,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only side-effect imports should be included
@@ -589,7 +590,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { LocalComponent }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only side-effect imports should be included
@@ -608,7 +609,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only side-effect imports should be included
@@ -627,7 +628,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only external side-effect imports should be included (not relative ones like './styles.css')
@@ -648,7 +649,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only side-effect imports should be included
@@ -666,7 +667,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.externals).toEqual({});
@@ -682,7 +683,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Component }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only side-effect imports should be included
@@ -703,7 +704,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { LocalComponent }, { name: 'Test' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       // Only side-effect imports should be included
@@ -722,7 +723,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Variant: Demo, ButtonVariant: Button });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.namedExports).toEqual({
@@ -743,7 +744,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Default: DefaultComponent, Named: NamedComponent });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.namedExports).toEqual({
@@ -759,7 +760,7 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, Demo);
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.namedExports).toEqual({
@@ -783,7 +784,7 @@ describe('parseCreateFactoryCall', () => {
         });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.namedExports).toEqual({
@@ -808,7 +809,7 @@ describe('parseCreateFactoryCall', () => {
           );
         `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -839,7 +840,7 @@ describe('parseCreateFactoryCall', () => {
           );
         `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -864,7 +865,7 @@ describe('parseCreateFactoryCall', () => {
         export const DemoClient = createDemoClient(import.meta.url);
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, { metadataOnly: true });
 
       expect(result).not.toBeNull();
       expect(result!.functionName).toBe('createDemoClient');
@@ -886,7 +887,7 @@ describe('parseCreateFactoryCall', () => {
         });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, { metadataOnly: true });
 
       expect(result).not.toBeNull();
       expect(result!.functionName).toBe('createDemoClient');
@@ -909,9 +910,9 @@ describe('parseCreateFactoryCall', () => {
       `;
       const filePath = '/src/demo.ts';
 
-      await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
-        'Expected 1-2 arguments (url, options?) but got 3 arguments',
-      );
+      await expect(
+        parseCreateFactoryCall(code, filePath, path, { metadataOnly: true }),
+      ).rejects.toThrow('Expected 1-2 arguments (url, options?) but got 3 arguments');
     });
 
     it('should reject calls with no arguments in metadataOnly mode', async () => {
@@ -920,9 +921,9 @@ describe('parseCreateFactoryCall', () => {
       `;
       const filePath = '/src/demo.ts';
 
-      await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
-        'Expected 1-2 arguments (url, options?) but got 0 arguments',
-      );
+      await expect(
+        parseCreateFactoryCall(code, filePath, path, { metadataOnly: true }),
+      ).rejects.toThrow('Expected 1-2 arguments (url, options?) but got 0 arguments');
     });
   });
 
@@ -935,7 +936,9 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Button, TextField }, { name: 'External Demo' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -959,7 +962,7 @@ describe('parseCreateFactoryCall', () => {
       `;
       const filePath = '/src/demo.ts';
 
-      await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+      await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
         "Invalid variants argument in createDemo call in /src/demo.ts. Component 'Button' is not imported. Make sure to import it first.",
       );
     });
@@ -971,7 +974,9 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, Button);
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -991,7 +996,9 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { Local: LocalComponent, External: Button }, { name: 'Mixed Demo' });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -1012,7 +1019,9 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { MuiButton, CustomTextField: MuiTextField });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -1033,7 +1042,9 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { React, Button });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -1054,7 +1065,9 @@ describe('parseCreateFactoryCall', () => {
         createDemo(import.meta.url, { React, MUI });
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -1078,7 +1091,7 @@ describe('parseCreateFactoryCall', () => {
       `;
       const filePath = '/src/demo.ts';
 
-      const results = await parseAllCreateFactoryCalls(code, filePath, {
+      const results = await parseAllCreateFactoryCalls(code, filePath, path, {
         allowExternalVariants: true,
       });
 
@@ -1106,7 +1119,9 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { allowExternalVariants: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, {
+        allowExternalVariants: true,
+      });
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
@@ -1131,7 +1146,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1158,7 +1173,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1176,7 +1191,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1200,7 +1215,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1224,7 +1239,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1249,7 +1264,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1270,7 +1285,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1294,7 +1309,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1319,7 +1334,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1343,7 +1358,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1368,7 +1383,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1396,7 +1411,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1420,7 +1435,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1446,7 +1461,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1477,7 +1492,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath, { metadataOnly: true });
+      const result = await parseCreateFactoryCall(code, filePath, path, { metadataOnly: true });
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1498,7 +1513,7 @@ describe('parseCreateFactoryCall', () => {
       `;
       const filePath = '/src/demo.ts';
 
-      await expect(parseCreateFactoryCall(code, filePath)).rejects.toThrow(
+      await expect(parseCreateFactoryCall(code, filePath, path)).rejects.toThrow(
         "Invalid variants argument in createSnippet call in /src/demo.ts. Component 'UnknownComponent' is not imported. Make sure to import it first.",
       );
     });
@@ -1512,7 +1527,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1534,7 +1549,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
@@ -1560,7 +1575,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const results = await parseAllCreateFactoryCalls(code, filePath);
+      const results = await parseAllCreateFactoryCalls(code, filePath, path);
 
       expect(Object.keys(results)).toHaveLength(2);
       expect(results.demo1.hasGenerics).toBe(true);
@@ -1587,7 +1602,7 @@ describe('parseCreateFactoryCall', () => {
         );
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseCreateFactoryCall(code, filePath);
+      const result = await parseCreateFactoryCall(code, filePath, path);
 
       expect(result).not.toBeNull();
       expect(result!.functionName).toBe('createDemo');

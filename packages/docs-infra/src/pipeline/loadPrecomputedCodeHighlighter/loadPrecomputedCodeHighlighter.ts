@@ -80,7 +80,8 @@ export async function loadPrecomputedCodeHighlighter(
 
   try {
     // Parse the source to find a single createDemo call
-    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath);
+    // Pass Node.js path module for proper Windows path support
+    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath, path);
 
     currentMark = performanceMeasure(
       currentMark,

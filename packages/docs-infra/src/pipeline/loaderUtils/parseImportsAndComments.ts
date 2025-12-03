@@ -1,4 +1,12 @@
-import * as path from 'path-module';
+/**
+ * Path utility functions for resolving import paths.
+ * In Node.js environments, pass the native `path.resolve` and `path.dirname` for correct
+ * Windows path handling. In browser environments, the POSIX-only `path-module` defaults work.
+ */
+export interface PathUtils {
+  resolve: (...paths: string[]) => string;
+  dirname: (p: string) => string;
+}
 
 /**
  * Represents a single import name with its properties.
@@ -882,6 +890,7 @@ function detectCssImport(
   cssExternals: Record<string, ExternalImport>,
   cssFilePath: string,
   positionMapper: (originalPos: number) => number,
+  pathUtils: PathUtils,
 ) {
   const ch = sourceText[pos];
 
@@ -921,7 +930,7 @@ function detectCssImport(
         if (!normalizedPath.startsWith('./') && !normalizedPath.startsWith('../')) {
           normalizedPath = `./${normalizedPath}`;
         }
-        const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
+        const resolvedPath = pathUtils.resolve(pathUtils.dirname(cssFilePath), normalizedPath);
         if (!cssResult[importResult.modulePath]) {
           cssResult[importResult.modulePath] = { path: resolvedPath, names: [], positions: [] };
         }
@@ -940,6 +949,7 @@ function detectCssImport(
  * @param cssFilePath - The CSS file path for resolving relative imports
  * @param cssResult - Object to store relative CSS import results
  * @param cssExternals - Object to store external CSS import results
+ * @param pathUtils - Path utility functions for resolving paths
  * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
  * @param notableCommentsPrefix - Optional prefixes for comments to collect
  * @returns The parsed CSS import results with optional processed code and comments
@@ -949,6 +959,7 @@ function parseCssImports(
   cssFilePath: string,
   cssResult: Record<string, RelativeImport>,
   cssExternals: Record<string, ExternalImport>,
+  pathUtils: PathUtils,
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
 ): ImportsAndComments {
@@ -956,7 +967,15 @@ function parseCssImports(
   const scanResult = scanForImports(
     cssCode,
     (sourceText: string, pos: number, positionMapper: (originalPos: number) => number) =>
-      detectCssImport(sourceText, pos, cssResult, cssExternals, cssFilePath, positionMapper),
+      detectCssImport(
+        sourceText,
+        pos,
+        cssResult,
+        cssExternals,
+        cssFilePath,
+        positionMapper,
+        pathUtils,
+      ),
     false,
     removeCommentsWithPrefix,
     notableCommentsPrefix,
@@ -977,6 +996,7 @@ function parseCssImports(
  * @param result - Object to store relative import results
  * @param externals - Object to store external import results
  * @param isMdxFile - Whether this is an MDX file
+ * @param pathUtils - Path utility functions for resolving paths
  * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
  * @param notableCommentsPrefix - Optional prefixes for comments to collect
  * @returns The parsed import results with optional processed code and comments
@@ -987,6 +1007,7 @@ function parseJSImports(
   result: Record<string, RelativeImport>,
   externals: Record<string, ExternalImport>,
   isMdxFile: boolean,
+  pathUtils: PathUtils,
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
 ): ImportsAndComments {
@@ -1036,7 +1057,7 @@ function parseJSImports(
 
         const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
         if (isRelative) {
-          const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
+          const resolvedPath = pathUtils.resolve(pathUtils.dirname(filePath), modulePath);
           if (!result[modulePath]) {
             result[modulePath] = { path: resolvedPath, names: [], positions: [] };
           }
@@ -1159,7 +1180,7 @@ function parseJSImports(
     const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
 
     if (isRelative) {
-      const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
+      const resolvedPath = pathUtils.resolve(pathUtils.dirname(filePath), modulePath);
       if (!result[modulePath]) {
         result[modulePath] = {
           path: resolvedPath,
@@ -1374,6 +1395,7 @@ function detectJavaScriptImport(
  *
  * @param code - The source code to parse
  * @param filePath - The file path, used to determine file type and resolve relative imports
+ * @param pathUtils - Path utilities for resolving paths. Use Node.js `path` module in server environments for Windows support, or `path-module` for POSIX-only environments.
  * @param options - Optional configuration for comment processing
  * @param options.removeCommentsWithPrefix - Array of prefixes; comments starting with these will be stripped from output
  * @param options.notableCommentsPrefix - Array of prefixes; comments starting with these will be collected regardless of stripping
@@ -1383,7 +1405,8 @@ function detectJavaScriptImport(
  * ```typescript
  * const result = await parseImportsAndComments(
  *   'import React from "react";\nimport { Button } from "./Button";',
- *   '/src/App.tsx'
+ *   '/src/App.tsx',
+ *   path // Node.js path module
  * );
  * // result.externals['react'] contains the React import
  * // result.relative['./Button'] contains the Button import
@@ -1392,6 +1415,7 @@ function detectJavaScriptImport(
 export async function parseImportsAndComments(
   code: string,
   filePath: string,
+  pathUtils: PathUtils,
   options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
 ): Promise<ImportsAndComments> {
   const result: Record<string, RelativeImport> = {};
@@ -1410,6 +1434,7 @@ export async function parseImportsAndComments(
       filePath,
       result,
       externals,
+      pathUtils,
       options?.removeCommentsWithPrefix,
       options?.notableCommentsPrefix,
     );
@@ -1422,6 +1447,7 @@ export async function parseImportsAndComments(
     result,
     externals,
     isMdxFile,
+    pathUtils,
     options?.removeCommentsWithPrefix,
     options?.notableCommentsPrefix,
   );
