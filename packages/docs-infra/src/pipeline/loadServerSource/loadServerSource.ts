@@ -3,8 +3,6 @@
 import { readFile } from 'fs/promises';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
-// eslint-disable-next-line n/prefer-node-protocol
-import * as nodePath from 'path';
 
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
@@ -39,11 +37,9 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
   const { includeDependencies = true, storeAt = 'flat' } = options;
 
   return async function loadSource(url: string) {
-    // Convert file:// URL to proper file system path
+    // Convert file:// URL to proper file system path for reading the file
     // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
-    const rawFilePath = url.startsWith('file://') ? fileURLToPath(url) : url;
-    // Normalize to forward slashes for consistent handling
-    const filePath = rawFilePath.replace(/\\/g, '/');
+    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
     // Read the file
     const source = await readFile(filePath, 'utf8');
@@ -62,12 +58,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     }
 
     // Get all relative imports from this file
-    // Pass Node.js path module for proper Windows path support
-    const { relative: importResult, externals } = await parseImportsAndComments(
-      source,
-      filePath,
-      nodePath,
-    );
+    // Pass the original URL to parseImportsAndComments for cross-platform path handling
+    const { relative: importResult, externals } = await parseImportsAndComments(source, url);
 
     // Transform externals from parseImportsAndComments format to simplified format
     const transformedExternals: Externals = {};

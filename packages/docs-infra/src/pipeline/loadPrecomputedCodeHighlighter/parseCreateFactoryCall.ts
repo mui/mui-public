@@ -1,4 +1,4 @@
-import { parseImportsAndComments, type ImportsAndComments, type PathUtils } from '../loaderUtils';
+import { parseImportsAndComments, type ImportsAndComments } from '../loaderUtils';
 import {
   parseFunctionArguments,
   type SplitArguments,
@@ -645,7 +645,6 @@ function validateVariantsArgument(
 export async function parseCreateFactoryCall(
   code: string,
   filePath: string,
-  pathUtils: PathUtils,
   parseOptions: ParseOptions = {},
   importsAndComments?: ImportsAndComments,
 ): Promise<(ParsedCreateFactory & { importsAndComments?: ImportsAndComments }) | null> {
@@ -672,8 +671,7 @@ export async function parseCreateFactoryCall(
     }
   }
   // Get import mappings from precomputed imports or parse them
-  importsAndComments =
-    importsAndComments || (await parseImportsAndComments(code, filePath, pathUtils));
+  importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
 
   // Process the match using shared logic
   const parsed = await processCreateFactoryMatch(
@@ -701,7 +699,6 @@ export async function parseCreateFactoryCall(
 export async function parseAllCreateFactoryCalls(
   code: string,
   filePath: string,
-  pathUtils: PathUtils,
   parseOptions: Omit<ParseOptions, 'allowMultipleFactories'> = {},
 ): Promise<Record<string, ParsedCreateFactory>> {
   const results: Record<string, ParsedCreateFactory> = {};
@@ -724,9 +721,8 @@ export async function parseAllCreateFactoryCalls(
     const exportName = exportMatch?.[1] || 'unknown';
 
     // Get import mappings from precomputed imports or parse them
-    importsAndComments =
-      // eslint-disable-next-line no-await-in-loop
-      importsAndComments || (await parseImportsAndComments(code, filePath, pathUtils));
+    // eslint-disable-next-line no-await-in-loop
+    importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
 
     // Process the match using shared logic
     // eslint-disable-next-line no-await-in-loop

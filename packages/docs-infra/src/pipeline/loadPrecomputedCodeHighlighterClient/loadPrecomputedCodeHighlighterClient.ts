@@ -6,7 +6,7 @@ import { readFile } from 'fs/promises';
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 import {
   parseCreateFactoryCall,
@@ -22,14 +22,6 @@ import type { Externals, VariantCode } from '../../CodeHighlighter/types';
 import { filterRuntimeExternals } from './filterRuntimeExternals';
 import { injectImportsIntoSource } from './injectImportsIntoSource';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-
-/**
- * Normalizes a file path by converting Windows-style backslashes to forward slashes.
- * Needed because webpack's this.resourcePath returns OS-specific separators.
- */
-function normalizePathSeparators(filePath: string): string {
-  return filePath.replace(/\\/g, '/');
-}
 
 export type LoaderOptions = {};
 
@@ -52,12 +44,13 @@ export async function loadPrecomputedCodeHighlighterClient(
   this.cacheable();
 
   try {
-    // Normalize path separators for cross-platform compatibility (Windows uses backslashes)
-    const normalizedResourcePath = normalizePathSeparators(this.resourcePath);
+    // Convert the filesystem path to a file:// URL for cross-platform compatibility
+    // pathToFileURL handles Windows drive letters correctly (e.g., C:\... → file:///C:/...)
+    const resourceFileUrl = pathToFileURL(this.resourcePath).toString();
 
     // Parse the source to find a single createDemoClient call
     // Use metadataOnly mode since client calls only have (url, options?) arguments
-    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath, path, {
+    const demoCall = await parseCreateFactoryCall(source, resourceFileUrl, {
       metadataOnly: true,
     });
 
@@ -87,8 +80,8 @@ export async function loadPrecomputedCodeHighlighterClient(
     // The client.ts and index.ts should be in the same directory
     const clientDir = path.dirname(this.resourcePath);
     const indexPath = path.join(clientDir, 'index.ts');
-    // Normalize for parseCreateFactoryCall which expects forward slashes
-    const normalizedIndexPath = normalizePathSeparators(indexPath);
+    // Convert to file:// URL for parseCreateFactoryCall
+    const indexFileUrl = pathToFileURL(indexPath).toString();
 
     // Read and parse the index.ts file to get variant information
     let indexDemoCall: ParsedCreateFactory | null = null;
@@ -98,7 +91,7 @@ export async function loadPrecomputedCodeHighlighterClient(
       // Add index.ts as a dependency for hot reloading
       this.addDependency(indexPath);
 
-      indexDemoCall = await parseCreateFactoryCall(indexSource, normalizedIndexPath, path);
+      indexDemoCall = await parseCreateFactoryCall(indexSource, indexFileUrl);
     } catch (error) {
       // If we can't read index.ts, we can't determine variants
       console.warn(`Could not read ${indexPath} to determine variants for client: ${error}`);

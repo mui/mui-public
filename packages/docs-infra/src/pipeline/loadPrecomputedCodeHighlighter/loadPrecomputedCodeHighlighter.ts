@@ -2,7 +2,7 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
@@ -16,14 +16,6 @@ import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
-
-/**
- * Normalizes a file path by converting Windows-style backslashes to forward slashes.
- * Needed because webpack's this.resourcePath returns OS-specific separators.
- */
-function normalizePathSeparators(filePath: string): string {
-  return filePath.replace(/\\/g, '/');
-}
 
 export type LoaderOptions = {
   performance?: {
@@ -75,13 +67,13 @@ export async function loadPrecomputedCodeHighlighter(
     true,
   );
 
-  // Normalize path separators for cross-platform compatibility (Windows uses backslashes)
-  const normalizedResourcePath = normalizePathSeparators(this.resourcePath);
+  // Convert the filesystem path to a file:// URL for cross-platform compatibility
+  // pathToFileURL handles Windows drive letters correctly (e.g., C:\... → file:///C:/...)
+  const resourceFileUrl = pathToFileURL(this.resourcePath).toString();
 
   try {
     // Parse the source to find a single createDemo call
-    // Pass Node.js path module for proper Windows path support
-    const demoCall = await parseCreateFactoryCall(source, normalizedResourcePath, path);
+    const demoCall = await parseCreateFactoryCall(source, resourceFileUrl);
 
     currentMark = performanceMeasure(
       currentMark,

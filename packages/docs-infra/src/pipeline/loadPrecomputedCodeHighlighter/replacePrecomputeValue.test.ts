@@ -1,4 +1,3 @@
-import * as path from 'path-module';
 import { describe, it, expect } from 'vitest';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
@@ -55,7 +54,7 @@ export const demo = createDemo(
     };
 
     // Parse the actual source using parseCreateFactoryCall
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -91,7 +90,7 @@ export const demo = createDemo(
     const data = { test: 'value' };
 
     // Parse the actual source using parseCreateFactoryCall
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -121,7 +120,7 @@ export const demo = createDemo(
     const data = { test: 'value' };
 
     // Parse the actual source using parseCreateFactoryCall
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -151,7 +150,7 @@ export const demo = createDemo(
     const data = { test: 'value' };
 
     // Parse the actual source using parseCreateFactoryCall
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -177,7 +176,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: { o
     const data = { new: 'data' };
 
     // Parse the actual source using parseCreateFactoryCall
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.ts');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -210,7 +209,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', p
 `;
 
     const data = { replacement: 'data' };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
     const result = replacePrecomputeValue(source, data, demoCall!);
 
@@ -228,7 +227,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
     // Test with no spaces around braces
     const source1 = `import Component from './Component';
 createDemo(import.meta.url,{Component},{name:'test'});`;
-    const demoCall1 = await parseCreateFactoryCall(source1, '/test/file.ts', path);
+    const demoCall1 = await parseCreateFactoryCall(source1, '/test/file.ts');
     expect(demoCall1).not.toBeNull();
     const result1 = replacePrecomputeValue(source1, { data: 'test' }, demoCall1!);
 
@@ -241,7 +240,7 @@ createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
     // Test with extra spaces
     const source2 = `import Component from './Component';
 createDemo( import.meta.url , { Component } , {  name : 'test'  } );`;
-    const demoCall2 = await parseCreateFactoryCall(source2, '/test/file.ts', path);
+    const demoCall2 = await parseCreateFactoryCall(source2, '/test/file.ts');
     expect(demoCall2).not.toBeNull();
     const result2 = replacePrecomputeValue(source2, { data: 'test' }, demoCall2!);
 
@@ -256,7 +255,7 @@ createDemo(import.meta.url, { Component }, { name: 'test', precompute: {
     // Test with no spaces
     const source1 = `import Component from './Component';
 createDemo(import.meta.url,{Component});`;
-    const demoCall1 = await parseCreateFactoryCall(source1, '/test/file.ts', path);
+    const demoCall1 = await parseCreateFactoryCall(source1, '/test/file.ts');
     expect(demoCall1).not.toBeNull();
     const result1 = replacePrecomputeValue(source1, { data: 'test' }, demoCall1!);
 
@@ -272,7 +271,7 @@ createDemo(
       import.meta.url,
       { Component }
     );`;
-    const demoCall2 = await parseCreateFactoryCall(source2, '/test/file.ts', path);
+    const demoCall2 = await parseCreateFactoryCall(source2, '/test/file.ts');
     expect(demoCall2).not.toBeNull();
     const result2 = replacePrecomputeValue(source2, { data: 'test' }, demoCall2!);
 
@@ -300,7 +299,7 @@ export const demo = createDemo(
 
     const data = { test: 'value' };
 
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -348,7 +347,7 @@ export const demo = createDemo(
       },
     };
 
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -406,7 +405,7 @@ export const demo = createDemo(
 
     const data = {};
 
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -441,7 +440,7 @@ export const demo = createDemo(
       },
     };
 
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -483,7 +482,7 @@ export default CodeDemo;`;
 
     const data = { Component: { test: 'value' } };
 
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -532,7 +531,7 @@ export const demo = createDemo(
 `;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -561,7 +560,7 @@ export const demo = createDemo(
 `;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -591,7 +590,7 @@ export const demo = createDemo(
 `;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -622,7 +621,7 @@ export const demo = createDemo(
 
     const data = { Component: { fileName: 'Component.tsx' } };
 
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -650,7 +649,7 @@ export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxB
 });`;
 
     const data = { DemoCheckboxBasic: { fileName: 'demo-basic.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -674,7 +673,7 @@ import { DemoCheckboxBasic } from './demo-basic';
 export const DemoCodeHighlighterDemo = createDemo(import.meta.url, DemoCheckboxBasic);`;
 
     const data = { DemoCheckboxBasic: { fileName: 'demo-basic.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -704,7 +703,7 @@ export const demo = createDemo(
 );`;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -732,7 +731,7 @@ export const demo = createDemo(
 );`;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -761,7 +760,7 @@ export const demo = createDemo(
 );`;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -787,7 +786,7 @@ export const demo = createDemo(
 );`;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -812,7 +811,7 @@ export const demo = createDemo(
 );`;
 
     const data = { Component: { fileName: 'Component.tsx' } };
-    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+    const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
     expect(demoCall).not.toBeNull();
 
     const result = replacePrecomputeValue(source, data, demoCall!);
@@ -835,7 +834,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: {
 export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
       const data = { Component: { fileName: 'Component.tsx' } };
 
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
@@ -853,7 +852,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: {
 export const demo = createDemo(import.meta.url, { Component }, { name: 'test', slug: 'demo' });`;
       const data = { Component: { fileName: 'Component.tsx' } };
 
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
@@ -871,7 +870,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
 export const demo = createDemo(import.meta.url, { Component });`;
       const data = { Component: { fileName: 'Component.tsx' } };
 
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
@@ -889,7 +888,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: {
 export const demo = createDemo(import.meta.url, { Component }, { name: 'test', });`;
       const data = { Component: { fileName: 'Component.tsx' } };
 
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
@@ -912,7 +911,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
         },
       };
 
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
@@ -935,7 +934,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: {
 export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
       const data = {};
 
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       const result = replacePrecomputeValue(source, data, demoCall!);
 
       const expected = `import Component from './Component';
@@ -963,7 +962,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
       // Process test cases sequentially
       const results = await Promise.all(
         testCases.map(async (testCase) => {
-          const demoCall = await parseCreateFactoryCall(testCase.source, '/test/file.tsx', path);
+          const demoCall = await parseCreateFactoryCall(testCase.source, '/test/file.tsx');
           const result = replacePrecomputeValue(testCase.source, testCase.data, demoCall!);
           return { testCase, result };
         }),
@@ -986,7 +985,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
 export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
       const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!);
 
@@ -1001,7 +1000,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
 export const demo = createDemo(import.meta.url, { Component }, { precompute: true });`;
 
       const data = { Component: { fileName: 'Component.tsx' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: false });
 
@@ -1022,7 +1021,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
           externals: { react: 'React' }, // Variable name - no quotes
         },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1046,7 +1045,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
           metadata: { type: '"component"', version: '1' }, // Mix of string and number
         },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1070,7 +1069,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
           ], // Variable names unquoted, packages quoted
         },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1095,7 +1094,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
           value: null,
         },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1115,7 +1114,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
         externals: {},
         dependencies: [],
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1130,7 +1129,7 @@ export const demo = createDemo(import.meta.url, { Component }, { name: 'test', s
 
       // Realistic case: externals with variable names
       const data = { externals: { react: 'React', mui: 'MaterialUI' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1153,7 +1152,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
           unquoted: 'someVariable',
         },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1177,7 +1176,7 @@ export const demo = createDemo(import.meta.url, { Component }, { precompute: tru
           version: '"5.0.0"', // String literal for version
         },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
@@ -1207,7 +1206,7 @@ export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }
         VariantA: { fileName: 'ComponentA.tsx' },
         VariantB: { fileName: 'ComponentB.tsx' },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       expect(demoCall).not.toBeNull();
 
       const result = replacePrecomputeValue(source, data, demoCall!);
@@ -1240,7 +1239,7 @@ export const demo = createSnippet<{ VariantA: ComponentA, VariantB: ComponentB }
         VariantA: { fileName: 'ComponentA.tsx' },
         VariantB: { fileName: 'ComponentB.tsx' },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       expect(demoCall).not.toBeNull();
 
       const result = replacePrecomputeValue(source, data, demoCall!);
@@ -1268,7 +1267,7 @@ export const demo = createSnippet<typeof Component>(import.meta.url);`;
       const data = {
         Default: { fileName: 'Component.tsx' },
       };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
       expect(demoCall).not.toBeNull();
 
       const result = replacePrecomputeValue(source, data, demoCall!);
@@ -1291,7 +1290,7 @@ export const demo = createSnippet<typeof Component>(import.meta.url, { precomput
 export const DemoClient = createDemoClient(import.meta.url);`;
 
       const data = { externals: { react: 'React' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path, {
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', {
         metadataOnly: true,
       });
 
@@ -1308,7 +1307,7 @@ export const DemoClient = createDemoClient(import.meta.url);`;
 export const DemoClient = createDemoClient(import.meta.url, { name: 'test' });`;
 
       const data = { externals: { react: 'React' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path, {
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', {
         metadataOnly: true,
       });
 
@@ -1324,7 +1323,7 @@ export const DemoClient = createDemoClient(import.meta.url, { name: 'test' });`;
 export const demo = createDemo(import.meta.url, { Component });`;
 
       const data = { Component: { fileName: '"Component.tsx"' } };
-      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx', path);
+      const demoCall = await parseCreateFactoryCall(source, '/test/file.tsx');
 
       const result = replacePrecomputeValue(source, data, demoCall!, { passPrecomputeAsIs: true });
 
