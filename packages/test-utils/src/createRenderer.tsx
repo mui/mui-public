@@ -19,7 +19,8 @@ import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
 import { useFakeTimers } from 'sinon';
 import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
-import reactMajor from './reactMajor';
+import { reactMajor } from './env';
+import flushMicrotasks from './flushMicrotasks';
 
 function queryAllDescriptionsOf(baseElement: HTMLElement, element: Element): HTMLElement[] {
   const ariaDescribedBy = element.getAttribute('aria-describedby');
@@ -581,9 +582,8 @@ export {
 export { act, fireEvent };
 export const screen: Screen & typeof bodyBoundQueries = { ...rtlScreen, ...bodyBoundQueries };
 
-export async function flushEffects(): Promise<void> {
-  await act(async () => {});
-}
+// @deprecated use flushMicrotasks instead
+export const flushEffects = flushMicrotasks;
 
 /**
  * returns true when touch is suported and can be mocked
