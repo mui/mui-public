@@ -1,6 +1,5 @@
 import { getFileNameFromUrl } from './getFileNameFromUrl';
-import { pathToFileUrl } from './pathToFileUrl';
-import { fileUrlToPortablePath } from './fileUrlToPortablePath';
+import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
  * Isomorphic path joining function that works in both Node.js and browser environments.
@@ -145,7 +144,7 @@ async function resolveWithTypeAwareness(
   const moduleName = modulePath.substring(lastSlashIndex + 1);
 
   // Single filesystem read to get directory contents
-  const dirContents = await readDirectory(pathToFileUrl(parentDir));
+  const dirContents = await readDirectory(portablePathToFileUrl(parentDir));
 
   // Build a map of available files by basename
   const filesByBaseName = new Map<string, DirectoryEntry[]>();
@@ -229,7 +228,7 @@ async function resolveWithTypeAwareness(
     const moduleDir = joinPath(parentDir, directoryMatches[0].name);
 
     try {
-      const moduleDirContents = await readDirectory(pathToFileUrl(moduleDir));
+      const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
 
       // Build a map of available index files by basename
       const indexFilesByBaseName = new Map<string, DirectoryEntry[]>();
@@ -325,7 +324,7 @@ async function resolveSinglePath(
 ): Promise<string> {
   try {
     // Read the parent directory contents
-    const dirContents = await readDirectory(pathToFileUrl(parentDir));
+    const dirContents = await readDirectory(portablePathToFileUrl(parentDir));
 
     // Look for direct file matches in extension priority order
     // Create a map of baseName -> files with that basename for efficient lookup
@@ -381,7 +380,7 @@ async function resolveSinglePath(
       const moduleDir = joinPath(parentDir, directoryMatches[0].name);
 
       try {
-        const moduleDirContents = await readDirectory(pathToFileUrl(moduleDir));
+        const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
 
         // Look for index files in extension priority order
         // Create a map of baseName -> files for efficient lookup
@@ -475,7 +474,7 @@ export async function resolveModulePaths(
     directoryEntries.map(async ([parentDir, pathGroup]) => {
       try {
         // Read the directory contents once for all paths in this directory
-        const dirContents = await readDirectory(pathToFileUrl(parentDir));
+        const dirContents = await readDirectory(portablePathToFileUrl(parentDir));
         const unresolved: Array<{ fullPath: string; moduleName: string }> = [];
         const resolved: Array<{ fullPath: string; resolvedPath: string }> = [];
 
@@ -535,7 +534,7 @@ export async function resolveModulePaths(
                 const moduleDir = joinPath(parentDir, moduleName);
 
                 try {
-                  const moduleDirContents = await readDirectory(pathToFileUrl(moduleDir));
+                  const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
 
                   // Look for index files in extension priority order
                   // Create a map of baseName -> files for efficient lookup
@@ -708,8 +707,8 @@ export async function resolveVariantPaths(
   for (const [variantName, variantPath] of Object.entries(variants)) {
     const resolvedVariantPath = resolvedVariantPaths.get(variantPath);
     if (resolvedVariantPath) {
-      // Store as a file URL (pathToFileUrl handles Windows drive letters correctly)
-      variantMap.set(variantName, pathToFileUrl(resolvedVariantPath));
+      // Store as a file URL (portablePathToFileUrl handles portable paths correctly)
+      variantMap.set(variantName, portablePathToFileUrl(resolvedVariantPath));
     }
   }
 

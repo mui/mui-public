@@ -69,8 +69,12 @@ export function fileUrlToPortablePath(fileUrl: string): string {
  * portablePathToFileUrl('/C:/Users/file.ts') // => 'file:///C:/Users/file.ts'
  */
 export function portablePathToFileUrl(portablePath: string): string {
-  // If it's already a file:// URL, return as-is
-  if (portablePath.startsWith('file://')) {
+  // If it's already a URL (file://, http://, https://), return as-is
+  if (
+    portablePath.startsWith('file://') ||
+    portablePath.startsWith('http://') ||
+    portablePath.startsWith('https://')
+  ) {
     return portablePath;
   }
 

@@ -5,5 +5,4 @@ export * from './processRelativeImports';
 export * from './getFileNameFromUrl';
 export * from './extractNameAndSlugFromUrl';
 export * from './externalsToPackages';
-export * from './pathToFileUrl';
 export * from './fileUrlToPortablePath';
