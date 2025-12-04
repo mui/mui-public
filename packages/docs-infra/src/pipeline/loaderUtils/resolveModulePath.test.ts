@@ -32,8 +32,8 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
-      expect(result).toBe('/project/src/Component.ts');
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
+      expect(result).toBe('file:///project/src/Component.ts');
     });
 
     it('should resolve a direct file match with .tsx extension', async () => {
@@ -44,9 +44,9 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
       // Should find the first match based on extension order
-      expect(result).toBe('/project/src/Component.ts');
+      expect(result).toBe('file:///project/src/Component.ts');
     });
 
     it('should resolve a direct file match with .js extension', async () => {
@@ -54,8 +54,8 @@ describe('resolveModulePath', () => {
         '/project/src': [{ name: 'Component.js', isFile: true, isDirectory: false }],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
-      expect(result).toBe('/project/src/Component.js');
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
+      expect(result).toBe('file:///project/src/Component.js');
     });
 
     it('should resolve a direct file match with .jsx extension', async () => {
@@ -63,8 +63,8 @@ describe('resolveModulePath', () => {
         '/project/src': [{ name: 'Component.jsx', isFile: true, isDirectory: false }],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
-      expect(result).toBe('/project/src/Component.jsx');
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
+      expect(result).toBe('file:///project/src/Component.jsx');
     });
 
     it('should resolve index file in directory', async () => {
@@ -79,8 +79,8 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
-      expect(result).toBe('/project/src/Component/index.ts');
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
+      expect(result).toBe('file:///project/src/Component/index.ts');
     });
 
     it('should prefer direct file over directory with index', async () => {
@@ -92,8 +92,8 @@ describe('resolveModulePath', () => {
         '/project/src/Component': [{ name: 'index.ts', isFile: true, isDirectory: false }],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
-      expect(result).toBe('/project/src/Component.ts');
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
+      expect(result).toBe('file:///project/src/Component.ts');
     });
 
     it('should respect custom extensions', async () => {
@@ -104,10 +104,10 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader, {
+      const result = await resolveModulePath('file:///project/src/Component', mockReader, {
         extensions: ['.vue', '.ts'],
       });
-      expect(result).toBe('/project/src/Component.vue');
+      expect(result).toBe('file:///project/src/Component.vue');
     });
 
     it('should throw error when module not found', async () => {
@@ -115,7 +115,7 @@ describe('resolveModulePath', () => {
         '/project/src': [{ name: 'Other.ts', isFile: true, isDirectory: false }],
       });
 
-      await expect(resolveModulePath('/project/src/Component', mockReader)).rejects.toThrow(
+      await expect(resolveModulePath('file:///project/src/Component', mockReader)).rejects.toThrow(
         'Could not resolve module at path "/project/src/Component". Tried extensions: .ts, .tsx, .js, .jsx',
       );
     });
@@ -123,7 +123,7 @@ describe('resolveModulePath', () => {
     it('should throw error when directory cannot be read', async () => {
       const mockReader = createMockDirectoryReader({});
 
-      await expect(resolveModulePath('/project/src/Component', mockReader)).rejects.toThrow(
+      await expect(resolveModulePath('file:///project/src/Component', mockReader)).rejects.toThrow(
         'Could not resolve module at path "/project/src/Component". Tried extensions: .ts, .tsx, .js, .jsx',
       );
     });
@@ -134,7 +134,7 @@ describe('resolveModulePath', () => {
         // Missing '/project/src/Component' entry to simulate read error
       });
 
-      await expect(resolveModulePath('/project/src/Component', mockReader)).rejects.toThrow(
+      await expect(resolveModulePath('file:///project/src/Component', mockReader)).rejects.toThrow(
         'Could not resolve module at path "/project/src/Component". Tried extensions: .ts, .tsx, .js, .jsx',
       );
     });
@@ -148,8 +148,8 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
-      expect(result).toBe('/project/src/Component/index.jsx');
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
+      expect(result).toBe('file:///project/src/Component/index.jsx');
     });
 
     it('should match Node.js resolution behavior for extension priority', async () => {
@@ -164,9 +164,9 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/Component', mockReader);
+      const result = await resolveModulePath('file:///project/src/Component', mockReader);
       // Our implementation follows the extensions array order: .ts comes first
-      expect(result).toBe('/project/src/Component.ts');
+      expect(result).toBe('file:///project/src/Component.ts');
     });
 
     it('should behave like JS with index file resolution', async () => {
@@ -179,8 +179,8 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const result = await resolveModulePath('/project/src/utils', mockReader);
-      expect(result).toBe('/project/src/utils/index.js');
+      const result = await resolveModulePath('file:///project/src/utils', mockReader);
+      expect(result).toBe('file:///project/src/utils/index.js');
     });
   });
 
@@ -196,17 +196,23 @@ describe('resolveModulePath', () => {
       });
 
       const paths = [
-        '/project/src/Component1',
-        '/project/src/Component2',
-        '/project/src/Component3',
+        'file:///project/src/Component1',
+        'file:///project/src/Component2',
+        'file:///project/src/Component3',
       ];
 
       const result = await resolveModulePaths(paths, mockReader);
 
       expect(result.size).toBe(3);
-      expect(result.get('/project/src/Component1')).toBe('/project/src/Component1.ts');
-      expect(result.get('/project/src/Component2')).toBe('/project/src/Component2.tsx');
-      expect(result.get('/project/src/Component3')).toBe('/project/src/Component3/index.js');
+      expect(result.get('file:///project/src/Component1')).toBe(
+        'file:///project/src/Component1.ts',
+      );
+      expect(result.get('file:///project/src/Component2')).toBe(
+        'file:///project/src/Component2.tsx',
+      );
+      expect(result.get('file:///project/src/Component3')).toBe(
+        'file:///project/src/Component3/index.js',
+      );
 
       // Verify directory was only read once
       expect(mockReader).toHaveBeenCalledWith('file:///project/src');
@@ -220,13 +226,15 @@ describe('resolveModulePath', () => {
         '/project/utils': [{ name: 'helper.js', isFile: true, isDirectory: false }],
       });
 
-      const paths = ['/project/src/Component1', '/project/utils/helper'];
+      const paths = ['file:///project/src/Component1', 'file:///project/utils/helper'];
 
       const result = await resolveModulePaths(paths, mockReader);
 
       expect(result.size).toBe(2);
-      expect(result.get('/project/src/Component1')).toBe('/project/src/Component1.ts');
-      expect(result.get('/project/utils/helper')).toBe('/project/utils/helper.js');
+      expect(result.get('file:///project/src/Component1')).toBe(
+        'file:///project/src/Component1.ts',
+      );
+      expect(result.get('file:///project/utils/helper')).toBe('file:///project/utils/helper.js');
 
       // Verify both directories were read
       expect(mockReader).toHaveBeenCalledWith('file:///project/src');
@@ -239,13 +247,15 @@ describe('resolveModulePath', () => {
         '/project/src': [{ name: 'Component1.ts', isFile: true, isDirectory: false }],
       });
 
-      const paths = ['/project/src/Component1', '/project/src/NonExistent'];
+      const paths = ['file:///project/src/Component1', 'file:///project/src/NonExistent'];
 
       const result = await resolveModulePaths(paths, mockReader);
 
       expect(result.size).toBe(1);
-      expect(result.get('/project/src/Component1')).toBe('/project/src/Component1.ts');
-      expect(result.has('/project/src/NonExistent')).toBe(false);
+      expect(result.get('file:///project/src/Component1')).toBe(
+        'file:///project/src/Component1.ts',
+      );
+      expect(result.has('file:///project/src/NonExistent')).toBe(false);
     });
 
     it('should handle directory read errors gracefully', async () => {
@@ -254,13 +264,15 @@ describe('resolveModulePath', () => {
         // Missing '/project/missing' entry to simulate read error
       });
 
-      const paths = ['/project/src/Component1', '/project/missing/Component2'];
+      const paths = ['file:///project/src/Component1', 'file:///project/missing/Component2'];
 
       const result = await resolveModulePaths(paths, mockReader);
 
       expect(result.size).toBe(1);
-      expect(result.get('/project/src/Component1')).toBe('/project/src/Component1.ts');
-      expect(result.has('/project/missing/Component2')).toBe(false);
+      expect(result.get('file:///project/src/Component1')).toBe(
+        'file:///project/src/Component1.ts',
+      );
+      expect(result.has('file:///project/missing/Component2')).toBe(false);
     });
 
     it('should work with custom extensions', async () => {
@@ -271,15 +283,19 @@ describe('resolveModulePath', () => {
         ],
       });
 
-      const paths = ['/project/src/Component1', '/project/src/Component2'];
+      const paths = ['file:///project/src/Component1', 'file:///project/src/Component2'];
 
       const result = await resolveModulePaths(paths, mockReader, {
         extensions: ['.vue', '.svelte'],
       });
 
       expect(result.size).toBe(2);
-      expect(result.get('/project/src/Component1')).toBe('/project/src/Component1.vue');
-      expect(result.get('/project/src/Component2')).toBe('/project/src/Component2.svelte');
+      expect(result.get('file:///project/src/Component1')).toBe(
+        'file:///project/src/Component1.vue',
+      );
+      expect(result.get('file:///project/src/Component2')).toBe(
+        'file:///project/src/Component2.svelte',
+      );
     });
 
     it('should handle empty input array', async () => {
@@ -301,13 +317,17 @@ describe('resolveModulePath', () => {
         '/project/src/Component2': [{ name: 'index.jsx', isFile: true, isDirectory: false }],
       });
 
-      const paths = ['/project/src/Component1', '/project/src/Component2'];
+      const paths = ['file:///project/src/Component1', 'file:///project/src/Component2'];
 
       const result = await resolveModulePaths(paths, mockReader);
 
       expect(result.size).toBe(2);
-      expect(result.get('/project/src/Component1')).toBe('/project/src/Component1/index.ts');
-      expect(result.get('/project/src/Component2')).toBe('/project/src/Component2/index.jsx');
+      expect(result.get('file:///project/src/Component1')).toBe(
+        'file:///project/src/Component1/index.ts',
+      );
+      expect(result.get('file:///project/src/Component2')).toBe(
+        'file:///project/src/Component2/index.jsx',
+      );
 
       // Should read parent directory once, then each component directory once
       expect(mockReader).toHaveBeenCalledWith('file:///project/src');
@@ -375,15 +395,15 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { url: '/project/src/Component', names: ['Component'] },
-        './styles.css': { url: '/project/src/styles.css', names: [] },
+        './Component': { url: 'file:///project/src/Component', names: ['Component'] },
+        './styles.css': { url: 'file:///project/src/styles.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
 
       expect(result.size).toBe(2);
-      expect(result.get('/project/src/Component')).toBe('/project/src/Component.ts');
-      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
+      expect(result.get('file:///project/src/Component')).toBe('file:///project/src/Component.ts');
+      expect(result.get('file:///project/src/styles.css')).toBe('file:///project/src/styles.css');
     });
 
     it('should handle mixed imports with different extensions', async () => {
@@ -395,19 +415,21 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Button': { url: '/project/src/Button', names: ['Button'] },
-        './utils.js': { url: '/project/src/utils.js', names: ['helper'] },
-        './data.json': { url: '/project/src/data.json', names: ['default'] },
-        './component.css': { url: '/project/src/component.css', names: [] },
+        './Button': { url: 'file:///project/src/Button', names: ['Button'] },
+        './utils.js': { url: 'file:///project/src/utils.js', names: ['helper'] },
+        './data.json': { url: 'file:///project/src/data.json', names: ['default'] },
+        './component.css': { url: 'file:///project/src/component.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
 
       expect(result.size).toBe(4);
-      expect(result.get('/project/src/Button')).toBe('/project/src/Button.tsx');
-      expect(result.get('/project/src/utils.js')).toBe('/project/src/utils.js');
-      expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
-      expect(result.get('/project/src/component.css')).toBe('/project/src/component.css');
+      expect(result.get('file:///project/src/Button')).toBe('file:///project/src/Button.tsx');
+      expect(result.get('file:///project/src/utils.js')).toBe('file:///project/src/utils.js');
+      expect(result.get('file:///project/src/data.json')).toBe('file:///project/src/data.json');
+      expect(result.get('file:///project/src/component.css')).toBe(
+        'file:///project/src/component.css',
+      );
     });
 
     it('should only call resolveModulePaths for JS/TS imports', async () => {
@@ -416,17 +438,17 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { url: '/project/src/Component', names: ['Component'] },
-        './styles.css': { url: '/project/src/styles.css', names: [] },
-        './data.json': { url: '/project/src/data.json', names: ['default'] },
+        './Component': { url: 'file:///project/src/Component', names: ['Component'] },
+        './styles.css': { url: 'file:///project/src/styles.css', names: [] },
+        './data.json': { url: 'file:///project/src/data.json', names: ['default'] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
 
       expect(result.size).toBe(3);
-      expect(result.get('/project/src/Component')).toBe('/project/src/Component.ts');
-      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
-      expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
+      expect(result.get('file:///project/src/Component')).toBe('file:///project/src/Component.ts');
+      expect(result.get('file:///project/src/styles.css')).toBe('file:///project/src/styles.css');
+      expect(result.get('file:///project/src/data.json')).toBe('file:///project/src/data.json');
 
       // Should only read directory for JS/TS resolution, not for static assets
       expect(mockReader).toHaveBeenCalledWith('file:///project/src');
@@ -448,17 +470,17 @@ describe('resolveModulePath', () => {
       const mockReader = createMockDirectoryReader({});
 
       const importResult = {
-        './styles.css': { url: '/project/src/styles.css', names: [] },
-        './data.json': { url: '/project/src/data.json', names: ['default'] },
-        './image.png': { url: '/project/src/image.png', names: [] },
+        './styles.css': { url: 'file:///project/src/styles.css', names: [] },
+        './data.json': { url: 'file:///project/src/data.json', names: ['default'] },
+        './image.png': { url: 'file:///project/src/image.png', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
 
       expect(result.size).toBe(3);
-      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
-      expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
-      expect(result.get('/project/src/image.png')).toBe('/project/src/image.png');
+      expect(result.get('file:///project/src/styles.css')).toBe('file:///project/src/styles.css');
+      expect(result.get('file:///project/src/data.json')).toBe('file:///project/src/data.json');
+      expect(result.get('file:///project/src/image.png')).toBe('file:///project/src/image.png');
 
       // Should not read any directories since no JS/TS modules to resolve
       expect(mockReader).not.toHaveBeenCalled();
@@ -475,17 +497,17 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { url: '/project/src/Component', names: ['Component'] },
-        './utils': { url: '/project/src/utils', names: ['helper'] },
-        '../lib/helper': { url: '/project/lib/helper', names: ['default'] },
+        './Component': { url: 'file:///project/src/Component', names: ['Component'] },
+        './utils': { url: 'file:///project/src/utils', names: ['helper'] },
+        '../lib/helper': { url: 'file:///project/lib/helper', names: ['default'] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
 
       expect(result.size).toBe(3);
-      expect(result.get('/project/src/Component')).toBe('/project/src/Component.ts');
-      expect(result.get('/project/src/utils')).toBe('/project/src/utils.js');
-      expect(result.get('/project/lib/helper')).toBe('/project/lib/helper/index.tsx');
+      expect(result.get('file:///project/src/Component')).toBe('file:///project/src/Component.ts');
+      expect(result.get('file:///project/src/utils')).toBe('file:///project/src/utils.js');
+      expect(result.get('file:///project/lib/helper')).toBe('file:///project/lib/helper/index.tsx');
     });
 
     it('should pass custom extensions to resolveModulePaths', async () => {
@@ -494,8 +516,8 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { url: '/project/src/Component', names: ['Component'] },
-        './styles.css': { url: '/project/src/styles.css', names: [] },
+        './Component': { url: 'file:///project/src/Component', names: ['Component'] },
+        './styles.css': { url: 'file:///project/src/styles.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader, {
@@ -503,8 +525,8 @@ describe('resolveModulePath', () => {
       });
 
       expect(result.size).toBe(2);
-      expect(result.get('/project/src/Component')).toBe('/project/src/Component.vue');
-      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css');
+      expect(result.get('file:///project/src/Component')).toBe('file:///project/src/Component.vue');
+      expect(result.get('file:///project/src/styles.css')).toBe('file:///project/src/styles.css');
     });
 
     it('should handle unresolvable JS/TS modules gracefully', async () => {
@@ -513,15 +535,15 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { url: '/project/src/Component', names: ['Component'] },
-        './styles.css': { url: '/project/src/styles.css', names: [] },
+        './Component': { url: 'file:///project/src/Component', names: ['Component'] },
+        './styles.css': { url: 'file:///project/src/styles.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
 
       expect(result.size).toBe(1);
-      expect(result.has('/project/src/Component')).toBe(false); // Unresolvable JS module
-      expect(result.get('/project/src/styles.css')).toBe('/project/src/styles.css'); // Static asset preserved
+      expect(result.has('file:///project/src/Component')).toBe(false); // Unresolvable JS module
+      expect(result.get('file:///project/src/styles.css')).toBe('file:///project/src/styles.css'); // Static asset preserved
     });
   });
 
@@ -535,8 +557,8 @@ describe('resolveModulePath', () => {
       });
 
       const variants = {
-        basic: '/project/demos/Basic',
-        advanced: '/project/demos/Advanced',
+        basic: 'file:///project/demos/Basic',
+        advanced: 'file:///project/demos/Advanced',
       };
 
       const result = await resolveVariantPaths(variants, mockReader);
@@ -559,8 +581,8 @@ describe('resolveModulePath', () => {
       });
 
       const variants = {
-        basic: '/project/demos/Basic',
-        advanced: '/project/demos/Advanced',
+        basic: 'file:///project/demos/Basic',
+        advanced: 'file:///project/demos/Advanced',
       };
 
       const result = await resolveVariantPaths(variants, mockReader);
@@ -579,9 +601,9 @@ describe('resolveModulePath', () => {
       });
 
       const variants = {
-        basic: '/project/demos/Basic',
-        advanced: '/project/demos/Advanced', // This won't resolve
-        missing: '/project/demos/Missing', // This won't resolve
+        basic: 'file:///project/demos/Basic',
+        advanced: 'file:///project/demos/Advanced', // This won't resolve
+        missing: 'file:///project/demos/Missing', // This won't resolve
       };
 
       const result = await resolveVariantPaths(variants, mockReader);
@@ -601,8 +623,8 @@ describe('resolveModulePath', () => {
       });
 
       const variants = {
-        basic: '/project/demos/Basic',
-        advanced: '/project/demos/Advanced',
+        basic: 'file:///project/demos/Basic',
+        advanced: 'file:///project/demos/Advanced',
       };
 
       const result = await resolveVariantPaths(variants, mockReader, {
@@ -634,9 +656,9 @@ describe('resolveModulePath', () => {
       });
 
       const variants = {
-        basic: '/project/demos/basic/Component',
-        advanced: '/project/demos/advanced/Component',
-        example: '/project/examples/Example',
+        basic: 'file:///project/demos/basic/Component',
+        advanced: 'file:///project/demos/advanced/Component',
+        example: 'file:///project/examples/Example',
       };
 
       const result = await resolveVariantPaths(variants, mockReader);
@@ -658,7 +680,7 @@ describe('resolveModulePath', () => {
       });
 
       const variants = {
-        component: '/project/demos/Component',
+        component: 'file:///project/demos/Component',
       };
 
       const result = await resolveVariantPaths(variants, mockReader);

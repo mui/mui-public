@@ -88,16 +88,16 @@ export interface TypeAwareResolveResult {
  * Resolves a module path by reading directory contents to find matching files.
  * This is more efficient than checking each file individually with stat calls.
  *
- * Given a path like `/Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
+ * Given a path like `file:///Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
  * this function will try to find the actual file by checking for:
  * - `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
  * - `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
  *
- * @param modulePath - The module path to resolve (without file extension)
+ * @param moduleUrl - The module URL to resolve (file:// URL or portable path, without file extension)
  * @param readDirectory - Function to read directory contents
  * @param options - Configuration options
  * @param includeTypeDefs - If true, returns both import and typeImport paths with different extension priorities
- * @returns Promise<string | TypeAwareResolveResult> - The resolved file path(s)
+ * @returns Promise<string | TypeAwareResolveResult> - The resolved file:// URL(s)
  */
 export async function resolveModulePath(
   moduleUrl: string,
@@ -185,7 +185,7 @@ async function resolveWithTypeAwareness(
     for (const ext of VALUE_IMPORT_EXTENSIONS) {
       for (const entry of entryMap) {
         if (entry.actualExtension === ext) {
-          importPath = joinPath(parentDir, entry.name);
+          importPath = portablePathToFileUrl(joinPath(parentDir, entry.name));
           break;
         }
       }
@@ -199,7 +199,7 @@ async function resolveWithTypeAwareness(
     for (const ext of TYPE_IMPORT_EXTENSIONS) {
       for (const entry of entryMap) {
         if (entry.actualExtension === ext) {
-          typeImportPath = joinPath(parentDir, entry.name);
+          typeImportPath = portablePathToFileUrl(joinPath(parentDir, entry.name));
           break;
         }
       }
@@ -269,7 +269,7 @@ async function resolveWithTypeAwareness(
         for (const ext of VALUE_IMPORT_EXTENSIONS) {
           for (const entry of indexEntryMap) {
             if (entry.actualExtension === ext) {
-              importPath = joinPath(moduleDir, entry.name);
+              importPath = portablePathToFileUrl(joinPath(moduleDir, entry.name));
               break;
             }
           }
@@ -283,7 +283,7 @@ async function resolveWithTypeAwareness(
         for (const ext of TYPE_IMPORT_EXTENSIONS) {
           for (const entry of indexEntryMap) {
             if (entry.actualExtension === ext) {
-              typeImportPath = joinPath(moduleDir, entry.name);
+              typeImportPath = portablePathToFileUrl(joinPath(moduleDir, entry.name));
               break;
             }
           }
@@ -365,7 +365,7 @@ async function resolveSinglePath(
           const entryWithExt = entry as DirectoryEntry & { actualExtension: string };
           if (entryWithExt.actualExtension === ext) {
             const resolvedPath = joinPath(parentDir, entry.name);
-            return resolvedPath;
+            return portablePathToFileUrl(resolvedPath);
           }
         }
       }
@@ -419,7 +419,7 @@ async function resolveSinglePath(
             for (const entry of indexFiles) {
               const entryWithExt = entry as DirectoryEntry & { actualExtension: string };
               if (entryWithExt.actualExtension === ext) {
-                return joinPath(moduleDir, entry.name);
+                return portablePathToFileUrl(joinPath(moduleDir, entry.name));
               }
             }
           }
@@ -504,7 +504,10 @@ export async function resolveModulePaths(
               for (const entry of matchingFiles) {
                 const { extension: entryExt } = getFileNameFromUrl(entry.name);
                 if (entryExt === ext) {
-                  resolved.push({ fullPath, resolvedPath: joinPath(parentDir, entry.name) });
+                  resolved.push({
+                    fullPath,
+                    resolvedPath: portablePathToFileUrl(joinPath(parentDir, entry.name)),
+                  });
                   foundMatch = true;
                   break;
                 }
@@ -559,7 +562,10 @@ export async function resolveModulePaths(
                       for (const entry of indexFiles) {
                         const { extension: entryExt } = getFileNameFromUrl(entry.name);
                         if (entryExt === ext) {
-                          return { fullPath, resolvedPath: joinPath(moduleDir, entry.name) };
+                          return {
+                            fullPath,
+                            resolvedPath: portablePathToFileUrl(joinPath(moduleDir, entry.name)),
+                          };
                         }
                       }
                     }
