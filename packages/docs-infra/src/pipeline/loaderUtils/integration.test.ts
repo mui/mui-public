@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import { parseImportsAndComments } from './parseImportsAndComments';
 import { resolveImportResult, type DirectoryEntry } from './resolveModulePath';
 import { processRelativeImports } from './processRelativeImports';
@@ -54,7 +55,8 @@ const mockFileSystem: Record<string, DirectoryEntry[]> = {
 };
 
 // Mock directory reader function
-const mockDirectoryReader = async (path: string): Promise<DirectoryEntry[]> => {
+const mockDirectoryReader = async (fileUrl: string): Promise<DirectoryEntry[]> => {
+  const path = fileURLToPath(fileUrl);
   const entries = mockFileSystem[path];
   if (!entries) {
     throw new Error(`Directory not found: ${path}`);
@@ -75,7 +77,7 @@ async function mockLoader(
   const importResult: Record<
     string,
     {
-      path: string;
+      url: string;
       names: string[];
       includeTypeDefs?: true;
       positions: Array<{ start: number; end: number }>;
@@ -83,7 +85,7 @@ async function mockLoader(
   > = {};
   for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
     importResult[path] = {
-      path: relativeImport.path,
+      url: relativeImport.url,
       names: relativeImport.names.map((name) => name.name), // Extract just the name string
       positions: relativeImport.positions,
       includeTypeDefs: relativeImport.includeTypeDefs,
@@ -130,11 +132,11 @@ async function mockCssLoader(
   // Convert the new format to the format expected by processRelativeImports, preserving positions
   const importResult: Record<
     string,
-    { path: string; names: string[]; positions: Array<{ start: number; end: number }> }
+    { url: string; names: string[]; positions: Array<{ start: number; end: number }> }
   > = {};
   for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
     importResult[path] = {
-      path: relativeImport.path,
+      url: relativeImport.url,
       names: [], // CSS imports don't have named imports
       positions: relativeImport.positions,
     };

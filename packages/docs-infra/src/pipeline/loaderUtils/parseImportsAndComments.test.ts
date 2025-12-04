@@ -14,12 +14,12 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         './Component1': {
-          path: '/src/Component1',
+          url: 'file:///src/Component1',
           names: [{ name: 'Component1', type: 'default' }],
           positions: [{ start: 30, end: 44 }],
         },
         './components': {
-          path: '/src/components',
+          url: 'file:///src/components',
           names: [
             { name: 'Component2', type: 'named' },
             { name: 'Component3', type: 'named' },
@@ -27,7 +27,7 @@ describe('parseImportsAndComments', () => {
           positions: [{ start: 91, end: 105 }],
         },
         '../utils': {
-          path: '/utils',
+          url: 'file:///utils',
           names: [{ name: 'Utils', type: 'namespace' }],
           positions: [{ start: 136, end: 146 }],
         },
@@ -48,7 +48,7 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         './Component': {
-          path: '/src/Component',
+          url: 'file:///src/Component',
           names: [{ name: 'Component', type: 'default' }],
           positions: [{ start: 108, end: 121 }],
         },
@@ -106,12 +106,12 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         './default': {
-          path: '/src/default',
+          url: 'file:///src/default',
           names: [{ name: 'DefaultImport', type: 'default' }],
           positions: [{ start: 33, end: 44 }],
         },
         './named': {
-          path: '/src/named',
+          url: 'file:///src/named',
           names: [
             { name: 'NamedImport1', type: 'named' },
             { name: 'NamedImport2', type: 'named' },
@@ -119,12 +119,12 @@ describe('parseImportsAndComments', () => {
           positions: [{ start: 95, end: 104 }],
         },
         './namespace': {
-          path: '/src/namespace',
+          url: 'file:///src/namespace',
           names: [{ name: 'NamespaceImport', type: 'namespace' }],
           positions: [{ start: 145, end: 158 }],
         },
         './aliased': {
-          path: '/src/aliased',
+          url: 'file:///src/aliased',
           names: [{ name: 'NamedImport3', alias: 'AliasedImport', type: 'named' }],
           positions: [{ start: 212, end: 223 }],
         },
@@ -144,12 +144,12 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         '../../../shared/components/Component': {
-          path: '/src/shared/components/Component',
+          url: 'file:///src/shared/components/Component',
           names: [{ name: 'Component', type: 'default' }],
           positions: [{ start: 29, end: 67 }],
         },
         '../../utils/helpers': {
-          path: '/src/features/utils/helpers',
+          url: 'file:///src/features/utils/helpers',
           names: [{ name: 'Utils', type: 'default' }],
           positions: [{ start: 93, end: 114 }],
         },
@@ -171,19 +171,19 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         './types': {
-          path: '/src/types',
+          url: 'file:///src/types',
           names: [{ name: 'TypeDef', type: 'named', isType: true }],
           includeTypeDefs: true,
           positions: [{ start: 36, end: 45 }],
         },
         './defaultTypes': {
-          path: '/src/defaultTypes',
+          url: 'file:///src/defaultTypes',
           names: [{ name: 'DefaultType', type: 'default', isType: true }],
           includeTypeDefs: true,
           positions: [{ start: 82, end: 98 }],
         },
         './component': {
-          path: '/src/component',
+          url: 'file:///src/component',
           names: [{ name: 'Component', type: 'named' }],
           positions: [{ start: 132, end: 145 }],
         },
@@ -204,7 +204,7 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         './Component': {
-          path: '/src/Component',
+          url: 'file:///src/Component',
           names: [
             { name: 'Props', type: 'named', isType: true },
             { name: 'Component', type: 'named' },
@@ -232,12 +232,12 @@ describe('parseImportsAndComments', () => {
     expect(result).toEqual({
       relative: {
         './styles.css': {
-          path: '/src/styles.css',
+          url: 'file:///src/styles.css',
           names: [],
           positions: [{ start: 14, end: 28 }],
         },
         '../utils/polyfills': {
-          path: '/utils/polyfills',
+          url: 'file:///utils/polyfills',
           names: [],
           positions: [{ start: 43, end: 63 }],
         },
@@ -267,17 +267,17 @@ describe('parseImportsAndComments', () => {
       expect(result).toEqual({
         relative: {
           './empty-exports': {
-            path: '/src/empty-exports',
+            url: 'file:///src/empty-exports',
             names: [],
             positions: [{ start: 60, end: 77 }],
           },
           './comment-only': {
-            path: '/src/comment-only',
+            url: 'file:///src/comment-only',
             names: [],
             positions: [{ start: 117, end: 133 }],
           },
           './side-effect': {
-            path: '/src/side-effect',
+            url: 'file:///src/side-effect',
             names: [],
             positions: [{ start: 150, end: 165 }],
           },
@@ -319,7 +319,7 @@ describe('parseImportsAndComments', () => {
       ]);
 
       expect(result.relative['./types']).toEqual({
-        path: '/src/types',
+        url: 'file:///src/types',
         names: [{ name: 'Types', type: 'namespace', isType: true }],
         includeTypeDefs: true,
         positions: [
@@ -331,7 +331,7 @@ describe('parseImportsAndComments', () => {
       });
 
       expect(result.relative['./utils']).toEqual({
-        path: '/src/utils',
+        url: 'file:///src/utils',
         names: [{ name: 'Utils', type: 'namespace' }],
         positions: [
           {
@@ -457,7 +457,7 @@ describe('parseImportsAndComments', () => {
 
       // Should handle empty imports
       expect(result.relative['./empty-types']).toEqual({
-        path: '/src/empty-types',
+        url: 'file:///src/empty-types',
         names: [],
         includeTypeDefs: true,
         positions: [
@@ -469,7 +469,7 @@ describe('parseImportsAndComments', () => {
       });
 
       expect(result.relative['./empty-runtime']).toEqual({
-        path: '/src/empty-runtime',
+        url: 'file:///src/empty-runtime',
         names: [],
         positions: [
           {
@@ -480,7 +480,7 @@ describe('parseImportsAndComments', () => {
       });
 
       expect(result.relative['./side-effect.css']).toEqual({
-        path: '/src/side-effect.css',
+        url: 'file:///src/side-effect.css',
         names: [],
         positions: [{ start: 365, end: 384 }],
       });
@@ -679,7 +679,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real-module': {
-            path: '/src/real-module',
+            url: 'file:///src/real-module',
             names: [{ name: 'AnotherReal', type: 'named' }],
             positions: [{ start: 490, end: 505 }],
           },
@@ -713,12 +713,12 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './Component': {
-            path: '/src/Component',
+            url: 'file:///src/Component',
             names: [{ name: 'Component', type: 'default' }],
             positions: [{ start: 176, end: 189 }],
           },
           './styles.css': {
-            path: '/src/styles.css',
+            url: 'file:///src/styles.css',
             names: [],
             positions: [{ start: 241, end: 255 }],
           },
@@ -765,7 +765,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './actual': {
-            path: '/src/actual',
+            url: 'file:///src/actual',
             names: [{ name: 'ActualComponent', type: 'named' }],
             positions: [{ start: 796, end: 806 }],
           },
@@ -800,7 +800,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real-component': {
-            path: '/src/real-component',
+            url: 'file:///src/real-component',
             names: [{ name: 'RealComponent', type: 'named' }],
             positions: [{ start: 393, end: 411 }],
           },
@@ -835,17 +835,17 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'reset.css': {
-            path: '/src/styles/reset.css',
+            url: 'file:///src/styles/reset.css',
             names: [],
             positions: [{ start: 47, end: 58 }],
           },
           './components/buttons.css': {
-            path: '/src/styles/components/buttons.css',
+            url: 'file:///src/styles/components/buttons.css',
             names: [],
             positions: [{ start: 81, end: 107 }],
           },
           '../shared/layout.css': {
-            path: '/src/shared/layout.css',
+            url: 'file:///src/shared/layout.css',
             names: [],
             positions: [{ start: 130, end: 152 }],
           },
@@ -876,17 +876,17 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'normalize.css': {
-            path: '/src/styles/normalize.css',
+            url: 'file:///src/styles/normalize.css',
             names: [],
             positions: [{ start: 17, end: 32 }],
           },
           './variables.css': {
-            path: '/src/styles/variables.css',
+            url: 'file:///src/styles/variables.css',
             names: [],
             positions: [{ start: 50, end: 67 }],
           },
           '../themes/dark.css': {
-            path: '/src/themes/dark.css',
+            url: 'file:///src/themes/dark.css',
             names: [],
             positions: [{ start: 85, end: 105 }],
           },
@@ -917,17 +917,17 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'print.css': {
-            path: '/src/styles/print.css',
+            url: 'file:///src/styles/print.css',
             names: [],
             positions: [{ start: 21, end: 32 }],
           },
           'mobile.css': {
-            path: '/src/styles/mobile.css',
+            url: 'file:///src/styles/mobile.css',
             names: [],
             positions: [{ start: 57, end: 69 }],
           },
           'desktop.css': {
-            path: '/src/styles/desktop.css',
+            url: 'file:///src/styles/desktop.css',
             names: [],
             positions: [{ start: 121, end: 134 }],
           },
@@ -960,7 +960,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'real.css': {
-            path: '/src/styles/real.css',
+            url: 'file:///src/styles/real.css',
             names: [],
             positions: [{ start: 17, end: 27 }],
           },
@@ -988,27 +988,27 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'local1.css': {
-            path: '/src/components/local1.css',
+            url: 'file:///src/components/local1.css',
             names: [],
             positions: [{ start: 21, end: 33 }],
           },
           './local2.css': {
-            path: '/src/components/local2.css',
+            url: 'file:///src/components/local2.css',
             names: [],
             positions: [{ start: 52, end: 66 }],
           },
           './local3.css': {
-            path: '/src/components/local3.css',
+            url: 'file:///src/components/local3.css',
             names: [],
             positions: [{ start: 88, end: 102 }],
           },
           'local4.css': {
-            path: '/src/components/local4.css',
+            url: 'file:///src/components/local4.css',
             names: [],
             positions: [{ start: 121, end: 133 }],
           },
           '../parent/shared.css': {
-            path: '/src/parent/shared.css',
+            url: 'file:///src/parent/shared.css',
             names: [],
             positions: [{ start: 155, end: 177 }],
           },
@@ -1091,17 +1091,17 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'reset.css': {
-            path: '/src/styles/reset.css',
+            url: 'file:///src/styles/reset.css',
             names: [],
             positions: [{ start: 21, end: 30 }],
           },
           './local.css': {
-            path: '/src/styles/local.css',
+            url: 'file:///src/styles/local.css',
             names: [],
             positions: [{ start: 53, end: 64 }],
           },
           '../parent.css': {
-            path: '/src/parent.css',
+            url: 'file:///src/parent.css',
             names: [],
             positions: [{ start: 87, end: 100 }],
           },
@@ -1139,32 +1139,32 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'normalize.css': {
-            path: '/src/styles/normalize.css',
+            url: 'file:///src/styles/normalize.css',
             names: [],
             positions: [{ start: 71, end: 86 }],
           },
           'components/buttons.css': {
-            path: '/src/styles/components/buttons.css',
+            url: 'file:///src/styles/components/buttons.css',
             names: [],
             positions: [{ start: 104, end: 128 }],
           },
           './local.css': {
-            path: '/src/styles/local.css',
+            url: 'file:///src/styles/local.css',
             names: [],
             positions: [{ start: 146, end: 159 }],
           },
           '../parent.css': {
-            path: '/src/parent.css',
+            url: 'file:///src/parent.css',
             names: [],
             positions: [{ start: 177, end: 192 }],
           },
           'reset.css': {
-            path: '/src/styles/reset.css',
+            url: 'file:///src/styles/reset.css',
             names: [],
             positions: [{ start: 214, end: 223 }],
           },
           './styles.css': {
-            path: '/src/styles/styles.css',
+            url: 'file:///src/styles/styles.css',
             names: [],
             positions: [{ start: 246, end: 260 }],
           },
@@ -1217,57 +1217,57 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           'base.css': {
-            path: '/src/styles/base.css',
+            url: 'file:///src/styles/base.css',
             names: [],
             positions: [{ start: 45, end: 55 }],
           },
           'components.css': {
-            path: '/src/styles/components.css',
+            url: 'file:///src/styles/components.css',
             names: [],
             positions: [{ start: 79, end: 95 }],
           },
           'utilities.css': {
-            path: '/src/styles/utilities.css',
+            url: 'file:///src/styles/utilities.css',
             names: [],
             positions: [{ start: 145, end: 160 }],
           },
           'grid.css': {
-            path: '/src/styles/grid.css',
+            url: 'file:///src/styles/grid.css',
             names: [],
             positions: [{ start: 239, end: 249 }],
           },
           'flex.css': {
-            path: '/src/styles/flex.css',
+            url: 'file:///src/styles/flex.css',
             names: [],
             positions: [{ start: 291, end: 301 }],
           },
           'modern.css': {
-            path: '/src/styles/modern.css',
+            url: 'file:///src/styles/modern.css',
             names: [],
             positions: [{ start: 375, end: 387 }],
           },
           'print.css': {
-            path: '/src/styles/print.css',
+            url: 'file:///src/styles/print.css',
             names: [],
             positions: [{ start: 474, end: 485 }],
           },
           'mobile.css': {
-            path: '/src/styles/mobile.css',
+            url: 'file:///src/styles/mobile.css',
             names: [],
             positions: [{ start: 509, end: 521 }],
           },
           'desktop.css': {
-            path: '/src/styles/desktop.css',
+            url: 'file:///src/styles/desktop.css',
             names: [],
             positions: [{ start: 569, end: 582 }],
           },
           'complex.css': {
-            path: '/src/styles/complex.css',
+            url: 'file:///src/styles/complex.css',
             names: [],
             positions: [{ start: 678, end: 691 }],
           },
           'external.css': {
-            path: '/src/styles/external.css',
+            url: 'file:///src/styles/external.css',
             names: [],
             positions: [{ start: 782, end: 796 }],
           },
@@ -1314,7 +1314,7 @@ export default function CheckboxBasic() {
 
       // Should treat both string and url() forms identically for the same file
       expect(result.relative['mystyle.css']).toEqual({
-        path: '/src/styles/mystyle.css',
+        url: 'file:///src/styles/mystyle.css',
         names: [],
         positions: [
           { start: 96, end: 109 },
@@ -1338,8 +1338,8 @@ export default function CheckboxBasic() {
       expect(Object.keys(result.relative)).toContain('nested/deeply/buried.css');
 
       // Should properly resolve nested paths
-      expect(result.relative['nested/deeply/buried.css'].path).toBe(
-        '/src/styles/nested/deeply/buried.css',
+      expect(result.relative['nested/deeply/buried.css'].url).toBe(
+        'file:///src/styles/nested/deeply/buried.css',
       );
 
       // Should have no externals since none have protocols/hostnames
@@ -1362,12 +1362,12 @@ export default function CheckboxBasic() {
 
       // Should parse the valid imports and gracefully handle the invalid ones
       expect(result.relative['valid.css']).toEqual({
-        path: '/src/styles/valid.css',
+        url: 'file:///src/styles/valid.css',
         names: [],
         positions: [{ start: 17, end: 28 }],
       });
       expect(result.relative['another-valid.css']).toEqual({
-        path: '/src/styles/another-valid.css',
+        url: 'file:///src/styles/another-valid.css',
         names: [],
         positions: [{ start: 198, end: 217 }],
       });
@@ -1452,7 +1452,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real-component': {
-            path: '/src/real-component',
+            url: 'file:///src/real-component',
             names: [{ name: 'RealComponent', type: 'named' }],
             positions: [{ start: 521, end: 539 }],
           },
@@ -1502,7 +1502,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './actual': {
-            path: '/src/docs/actual',
+            url: 'file:///src/docs/actual',
             names: [{ name: 'ActualImport', type: 'named' }],
             positions: [{ start: 529, end: 539 }],
           },
@@ -1567,7 +1567,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           '../utils/actual': {
-            path: '/src/utils/actual',
+            url: 'file:///src/utils/actual',
             names: [{ name: 'ActualUtil', type: 'named' }],
             positions: [{ start: 956, end: 973 }],
           },
@@ -1622,7 +1622,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real': {
-            path: '/src/real',
+            url: 'file:///src/real',
             names: [{ name: 'RealImport', type: 'named' }],
             positions: [{ start: 500, end: 508 }],
           },
@@ -1664,7 +1664,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './should-be-parsed': {
-            path: '/src/should-be-parsed',
+            url: 'file:///src/should-be-parsed',
             names: [{ name: 'ShouldBeParsed', type: 'named' }],
             positions: [{ start: 433, end: 453 }],
           },
@@ -1730,7 +1730,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './actual-component': {
-            path: '/src/actual-component',
+            url: 'file:///src/actual-component',
             names: [{ name: 'ActualComponent', type: 'named' }],
             positions: [{ start: 966, end: 986 }],
           },
@@ -1772,7 +1772,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real-import': {
-            path: '/src/real-import',
+            url: 'file:///src/real-import',
             names: [{ name: 'RealImport', type: 'named' }],
             positions: [{ start: 590, end: 605 }],
           },
@@ -1812,7 +1812,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './actual': {
-            path: '/src/actual',
+            url: 'file:///src/actual',
             names: [{ name: 'ActualImport', type: 'named' }],
             positions: [{ start: 473, end: 483 }],
           },
@@ -1857,7 +1857,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './valid': {
-            path: '/src/valid',
+            url: 'file:///src/valid',
             names: [{ name: 'ValidImport', type: 'named' }],
             positions: [{ start: 502, end: 511 }],
           },
@@ -1893,7 +1893,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './actual': {
-            path: '/src/actual',
+            url: 'file:///src/actual',
             names: [{ name: 'Actual', type: 'named' }],
             positions: [{ start: 288, end: 298 }],
           },
@@ -1939,7 +1939,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real-import': {
-            path: '/src/real-import',
+            url: 'file:///src/real-import',
             names: [{ name: 'RealImport', type: 'named' }],
             positions: [{ start: 656, end: 671 }],
           },
@@ -1973,7 +1973,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './RealComponent': {
-            path: '/src/demo/RealComponent',
+            url: 'file:///src/demo/RealComponent',
             names: [{ name: 'RealComponent', type: 'named' }],
             positions: [{ start: 328, end: 345 }],
           },
@@ -2007,7 +2007,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './actual': {
-            path: '/src/actual',
+            url: 'file:///src/actual',
             names: [{ name: 'ActualImport', type: 'named' }],
             positions: [{ start: 414, end: 424 }],
           },
@@ -2051,7 +2051,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real': {
-            path: '/src/real',
+            url: 'file:///src/real',
             names: [{ name: 'RealImport', type: 'named' }],
             positions: [{ start: 605, end: 613 }],
           },
@@ -2097,7 +2097,7 @@ export default function CheckboxBasic() {
       expect(result).toEqual({
         relative: {
           './real-component': {
-            path: '/src/real-component',
+            url: 'file:///src/real-component',
             names: [{ name: 'RealComponent', type: 'named' }],
             positions: [{ start: 590, end: 608 }],
           },
@@ -2369,7 +2369,7 @@ const x = 42;`;
 
     expect(result.relative).toEqual({
       './Component': {
-        path: '/src/Component',
+        url: 'file:///src/Component',
         names: [{ name: 'Component', type: 'named' }],
         positions: [{ start: 93, end: 106 }],
       },
@@ -2432,8 +2432,12 @@ describe('parseImportsAndComments CSS with comment stripping', () => {
       1: ['@css-ignore another rule'], // Comment correlates to output line 1
     });
     expect(result.relative).toEqual({
-      'styles.css': { path: '/src/styles.css', names: [], positions: [{ start: 8, end: 20 }] },
-      'theme.css': { path: '/src/theme.css', names: [], positions: [{ start: 34, end: 45 }] },
+      'styles.css': {
+        url: 'file:///src/styles.css',
+        names: [],
+        positions: [{ start: 8, end: 20 }],
+      },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 34, end: 45 }] },
     });
   });
 
@@ -2457,8 +2461,8 @@ disable this import temporarily
       1: ['@css-ignore', 'disable this import temporarily'],
     });
     expect(result.relative).toEqual({
-      'base.css': { path: '/src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
-      'theme.css': { path: '/src/theme.css', names: [], positions: [{ start: 29, end: 40 }] },
+      'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 29, end: 40 }] },
     });
   });
 
@@ -2476,8 +2480,12 @@ disable this import temporarily
       0: ['@css-ignore inline comment'],
     });
     expect(result.relative).toEqual({
-      'styles.css': { path: '/src/styles.css', names: [], positions: [{ start: 8, end: 20 }] },
-      'theme.css': { path: '/src/theme.css', names: [], positions: [{ start: 31, end: 42 }] },
+      'styles.css': {
+        url: 'file:///src/styles.css',
+        names: [],
+        positions: [{ start: 8, end: 20 }],
+      },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 31, end: 42 }] },
     });
   });
 
@@ -2494,8 +2502,12 @@ disable this import temporarily
     expect(result.code).toBe(code);
     expect(result.comments).toEqual({});
     expect(result.relative).toEqual({
-      'styles.css': { path: '/src/styles.css', names: [], positions: [{ start: 9, end: 21 }] },
-      'theme.css': { path: '/src/theme.css', names: [], positions: [{ start: 35, end: 46 }] },
+      'styles.css': {
+        url: 'file:///src/styles.css',
+        names: [],
+        positions: [{ start: 9, end: 21 }],
+      },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 35, end: 46 }] },
     });
   });
 
@@ -2508,7 +2520,11 @@ disable this import temporarily
     expect(result.code).toBeUndefined();
     expect(result.comments).toBeUndefined();
     expect(result.relative).toEqual({
-      'styles.css': { path: '/src/styles.css', names: [], positions: [{ start: 36, end: 48 }] },
+      'styles.css': {
+        url: 'file:///src/styles.css',
+        names: [],
+        positions: [{ start: 36, end: 48 }],
+      },
     });
   });
 });
@@ -2629,7 +2645,7 @@ import { Component } from './Component';`;
 
     expect(result.relative).toEqual({
       './Component': {
-        path: '/src/Component',
+        url: 'file:///src/Component',
         names: [{ name: 'Component', type: 'named' }],
         positions: [{ start: 93, end: 106 }],
       },
@@ -2670,8 +2686,8 @@ import { Component } from './Component';`);
       0: ['@todo update colors'],
     });
     expect(result.relative).toEqual({
-      'base.css': { path: '/src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
-      'theme.css': { path: '/src/theme.css', names: [], positions: [{ start: 28, end: 39 }] },
+      'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 28, end: 39 }] },
     });
   });
 
@@ -2718,8 +2734,8 @@ console.log('codeB');`);
       2: ['@important critical fix'],
     });
     expect(result.relative).toEqual({
-      'base.css': { path: '/src/base.css', names: [], positions: [{ start: 9, end: 19 }] },
-      'theme.css': { path: '/src/theme.css', names: [], positions: [{ start: 30, end: 41 }] },
+      'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 9, end: 19 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 30, end: 41 }] },
     });
     expect(result.externals).toEqual({});
   });

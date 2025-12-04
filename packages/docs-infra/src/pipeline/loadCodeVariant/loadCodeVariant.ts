@@ -94,15 +94,29 @@ function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): s
     processedNestedKey = `./${nestedKey}`;
   }
 
-  // Use path module for clean path resolution
+  // Get the directory of the source file
   const sourceDir = path.dirname(sourceFileKey);
-  const resolvedPath = path.resolve(sourceDir, processedNestedKey);
 
-  // Convert back to relative path from current directory
-  const result = path.relative('.', resolvedPath);
+  // If sourceDir is '.' (current directory), just return the processed nested key
+  // This avoids path.resolve which can produce absolute paths on Windows
+  if (sourceDir === '.') {
+    // Remove leading './' if present for consistency
+    return processedNestedKey.startsWith('./') ? processedNestedKey.slice(2) : processedNestedKey;
+  }
 
-  // Return empty string if result is '.' (current directory)
-  return result === '.' ? '' : result;
+  // Use path.join instead of path.resolve to avoid producing absolute paths
+  // path.join keeps paths relative, while path.resolve can make them absolute
+  const joinedPath = path.join(sourceDir, processedNestedKey);
+
+  // Normalize the path to clean up any ../ or ./ segments
+  const normalizedPath = path.normalize(joinedPath);
+
+  // Ensure we return a clean relative path (remove leading './' if present after normalization)
+  if (normalizedPath.startsWith('./')) {
+    return normalizedPath.slice(2);
+  }
+
+  return normalizedPath === '.' ? '' : normalizedPath;
 }
 
 /**
