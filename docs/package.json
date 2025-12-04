@@ -15,7 +15,7 @@
     "@mui/internal-docs-infra": "workspace:^",
     "@next/mdx": "^15.3.4",
     "@types/mdx": "^2.0.13",
-    "next": "v15.5.2",
+    "next": "15.5.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-runner": "^1.0.5",
