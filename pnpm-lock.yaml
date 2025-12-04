@@ -750,10 +750,10 @@ importers:
         specifier: ^7.28.4
         version: 7.28.4
       '@emotion/cache':
-        specifier: ^11.14.0
+        specifier: '11'
         version: 11.14.0
       '@emotion/react':
-        specifier: ^11.14.0
+        specifier: '11'
         version: 11.14.0(@types/react@19.2.7)(react@19.2.0)
       '@testing-library/dom':
         specifier: ^10.4.1

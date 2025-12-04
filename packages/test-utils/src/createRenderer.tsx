@@ -18,7 +18,7 @@ import { userEvent } from '@testing-library/user-event';
 import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
 import { useFakeTimers } from 'sinon';
-import { beforeEach, afterEach, beforeAll, vi, expect } from 'vitest';
+import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import reactMajor from './reactMajor';
 
 function queryAllDescriptionsOf(baseElement: HTMLElement, element: Element): HTMLElement[] {
@@ -348,7 +348,7 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
    * For legacy reasons `configuredClientRender` might accidentally be called in a beforeAll(Each) hook.
    */
   let prepared = false;
-  beforeEach(function beforeEachHook() {
+  beforeEach(({ expect }) => {
     if (!wasCalledInSuite) {
       const error = new Error(
         'Unable to run `before` hook for `createRenderer`. This usually indicates that `createRenderer` was called in a `before` hook instead of in a `describe()` block.',
@@ -388,13 +388,17 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
 
     cleanup();
 
-    emotionCache.sheet.tags.forEach((styleTag) => {
-      styleTag.remove();
-    });
-    emotionCache = null!;
+    if (emotionCache) {
+      emotionCache.sheet.tags.forEach((styleTag) => {
+        styleTag.remove();
+      });
+      emotionCache = null!;
+    }
 
-    serverContainer.remove();
-    serverContainer = null!;
+    if (serverContainer) {
+      serverContainer.remove();
+      serverContainer = null!;
+    }
   });
 
   function createWrapper(options: Pick<RenderOptions, 'wrapper'>) {
