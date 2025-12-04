@@ -1,3 +1,29 @@
+import { pathToFileURL } from 'node:url';
+
+/**
+ * Converts a filesystem path to a portable path format that can be used with path-module (POSIX-only).
+ *
+ * This function handles filesystem paths that may have platform-specific separators:
+ * - On Unix: `/home/user/file.ts` - already portable
+ * - On Windows: `C:\Users\file.ts` - needs conversion to `/C:/Users/file.ts`
+ *
+ * @param fsPath - A filesystem path (may have backslashes on Windows)
+ * @returns A portable path starting with `/` that works with path-module
+ *
+ * @example
+ * // Unix path
+ * fsPathToPortablePath('/home/user/file.ts') // => '/home/user/file.ts'
+ *
+ * // Windows path
+ * fsPathToPortablePath('C:\\Users\\file.ts') // => '/C:/Users/file.ts'
+ * fsPathToPortablePath('C:/Users/file.ts') // => '/C:/Users/file.ts'
+ */
+export function fsPathToPortablePath(fsPath: string): string {
+  // Convert to file URL first, then to portable path
+  const fileUrl = pathToFileURL(fsPath).href;
+  return fileUrlToPortablePath(fileUrl);
+}
+
 /**
  * Converts a file:// URL to a portable path format that can be used with path-module (POSIX-only).
  *
