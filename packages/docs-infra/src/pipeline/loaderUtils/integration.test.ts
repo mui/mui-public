@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import { parseImportsAndComments } from './parseImportsAndComments';
 import { resolveImportResult, type DirectoryEntry } from './resolveModulePath';
 import { processRelativeImports } from './processRelativeImports';
@@ -54,7 +55,8 @@ const mockFileSystem: Record<string, DirectoryEntry[]> = {
 };
 
 // Mock directory reader function
-const mockDirectoryReader = async (path: string): Promise<DirectoryEntry[]> => {
+const mockDirectoryReader = async (fileUrl: string): Promise<DirectoryEntry[]> => {
+  const path = fileURLToPath(fileUrl);
   const entries = mockFileSystem[path];
   if (!entries) {
     throw new Error(`Directory not found: ${path}`);

@@ -23,7 +23,7 @@ describe('Filesystem Optimization Tests', () => {
 
     // Should have made only ONE directory read call
     expect(mockDirectoryReader).toHaveBeenCalledTimes(1);
-    expect(mockDirectoryReader).toHaveBeenCalledWith('/src');
+    expect(mockDirectoryReader).toHaveBeenCalledWith('file:///src');
 
     // Should return both import and typeImport paths
     expect(result).toEqual({
@@ -91,8 +91,8 @@ describe('Filesystem Optimization Tests', () => {
 
     // Should have made TWO directory read calls (parent + Component directory)
     expect(mockDirectoryReader).toHaveBeenCalledTimes(2);
-    expect(mockDirectoryReader).toHaveBeenNthCalledWith(1, '/src');
-    expect(mockDirectoryReader).toHaveBeenNthCalledWith(2, '/src/Component');
+    expect(mockDirectoryReader).toHaveBeenNthCalledWith(1, 'file:///src');
+    expect(mockDirectoryReader).toHaveBeenNthCalledWith(2, 'file:///src/Component');
 
     // Should return both index paths with correct priorities
     expect(result).toEqual({

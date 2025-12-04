@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import {
   resolveModulePath,
   resolveModulePaths,
@@ -13,7 +14,8 @@ describe('resolveModulePath', () => {
   const createMockDirectoryReader = (
     directoryStructure: Record<string, DirectoryEntry[]>,
   ): DirectoryReader => {
-    return vi.fn(async (path: string) => {
+    return vi.fn(async (fileUrl: string) => {
+      const path = fileURLToPath(fileUrl);
       if (directoryStructure[path]) {
         return directoryStructure[path];
       }
@@ -207,8 +209,8 @@ describe('resolveModulePath', () => {
       expect(result.get('/project/src/Component3')).toBe('/project/src/Component3/index.js');
 
       // Verify directory was only read once
-      expect(mockReader).toHaveBeenCalledWith('/project/src');
-      expect(mockReader).toHaveBeenCalledWith('/project/src/Component3');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src/Component3');
       expect(mockReader).toHaveBeenCalledTimes(2);
     });
 
@@ -227,8 +229,8 @@ describe('resolveModulePath', () => {
       expect(result.get('/project/utils/helper')).toBe('/project/utils/helper.js');
 
       // Verify both directories were read
-      expect(mockReader).toHaveBeenCalledWith('/project/src');
-      expect(mockReader).toHaveBeenCalledWith('/project/utils');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/utils');
       expect(mockReader).toHaveBeenCalledTimes(2);
     });
 
@@ -308,9 +310,9 @@ describe('resolveModulePath', () => {
       expect(result.get('/project/src/Component2')).toBe('/project/src/Component2/index.jsx');
 
       // Should read parent directory once, then each component directory once
-      expect(mockReader).toHaveBeenCalledWith('/project/src');
-      expect(mockReader).toHaveBeenCalledWith('/project/src/Component1');
-      expect(mockReader).toHaveBeenCalledWith('/project/src/Component2');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src/Component1');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src/Component2');
       expect(mockReader).toHaveBeenCalledTimes(3);
     });
   });
@@ -427,7 +429,7 @@ describe('resolveModulePath', () => {
       expect(result.get('/project/src/data.json')).toBe('/project/src/data.json');
 
       // Should only read directory for JS/TS resolution, not for static assets
-      expect(mockReader).toHaveBeenCalledWith('/project/src');
+      expect(mockReader).toHaveBeenCalledWith('file:///project/src');
       expect(mockReader).toHaveBeenCalledTimes(1);
     });
 
