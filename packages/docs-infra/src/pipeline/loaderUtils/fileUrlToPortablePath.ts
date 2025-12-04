@@ -1,4 +1,6 @@
-import { pathToFileURL } from 'node:url';
+// webpack does not like node: imports
+// eslint-disable-next-line n/prefer-node-protocol
+import { pathToFileURL } from 'url';
 
 /**
  * Converts a filesystem path to a portable path format that can be used with path-module (POSIX-only).

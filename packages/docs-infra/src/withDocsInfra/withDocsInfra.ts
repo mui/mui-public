@@ -221,7 +221,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
         // Add loader for demo index files
         webpackConfig.module.rules.push({
-          test: new RegExp('[/\\\\]demos/[^/\\\\]+[/\\\\]index\\.ts$'),
+          test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
