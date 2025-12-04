@@ -221,15 +221,6 @@ function createClock(
         vi.setSystemTime(config);
       }
     });
-
-    afterEach(async () => {
-      if (vi.isFakeTimers()) {
-        await rtlAct(async () => {
-          vi.runOnlyPendingTimers();
-        });
-        vi.useRealTimers();
-      }
-    });
   } else {
     beforeEach(() => {
       if (config) {
@@ -264,15 +255,6 @@ function createClock(
         });
         if (config) {
           vi.setSystemTime(config);
-        }
-      });
-
-      afterEach(async () => {
-        if (vi.isFakeTimers()) {
-          await rtlAct(async () => {
-            vi.runOnlyPendingTimers();
-          });
-          vi.useRealTimers();
         }
       });
     },
@@ -317,6 +299,17 @@ export interface CreateRendererOptions extends Pick<RenderOptions, 'strict' | 's
   clockConfig?: ClockConfig;
   clockOptions?: Parameters<typeof createClock>[2];
 }
+
+afterEach(async () => {
+  if (vi.isFakeTimers()) {
+    await rtlAct(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
+  }
+
+  cleanup();
+});
 
 export function createRenderer(globalOptions: CreateRendererOptions = {}): Renderer {
   const {
@@ -375,20 +368,6 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
   });
 
   afterEach(() => {
-    if (!clock.isReal()) {
-      const error = new Error(
-        "Can't cleanup before fake timers are restored.\n" +
-          'Be sure to:\n' +
-          '  1. Only use `clock` from `createRenderer`.\n' +
-          '  2. Call `createRenderer` in a suite and not any test hook (for example `beforeEach`) or test itself (for example `it`).',
-      );
-      // Use saved stack otherwise the stack trace will not include the test location.
-      error.stack = createClientRenderStack;
-      throw error;
-    }
-
-    cleanup();
-
     if (emotionCache) {
       emotionCache.sheet.tags.forEach((styleTag) => {
         styleTag.remove();
@@ -572,6 +551,7 @@ function act<T>(callback: () => void | T | Promise<T>) {
 const bodyBoundQueries = within(document.body, { ...queries, ...customQueries });
 
 export {
+  render,
   renderHook,
   waitFor,
   within,
