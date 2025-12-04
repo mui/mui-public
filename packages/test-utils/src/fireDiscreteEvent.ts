@@ -1,5 +1,5 @@
 import { configure, fireEvent, getConfig } from '@testing-library/react/pure';
-import reactMajor from './reactMajor';
+import { reactMajor } from './env';
 
 const noWrapper = (callback: () => void) => callback();
 
