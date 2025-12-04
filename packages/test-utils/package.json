@@ -12,7 +12,6 @@
     ".": "./src/index.ts",
     "./createDescribe": "./src/createDescribe.ts",
     "./createRenderer": "./src/createRenderer.tsx",
-    "./init": "./src/init.js",
     "./initMatchers": "./src/initMatchers.ts",
     "./initPlaywrightMatchers": "./src/initPlaywrightMatchers.ts",
     "./chaiPlugin": "./src/chaiPlugin.ts",
