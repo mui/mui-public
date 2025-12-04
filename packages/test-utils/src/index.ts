@@ -9,7 +9,8 @@ export {
   simulateKeyboardDevice,
   programmaticFocusTriggersFocusVisible,
 } from './focusVisible';
-export {} from './initMatchers';
+// Import for side effects: initializes custom matchers for tests
+import './initMatchers';
 export * as fireDiscreteEvent from './fireDiscreteEvent';
 export { default as flushMicrotasks } from './flushMicrotasks';
 export * from './env';
