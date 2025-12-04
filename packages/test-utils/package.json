@@ -19,7 +19,6 @@
     "./setupVitest": "./src/setupVitest.ts"
   },
   "scripts": {
-    "prebuild": "rimraf ./build",
     "build": "code-infra build",
     "typescript": "tsc -p tsconfig.json",
     "release:publish": "pnpm publish --tag latest",
