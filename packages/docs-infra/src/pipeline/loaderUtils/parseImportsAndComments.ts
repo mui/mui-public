@@ -1,5 +1,5 @@
 import * as path from 'path-module';
-import { fileUrlToPortablePath } from './fileUrlToPortablePath';
+import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
  * Represents a single import name with its properties.
@@ -29,8 +29,8 @@ export interface ImportPathPosition {
  * Represents an import from a relative path (starts with ./ or ../).
  */
 export interface RelativeImport {
-  /** The resolved absolute path to the imported file */
-  path: string;
+  /** The resolved absolute URL to the imported file (file:// URL) */
+  url: string;
   /** Array of imported names from this module */
   names: ImportName[];
   /** Whether TypeScript type definitions should be included for this import */
@@ -924,7 +924,11 @@ function detectCssImport(
         }
         const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
         if (!cssResult[importResult.modulePath]) {
-          cssResult[importResult.modulePath] = { path: resolvedPath, names: [], positions: [] };
+          cssResult[importResult.modulePath] = {
+            url: portablePathToFileUrl(resolvedPath),
+            names: [],
+            positions: [],
+          };
         }
         cssResult[importResult.modulePath].positions.push(position);
       }
@@ -1039,7 +1043,11 @@ function parseJSImports(
         if (isRelative) {
           const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
           if (!result[modulePath]) {
-            result[modulePath] = { path: resolvedPath, names: [], positions: [] };
+            result[modulePath] = {
+              url: portablePathToFileUrl(resolvedPath),
+              names: [],
+              positions: [],
+            };
           }
           result[modulePath].positions.push(position);
         } else {
@@ -1163,7 +1171,7 @@ function parseJSImports(
       const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
       if (!result[modulePath]) {
         result[modulePath] = {
-          path: resolvedPath,
+          url: portablePathToFileUrl(resolvedPath),
           names: [],
           positions: [],
           ...(isTypeImport && { includeTypeDefs: true as const }),
@@ -1391,7 +1399,7 @@ function detectJavaScriptImport(
  *   'file:///src/App.tsx'
  * );
  * // result.externals['react'] contains the React import
- * // result.relative['./Button'] contains the Button import with path: '/src/Button'
+ * // result.relative['./Button'] contains the Button import with url: 'file:///src/Button'
  * ```
  */
 export async function parseImportsAndComments(

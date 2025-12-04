@@ -2,6 +2,7 @@ import { rewriteImports } from './rewriteImports';
 import { isJavaScriptModule } from './resolveModulePath';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
 import { pathToFileUrl } from './pathToFileUrl';
+import { fileUrlToPortablePath } from './fileUrlToPortablePath';
 
 export type StoreAtMode = 'canonical' | 'import' | 'flat';
 
@@ -16,7 +17,7 @@ export interface ProcessImportsResult {
 function processFlatMode(
   importResult: Record<
     string,
-    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+    { url: string; names: string[]; positions?: Array<{ start: number; end: number }> }
   >,
   resolvedPathsMap: Map<string, string>,
 ): ProcessImportsResult {
@@ -30,9 +31,13 @@ function processFlatMode(
 
   // First pass: collect all files and their path segments
   Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-    const resolvedPath = resolvedPathsMap.get(importInfo.path);
-    if (resolvedPath) {
-      const fileExtension = getFileNameFromUrl(resolvedPath).extension;
+    const resolvedUrl = resolvedPathsMap.get(importInfo.url);
+    if (resolvedUrl) {
+      // Convert file URL to portable path for path manipulation
+      const resolvedPath = resolvedUrl.startsWith('file://')
+        ? fileUrlToPortablePath(resolvedUrl)
+        : resolvedUrl;
+      const fileExtension = getFileNameFromUrl(resolvedUrl).extension;
       const pathSegments = resolvedPath.split('/').filter(Boolean);
 
       fileMapping.push({
@@ -256,7 +261,7 @@ function processBasicImports(
   source: string,
   importResult: Record<
     string,
-    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+    { url: string; names: string[]; positions?: Array<{ start: number; end: number }> }
   >,
   storeAt: StoreAtMode,
 ): ProcessImportsResult {
@@ -268,7 +273,7 @@ function processBasicImports(
 
     // Process each import to determine final names with simple conflict resolution
     Object.entries(importResult).forEach(([_relativePath, importInfo]) => {
-      const resolvedPath = importInfo.path; // For CSS, this is already resolved by parseImports
+      const resolvedPath = importInfo.url; // For CSS, this is already resolved by parseImports
       const fileUrl = pathToFileUrl(resolvedPath);
       const { fileName, extension } = getFileNameFromUrl(fileUrl);
 
@@ -289,7 +294,7 @@ function processBasicImports(
     // Create the import path mapping for rewriting
     const importPathMapping = new Map<string, string>();
     Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-      const resolvedPath = importInfo.path;
+      const resolvedPath = importInfo.url;
       const finalName = finalNames.get(resolvedPath);
       if (finalName) {
         importPathMapping.set(relativePath, finalName);
@@ -332,7 +337,7 @@ function processBasicImports(
 
     // Process each import for extraFiles
     Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-      const resolvedPath = importInfo.path;
+      const resolvedPath = importInfo.url;
       extraFiles[relativePath] = pathToFileUrl(resolvedPath); // Always use original path for extraFiles
     });
 
@@ -357,7 +362,7 @@ function processBasicImports(
 
   // Canonical mode - no rewriting needed
   Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-    const resolvedPath = importInfo.path;
+    const resolvedPath = importInfo.url;
     extraFiles[relativePath] = pathToFileUrl(resolvedPath); // Use original import path
   });
 
@@ -374,7 +379,7 @@ function processJsImports(
   source: string,
   importResult: Record<
     string,
-    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+    { url: string; names: string[]; positions?: Array<{ start: number; end: number }> }
   >,
   storeAt: StoreAtMode,
   resolvedPathsMap: Map<string, string>,
@@ -387,15 +392,20 @@ function processJsImports(
     // Build a reverse mapping from resolved paths to extraFiles keys
     const resolvedToExtraFile = new Map<string, string>();
     Object.entries(result.extraFiles).forEach(([extraFileKey, fileUrl]) => {
-      const resolvedPath = fileUrl.replace('file://', '');
+      // Convert file URL to portable path for lookup
+      const resolvedPath = fileUrl.startsWith('file://') ? fileUrlToPortablePath(fileUrl) : fileUrl;
       resolvedToExtraFile.set(resolvedPath, extraFileKey);
     });
 
     // For each import, find its resolved path and map to the corresponding extraFile key
     const importPathMapping = new Map<string, string>();
     Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-      const resolvedPath = resolvedPathsMap.get(importInfo.path);
-      if (resolvedPath) {
+      const resolvedUrl = resolvedPathsMap.get(importInfo.url);
+      if (resolvedUrl) {
+        // Convert file URL to portable path for lookup
+        const resolvedPath = resolvedUrl.startsWith('file://')
+          ? fileUrlToPortablePath(resolvedUrl)
+          : resolvedUrl;
         const extraFileKey = resolvedToExtraFile.get(resolvedPath);
         if (extraFileKey) {
           // For JavaScript modules, remove the extension; for other files (CSS, JSON, etc.), keep it
@@ -432,13 +442,16 @@ function processJsImports(
 
   // Non-flat modes (canonical and import)
   Object.entries(importResult).forEach(([relativePath, importInfo]) => {
-    const resolved = resolvedPathsMap.get(importInfo.path);
-    if (!resolved) {
+    const resolvedUrl = resolvedPathsMap.get(importInfo.url);
+    if (!resolvedUrl) {
       return;
     }
 
-    const resolvedPath = resolved;
-    const fileExtension = getFileNameFromUrl(resolvedPath).extension;
+    // Convert file URL to portable path for path manipulation
+    const resolvedPath = resolvedUrl.startsWith('file://')
+      ? fileUrlToPortablePath(resolvedUrl)
+      : resolvedUrl;
+    const fileExtension = getFileNameFromUrl(resolvedUrl).extension;
     const isJavascriptModule = isJavaScriptModule(relativePath);
 
     let keyPath: string;
@@ -485,7 +498,7 @@ export function processRelativeImports(
   source: string,
   importResult: Record<
     string,
-    { path: string; names: string[]; positions?: Array<{ start: number; end: number }> }
+    { url: string; names: string[]; positions?: Array<{ start: number; end: number }> }
   >,
   storeAt: StoreAtMode,
   isJsFile: boolean = false,

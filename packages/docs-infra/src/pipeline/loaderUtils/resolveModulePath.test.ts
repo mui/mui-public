@@ -373,8 +373,8 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { path: '/project/src/Component', names: ['Component'] },
-        './styles.css': { path: '/project/src/styles.css', names: [] },
+        './Component': { url: '/project/src/Component', names: ['Component'] },
+        './styles.css': { url: '/project/src/styles.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
@@ -393,10 +393,10 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Button': { path: '/project/src/Button', names: ['Button'] },
-        './utils.js': { path: '/project/src/utils.js', names: ['helper'] },
-        './data.json': { path: '/project/src/data.json', names: ['default'] },
-        './component.css': { path: '/project/src/component.css', names: [] },
+        './Button': { url: '/project/src/Button', names: ['Button'] },
+        './utils.js': { url: '/project/src/utils.js', names: ['helper'] },
+        './data.json': { url: '/project/src/data.json', names: ['default'] },
+        './component.css': { url: '/project/src/component.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
@@ -414,9 +414,9 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { path: '/project/src/Component', names: ['Component'] },
-        './styles.css': { path: '/project/src/styles.css', names: [] },
-        './data.json': { path: '/project/src/data.json', names: ['default'] },
+        './Component': { url: '/project/src/Component', names: ['Component'] },
+        './styles.css': { url: '/project/src/styles.css', names: [] },
+        './data.json': { url: '/project/src/data.json', names: ['default'] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
@@ -446,9 +446,9 @@ describe('resolveModulePath', () => {
       const mockReader = createMockDirectoryReader({});
 
       const importResult = {
-        './styles.css': { path: '/project/src/styles.css', names: [] },
-        './data.json': { path: '/project/src/data.json', names: ['default'] },
-        './image.png': { path: '/project/src/image.png', names: [] },
+        './styles.css': { url: '/project/src/styles.css', names: [] },
+        './data.json': { url: '/project/src/data.json', names: ['default'] },
+        './image.png': { url: '/project/src/image.png', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
@@ -473,9 +473,9 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { path: '/project/src/Component', names: ['Component'] },
-        './utils': { path: '/project/src/utils', names: ['helper'] },
-        '../lib/helper': { path: '/project/lib/helper', names: ['default'] },
+        './Component': { url: '/project/src/Component', names: ['Component'] },
+        './utils': { url: '/project/src/utils', names: ['helper'] },
+        '../lib/helper': { url: '/project/lib/helper', names: ['default'] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);
@@ -492,8 +492,8 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { path: '/project/src/Component', names: ['Component'] },
-        './styles.css': { path: '/project/src/styles.css', names: [] },
+        './Component': { url: '/project/src/Component', names: ['Component'] },
+        './styles.css': { url: '/project/src/styles.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader, {
@@ -511,8 +511,8 @@ describe('resolveModulePath', () => {
       });
 
       const importResult = {
-        './Component': { path: '/project/src/Component', names: ['Component'] },
-        './styles.css': { path: '/project/src/styles.css', names: [] },
+        './Component': { url: '/project/src/Component', names: ['Component'] },
+        './styles.css': { url: '/project/src/styles.css', names: [] },
       };
 
       const result = await resolveImportResult(importResult, mockReader);

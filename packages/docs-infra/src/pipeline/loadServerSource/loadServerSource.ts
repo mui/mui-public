@@ -85,11 +85,11 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     // Convert import result to the format expected by processImports, preserving position data
     const importsCompatible: Record<
       string,
-      { path: string; names: string[]; positions: Array<{ start: number; end: number }> }
+      { url: string; names: string[]; positions: Array<{ start: number; end: number }> }
     > = {};
-    for (const [importPath, { path, names, positions }] of Object.entries(importResult)) {
+    for (const [importPath, { url: importUrl, names, positions }] of Object.entries(importResult)) {
       importsCompatible[importPath] = {
-        path,
+        url: importUrl,
         names: names.map(({ name, alias }) => alias || name),
         positions,
       };
@@ -103,23 +103,24 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
       extraFiles = result.extraFiles;
 
       // Build dependencies list for recursive loading (CSS files use direct paths)
-      extraDependencies = Object.values(importResult).map(({ path }) => path);
+      extraDependencies = Object.values(importResult).map(({ url: importUrl }) => importUrl);
     } else {
       // For JavaScript/TypeScript files, resolve paths first
       const relativeImportsCompatible: Record<
         string,
         {
-          path: string;
+          url: string;
           names: string[];
           includeTypeDefs?: true;
           positions: Array<{ start: number; end: number }>;
         }
       > = {};
-      for (const [importPath, { path, names, includeTypeDefs, positions }] of Object.entries(
-        importResult,
-      )) {
+      for (const [
+        importPath,
+        { url: importUrl, names, includeTypeDefs, positions },
+      ] of Object.entries(importResult)) {
         relativeImportsCompatible[importPath] = {
-          path,
+          url: importUrl,
           names: names.map(({ name, alias }) => alias || name), // Use alias if available
           positions,
           ...(includeTypeDefs && { includeTypeDefs }),
@@ -142,8 +143,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
       // Build dependencies list for recursive loading
       extraDependencies = Object.values(importResult)
-        .map(({ path }) => resolvedPathsMap.get(path))
-        .filter((path): path is string => path !== undefined);
+        .map(({ url: importUrl }) => resolvedPathsMap.get(importUrl))
+        .filter((resolved): resolved is string => resolved !== undefined);
     }
 
     return {

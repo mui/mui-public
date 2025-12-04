@@ -3,8 +3,8 @@ import { processRelativeImports } from './processRelativeImports';
 
 describe('processRelativeImports', () => {
   const mockImportResult = {
-    '../Component': { path: '/src/Component', names: ['Component'] },
-    './utils': { path: '/src/utils', names: ['helper'] },
+    '../Component': { url: '/src/Component', names: ['Component'] },
+    './utils': { url: '/src/utils', names: ['helper'] },
   };
 
   const mockResolvedPathsMap = new Map([
@@ -79,7 +79,7 @@ describe('processRelativeImports', () => {
   it('should handle canonical mode with non-index files', () => {
     const source = `import Utils from '../utils';`;
     const importResult = {
-      '../utils': { path: '/src/utils', names: ['Utils'] },
+      '../utils': { url: '/src/utils', names: ['Utils'] },
     };
     const resolvedPathsMap = new Map([
       ['/src/utils', '/src/utils.ts'], // Direct file, not index
@@ -101,7 +101,7 @@ describe('processRelativeImports', () => {
   it('should handle import mode with index files correctly', () => {
     const source = `import Component from '../Component';`;
     const importResult = {
-      '../Component': { path: '/src/Component', names: ['Component'] },
+      '../Component': { url: '/src/Component', names: ['Component'] },
     };
     const resolvedPathsMap = new Map([
       ['/src/Component', '/src/Component/index.tsx'], // Index file
@@ -117,8 +117,8 @@ describe('processRelativeImports', () => {
   it('should handle flat mode with different file extensions', () => {
     const source = `import Component from '../Component';\nimport { helper } from './utils.js';`;
     const importResult = {
-      '../Component': { path: '/src/Component', names: ['Component'] },
-      './utils.js': { path: '/src/utils', names: ['helper'] },
+      '../Component': { url: '/src/Component', names: ['Component'] },
+      './utils.js': { url: '/src/utils', names: ['helper'] },
     };
     const resolvedPathsMap = new Map([
       ['/src/Component', '/src/Component.tsx'],
@@ -136,8 +136,8 @@ describe('processRelativeImports', () => {
   it('should handle flat mode with mixed index and direct files', () => {
     const source = `import ComponentA from './a/Component';\nimport ComponentB from './b/Component';`;
     const importResult = {
-      './a/Component': { path: '/src/a/Component', names: ['ComponentA'] },
-      './b/Component': { path: '/src/b/Component', names: ['ComponentB'] },
+      './a/Component': { url: '/src/a/Component', names: ['ComponentA'] },
+      './b/Component': { url: '/src/b/Component', names: ['ComponentB'] },
     };
     const resolvedPathsMap = new Map([
       ['/src/a/Component', '/src/a/Component.js'], // Direct file
@@ -156,14 +156,14 @@ describe('processRelativeImports', () => {
     const source = `import ComponentA from './a/Component';\nimport ComponentB from './b/Component';\nimport ComponentC from './c/Component';`;
     const importResult = {
       './a/Component': {
-        path: '/components/special/a/path/in/common/Component',
+        url: '/components/special/a/path/in/common/Component',
         names: ['ComponentA'],
       },
       './b/Component': {
-        path: '/components/special/b/path/in/common/Component',
+        url: '/components/special/b/path/in/common/Component',
         names: ['ComponentB'],
       },
-      './c/Component': { path: '/components/special/c/Component', names: ['ComponentC'] },
+      './c/Component': { url: '/components/special/c/Component', names: ['ComponentC'] },
     };
     const resolvedPathsMap = new Map([
       [
@@ -191,15 +191,15 @@ describe('processRelativeImports', () => {
     const source = `import ComponentA from './very/deeply/nested/path/structure/that/goes/on/forever/a/Component';\nimport ComponentB from './very/deeply/nested/path/structure/that/goes/on/forever/b/Component';\nimport ComponentC from './very/deeply/nested/path/structure/that/goes/on/forever/Component';`;
     const importResult = {
       './very/deeply/nested/path/structure/that/goes/on/forever/a/Component': {
-        path: '/src/very/deeply/nested/path/structure/that/goes/on/forever/a/Component',
+        url: '/src/very/deeply/nested/path/structure/that/goes/on/forever/a/Component',
         names: ['ComponentA'],
       },
       './very/deeply/nested/path/structure/that/goes/on/forever/b/Component': {
-        path: '/src/very/deeply/nested/path/structure/that/goes/on/forever/b/Component',
+        url: '/src/very/deeply/nested/path/structure/that/goes/on/forever/b/Component',
         names: ['ComponentB'],
       },
       './very/deeply/nested/path/structure/that/goes/on/forever/Component': {
-        path: '/src/very/deeply/nested/path/structure/that/goes/on/forever/Component',
+        url: '/src/very/deeply/nested/path/structure/that/goes/on/forever/Component',
         names: ['ComponentC'],
       },
     };
@@ -235,8 +235,8 @@ describe('processRelativeImports', () => {
   it('should handle direct index file imports vs nested index file imports in flat mode', () => {
     const source = `import MainIndex from './index.js';\nimport TestModule from './test/index.js';`;
     const importResult = {
-      './index.js': { path: '/src/index.js', names: ['MainIndex'] },
-      './test/index.js': { path: '/src/test/index.js', names: ['TestModule'] },
+      './index.js': { url: '/src/index.js', names: ['MainIndex'] },
+      './test/index.js': { url: '/src/test/index.js', names: ['TestModule'] },
     };
     const resolvedPathsMap = new Map([
       ['/src/index.js', '/src/index.js'],
@@ -256,8 +256,8 @@ describe('processRelativeImports', () => {
   it('should handle module.css index files correctly in flat mode', () => {
     const source = `import indexStyles from './index.module.css';\nimport nestedStyles from './styles/index.module.css';`;
     const importResult = {
-      './index.module.css': { path: '/src/index.module.css', names: [] },
-      './styles/index.module.css': { path: '/src/styles/index.module.css', names: [] },
+      './index.module.css': { url: '/src/index.module.css', names: [] },
+      './styles/index.module.css': { url: '/src/styles/index.module.css', names: [] },
     };
     const resolvedPathsMap = new Map([
       ['/src/index.module.css', '/src/index.module.css'],
@@ -277,7 +277,7 @@ describe('processRelativeImports', () => {
   it('should handle _index.module.css files as direct index imports in flat mode', () => {
     const source = `import styles from '../../dir/_index.module.css';`;
     const importResult = {
-      '../../dir/_index.module.css': { path: '/src/dir/_index.module.css', names: [] },
+      '../../dir/_index.module.css': { url: '/src/dir/_index.module.css', names: [] },
     };
     const resolvedPathsMap = new Map([
       ['/src/dir/_index.module.css', '/src/dir/_index.module.css'],
@@ -294,8 +294,8 @@ describe('processRelativeImports', () => {
 
 describe('processCssImports', () => {
   const mockCssImportResult = {
-    './base.css': { path: '/src/styles/base.css', names: [] },
-    './components/button.css': { path: '/src/styles/components/button.css', names: [] },
+    './base.css': { url: '/src/styles/base.css', names: [] },
+    './components/button.css': { url: '/src/styles/components/button.css', names: [] },
   };
 
   it('should handle CSS imports in canonical mode', () => {
@@ -313,9 +313,9 @@ describe('processCssImports', () => {
   it('should handle CSS imports in import mode', () => {
     const source = `@import './base.css';\n@import './components/button.css';`;
     const cssImportResultWithPositions = {
-      './base.css': { path: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
+      './base.css': { url: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
       './components/button.css': {
-        path: '/src/styles/components/button.css',
+        url: '/src/styles/components/button.css',
         names: [],
         positions: [{ start: 30, end: 55 }],
       },
@@ -334,9 +334,9 @@ describe('processCssImports', () => {
   it('should handle CSS imports in flat mode with simple conflict resolution', () => {
     const source = `@import './base.css';\n@import './components/button.css';`;
     const cssImportResultWithPositions = {
-      './base.css': { path: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
+      './base.css': { url: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
       './components/button.css': {
-        path: '/src/styles/components/button.css',
+        url: '/src/styles/components/button.css',
         names: [],
         positions: [{ start: 30, end: 55 }],
       },
@@ -356,12 +356,12 @@ describe('processCssImports', () => {
     const source = `@import './theme/base.css';\n@import './layout/base.css';`;
     const importResult = {
       './theme/base.css': {
-        path: '/src/styles/theme/base.css',
+        url: '/src/styles/theme/base.css',
         names: [],
         positions: [{ start: 8, end: 26 }],
       },
       './layout/base.css': {
-        path: '/src/styles/layout/base.css',
+        url: '/src/styles/layout/base.css',
         names: [],
         positions: [{ start: 36, end: 55 }],
       },
@@ -390,14 +390,14 @@ describe('processCssImports', () => {
   it('should handle CSS imports with different file extensions', () => {
     const source = `@import './base.css';\n@import './theme.scss';\n@import './variables.less';`;
     const importResult = {
-      './base.css': { path: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
+      './base.css': { url: '/src/styles/base.css', names: [], positions: [{ start: 8, end: 20 }] },
       './theme.scss': {
-        path: '/src/styles/theme.scss',
+        url: '/src/styles/theme.scss',
         names: [],
         positions: [{ start: 30, end: 44 }],
       },
       './variables.less': {
-        path: '/src/styles/variables.less',
+        url: '/src/styles/variables.less',
         names: [],
         positions: [{ start: 54, end: 72 }],
       },
@@ -419,9 +419,9 @@ describe('processCssImports', () => {
   it('should handle CSS imports with complex nested paths', () => {
     const source = `@import './components/forms/input.css';\n@import './components/layout/grid.css';\n@import './utils/mixins.css';`;
     const importResult = {
-      './components/forms/input.css': { path: '/src/styles/components/forms/input.css', names: [] },
-      './components/layout/grid.css': { path: '/src/styles/components/layout/grid.css', names: [] },
-      './utils/mixins.css': { path: '/src/styles/utils/mixins.css', names: [] },
+      './components/forms/input.css': { url: '/src/styles/components/forms/input.css', names: [] },
+      './components/layout/grid.css': { url: '/src/styles/components/layout/grid.css', names: [] },
+      './utils/mixins.css': { url: '/src/styles/utils/mixins.css', names: [] },
     };
 
     const result = processRelativeImports(source, importResult, 'canonical');
@@ -437,11 +437,11 @@ describe('processCssImports', () => {
     const source = `@import url('https://fonts.googleapis.com/css2?family=Roboto');\n@import url('https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css');`;
     const importResult = {
       'https://fonts.googleapis.com/css2?family=Roboto': {
-        path: 'https://fonts.googleapis.com/css2?family=Roboto',
+        url: 'https://fonts.googleapis.com/css2?family=Roboto',
         names: [],
       },
       'https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css': {
-        path: 'https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css',
+        url: 'https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css',
         names: [],
       },
     };
@@ -460,17 +460,17 @@ describe('processCssImports', () => {
     const source = `@import './print.css' print;\n@import './mobile.css' screen and (max-width: 768px);\n@import './dark.css' (prefers-color-scheme: dark);`;
     const importResult = {
       './print.css': {
-        path: '/src/styles/print.css',
+        url: '/src/styles/print.css',
         names: [],
         positions: [{ start: 8, end: 21 }],
       },
       './mobile.css': {
-        path: '/src/styles/mobile.css',
+        url: '/src/styles/mobile.css',
         names: [],
         positions: [{ start: 37, end: 51 }],
       },
       './dark.css': {
-        path: '/src/styles/dark.css',
+        url: '/src/styles/dark.css',
         names: [],
         positions: [{ start: 91, end: 103 }],
       },
@@ -492,8 +492,8 @@ describe('processCssImports', () => {
   it('should handle CSS imports with layers and supports', () => {
     const source = `@import './base.css' layer(base);\n@import './theme.css' layer(theme) supports(display: grid);`;
     const importResult = {
-      './base.css': { path: '/src/styles/base.css', names: [] },
-      './theme.css': { path: '/src/styles/theme.css', names: [] },
+      './base.css': { url: '/src/styles/base.css', names: [] },
+      './theme.css': { url: '/src/styles/theme.css', names: [] },
     };
 
     const result = processRelativeImports(source, importResult, 'canonical');
@@ -508,12 +508,12 @@ describe('processCssImports', () => {
     const source = `@import './styles/base.css';\n@import '../shared/utils.css';`;
     const importResult = {
       './styles/base.css': {
-        path: '/src/components/styles/base.css',
+        url: '/src/components/styles/base.css',
         names: [],
         positions: [{ start: 8, end: 27 }],
       },
       '../shared/utils.css': {
-        path: '/src/shared/utils.css',
+        url: '/src/shared/utils.css',
         names: [],
         positions: [{ start: 37, end: 58 }],
       },

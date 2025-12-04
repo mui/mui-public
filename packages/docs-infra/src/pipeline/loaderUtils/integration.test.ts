@@ -75,7 +75,7 @@ async function mockLoader(
   const importResult: Record<
     string,
     {
-      path: string;
+      url: string;
       names: string[];
       includeTypeDefs?: true;
       positions: Array<{ start: number; end: number }>;
@@ -83,7 +83,7 @@ async function mockLoader(
   > = {};
   for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
     importResult[path] = {
-      path: relativeImport.path,
+      url: relativeImport.url,
       names: relativeImport.names.map((name) => name.name), // Extract just the name string
       positions: relativeImport.positions,
       includeTypeDefs: relativeImport.includeTypeDefs,
@@ -130,11 +130,11 @@ async function mockCssLoader(
   // Convert the new format to the format expected by processRelativeImports, preserving positions
   const importResult: Record<
     string,
-    { path: string; names: string[]; positions: Array<{ start: number; end: number }> }
+    { url: string; names: string[]; positions: Array<{ start: number; end: number }> }
   > = {};
   for (const [path, relativeImport] of Object.entries(parseResult.relative)) {
     importResult[path] = {
-      path: relativeImport.path,
+      url: relativeImport.url,
       names: [], // CSS imports don't have named imports
       positions: relativeImport.positions,
     };

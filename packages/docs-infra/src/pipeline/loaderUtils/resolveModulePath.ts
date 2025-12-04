@@ -1,5 +1,6 @@
 import { getFileNameFromUrl } from './getFileNameFromUrl';
 import { pathToFileUrl } from './pathToFileUrl';
+import { fileUrlToPortablePath } from './fileUrlToPortablePath';
 
 /**
  * Isomorphic path joining function that works in both Node.js and browser environments.
@@ -100,12 +101,15 @@ export interface TypeAwareResolveResult {
  * @returns Promise<string | TypeAwareResolveResult> - The resolved file path(s)
  */
 export async function resolveModulePath(
-  modulePath: string,
+  moduleUrl: string,
   readDirectory: DirectoryReader,
   options: ResolveModulePathOptions = {},
   includeTypeDefs?: boolean,
 ): Promise<string | TypeAwareResolveResult> {
   const { extensions = JAVASCRIPT_MODULE_EXTENSIONS } = options;
+
+  // Convert file URL to portable path for internal processing
+  const modulePath = moduleUrl.startsWith('file://') ? fileUrlToPortablePath(moduleUrl) : moduleUrl;
 
   // If includeTypeDefs is true, we need to resolve with both type and value extension priorities
   if (includeTypeDefs) {
@@ -141,7 +145,7 @@ async function resolveWithTypeAwareness(
   const moduleName = modulePath.substring(lastSlashIndex + 1);
 
   // Single filesystem read to get directory contents
-  const dirContents = await readDirectory(parentDir);
+  const dirContents = await readDirectory(pathToFileUrl(parentDir));
 
   // Build a map of available files by basename
   const filesByBaseName = new Map<string, DirectoryEntry[]>();
@@ -225,7 +229,7 @@ async function resolveWithTypeAwareness(
     const moduleDir = joinPath(parentDir, directoryMatches[0].name);
 
     try {
-      const moduleDirContents = await readDirectory(moduleDir);
+      const moduleDirContents = await readDirectory(pathToFileUrl(moduleDir));
 
       // Build a map of available index files by basename
       const indexFilesByBaseName = new Map<string, DirectoryEntry[]>();
@@ -321,7 +325,7 @@ async function resolveSinglePath(
 ): Promise<string> {
   try {
     // Read the parent directory contents
-    const dirContents = await readDirectory(parentDir);
+    const dirContents = await readDirectory(pathToFileUrl(parentDir));
 
     // Look for direct file matches in extension priority order
     // Create a map of baseName -> files with that basename for efficient lookup
@@ -377,7 +381,7 @@ async function resolveSinglePath(
       const moduleDir = joinPath(parentDir, directoryMatches[0].name);
 
       try {
-        const moduleDirContents = await readDirectory(moduleDir);
+        const moduleDirContents = await readDirectory(pathToFileUrl(moduleDir));
 
         // Look for index files in extension priority order
         // Create a map of baseName -> files for efficient lookup
@@ -471,7 +475,7 @@ export async function resolveModulePaths(
     directoryEntries.map(async ([parentDir, pathGroup]) => {
       try {
         // Read the directory contents once for all paths in this directory
-        const dirContents = await readDirectory(parentDir);
+        const dirContents = await readDirectory(pathToFileUrl(parentDir));
         const unresolved: Array<{ fullPath: string; moduleName: string }> = [];
         const resolved: Array<{ fullPath: string; resolvedPath: string }> = [];
 
@@ -531,7 +535,7 @@ export async function resolveModulePaths(
                 const moduleDir = joinPath(parentDir, moduleName);
 
                 try {
-                  const moduleDirContents = await readDirectory(moduleDir);
+                  const moduleDirContents = await readDirectory(pathToFileUrl(moduleDir));
 
                   // Look for index files in extension priority order
                   // Create a map of baseName -> files for efficient lookup
@@ -608,7 +612,7 @@ export async function resolveImportResult(
   importResult: Record<
     string,
     {
-      path: string;
+      url: string;
       names: string[];
       includeTypeDefs?: true;
       positions?: Array<{ start: number; end: number }>;
@@ -620,48 +624,48 @@ export async function resolveImportResult(
   const resolvedPathsMap = new Map<string, string>();
 
   // Separate imports into categories for processing
-  const jsModulesToResolve: Array<{ path: string; includeTypeDefs?: true }> = [];
+  const jsModulesToResolve: Array<{ url: string; includeTypeDefs?: true }> = [];
   const jsModulesWithExtensions: string[] = [];
   const staticAssets: string[] = [];
 
-  for (const [importPath, { path, includeTypeDefs }] of Object.entries(importResult)) {
+  for (const [importPath, { url, includeTypeDefs }] of Object.entries(importResult)) {
     if (isJavaScriptModule(importPath)) {
       // If the import path already has a JS/TS extension, use it as-is
       if (JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => importPath.endsWith(ext))) {
-        jsModulesWithExtensions.push(path);
+        jsModulesWithExtensions.push(url);
       } else {
-        jsModulesToResolve.push({ path, includeTypeDefs });
+        jsModulesToResolve.push({ url, includeTypeDefs });
       }
     } else {
-      // Static asset - use path as-is
-      staticAssets.push(path);
+      // Static asset - use url as-is
+      staticAssets.push(url);
     }
   }
 
   // Add modules with extensions as-is
-  jsModulesWithExtensions.forEach((path) => {
-    resolvedPathsMap.set(path, path);
+  jsModulesWithExtensions.forEach((url) => {
+    resolvedPathsMap.set(url, url);
   });
 
   // Add static assets as-is
-  staticAssets.forEach((path) => {
-    resolvedPathsMap.set(path, path);
+  staticAssets.forEach((url) => {
+    resolvedPathsMap.set(url, url);
   });
 
   // Resolve JS modules without extensions
   if (jsModulesToResolve.length > 0) {
-    const resolutionPromises = jsModulesToResolve.map(async ({ path, includeTypeDefs }) => {
+    const resolutionPromises = jsModulesToResolve.map(async ({ url, includeTypeDefs }) => {
       try {
-        const resolved = await resolveModulePath(path, readDirectory, options, includeTypeDefs);
+        const resolved = await resolveModulePath(url, readDirectory, options, includeTypeDefs);
 
         if (typeof resolved === 'string') {
           // Simple string result
-          return { path, resolved };
+          return { url, resolved };
         }
 
         // Type-aware result - for now, just use the import path
         // TODO: We might want to store both paths in the future
-        return { path, resolved: resolved.import };
+        return { url, resolved: resolved.import };
       } catch (error) {
         return null; // Mark as failed
       }
@@ -672,7 +676,7 @@ export async function resolveImportResult(
     // Add successful resolutions to the map
     resolutionResults.forEach((result) => {
       if (result) {
-        resolvedPathsMap.set(result.path, result.resolved);
+        resolvedPathsMap.set(result.url, result.resolved);
       }
     });
   }
