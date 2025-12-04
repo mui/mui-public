@@ -44,9 +44,6 @@ const criticalAirbnbRules = {
   'no-restricted-globals': ['error', 'isFinite', 'isNaN'],
 
   // Styles
-  // require or disallow an empty line between class members
-  // https://eslint.org/docs/rules/lines-between-class-members
-  'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: false }],
   // require a capital letter for constructors
   'new-cap': [
     'error',
