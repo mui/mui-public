@@ -1,9 +1,10 @@
 import * as path from 'path-module';
+import { pathToFileURL } from 'node:url';
 
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Link } from 'mdast';
-import { fsPathToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
+import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
 
 /**
  * Remark plugin that strips page file extensions from URLs.
@@ -25,7 +26,7 @@ export const transformMarkdownRelativePaths: Plugin = () => {
 
         if ((node.url.startsWith('./') || node.url.startsWith('../')) && file.path) {
           // Convert filesystem path to portable path for cross-platform compatibility
-          const portablePath = fsPathToPortablePath(file.path);
+          const portablePath = fileUrlToPortablePath(pathToFileURL(file.path).href);
           const currentDir = path.dirname(portablePath);
           const appIndex = currentDir.indexOf('/app/');
           const baseDir = appIndex !== -1 ? currentDir.substring(appIndex + 4) : '/';
