@@ -383,9 +383,10 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
       EmotionCacheProvider = CacheProvider;
 
       emotionCache = createEmotionCache({ key: 'emotion-client-render' });
-      serverContainer = document.createElement('div');
-      document.body.appendChild(serverContainer);
     }
+
+    serverContainer = document.createElement('div');
+    document.body.appendChild(serverContainer);
 
     prepared = true;
   });
