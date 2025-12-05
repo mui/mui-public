@@ -1,5 +1,3 @@
-import createEmotionCache from '@emotion/cache';
-import { CacheProvider as EmotionCacheProvider } from '@emotion/react';
 import {
   buildQueries,
   cleanup,
@@ -19,8 +17,21 @@ import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
 import { useFakeTimers } from 'sinon';
 import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
+import type { EmotionCache } from '@emotion/cache';
 import { reactMajor } from './env';
 import flushMicrotasks from './flushMicrotasks';
+
+interface Configuration {
+  emotion: boolean;
+}
+
+const defaultConfig: Configuration = {
+  emotion: false,
+};
+
+export function configure(config: Partial<Configuration>) {
+  Object.assign(defaultConfig, config);
+}
 
 function queryAllDescriptionsOf(baseElement: HTMLElement, element: Element): HTMLElement[] {
   const ariaDescribedBy = element.getAttribute('aria-describedby');
@@ -298,6 +309,7 @@ export interface CreateRendererOptions extends Pick<RenderOptions, 'strict' | 's
   clock?: 'fake' | 'real';
   clockConfig?: ClockConfig;
   clockOptions?: Parameters<typeof createClock>[2];
+  emotion?: boolean;
 }
 
 afterEach(async () => {
@@ -318,6 +330,7 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
     strict: globalStrict = true,
     strictEffects: globalStrictEffects = globalStrict,
     clockOptions,
+    emotion = defaultConfig.emotion,
   } = globalOptions;
   // save stack to re-use in test-hooks
   const { stack: createClientRenderStack } = new Error();
@@ -332,7 +345,7 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
     wasCalledInSuite = true;
   });
 
-  let emotionCache: import('@emotion/cache').EmotionCache = null!;
+  let emotionCache: EmotionCache = null!;
   /**
    * target container for SSR
    */
@@ -342,7 +355,9 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
    * For legacy reasons `configuredClientRender` might accidentally be called in a beforeAll(Each) hook.
    */
   let prepared = false;
-  beforeEach(({ expect }) => {
+
+  let EmotionCacheProvider: React.Provider<EmotionCache | null> | null = null;
+  beforeEach(async ({ expect }) => {
     if (!wasCalledInSuite) {
       const error = new Error(
         'Unable to run `before` hook for `createRenderer`. This usually indicates that `createRenderer` was called in a `before` hook instead of in a `describe()` block.',
@@ -359,10 +374,18 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
       );
     }
 
-    emotionCache = createEmotionCache({ key: 'emotion-client-render' });
+    if (emotion) {
+      // Avoid loading emotion unless needed, this allows us to make emotion an optional peerDependency
+      const [{ default: createEmotionCache }, { CacheProvider }] = await Promise.all([
+        import('@emotion/cache'),
+        import('@emotion/react'),
+      ]);
+      EmotionCacheProvider = CacheProvider;
 
-    serverContainer = document.createElement('div');
-    document.body.appendChild(serverContainer);
+      emotionCache = createEmotionCache({ key: 'emotion-client-render' });
+      serverContainer = document.createElement('div');
+      document.body.appendChild(serverContainer);
+    }
 
     prepared = true;
   });
@@ -385,11 +408,13 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
     const { wrapper: InnerWrapper = React.Fragment } = options;
 
     return function Wrapper({ children }: { children?: React.ReactNode }) {
-      return (
-        <EmotionCacheProvider value={emotionCache}>
-          <InnerWrapper>{children}</InnerWrapper>
-        </EmotionCacheProvider>
-      );
+      let result = <InnerWrapper>{children}</InnerWrapper>;
+
+      if (EmotionCacheProvider) {
+        result = <EmotionCacheProvider value={emotionCache}>{result}</EmotionCacheProvider>;
+      }
+
+      return result;
     };
   }
 
