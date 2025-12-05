@@ -15,7 +15,8 @@
     "./initMatchers": "./src/initMatchers.ts",
     "./initPlaywrightMatchers": "./src/initPlaywrightMatchers.ts",
     "./chaiPlugin": "./src/chaiPlugin.ts",
-    "./setupVitest": "./src/setupVitest.ts"
+    "./setupVitest": "./src/setupVitest.ts",
+    "./setupVitestBrowser": "./src/setupVitestBrowser.ts"
   },
   "scripts": {
     "build": "code-infra build",
