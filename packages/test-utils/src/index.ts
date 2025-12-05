@@ -1,3 +1,6 @@
+// Import for side effects: initializes custom matchers for tests
+import './initMatchers';
+
 export * from './components';
 export { default as describeConformance } from './describeConformance';
 export * from './describeConformance';
@@ -9,8 +12,6 @@ export {
   simulateKeyboardDevice,
   programmaticFocusTriggersFocusVisible,
 } from './focusVisible';
-// Import for side effects: initializes custom matchers for tests
-import './initMatchers';
 export * as fireDiscreteEvent from './fireDiscreteEvent';
-export { default as flushMicrotasks } from './flushMicrotasks';
+export { flushMicrotasks } from './flushMicrotasks';
 export * from './env';

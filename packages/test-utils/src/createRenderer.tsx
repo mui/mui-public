@@ -19,7 +19,7 @@ import { useFakeTimers } from 'sinon';
 import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import type { EmotionCache } from '@emotion/cache';
 import { reactMajor } from './env';
-import flushMicrotasks from './flushMicrotasks';
+import { flushMicrotasks } from './flushMicrotasks';
 
 interface Configuration {
   emotion: boolean;

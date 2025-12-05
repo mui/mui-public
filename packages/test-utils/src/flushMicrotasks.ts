@@ -1,5 +1,5 @@
 import { act } from './createRenderer';
 
-export default async function flushMicrotasks() {
+export async function flushMicrotasks() {
   await act(async () => {});
 }
