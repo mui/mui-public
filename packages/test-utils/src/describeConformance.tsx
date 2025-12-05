@@ -947,15 +947,15 @@ function testThemeStyleOverrides(
           throwMissingPropError('createTheme');
         }
 
-        const classKeys = Object.keys(classes);
+        const classKeys = new Set(Object.keys(classes));
 
         // only test the component that has `root` and other classKey
-        if (!testStateOverrides || !classKeys.includes('root') || classKeys.length === 1) {
+        if (!testStateOverrides || !classKeys.has('root') || classKeys.size === 1) {
           return;
         }
 
         // `styleKey` in some tests is `foo` or `bar`, so need to check if it is a valid classKey.
-        const isStyleKeyExists = classKeys.includes(testStateOverrides.styleKey);
+        const isStyleKeyExists = classKeys.has(testStateOverrides.styleKey);
 
         if (!isStyleKeyExists) {
           return;
