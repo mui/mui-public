@@ -971,13 +971,13 @@ function testThemeStyleOverrides(
                     mixBlendMode: 'darken',
                   },
                 },
-                ...(testStateOverrides && {
+                {
                   [testStateOverrides.styleKey]: {
                     [`&.${classes.root}`]: {
                       mixBlendMode: 'color',
                     },
                   },
-                }),
+                },
               },
             },
           },
