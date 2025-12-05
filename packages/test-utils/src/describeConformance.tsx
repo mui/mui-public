@@ -970,8 +970,6 @@ function testThemeStyleOverrides(
                     filter: 'blur(1px)',
                     mixBlendMode: 'darken',
                   },
-                },
-                {
                   [testStateOverrides.styleKey]: {
                     [`&.${classes.root}`]: {
                       mixBlendMode: 'color',
