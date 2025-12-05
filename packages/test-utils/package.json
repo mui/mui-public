@@ -13,6 +13,7 @@
     "./createDescribe": "./src/createDescribe.ts",
     "./createRenderer": "./src/createRenderer.tsx",
     "./initMatchers": "./src/initMatchers.ts",
+    "./env": "./src/env.ts",
     "./initPlaywrightMatchers": "./src/initPlaywrightMatchers.ts",
     "./chaiPlugin": "./src/chaiPlugin.ts",
     "./setupVitest": "./src/setupVitest.ts",
