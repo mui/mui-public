@@ -100,7 +100,7 @@ describe('custom matchers', () => {
         expect(() => {}).toErrorDev();
       }).to.throw(
         "Expected to call console.error but didn't provide messages. " +
-          "If you don't expect any messages prefer `expect().not.toErrorDev();",
+          "If you don't expect any messages prefer `expect().not.toErrorDev();`.",
       );
     });
 
