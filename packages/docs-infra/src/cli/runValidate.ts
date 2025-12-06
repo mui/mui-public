@@ -118,17 +118,33 @@ const runValidate: CommandModule<{}, Args> = {
           searchDirs = [path.join(cwd, 'src/app'), path.join(cwd, 'app')];
         }
 
-        const pageMdxFiles = (
-          await Promise.all(searchDirs.map((dir) => findFiles(dir, 'page.mdx')))
-        ).flat();
+        const pageMdxFilesPerDir = await Promise.all(
+          searchDirs.map((dir) => findFiles(dir, 'page.mdx')),
+        );
+        const pageMdxFiles = pageMdxFilesPerDir.flat();
 
         console.log(chalk.yellow(`\nProcessing ${pageMdxFiles.length} page.mdx files...\n`));
 
         // Process each file through the unified pipeline
-        // Auto-detect include paths: use 'src/app' if src/app exists, otherwise 'app'
-        const includePatterns = searchDirs.some((dir) => dir.includes('src/app'))
-          ? ['src/app']
-          : ['app'];
+        // Auto-detect include paths based on which directories actually contain files
+        const hasSrcAppFiles = pageMdxFilesPerDir
+          .slice(0, Math.ceil(searchDirs.length / 2)) // First half are src/app paths
+          .some((files) => files.length > 0);
+        const hasAppFiles = pageMdxFilesPerDir
+          .slice(Math.ceil(searchDirs.length / 2)) // Second half are app paths
+          .some((files) => files.length > 0);
+
+        const includePatterns: string[] = [];
+        if (hasSrcAppFiles) {
+          includePatterns.push('src/app');
+        }
+        if (hasAppFiles) {
+          includePatterns.push('app');
+        }
+        // Fallback to 'app' if neither has files (shouldn't happen but be safe)
+        if (includePatterns.length === 0) {
+          includePatterns.push('app');
+        }
 
         const processor = unified()
           .use(remarkParse)
