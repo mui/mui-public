@@ -39,7 +39,7 @@ describe('mergeMetadataMarkdown', () => {
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -115,7 +115,7 @@ Old button description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -204,7 +204,7 @@ Old checkbox description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -287,7 +287,7 @@ Old input description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -343,7 +343,7 @@ Old button description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -386,7 +386,7 @@ Old button description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -465,7 +465,7 @@ Old description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -513,7 +513,7 @@ Old description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -623,7 +623,7 @@ Old M description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -719,7 +719,7 @@ Old checkbox description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -791,7 +791,7 @@ Old checkbox description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -924,7 +924,7 @@ A checkbox component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -1014,7 +1014,7 @@ A component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -1104,7 +1104,7 @@ A component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });

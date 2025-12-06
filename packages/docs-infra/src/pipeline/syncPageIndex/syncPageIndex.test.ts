@@ -57,7 +57,7 @@ describe('syncPageIndex', () => {
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -118,7 +118,7 @@ A checkbox component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -172,7 +172,7 @@ Old description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -216,7 +216,7 @@ Old description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -282,7 +282,7 @@ Old description.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -352,7 +352,7 @@ An input component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -428,7 +428,7 @@ An input component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -874,7 +874,7 @@ An input component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -946,7 +946,7 @@ An input component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -1023,7 +1023,7 @@ A button component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
@@ -1118,7 +1118,7 @@ A button component.
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });

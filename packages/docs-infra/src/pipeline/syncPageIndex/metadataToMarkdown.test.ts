@@ -69,7 +69,7 @@ describe('metadataToMarkdown', () => {
         robots: {
           index: false,
         },
-      }
+      };
       "
     `);
   });
