@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import type { Sitemap } from '@mui/internal-docs-infra/createSitemap/types';
 import styles from './Navigation.module.css';
 
-export function Navigation({ sitemap }: { sitemap: Sitemap }) {
+export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const pathname = usePathname();
 
