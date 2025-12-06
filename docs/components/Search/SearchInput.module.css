@@ -1,0 +1,64 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon {
+  height: 1rem;
+  width: 1rem;
+  color: #65636d;
+}
+
+.input {
+  width: 100%;
+  border: 0;
+  font-size: 14px;
+  font-family: var(--font-geist);
+  color: #65636d;
+  background-color: transparent;
+}
+
+.input::placeholder {
+  color: #65636d;
+  opacity: 0.6;
+}
+
+.input:focus {
+  outline: none;
+}
+
+.escapeButton {
+  display: none;
+  border-radius: 8px;
+  border: 1px solid #d0cdd7;
+  background-color: transparent;
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+}
+
+.escapeButton:hover {
+  background-color: #30004010;
+}
+
+.escapeButton:active {
+  background-color: #20003820;
+}
+
+.escapeButton:focus {
+  outline: 2px solid #8e4ec6;
+  outline-offset: -1px;
+}
+
+@media (min-width: 1024px) {
+  .escapeButton {
+    display: flex;
+  }
+}
+
+.kbd {
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+  color: #65636d;
+  white-space: nowrap;
+}

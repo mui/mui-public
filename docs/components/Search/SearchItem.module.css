@@ -1,0 +1,43 @@
+.container {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.icon {
+  height: 1rem;
+  width: 1rem;
+  color: #8e4ec6;
+}
+
+.title {
+  font-weight: 600;
+  color: #65636d;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  opacity: 0.6;
+  text-transform: capitalize;
+  color: #65636d;
+}
+
+.score {
+  font-size: 11px;
+  opacity: 0.7;
+  color: #8e4ec6;
+}
+
+.description {
+  margin-top: 0.125rem;
+  font-size: 12px;
+  opacity: 0.8;
+  color: #65636d;
+}

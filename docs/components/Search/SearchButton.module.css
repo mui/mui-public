@@ -1,0 +1,73 @@
+.button {
+  position: relative;
+  height: 1.75rem;
+  width: 12.5rem;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  font-family: var(--font-geist-mono);
+  color: #65636d;
+  border-radius: 6px;
+  border-color: transparent;
+  background: none;
+  padding: 0;
+  z-index: 10;
+}
+
+.button:focus-visible {
+  outline: none;
+}
+
+.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.content {
+  padding: 0.1875rem 0.75rem;
+}
+
+.wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.buttonContent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon {
+  height: 1rem;
+  width: 1rem;
+  color: #65636d;
+}
+
+.text {
+  color: #65636d;
+}
+
+.shortcut {
+  display: none;
+  pointer-events: none;
+  gap: 0.25rem;
+  border-radius: 6px;
+  border: 1px solid #d0cdd7;
+  background-color: transparent;
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+}
+
+@media (min-width: 1024px) {
+  .shortcut {
+    display: flex;
+  }
+}
+
+.kbd {
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+  color: #65636d;
+}
