@@ -397,7 +397,8 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
 
     // Re-merge with the latest content, passing the COMPLETE list of pages
     // mergeMetadataMarkdown will preserve the order from currentMarkdown
-    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
+    // Only include path in the comment when baseDir is set (otherwise it's an absolute path)
+    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
     const finalMarkdown = await mergeMetadataMarkdown(
       currentMarkdown,
       {
@@ -418,9 +419,11 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
 
       // Create a marker file unless explicitly disabled
       if (markerDir) {
+        // Compute relative path for marker (always compute, not used for comments)
+        const markerRelativePath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
         // Resolve markerDir relative to baseDir (if baseDir is provided)
         const markerDirResolved = baseDir ? resolve(baseDir, markerDir) : markerDir;
-        const markerPath = join(markerDirResolved, relativeIndexPath);
+        const markerPath = join(markerDirResolved, markerRelativePath);
         const markerDirPath = dirname(markerPath);
 
         // Ensure the marker directory exists
