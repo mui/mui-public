@@ -313,6 +313,29 @@ A versatile button component for interactive actions.`;
     `);
   });
 
+  it('should preserve non-breaking spaces in descriptions', async () => {
+    // Use \u00a0 (non-breaking space) between "Base" and "UI"
+    const input = `# Base\u00a0UI Components
+
+Base\u00a0UI is a library of unstyled React components.
+
+## Installation
+
+Install the package...`;
+
+    const processor = unified().use(remarkParse).use(remarkMdx).use(transformMarkdownMetadata);
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // Non-breaking spaces should be preserved (not converted to regular spaces)
+    expect(metadataJs).toContain('Base\u00a0UI Components');
+    expect(metadataJs).toContain('Base\u00a0UI is a library');
+  });
+
   it('should extract description from JSX component wrapper', async () => {
     const input = `# Button Component
 

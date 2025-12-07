@@ -29,8 +29,8 @@ function extractParagraphText(node: Paragraph): string {
       text += extractTextFromChildren(child.children);
     }
   }
-  // Replace newlines with spaces and normalize whitespace
-  return text.replace(/\s+/g, ' ').trim();
+  // Replace newlines with spaces and normalize whitespace, preserving non-breaking spaces
+  return text.replace(/[ \t\n\r]+/g, ' ').trim();
 }
 
 /**
@@ -607,9 +607,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         'children' in node &&
         Array.isArray(node.children)
       ) {
-        // Extract text from the JSX element's children
+        // Extract text from the JSX element's children, preserving non-breaking spaces
         const textContent = extractPlainTextFromChildren(node.children as PhrasingContent[])
-          .replace(/\s+/g, ' ')
+          .replace(/[ \t\n\r]+/g, ' ')
           .trim();
         if (textContent) {
           firstParagraphAfterH1 = textContent;
@@ -622,7 +622,10 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       // When we encounter a heading, push the heading text and then create a new empty slot for content
       if (node.type === 'heading') {
         const heading = node as Heading;
-        const text = extractPlainTextFromChildren(heading.children).replace(/\s+/g, ' ').trim();
+        // Preserve non-breaking spaces in heading text
+        const text = extractPlainTextFromChildren(heading.children)
+          .replace(/[ \t\n\r]+/g, ' ')
+          .trim();
         if (text) {
           fullTextParts.push(text); // Add heading
           fullTextParts.push(''); // Create slot for content after this heading
@@ -649,9 +652,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         return;
       }
 
-      // Handle paragraphs for full text
+      // Handle paragraphs for full text, preserving non-breaking spaces
       if (node.type === 'paragraph') {
-        const text = extractPlainTextFromChildren(node.children).replace(/\s+/g, ' ').trim();
+        const text = extractPlainTextFromChildren(node.children)
+          .replace(/[ \t\n\r]+/g, ' ')
+          .trim();
         if (text) {
           // Append to the last slot (current section's content)
           if (fullTextParts.length === 0) {
@@ -670,8 +675,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         const listItems: string[] = [];
         for (const item of node.children) {
           if (item.type === 'listItem' && 'children' in item && Array.isArray(item.children)) {
+            // Preserve non-breaking spaces in list item text
             const itemText = extractPlainTextFromChildren(item.children as PhrasingContent[])
-              .replace(/\s+/g, ' ')
+              .replace(/[ \t\n\r]+/g, ' ')
               .trim();
             if (itemText) {
               listItems.push(itemText);
