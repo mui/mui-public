@@ -54,6 +54,9 @@
       "datasourceTemplate": "docker"
     }
   ],
+  "vulnerabilityAlerts": {
+    "addLabels": ["security"]
+  },
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
