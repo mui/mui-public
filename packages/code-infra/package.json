@@ -129,7 +129,7 @@
     "@types/estree": "^1.0.8",
     "@types/estree-jsx": "^1.0.5",
     "@types/regexp.escape": "^2.0.0",
-    "@types/yargs": "^17.0.34",
+    "@types/yargs": "^17.0.35",
     "@typescript-eslint/parser": "^8.46.3",
     "@typescript-eslint/rule-tester": "^8.46.3",
     "eslint": "^9.39.1",
