@@ -253,7 +253,6 @@
   ::view-transition-group(expanding-box-bottom-right-border) {
     /* https://pqina.nl/blog/css-spring-animation-with-linear-easing-function/ live Stiffness (0.3) Damping (1) */
     animation-duration: 333ms;
-    /* stylelint-disable-next-line declaration-property-value-no-unknown -- linear() is valid CSS */
     animation-timing-function: linear(
       0,
       -0.009,
