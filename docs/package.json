@@ -1,6 +1,5 @@
 {
-  "name": "@mui/internal-infra-docs",
-  "version": "0.1.0",
+  "name": "docs",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
