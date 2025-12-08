@@ -108,7 +108,7 @@ describe('custom matchers', () => {
       expect(() => {
         expect(() => {}).not.toErrorDev('not unexpected?');
       }).to.throw(
-        'Expected no call to console.error but provided messages. ' +
+        'Expected no call to console.error while also expecting messages. ' +
           "If you want to make sure a certain message isn't logged prefer the positive. " +
           'By expecting certain messages you automatically expect that no other messages are logged',
       );
