@@ -460,8 +460,8 @@ importers:
         specifier: ^5.1.21
         version: 5.1.21(@types/node@22.19.0)
       '@inquirer/select':
-        specifier: ^4.4.0
-        version: 4.4.0(@types/node@22.19.0)
+        specifier: ^4.4.2
+        version: 4.4.2(@types/node@22.19.0)
       '@mui/internal-babel-plugin-display-name':
         specifier: workspace:*
         version: link:../babel-plugin-display-name
@@ -2819,8 +2819,8 @@ packages:
       '@types/node':
         optional: true
 
-  '@inquirer/select@4.4.0':
-    resolution: {integrity: sha512-kaC3FHsJZvVyIjYBs5Ih8y8Bj4P/QItQWrZW22WJax7zTN+ZPXVGuOM55vzbdCP9zKUiBd9iEJVdesujfF+cAA==}
+  '@inquirer/select@4.4.2':
+    resolution: {integrity: sha512-l4xMuJo55MAe+N7Qr4rX90vypFwCajSakx59qe/tMaC1aEHWLyw68wF4o0A4SLAY4E0nd+Vt+EyskeDIqu1M6w==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
@@ -16044,7 +16044,7 @@ snapshots:
       '@inquirer/password': 4.0.21(@types/node@22.19.0)
       '@inquirer/rawlist': 4.1.9(@types/node@22.19.0)
       '@inquirer/search': 3.2.0(@types/node@22.19.0)
-      '@inquirer/select': 4.4.0(@types/node@22.19.0)
+      '@inquirer/select': 4.4.2(@types/node@22.19.0)
     optionalDependencies:
       '@types/node': 22.19.0
 
@@ -16065,7 +16065,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.19.0
 
-  '@inquirer/select@4.4.0(@types/node@22.19.0)':
+  '@inquirer/select@4.4.2(@types/node@22.19.0)':
     dependencies:
       '@inquirer/ansi': 1.0.2
       '@inquirer/core': 10.3.2(@types/node@22.19.0)
