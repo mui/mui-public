@@ -11,6 +11,8 @@ import {
   render as testingLibraryRender,
   RenderOptions as TestingLibraryRenderOptions,
   within,
+  configure as rtlConfigure,
+  Config as RTLConfig,
 } from '@testing-library/react/pure';
 import { userEvent } from '@testing-library/user-event';
 import * as React from 'react';
@@ -21,16 +23,17 @@ import type { EmotionCache } from '@emotion/cache';
 import { reactMajor } from './env';
 import { flushMicrotasks } from './flushMicrotasks';
 
-interface Configuration {
+interface Configuration extends RTLConfig {
   emotion: boolean;
 }
 
-const defaultConfig: Configuration = {
+const defaultConfig: Partial<Configuration> = {
   emotion: false,
 };
 
 export function configure(config: Partial<Configuration>) {
   Object.assign(defaultConfig, config);
+  rtlConfigure(config);
 }
 
 function queryAllDescriptionsOf(baseElement: HTMLElement, element: Element): HTMLElement[] {
