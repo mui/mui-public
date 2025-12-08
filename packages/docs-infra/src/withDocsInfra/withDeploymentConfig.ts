@@ -72,9 +72,11 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
         : {}),
       ...nextConfig.experimental,
     },
+    // TODO remove, this is for versions before Next.js v16
+    // https://nextjs.org/blog/next-16
     eslint: {
       ignoreDuringBuilds: true,
-      ...nextConfig.eslint,
+      ...(nextConfig as any).eslint,
     },
     typescript: {
       // Motivated by https://github.com/vercel/next.js/issues/7687
