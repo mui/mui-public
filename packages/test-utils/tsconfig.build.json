@@ -1,16 +1,9 @@
 {
+  // This config is for emitting declarations (.d.ts) only
+  // Actual .ts source files are transpiled via babel
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./build",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "noEmit": false,
-    "composite": true,
-    "tsBuildInfoFile": "./build/.tsbuildinfo",
-    "target": "ES2020",
-    "types": ["node"],
-    "allowJs": true
-  }
+    "paths": {}
+  },
+  "exclude": ["**/*.spec.*", "**/*.test.*"]
 }

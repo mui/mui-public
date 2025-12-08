@@ -1,6 +1,6 @@
 import failOnConsole from 'vitest-fail-on-console';
 import * as chai from 'chai';
-import './chai.types';
+import './chaiTypes';
 import chaiPlugin from './chaiPlugin';
 
 chai.use(chaiPlugin);

@@ -5,7 +5,6 @@ import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessi
 import formatUtil from 'format-util';
 import { kebabCase } from 'es-toolkit/string';
 import { AssertionError } from 'assertion-error';
-import './chai.types';
 import { isJsdom } from './env';
 
 // chai#utils.elToString that looks like stringified elements in testing-library

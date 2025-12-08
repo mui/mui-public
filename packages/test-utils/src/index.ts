@@ -1,5 +1,3 @@
-/// <reference types="chai-dom" />
-// Import for side effects: initializes custom matchers for tests
 import './initMatchers';
 
 export * from './components';

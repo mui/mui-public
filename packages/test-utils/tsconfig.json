@@ -1,16 +1,12 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "lib": ["es2020", "dom"],
-    "noEmit": true,
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "types": ["node"],
-    "strict": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "jsx": "react",
-    // Remove when https://github.com/thomasbrodusch/vitest-fail-on-console/issues/160 is resolved
-    "skipLibCheck": true
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "module": "es2020",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": ["node"]
   },
-  "include": ["./src/**/*"]
+  "include": ["src"]
 }
