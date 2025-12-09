@@ -68,7 +68,7 @@
     "@eslint/js": "^9.39.1",
     "@eslint/json": "^0.14.0",
     "@inquirer/confirm": "^5.1.21",
-    "@inquirer/select": "^4.4.0",
+    "@inquirer/select": "^4.4.2",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
@@ -134,7 +134,7 @@
     "@typescript-eslint/rule-tester": "^8.46.3",
     "eslint": "^9.39.1",
     "get-port": "^7.1.0",
-    "prettier": "^3.6.2",
+    "prettier": "^3.7.4",
     "serve": "^14.2.5",
     "typescript-eslint": "^8.46.3"
   },

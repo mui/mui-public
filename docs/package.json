@@ -8,7 +8,7 @@
     "start": "serve ./export"
   },
   "dependencies": {
-    "@base-ui-components/react": "1.0.0-beta.1",
+    "@base-ui-components/react": "1.0.0-rc.0",
     "@mdx-js/loader": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
     "@mui/internal-docs-infra": "workspace:^",
@@ -25,11 +25,11 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.2",
-    "@types/node": "^20",
+    "@types/node": "^20.19.25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@wooorm/starry-night": "^3.8.0",
     "serve": "^14.2.5",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }
