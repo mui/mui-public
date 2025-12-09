@@ -350,6 +350,7 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
         const unexpectedMessages: Error[] = [];
         // TODO Remove type once MUI X enables noImplicitAny
         let caughtError: unknown | null = null;
+        let result: unknown = null;
 
         this.assert(
           expectedMessages.length > 0,
@@ -415,7 +416,7 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
         console[methodName] = consoleMatcher;
 
         try {
-          callback();
+          result = callback();
         } catch (error) {
           caughtError = error;
         } finally {
@@ -442,43 +443,62 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
 
           const shouldHaveWarned = utils.flag(this, 'negate') !== true;
 
-          // unreachable from expect().not.toWarnDev(messages)
-          if (unexpectedMessages.length > 0) {
-            const unexpectedMessageRecordedMessage = `Recorded unexpected console.${methodName} calls: ${formatMessages(
-              unexpectedMessages,
-            )}`;
-            // chai will duplicate the stack frames from the unexpected calls in their assertion error
-            // it's not ideal but the test failure is located the second to last stack frame
-            // and the origin of the call is the second stackframe in the stack
-            this.assert(
-              // force chai to always trigger an assertion error
-              !shouldHaveWarned,
-              unexpectedMessageRecordedMessage,
-              unexpectedMessageRecordedMessage,
-              // Not interested in a diff but the typings require the 4th parameter.
-              undefined,
-            );
-          }
+          const report = () => {
+            // unreachable from expect().not.toWarnDev(messages)
+            if (unexpectedMessages.length > 0) {
+              const unexpectedMessageRecordedMessage = `Recorded unexpected console.${methodName} calls: ${formatMessages(
+                unexpectedMessages,
+              )}`;
+              // chai will duplicate the stack frames from the unexpected calls in their assertion error
+              // it's not ideal but the test failure is located the second to last stack frame
+              // and the origin of the call is the second stackframe in the stack
+              this.assert(
+                // force chai to always trigger an assertion error
+                !shouldHaveWarned,
+                unexpectedMessageRecordedMessage,
+                unexpectedMessageRecordedMessage,
+                // Not interested in a diff but the typings require the 4th parameter.
+                undefined,
+              );
+            }
 
-          if (shouldHaveWarned) {
-            this.assert(
-              remainingMessages.length === 0,
-              `Could not match the following console.${methodName} calls. ` +
-                `Make sure previous actions didn't call console.${methodName} by wrapping them in expect(() => {}).not.${matcherName}(): ${formatMessages(
-                  remainingMessages,
-                )}`,
-              `Impossible state reached in \`expect().${matcherName}()\`. ` +
-                `This is a bug in the matcher.`,
-              // Not interested in a diff but the typings require the 4th parameter.
-              undefined,
-            );
+            if (shouldHaveWarned) {
+              this.assert(
+                remainingMessages.length === 0,
+                `Could not match the following console.${methodName} calls. ` +
+                  `Make sure previous actions didn't call console.${methodName} by wrapping them in expect(() => {}).not.${matcherName}(): ${formatMessages(
+                    remainingMessages,
+                  )}`,
+                `Impossible state reached in \`expect().${matcherName}()\`. ` +
+                  `This is a bug in the matcher.`,
+                // Not interested in a diff but the typings require the 4th parameter.
+                undefined,
+              );
+            }
+          };
+
+          if (
+            result &&
+            typeof result === 'object' &&
+            'then' in result &&
+            typeof result.then === 'function'
+          ) {
+            // Handle async callbacks
+            result = result.then((value: unknown) => {
+              report();
+              return value;
+            });
+          } else {
+            report();
           }
         }
-      } else {
-        // nothing to do in prod
-        // If there are still console calls than our test setup throws.
-        callback();
+
+        return result;
       }
+
+      // nothing to do in prod
+      // If there are still console calls than our test setup throws.
+      return callback();
     }
 
     chaiAPI.Assertion.addMethod(matcherName, matcher);
