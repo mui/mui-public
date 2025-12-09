@@ -113,6 +113,7 @@ function defaultFlattenPage(
   page: SitemapPage,
   sectionData: SitemapSectionData,
   includeCategoryInGroup: boolean,
+  excludeSections?: boolean,
 ): SearchResult[] {
   const results: SearchResult[] = [];
 
@@ -202,8 +203,8 @@ function defaultFlattenPage(
     description: page.description,
     sectionTitle: sectionData.title,
     prefix: sectionData.prefix,
-    sections: flattened.sections,
-    subsections: flattened.subsections,
+    sections: excludeSections ? undefined : flattened.sections,
+    subsections: excludeSections ? undefined : flattened.subsections,
     pageKeywords: flattened.keywords,
   });
 
@@ -451,7 +452,12 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
       Object.entries(sitemap.data).forEach(([_sectionKey, sectionData]) => {
         (sectionData.pages || []).forEach((page: SitemapPage) => {
-          const flattened = flattenPage(page, sectionData, options.includeCategoryInGroup || false);
+          const flattened = flattenPage(
+            page,
+            sectionData,
+            options.includeCategoryInGroup || false,
+            options.excludeSections,
+          );
           pages.push(...flattened);
 
           // Add the first result (page type) to default results, grouped by their group
@@ -518,6 +524,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     flattenPage,
     enableStemming,
     options.includeCategoryInGroup,
+    options.excludeSections,
   ]);
 
   const search = React.useCallback(

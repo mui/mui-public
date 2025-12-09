@@ -114,6 +114,12 @@ export interface UseSearchOptions {
   boost?: Partial<Record<string, number>>;
   /** Include page categories in groups: "Overview Pages" vs "Pages" */
   includeCategoryInGroup?: boolean;
+  /**
+   * When true, excludes `sections` and `subsections` fields from page-type results.
+   * The individual section and subsection entries are still created.
+   * @default false
+   */
+  excludeSections?: boolean;
   /** Custom function to flatten sitemap pages into search results */
   flattenPage?: (page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[];
   /** Custom function to format Orama search hits into typed results */
