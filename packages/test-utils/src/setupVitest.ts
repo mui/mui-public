@@ -2,6 +2,9 @@ import failOnConsole from 'vitest-fail-on-console';
 import * as chai from 'chai';
 import './chaiTypes';
 import chaiPlugin from './chaiPlugin';
+import { init } from './createRenderer';
+
+init();
 
 chai.use(chaiPlugin);
 

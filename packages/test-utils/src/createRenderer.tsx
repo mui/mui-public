@@ -315,18 +315,27 @@ export interface CreateRendererOptions extends Pick<RenderOptions, 'strict' | 's
   emotion?: boolean;
 }
 
-afterEach(async () => {
-  if (vi.isFakeTimers()) {
-    await rtlAct(async () => {
-      vi.runOnlyPendingTimers();
-    });
-    vi.useRealTimers();
+let isInitialized = false;
+export function init() {
+  if (isInitialized) {
+    return;
   }
+  afterEach(async () => {
+    if (vi.isFakeTimers()) {
+      await rtlAct(async () => {
+        vi.runOnlyPendingTimers();
+      });
+      vi.useRealTimers();
+    }
 
-  cleanup();
-});
+    cleanup();
+  });
+  isInitialized = true;
+}
 
 export function createRenderer(globalOptions: CreateRendererOptions = {}): Renderer {
+  init();
+
   const {
     clock: clockMode = 'real',
     clockConfig,
