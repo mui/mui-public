@@ -1,6 +1,5 @@
 import {
   buildQueries,
-  cleanup,
   prettyDOM,
   queries,
   RenderResult,
@@ -315,27 +314,7 @@ export interface CreateRendererOptions extends Pick<RenderOptions, 'strict' | 's
   emotion?: boolean;
 }
 
-let isInitialized = false;
-export function init() {
-  if (isInitialized) {
-    return;
-  }
-  afterEach(async () => {
-    if (vi.isFakeTimers()) {
-      await rtlAct(async () => {
-        vi.runOnlyPendingTimers();
-      });
-      vi.useRealTimers();
-    }
-
-    cleanup();
-  });
-  isInitialized = true;
-}
-
 export function createRenderer(globalOptions: CreateRendererOptions = {}): Renderer {
-  init();
-
   const {
     clock: clockMode = 'real',
     clockConfig,

@@ -1,10 +1,20 @@
 import failOnConsole from 'vitest-fail-on-console';
 import * as chai from 'chai';
 import './chaiTypes';
+import { cleanup, act } from '@testing-library/react/pure';
+import { afterEach, vi } from 'vitest';
 import chaiPlugin from './chaiPlugin';
-import { init } from './createRenderer';
 
-init();
+afterEach(async () => {
+  if (vi.isFakeTimers()) {
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
+  }
+
+  cleanup();
+});
 
 chai.use(chaiPlugin);
 
