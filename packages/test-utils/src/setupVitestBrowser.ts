@@ -8,6 +8,10 @@ export default function setupVitestBrowser() {
     return;
   }
 
+  if (typeof window === 'undefined') {
+    throw new Error('setupVitestBrowser should be called in a browser environment');
+  }
+
   chai.use(chaiDom);
 
   // Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
