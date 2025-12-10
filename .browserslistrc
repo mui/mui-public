@@ -1,0 +1,20 @@
+# On update, sync references where "#stable-snapshot" is mentioned in the codebase.
+[stable]
+baseline widely available
+
+# snapshot of `npx browserslist "maintained node versions"`
+# On update check all #stable-snapshot markers
+[node]
+node 14.0
+
+# same as `node`
+[coverage]
+node 14.0
+
+# same as `node`
+[development]
+node 14.0
+
+# same as `node`
+[test]
+node 14.0

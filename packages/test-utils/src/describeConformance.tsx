@@ -3,6 +3,7 @@ import * as React from 'react';
 import { describe, it, afterAll, afterEach, beforeEach } from 'vitest';
 import createDescribe from './createDescribe';
 import { MuiRenderResult } from './createRenderer';
+import { isJsdom } from './env';
 
 function capitalize(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -768,172 +769,166 @@ function testThemeStyleOverrides(
   getOptions: () => ConformanceOptions,
 ) {
   describe('theme style overrides:', () => {
-    it.skipIf(window.navigator.userAgent.includes('jsdom'))(
-      "respect theme's styleOverrides custom state",
-      async function test() {
-        const { muiName, testStateOverrides, render, ThemeProvider, createTheme } = getOptions();
+    it.skipIf(isJsdom())("respect theme's styleOverrides custom state", async function test() {
+      const { muiName, testStateOverrides, render, ThemeProvider, createTheme } = getOptions();
 
-        if (!testStateOverrides) {
-          return;
-        }
+      if (!testStateOverrides) {
+        return;
+      }
 
-        if (!muiName) {
-          throwMissingPropError('muiName');
-        }
+      if (!muiName) {
+        throwMissingPropError('muiName');
+      }
 
-        if (!render) {
-          throwMissingPropError('render');
-        }
+      if (!render) {
+        throwMissingPropError('render');
+      }
 
-        if (!ThemeProvider) {
-          throwMissingPropError('ThemeProvider');
-        }
+      if (!ThemeProvider) {
+        throwMissingPropError('ThemeProvider');
+      }
 
-        if (!createTheme) {
-          throwMissingPropError('createTheme');
-        }
+      if (!createTheme) {
+        throwMissingPropError('createTheme');
+      }
 
-        const testStyle = {
-          marginTop: '13px',
-        };
+      const testStyle = {
+        marginTop: '13px',
+      };
 
-        const theme = createTheme({
-          components: {
-            [muiName]: {
-              styleOverrides: {
-                [testStateOverrides.styleKey]: testStyle,
-              },
+      const theme = createTheme({
+        components: {
+          [muiName]: {
+            styleOverrides: {
+              [testStateOverrides.styleKey]: testStyle,
             },
           },
-        });
+        },
+      });
 
-        if (!testStateOverrides.prop) {
-          return;
+      if (!testStateOverrides.prop) {
+        return;
+      }
+
+      const { container } = await render(
+        <ThemeProvider theme={theme}>
+          {React.cloneElement(element, {
+            [testStateOverrides.prop]: testStateOverrides.value,
+          })}
+        </ThemeProvider>,
+      );
+
+      expect(container.firstChild).to.toHaveComputedStyle(testStyle);
+    });
+
+    it.skipIf(isJsdom())("respect theme's styleOverrides slots", async function test() {
+      const {
+        muiName,
+        testDeepOverrides,
+        testRootOverrides = { slotName: 'root' },
+        render,
+        ThemeProvider,
+        createTheme,
+      } = getOptions();
+
+      if (!ThemeProvider) {
+        throwMissingPropError('ThemeProvider');
+      }
+
+      if (!createTheme) {
+        throwMissingPropError('createTheme');
+      }
+
+      const testStyle = {
+        mixBlendMode: 'darken',
+      };
+
+      function resolveDeepOverrides(
+        callback: (styles: Record<string, any>, slot: SlotTestOverride) => void,
+      ) {
+        if (!testDeepOverrides) {
+          return {};
         }
+        const styles = {};
+        if (Array.isArray(testDeepOverrides)) {
+          testDeepOverrides.forEach((slot) => {
+            callback(styles, slot);
+          });
+        } else {
+          callback(styles, testDeepOverrides);
+        }
+        return styles;
+      }
 
-        const { container } = await render(
-          <ThemeProvider theme={theme}>
-            {React.cloneElement(element, {
-              [testStateOverrides.prop]: testStateOverrides.value,
-            })}
-          </ThemeProvider>,
+      const theme = createTheme({
+        components: {
+          [muiName]: {
+            styleOverrides: {
+              [testRootOverrides.slotName]: {
+                ...testStyle,
+                ...resolveDeepOverrides((styles, slot) => {
+                  styles[`& .${slot.slotClassName}`] = {
+                    fontVariantCaps: 'all-petite-caps',
+                  };
+                }),
+              },
+              ...resolveDeepOverrides((styles, slot) => {
+                styles[slot.slotName] = {
+                  mixBlendMode: 'darken',
+                };
+              }),
+            },
+          },
+        },
+      });
+
+      const { container, setProps } = await render(
+        <ThemeProvider theme={theme}>{element}</ThemeProvider>,
+      );
+
+      if (testRootOverrides.slotClassName) {
+        expect(
+          document.querySelector(`.${testRootOverrides.slotClassName}`),
+        ).to.toHaveComputedStyle(testStyle);
+      } else {
+        expect(container.firstChild).to.toHaveComputedStyle(testStyle);
+      }
+
+      if (testDeepOverrides) {
+        (Array.isArray(testDeepOverrides) ? testDeepOverrides : [testDeepOverrides]).forEach(
+          (slot) => {
+            expect(document.querySelector(`.${slot.slotClassName}`)).to.toHaveComputedStyle({
+              fontVariantCaps: 'all-petite-caps',
+              mixBlendMode: 'darken',
+            });
+          },
         );
 
-        expect(container.firstChild).to.toHaveComputedStyle(testStyle);
-      },
-    );
-
-    it.skipIf(window.navigator.userAgent.includes('jsdom'))(
-      "respect theme's styleOverrides slots",
-      async function test() {
-        const {
-          muiName,
-          testDeepOverrides,
-          testRootOverrides = { slotName: 'root' },
-          render,
-          ThemeProvider,
-          createTheme,
-        } = getOptions();
-
-        if (!ThemeProvider) {
-          throwMissingPropError('ThemeProvider');
-        }
-
-        if (!createTheme) {
-          throwMissingPropError('createTheme');
-        }
-
-        const testStyle = {
-          mixBlendMode: 'darken',
-        };
-
-        function resolveDeepOverrides(
-          callback: (styles: Record<string, any>, slot: SlotTestOverride) => void,
-        ) {
-          if (!testDeepOverrides) {
-            return {};
-          }
-          const styles = {};
-          if (Array.isArray(testDeepOverrides)) {
-            testDeepOverrides.forEach((slot) => {
-              callback(styles, slot);
-            });
-          } else {
-            callback(styles, testDeepOverrides);
-          }
-          return styles;
-        }
-
-        const theme = createTheme({
+        const themeWithoutRootOverrides = createTheme({
           components: {
             [muiName]: {
               styleOverrides: {
-                [testRootOverrides.slotName]: {
-                  ...testStyle,
-                  ...resolveDeepOverrides((styles, slot) => {
-                    styles[`& .${slot.slotClassName}`] = {
-                      fontVariantCaps: 'all-petite-caps',
-                    };
-                  }),
-                },
                 ...resolveDeepOverrides((styles, slot) => {
-                  styles[slot.slotName] = {
-                    mixBlendMode: 'darken',
-                  };
+                  styles[slot.slotName] = testStyle;
                 }),
               },
             },
           },
         });
 
-        const { container, setProps } = await render(
-          <ThemeProvider theme={theme}>{element}</ThemeProvider>,
+        setProps({ theme: themeWithoutRootOverrides });
+
+        (Array.isArray(testDeepOverrides) ? testDeepOverrides : [testDeepOverrides]).forEach(
+          (slot) => {
+            expect(document.querySelector(`.${slot.slotClassName}`)).to.toHaveComputedStyle(
+              testStyle,
+            );
+          },
         );
+      }
+    });
 
-        if (testRootOverrides.slotClassName) {
-          expect(
-            document.querySelector(`.${testRootOverrides.slotClassName}`),
-          ).to.toHaveComputedStyle(testStyle);
-        } else {
-          expect(container.firstChild).to.toHaveComputedStyle(testStyle);
-        }
-
-        if (testDeepOverrides) {
-          (Array.isArray(testDeepOverrides) ? testDeepOverrides : [testDeepOverrides]).forEach(
-            (slot) => {
-              expect(document.querySelector(`.${slot.slotClassName}`)).to.toHaveComputedStyle({
-                fontVariantCaps: 'all-petite-caps',
-                mixBlendMode: 'darken',
-              });
-            },
-          );
-
-          const themeWithoutRootOverrides = createTheme({
-            components: {
-              [muiName]: {
-                styleOverrides: {
-                  ...resolveDeepOverrides((styles, slot) => {
-                    styles[slot.slotName] = testStyle;
-                  }),
-                },
-              },
-            },
-          });
-
-          setProps({ theme: themeWithoutRootOverrides });
-
-          (Array.isArray(testDeepOverrides) ? testDeepOverrides : [testDeepOverrides]).forEach(
-            (slot) => {
-              expect(document.querySelector(`.${slot.slotClassName}`)).to.toHaveComputedStyle(
-                testStyle,
-              );
-            },
-          );
-        }
-      },
-    );
-
-    it.skipIf(window.navigator.userAgent.includes('jsdom'))(
+    it.skipIf(isJsdom())(
       'overrideStyles does not replace each other in slots',
       async function test() {
         const { muiName, classes, testStateOverrides, render, ThemeProvider, createTheme } =
@@ -1011,100 +1006,94 @@ function testThemeVariants(
   getOptions: () => ConformanceOptions,
 ) {
   describe('theme variants:', () => {
-    it.skipIf(window.navigator.userAgent.includes('jsdom'))(
-      "respect theme's variants",
-      async function test() {
-        const { muiName, testVariantProps, render, ThemeProvider, createTheme } = getOptions();
+    it.skipIf(isJsdom())("respect theme's variants", async function test() {
+      const { muiName, testVariantProps, render, ThemeProvider, createTheme } = getOptions();
 
-        if (!testVariantProps) {
-          throw new Error('missing testVariantProps');
-        }
+      if (!testVariantProps) {
+        throw new Error('missing testVariantProps');
+      }
 
-        if (!muiName) {
-          throwMissingPropError('muiName');
-        }
+      if (!muiName) {
+        throwMissingPropError('muiName');
+      }
 
-        if (!render) {
-          throwMissingPropError('render');
-        }
+      if (!render) {
+        throwMissingPropError('render');
+      }
 
-        if (!ThemeProvider) {
-          throwMissingPropError('ThemeProvider');
-        }
+      if (!ThemeProvider) {
+        throwMissingPropError('ThemeProvider');
+      }
 
-        if (!createTheme) {
-          throwMissingPropError('createTheme');
-        }
+      if (!createTheme) {
+        throwMissingPropError('createTheme');
+      }
 
-        const testStyle = {
-          mixBlendMode: 'darken',
-        };
+      const testStyle = {
+        mixBlendMode: 'darken',
+      };
 
-        const theme = createTheme({
-          components: {
-            [muiName]: {
-              variants: [
-                {
-                  props: testVariantProps,
-                  style: testStyle,
-                },
-              ],
-            },
-          },
-        });
-
-        const { getByTestId } = await render(
-          <ThemeProvider theme={theme}>
-            {React.cloneElement(element, { ...testVariantProps, 'data-testid': 'with-props' })}
-            {React.cloneElement(element, { 'data-testid': 'without-props' })}
-          </ThemeProvider>,
-        );
-
-        expect(getByTestId('with-props')).to.toHaveComputedStyle(testStyle);
-        expect(getByTestId('without-props')).not.to.toHaveComputedStyle(testStyle);
-      },
-    );
-
-    it.skipIf(window.navigator.userAgent.includes('jsdom'))(
-      'supports custom variant',
-      async function test() {
-        const { muiName, testCustomVariant, render, ThemeProvider, createTheme } = getOptions();
-
-        if (!ThemeProvider) {
-          throwMissingPropError('ThemeProvider');
-        }
-
-        if (!createTheme) {
-          throwMissingPropError('createTheme');
-        }
-
-        if (!testCustomVariant) {
-          return;
-        }
-
-        const theme = createTheme({
-          components: {
-            [muiName]: {
-              styleOverrides: {
-                root: ({ ownerState }: { ownerState: any }) => ({
-                  ...(ownerState.variant === 'unknown' && {
-                    mixBlendMode: 'darken',
-                  }),
-                }),
+      const theme = createTheme({
+        components: {
+          [muiName]: {
+            variants: [
+              {
+                props: testVariantProps,
+                style: testStyle,
               },
+            ],
+          },
+        },
+      });
+
+      const { getByTestId } = await render(
+        <ThemeProvider theme={theme}>
+          {React.cloneElement(element, { ...testVariantProps, 'data-testid': 'with-props' })}
+          {React.cloneElement(element, { 'data-testid': 'without-props' })}
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('with-props')).to.toHaveComputedStyle(testStyle);
+      expect(getByTestId('without-props')).not.to.toHaveComputedStyle(testStyle);
+    });
+
+    it.skipIf(isJsdom())('supports custom variant', async function test() {
+      const { muiName, testCustomVariant, render, ThemeProvider, createTheme } = getOptions();
+
+      if (!ThemeProvider) {
+        throwMissingPropError('ThemeProvider');
+      }
+
+      if (!createTheme) {
+        throwMissingPropError('createTheme');
+      }
+
+      if (!testCustomVariant) {
+        return;
+      }
+
+      const theme = createTheme({
+        components: {
+          [muiName]: {
+            styleOverrides: {
+              root: ({ ownerState }: { ownerState: any }) => ({
+                ...(ownerState.variant === 'unknown' && {
+                  mixBlendMode: 'darken',
+                }),
+              }),
             },
           },
-        });
+        },
+      });
 
-        const { getByTestId } = await render(
-          <ThemeProvider theme={theme}>
-            {React.cloneElement(element, { variant: 'unknown', 'data-testid': 'custom-variant' })}
-          </ThemeProvider>,
-        );
+      const { getByTestId } = await render(
+        <ThemeProvider theme={theme}>
+          {React.cloneElement(element, { variant: 'unknown', 'data-testid': 'custom-variant' })}
+        </ThemeProvider>,
+      );
 
-        expect(getByTestId('custom-variant')).toHaveComputedStyle({ mixBlendMode: 'darken' });
-      },
-    );
+      expect(getByTestId('custom-variant')).toHaveComputedStyle({ mixBlendMode: 'darken' });
+    });
   });
 }
 
@@ -1118,33 +1107,34 @@ function testThemeCustomPalette(
 ) {
   describe('theme extended palette:', () => {
     const { render, ThemeProvider, createTheme } = getOptions();
-    it.skipIf(
-      !window.navigator.userAgent.includes('jsdom') || !render || !ThemeProvider || !createTheme,
-    )('should render without errors', function test() {
-      if (!render || !ThemeProvider || !createTheme) {
-        throw new Error(
-          'missing render, ThemeProvider or createTheme, should have been handled by skipIf',
-        );
-      }
+    it.skipIf(!isJsdom() || !render || !ThemeProvider || !createTheme)(
+      'should render without errors',
+      function test() {
+        if (!render || !ThemeProvider || !createTheme) {
+          throw new Error(
+            'missing render, ThemeProvider or createTheme, should have been handled by skipIf',
+          );
+        }
 
-      const theme = createTheme({
-        palette: {
-          custom: {
-            main: '#ff5252',
-          },
-          unknown: null,
-          custom2: {
-            main: {
-              blue: {
-                dark: '#FFCC00',
+        const theme = createTheme({
+          palette: {
+            custom: {
+              main: '#ff5252',
+            },
+            unknown: null,
+            custom2: {
+              main: {
+                blue: {
+                  dark: '#FFCC00',
+                },
               },
             },
           },
-        },
-      });
+        });
 
-      expect(() => render(<ThemeProvider theme={theme}>{element}</ThemeProvider>)).not.to.throw();
-    });
+        expect(() => render(<ThemeProvider theme={theme}>{element}</ThemeProvider>)).not.to.throw();
+      },
+    );
   });
 }
 
