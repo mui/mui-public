@@ -1,4 +1,4 @@
-interface Configuration {
+export interface Configuration {
   emotion: boolean;
 }
 

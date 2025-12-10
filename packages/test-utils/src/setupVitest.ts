@@ -5,10 +5,11 @@ import { cleanup, act } from '@testing-library/react/pure';
 import { afterEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
+import { Configuration, configure } from './configure';
 
 let isInitialized = false;
 
-export default function setupVitest() {
+export default function setupVitest(config: Partial<Configuration> = {}): void {
   // When run in vitest with --no-isolate, the test hooks are cleared between each suite,
   // but modules are only evaluated once, so calling it top-level would only register the
   // hooks for the first suite only.
@@ -28,6 +29,8 @@ export default function setupVitest() {
   if (isInitialized) {
     return;
   }
+
+  configure(config);
 
   isInitialized = true;
 
