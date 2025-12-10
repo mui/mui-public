@@ -3,6 +3,7 @@ import * as chai from 'chai';
 import './chaiTypes';
 import { cleanup, act } from '@testing-library/react/pure';
 import { afterEach, vi } from 'vitest';
+import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
 
 let isInitialized = false;
@@ -27,6 +28,8 @@ export default function setupVitest() {
   if (isInitialized) {
     return;
   }
+
+  isInitialized = true;
 
   // Don't call test lifecycle hooks after this point
 
@@ -62,5 +65,42 @@ export default function setupVitest() {
     },
   });
 
-  isInitialized = true;
+  if (typeof window !== 'undefined') {
+    chai.use(chaiDom);
+
+    // Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
+    (globalThis as any).jest = null;
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+    if (window.navigator.userAgent.includes('jsdom')) {
+      // Not yet supported: https://github.com/jsdom/jsdom/issues/2152
+      (globalThis as any).window.Touch ??= class Touch {
+        instance: any;
+
+        constructor(instance: any) {
+          this.instance = instance;
+        }
+
+        get identifier() {
+          return this.instance.identifier;
+        }
+
+        get pageX() {
+          return this.instance.pageX;
+        }
+
+        get pageY() {
+          return this.instance.pageY;
+        }
+
+        get clientX() {
+          return this.instance.clientX;
+        }
+
+        get clientY() {
+          return this.instance.clientY;
+        }
+      };
+    }
+  }
 }

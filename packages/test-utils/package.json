@@ -16,8 +16,7 @@
     "./env": "./src/env.ts",
     "./initPlaywrightMatchers": "./src/initPlaywrightMatchers.ts",
     "./chaiPlugin": "./src/chaiPlugin.ts",
-    "./setupVitest": "./src/setupVitest.ts",
-    "./setupVitestBrowser": "./src/setupVitestBrowser.ts"
+    "./setupVitest": "./src/setupVitest.ts"
   },
   "scripts": {
     "build": "code-infra build",
