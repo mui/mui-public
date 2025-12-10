@@ -942,15 +942,15 @@ function testThemeStyleOverrides(
           throwMissingPropError('createTheme');
         }
 
-        const classKeys = new Set(Object.keys(classes));
+        const classKeys = Object.keys(classes);
 
         // only test the component that has `root` and other classKey
-        if (!testStateOverrides || !classKeys.has('root') || classKeys.size === 1) {
+        if (!testStateOverrides || !classKeys.includes('root') || classKeys.length === 1) {
           return;
         }
 
         // `styleKey` in some tests is `foo` or `bar`, so need to check if it is a valid classKey.
-        const isStyleKeyExists = classKeys.has(testStateOverrides.styleKey);
+        const isStyleKeyExists = classKeys.includes(testStateOverrides.styleKey);
 
         if (!isStyleKeyExists) {
           return;
@@ -965,14 +965,14 @@ function testThemeStyleOverrides(
                     filter: 'blur(1px)',
                     mixBlendMode: 'darken',
                   },
-                  ...(testStateOverrides && {
-                    [testStateOverrides.styleKey]: {
-                      [`&.${classes.root}`]: {
-                        mixBlendMode: 'color',
-                      },
-                    },
-                  }),
                 },
+                ...(testStateOverrides && {
+                  [testStateOverrides.styleKey]: {
+                    [`&.${classes.root}`]: {
+                      mixBlendMode: 'color',
+                    },
+                  },
+                }),
               },
             },
           },
