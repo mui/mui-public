@@ -4,6 +4,7 @@
   "extends": [
     "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
+    ":pinDevDependencies",
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
