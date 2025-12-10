@@ -72,6 +72,17 @@ function extractPlainTextFromChildren(children: PhrasingContent[]): string {
 }
 
 /**
+ * Slugify function for generating URL-friendly slugs from heading text.
+ * Lowercases text and replaces non-alphanumeric characters with hyphens.
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
  * Builds a hierarchical structure from flat headings array
  * Skips the first H1 (page title) and starts from H2
  */
@@ -97,11 +108,8 @@ function buildHeadingHierarchy(
     // Get the current parent node
     const parent = stack[stack.length - 1].node;
 
-    // Create slug from heading text (plain text without formatting)
-    const slug = heading.text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Create slug from heading text using the provided slugify function
+    const slug = slugify(heading.text);
 
     // Create new node for this heading
     const newNode: HeadingHierarchy[string] = {

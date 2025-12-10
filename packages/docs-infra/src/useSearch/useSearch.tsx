@@ -114,10 +114,12 @@ function defaultFlattenPage(
   sectionData: SitemapSectionData,
   includeCategoryInGroup: boolean,
   excludeSections?: boolean,
+  generateSlug?: (text: string, parentTitles?: string[]) => string,
 ): SearchResult[] {
   const results: SearchResult[] = [];
 
   // Extract top-level sections and all subsections with their slugs
+  // Re-slugify from titles using the provided slugify function to match actual page IDs
   const sections: Array<{ title: string; slug: string }> = [];
   const subsections: Array<{
     title: string;
@@ -128,7 +130,9 @@ function defaultFlattenPage(
 
   if (page.sections) {
     // Top-level sections are the direct children
-    for (const [slug, sectionInfo] of Object.entries(page.sections)) {
+    for (const [originalSlug, sectionInfo] of Object.entries(page.sections)) {
+      // Use generateSlug if provided, otherwise use the original slug from sitemap
+      const slug = generateSlug ? generateSlug(sectionInfo.title, []) : originalSlug;
       sections.push({ title: sectionInfo.title, slug });
 
       // Subsections are all nested children (recursively)
@@ -153,7 +157,13 @@ function defaultFlattenPage(
             parentSlugs: string[];
             parentTitles: string[];
           }> = [];
-          for (const [childSlug, childData] of Object.entries(hierarchy)) {
+          for (const [childOriginalSlug, childData] of Object.entries(hierarchy)) {
+            // Use generateSlug if provided, otherwise use the original slug from sitemap
+            // When generateSlug is provided, pass parent titles for context
+            // (e.g., for Releases pages: v1.0.0-rc.0-autocomplete)
+            const childSlug = generateSlug
+              ? generateSlug(childData.title, parentTitles)
+              : childOriginalSlug;
             const currentSlugs = [...parentSlugs, childSlug];
             const currentTitles = [...parentTitles, childData.title];
             items.push({
@@ -394,6 +404,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     limit: defaultLimit = 20,
     boost = defaultSearchBoost,
     enableStemming = true,
+    generateSlug,
     flattenPage = defaultFlattenPage,
     formatResult = defaultFormatResult,
   } = options;
@@ -457,6 +468,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
             sectionData,
             options.includeCategoryInGroup || false,
             options.excludeSections,
+            generateSlug,
           );
           pages.push(...flattened);
 
@@ -522,6 +534,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     sitemapImport,
     maxDefaultResults,
     flattenPage,
+    generateSlug,
     enableStemming,
     options.includeCategoryInGroup,
     options.excludeSections,
