@@ -14,3 +14,4 @@ export {
 export * as fireDiscreteEvent from './fireDiscreteEvent';
 export { flushMicrotasks } from './flushMicrotasks';
 export * from './env';
+export { configure } from './configure';

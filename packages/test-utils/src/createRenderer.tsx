@@ -10,8 +10,6 @@ import {
   render as testingLibraryRender,
   RenderOptions as TestingLibraryRenderOptions,
   within,
-  configure as rtlConfigure,
-  Config as RTLConfig,
 } from '@testing-library/react/pure';
 import { userEvent } from '@testing-library/user-event';
 import * as React from 'react';
@@ -21,19 +19,7 @@ import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import type { EmotionCache } from '@emotion/cache';
 import { reactMajor } from './env';
 import { flushMicrotasks } from './flushMicrotasks';
-
-interface Configuration extends RTLConfig {
-  emotion: boolean;
-}
-
-const defaultConfig: Partial<Configuration> = {
-  emotion: false,
-};
-
-export function configure(config: Partial<Configuration>) {
-  Object.assign(defaultConfig, config);
-  rtlConfigure(config);
-}
+import { config as utilsConfig } from './configure';
 
 function queryAllDescriptionsOf(baseElement: HTMLElement, element: Element): HTMLElement[] {
   const ariaDescribedBy = element.getAttribute('aria-describedby');
@@ -321,7 +307,7 @@ export function createRenderer(globalOptions: CreateRendererOptions = {}): Rende
     strict: globalStrict = true,
     strictEffects: globalStrictEffects = globalStrict,
     clockOptions,
-    emotion = defaultConfig.emotion,
+    emotion = utilsConfig.emotion,
   } = globalOptions;
   // save stack to re-use in test-hooks
   const { stack: createClientRenderStack } = new Error();
