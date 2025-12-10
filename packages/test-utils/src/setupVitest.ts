@@ -5,45 +5,62 @@ import { cleanup, act } from '@testing-library/react/pure';
 import { afterEach, vi } from 'vitest';
 import chaiPlugin from './chaiPlugin';
 
-afterEach(async () => {
-  if (vi.isFakeTimers()) {
-    await act(async () => {
-      vi.runOnlyPendingTimers();
-    });
-    vi.useRealTimers();
+let isInitialized = false;
+
+export default function setupVitest() {
+  // When run in vitest with --no-isolate, the test hooks are cleared between each suite,
+  // but modules are only evaluated once, so calling it top-level would only register the
+  // hooks for the first suite only.
+  // Instead call `setupVitest` in one of the `setupFiles`, which are not cached and executed
+  // per suite.
+  afterEach(async () => {
+    if (vi.isFakeTimers()) {
+      await act(async () => {
+        vi.runOnlyPendingTimers();
+      });
+      vi.useRealTimers();
+    }
+
+    cleanup();
+  });
+
+  if (isInitialized) {
+    return;
   }
 
-  cleanup();
-});
+  // Don't call test lifecycle hooks after this point
 
-chai.use(chaiPlugin);
+  chai.use(chaiPlugin);
 
-failOnConsole({
-  silenceMessage: (message: string) => {
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: mock scheduler
-      if (message.includes('act(...) is not supported in production builds of React')) {
+  failOnConsole({
+    silenceMessage: (message: string) => {
+      if (process.env.NODE_ENV === 'production') {
+        // TODO: mock scheduler
+        if (message.includes('act(...) is not supported in production builds of React')) {
+          return true;
+        }
+      }
+
+      if (message.includes('Warning: useLayoutEffect does nothing on the server')) {
+        // Controversial warning that is commonly ignored by switching to `useEffect` on the server.
+        // https://github.com/facebook/react/issues/14927
+        // However, this switch doesn't work since it relies on environment sniffing and we test SSR in a browser environment.
         return true;
       }
-    }
 
-    if (message.includes('Warning: useLayoutEffect does nothing on the server')) {
-      // Controversial warning that is commonly ignored by switching to `useEffect` on the server.
-      // https://github.com/facebook/react/issues/14927
-      // However, this switch doesn't work since it relies on environment sniffing and we test SSR in a browser environment.
-      return true;
-    }
+      // Unclear why this is an issue for the current occurrences of this warning.
+      // TODO: Revisit once https://github.com/facebook/react/issues/22796 is resolved
+      if (
+        message.includes(
+          'Detected multiple renderers concurrently rendering the same context provider.',
+        )
+      ) {
+        return true;
+      }
 
-    // Unclear why this is an issue for the current occurrences of this warning.
-    // TODO: Revisit once https://github.com/facebook/react/issues/22796 is resolved
-    if (
-      message.includes(
-        'Detected multiple renderers concurrently rendering the same context provider.',
-      )
-    ) {
-      return true;
-    }
+      return false;
+    },
+  });
 
-    return false;
-  },
-});
+  isInitialized = true;
+}

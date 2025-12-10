@@ -1,6 +1,10 @@
 import { expect } from 'chai';
 import { createSandbox } from 'sinon';
 
+import setupVitest from './setupVitest.js';
+
+setupVitest();
+
 describe('custom matchers', () => {
   const consoleSandbox = createSandbox();
 

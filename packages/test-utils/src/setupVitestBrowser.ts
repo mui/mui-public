@@ -1,39 +1,49 @@
 import * as chai from 'chai';
 import chaiDom from 'chai-dom';
 
-chai.use(chaiDom);
+let isInitialized = false;
 
-// Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
-(globalThis as any).jest = null;
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+export default function setupVitestBrowser() {
+  if (isInitialized) {
+    return;
+  }
 
-if (window.navigator.userAgent.includes('jsdom')) {
-  // Not yet supported: https://github.com/jsdom/jsdom/issues/2152
-  (globalThis as any).window.Touch = class Touch {
-    instance: any;
+  chai.use(chaiDom);
 
-    constructor(instance: any) {
-      this.instance = instance;
-    }
+  // Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
+  (globalThis as any).jest = null;
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-    get identifier() {
-      return this.instance.identifier;
-    }
+  if (window.navigator.userAgent.includes('jsdom')) {
+    // Not yet supported: https://github.com/jsdom/jsdom/issues/2152
+    (globalThis as any).window.Touch ??= class Touch {
+      instance: any;
 
-    get pageX() {
-      return this.instance.pageX;
-    }
+      constructor(instance: any) {
+        this.instance = instance;
+      }
 
-    get pageY() {
-      return this.instance.pageY;
-    }
+      get identifier() {
+        return this.instance.identifier;
+      }
 
-    get clientX() {
-      return this.instance.clientX;
-    }
+      get pageX() {
+        return this.instance.pageX;
+      }
 
-    get clientY() {
-      return this.instance.clientY;
-    }
-  };
+      get pageY() {
+        return this.instance.pageY;
+      }
+
+      get clientX() {
+        return this.instance.clientX;
+      }
+
+      get clientY() {
+        return this.instance.clientY;
+      }
+    };
+  }
+
+  isInitialized = true;
 }
