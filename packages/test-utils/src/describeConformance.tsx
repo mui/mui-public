@@ -965,11 +965,13 @@ function testThemeStyleOverrides(
                     filter: 'blur(1px)',
                     mixBlendMode: 'darken',
                   },
-                  [testStateOverrides.styleKey]: {
-                    [`&.${classes.root}`]: {
-                      mixBlendMode: 'color',
+                  ...(testStateOverrides && {
+                    [testStateOverrides.styleKey]: {
+                      [`&.${classes.root}`]: {
+                        mixBlendMode: 'color',
+                      },
                     },
-                  },
+                  }),
                 },
               },
             },
