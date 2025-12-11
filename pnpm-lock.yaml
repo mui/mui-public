@@ -683,8 +683,8 @@ importers:
         specifier: ^0.1.2
         version: 0.1.2
       prettier:
-        specifier: ~3.6.2
-        version: 3.6.2
+        specifier: ~3.7.4
+        version: 3.7.4
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
