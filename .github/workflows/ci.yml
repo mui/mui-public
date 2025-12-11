@@ -46,10 +46,10 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
             ${{ runner.os }}-nextjs-
       - run: pnpm release:build
-      - name: Build docs
-        run: pnpm docs:build
       - name: Publish packages
         if: matrix.os == 'ubuntu-latest'
         uses: ./.github/actions/ci-publish
         with:
           pr-comment: true
+      - name: Build docs
+        run: pnpm docs:build
