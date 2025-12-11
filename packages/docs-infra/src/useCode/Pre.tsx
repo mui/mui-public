@@ -117,7 +117,8 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      root.childNodes.forEach((node) => {
+      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
+      root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
           observer.current?.observe(element);
