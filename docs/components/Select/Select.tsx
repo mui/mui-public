@@ -11,7 +11,6 @@ export interface Props {
 
 export function Select({ items, value, onValueChange, disabled }: Props) {
   return (
-    // @ts-expect-error TODO @dav-is `onValueChange` is not accepting `null` (See also https://github.com/mui/base-ui/pull/3254)
     <SelectParts.Root items={items} value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectParts.Trigger className={styles.Select}>
         <SelectParts.Value />
