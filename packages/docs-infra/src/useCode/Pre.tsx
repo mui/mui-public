@@ -121,6 +121,11 @@ export function Pre({
       root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
+          if (!element.hasAttribute('data-frame')) {
+            console.warn('Expected frame element in useCode <Pre>', element);
+            return;
+          }
+
           observer.current?.observe(element);
         }
       });
