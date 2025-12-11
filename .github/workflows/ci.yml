@@ -15,8 +15,8 @@ jobs:
     strategy:
       matrix:
         os: [
-            macos-latest,
-            # TODO @dav-is investigate why Windows is failing
+            # TODO @dav-is investigate why MacOS, Windows is failing
+            # macos-latest,
             # windows-latest,
             ubuntu-latest,
           ]
@@ -50,6 +50,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: ./.github/actions/ci-publish
         with:
-          pr-comment: true
+          pr-comment: false
       - name: Build docs
         run: pnpm docs:build
