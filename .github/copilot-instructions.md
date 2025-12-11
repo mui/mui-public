@@ -135,6 +135,8 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **1.2** When modifying existing code, try to maintain clean diffs and add tests in within the right `describe` blocks.
 - **1.3** When creating new functionality, first write the docs, then the types, then the tests, then the implementation, then the demos. Ensure that the user explicitly reviews test cases and docs before implementation.
 - **1.4** When updating functionality across multiple units, ensure that integration tests pass before updating unit tests. This ensures that the overall behavior remains correct before focusing on individual components.
+- **1.5** Write tests using generic placeholder data rather than production-specific names. When fixing a bug, avoid copying exact component names, file paths, or values from the bug report. Instead, use simple generic examples (like `Button`, `Checkbox`, `myFunction`) that are consistent with existing test cases in the file. This makes tests more maintainable, focused on the logic being tested, and easier to understand without domain knowledge.
+- **1.6** When writing tests where the output is a long string, prefer using inline snapshots. If there is a lot of noise in this output, consider a normal snapshot test. Multiple assertions that a string contains something don't ensure the strings come in the correct order or can be parsed.
 
 ### Code Architecture & Design
 
