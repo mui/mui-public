@@ -27,6 +27,7 @@ const stopWords = englishStopwords.filter(
   (word) =>
     word !== 'about' &&
     word !== 'but' && // start of button
+    word !== 'for' && // part of form
     word !== 'between' &&
     word !== 'before' &&
     word !== 'after' &&
@@ -213,9 +214,13 @@ function defaultFlattenPage(
     description: page.description,
     sectionTitle: sectionData.title,
     prefix: sectionData.prefix,
-    sections: excludeSections ? undefined : flattened.sections,
-    subsections: excludeSections ? undefined : flattened.subsections,
-    pageKeywords: flattened.keywords,
+    ...(flattened.keywords ? { keywords: flattened.keywords } : {}),
+    ...(excludeSections
+      ? {}
+      : {
+          sections: flattened.sections,
+          subsections: flattened.subsections,
+        }),
   });
 
   // Add entries for each part
@@ -363,8 +368,9 @@ function defaultFormatResult(hit: OramaHit): SearchResult {
   return {
     ...base,
     type: 'page',
-    sections: hit.document.sections,
-    subsections: hit.document.subsections,
+    page: hit.document.title,
+    ...(hit.document.sections ? { sections: hit.document.sections } : {}),
+    ...(hit.document.subsections ? { subsections: hit.document.subsections } : {}),
   };
 }
 
@@ -374,7 +380,7 @@ export const defaultSearchBoost = {
   slug: 2,
   path: 2,
   title: 2,
-  page: 6,
+  page: 10,
   pageKeywords: 15,
   description: 1.5,
   part: 1.5,
@@ -388,7 +394,7 @@ export const defaultSearchBoost = {
   sections: 0.7,
   subsections: 0.3,
   keywords: 1.5,
-};
+} as const;
 
 /**
  * Hook for managing search functionality with Orama
@@ -550,6 +556,36 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         return;
       }
 
+      const valueLower = value.toLowerCase();
+      // Normalize for comparison: convert spaces/hyphens to a common format
+      const valueNormalized = valueLower.replace(/[-\s]+/g, ' ').trim();
+
+      // For longer search terms, skip custom sorting and rely on Orama's scoring
+      // The overhead of checking exact/startsWith/contains isn't worth it
+      const useCustomSort = valueLower.length <= 20;
+
+      // Cache for computed document properties to avoid repeated string operations
+      const cache = new Map<
+        string,
+        { titleLower: string; slugLower: string; slugNormalized: string }
+      >();
+
+      const getDocProps = (doc: { title: string; slug: string }) => {
+        const key = doc.slug; // Use slug as cache key since it's unique per document
+        let props = cache.get(key);
+        if (!props) {
+          const titleLower = doc.title.toLowerCase();
+          const slugLower = doc.slug.toLowerCase();
+          props = {
+            titleLower,
+            slugLower,
+            slugNormalized: slugLower.replace(/-/g, ' '),
+          };
+          cache.set(key, props);
+        }
+        return props;
+      };
+
       const searchResults = await oramaSearch(index, {
         term: value,
         facets,
@@ -558,25 +594,49 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
         limit,
         tolerance,
         boost,
-        sortBy: ([_, aScore, aDocument], [__, bScore, bDocument]) => {
-          // Prioritize exact matches
-          const aExact =
-            aDocument.title.toLowerCase() === value.toLowerCase() ||
-            aDocument.slug.toLowerCase() === value.toLowerCase();
-          const bExact =
-            bDocument.title.toLowerCase() === value.toLowerCase() ||
-            bDocument.slug.toLowerCase() === value.toLowerCase();
+        sortBy: useCustomSort
+          ? ([_, aScore, aDocument], [__, bScore, bDocument]) => {
+              const a = getDocProps(aDocument);
+              const b = getDocProps(bDocument);
 
-          if (aExact && !bExact) {
-            return -1;
-          }
-          if (!aExact && bExact) {
-            return 1;
-          }
+              // Prioritize exact matches (short-circuit on first match)
+              const aExact =
+                a.titleLower === valueLower ||
+                a.slugLower === valueLower ||
+                a.slugNormalized === valueNormalized;
+              const bExact =
+                b.titleLower === valueLower ||
+                b.slugLower === valueLower ||
+                b.slugNormalized === valueNormalized;
 
-          // Then sort by score descending
-          return bScore - aScore;
-        },
+              if (aExact !== bExact) {
+                return aExact ? -1 : 1;
+              }
+
+              // Then prioritize startsWith matches
+              const aStartsWith =
+                a.titleLower.startsWith(valueLower) || a.slugNormalized.startsWith(valueNormalized);
+              const bStartsWith =
+                b.titleLower.startsWith(valueLower) || b.slugNormalized.startsWith(valueNormalized);
+
+              if (aStartsWith !== bStartsWith) {
+                return aStartsWith ? -1 : 1;
+              }
+
+              // Then prioritize contains matches
+              const aContains =
+                a.titleLower.includes(valueLower) || a.slugNormalized.includes(valueNormalized);
+              const bContains =
+                b.titleLower.includes(valueLower) || b.slugNormalized.includes(valueNormalized);
+
+              if (aContains !== bContains) {
+                return aContains ? -1 : 1;
+              }
+
+              // Then sort by score descending
+              return bScore - aScore;
+            }
+          : undefined,
       });
       const count = searchResults.count;
       const elapsed = searchResults.elapsed;
