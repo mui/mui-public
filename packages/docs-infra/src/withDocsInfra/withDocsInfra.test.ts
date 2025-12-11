@@ -281,7 +281,7 @@ describe('withDocsInfra', () => {
         ],
       });
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/sitemap/index\\.ts$'),
+        test: new RegExp('[/\\\\]sitemap[/\\\\]index\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {

@@ -324,7 +324,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
         // Sitemap loader
         webpackConfig.module.rules.push({
-          test: new RegExp('/sitemap/index\\.ts$'),
+          test: new RegExp('[/\\\\]sitemap[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {

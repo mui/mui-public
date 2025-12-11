@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { SitemapSection, SitemapSectionData } from '../../createSitemap/types';
@@ -124,8 +125,9 @@ export function createLoadServerPageIndex(
   const rootContext = options.rootContext ?? process.cwd();
 
   return async function loadPageIndex(filePath: string): Promise<SitemapSectionData | null> {
-    // Resolve the absolute path to the markdown file
-    const absolutePath = filePath.startsWith('file://') ? filePath.slice(7) : filePath;
+    // Convert file:// URLs to proper file system paths for reading the file
+    // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+    const absolutePath = filePath.startsWith('file://') ? fileURLToPath(filePath) : filePath;
 
     // Extract prefix and title from the import path
     const { prefix, title: generatedTitle } = extractPrefixAndTitle(absolutePath, rootContext);
