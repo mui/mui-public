@@ -11,7 +11,7 @@ export interface Props {
 
 export function Select({ items, value, onValueChange, disabled }: Props) {
   return (
-    // @ts-expect-error @dav-is TODO
+    // @ts-expect-error TODO @dav-is fix types of onValueChange
     <SelectParts.Root items={items} value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectParts.Trigger className={styles.Select}>
         <SelectParts.Value />
