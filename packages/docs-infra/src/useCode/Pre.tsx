@@ -117,9 +117,15 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      root.childNodes.forEach((node) => {
+      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
+      root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
+          if (!element.hasAttribute('data-frame')) {
+            console.warn('Expected frame element in useCode <Pre>', element);
+            return;
+          }
+
           observer.current?.observe(element);
         }
       });

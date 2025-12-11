@@ -5,7 +5,7 @@ import styles from './Select.module.css';
 export interface Props {
   items: { label: string; value: string }[];
   value?: string;
-  onValueChange?: (value: string) => void;
+  onValueChange?: (value: string | null) => void;
   disabled?: boolean;
 }
 
