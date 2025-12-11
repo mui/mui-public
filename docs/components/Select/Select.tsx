@@ -5,12 +5,13 @@ import styles from './Select.module.css';
 export interface Props {
   items: { label: string; value: string }[];
   value?: string;
-  onValueChange?: (value: string | null) => void;
+  onValueChange?: (value: string) => void;
   disabled?: boolean;
 }
 
 export function Select({ items, value, onValueChange, disabled }: Props) {
   return (
+    // @ts-expect-error @dav-is TODO
     <SelectParts.Root items={items} value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectParts.Trigger className={styles.Select}>
         <SelectParts.Value />
