@@ -10,10 +10,6 @@ on:
 permissions: {}
 
 jobs:
-  continuous-releases:
-    name: CI Releases
-    uses: ./.github/workflows/ci-base.yml
-
   # Tests dev-only scripts across all supported dev environments
   test-dev:
     strategy:
@@ -52,3 +48,8 @@ jobs:
       - run: pnpm release:build
       - name: Build docs
         run: pnpm docs:build
+      - name: Publish packages
+        if: matrix.os == 'ubuntu-latest'
+        uses: ./.github/actions/ci-publish
+        with:
+          pr-comment: true
