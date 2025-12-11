@@ -10,6 +10,46 @@ on:
 permissions: {}
 
 jobs:
-  continuous-releases:
-    name: CI Releases
-    uses: ./.github/workflows/ci-base.yml
+  # Tests dev-only scripts across all supported dev environments
+  test-dev:
+    strategy:
+      matrix:
+        os: [
+            # TODO @dav-is investigate why Windows is failing
+            # windows-latest,
+            macos-latest,
+            ubuntu-latest,
+          ]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - run: echo '${{ github.actor }}'
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          # fetch all tags which are required for `pnpm release:changelog`
+          fetch-depth: 0
+      - name: Set up pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - name: Use Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
+      - run: pnpm install
+      - name: Cache Next.js build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: docs/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('docs/**/*.js', 'docs/**/*.ts', 'docs/**/*.tsx', 'docs/**/*.jsx', 'docs/**/*.json', 'docs/**/*.md', 'docs/**/*.mdx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-nextjs-
+      - run: pnpm release:build
+      - name: Publish packages
+        if: matrix.os == 'ubuntu-latest'
+        uses: ./.github/actions/ci-publish
+        with:
+          pr-comment: false
+      - name: Build docs
+        run: pnpm docs:build

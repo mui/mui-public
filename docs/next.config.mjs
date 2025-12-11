@@ -11,6 +11,18 @@ const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     additionalRemarkPlugins: [],
     additionalRehypePlugins: [],
+    extractToIndex: {
+      indexWrapperComponent: 'PagesIndex',
+      include: [
+        'app/docs-infra/components',
+        'app/docs-infra/conventions',
+        'app/docs-infra/functions',
+        'app/docs-infra/hooks',
+        'app/docs-infra/commands',
+        'app/docs-infra/patterns',
+        'app/code-infra',
+      ],
+    },
   }),
 });
 
