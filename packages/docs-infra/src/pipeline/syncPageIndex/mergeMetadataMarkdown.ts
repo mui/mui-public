@@ -9,8 +9,10 @@ import {
 /**
  * Options for mergeMetadataMarkdown
  */
-export interface MergeMetadataMarkdownOptions
-  extends Omit<MetadataToMarkdownOptions, 'editableMarker' | 'indexWrapperComponent'> {
+export interface MergeMetadataMarkdownOptions extends Omit<
+  MetadataToMarkdownOptions,
+  'editableMarker' | 'indexWrapperComponent'
+> {
   /** If true, pages in existing markdown that aren't in newMetadata will be preserved. If false (default), they are removed. */
   preserveUnlisted?: boolean;
   /**
@@ -130,12 +132,6 @@ export async function mergeMetadataMarkdown(
         skipDetailSection: existingPage.skipDetailSection,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
-        // Merge openGraph, but ensure description comes from newPage if it has one
-        openGraph:
-          newPage.openGraph ??
-          (newPage.description
-            ? { ...existingPage.openGraph, description: newPage.description }
-            : existingPage.openGraph),
       };
       pages.push(merged);
       addedPaths.add(newPage.path);
