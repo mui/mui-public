@@ -1,6 +1,5 @@
-// webpack does not like node: imports
-// eslint-disable-next-line n/prefer-node-protocol
-import path from 'path';
+import * as path from 'path-module';
+import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
  * Represents a single import name with its properties.
@@ -30,8 +29,8 @@ export interface ImportPathPosition {
  * Represents an import from a relative path (starts with ./ or ../).
  */
 export interface RelativeImport {
-  /** The resolved absolute path to the imported file */
-  path: string;
+  /** The resolved absolute URL to the imported file (file:// URL) */
+  url: string;
   /** Array of imported names from this module */
   names: ImportName[];
   /** Whether TypeScript type definitions should be included for this import */
@@ -925,7 +924,11 @@ function detectCssImport(
         }
         const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
         if (!cssResult[importResult.modulePath]) {
-          cssResult[importResult.modulePath] = { path: resolvedPath, names: [], positions: [] };
+          cssResult[importResult.modulePath] = {
+            url: portablePathToFileUrl(resolvedPath),
+            names: [],
+            positions: [],
+          };
         }
         cssResult[importResult.modulePath].positions.push(position);
       }
@@ -1040,7 +1043,11 @@ function parseJSImports(
         if (isRelative) {
           const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
           if (!result[modulePath]) {
-            result[modulePath] = { path: resolvedPath, names: [], positions: [] };
+            result[modulePath] = {
+              url: portablePathToFileUrl(resolvedPath),
+              names: [],
+              positions: [],
+            };
           }
           result[modulePath].positions.push(position);
         } else {
@@ -1164,7 +1171,7 @@ function parseJSImports(
       const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
       if (!result[modulePath]) {
         result[modulePath] = {
-          path: resolvedPath,
+          url: portablePathToFileUrl(resolvedPath),
           names: [],
           positions: [],
           ...(isTypeImport && { includeTypeDefs: true as const }),
@@ -1374,8 +1381,12 @@ function detectJavaScriptImport(
  * and template literals, it's most efficient to handle comment processing in this
  * same pass rather than requiring separate parsing steps.
  *
+ * The function accepts file:// URLs or file paths and converts them internally to a
+ * portable path format that works cross-platform. Resolved import paths are returned
+ * in the same portable format (forward slashes, starting with /).
+ *
  * @param code - The source code to parse
- * @param filePath - The file path, used to determine file type and resolve relative imports
+ * @param fileUrl - The file URL (file:// protocol) or path, used to determine file type and resolve relative imports
  * @param options - Optional configuration for comment processing
  * @param options.removeCommentsWithPrefix - Array of prefixes; comments starting with these will be stripped from output
  * @param options.notableCommentsPrefix - Array of prefixes; comments starting with these will be collected regardless of stripping
@@ -1385,19 +1396,23 @@ function detectJavaScriptImport(
  * ```typescript
  * const result = await parseImportsAndComments(
  *   'import React from "react";\nimport { Button } from "./Button";',
- *   '/src/App.tsx'
+ *   'file:///src/App.tsx'
  * );
  * // result.externals['react'] contains the React import
- * // result.relative['./Button'] contains the Button import
+ * // result.relative['./Button'] contains the Button import with url: 'file:///src/Button'
  * ```
  */
 export async function parseImportsAndComments(
   code: string,
-  filePath: string,
+  fileUrl: string,
   options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
 ): Promise<ImportsAndComments> {
   const result: Record<string, RelativeImport> = {};
   const externals: Record<string, ExternalImport> = {};
+
+  // Convert file:// URL or OS path to portable path format for cross-platform compatibility
+  // Portable paths always use forward slashes and start with / (even on Windows: /C:/...)
+  const filePath = fileUrlToPortablePath(fileUrl);
 
   // Check if this is a CSS file
   const isCssFile = filePath.toLowerCase().endsWith('.css');
