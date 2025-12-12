@@ -3,6 +3,10 @@ import type { LoaderContext } from 'webpack';
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import { readFile } from 'fs/promises';
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath, pathToFileURL } from 'url';
 
 import {
   parseCreateFactoryCall,
@@ -40,9 +44,13 @@ export async function loadPrecomputedCodeHighlighterClient(
   this.cacheable();
 
   try {
+    // Convert the filesystem path to a file:// URL for cross-platform compatibility
+    // pathToFileURL handles Windows drive letters correctly (e.g., C:\... → file:///C:/...)
+    const resourceFileUrl = pathToFileURL(this.resourcePath).toString();
+
     // Parse the source to find a single createDemoClient call
     // Use metadataOnly mode since client calls only have (url, options?) arguments
-    const demoCall = await parseCreateFactoryCall(source, this.resourcePath, {
+    const demoCall = await parseCreateFactoryCall(source, resourceFileUrl, {
       metadataOnly: true,
     });
 
@@ -70,8 +78,10 @@ export async function loadPrecomputedCodeHighlighterClient(
 
     // For client files, we need to read the corresponding index.ts to get variants
     // The client.ts and index.ts should be in the same directory
-    const clientDir = this.resourcePath.substring(0, this.resourcePath.lastIndexOf('/'));
-    const indexPath = `${clientDir}/index.ts`;
+    const clientDir = path.dirname(this.resourcePath);
+    const indexPath = path.join(clientDir, 'index.ts');
+    // Convert to file:// URL for parseCreateFactoryCall
+    const indexFileUrl = pathToFileURL(indexPath).toString();
 
     // Read and parse the index.ts file to get variant information
     let indexDemoCall: ParsedCreateFactory | null = null;
@@ -81,7 +91,7 @@ export async function loadPrecomputedCodeHighlighterClient(
       // Add index.ts as a dependency for hot reloading
       this.addDependency(indexPath);
 
-      indexDemoCall = await parseCreateFactoryCall(indexSource, indexPath);
+      indexDemoCall = await parseCreateFactoryCall(indexSource, indexFileUrl);
     } catch (error) {
       // If we can't read index.ts, we can't determine variants
       console.warn(`Could not read ${indexPath} to determine variants for client: ${error}`);
@@ -184,8 +194,9 @@ export async function loadPrecomputedCodeHighlighterClient(
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
-      // Strip 'file://' prefix if present before adding to webpack's dependency tracking
-      this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
+      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
+      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
     });
 
     callback(null, modifiedSource);

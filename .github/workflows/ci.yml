@@ -14,12 +14,7 @@ jobs:
   test-dev:
     strategy:
       matrix:
-        os: [
-            # TODO @dav-is investigate why Windows is failing
-            # windows-latest,
-            macos-latest,
-            ubuntu-latest,
-          ]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read

@@ -23,12 +23,12 @@ describe('Filesystem Optimization Tests', () => {
 
     // Should have made only ONE directory read call
     expect(mockDirectoryReader).toHaveBeenCalledTimes(1);
-    expect(mockDirectoryReader).toHaveBeenCalledWith('/src');
+    expect(mockDirectoryReader).toHaveBeenCalledWith('file:///src');
 
     // Should return both import and typeImport paths
     expect(result).toEqual({
-      import: '/src/Component.ts',
-      typeImport: '/src/Component.d.ts',
+      import: 'file:///src/Component.ts',
+      typeImport: 'file:///src/Component.d.ts',
     });
   });
 
@@ -58,8 +58,8 @@ describe('Filesystem Optimization Tests', () => {
     // Should prioritize .ts for value imports (VALUE_IMPORT_EXTENSIONS: ['.ts', '.tsx', '.js', '.jsx', '.d.ts'])
     // Should prioritize .d.ts for type imports (TYPE_IMPORT_EXTENSIONS: ['.d.ts', '.ts', '.tsx', '.js', '.jsx'])
     expect(result).toEqual({
-      import: '/src/Component.ts', // .ts comes first in VALUE_IMPORT_EXTENSIONS
-      typeImport: '/src/Component.d.ts', // .d.ts comes first in TYPE_IMPORT_EXTENSIONS
+      import: 'file:///src/Component.ts', // .ts comes first in VALUE_IMPORT_EXTENSIONS
+      typeImport: 'file:///src/Component.d.ts', // .d.ts comes first in TYPE_IMPORT_EXTENSIONS
     });
   });
 
@@ -91,13 +91,13 @@ describe('Filesystem Optimization Tests', () => {
 
     // Should have made TWO directory read calls (parent + Component directory)
     expect(mockDirectoryReader).toHaveBeenCalledTimes(2);
-    expect(mockDirectoryReader).toHaveBeenNthCalledWith(1, '/src');
-    expect(mockDirectoryReader).toHaveBeenNthCalledWith(2, '/src/Component');
+    expect(mockDirectoryReader).toHaveBeenNthCalledWith(1, 'file:///src');
+    expect(mockDirectoryReader).toHaveBeenNthCalledWith(2, 'file:///src/Component');
 
     // Should return both index paths with correct priorities
     expect(result).toEqual({
-      import: '/src/Component/index.ts',
-      typeImport: '/src/Component/index.d.ts',
+      import: 'file:///src/Component/index.ts',
+      typeImport: 'file:///src/Component/index.d.ts',
     });
   });
 
@@ -124,7 +124,7 @@ describe('Filesystem Optimization Tests', () => {
 
     // Should return only import path when both resolve to the same file
     expect(result).toEqual({
-      import: '/src/Component.ts',
+      import: 'file:///src/Component.ts',
     });
   });
 });
