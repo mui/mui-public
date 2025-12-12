@@ -561,7 +561,7 @@ export const screen: Screen & typeof bodyBoundQueries = { ...rtlScreen, ...bodyB
 export const flushEffects = flushMicrotasks;
 
 /**
- * returns true when touch is suported and can be mocked
+ * returns true when touch is supported and can be mocked
  */
 export function supportsTouch() {
   // only run in supported browsers
