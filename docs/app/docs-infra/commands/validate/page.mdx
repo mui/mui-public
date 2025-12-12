@@ -1,0 +1,151 @@
+# Validate
+
+The `validate` command ensures that committed index files match the expected output. It processes all `page.mdx` files, extracts metadata, and verifies that parent indexes are up-to-date.
+
+## Usage
+
+```bash
+pnpm docs-infra validate [paths...]
+```
+
+## Arguments
+
+| Argument | Type       | Description                                                |
+| -------- | ---------- | ---------------------------------------------------------- |
+| `paths`  | `string[]` | Optional paths to validate (e.g., `docs-infra/components`) |
+
+## Options
+
+| Option                    | Type      | Default                    | Description                                     |
+| ------------------------- | --------- | -------------------------- | ----------------------------------------------- |
+| `--command`               | `string`  | `pnpm docs-infra validate` | Command to suggest when indexes are out of date |
+| `--useVisibleDescription` | `boolean` | `false`                    | Use first visible paragraph as description      |
+
+## Examples
+
+### Validate All Indexes
+
+```bash
+pnpm docs-infra validate
+```
+
+Processes all `page.mdx` files in `src/app/` and `app/` directories.
+
+### Validate Specific Sections
+
+```bash
+pnpm docs-infra validate docs-infra/components docs-infra/functions
+```
+
+Only validates indexes under the specified paths.
+
+### Use Visible Description
+
+```bash
+pnpm docs-infra validate --useVisibleDescription
+```
+
+Uses the first visible paragraph in each page as the description, instead of the meta tag.
+
+---
+
+## How It Works
+
+1. **Find Files**: Searches for all `page.mdx` files in the app directories
+2. **Process Metadata**: Runs each file through the unified pipeline with `transformMarkdownMetadata`
+3. **Check Indexes**: Compares generated metadata against existing index files
+4. **Report Results**: Lists which indexes were updated and their paths
+5. **CI Mode**: In CI environments, exits with error if any indexes changed
+
+---
+
+## Output
+
+### When All Indexes Are Current
+
+```
+Validating committed files match expected output...
+
+Processing 47 page.mdx files...
+
+No indexes needed updating
+
+✓ 0 index files updated in 1.23s
+```
+
+### When Indexes Need Updates
+
+```
+Validating committed files match expected output...
+
+Processing 47 page.mdx files...
+
+Updated index files:
+  app/docs-infra/components/page.mdx
+  app/docs-infra/functions/page.mdx
+
+Total: 2 indexes updated
+
+✓ 2 index files updated in 1.45s
+```
+
+### CI Failure
+
+When running in CI (`CI=true`) and indexes are out of date:
+
+```
+Updated index files:
+  app/docs-infra/components/page.mdx
+
+Total: 1 indexes updated
+
+✓ 1 index files updated in 1.23s
+
+✗ Index files are out of date. Run this command locally:
+
+  pnpm docs-infra validate docs-infra/components
+
+Then commit the results.
+```
+
+Exit code: `1`
+
+---
+
+## Marker Files
+
+The command uses marker files to track which indexes were updated:
+
+- Location: `.next/cache/docs-infra/index-updates/`
+- These files are temporary and cleaned up before each run
+- Used to determine which paths to suggest in CI error messages
+
+---
+
+## Integration with transformMarkdownMetadata
+
+The validate command uses the [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) plugin internally:
+
+```ts
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkMdx)
+  .use(transformMarkdownMetadata, {
+    extractToIndex: {
+      include: includePatterns,
+      exclude: [],
+      baseDir: cwd,
+      onlyUpdateIndexes: true,
+      markerDir: '.next/cache/docs-infra/index-updates',
+      useVisibleDescription,
+    },
+  });
+```
+
+---
+
+## Related
+
+- [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) - Remark plugin for metadata extraction
+- [`syncPageIndex`](../../functions/sync-page-index/page.mdx) - Function that performs the actual index updates
+- [`createSitemap`](../../functions/create-sitemap/page.mdx) - Uses extracted metadata for search

@@ -72,7 +72,7 @@ export interface UseVariantSelectionResult {
   variantKeys: string[];
   selectedVariantKey: string;
   selectedVariant: VariantCode | null;
-  selectVariant: React.Dispatch<React.SetStateAction<string>>;
+  selectVariant: React.Dispatch<React.SetStateAction<string | null>>;
   selectVariantProgrammatic: React.Dispatch<React.SetStateAction<string>>;
   saveVariantToLocalStorage: (variant: string) => void;
   hashVariant: string | null;
@@ -209,9 +209,11 @@ export function useVariantSelection({
 
   // User setter: saves to localStorage (used for user-initiated changes like dropdown)
   const setSelectedVariantKeyAsUser = React.useCallback(
-    (value: React.SetStateAction<string>) => {
+    (value: React.SetStateAction<string | null>) => {
       const resolvedValue = typeof value === 'function' ? value(selectedVariantKey) : value;
-      if (variantKeys.includes(resolvedValue)) {
+      // If value is null, select the first variant (default)
+      const effectiveValue = resolvedValue ?? variantKeys[0];
+      if (effectiveValue && variantKeys.includes(effectiveValue)) {
         // Mark as user-initiated to prevent hash effect from overriding
         isUserInitiatedChange.current = true;
         // Clear hash if it exists and is relevant to this demo
@@ -220,8 +222,8 @@ export function useVariantSelection({
           // Update prevHashVariant to reflect that hash is now null
           prevHashVariant.current = null;
         }
-        setSelectedVariantKeyState(resolvedValue);
-        setStoredValue(resolvedValue);
+        setSelectedVariantKeyState(effectiveValue);
+        setStoredValue(effectiveValue);
       }
     },
     [setStoredValue, selectedVariantKey, variantKeys, urlHash, mainSlug, setUrlHash],
