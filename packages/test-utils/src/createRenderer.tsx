@@ -10,7 +10,8 @@ import {
   render as testingLibraryRender,
   RenderOptions as TestingLibraryRenderOptions,
   within,
-} from '@testing-library/react/pure';
+  // eslint-disable-next-line import/extensions
+} from '@testing-library/react/pure.js';
 import { userEvent } from '@testing-library/user-event';
 import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
@@ -553,7 +554,8 @@ function act<T>(callback: () => void | T | Promise<T>) {
 
 const bodyBoundQueries = within(document.body, { ...queries, ...customQueries });
 
-export * from '@testing-library/react/pure';
+// eslint-disable-next-line import/extensions
+export * from '@testing-library/react/pure.js';
 export { act, fireEvent };
 export const screen: Screen & typeof bodyBoundQueries = { ...rtlScreen, ...bodyBoundQueries };
 
