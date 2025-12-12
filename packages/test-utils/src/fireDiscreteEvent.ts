@@ -1,4 +1,5 @@
-import { configure, fireEvent, getConfig } from '@testing-library/react/pure';
+// eslint-disable-next-line import/extensions
+import { configure, fireEvent, getConfig } from '@testing-library/react/pure.js';
 import { reactMajor } from './env';
 
 const noWrapper = (callback: () => void) => callback();

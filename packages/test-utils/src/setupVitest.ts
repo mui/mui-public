@@ -1,7 +1,8 @@
 import failOnConsole from 'vitest-fail-on-console';
 import * as chai from 'chai';
 import './chaiTypes';
-import { cleanup, act } from '@testing-library/react/pure';
+// eslint-disable-next-line import/extensions
+import { cleanup, act } from '@testing-library/react/pure.js';
 import { afterEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';

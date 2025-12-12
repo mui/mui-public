@@ -1,5 +1,6 @@
 import { isInaccessible } from '@testing-library/dom';
-import { prettyDOM } from '@testing-library/react/pure';
+// eslint-disable-next-line import/extensions
+import { prettyDOM } from '@testing-library/react/pure.js';
 import * as chai from 'chai';
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api';
 import formatUtil from 'format-util';
