@@ -117,9 +117,15 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      root.childNodes.forEach((node) => {
+      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
+      root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
+          if (!element.hasAttribute('data-frame')) {
+            console.warn('Expected frame element in useCode <Pre>', element);
+            return;
+          }
+
           observer.current?.observe(element);
         }
       });
@@ -144,6 +150,10 @@ export function Pre({
   const frames = React.useMemo(() => {
     return hast?.children.map((child, index) => {
       if (child.type !== 'element') {
+        if (child.type === 'text') {
+          return <React.Fragment key={index}>{child.value}</React.Fragment>;
+        }
+
         return null;
       }
 
@@ -171,7 +181,7 @@ export function Pre({
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      {typeof children === 'string' ? children : frames}
+      <code>{typeof children === 'string' ? children : frames}</code>
     </pre>
   );
 }

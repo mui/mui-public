@@ -1,0 +1,301 @@
+# Props Context Layering
+
+**Purpose**: Enable isomorphic components to work seamlessly with React Server Components while maintaining a single, ergonomic API.
+
+**Core Strategy**: Render early with initial props, then progressively enhance via context when additional data/functions become available on the client.
+
+This pattern solves a fundamental challenge: components need to render before the server-client boundary is crossed, but the complete data they need might only be available after client-side processing.
+
+## Server-Client Boundary Constraints
+
+A key driver for this pattern is React Server Components' serialization limitations:
+
+**Cannot pass across server-client boundary:**
+
+- Functions (event handlers, utilities, transformers)
+- Class instances (complex objects, parsed data structures)
+- Non-serializable values (Date objects, Map/Set, symbols)
+
+**Can pass across server-client boundary:**
+
+- Primitive values (strings, numbers, booleans)
+- Plain objects and arrays
+- **React Nodes** (pre-rendered JSX elements)
+
+**Example of the constraint:**
+
+```tsx
+// This won't work - functions can't serialize
+<ClientComponent
+  onSubmit={(data) => console.log(data)}
+  parser={parseComplexData}
+/>
+
+// This works - React Nodes can serialize
+<ClientComponent>
+  <PreRenderedButton onClick={...} />
+  <ParsedDataDisplay data={processedData} />
+</ClientComponent>
+```
+
+**Why Props Context Layering helps:**
+
+- **Props**: Carry serializable data and pre-rendered React Nodes from server
+- **Context**: Provide functions and complex objects on the client side
+- **Result**: Same API works in both environments without serialization issues
+
+---
+
+## 1. Early rendering with fallback values
+
+Components must render on the server before crossing the client boundary. When users pass components as props to server components, those child components are immediately rendered—often before all ideal props are available.
+
+**The challenge**: You need to display something useful immediately while waiting for enhanced data.
+
+**The solution**: Accept whatever props are available initially, then seamlessly upgrade via context without changing the component's API.
+
+**Implementation pattern**: Create a custom hook that merges props (immediate) with context (enhanced) values.
+
+## 2. Conditional async operations
+
+**The problem**: The same component may run in either server or client environments. Async server components will throw errors when executed on the client.
+
+**The solution**: Guard async operations behind conditions: only execute them when the data is actually needed and the environment supports it.
+
+**When to defer async work**:
+
+- Props already contain the required data → skip async fetching
+- Heavy functions are missing → assume they'll be provided later via context
+- `forceClient` flag is set → defer to `useEffect` instead of server async
+
+**Example scenarios**:
+
+```tsx
+// IsomorphicData decides whether to fetch on the server or defer to the client.
+// 1. If data already provided -> render immediately.
+// 2. If data missing & we can run async on the server (not forceClient) -> render an async loader.
+// 3. Otherwise -> return a client component that will load data after hydration.
+
+// Synchronous decision component (never async itself)
+function IsomorphicData({ data, url, forceClient = false }) {
+  if (data) return <DataComponent data={data} />; // Already have data
+  if (!forceClient && url) return <ServerDataLoader url={url} />; // Let server do async
+  return <ClientDataLoader initialData={data} url={url} />; // Defer to client
+}
+
+// Async server-capable loader (can be an RSC async component)
+async function ServerDataLoader({ url }) {
+  const res = await fetch(url);
+  const fetched = await res.json();
+  return <DataComponent data={fetched} />;
+}
+
+// Client-only loader (separate module/file marked with 'use client')
+// File: ClientDataLoader.tsx
+// 'use client';
+import React, { useEffect, useState } from 'react';
+
+function ClientDataLoader({ initialData, url }) {
+  const [loaded, setLoaded] = useState(initialData);
+
+  useEffect(() => {
+    if (!loaded && url) {
+      fetch(url)
+        .then((r) => r.json())
+        .then(setLoaded)
+        .catch(() => {}); // swallow / handle errors as desired
+    }
+  }, [loaded, url]);
+
+  return <DataComponent data={loaded} />;
+}
+
+// Usage - the same props API; behavior chosen automatically
+<IsomorphicData data={maybePrefetched} url="/api/fallback" forceClient={isClientOnlyContext} />;
+```
+
+Heavy functions can be provided either as props (server-side) or context (client-side). When using the [Built Factories pattern](../built-factories/page.mdx), expensive operations can even run at build time with caching.
+
+## 3. Props-first, context-enhanced hooks
+
+**The pattern**: Create hooks that accept props and automatically layer context updates on top. This hides the complexity from consumers while enabling progressive enhancement.
+
+**Real-world example** from this codebase:
+
+```ts
+// useErrors hook - implements Props → Context Layering
+function useErrors(props?: { errors?: Error[] }) {
+  const context = useErrorsContext();
+
+  // Context errors override props errors (latest wins)
+  const errors = context?.errors || props?.errors;
+
+  return { errors };
+}
+
+// Usage in components
+function ErrorHandler({ errors }: { errors?: Error[] }) {
+  const { errors: effectiveErrors } = useErrors({ errors });
+
+  if (!effectiveErrors?.length) return null;
+  return <ErrorDisplay errors={effectiveErrors} />;
+}
+```
+
+**Another example** - the `useCode` hook:
+
+```ts
+function useCode(contentProps, opts) {
+  const context = useCodeHighlighterContextOptional();
+
+  // Context code overrides contentProps code when available
+  const effectiveCode = context?.code || contentProps.code || {};
+
+  // Context URL overrides contentProps URL
+  const effectiveUrl = context?.url || contentProps.url;
+
+  // ... rest of implementation
+}
+```
+
+**Benefits**:
+
+- **Server components** can pass data via props normally
+- **Client components** get enhanced data via context automatically
+- **Same API** works in both environments
+- **No mental overhead** for consumers—they just pass props
+
+**Component flexibility**: The same component can perform their async task as either a server or client component:
+
+```ts
+// Server component version (no client code needed)
+function ObjectHandler({ object }: { object: any }) {
+  return <SomeComponent object={object} />;
+}
+
+// Client component version (with context enhancement)
+'use client';
+function ObjectHandler({ object }: { object: any }) {
+  const { object: effectiveObject } = useObject({ object });
+  return <SomeComponent object={effectiveObject} />;
+}
+```
+
+Both preserve the same API shape and timing semantics.
+
+## 4. Lazy-load heavy functions
+
+**The goal**: Avoid shipping expensive functions to the client unless actually needed.
+
+**The strategy**:
+
+- Heavy functions are **imported conditionally**—if not imported, they're not bundled
+- Provide them via props (server-side) or context (client-side) only when needed
+- Keep the core component logic lightweight
+
+**Example**:
+
+```tsx
+// Three deployment modes for heavy functions (parsers, transformers, etc.)
+
+// 1. SERVER RENDERING: Import and pass directly as props (never reaches client bundle).
+// File: ServerPage.tsx (React Server Component)
+import 'server-only';
+
+import { expensiveParser, complexTransformer } from './heavyUtils';
+
+export function ServerRenderedFeature({ source }) {
+  return <DataFeature source={source} parser={expensiveParser} transform={complexTransformer} />;
+}
+
+// 2. CLIENT RENDERING: Provide lazily through a Provider that only loads after hydration.
+// File: HeavyFunctionsProvider.tsx
+('use client');
+import React, { useCallback, useState, useEffect } from 'react';
+
+const HeavyFunctionsContext = React.createContext(null);
+export function useHeavyFunctions() {
+  return React.useContext(HeavyFunctionsContext);
+}
+
+export function HeavyFunctionsProvider({ children, preload = false }) {
+  const [fns, setFns] = useState(null);
+
+  const ensureLoaded = useCallback(async () => {
+    if (!fns) {
+      const mod = await import('./heavyUtils'); // code-split boundary
+      setFns({ parser: mod.expensiveParser, transform: mod.complexTransformer });
+    }
+  }, [fns]);
+
+  // Optional eager load (e.g., user interacted or heuristic)
+  useEffect(() => {
+    if (preload) ensureLoaded();
+  }, [preload, ensureLoaded]);
+
+  return (
+    <HeavyFunctionsContext.Provider value={{ ...fns, ensureLoaded }}>
+      {children}
+    </HeavyFunctionsContext.Provider>
+  );
+}
+
+// Usage inside a client component
+function ClientFeature({ source }) {
+  const heavy = useHeavyFunctions();
+  // Trigger load only if user expands advanced panel, etc.
+  const onDemand = () => heavy?.ensureLoaded();
+  const parsed = heavy?.parser ? heavy.parser(source) : null; // fallback UI until ready
+  return <DataFeature source={source} parsed={parsed} onExpand={onDemand} />;
+}
+
+// 3. BUILD-TIME RENDERING (no runtime import):
+// In a build script or static generation step you run heavy logic once and serialize results.
+// File: build/generate-data.ts (executed at build time, not bundled for runtime)
+import { expensiveParser, complexTransformer } from '../src/heavyUtils';
+import fs from 'node:fs';
+const raw = fs.readFileSync('content.txt', 'utf8');
+const parsed = complexTransformer(expensiveParser(raw));
+fs.writeFileSync('dist/precomputed.json', JSON.stringify(parsed));
+
+// File: PrecomputedFeature.tsx (RSC or client) - ONLY loads JSON, not heavy functions.
+import precomputed from '../../dist/precomputed.json';
+export function PrecomputedFeature() {
+  return <DataFeature parsed={precomputed} />; // heavy functions never shipped
+}
+```
+
+**Tip - Works with Built Factories**: This build-time path composes directly with the [Built Factories pattern](../built-factories/page.mdx). Instead of hand‑writing a separate script you can let a factory call (`createX(import.meta.url, variants?, options?)`) produce and cache the heavy result via a `precompute` injection. Tooling (loader / build step) replaces the original call with one that includes `precompute: { ... }`, so runtime code:
+
+- Keeps the one-line factory contract (identity = `import.meta.url`)
+- Ships only the precomputed data object (no parser / transformer code)
+- Lets a server factory precompute rich metadata while a sibling client factory only receives the minimal externals map
+- Still supports progressive enhancement: props carry precomputed output early, context can re-load heavy functions later (client provider with dynamic `import()`) for live editing or re-parsing
+- Avoids dynamic `import()` entirely when live mutation isn't needed; add it back only in the client enhancement path
+
+If requirements change (need variants, extra metadata, live editing), you update the shared factory implementation—call sites and component APIs stay stable, and Props Context layering continues to deliver the upgraded client experience without breaking server renders.
+
+**Outcome**: Minimal initial bundle, rich functionality loads on-demand.
+
+---
+
+## Implementation Checklist
+
+When implementing Props → Context Layering:
+
+- **Create a merging hook** that accepts props and checks context
+- **Context values override props** (latest data wins)
+- **Handle undefined context gracefully** (server/client compatibility)
+- **Guard async operations** behind conditions
+- **Heavy functions via dynamic imports** + context providers
+- **Same component API** works in server and client environments
+- **Progressive enhancement** without breaking changes
+
+## Real-World Usage
+
+This pattern is used throughout the docs-infra system:
+
+- **[`useErrors`](../../hooks/use-errors/page.mdx)**: Server-side syntax errors → client-side runtime errors
+- **[`useCode`](../../hooks/use-code/page.mdx)**: Static code props → dynamic context code
+- **[`useDemo`](../../hooks/use-demo/page.mdx)**: Build-time demos → interactive client demos
+- **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Server highlighting → client enhancement

@@ -2,6 +2,7 @@ import { defineConfig } from 'eslint/config';
 import {
   createBaseConfig,
   createTestConfig,
+  createDocsConfig,
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
@@ -40,7 +41,28 @@ export default /** @type {import('eslint').Linter.Config[]} */ (
         // matching the pattern of the test runner
         `**/*${EXTENSION_TEST_FILE}`,
       ],
-      extends: createTestConfig(),
+      extends: createTestConfig({ useMocha: false, useVitest: true }),
+    },
+    {
+      files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
+      rules: {
+        // TODO @dav-is
+        'vitest/no-conditional-expect': 'off',
+      },
+    },
+    {
+      files: ['docs/**/*'],
+      extends: createDocsConfig(),
+      settings: {
+        'import/resolver': {
+          typescript: {
+            project: ['docs/tsconfig.json'],
+          },
+        },
+      },
+      rules: {
+        '@next/next/no-img-element': 'off',
+      },
     },
     {
       files: [`apps/**/*${EXTENSION_TS}`],

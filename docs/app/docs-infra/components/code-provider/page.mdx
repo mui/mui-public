@@ -1,0 +1,185 @@
+# Code Provider
+
+The `CodeProvider` component provides client-side functions for fetching source code and highlighting it. It's designed for cases where you need to render code blocks or demos based on client-side state or dynamic content loading. It also provides heavy processing functions that are moved from individual components to the context for better performance and code splitting.
+
+`CodeProvider` implements the [Props Context Layering pattern](../../patterns/props-context-layering/page.mdx) by providing heavy functions via context that can't be serialized across the server-client boundary.
+
+## Features
+
+- **Client-side syntax highlighting** with support for multiple languages using [Starry Night](https://github.com/wooorm/starry-night)
+- **Dynamic code fetching** from external sources or APIs
+- **Context-based API** for sharing highlighting functions across components
+- **Custom loading functions** for different code sources
+- **Browser-only execution** with SSR safety
+- **Heavy function provision** for code processing (parsing, transforming, loading)
+
+## When to Use CodeProvider
+
+Use `CodeProvider` when you need:
+
+- **Dynamic code loading** from external sources or APIs
+- **Client-side code highlighting** without build-time optimization
+- **Custom code fetching logic** for different data sources
+- **Shared highlighting context** across multiple components
+
+> [!NOTE]
+> If you need interactive code editing with shared state management, use the [`CodeControllerContext`](../code-controller-context/page.mdx) instead.
+
+## Basic Usage
+
+The simplest way to use `CodeProvider` is to wrap components that need client-side highlighting:
+
+import { DemoCodeProviderBase } from './demos/base';
+
+<DemoCodeProviderBase.Title />
+
+<DemoCodeProviderBase />
+
+[See Demo](./demos/base/)
+
+---
+
+## Advanced Features
+
+import { DemoCodeProviderFetchDemo } from './demos/fetch-demo';
+
+<DemoCodeProviderFetchDemo.Title />
+
+For more dynamic use cases, you can provide custom loading functions that fetch code from external sources:
+
+{/* <DemoCodeProviderFetchDemo /> */}
+
+[See Demo](./demos/fetch-demo/)
+
+## Integration with CodeHighlighter
+
+`CodeProvider` works seamlessly with `CodeHighlighter` for dynamic content:
+
+```tsx
+import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import { CodeContent } from './CodeContent';
+
+function DynamicCodeExample() {
+  return (
+    <CodeProvider>
+      <CodeHighlighter Content={CodeContent}>{`console.log("Dynamic code!");`}</CodeHighlighter>
+    </CodeProvider>
+  );
+}
+```
+
+## Custom Loading Functions
+
+You can provide custom functions for loading code from different sources:
+
+```tsx
+import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
+import type { LoadCodeMeta, LoadSource } from '@mui/internal-docs-infra/CodeHighlighter';
+
+const loadCodeFromApi: LoadCodeMeta = async (url: string) => {
+  const response = await fetch(`/api/code/${encodeURIComponent(url)}`);
+  return response.json();
+};
+
+const loadSourceFromGitHub: LoadSource = async (url: string) => {
+  const response = await fetch(url.replace('file://', 'https://raw.githubusercontent.com/'));
+  const source = await response.text();
+  return { source };
+};
+
+function MyApp() {
+  return (
+    <CodeProvider loadCodeMeta={loadCodeFromApi} loadSource={loadSourceFromGitHub}>
+      {/* Your components */}
+    </CodeProvider>
+  );
+}
+```
+
+## API Reference
+
+### Props
+
+The `CodeProvider` component accepts the following props:
+
+#### Required Props
+
+- `children` (React.ReactNode): Child components that will have access to the code handling context
+
+#### Optional Props
+
+- `loadCodeMeta` (LoadCodeMeta): Function to load code metadata from a URL
+- `loadVariantMeta` (LoadVariantMeta): Function to load variant-specific metadata
+- `loadSource` (LoadSource): Function to load source code and extra files
+
+### Context Functions
+
+The provider makes these functions available through context:
+
+```typescript
+interface CodeContext {
+  // Async parser promise (for initial loading)
+  sourceParser?: Promise<ParseSource>;
+
+  // Sync parser (available after initial load)
+  parseSource?: ParseSource;
+
+  // Source transformers for code transformation
+  sourceTransformers?: SourceTransformers;
+
+  // Custom loading functions
+  loadSource?: LoadSource;
+  loadVariantMeta?: LoadVariantMeta;
+  loadCodeMeta?: LoadCodeMeta;
+
+  // Heavy functions for code processing (moved from CodeHighlighterClient)
+  loadFallbackCode?: LoadFallbackCodeFn;
+  loadVariant?: LoadVariantFn;
+  parseCode?: ParseCodeFn;
+  parseControlledCode?: ParseControlledCodeFn;
+  applyTransforms?: ApplyTransformsFn;
+  getAvailableTransforms?: GetAvailableTransformsFn;
+}
+```
+
+## Best Practices
+
+1. **Wrap at the appropriate level** - Place `CodeProvider` high enough to cover all components that need highlighting
+2. **Handle loading states** - Remember that highlighting is async, so provide loading feedback
+3. **Use for dynamic content** - `CodeProvider` is perfect for code that can't be precomputed
+4. **Consider performance** - For static content, [precomputed demos](../code-highlighter/page.mdx#demo-factory-pattern) are faster
+5. **Handle errors gracefully** - Custom loading functions should include proper error handling
+
+## Comparison with Other Components
+
+| Feature                | CodeProvider                        | Code Controller          | CodeHighlighter               |
+| ---------------------- | ----------------------------------- | ------------------------ | ----------------------------- |
+| **Purpose**            | Client-side highlighting & fetching | Interactive code editing | Displaying code with previews |
+| **State management**   | × No shared state                   | ✓ Shared editing state   | × Component-level only        |
+| **Dynamic loading**    | ✓ Custom loading functions          | × Static content focused | ✓ Various loading options     |
+| **User editing**       | × Display only                      | ✓ Real-time editing      | × Display only                |
+| **Build optimization** | × Client-side only                  | ✓ Can use precomputation | ✓ Build-time optimization     |
+| **Use case**           | Dynamic code display                | Code playgrounds         | Documentation sites           |
+
+## Troubleshooting
+
+### Common Issues
+
+**Highlighting not working:**
+
+- Ensure components are wrapped in `CodeProvider`
+- Check browser console for loading errors
+- Verify that code is being processed client-side
+
+**Performance issues:**
+
+- Consider using precomputed demos for static content
+- Implement loading states for better UX
+- Cache loaded code when possible
+
+**SSR errors:**
+
+- `CodeProvider` automatically handles SSR safety
+- Use `forceClient` on `CodeHighlighter` when needed
+- Ensure custom loading functions handle server/client differences

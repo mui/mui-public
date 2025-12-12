@@ -1,0 +1,232 @@
+# Create Sitemap
+
+The `createSitemap` factory function defines sitemap data for documentation sites. It works with the webpack loader for build-time precomputation in Next.js builds.
+
+## Overview
+
+> [!TIP]
+> Place your sitemap at `app/sitemap/index.ts` for automatic detection by [`withDocsInfra`](../with-docs-infra/page.mdx).
+
+```typescript
+import { createSitemap } from '@mui/internal-docs-infra/createSitemap';
+import DocsInfraComponents from '../docs-infra/components/page.mdx';
+import DocsInfraFunctions from '../docs-infra/functions/page.mdx';
+
+export const sitemap = createSitemap(import.meta.url, {
+  DocsInfraComponents,
+  DocsInfraFunctions,
+});
+```
+
+During Next.js builds, the [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) webpack loader processes this file and precomputes the sitemap data. Outside Next.js, use [`loadServerSitemap`](../load-server-sitemap/page.mdx) for runtime loading.
+
+---
+
+## API Reference
+
+```ts
+function createSitemap(
+  sourceUrl: string,
+  pages: Record<string, React.ComponentType>,
+  meta?: CreateSitemapMeta,
+): Sitemap | undefined;
+```
+
+Creates sitemap data from page components with optional precomputed data.
+
+### Parameters
+
+| Parameter   | Type                                  | Description                                 |
+| ----------- | ------------------------------------- | ------------------------------------------- |
+| `sourceUrl` | `string`                              | File URL from `import.meta.url`             |
+| `pages`     | `Record<string, React.ComponentType>` | Record of page components indexed by key    |
+| `meta`      | `CreateSitemapMeta`                   | Optional configuration and precomputed data |
+
+### Returns
+
+- **In Next.js builds**: `Sitemap` object with schema and precomputed page data
+- **Outside Next.js**: `undefined` (use [`loadServerSitemap`](../load-server-sitemap/page.mdx) instead)
+
+### Behavior
+
+1. **With precomputed data** (`meta.precompute`): Returns the precomputed sitemap directly
+2. **In Next.js context**: Throws an error if precomputation didn't happen (configuration issue)
+3. **Outside Next.js**: Returns `undefined` for graceful fallback
+
+---
+
+## Runtime Loading
+
+For loading sitemap data outside of Next.js builds (e.g., in tests, scripts, or non-Next.js applications), use [`loadServerSitemap`](../load-server-sitemap/page.mdx):
+
+```typescript
+import { loadServerSitemap } from '@mui/internal-docs-infra/pipeline/loadServerSitemap';
+
+// Load sitemap at runtime by parsing the sitemap index file
+const sitemap = await loadServerSitemap('file:///path/to/app/sitemap/index.ts');
+
+// sitemap.schema contains the Orama schema
+// sitemap.data contains all page metadata organized by section
+```
+
+---
+
+## File Structure
+
+The sitemap index file should be placed at `app/sitemap/index.ts`:
+
+```
+app/
+├── sitemap/
+│   └── index.ts              ← Sitemap definition
+├── docs-infra/
+│   ├── components/
+│   │   └── page.mdx          ← Section index
+│   └── functions/
+│       └── page.mdx          ← Section index
+```
+
+Each imported page component should be a markdown file that serves as a section index (e.g., `components/page.mdx` lists all components).
+
+---
+
+## Type Definitions
+
+### CreateSitemapMeta
+
+```ts
+interface CreateSitemapMeta {
+  name?: string;
+  slug?: string;
+  displayName?: string;
+  precompute?: Sitemap; // Injected by webpack loader
+  skipPrecompute?: boolean; // Disable precomputation
+}
+```
+
+### Sitemap
+
+```ts
+interface Sitemap {
+  schema: {
+    slug: 'string';
+    path: 'string';
+    title: 'string';
+    description: 'string';
+    sections: 'string[]';
+    subsections: 'string[]';
+    keywords: 'string[]';
+  };
+  data: Record<string, SitemapSectionData>;
+}
+```
+
+### SitemapSectionData
+
+```ts
+interface SitemapSectionData {
+  title: string;
+  prefix: string;
+  pages: SitemapPage[];
+}
+```
+
+### SitemapPage
+
+```ts
+interface SitemapPage {
+  slug: string;
+  path: string;
+  title: string;
+  description?: string;
+  keywords?: string[];
+  sections?: Record<string, SitemapSection>;
+}
+```
+
+---
+
+## Configuration
+
+### Skip Precomputation
+
+Disable precomputation for development or testing:
+
+```typescript
+export const sitemap = createSitemap(
+  import.meta.url,
+  { DocsInfraComponents, DocsInfraFunctions },
+  { skipPrecompute: true },
+);
+```
+
+### Webpack Loader Setup
+
+The webpack loader must be configured for the sitemap index file. See [`withDocsInfra`](../with-docs-infra/page.mdx) or [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) for configuration details.
+
+---
+
+## Integration with Search
+
+The sitemap data is designed for use with Orama search:
+
+```typescript
+import { create, insertMultiple, search } from '@orama/orama';
+import { loadServerSitemap } from '@mui/internal-docs-infra/pipeline/loadServerSitemap';
+
+// Load the sitemap at runtime
+const sitemap = await loadServerSitemap('file:///path/to/app/sitemap/index.ts');
+
+// Create search index with the schema
+const searchIndex = await create({
+  schema: sitemap.schema,
+});
+
+// Flatten and insert pages
+const pages = Object.entries(sitemap.data).flatMap(([_key, section]) =>
+  section.pages.map((page) => ({
+    ...page,
+    section: section.title,
+    prefix: section.prefix,
+  })),
+);
+
+await insertMultiple(searchIndex, pages);
+
+// Search
+const results = await search(searchIndex, { term: 'button' });
+```
+
+---
+
+## Populating the Sitemap
+
+The sitemap's page data (titles, descriptions, sections, keywords) comes from metadata exported by each MDX page. Use the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) remark plugin to automatically extract this metadata:
+
+```typescript
+// Each MDX page exports metadata like:
+export const metadata = {
+  title: 'Button',
+  description: 'A clickable button component.',
+  keywords: ['button', 'click', 'action'],
+};
+```
+
+The plugin extracts:
+
+- **Title** from the first H1 heading
+- **Description** from the first paragraph
+- **Sections** from the heading hierarchy (H2-H6)
+- **Keywords** from the metadata export
+
+See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) for configuration options and automatic index generation.
+
+---
+
+## Related
+
+- [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) - Extract metadata from MDX pages
+- [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - Webpack loader for build-time processing
+- [`loadServerSitemap`](../load-server-sitemap/page.mdx) - Runtime sitemap loading
+- [`loadServerPageIndex`](../load-server-page-index/page.mdx) - Loads individual page metadata
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin that configures the loader

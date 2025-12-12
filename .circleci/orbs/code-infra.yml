@@ -1,17 +1,8 @@
 version: 2.1
 
 commands:
-  install-deps:
-    description: 'Installs JavaScript dependencies using pnpm'
-    parameters:
-      package-overrides:
-        description: 'A space separated list of package@version to override during installation'
-        type: string
-        default: ''
-      ignore-workspace:
-        description: 'Set to true to ignore the pnpm workspace (useful for single-package repositories)'
-        type: boolean
-        default: false
+  install-pnpm:
+    description: 'Installs pnpm package manager using corepack'
     steps:
       - run:
           name: Set npm registry public signing keys
@@ -34,6 +25,20 @@ commands:
             if [ "${IS_BROWSER_ENV}" = "1" ]; then
               echo "Is browser image"
             fi
+
+  install-deps:
+    description: 'Installs JavaScript dependencies using pnpm'
+    parameters:
+      package-overrides:
+        description: 'A space separated list of package@version to override during installation'
+        type: string
+        default: ''
+      ignore-workspace:
+        description: 'Set to true to ignore the pnpm workspace (useful for single-package repositories)'
+        type: boolean
+        default: false
+    steps:
+      - install-pnpm
       - when:
           condition: << parameters.ignore-workspace >>
           steps:

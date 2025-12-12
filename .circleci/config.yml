@@ -31,9 +31,24 @@ jobs:
     steps:
       - checkout
       - code-infra/install-deps
+      - run:
+          name: Docs Infra Build
+          command: pnpm docs:lib
       - code-infra/eslint
       - code-infra/stylelint
       - code-infra/markdownlint
+  docs_validate:
+    <<: *default-job
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build docs-infra package
+          command: pnpm docs:lib
+      - code-infra/install-deps
+      - run:
+          name: Validate the documentation files
+          command: pnpm docs:validate
   test_static:
     <<: *default-job
     steps:
@@ -74,6 +89,9 @@ workflows:
           <<: *default-context
       - test_lint:
           <<: *default-context
+      - docs_validate:
+          <<: *default-context
+          name: 'Validating Docs'
       - test_static:
           <<: *default-context
       - test_unit:
