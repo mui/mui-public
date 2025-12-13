@@ -124,6 +124,49 @@ const parsed = parseCode(code, parseSource);
 // Converts string sources to HAST nodes for rendering
 ```
 
+### Enhancing Parsed Code
+
+Use `sourceEnhancers` to modify HAST nodes after parsing. Enhancers receive the parsed HAST root, any comments extracted from the source (via [`loadServerSource`](../load-server-source/page.mdx)), and the file name:
+
+```ts
+import type { SourceEnhancer, SourceComments } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { HastRoot } from 'hast';
+
+// SourceComments is Record<number, string[]> - line numbers to comment arrays
+
+// Example: Add line numbers based on comment sections
+const addSectionMarkers: SourceEnhancer = (root, comments, fileName) => {
+  // comments is Record<number, string[]> mapping line numbers to comment arrays
+  // Use comments to enhance the HAST tree, e.g., add section markers
+  if (comments) {
+    for (const [lineNumber, lineComments] of Object.entries(comments)) {
+      // Process comments to add markers, highlights, etc.
+    }
+  }
+  return root;
+};
+
+// Example: Async enhancer that fetches additional data
+const addTypeInfo: SourceEnhancer = async (root, comments, fileName) => {
+  const typeData = await fetchTypeInfo(fileName);
+  // Modify root with type information
+  return root;
+};
+
+const result = await loadCodeVariant(
+  'file:///app/components/button/Button.tsx',
+  'default',
+  variant,
+  {
+    sourceParser: createParseSource(),
+    loadSource: myLoadSourceFunction,
+    sourceEnhancers: [addSectionMarkers, addTypeInfo], // Run in order
+  },
+);
+```
+
+Enhancers run sequentially after parsing, each receiving the output of the previous enhancer. They are applied to both main files and extra files.
+
 ### Flattening for File Systems
 
 Convert nested variant structure to flat file paths:
@@ -298,6 +341,7 @@ Loads and processes a code variant with recursive extra file loading.
 - `loadSource` - Function to load source from URLs
 - `loadVariantMeta` - Function to resolve variant metadata
 - `sourceTransformers` - Array of source transformers
+- `sourceEnhancers` - Array of enhancer functions to process HAST after parsing
 - `globalsCode` - Global dependencies to merge
 - `disableTransforms` - Skip transform generation
 - `disableParsing` - Skip HAST parsing
@@ -435,9 +479,30 @@ Adds flat path properties to variant files.
 2. **Load Main File** - Load source code via `loadSource` if not provided
 3. **Apply Transforms** - Generate language variants (TypeScript → JavaScript)
 4. **Parse Source** - Convert strings to HAST nodes via `sourceParser`
-5. **Process Extra Files** - Recursively load and process dependencies
-6. **Merge Globals** - Add global dependencies with metadata flags
-7. **Track Dependencies** - Return all URLs for caching/hot reloading
+5. **Enhance HAST** - Run `sourceEnhancers` sequentially with comments from source
+6. **Process Extra Files** - Recursively load and process dependencies
+7. **Merge Globals** - Add global dependencies with metadata flags
+8. **Track Dependencies** - Return all URLs for caching/hot reloading
+
+### Source Enhancement Pipeline
+
+When `sourceEnhancers` are provided, they process the HAST after parsing:
+
+```ts
+// Enhancement flow
+const enhancedRoot = await sourceEnhancers.reduce(async (rootPromise, enhancer) => {
+  const root = await rootPromise;
+  return enhancer(root, comments, fileName);
+}, Promise.resolve(parsedRoot));
+```
+
+Each enhancer receives:
+
+- `root` - The current HAST root (output of previous enhancer)
+- `comments` - Comments extracted by `loadSource` (e.g., from `parseImportsAndComments`)
+- `fileName` - The file name for context
+
+Enhancers can be synchronous or asynchronous and are applied to both main files and extra files.
 
 ### Extra Files Resolution
 

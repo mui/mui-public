@@ -167,6 +167,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Loading with Extra Files
     - Loading with Global Dependencies
     - Parsing Code for Display
+    - Enhancing Parsed Code
     - Flattening for File Systems
     - Checking Data Availability
   - Advanced Usage
@@ -189,6 +190,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - addPathsToVariant
   - How It Works
     - Loading Pipeline
+    - Source Enhancement Pipeline
     - Extra Files Resolution
     - Transform Generation
     - Metadata Positioning
@@ -232,6 +234,10 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
     - 3\. Process Variants
     - 4\. Inserts Precompute Value
   - Output Structure
+  - Loader Options
+    - Comment Extraction Options
+    - Output Format Options
+    - Performance Options
   - Error Handling
     - Single Factory Function per File
     - Missing Files
@@ -461,6 +467,9 @@ The `loadServerSource` utility reads source files from the filesystem and analyz
     - `'canonical'`
     - `'import'`
   - Return Value
+  - Comment Processing
+    - `removeCommentsWithPrefix`
+    - `notableCommentsPrefix`
   - How It Works
   - Examples
     - Loading a JavaScript File

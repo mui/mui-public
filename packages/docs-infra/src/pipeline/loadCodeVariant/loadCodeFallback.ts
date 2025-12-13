@@ -76,6 +76,7 @@ export async function loadCodeFallback(
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     initialFilename,
     variants,
     globalsCode,
@@ -388,6 +389,7 @@ export async function loadCodeFallback(
       loadSource,
       loadVariantMeta,
       sourceTransformers: undefined, // sourceTransformers - skip transforms for fallback
+      sourceEnhancers,
       disableTransforms: true, // Don't apply transforms for fallback
       disableParsing: !shouldHighlight, // Only parse if highlighting is needed
       globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
@@ -470,6 +472,7 @@ export async function loadCodeFallback(
             loadSource,
             loadVariantMeta,
             sourceTransformers: undefined, // sourceTransformers
+            sourceEnhancers,
             disableTransforms: true,
             disableParsing: !shouldHighlight,
             output,

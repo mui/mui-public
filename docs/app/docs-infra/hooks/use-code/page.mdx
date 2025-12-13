@@ -97,6 +97,7 @@ interface UseCodeOpts {
   initialTransform?: string; // Initially selected transform
   fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
   saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
+  sourceEnhancers?: SourceEnhancers; // Functions to enhance parsed HAST sources
 }
 ```
 
@@ -605,6 +606,89 @@ Handles clipboard operations and copy state management.
 ### useSourceEditing
 
 Manages source code editing capabilities when available.
+
+### useSourceEnhancing
+
+Applies enhancer functions to parsed HAST sources asynchronously. Enhancers run in order after parsing and can modify the syntax tree (e.g., adding annotations, highlighting specific lines, injecting comments).
+
+## Source Enhancers
+
+Source enhancers allow you to modify the parsed HAST (Hypertext Abstract Syntax Tree) before rendering. This is useful for adding custom annotations, highlighting specific code patterns, or injecting metadata into the code display.
+
+### Basic Usage
+
+```tsx
+import type { SourceEnhancer, HastRoot } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+// Simple enhancer that adds a comment to the end of code
+const addCommentEnhancer: SourceEnhancer = (root, comments, fileName) => {
+  return {
+    ...root,
+    children: [...root.children, { type: 'text', value: '\n// Enhanced!' }],
+  };
+};
+
+function MyCodeContent(props) {
+  // Create stable reference to prevent infinite re-renders
+  const enhancers = React.useMemo(() => [addCommentEnhancer], []);
+
+  const code = useCode(props, {
+    sourceEnhancers: enhancers,
+  });
+
+  return <div>{code.selectedFile}</div>;
+}
+```
+
+### Async Enhancers
+
+Enhancers can be asynchronous, useful for fetching additional metadata or performing complex transformations:
+
+```tsx
+const asyncEnhancer: SourceEnhancer = async (root, comments, fileName) => {
+  // Fetch metadata or perform async operations
+  const metadata = await fetchCodeMetadata(fileName);
+
+  // Return enhanced HAST
+  return addMetadataToHast(root, metadata);
+};
+```
+
+### Chaining Enhancers
+
+Multiple enhancers run in sequence, each receiving the output of the previous:
+
+```tsx
+const enhancers = React.useMemo(
+  () => [highlightDeprecatedCode, addLineNumbers, injectTypeAnnotations],
+  [],
+);
+
+const code = useCode(props, { sourceEnhancers: enhancers });
+```
+
+### Using Comments
+
+Enhancers receive parsed comments from the source code, enabling comment-driven enhancements:
+
+```tsx
+const commentHighlighter: SourceEnhancer = (root, comments, fileName) => {
+  if (!comments) return root;
+
+  // Use comments to add highlighting or annotations
+  // comments structure: Record<number, string[]>
+  // where key is line number, value is array of comments on that line
+  return processCommentsIntoHighlights(root, comments);
+};
+```
+
+### Important Considerations
+
+> [!WARNING]
+> **Stable References Required**: Always use `React.useMemo` or define enhancer arrays outside your component to prevent infinite re-render loops. Creating new arrays on each render will cause the hook to continuously re-run enhancement.
+
+> [!NOTE]
+> **HAST Sources Only**: Enhancers only run on parsed HAST content (pre-computed at build time or parsed at runtime). String sources that haven't been parsed will not trigger enhancement.
 
 ## Best Practices
 

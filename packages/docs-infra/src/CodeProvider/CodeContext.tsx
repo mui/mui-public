@@ -7,6 +7,7 @@ import type {
   LoadVariantMeta,
   ParseSource,
   SourceTransformers,
+  SourceEnhancers,
   Code,
   ControlledCode,
   LoadFallbackCodeOptions,
@@ -48,6 +49,7 @@ export interface CodeContext {
   sourceParser?: Promise<ParseSource>;
   parseSource?: ParseSource; // Sync version when available
   sourceTransformers?: SourceTransformers;
+  sourceEnhancers?: SourceEnhancers;
   loadSource?: LoadSource;
   loadVariantMeta?: LoadVariantMeta;
   loadCodeMeta?: LoadCodeMeta;

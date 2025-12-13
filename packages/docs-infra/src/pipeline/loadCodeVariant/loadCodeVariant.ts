@@ -13,9 +13,12 @@ import type {
   ParseSource,
   LoadSource,
   SourceTransformers,
+  SourceEnhancers,
+  SourceComments,
   LoadFileOptions,
   LoadVariantOptions,
   Externals,
+  HastRoot,
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
@@ -151,6 +154,7 @@ async function loadSingleFile(
   loadSource: LoadSource | undefined,
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
   loadSourceCache: Map<
     string,
     Promise<{
@@ -158,6 +162,7 @@ async function loadSingleFile(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >,
   transforms?: Transforms,
@@ -170,6 +175,7 @@ async function loadSingleFile(
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
+  comments?: SourceComments;
 }> {
   const { disableTransforms = false, disableParsing = false } = options;
 
@@ -177,6 +183,7 @@ async function loadSingleFile(
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
+  let commentsFromSource: SourceComments | undefined;
 
   const functionName = 'Load Variant File';
   let currentMark = performanceMeasure(
@@ -209,6 +216,7 @@ async function loadSingleFile(
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
       externalsFromSource = loadResult.externals;
+      commentsFromSource = loadResult.comments;
 
       currentMark = performanceMeasure(
         currentMark,
@@ -326,13 +334,29 @@ async function loadSingleFile(
     try {
       const sourceString = finalSource;
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, fileName);
+      let parsedSource: HastRoot = parseSource(finalSource, fileName);
 
       currentMark = performanceMeasure(
         currentMark,
         { mark: 'Parsed File', measure: 'File Parsing' },
         [functionName, url || fileName],
       );
+
+      // Apply source enhancers if provided (run sequentially as a pipeline)
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          return enhancer(acc, commentsFromSource, fileName);
+        }, Promise.resolve(parsedSource));
+
+        currentMark = performanceMeasure(
+          currentMark,
+          { mark: 'Enhanced File', measure: 'File Enhancing' },
+          [functionName, url || fileName],
+        );
+      }
+
+      finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
         finalTransforms = await diffHast(
@@ -384,6 +408,7 @@ async function loadSingleFile(
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
+    comments: commentsFromSource,
   };
 }
 
@@ -399,6 +424,7 @@ async function loadExtraFiles(
   loadSource: LoadSource | undefined,
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
   loadSourceCache: Map<
     string,
     Promise<{
@@ -406,6 +432,7 @@ async function loadExtraFiles(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >,
   options: LoadFileOptions = {},
@@ -456,6 +483,7 @@ async function loadExtraFiles(
         loadSource,
         sourceParser,
         sourceTransformers,
+        sourceEnhancers,
         loadSourceCache,
         transforms,
         { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
@@ -518,6 +546,7 @@ async function loadExtraFiles(
       source: result.source,
       transforms: result.transforms,
       ...(metadata !== undefined && { metadata }),
+      ...(result.comments && { comments: result.comments }),
     };
 
     // Add files used from this file load
@@ -544,6 +573,7 @@ async function loadExtraFiles(
           loadSource,
           sourceParser,
           sourceTransformers,
+          sourceEnhancers,
           loadSourceCache,
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
           allFilesListed,
@@ -603,7 +633,14 @@ export async function loadCodeVariant(
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
 
-  const { sourceParser, loadSource, loadVariantMeta, sourceTransformers, globalsCode } = options;
+  const {
+    sourceParser,
+    loadSource,
+    loadVariantMeta,
+    sourceTransformers,
+    sourceEnhancers,
+    globalsCode,
+  } = options;
 
   // Create a cache for loadSource calls scoped to this loadCodeVariant call
   const loadSourceCache = new Map<
@@ -613,6 +650,7 @@ export async function loadCodeVariant(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >();
 
@@ -714,6 +752,7 @@ export async function loadCodeVariant(
     loadSource,
     sourceParser,
     sourceTransformers,
+    sourceEnhancers,
     loadSourceCache,
     variant.transforms,
     { ...options, loadedFiles },
@@ -941,6 +980,7 @@ export async function loadCodeVariant(
             loadSource,
             sourceParser,
             sourceTransformers,
+            sourceEnhancers,
             loadSourceCache,
             { ...options, loadedFiles },
             variant.allFilesListed || false,
@@ -961,6 +1001,7 @@ export async function loadCodeVariant(
         loadSource,
         sourceParser,
         sourceTransformers,
+        sourceEnhancers,
         loadSourceCache,
         { ...options, loadedFiles },
         variant.allFilesListed || false,
@@ -988,6 +1029,8 @@ export async function loadCodeVariant(
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,
+    // Include comments so they can be used by enhancers on server or client
+    ...(mainFileResult.comments && { comments: mainFileResult.comments }),
   };
 
   return {

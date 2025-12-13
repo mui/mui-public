@@ -6,6 +6,9 @@ import type {
   LoadSource,
   LoadVariantMeta,
   SourceTransformers,
+  SourceEnhancers,
+  HastRoot,
+  SourceComments,
 } from '../../CodeHighlighter/types';
 
 describe('loadCodeVariant', () => {
@@ -2760,6 +2763,287 @@ describe('loadCodeVariant - helper functions', () => {
         // @ts-expect-error
         process.env.NODE_ENV = originalEnv;
       }
+    });
+  });
+
+  describe('sourceEnhancers', () => {
+    it('should apply a single enhancer to the parsed HAST', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const enhancedHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+        data: { totalLines: 10 }, // Use a valid property to verify enhancement
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const mockEnhancer = vi.fn().mockReturnValue(enhancedHastRoot);
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      expect(mockParseSourceFn).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockEnhancer).toHaveBeenCalledWith(mockHastRoot, undefined, 'test.ts');
+      expect(result.code.source).toEqual(enhancedHastRoot);
+    });
+
+    it('should apply multiple enhancers in order (pipeline)', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'original' }],
+      };
+
+      const firstEnhancedRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'first' }],
+      };
+
+      const secondEnhancedRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'second' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const firstEnhancer = vi.fn().mockReturnValue(firstEnhancedRoot);
+      const secondEnhancer = vi.fn().mockReturnValue(secondEnhancedRoot);
+
+      const sourceEnhancers: SourceEnhancers = [firstEnhancer, secondEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      // First enhancer receives the parsed root
+      expect(firstEnhancer).toHaveBeenCalledWith(mockHastRoot, undefined, 'test.ts');
+      // Second enhancer receives the result of the first enhancer
+      expect(secondEnhancer).toHaveBeenCalledWith(firstEnhancedRoot, undefined, 'test.ts');
+      // Final result is from the second enhancer
+      expect(result.code.source).toEqual(secondEnhancedRoot);
+    });
+
+    it('should pass comments from loadSource to enhancers', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+      };
+
+      const mockComments: SourceComments = {
+        1: ['@highlight'],
+        5: ['@focus', '@important'],
+      };
+
+      const mockLoadSourceFn = vi.fn().mockResolvedValue({
+        source: 'const x = 1;',
+        comments: mockComments,
+      });
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const mockEnhancer = vi.fn().mockImplementation((root) => root);
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        loadSource: mockLoadSourceFn,
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      // Enhancer should receive the comments from loadSource
+      expect(mockEnhancer).toHaveBeenCalledWith(mockHastRoot, mockComments, 'test.ts');
+    });
+
+    it('should support async enhancers', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'original' }],
+      };
+
+      const asyncEnhancedRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'async-enhanced' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const asyncEnhancer = vi.fn().mockResolvedValue(asyncEnhancedRoot);
+
+      const sourceEnhancers: SourceEnhancers = [asyncEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      expect(asyncEnhancer).toHaveBeenCalled();
+      expect(result.code.source).toEqual(asyncEnhancedRoot);
+    });
+
+    it('should apply enhancers to extra files as well', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'import "./helper";',
+        extraFiles: {
+          'helper.ts': 'file:///helper.ts',
+        },
+      };
+
+      const mainHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'main' }],
+      };
+
+      const helperHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'helper' }],
+      };
+
+      const mockLoadSourceFn = vi.fn().mockResolvedValue({
+        source: 'const helper = true;',
+      });
+
+      const mockParseSourceFn = vi.fn().mockImplementation((source: string, fileName: string) => {
+        if (fileName === 'main.ts') {
+          return mainHastRoot;
+        }
+        return helperHastRoot;
+      });
+
+      const enhancerCalls: string[] = [];
+      const mockEnhancer = vi.fn().mockImplementation((root, _comments, fileName) => {
+        enhancerCalls.push(fileName);
+        // Return a new root with totalLines to verify enhancement
+        return { ...root, data: { totalLines: fileName.length } };
+      });
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        loadSource: mockLoadSourceFn,
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      // Enhancer should be called for both main file and extra file
+      expect(enhancerCalls).toContain('main.ts');
+      expect(enhancerCalls).toContain('helper.ts');
+
+      // Main file should be enhanced
+      expect((result.code.source as HastRoot).data?.totalLines).toBe('main.ts'.length);
+
+      // Extra file should also be enhanced
+      const helperFile = result.code.extraFiles!['helper.ts'] as { source: HastRoot };
+      expect(helperFile.source.data?.totalLines).toBe('helper.ts'.length);
+    });
+
+    it('should not call enhancers when disableParsing is true', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockParseSourceFn = vi.fn();
+      const mockEnhancer = vi.fn();
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableParsing: true,
+      });
+
+      // Parser should not be called when parsing is disabled
+      expect(mockParseSourceFn).not.toHaveBeenCalled();
+      // Enhancer should not be called since there's no parsed HAST
+      expect(mockEnhancer).not.toHaveBeenCalled();
+      // Source should remain as string
+      expect(result.code.source).toBe('const x = 1;');
+    });
+
+    it('should work with empty enhancers array', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const sourceEnhancers: SourceEnhancers = [];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      expect(mockParseSourceFn).toHaveBeenCalled();
+      expect(result.code.source).toEqual(mockHastRoot);
+    });
+
+    it('should work without sourceEnhancers option', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        disableTransforms: true,
+        // No sourceEnhancers provided
+      });
+
+      expect(mockParseSourceFn).toHaveBeenCalled();
+      expect(result.code.source).toEqual(mockHastRoot);
     });
   });
 });

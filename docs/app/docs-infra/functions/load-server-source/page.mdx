@@ -47,6 +47,8 @@ import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadSe
 const customLoadSource = createLoadServerSource({
   includeDependencies: true, // Whether to resolve imports (default: true)
   storeAt: 'flat', // How to store imports: 'canonical' | 'import' | 'flat' (default: 'flat')
+  removeCommentsWithPrefix: ['@internal'], // Remove comments starting with these prefixes from output
+  notableCommentsPrefix: ['@highlight', '@section'], // Mark comments with these prefixes as notable
   maxDepth: 10, // Maximum recursion depth (not implemented yet)
   maxFiles: 100, // Maximum files to process (not implemented yet)
 });
@@ -118,6 +120,7 @@ interface LoadSourceResult {
   extraFiles?: Record<string, string>; // Map of import paths to file URLs
   extraDependencies?: string[]; // Array of file URLs for recursive loading
   externals?: Externals; // External npm package dependencies
+  comments?: Record<number, string[]>; // Comments by line number (for sourceEnhancers)
 }
 
 // Externals type
@@ -133,15 +136,56 @@ interface ExternalImportItem {
 > [!IMPORTANT]
 > The values in `extraFiles` are file URLs (e.g., `'file:///app/utils.ts'`), not source code. This allows [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load each dependency file by calling `loadSource` again with the URL.
 
+## Comment Processing
+
+The function extracts comments from source files and returns them for use by [`sourceEnhancers`](../load-code-variant/page.mdx#enhancing-parsed-code). Two options control comment behavior:
+
+### `removeCommentsWithPrefix`
+
+Strips comments starting with specified prefixes from the output source, while still including them in the returned `comments` object:
+
+```ts
+const loadSource = createLoadServerSource({
+  removeCommentsWithPrefix: ['@internal', '@private'],
+});
+
+// Source file:
+// // @internal This is an implementation detail
+// // User-visible comment
+// const x = 1;
+
+const result = await loadSource('file:///example.ts');
+// result.source: "// User-visible comment\nconst x = 1;"
+// result.comments: { 1: ['@internal This is an implementation detail'], 2: ['User-visible comment'] }
+```
+
+This is useful for:
+
+- Removing build-time annotations from displayed code
+- Stripping internal documentation that shouldn't appear in demos
+- Hiding section markers used only for enhancer processing
+
+### `notableCommentsPrefix`
+
+Marks comments with specified prefixes as notable (reserved for future use):
+
+```ts
+const loadSource = createLoadServerSource({
+  notableCommentsPrefix: ['@highlight', '@section'],
+});
+```
+
 ## How It Works
 
 The function follows a straightforward pipeline:
 
 1. **Read File**: Loads the source from the filesystem
-2. **Parse Imports**: Extracts relative imports (starting with `./` or `../`) and external dependencies (npm packages) using [`parseImportsAndComments`](../parse-imports/page.mdx)
+2. **Parse Imports**: Extracts relative imports (starting with `./` or `../`), external dependencies (npm packages), and comments using [`parseImportsAndComments`](../parse-imports/page.mdx)
 3. **Resolve Paths**: For JavaScript/TypeScript files, resolves import paths to absolute file URLs using [`resolveImportResultWithFs`](../load-server-code-meta/page.mdx#resolveimportresultwithfs) (e.g., `./Button` → `/app/components/Button/index.tsx`)
 4. **Process Imports**: Builds the `extraFiles` mapping and optionally rewrites import statements based on `storeAt` mode using [`processRelativeImports`](../process-relative-imports/page.mdx)
-5. **Build Dependencies**: Creates `extraDependencies` array containing file URLs for [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load
+5. **Filter Comments**: If `removeCommentsWithPrefix` is set, strips matching comments from the source output
+6. **Build Dependencies**: Creates `extraDependencies` array containing file URLs for [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load
+7. **Return Comments**: Returns all parsed comments (by line number) for use by [`sourceEnhancers`](../load-code-variant/page.mdx#enhancing-parsed-code)
 
 > [!NOTE]
 > CSS files are handled differently—they skip step 3 because `parseImportsAndComments` already resolves paths for CSS `@import` and `url()` statements.

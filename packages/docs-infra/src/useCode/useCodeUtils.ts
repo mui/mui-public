@@ -1,4 +1,3 @@
-import { stringOrHastToJsx } from '../pipeline/hastUtils';
 import { applyCodeTransform } from '../pipeline/loadCodeVariant/applyCodeTransform';
 import type { VariantSource, VariantCode, Code, Transforms } from '../CodeHighlighter/types';
 
@@ -6,7 +5,6 @@ interface TransformedFile {
   name: string;
   originalName: string;
   source: VariantSource;
-  component: React.ReactNode;
 }
 
 export interface TransformedFiles {
@@ -131,7 +129,6 @@ export function applyTransformToSource(
 export function createTransformedFiles(
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
-  shouldHighlight: boolean,
 ): TransformedFiles | undefined {
   // Only create transformed files when there's actually a transform selected
   if (!selectedVariant || !selectedTransform) {
@@ -187,7 +184,6 @@ export function createTransformedFiles(
       name: mainName,
       originalName: fileName,
       source: mainSource,
-      component: stringOrHastToJsx(mainSource, shouldHighlight),
     });
   }
 
@@ -244,7 +240,6 @@ export function createTransformedFiles(
           name: transformedName,
           originalName: extraFileName,
           source: transformedSource,
-          component: stringOrHastToJsx(transformedSource, shouldHighlight),
         });
       } else {
         // If there's a conflict, skip this file with a warning

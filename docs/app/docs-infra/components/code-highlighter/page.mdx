@@ -448,6 +448,7 @@ The `CodeHighlighter` component accepts the following props:
 - `loadSource` (LoadSource): Function to load source code
 - `sourceParser` (Promise of ParseSource): Parser for syntax highlighting
 - `sourceTransformers` (SourceTransformer[]): Code transformers
+- `sourceEnhancers` (SourceEnhancers): Functions to enhance parsed HAST sources (see [Source Enhancers](../../hooks/use-code/page.mdx#source-enhancers))
 
 #### Fallback Props
 
@@ -654,6 +655,15 @@ type SourceTransformer = {
 };
 
 type SourceTransformers = Array<SourceTransformer>;
+
+// Enhancer function to modify parsed HAST
+type SourceEnhancer = (
+  root: HastRoot,
+  comments: SourceComments | undefined,
+  fileName: string,
+) => HastRoot | Promise<HastRoot>;
+
+type SourceEnhancers = Array<SourceEnhancer>;
 ```
 
 ### Loading Functions
