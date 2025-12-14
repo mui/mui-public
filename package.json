@@ -42,7 +42,7 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
-    "@eslint/compat": "^1.4.1",
+    "@eslint/compat": "^2.0.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
     "@next/eslint-plugin-next": "^15.5.6",
