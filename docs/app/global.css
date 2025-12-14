@@ -30,13 +30,6 @@
   padding: 0 6px;
 }
 
-.line[data-hl='strong']::after {
-  background: #ebe4ff;
-  border-radius: none;
-
-  content: '';
-}
-
 .line[data-hl-position='single'] {
   border-radius: 8px;
 }
@@ -49,4 +42,9 @@
 .line[data-hl-position='end'] {
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
+}
+
+.line[data-hl-description]::after {
+  content: attr(data-hl-description);
+  float: right;
 }

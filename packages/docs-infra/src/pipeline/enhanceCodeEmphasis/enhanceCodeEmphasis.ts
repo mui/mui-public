@@ -88,6 +88,19 @@ function parseEmphasisDirectives(comments: SourceComments): EmphasisDirective[] 
 }
 
 /**
+ * Capitalizes the first letter of a string.
+ *
+ * @param str - The string to capitalize
+ * @returns The string with the first letter capitalized
+ */
+function capitalize(str: string | undefined): string | undefined {
+  if (!str) {
+    return str;
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
  * Calculates which lines should be emphasized based on parsed directives.
  *
  * @param directives - Parsed emphasis directives
@@ -104,9 +117,9 @@ function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, 
     if (directive.type === 'single') {
       const strong = directive.description?.endsWith('!') ?? false;
       // Strip trailing ! from description since it's just a signal for strong emphasis
-      const description = strong
-        ? directive.description?.slice(0, -1).trimEnd()
-        : directive.description;
+      const description = capitalize(
+        strong ? directive.description?.slice(0, -1).trimEnd() : directive.description,
+      );
       emphasizedLines.set(directive.line, {
         description,
         strong,
@@ -140,9 +153,9 @@ function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, 
       // Check if this is a strong emphasis (description ends with !)
       const strong = startDirective.description?.endsWith('!') ?? false;
       // Strip trailing ! from description since it's just a signal for strong emphasis
-      const description = strong
-        ? startDirective.description?.slice(0, -1).trimEnd()
-        : startDirective.description;
+      const description = capitalize(
+        strong ? startDirective.description?.slice(0, -1).trimEnd() : startDirective.description,
+      );
 
       // Add all lines between start and end
       for (let line = startLine; line <= endLine; line += 1) {
