@@ -241,10 +241,10 @@ Lines in the HAST tree have this structure after enhancement:
 
 The enhancer adds these attributes to line elements:
 
-| Attribute             | Type              | Description                                                                                      |
-| --------------------- | ----------------- | ------------------------------------------------------------------------------------------------ |
-| `data-hl`             | boolean \| string | `true` for normal, `"strong"` if description ends with `!` or line is nested                     |
-| `data-hl-description` | string            | Description text (if provided in comment)                                                        |
+| Attribute             | Type              | Description                                                                                        |
+| --------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `data-hl`             | boolean \| string | `true` for normal, `"strong"` if description ends with `!` or line is nested                       |
+| `data-hl-description` | string            | Description text (if provided in comment)                                                          |
 | `data-hl-position`    | string            | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
 
 For single-line emphasis with `@demo see here`:
