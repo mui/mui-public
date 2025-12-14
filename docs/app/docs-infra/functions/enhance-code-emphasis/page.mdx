@@ -216,7 +216,7 @@ export default function Dashboard() {
 2. **Directive Parsing**: The enhancer scans comments for `@demo see here`, `@demo see below`, and `@demo see above` patterns
 3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@demo see below` to the last line before `@demo see above`
 4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
-5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: true` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements
+5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements
 
 ### HAST Structure
 
@@ -229,7 +229,7 @@ Lines in the HAST tree have this structure after enhancement:
   properties: {
     className: 'line',
     dataLn: 3,                          // Line number
-    dataHl: true,                       // Added by enhancer (or 'strong' for nested/!)
+    dataHl: '',                       // Added by enhancer (or 'strong' for nested/!)
     dataHlDescription: 'we track state',  // Optional description
     dataHlPosition: 'single'            // 'single' | 'start' | 'end' for line position
   },
@@ -241,11 +241,11 @@ Lines in the HAST tree have this structure after enhancement:
 
 The enhancer adds these attributes to line elements:
 
-| Attribute             | Type              | Description                                                                                        |
-| --------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `data-hl`             | boolean \| string | `true` for normal, `"strong"` if description ends with `!` or line is nested                       |
-| `data-hl-description` | string            | Description text (if provided in comment)                                                          |
-| `data-hl-position`    | string            | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
+| Attribute             | Type   | Description                                                                                        |
+| --------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| `data-hl`             | string | `""` for normal, `"strong"` if description ends with `!` or line is nested                         |
+| `data-hl-description` | string | Description text (if provided in comment)                                                          |
+| `data-hl-position`    | string | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
 
 For single-line emphasis with `@demo see here`:
 
@@ -280,13 +280,22 @@ Configure in your webpack loader or server-side loading:
 
 ```ts
 import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { loadCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
 
 const sourceEnhancers = [enhanceCodeEmphasis];
 
-// Use with loadServerSource
-const { source } = await loadServerSource('Component.tsx', {
-  sourceEnhancers,
+// Create a loadSource that extracts emphasis comments
+const loadSource = createLoadServerSource({
   notableCommentsPrefix: ['@demo see'],
+  removeCommentsWithPrefix: ['@demo see'],
+});
+
+// Use with loadCodeVariant
+const { code } = await loadCodeVariant(url, variantName, variant, {
+  loadSource,
+  sourceEnhancers,
+  sourceParser,
 });
 
 // Or with CodeHighlighter
@@ -294,6 +303,11 @@ const { source } = await loadServerSource('Component.tsx', {
   sourceEnhancers={sourceEnhancers}
   // ... other props
 />
+
+// Or with useCode
+const { selectedFile } = useCode(props, {
+  sourceEnhancers,
+});
 ```
 
 ### Comment Prefix
@@ -379,7 +393,7 @@ import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 
 function CodeLine({ node }) {
   const hlValue = node.properties?.dataHl;
-  const isEmphasized = hlValue === true || hlValue === 'strong';
+  const isEmphasized = hlValue === '' || hlValue === 'strong';
   const isStrong = hlValue === 'strong';
   const description = node.properties?.dataHlDescription;
   const position = node.properties?.dataHlPosition;
@@ -505,7 +519,7 @@ export const enhanceCodeEmphasis: SourceEnhancer;
 /**
  * The prefix used to identify emphasis comments in source code.
  */
-export const EMPHASIS_COMMENT_PREFIX: '@demo';
+export const EMPHASIS_COMMENT_PREFIX: '@demo see';
 
 /**
  * Source enhancer function type.
