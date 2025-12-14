@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.2",
-    "@types/node": "^20.19.25",
+    "@types/node": "^22.18.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@wooorm/starry-night": "^3.8.0",
