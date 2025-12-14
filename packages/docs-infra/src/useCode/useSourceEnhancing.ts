@@ -16,12 +16,10 @@ import type {
  * Used to determine if the source can be enhanced.
  */
 function isHastRoot(source: unknown): source is HastRoot {
-  return (
-    typeof source === 'object' &&
-    source !== null &&
-    'type' in source &&
-    (source as HastRoot).type === 'root'
-  );
+  if (typeof source !== 'object' || source === null) {
+    return false;
+  }
+  return 'type' in source && (source as HastRoot).type === 'root';
 }
 
 /**
