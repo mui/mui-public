@@ -375,7 +375,7 @@ The `data-hl` attribute can be targeted with CSS:
 
 ### Showing Descriptions
 
-You can display the description using CSS `::before` or JavaScript:
+You can display the description using CSS `::before`:
 
 ```css
 /* Show description as tooltip */
@@ -383,31 +383,6 @@ You can display the description using CSS `::before` or JavaScript:
   content: attr(data-hl-description);
   position: absolute;
   /* ... tooltip styles */
-}
-```
-
-Or with JavaScript/React:
-
-```tsx
-import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
-
-function CodeLine({ node }) {
-  const hlValue = node.properties?.dataHl;
-  const isEmphasized = hlValue === '' || hlValue === 'strong';
-  const isStrong = hlValue === 'strong';
-  const description = node.properties?.dataHlDescription;
-  const position = node.properties?.dataHlPosition;
-
-  return (
-    <span
-      className={`line ${isEmphasized ? 'emphasized' : ''} ${isStrong ? 'strong' : ''}`}
-      data-ln={node.properties?.dataLn}
-      data-hl-position={position}
-      title={description}
-    >
-      {hastToJsx(node.children)}
-    </span>
-  );
 }
 ```
 
