@@ -4,7 +4,12 @@ import type { Element, Text } from 'hast';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { Code } from '../../CodeHighlighter/types';
+import { parseImportsAndComments } from '../loaderUtils';
+import {
+  enhanceCodeEmphasis,
+  EMPHASIS_COMMENT_PREFIX,
+} from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
+import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
 
 /**
  * Maps common language class names to file extensions
@@ -221,9 +226,10 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
   return async (tree) => {
     const transformPromises: Promise<void>[] = [];
 
-    // Get the source parser and transformers
+    // Get the source parser, transformers, and enhancers
     const sourceParser = createParseSource();
     const sourceTransformers = [TypescriptToJavascriptTransformer];
+    const sourceEnhancers: SourceEnhancers = [enhanceCodeEmphasis];
 
     visit(tree, 'element', (node: Element) => {
       let extractedElements: Array<{
@@ -273,52 +279,67 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
             // Create variants from extracted elements
             const variants: Code = {};
 
+            // Process each extracted element to extract comments and prepare variants
+            const processElementForVariant = async (
+              codeElement: Element,
+              filename: string | undefined,
+              explicitVariantName: string | undefined,
+              index: number,
+            ): Promise<{ variantName: string; variant: any }> => {
+              const sourceCode = extractTextContent(codeElement);
+              const derivedFilename = filename || getFileName(codeElement);
+
+              // Parse the source to extract @demo see comments and strip them
+              const parseResult = await parseImportsAndComments(
+                sourceCode,
+                derivedFilename || 'code.txt',
+                {
+                  removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
+                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+                },
+              );
+
+              // Use processed code (with comments stripped) or original
+              const processedSource = parseResult.code ?? sourceCode;
+              // Keep comments as 0-indexed - loadCodeVariant will convert to 1-indexed
+              const comments = parseResult.comments;
+
+              const variant: any = {
+                source: processedSource,
+                skipTransforms: !codeElement.properties?.dataTransform,
+                comments, // Store comments for sourceEnhancers to use
+              };
+
+              // Add filename if available
+              if (derivedFilename) {
+                variant.fileName = derivedFilename;
+              }
+
+              const variantName =
+                explicitVariantName || (index === 0 ? 'Default' : `Variant ${index + 1}`);
+              return { variantName, variant };
+            };
+
             if (extractedElements.length === 1) {
               // Single element - use "Default" as variant name
               const { codeElement, filename } = extractedElements[0];
-              const sourceCode = extractTextContent(codeElement);
-
-              const variant: any = {
-                source: sourceCode,
-                skipTransforms: !codeElement.properties?.dataTransform,
-              };
-
-              // Add filename if available (prefer explicit filename over derived)
-              if (filename) {
-                variant.fileName = filename;
-              } else {
-                const derivedFilename = getFileName(codeElement);
-                if (derivedFilename) {
-                  variant.fileName = derivedFilename;
-                }
-              }
-
-              variants.Default = variant;
+              const { variantName, variant } = await processElementForVariant(
+                codeElement,
+                filename,
+                undefined,
+                0,
+              );
+              variants[variantName] = variant;
             } else {
               // Multiple elements - use variant names
-              extractedElements.forEach(({ codeElement, filename, variantName }, index) => {
-                const sourceCode = extractTextContent(codeElement);
-
-                // Determine variant name
-                const finalVariantName = variantName || `Variant ${index + 1}`;
-
-                const variant: any = {
-                  source: sourceCode,
-                  skipTransforms: !codeElement.properties?.dataTransform,
-                };
-
-                // Add filename if available (prefer explicit filename over derived)
-                if (filename) {
-                  variant.fileName = filename;
-                } else {
-                  const derivedFilename = getFileName(codeElement);
-                  if (derivedFilename) {
-                    variant.fileName = derivedFilename;
-                  }
-                }
-
-                variants[finalVariantName] = variant;
-              });
+              const results = await Promise.all(
+                extractedElements.map(({ codeElement, filename, variantName }, index) =>
+                  processElementForVariant(codeElement, filename, variantName, index),
+                ),
+              );
+              for (const { variantName, variant } of results) {
+                variants[variantName] = variant;
+              }
             }
 
             // Process each variant with loadCodeVariant
@@ -336,6 +357,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                       loadSource: undefined, // loadSource - not needed since we have the data
                       loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
                       sourceTransformers,
+                      sourceEnhancers, // For @demo see emphasis comments
                       disableTransforms: variantData.skipTransforms || false,
                       // TODO: output option
                       output: 'hastGzip',

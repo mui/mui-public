@@ -8,6 +8,7 @@
 - [Abstract Create Demo Client](#abstract-create-demo-client) - [Full Docs](./abstract-create-demo-client/page.mdx)
 - [Create Demo Data](#create-demo-data) - [Full Docs](./create-demo-data/page.mdx)
 - [Create Sitemap](#create-sitemap) [New] - [Full Docs](./create-sitemap/page.mdx)
+- [Enhance Code Emphasis](#enhance-code-emphasis) [New] - [Full Docs](./enhance-code-emphasis/page.mdx)
 - [HAST Utilities](#hast-utilities) - [Full Docs](./hast-utils/page.mdx)
 - [Load Code Variant](#load-code-variant) - [Full Docs](./load-code-variant/page.mdx)
 - [Load Precomputed Code Highlighter](#load-precomputed-code-highlighter) - [Full Docs](./load-precomputed-code-highlighter/page.mdx)
@@ -129,6 +130,56 @@ The `createSitemap` factory function defines sitemap data for documentation site
 </details>
 
 [Read more](./create-sitemap/page.mdx)
+
+## Enhance Code Emphasis
+
+The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines in code examples by marking them with a `data-hl` attribute. This allows you to highlight important code patterns or call attention to specific sections in demos using simple comment annotations.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Features
+  - Basic Usage
+  - Comment Patterns
+    - Single Line Emphasis
+    - Single Line with Description
+    - Strong Emphasis
+    - Multi-line Emphasis
+    - Multi-line with Description
+  - Comment Syntax
+    - Supported Formats
+    - Description Format
+  - Advanced Patterns
+    - Multiple Single Lines
+    - Nested Multi-line Blocks
+    - Mixed Single and Multi-line
+  - Implementation Details
+    - How It Works
+    - HAST Structure
+    - Data Attributes
+    - Stack-Based Pairing
+  - Configuration
+    - Adding to Source Enhancers
+    - Comment Prefix
+  - Styling Emphasized Lines
+    - Showing Descriptions
+  - Best Practices
+    - Be Specific
+    - Use Descriptions
+    - Group Related Lines
+    - Match Comment Style
+  - Troubleshooting
+    - Lines Not Being Emphasized
+    - Unmatched Multi-line Pairs
+    - Wrong Lines Emphasized
+  - Type Definitions
+  - Related
+
+</details>
+
+[Read more](./enhance-code-emphasis/page.mdx)
 
 ## HAST Utilities
 

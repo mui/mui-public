@@ -9,7 +9,11 @@ import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import {
+  enhanceCodeEmphasis,
+  EMPHASIS_COMMENT_PREFIX,
+} from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
@@ -164,17 +168,30 @@ export async function loadPrecomputedCodeHighlighter(
     const factoryRemoveComments = extractStringArray(structuredOptions?.removeCommentsWithPrefix);
     const factoryNotableComments = extractStringArray(structuredOptions?.notableCommentsPrefix);
 
+    // Always include @demo see for emphasis comments, plus any additional prefixes from options
+    const notableCommentsPrefix = [
+      EMPHASIS_COMMENT_PREFIX,
+      ...(factoryNotableComments ?? options.notableCommentsPrefix ?? []),
+    ];
+    const removeCommentsWithPrefix = [
+      EMPHASIS_COMMENT_PREFIX,
+      ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
+    ];
+
     const loadSource = createLoadServerSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
-      removeCommentsWithPrefix: factoryRemoveComments ?? options.removeCommentsWithPrefix,
-      notableCommentsPrefix: factoryNotableComments ?? options.notableCommentsPrefix,
+      removeCommentsWithPrefix,
+      notableCommentsPrefix,
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
     // const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
     // TODO: maybe we should have `loadPrecomputedCodeHighlighterWithJsToTs`
     const sourceTransformers: SourceTransformers = [];
+
+    // Setup source enhancers for post-parsing modifications
+    const sourceEnhancers: SourceEnhancers = [enhanceCodeEmphasis];
 
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();
@@ -222,6 +239,7 @@ export async function loadPrecomputedCodeHighlighter(
               loadSource, // For loading source files and dependencies
               loadVariantMeta: undefined,
               sourceTransformers, // For TypeScript to JavaScript conversion
+              sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
               maxDepth: 5,
               output: this.getOptions().output || 'hastGzip',
             },

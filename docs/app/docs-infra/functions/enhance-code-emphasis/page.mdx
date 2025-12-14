@@ -1,0 +1,532 @@
+# Enhance Code Emphasis
+
+The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines in code examples by marking them with a `data-hl` attribute. This allows you to highlight important code patterns or call attention to specific sections in demos using simple comment annotations.
+
+## Features
+
+- Single-line emphasis with `@demo see here` comments
+- Multi-line emphasis blocks with `@demo see below` / `@demo see above` pairs
+- Optional descriptions to explain what's being emphasized
+- **Strong emphasis** with `!` at the end of descriptions (e.g., `@demo see here where we must do this!`)
+- **Automatic strong emphasis for nested blocks** - lines inside multiple emphasis ranges are automatically marked as strong
+- Works with all code languages that support comments
+- Compatible with both inline and block comment styles
+
+---
+
+## Basic Usage
+
+```ts
+import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+// Use as a source enhancer
+const sourceEnhancers = [enhanceCodeEmphasis]; // @demo see here where we have an array
+
+// Pass to CodeHighlighter or use with enhanceCode
+```
+
+The enhancer processes `@demo see` comments in your source files and adds `data-hl` to the corresponding line elements in the HAST tree.
+
+---
+
+## Comment Patterns
+
+### Single Line Emphasis
+
+Emphasize the line containing the comment:
+
+```jsx
+export default function Button() {
+  return (
+    <button className="primary">Click me</button> {/* @demo see here */}
+  );
+}
+```
+
+The line with the `<button>` element will be emphasized.
+
+### Single Line with Description
+
+Add context about what's being emphasized:
+
+```jsx
+export default function Component() {
+  const [count, setCount] = useState(0); // @demo see here where we track state
+
+  return <div>{count}</div>;
+}
+```
+
+### Strong Emphasis
+
+End a description with `!` to mark it as strong emphasis (`data-hl="strong"`):
+
+```jsx
+export default function Component() {
+  const apiKey = process.env.API_KEY; // @demo see here where we must provide the API key!
+
+  return <div>...</div>;
+}
+```
+
+Strong emphasis is useful for highlighting critical code that users must pay attention to or modify.
+
+### Multi-line Emphasis
+
+Emphasize a range of lines between start and end markers:
+
+```jsx
+export default function Component() {
+  return (
+    // @demo see below
+    <div>
+      <h1>Heading 1</h1>
+      <p>Some content</p>
+    </div>
+    // @demo see above
+  );
+}
+```
+
+Lines 4-7 (from `<div>` through `</div>`) will be emphasized. The range starts at the first line after `@demo see below` and ends at the last line before `@demo see above`.
+
+### Multi-line with Description
+
+Explain what the emphasized section demonstrates:
+
+```jsx
+export default function Component() {
+  return (
+    // @demo see below where we add a heading with an h1
+    <div>
+      <h1>Heading 1</h1>
+    </div>
+    // @demo see above
+  );
+}
+```
+
+---
+
+## Comment Syntax
+
+### Supported Formats
+
+The enhancer recognizes these comment patterns:
+
+| Pattern                  | Effect                       |
+| ------------------------ | ---------------------------- |
+| `@demo see here`         | Emphasize current line       |
+| `@demo see here <desc>`  | Emphasize with description   |
+| `@demo see below`        | Start multi-line block       |
+| `@demo see below <desc>` | Start block with description |
+| `@demo see above`        | End multi-line block         |
+
+### Description Format
+
+Descriptions can optionally start with `where` which will be stripped:
+
+```jsx
+// @demo see here where we initialize the state
+const [value, setValue] = useState(0);
+
+// These are equivalent:
+// @demo see below where we render the component
+// @demo see below we render the component
+```
+
+---
+
+## Advanced Patterns
+
+### Multiple Single Lines
+
+You can emphasize multiple individual lines:
+
+```tsx
+export default function Form() {
+  const [name, setName] = useState(''); // @demo see here
+  const [email, setEmail] = useState(''); // @demo see here
+
+  return (
+    <form>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <input value={email} onChange={(e) => setEmail(e.target.value)} /> {/* @demo see here */}
+    </form>
+  );
+}
+```
+
+### Nested Multi-line Blocks
+
+The enhancer handles nested emphasis blocks using a stack-based algorithm. Lines that fall within multiple emphasis ranges are automatically marked with **strong emphasis** (`data-hl="strong"`):
+
+```jsx
+export default function Component() {
+  return (
+    // @demo see below outer block
+    <div>
+      <header>Title</header>
+      // @demo see below inner block
+      <main>
+        <p>Content</p>
+      </main>
+      // @demo see above inner block
+      <footer>Footer</footer>
+    </div>
+    // @demo see above outer block
+  );
+}
+```
+
+In this example:
+
+- The outer block lines (`<div>`, `<header>`, `<footer>`, `</div>`) get normal emphasis
+- The inner block lines (`<main>`, `<p>`, `</main>`) get **strong emphasis** because they're nested within both ranges
+- Position markers (`data-hl-position`) are preserved from the innermost range
+
+### Mixed Single and Multi-line
+
+Combine both patterns in the same file:
+
+```tsx
+export default function Dashboard() {
+  const [data, setData] = useState([]); // @demo see here
+
+  return (
+    <div>
+      <Header />
+      // @demo see below
+      <Chart data={data} />
+      <Table data={data} />
+      // @demo see above
+      <Footer /> {/* @demo see here */}
+    </div>
+  );
+}
+```
+
+---
+
+## Implementation Details
+
+### How It Works
+
+1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@demo see']`
+2. **Directive Parsing**: The enhancer scans comments for `@demo see here`, `@demo see below`, and `@demo see above` patterns
+3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@demo see below` to the last line before `@demo see above`
+4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
+5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: true` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements
+
+### HAST Structure
+
+Lines in the HAST tree have this structure after enhancement:
+
+```ts
+{
+  type: 'element',
+  tagName: 'span',
+  properties: {
+    className: 'line',
+    dataLn: 3,                          // Line number
+    dataHl: true,                       // Added by enhancer (or 'strong' for nested/!)
+    dataHlDescription: 'we track state',  // Optional description
+    dataHlPosition: 'single'            // 'single' | 'start' | 'end' for line position
+  },
+  children: [/* code tokens */]
+}
+```
+
+### Data Attributes
+
+The enhancer adds these attributes to line elements:
+
+| Attribute             | Type              | Description                                                                                      |
+| --------------------- | ----------------- | ------------------------------------------------------------------------------------------------ |
+| `data-hl`             | boolean \| string | `true` for normal, `"strong"` if description ends with `!` or line is nested                     |
+| `data-hl-description` | string            | Description text (if provided in comment)                                                        |
+| `data-hl-position`    | string            | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
+
+For single-line emphasis with `@demo see here`:
+
+- `data-hl` is set (or `data-hl="strong"` if description ends with `!`)
+- `data-hl-description` is set if a description was provided
+- `data-hl-position="single"` is set to distinguish from multiline range boundaries
+
+For multi-line emphasis with `@demo see below` / `@demo see above`:
+
+- `data-hl` is set on all lines in the range (or `data-hl="strong"` if description ends with `!` or line is nested)
+- `data-hl-description` is set on the **first** line (if provided)
+- `data-hl-position="start"` is set on the **first** line (only for ranges with more than one line)
+- `data-hl-position="end"` is set on the **last** line (only for ranges with more than one line)
+
+### Stack-Based Pairing
+
+Multi-line directives are paired using a stack:
+
+- `@demo see below` pushes onto the stack
+- `@demo see above` pops from the stack and emphasizes the range
+- Inner (nested) ranges are processed before outer ranges
+- Lines that appear in multiple ranges are automatically marked as strong emphasis
+- Position markers from inner ranges are preserved when outer ranges are processed
+
+---
+
+## Configuration
+
+### Adding to Source Enhancers
+
+Configure in your webpack loader or server-side loading:
+
+```ts
+import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+const sourceEnhancers = [enhanceCodeEmphasis];
+
+// Use with loadServerSource
+const { source } = await loadServerSource('Component.tsx', {
+  sourceEnhancers,
+  notableCommentsPrefix: ['@demo see'],
+});
+
+// Or with CodeHighlighter
+<CodeHighlighter
+  sourceEnhancers={sourceEnhancers}
+  // ... other props
+/>
+```
+
+### Comment Prefix
+
+The default comment prefix is `@demo see`, exported as `EMPHASIS_COMMENT_PREFIX`:
+
+```ts
+import { EMPHASIS_COMMENT_PREFIX } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+console.log(EMPHASIS_COMMENT_PREFIX); // '@demo see'
+```
+
+To use a different prefix, you would need to create a custom enhancer based on this implementation.
+
+---
+
+## Styling Emphasized Lines
+
+The `data-hl` attribute can be targeted with CSS:
+
+```css
+/* Highlight emphasized lines */
+.line[data-hl] {
+  background-color: rgba(255, 255, 0, 0.1);
+  border-left: 2px solid #ffd700;
+  padding-left: 8px;
+}
+
+/* Strong emphasis for critical lines (descriptions ending with !) */
+.line[data-hl='strong'] {
+  background-color: rgba(255, 100, 100, 0.15);
+  border-left: 3px solid #ff4444;
+}
+
+/* Single-line emphasis - rounded on all corners */
+.line[data-hl-position='single'] {
+  border-radius: 4px;
+}
+
+/* Multiline block start - rounded top corners */
+.line[data-hl-position='start'] {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+/* Multiline block end - rounded bottom corners */
+.line[data-hl-position='end'] {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* Dark mode variant */
+@media (prefers-color-scheme: dark) {
+  .line[data-hl] {
+    background-color: rgba(255, 255, 0, 0.05);
+    border-left-color: #b8860b;
+  }
+
+  .line[data-hl='strong'] {
+    background-color: rgba(255, 100, 100, 0.1);
+    border-left-color: #cc3333;
+  }
+}
+```
+
+### Showing Descriptions
+
+You can display the description using CSS `::before` or JavaScript:
+
+```css
+/* Show description as tooltip */
+.line[data-hl-description]::before {
+  content: attr(data-hl-description);
+  position: absolute;
+  /* ... tooltip styles */
+}
+```
+
+Or with JavaScript/React:
+
+```tsx
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
+
+function CodeLine({ node }) {
+  const hlValue = node.properties?.dataHl;
+  const isEmphasized = hlValue === true || hlValue === 'strong';
+  const isStrong = hlValue === 'strong';
+  const description = node.properties?.dataHlDescription;
+  const position = node.properties?.dataHlPosition;
+
+  return (
+    <span
+      className={`line ${isEmphasized ? 'emphasized' : ''} ${isStrong ? 'strong' : ''}`}
+      data-ln={node.properties?.dataLn}
+      data-hl-position={position}
+      title={description}
+    >
+      {hastToJsx(node.children)}
+    </span>
+  );
+}
+```
+
+---
+
+## Best Practices
+
+### Be Specific
+
+Use single-line emphasis for specific statements:
+
+```tsx
+// ✓ Good - highlights the important line
+const result = await fetchData(); // @demo see here
+
+// ✗ Avoid - too vague
+function processData() {
+  // @demo see below
+  const result = await fetchData();
+  return result;
+  // @demo see above
+}
+```
+
+### Use Descriptions
+
+Add context when the emphasis isn't obvious:
+
+```tsx
+// ✓ Good - explains what to notice
+<div className="container"> {/* @demo see here where we add the container class */}
+
+// ✗ Less helpful - just marks the line
+<div className="container"> {/* @demo see here */}
+```
+
+### Group Related Lines
+
+Use multi-line emphasis for logical code blocks:
+
+```tsx
+// ✓ Good - emphasizes the complete pattern
+// @demo see below where we handle the form submission
+<form onSubmit={handleSubmit}>
+  <input type="text" value={name} onChange={handleChange} />
+  <button type="submit">Submit</button>
+</form>
+// @demo see above
+```
+
+### Match Comment Style
+
+Use the appropriate comment style for your language:
+
+```tsx
+// JSX/TSX - use {/* */} for inline, // for block
+<div>{/* @demo see here */}</div>
+// @demo see below
+
+// JavaScript/TypeScript - use //
+const x = 42; // @demo see here
+
+// CSS - use /* */
+.button {
+  color: blue; /* @demo see here */
+}
+```
+
+---
+
+## Troubleshooting
+
+### Lines Not Being Emphasized
+
+Check that:
+
+1. Comments are being extracted with `notableCommentsPrefix: ['@demo']`
+2. The comment syntax exactly matches the expected patterns
+3. Multi-line pairs have matching start/end markers
+4. Line numbers in the HAST tree match your source
+
+### Unmatched Multi-line Pairs
+
+If you have unmatched `@demo see below` or `@demo see above`:
+
+- Extra `@demo see above` → ignored (no effect)
+- Extra `@demo see below` → ignored (no matching end)
+
+Check your code for balanced pairs.
+
+### Wrong Lines Emphasized
+
+Verify that:
+
+- Comments are on the correct lines in your source
+- Line numbers in HAST tree match (check `dataLn` properties)
+- Comment extraction isn't removing the comments from the source
+
+---
+
+## Type Definitions
+
+```ts
+/**
+ * Source enhancer that adds emphasis to code lines based on @demo comments.
+ */
+export const enhanceCodeEmphasis: SourceEnhancer;
+
+/**
+ * The prefix used to identify emphasis comments in source code.
+ */
+export const EMPHASIS_COMMENT_PREFIX: '@demo';
+
+/**
+ * Source enhancer function type.
+ */
+type SourceEnhancer = (
+  root: HastRoot,
+  comments: SourceComments | undefined,
+  fileName: string,
+) => HastRoot | Promise<HastRoot>;
+
+/**
+ * Comments extracted from source code, keyed by line number.
+ */
+type SourceComments = Record<number, string[]>;
+```
+
+---
+
+## Related
+
+- [Parse Source](../parse-source/page.mdx) - Syntax highlighting and HAST generation
+- [HAST Utilities](../hast-utils/page.mdx) - Converting HAST to React JSX
+- [Load Server Source](../load-server-source/page.mdx) - Loading source files with enhancers
+- [Code Highlighter](../../components/code-highlighter/page.mdx) - Displaying code with emphasis

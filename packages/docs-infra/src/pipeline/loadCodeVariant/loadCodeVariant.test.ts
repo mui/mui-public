@@ -2854,6 +2854,12 @@ describe('loadCodeVariant - helper functions', () => {
         5: ['@focus', '@important'],
       };
 
+      // Comments are converted from 0-indexed (loadSource) to 1-indexed (HAST) before passing to enhancers
+      const expectedOneIndexedComments: SourceComments = {
+        2: ['@highlight'],
+        6: ['@focus', '@important'],
+      };
+
       const mockLoadSourceFn = vi.fn().mockResolvedValue({
         source: 'const x = 1;',
         comments: mockComments,
@@ -2876,8 +2882,12 @@ describe('loadCodeVariant - helper functions', () => {
         disableTransforms: true,
       });
 
-      // Enhancer should receive the comments from loadSource
-      expect(mockEnhancer).toHaveBeenCalledWith(mockHastRoot, mockComments, 'test.ts');
+      // Enhancer should receive the comments from loadSource, converted to 1-indexed for HAST
+      expect(mockEnhancer).toHaveBeenCalledWith(
+        mockHastRoot,
+        expectedOneIndexedComments,
+        'test.ts',
+      );
     });
 
     it('should support async enhancers', async () => {

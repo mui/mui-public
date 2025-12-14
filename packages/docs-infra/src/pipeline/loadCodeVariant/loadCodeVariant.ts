@@ -22,6 +22,25 @@ import type {
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
+/**
+ * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
+ * parseImportsAndComments uses 0-based line numbers, but HAST dataLn uses 1-based.
+ */
+function convertCommentsToOneIndexed(
+  comments: SourceComments | undefined,
+): SourceComments | undefined {
+  if (!comments) {
+    return undefined;
+  }
+  const converted: SourceComments = {};
+  for (const [lineStr, commentArray] of Object.entries(comments)) {
+    const zeroBasedLine = parseInt(lineStr, 10);
+    const oneBasedLine = zeroBasedLine + 1;
+    converted[oneBasedLine] = commentArray;
+  }
+  return converted;
+}
+
 function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     compress(input, options, (err, output) => {
@@ -169,6 +188,7 @@ async function loadSingleFile(
   options: LoadFileOptions = {},
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
+  variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
   transforms?: Transforms;
@@ -183,7 +203,7 @@ async function loadSingleFile(
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
-  let commentsFromSource: SourceComments | undefined;
+  let commentsFromSource: SourceComments | undefined = variantComments;
 
   const functionName = 'Load Variant File';
   let currentMark = performanceMeasure(
@@ -344,9 +364,14 @@ async function loadSingleFile(
 
       // Apply source enhancers if provided (run sequentially as a pipeline)
       if (sourceEnhancers && sourceEnhancers.length > 0) {
+        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
+        const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+
         parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
           const acc = await accPromise;
-          return enhancer(acc, commentsFromSource, fileName);
+          const result = await enhancer(acc, oneIndexedComments, fileName);
+
+          return result;
         }, Promise.resolve(parsedSource));
 
         currentMark = performanceMeasure(
@@ -408,7 +433,8 @@ async function loadSingleFile(
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
-    comments: commentsFromSource,
+    // Convert comments to 1-indexed for HAST compatibility when stored on variant
+    comments: convertCommentsToOneIndexed(commentsFromSource),
   };
 }
 
@@ -758,6 +784,7 @@ export async function loadCodeVariant(
     { ...options, loadedFiles },
     variant.allFilesListed || false,
     knownExtraFiles,
+    variant.comments,
   );
 
   // Add files used from main file loading
