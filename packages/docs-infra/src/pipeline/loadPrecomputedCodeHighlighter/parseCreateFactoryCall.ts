@@ -274,7 +274,7 @@ function parseVariantsObjectFromObject(
 
 /**
  * Helper function to convert the new parseImportsAndComments format to a Map
- * that maps import names to their resolved paths
+ * that maps import names to their resolved URLs
  */
 function buildImportMap(
   importResult: ImportsAndComments,
@@ -282,11 +282,11 @@ function buildImportMap(
 ): Map<string, string> {
   const importMap = new Map<string, string>();
 
-  Object.values(importResult.relative).forEach(({ path, names }) => {
+  Object.values(importResult.relative).forEach(({ url, names }) => {
     names.forEach(({ name, alias }) => {
       // Use alias if available, otherwise use the original name
       const nameToUse = alias || name;
-      importMap.set(nameToUse, path);
+      importMap.set(nameToUse, url);
     });
   });
 
