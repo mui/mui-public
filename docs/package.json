@@ -16,7 +16,7 @@
     "@mui/internal-docs-infra": "workspace:^",
     "@next/mdx": "^15.3.4",
     "@types/mdx": "^2.0.13",
-    "lucide-react": "^0.556.0",
+    "lucide-react": "^0.559.0",
     "next": "^15.5.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.2",
-    "@types/node": "^20.19.25",
+    "@types/node": "^22.18.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@wooorm/starry-night": "^3.8.0",

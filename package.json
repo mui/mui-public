@@ -40,9 +40,9 @@
     }
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
+    "@actions/core": "^2.0.0",
     "@actions/github": "^6.0.1",
-    "@eslint/compat": "^1.4.1",
+    "@eslint/compat": "^2.0.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
     "@next/eslint-plugin-next": "^15.5.6",
@@ -59,19 +59,19 @@
     "prettier": "~3.6.2",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.3",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.7"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "eslint-plugin-n": "^17.23.1",
-    "markdownlint-cli2": "^0.19.1",
+    "markdownlint-cli2": "^0.20.0",
     "stylelint": "^16.26.1"
   },
-  "packageManager": "pnpm@10.20.0",
+  "packageManager": "pnpm@10.25.0",
   "engines": {
-    "pnpm": "10.20.0",
+    "pnpm": "10.25.0",
     "node": ">=22.18.0"
   }
 }
