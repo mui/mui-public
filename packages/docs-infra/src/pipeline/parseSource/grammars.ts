@@ -25,7 +25,7 @@ export const grammars = [
 export const extensionMap: Record<string, string> = {
   '.js': 'source.js',
   '.ts': 'source.ts',
-  '.jsx': 'source.tsx', // TODO: is there a JSX grammar?
+  '.jsx': 'source.tsx',
   '.tsx': 'source.tsx',
   '.json': 'source.json',
   '.md': 'text.md',
@@ -45,7 +45,7 @@ export const languageToGrammarMap: Record<string, string> = {
   javascript: 'source.js',
   ts: 'source.ts',
   typescript: 'source.ts',
-  jsx: 'source.tsx', // TODO: is there a JSX grammar?
+  jsx: 'source.tsx',
   tsx: 'source.tsx',
   json: 'source.json',
   md: 'text.md',

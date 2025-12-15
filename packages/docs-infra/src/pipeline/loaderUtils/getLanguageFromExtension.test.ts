@@ -20,7 +20,7 @@ describe('getLanguageFromExtension', () => {
       ['.css', 'css'],
       ['.sh', 'shell'],
       ['.yaml', 'yaml'],
-    ])('returns "%s" for extension "%s"', (expectedLanguage, extension) => {
+    ])('returns "%s" for extension "%s"', (extension, expectedLanguage) => {
       expect(getLanguageFromExtension(extension)).toBe(expectedLanguage);
     });
   });
