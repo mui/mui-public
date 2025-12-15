@@ -14,6 +14,7 @@ export const languageMap: Record<string, string> = {
   '.css': 'css',
   '.sh': 'shell',
   '.yaml': 'yaml',
+  '.yml': 'yaml',
 };
 
 /**
