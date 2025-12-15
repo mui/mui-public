@@ -486,18 +486,32 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Overview
   - Architecture
   - Core Functions
-    - parseImports
+    - parseImportsAndComments
     - resolveModulePath
+    - resolveModulePaths
+    - resolveImportResult
+    - resolveVariantPaths
     - processRelativeImports
     - getFileNameFromUrl
     - extractNameAndSlugFromUrl
     - externalsToPackages
-    - mergeExternals
     - rewriteImports
-  - Filesystem Wrappers
+    - rewriteImportsToNull
+    - removeImports
+  - Path Conversion Utilities
+    - fileUrlToPortablePath
+    - portablePathToFileUrl
+  - Language Detection Utilities
+    - getLanguageFromExtension
+    - normalizeLanguage
+    - languageMap / languageAliasMap
+  - Module Detection
+    - isJavaScriptModule
   - Complete Pipeline Example
   - Type Definitions
-    - Core Types
+    - Import Types
+    - Resolution Types
+    - Processing Types
     - Extension Constants
   - Performance Optimizations
     - Filesystem Access Optimization
@@ -670,7 +684,7 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
     - Individual Code Blocks Not Processing
     - Code Blocks Not Grouping
     - Labels Not Working
-    - Missing Language Attributes
+    - Missing Language Classes
   - Technical Details
     - HTML Structure
     - Data Attributes
@@ -725,7 +739,7 @@ A remark plugin that automatically cleans up "[See Demo]" links and horizontal r
 
 ## Transform Markdown Metadata
 
-A remark plugin that extracts metadata from MDX files and optionally updates parent directory index pages. This plugin automatically collects page titles, descriptions, keywords, hierarchical section structures, and Open Graph data to create searchable, navigable documentation indexes.
+A remark plugin that extracts metadata from MDX files and optionally updates parent directory index pages. This plugin automatically collects page titles, descriptions, keywords, and hierarchical section structures to create searchable, navigable documentation indexes.
 
 <details>
 
