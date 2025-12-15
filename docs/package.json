@@ -2,9 +2,9 @@
   "name": "docs",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "build-exp": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "build-exp": "next build",
     "start": "serve ./export",
     "docs-infra": "docs-infra",
     "validate": "docs-infra validate --command 'pnpm validate'"
