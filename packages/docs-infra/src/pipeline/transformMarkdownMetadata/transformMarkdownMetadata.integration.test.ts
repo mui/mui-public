@@ -122,10 +122,6 @@ Import and use the button...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
         }
       };
       "
@@ -261,17 +257,13 @@ Complex button example...`;
               }
             }
           }
-        },
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
         }
       };
       "
     `);
   });
 
-  it('should fill in openGraph metadata', async () => {
+  it('should extract basic metadata without sections', async () => {
     const input = `# Button Component
 
 A versatile button component for interactive actions.`;
@@ -303,11 +295,7 @@ A versatile button component for interactive actions.`;
               offset: 73
             }
           }
-        }],
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
-        }
+        }]
       };
       "
     `);
@@ -395,10 +383,6 @@ Install the package...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
         }
       };
       "
@@ -464,10 +448,6 @@ The checkbox accepts...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Checkbox Component",
-          description: "A checkbox component for binary selections."
         }
       };
       "
@@ -563,10 +543,6 @@ The checkbox accepts...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Select Component",
-          description: "A \`<select>\` component for choosing options."
         }
       };
       "
@@ -865,8 +841,6 @@ A versatile button component.`;
     expect(metadataJs).toBeTruthy();
     // The exported title should have the suffix
     expect(metadataJs).toContain('title: "Button Component | My Site"');
-    // openGraph title should still have the original title (no suffix)
-    expect(metadataJs).toContain('title: "Button Component"');
   });
 
   it('should append titleSuffix when updating existing metadata', async () => {

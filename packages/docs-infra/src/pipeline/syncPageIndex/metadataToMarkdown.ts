@@ -458,7 +458,7 @@ export function metadataToMarkdownAst(
   // Add page list (editable section) as proper list items
   const listItems: any[] = [];
   for (const page of pages) {
-    const pageTitle = page.openGraph?.title || page.title || page.slug;
+    const pageTitle = page.title || page.slug;
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -516,12 +516,11 @@ export function metadataToMarkdownAst(
 
   // Add detailed page sections (non-editable)
   for (const page of pages) {
-    const pageTitle = page.openGraph?.title || page.title || page.slug;
+    const pageTitle = page.title || page.slug;
     // Note: We don't replace newlines here to allow natural line breaks in detailed sections
-    const description =
-      page.openGraph?.description || page.description || 'No description available';
+    const description = page.description || 'No description available';
     const keywords = page.keywords || [];
-    const image = page.openGraph?.images?.[0];
+    const image = page.image;
 
     // Add page heading
     children.push(heading(2, pageTitle));
@@ -816,7 +815,7 @@ export function metadataToMarkdown(
 
   // Add page list (editable section)
   for (const page of pages) {
-    const pageTitle = page.openGraph?.title || page.title || page.slug;
+    const pageTitle = page.title || page.slug;
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -869,18 +868,17 @@ export function metadataToMarkdown(
       continue;
     }
 
-    const pageTitle = page.openGraph?.title || page.title || page.slug;
+    const pageTitle = page.title || page.slug;
     // Use descriptionMarkdown to preserve formatting if available
     // Note: We don't replace newlines here to allow natural line breaks in detailed sections
     let pageDescription: string;
     if (page.descriptionMarkdown && page.descriptionMarkdown.length > 0) {
       pageDescription = astNodesToMarkdown(page.descriptionMarkdown);
     } else {
-      pageDescription =
-        page.openGraph?.description || page.description || 'No description available';
+      pageDescription = page.description || 'No description available';
     }
     const keywords = page.keywords || [];
-    const image = page.openGraph?.images?.[0];
+    const image = page.image;
 
     // Add page heading
     lines.push(`## ${pageTitle}`);
@@ -1144,10 +1142,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             description: 'No description available',
             tags: tags.length > 0 ? tags : undefined,
             skipDetailSection: true, // Mark as external/single-link entry
-            openGraph: {
-              title: pageTitle,
-              description: 'No description available',
-            },
           });
         } else if (links.length >= 2) {
           // Two-link format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
@@ -1191,10 +1185,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             title: pageTitle,
             description: 'No description available', // Will be updated from details section
             tags: tags.length > 0 ? tags : undefined,
-            openGraph: {
-              title: pageTitle,
-              description: 'No description available', // Will be updated from details section
-            },
           });
         }
       }
@@ -1287,10 +1277,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           if (paragraphNode.children) {
             currentPage.descriptionMarkdown = stripPositions(paragraphNode.children);
           }
-          if (!currentPage.openGraph) {
-            currentPage.openGraph = {};
-          }
-          currentPage.openGraph.description = paragraphText;
           return;
         }
       }
@@ -1298,17 +1284,10 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       // Parse image
       if (currentPage && node.type === 'image') {
         const imageNode = node as ImageNode;
-        if (!currentPage.openGraph) {
-          currentPage.openGraph = {};
-        }
-        currentPage.openGraph.images = [
-          {
-            url: imageNode.url,
-            width: 800,
-            height: 600,
-            alt: imageNode.alt || currentPage.title || currentPage.slug || '',
-          },
-        ];
+        currentPage.image = {
+          url: imageNode.url,
+          alt: imageNode.alt || currentPage.title || currentPage.slug || '',
+        };
         return;
       }
     }

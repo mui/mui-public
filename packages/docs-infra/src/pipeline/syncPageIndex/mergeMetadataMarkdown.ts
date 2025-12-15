@@ -130,12 +130,6 @@ export async function mergeMetadataMarkdown(
         skipDetailSection: existingPage.skipDetailSection,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
-        // Merge openGraph, but ensure description comes from newPage if it has one
-        openGraph:
-          newPage.openGraph ??
-          (newPage.description
-            ? { ...existingPage.openGraph, description: newPage.description }
-            : existingPage.openGraph),
       };
       pages.push(merged);
       addedPaths.add(newPage.path);
