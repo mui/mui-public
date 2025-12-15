@@ -26,8 +26,8 @@ export default function setupVitest(config: Partial<Configuration> = {}): void {
       await act(async () => {
         vi.runOnlyPendingTimers();
       });
-      vi.useRealTimers();
     }
+    vi.useRealTimers();
 
     // eslint-disable-next-line no-console
     console.log('running cleanup');
