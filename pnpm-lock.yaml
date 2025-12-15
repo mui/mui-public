@@ -62,7 +62,7 @@ importers:
         specifier: ^9.0.3
         version: 9.0.3(@types/node@22.19.0)(babel-plugin-macros@3.1.0)
       prettier:
-        specifier: ~3.7.4
+        specifier: ^3.7.4
         version: 3.7.4
       pretty-quick:
         specifier: ^4.2.2
