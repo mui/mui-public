@@ -10,7 +10,10 @@ import { Configuration, configure } from './configure';
 
 let isInitialized = false;
 
-export default function setupVitest(config: Partial<Configuration> = {}): void {
+export default function setupVitest({
+  failOnConsoleEnabed = true,
+  ...config
+}: Partial<Configuration> & { failOnConsoleEnabed?: boolean } = {}): void {
   // When run in vitest with --no-isolate, the test hooks are cleared between each suite,
   // but modules are only evaluated once, so calling it top-level would only register the
   // hooks for the first suite only.
@@ -41,35 +44,37 @@ export default function setupVitest(config: Partial<Configuration> = {}): void {
 
   chai.use(chaiPlugin);
 
-  failOnConsole({
-    silenceMessage: (message: string) => {
-      if (process.env.NODE_ENV === 'production') {
-        // TODO: mock scheduler
-        if (message.includes('act(...) is not supported in production builds of React')) {
+  if (failOnConsoleEnabed) {
+    failOnConsole({
+      silenceMessage: (message: string) => {
+        if (process.env.NODE_ENV === 'production') {
+          // TODO: mock scheduler
+          if (message.includes('act(...) is not supported in production builds of React')) {
+            return true;
+          }
+        }
+
+        if (message.includes('Warning: useLayoutEffect does nothing on the server')) {
+          // Controversial warning that is commonly ignored by switching to `useEffect` on the server.
+          // https://github.com/facebook/react/issues/14927
+          // However, this switch doesn't work since it relies on environment sniffing and we test SSR in a browser environment.
           return true;
         }
-      }
 
-      if (message.includes('Warning: useLayoutEffect does nothing on the server')) {
-        // Controversial warning that is commonly ignored by switching to `useEffect` on the server.
-        // https://github.com/facebook/react/issues/14927
-        // However, this switch doesn't work since it relies on environment sniffing and we test SSR in a browser environment.
-        return true;
-      }
+        // Unclear why this is an issue for the current occurrences of this warning.
+        // TODO: Revisit once https://github.com/facebook/react/issues/22796 is resolved
+        if (
+          message.includes(
+            'Detected multiple renderers concurrently rendering the same context provider.',
+          )
+        ) {
+          return true;
+        }
 
-      // Unclear why this is an issue for the current occurrences of this warning.
-      // TODO: Revisit once https://github.com/facebook/react/issues/22796 is resolved
-      if (
-        message.includes(
-          'Detected multiple renderers concurrently rendering the same context provider.',
-        )
-      ) {
-        return true;
-      }
-
-      return false;
-    },
-  });
+        return false;
+      },
+    });
+  }
 
   if (typeof window !== 'undefined') {
     chai.use(chaiDom);
