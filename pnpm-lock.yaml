@@ -644,7 +644,7 @@ importers:
         specifier: ^7.1.0
         version: 7.1.0
       prettier:
-        specifier: ~3.7.4
+        specifier: ^3.7.4
         version: 3.7.4
       serve:
         specifier: ^14.2.5
@@ -701,7 +701,7 @@ importers:
         specifier: ^0.1.2
         version: 0.1.2
       prettier:
-        specifier: ~3.7.4
+        specifier: ^3.7.4
         version: 3.7.4
       proper-lockfile:
         specifier: ^4.1.2
