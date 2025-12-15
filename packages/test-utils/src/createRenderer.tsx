@@ -560,6 +560,7 @@ export {
   renderHook,
   waitFor,
   within,
+  cleanup,
   createEvent,
   type RenderHookResult,
   type EventType,
