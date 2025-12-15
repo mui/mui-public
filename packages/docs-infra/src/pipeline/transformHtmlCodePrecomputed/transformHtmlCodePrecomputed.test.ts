@@ -10,10 +10,18 @@ import type { VariantCode } from '../../CodeHighlighter/types';
 // Mock the loadCodeVariant function
 vi.mock('../loadCodeVariant/loadCodeVariant', () => ({
   loadCodeVariant: vi.fn(async (url: string, variantName: string, variant: VariantCode) => {
+    // Import normalizeLanguage inside the mock to apply normalization
+    const { normalizeLanguage: normalize } =
+      await import('../loaderUtils/getLanguageFromExtension');
+
     // Simple mock that just returns the input with some transforms applied
+    // Also normalize language like the real implementation does
+    const normalizedLanguage = variant.language ? normalize(variant.language) : undefined;
+
     return {
       code: {
         ...variant,
+        language: normalizedLanguage,
         transforms: { 'mock-transform': { delta: {}, fileName: 'mock.js' } },
       },
       dependencies: [url],
@@ -59,7 +67,7 @@ describe('transformHtmlCodePrecomputed', () => {
 
   it('should transform simple JavaScript code block in dl structure', async () => {
     const html =
-      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">console.log("hello");</code></pre></dd></dl>';
+      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-javascript">console.log("hello");</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
@@ -97,14 +105,14 @@ describe('transformHtmlCodePrecomputed', () => {
         <figcaption>JavaScript variant</figcaption>
         <dl>
           <dt><code>index.js</code></dt>
-          <dd><pre><code class="language-js" data-variant="javascript">console.log("hello");</code></pre></dd>
+          <dd><pre><code class="language-javascript" data-variant="javascript">console.log("hello");</code></pre></dd>
         </dl>
       </figure>
       <figure>
         <figcaption>TypeScript variant</figcaption>
         <dl>
           <dt><code>index.ts</code></dt>
-          <dd><pre><code class="language-ts" data-variant="typescript">console.log("hello" as string);</code></pre></dd>
+          <dd><pre><code class="language-typescript" data-variant="typescript">console.log("hello" as string);</code></pre></dd>
         </dl>
       </figure>
     </section>`;
@@ -121,7 +129,7 @@ describe('transformHtmlCodePrecomputed', () => {
 
   it('should skip empty code blocks', async () => {
     const html =
-      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">   </code></pre></dd></dl>';
+      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-javascript">   </code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
@@ -132,17 +140,18 @@ describe('transformHtmlCodePrecomputed', () => {
 
   it('should handle dl without dt (no filename)', async () => {
     const html =
-      '<dl><dd><pre><code class="language-js">console.log("hello");</code></pre></dd></dl>';
+      '<dl><dd><pre><code class="language-javascript">console.log("hello");</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
     const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
-    expect(precomputeData.Default.fileName).toBe('index.js'); // Derived from language
+    expect(precomputeData.Default.fileName).toBeUndefined(); // No explicit filename
+    expect(precomputeData.Default.language).toBe('javascript'); // Language derived from class="language-*"
   });
 
   it('should handle nested text content extraction', async () => {
     const html =
-      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">const <span>x</span> = <em>42</em>;</code></pre></dd></dl>';
+      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-javascript">const <span>x</span> = <em>42</em>;</code></pre></dd></dl>';
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
@@ -152,24 +161,24 @@ describe('transformHtmlCodePrecomputed', () => {
 
   it('should map various language extensions correctly', async () => {
     const testCases = [
-      { lang: 'javascript', expected: 'index.js' },
-      { lang: 'js', expected: 'index.js' },
-      { lang: 'typescript', expected: 'index.ts' },
-      { lang: 'ts', expected: 'index.ts' },
-      { lang: 'tsx', expected: 'index.tsx' },
-      { lang: 'jsx', expected: 'index.jsx' },
-      { lang: 'json', expected: 'index.json' },
-      { lang: 'markdown', expected: 'index.md' },
-      { lang: 'md', expected: 'index.md' },
-      { lang: 'mdx', expected: 'index.mdx' },
-      { lang: 'html', expected: 'index.html' },
-      { lang: 'css', expected: 'index.css' },
-      { lang: 'shell', expected: 'index.sh' },
-      { lang: 'bash', expected: 'index.sh' },
-      { lang: 'sh', expected: 'index.sh' },
-      { lang: 'yaml', expected: 'index.yaml' },
-      { lang: 'yml', expected: 'index.yaml' },
-      { lang: 'unknown', expected: undefined }, // no filename for unrecognized language
+      { lang: 'javascript', expected: 'javascript' },
+      { lang: 'js', expected: 'javascript' }, // Normalized from 'js' to 'javascript'
+      { lang: 'typescript', expected: 'typescript' },
+      { lang: 'ts', expected: 'typescript' }, // Normalized from 'ts' to 'typescript'
+      { lang: 'tsx', expected: 'tsx' },
+      { lang: 'jsx', expected: 'jsx' },
+      { lang: 'json', expected: 'json' },
+      { lang: 'markdown', expected: 'markdown' },
+      { lang: 'md', expected: 'markdown' }, // Normalized from 'md' to 'markdown'
+      { lang: 'mdx', expected: 'mdx' },
+      { lang: 'html', expected: 'html' },
+      { lang: 'css', expected: 'css' },
+      { lang: 'shell', expected: 'shell' },
+      { lang: 'bash', expected: 'shell' }, // Normalized from 'bash' to 'shell'
+      { lang: 'sh', expected: 'shell' }, // Normalized from 'sh' to 'shell'
+      { lang: 'yaml', expected: 'yaml' },
+      { lang: 'yml', expected: 'yaml' }, // Normalized from 'yml' to 'yaml'
+      { lang: 'unknown', expected: 'unknown' }, // language is passed through as-is
     ];
 
     // Process all test cases in parallel to avoid await in loop
@@ -179,13 +188,19 @@ describe('transformHtmlCodePrecomputed', () => {
         const ast = await getAstFromHtml(html);
         const preElement = findPreElement(ast);
         const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
-        return { expected, actual: precomputeData.Default.fileName };
+        return {
+          lang,
+          expected,
+          actualLanguage: precomputeData.Default.language,
+          actualFileName: precomputeData.Default.fileName,
+        };
       }),
     );
 
-    // Verify all results
-    results.forEach(({ expected, actual }) => {
-      expect(actual).toBe(expected);
+    // Verify all results - should have language, no fileName
+    results.forEach(({ expected, actualLanguage, actualFileName }) => {
+      expect(actualLanguage).toBe(expected);
+      expect(actualFileName).toBeUndefined(); // No explicit filename
     });
   });
 
@@ -225,7 +240,7 @@ describe('transformHtmlCodePrecomputed', () => {
         <figcaption>Main variant</figcaption>
         <dl>
           <dt><code>index.js</code></dt>
-          <dd><pre><code class="language-js" data-variant="Main">console.log("main");</code></pre></dd>
+          <dd><pre><code class="language-javascript" data-variant="Main">console.log("main");</code></pre></dd>
         </dl>
       </figure>
       <figure>
@@ -248,7 +263,7 @@ describe('transformHtmlCodePrecomputed', () => {
   });
 
   it('should replace semantic structure content with error message', async () => {
-    const html = `<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">console.log("hello");</code></pre></dd></dl>`;
+    const html = `<dl><dt><code>index.js</code></dt><dd><pre><code class="language-javascript">console.log("hello");</code></pre></dd></dl>`;
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
@@ -260,7 +275,7 @@ describe('transformHtmlCodePrecomputed', () => {
   });
 
   it('should handle basic pre > code structure from standard markdown', async () => {
-    const html = '<pre><code class="language-js">console.log("hello world");</code></pre>';
+    const html = '<pre><code class="language-javascript">console.log("hello world");</code></pre>';
     const ast = await getAstFromHtml(html);
 
     const preElement = findPreElement(ast);
@@ -276,7 +291,8 @@ describe('transformHtmlCodePrecomputed', () => {
 
     const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default).toBeTruthy();
-    expect(precomputeData.Default.fileName).toBe('index.js');
+    expect(precomputeData.Default.fileName).toBeUndefined(); // No explicit filename
+    expect(precomputeData.Default.language).toBe('javascript'); // Language from class="language-*"
     expect(precomputeData.Default.source.trim()).toBe('console.log("hello world");');
   });
 
@@ -355,7 +371,8 @@ console.log(msg);
 
     const singlePrecomputeData = JSON.parse(singleVariantPre.properties.dataPrecompute);
     expect(singlePrecomputeData.Default).toBeTruthy();
-    expect(singlePrecomputeData.Default.fileName).toBe('index.js');
+    expect(singlePrecomputeData.Default.fileName).toBeUndefined(); // No explicit filename means no fileName
+    expect(singlePrecomputeData.Default.language).toBe('javascript'); // Language is derived from class
     expect(singlePrecomputeData.Default.source.trim()).toBe('console.log("hello from markdown");');
 
     // Test second pre element (TypeScript - multi-variant)
@@ -368,8 +385,10 @@ console.log(msg);
     const multiPrecomputeData = JSON.parse(multiVariantPre.properties.dataPrecompute);
     expect(multiPrecomputeData.main).toBeTruthy();
     expect(multiPrecomputeData.alternative).toBeTruthy();
-    expect(multiPrecomputeData.main.fileName).toBe('index.ts');
-    expect(multiPrecomputeData.alternative.fileName).toBe('index.ts');
+    expect(multiPrecomputeData.main.fileName).toBeUndefined(); // No explicit filename
+    expect(multiPrecomputeData.alternative.fileName).toBeUndefined(); // No explicit filename
+    expect(multiPrecomputeData.main.language).toBe('typescript');
+    expect(multiPrecomputeData.alternative.language).toBe('typescript');
 
     // Both should have error messages
     expect(singleVariantPre.children).toHaveLength(1);
@@ -386,7 +405,7 @@ console.log(msg);
   // Test that would have caught the data.hProperties vs properties issue
   it('should demonstrate the difference between data.hProperties and properties in different pipelines', async () => {
     const html =
-      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-js">console.log("test");</code></pre></dd></dl>';
+      '<dl><dt><code>index.js</code></dt><dd><pre><code class="language-javascript">console.log("test");</code></pre></dd></dl>';
 
     // Direct HTML parsing (what we were testing before)
     const htmlAst = await getAstFromHtml(html);
@@ -406,8 +425,9 @@ console.log(msg);
     const htmlData = JSON.parse(htmlPreElement.properties.dataPrecompute);
     const markdownData = JSON.parse(markdownPreElement.properties.dataPrecompute);
 
-    expect(htmlData.Default.fileName).toBe('index.js');
-    expect(markdownData.Default.fileName).toBe('index.js');
+    expect(htmlData.Default.fileName).toBe('index.js'); // HTML has explicit filename in dt element
+    expect(markdownData.Default.fileName).toBeUndefined(); // Markdown has no explicit filename
+    expect(markdownData.Default.language).toBe('javascript'); // Language is derived from class="language-*"
     expect(htmlData.Default.source.trim()).toBe('console.log("test");');
     expect(markdownData.Default.source.trim()).toBe('console.log("test");');
   });

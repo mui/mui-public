@@ -7,66 +7,8 @@ import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavas
 import type { Code } from '../../CodeHighlighter/types';
 
 /**
- * Maps common language class names to file extensions
- * Only includes languages that have corresponding grammars in parseSource/grammars.ts
- */
-const LANGUAGE_TO_EXTENSION: Record<string, string> = {
-  // JavaScript
-  javascript: 'js',
-  js: 'js',
-
-  // TypeScript
-  typescript: 'ts',
-  ts: 'ts',
-
-  // TSX/JSX
-  tsx: 'tsx',
-  jsx: 'jsx', // Maps to .jsx but uses tsx grammar
-
-  // JSON
-  json: 'json',
-
-  // Markdown
-  markdown: 'md',
-  md: 'md',
-
-  // MDX
-  mdx: 'mdx',
-
-  // HTML
-  html: 'html',
-
-  // CSS
-  css: 'css',
-
-  // Shell
-  shell: 'sh',
-  bash: 'sh',
-  sh: 'sh',
-
-  // YAML
-  yaml: 'yaml',
-  yml: 'yaml',
-};
-
-/**
- * Extracts the language from className attribute
- */
-function extractLanguageFromClassName(className: string | string[] | undefined): string | null {
-  if (!className) {
-    return null;
-  }
-
-  // Handle array of class names (HAST format)
-  const classString = Array.isArray(className) ? className.join(' ') : className;
-
-  const match = classString.match(/(?:^|\s)language-(\w+)(?:\s|$)/);
-  return match ? match[1] : null;
-}
-
-/**
- * Gets the filename from data-filename attribute or derives it from language
- * Returns undefined if no explicit filename and no recognizable language
+ * Gets the filename from data-filename attribute only
+ * Returns undefined if no explicit filename is provided
  */
 function getFileName(codeElement: Element): string | undefined {
   // Check for explicit data-filename attribute
@@ -75,16 +17,37 @@ function getFileName(codeElement: Element): string | undefined {
     return dataFilename;
   }
 
-  // Extract language from className
-  const className = codeElement.properties?.className as string | undefined;
-  const language = extractLanguageFromClassName(className);
+  return undefined;
+}
 
-  if (language && LANGUAGE_TO_EXTENSION[language]) {
-    return `index.${LANGUAGE_TO_EXTENSION[language]}`;
+/**
+ * Extracts language from a className like "language-typescript" or "language-js"
+ * Returns the language portion after "language-" prefix
+ */
+function extractLanguageFromClassName(
+  className: string | string[] | undefined,
+): string | undefined {
+  if (!className) {
+    return undefined;
   }
 
-  // Return undefined instead of a fallback - let the system handle gracefully
+  const classes = Array.isArray(className) ? className : [className];
+
+  for (const cls of classes) {
+    if (typeof cls === 'string' && cls.startsWith('language-')) {
+      return cls.slice('language-'.length);
+    }
+  }
+
   return undefined;
+}
+
+/**
+ * Gets the language from class="language-*" attribute
+ */
+function getLanguage(codeElement: Element): string | undefined {
+  const className = codeElement.properties?.className as string | string[] | undefined;
+  return extractLanguageFromClassName(className);
 }
 
 /**
@@ -108,8 +71,13 @@ function extractTextContent(node: Element | Text): string {
  */
 function extractCodeFromSemanticStructure(
   element: Element,
-): Array<{ codeElement: Element; filename?: string; variantName?: string }> {
-  const results: Array<{ codeElement: Element; filename?: string; variantName?: string }> = [];
+): Array<{ codeElement: Element; filename?: string; language?: string; variantName?: string }> {
+  const results: Array<{
+    codeElement: Element;
+    filename?: string;
+    language?: string;
+    variantName?: string;
+  }> = [];
 
   if (element.tagName === 'section') {
     // Handle section with multiple figures
@@ -138,6 +106,7 @@ function extractCodeFromSemanticStructure(
           results.push({
             codeElement: extracted.codeElement,
             filename: extracted.filename,
+            language: extracted.language,
             variantName: variantName || extracted.variantName,
           });
         }
@@ -159,7 +128,7 @@ function extractCodeFromSemanticStructure(
  */
 function extractFromDl(
   dl: Element,
-): { codeElement: Element; filename?: string; variantName?: string } | null {
+): { codeElement: Element; filename?: string; language?: string; variantName?: string } | null {
   // Find dt for filename and dd for code
   let filename: string | undefined;
   let codeElement: Element | undefined;
@@ -195,10 +164,13 @@ function extractFromDl(
   if (codeElement) {
     // Extract variant name from data-variant if available
     const variantName = codeElement.properties?.dataVariant as string | undefined;
+    // Extract language from className
+    const language = getLanguage(codeElement);
 
     return {
       codeElement,
       filename,
+      language,
       variantName,
     };
   }
@@ -229,6 +201,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
       let extractedElements: Array<{
         codeElement: Element;
         filename?: string;
+        language?: string;
         variantName?: string;
       }> = [];
 
@@ -245,13 +218,16 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
         );
 
         if (codeElement) {
-          // Extract filename from data-filename or derive from language class
+          // Extract filename from data-filename attribute (explicit only)
           const filename = getFileName(codeElement);
+          // Extract language from className
+          const language = getLanguage(codeElement);
 
           extractedElements = [
             {
               codeElement,
               filename,
+              language,
               variantName: undefined, // Basic pre > code doesn't have variants
             },
           ];
@@ -275,7 +251,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
 
             if (extractedElements.length === 1) {
               // Single element - use "Default" as variant name
-              const { codeElement, filename } = extractedElements[0];
+              const { codeElement, filename, language } = extractedElements[0];
               const sourceCode = extractTextContent(codeElement);
 
               const variant: any = {
@@ -283,42 +259,44 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                 skipTransforms: !codeElement.properties?.dataTransform,
               };
 
-              // Add filename if available (prefer explicit filename over derived)
+              // Add filename if explicitly provided
               if (filename) {
                 variant.fileName = filename;
-              } else {
-                const derivedFilename = getFileName(codeElement);
-                if (derivedFilename) {
-                  variant.fileName = derivedFilename;
-                }
+              }
+
+              // Add language if available (from className)
+              if (language) {
+                variant.language = language;
               }
 
               variants.Default = variant;
             } else {
               // Multiple elements - use variant names
-              extractedElements.forEach(({ codeElement, filename, variantName }, index) => {
-                const sourceCode = extractTextContent(codeElement);
+              extractedElements.forEach(
+                ({ codeElement, filename, language, variantName }, index) => {
+                  const sourceCode = extractTextContent(codeElement);
 
-                // Determine variant name
-                const finalVariantName = variantName || `Variant ${index + 1}`;
+                  // Determine variant name
+                  const finalVariantName = variantName || `Variant ${index + 1}`;
 
-                const variant: any = {
-                  source: sourceCode,
-                  skipTransforms: !codeElement.properties?.dataTransform,
-                };
+                  const variant: any = {
+                    source: sourceCode,
+                    skipTransforms: !codeElement.properties?.dataTransform,
+                  };
 
-                // Add filename if available (prefer explicit filename over derived)
-                if (filename) {
-                  variant.fileName = filename;
-                } else {
-                  const derivedFilename = getFileName(codeElement);
-                  if (derivedFilename) {
-                    variant.fileName = derivedFilename;
+                  // Add filename if explicitly provided
+                  if (filename) {
+                    variant.fileName = filename;
                   }
-                }
 
-                variants[finalVariantName] = variant;
-              });
+                  // Add language if available (from className)
+                  if (language) {
+                    variant.language = language;
+                  }
+
+                  variants[finalVariantName] = variant;
+                },
+              );
             }
 
             // Process each variant with loadCodeVariant

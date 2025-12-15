@@ -8,7 +8,7 @@ Use this plugin to enhance markdown code blocks with custom data attributes for 
 
 ## Key Features
 
-- **Individual code blocks**: Transform single code blocks with options (e.g., `fileName=test.ts`, `highlight=2-3`)
+- **Individual code blocks**: Transform single code blocks with options (e.g., `filename=test.ts`, `highlight=2-3`)
 - **Multiple variant formats**: Support for `variant=name` and `variant-group=name` syntax
 - **Automatic grouping**: Adjacent code blocks with variants are combined into single examples
 - **Language detection**: Preserves syntax highlighting with `class="language-*"` attributes
@@ -50,7 +50,7 @@ The simplest usage - transform single code blocks by adding options directly:
 **Basic Example:**
 
 ````markdown
-```ts fileName=greeting.ts
+```ts filename=greeting.ts
 const greeting: string = 'Hello, world!';
 console.log(greeting);
 ```
@@ -59,14 +59,19 @@ console.log(greeting);
 **HTML Output:**
 
 ```html
-<pre><code class="language-ts" data-file-name="greeting.ts">const greeting: string = "Hello, world!";
+<dl>
+  <dt><code>greeting.ts</code></dt>
+  <dd>
+    <pre><code class="language-typescript" data-filename="greeting.ts">const greeting: string = "Hello, world!";
 console.log(greeting);</code></pre>
+  </dd>
+</dl>
 ```
 
-**Multiple Options:**
+**Multiple Options (without filename):**
 
 ````markdown
-```javascript fileName=test.js transform
+```javascript transform
 function test() {
   console.log('line 2');
   console.log('line 3');
@@ -77,7 +82,7 @@ function test() {
 **HTML Output:**
 
 ```html
-<pre><code class="language-javascript" data-file-name="test.js" data-transform="true">function test() {
+<pre><code class="language-javascript" data-transform="true">function test() {
 console.log('line 2');
 console.log('line 3');
 }</code></pre>
@@ -109,9 +114,9 @@ yarn add package
 
 ```html
 <pre>
-  <code class="language-bash" data-variant="npm">npm install package</code>
-  <code class="language-bash" data-variant="pnpm">pnpm install package</code>  
-  <code class="language-bash" data-variant="yarn">yarn add package</code>
+  <code class="language-shell" data-variant="npm">npm install package</code>
+  <code class="language-shell" data-variant="pnpm">pnpm install package</code>  
+  <code class="language-shell" data-variant="yarn">yarn add package</code>
 </pre>
 ```
 
@@ -227,8 +232,8 @@ pnpm install package
 
 ```html
 <pre>
-  <code class="language-bash" data-variant="npm" data-filename="install.sh">npm install package</code>
-  <code class="language-bash" data-variant="pnpm" data-filename="install.sh">pnpm install package</code>
+  <code class="language-shell" data-variant="npm" data-filename="install.sh">npm install package</code>
+  <code class="language-shell" data-variant="pnpm" data-filename="install.sh">pnpm install package</code>
 </pre>
 ```
 
@@ -238,10 +243,10 @@ pnpm install package
 
 Code blocks with options (but no `variant` or `variant-group`) are processed immediately:
 
-- **Single transformation**: Creates a `<pre><code>` element with data attributes
+- **Single transformation**: Creates a `<pre><code>` element with data attributes (or `<dl>` structure if filename is provided)
 - **No grouping required**: Works with standalone code blocks
-- **Option handling**: Converts options to HTML data attributes (e.g., `fileName=test.ts` → `data-file-name="test.ts"`)
-- **Language preservation**: Maintains syntax highlighting classes
+- **Option handling**: Converts options to HTML data attributes (e.g., `filename=test.ts` → `data-filename="test.ts"`)
+- **Language preservation**: Maintains syntax highlighting via `class="language-*"` attribute
 
 ### Grouping Rules
 
@@ -309,8 +314,8 @@ pnpm install package
 
 ```html
 <pre>
-  <code class="language-bash" data-variant="npm">npm install package</code>
-  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
+  <code class="language-shell" data-variant="npm">npm install package</code>
+  <code class="language-shell" data-variant="pnpm">pnpm install package</code>
 </pre>
 ```
 
@@ -387,7 +392,7 @@ This plugin works out-of-the-box with no configuration required. It automaticall
 - Use simple text paragraphs (no complex markdown)
 - Check that all code blocks use `variant-group=samename`
 
-### Missing Language Classes
+### Missing Language Attributes
 
 **Problem**: Generated HTML doesn't have `class="language-*"` attributes.
 
@@ -403,20 +408,37 @@ This plugin works out-of-the-box with no configuration required. It automaticall
 
 Generated HTML follows this pattern:
 
+For code blocks without explicit filename:
+
 ```html
 <pre>
   <code class="language-{lang}" data-variant="{name}" data-{prop}="{value}">
     {escaped code content}
   </code>
-  <!-- additional code elements -->
+  <!-- additional code elements for variants -->
 </pre>
+```
+
+For code blocks with explicit filename:
+
+```html
+<dl>
+  <dt><code>{filename}</code></dt>
+  <dd>
+    <pre>
+      <code class="language-{lang}" data-{prop}="{value}">
+        {escaped code content}
+      </code>
+    </pre>
+  </dd>
+</dl>
 ```
 
 ### Data Attributes
 
 - `data-variant`: The variant name (from `variant=` or extracted label)
+- `class="language-*"`: The normalized language identifier (e.g., `typescript` not `ts`)
 - `data-*`: Any additional properties from code block metadata
-- `class="language-*"`: Preserved for syntax highlighting compatibility
 
 ### Performance
 

@@ -6,6 +6,8 @@ export type Components = { [key: string]: React.ReactNode };
 type CodeMeta = {
   /** Name of the file (e.g., 'Button.tsx') */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required. */
+  language?: string;
   /** Flattened path for the file */
   path?: string;
 };
@@ -124,7 +126,7 @@ export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-export type ParseSource = (source: string, fileName: string) => HastRoot;
+export type ParseSource = (source: string, fileName: string, language?: string) => HastRoot;
 
 export type SourceTransformer = {
   extensions: string[];
@@ -156,7 +158,8 @@ export interface LoadFileOptions {
  * Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
  */
 export interface LoadVariantOptions
-  extends LoadFileOptions,
+  extends
+    LoadFileOptions,
     Pick<
       CodeFunctionProps,
       'sourceParser' | 'loadSource' | 'loadVariantMeta' | 'sourceTransformers'
@@ -166,7 +169,8 @@ export interface LoadVariantOptions
  * Options for loading fallback code with various configuration flags
  */
 export interface LoadFallbackCodeOptions
-  extends LoadFileOptions,
+  extends
+    LoadFileOptions,
     CodeFunctionProps,
     Pick<CodeContentProps, 'variants'>,
     Pick<CodeLoadingProps, 'fallbackUsesExtraFiles' | 'fallbackUsesAllVariants'> {
@@ -206,6 +210,8 @@ export interface CodeContentProps {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
   /** Fallback variant when the requested variant is not available */
@@ -290,7 +296,8 @@ export interface CodeClientRenderingProps {
  * This serves as the foundation for other CodeHighlighter-related interfaces.
  */
 export interface CodeHighlighterBaseProps<T extends {}>
-  extends CodeIdentityProps,
+  extends
+    CodeIdentityProps,
     CodeContentProps,
     CodeLoadingProps,
     CodeFunctionProps,
@@ -301,7 +308,8 @@ export interface CodeHighlighterBaseProps<T extends {}>
  * Used when rendering happens in the browser with lazy loading and interactive features.
  */
 export interface CodeHighlighterClientProps
-  extends CodeIdentityProps,
+  extends
+    CodeIdentityProps,
     CodeContentProps,
     Omit<CodeLoadingProps, 'children'>,
     CodeClientRenderingProps {
