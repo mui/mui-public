@@ -4,7 +4,10 @@ import type { CodeHighlighterProps } from '@mui/internal-docs-infra/CodeHighligh
 import { CodeContent } from '../CodeContent';
 
 type PreProps = {
+  'data-name'?: string;
+  'data-slug'?: string;
   'data-precompute'?: string;
+  'data-content-props'?: string;
 };
 
 export function Pre(props: PreProps) {
@@ -21,5 +24,17 @@ export function Pre(props: PreProps) {
     props['data-precompute'],
   ) as CodeHighlighterProps<object>['precompute'];
 
-  return <CodeHighlighter url="file://index.js" precompute={precompute} Content={CodeContent} />;
+  const contentProps = props['data-content-props']
+    ? JSON.parse(props['data-content-props'])
+    : ({} as Record<string, unknown> | null);
+
+  return (
+    <CodeHighlighter
+      name={props['data-name']}
+      slug={props['data-slug']}
+      precompute={precompute}
+      Content={CodeContent}
+      contentProps={contentProps}
+    />
+  );
 }

@@ -116,7 +116,7 @@ describe('loadCodeVariant', () => {
         // Don't disable parsing here
       });
 
-      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts', 'typescript');
       expect(result.code.source).toEqual(mockParsedSource);
       expect(result.dependencies).toEqual(['file:///test.ts']);
     });
@@ -147,7 +147,7 @@ describe('loadCodeVariant', () => {
       expect(result.code.fileName).toBe('test.ts');
       expect(result.code.source).toBe(mockParsedSource);
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
-      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', 'test.ts', 'typescript');
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
 
@@ -189,9 +189,11 @@ describe('loadCodeVariant', () => {
       expect(result.code.extraFiles).toEqual({
         'helper.ts': {
           source: 'export const helper = () => {};',
+          language: 'typescript',
         },
         'external.ts': {
           source: 'export const external = true;',
+          language: 'typescript',
         },
       });
       expect(result.dependencies).toEqual(['file:///external.ts']); // Should include the loaded external file
@@ -231,6 +233,7 @@ describe('loadCodeVariant', () => {
       expect(result.code.extraFiles).toEqual({
         'helper.ts': {
           source: 'export const helper = () => {};',
+          language: 'typescript',
         },
       });
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
@@ -271,7 +274,37 @@ describe('loadCodeVariant', () => {
       }); // Should have basic HAST node
       expect(result.code.fileName).toBeUndefined(); // No fileName available
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
-      expect(mockParseSource).not.toHaveBeenCalled(); // No parsing without fileName
+      expect(mockParseSource).not.toHaveBeenCalled(); // No parsing without fileName or language
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
+    });
+
+    it('should parse source when language is provided but no fileName or URL', async () => {
+      const variant: VariantCode = {
+        source: 'const x = 1;',
+        language: 'typescript',
+        // No fileName provided
+      };
+
+      const mockParsedSource = { type: 'root', children: [{ type: 'element', tagName: 'span' }] };
+      mockParseSource.mockReturnValue(mockParsedSource as any);
+
+      const result = await loadCodeVariant(
+        undefined, // No URL provided
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+        },
+      );
+
+      expect(result.code.source).toEqual(mockParsedSource); // Should be parsed
+      expect(result.code.language).toBe('typescript');
+      expect(result.code.fileName).toBeUndefined(); // No fileName available
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
+      expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', '', 'typescript'); // Parse with empty fileName
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
 
@@ -1792,7 +1825,9 @@ export default function Button(props: ButtonProps) {
         disableParsing: true,
       });
 
-      expect(result.code).toEqual(customVariant);
+      // The result includes the original variant plus computed fields
+      expect(result.code).toMatchObject(customVariant);
+      expect(result.code.language).toBe('tsx'); // Derived from fileName extension
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', variantUrl);
       expect(mockLoadSource).not.toHaveBeenCalled(); // Should use provided source
     });
@@ -2760,6 +2795,157 @@ describe('loadCodeVariant - helper functions', () => {
         // @ts-expect-error
         process.env.NODE_ENV = originalEnv;
       }
+    });
+  });
+
+  describe('language field derivation', () => {
+    it('should derive language from fileName extension', async () => {
+      const variant: VariantCode = {
+        fileName: 'Component.tsx',
+        source: 'const Component = () => <div />;',
+      };
+
+      const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
+        disableParsing: true,
+      });
+
+      expect(result.code.language).toBe('tsx');
+    });
+
+    it('should derive language from URL when fileName is not provided', async () => {
+      const localMockLoadSource = vi.fn<LoadSource>().mockResolvedValue({
+        source: 'const x = 1;',
+      });
+
+      const result = await loadCodeVariant(
+        'file:///src/utils.ts',
+        'default',
+        'file:///src/utils.ts',
+        {
+          loadSource: localMockLoadSource,
+          disableParsing: true,
+        },
+      );
+
+      expect(result.code.language).toBe('typescript');
+    });
+
+    it.each([
+      ['Component.tsx', 'tsx'],
+      ['Component.jsx', 'jsx'],
+      ['utils.ts', 'typescript'],
+      ['utils.js', 'javascript'],
+      ['styles.css', 'css'],
+      ['README.md', 'markdown'],
+      ['docs.mdx', 'mdx'],
+      ['index.html', 'html'],
+      ['config.json', 'json'],
+      ['script.sh', 'shell'],
+      ['config.yaml', 'yaml'],
+    ])('should derive language "%s" from fileName "%s"', async (fileName, expectedLanguage) => {
+      const variant: VariantCode = {
+        fileName,
+        source: '// content',
+      };
+
+      const result = await loadCodeVariant(`file:///${fileName}`, 'default', variant, {
+        disableParsing: true,
+      });
+
+      expect(result.code.language).toBe(expectedLanguage);
+    });
+
+    it('should normalize short language aliases to canonical names', async () => {
+      const variant: VariantCode = {
+        source: 'console.log("test");',
+        language: 'js', // Short alias should be normalized to 'javascript'
+      };
+
+      const result = await loadCodeVariant(undefined, 'default', variant, {
+        disableParsing: true,
+      });
+
+      // Short alias should be normalized
+      expect(result.code.language).toBe('javascript');
+    });
+
+    it.each([
+      ['js', 'javascript'],
+      ['ts', 'typescript'],
+      ['md', 'markdown'],
+      ['sh', 'shell'],
+      ['bash', 'shell'],
+      ['yml', 'yaml'],
+    ])('should normalize language alias "%s" to "%s"', async (alias, expectedLanguage) => {
+      const variant: VariantCode = {
+        source: '// content',
+        language: alias,
+      };
+
+      const result = await loadCodeVariant(undefined, 'default', variant, {
+        disableParsing: true,
+      });
+
+      expect(result.code.language).toBe(expectedLanguage);
+    });
+
+    it('should preserve explicit language from variant over derived language', async () => {
+      const variant: VariantCode = {
+        fileName: 'Component.tsx',
+        language: 'javascript', // Explicitly set different language
+        source: 'const Component = () => <div />;',
+      };
+
+      const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
+        disableParsing: true,
+      });
+
+      // Explicit language should be preserved
+      expect(result.code.language).toBe('javascript');
+    });
+
+    it('should return undefined language for unknown extensions', async () => {
+      const variant: VariantCode = {
+        fileName: 'file.unknown',
+        source: 'content',
+      };
+
+      const result = await loadCodeVariant('file:///file.unknown', 'default', variant, {
+        disableParsing: true,
+      });
+
+      expect(result.code.language).toBeUndefined();
+    });
+
+    it('should return undefined language when no fileName and no URL', async () => {
+      const variant: VariantCode = {
+        source: 'const x = 1;',
+      };
+
+      const result = await loadCodeVariant(undefined, 'default', variant, {
+        disableParsing: true,
+      });
+
+      expect(result.code.language).toBeUndefined();
+    });
+
+    it('should include language in result when using loadVariantMeta', async () => {
+      const variantUrl = 'file:///src/Button.tsx';
+      const customVariant: VariantCode = {
+        url: variantUrl,
+        fileName: 'Button.tsx',
+        source: 'const Button = () => <button>Click</button>;',
+        allFilesListed: true,
+      };
+
+      const localMockLoadVariantMeta = vi.fn<LoadVariantMeta>().mockResolvedValue(customVariant);
+
+      const result = await loadCodeVariant(variantUrl, 'default', variantUrl, {
+        loadVariantMeta: localMockLoadVariantMeta,
+        disableParsing: true,
+      });
+
+      expect(result.code.language).toBe('tsx');
     });
   });
 });
