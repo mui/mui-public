@@ -421,9 +421,6 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
         } catch (error) {
           caughtError = error;
         } finally {
-          // eslint-disable-next-line no-console
-          console[methodName] = originalMethod;
-
           // unexpected thrown error takes precedence over unexpected console call
           if (caughtError !== null) {
             // not the same pattern as described in the block because we don't rethrow in the catch
@@ -442,9 +439,9 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
             return `\n\n  - ${formattedMessages.join('\n\n-  ')}`;
           };
 
-          const shouldHaveWarned = utils.flag(this, 'negate') !== true;
-
           const report = () => {
+            const shouldHaveWarned = utils.flag(this, 'negate') !== true;
+
             // unreachable from expect().not.toWarnDev(messages)
             if (unexpectedMessages.length > 0) {
               const unexpectedMessageRecordedMessage = `Recorded unexpected console.${methodName} calls: ${formatMessages(
@@ -485,11 +482,18 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
             typeof result.then === 'function'
           ) {
             // Handle async callbacks
-            result = result.then((value: unknown) => {
-              report();
-              return value;
-            });
+            result = Promise.resolve(result)
+              .then((value: unknown) => {
+                report();
+                return value;
+              })
+              .finally(() => {
+                // eslint-disable-next-line no-console
+                console[methodName] = originalMethod;
+              });
           } else {
+            // eslint-disable-next-line no-console
+            console[methodName] = originalMethod;
             report();
           }
         }
