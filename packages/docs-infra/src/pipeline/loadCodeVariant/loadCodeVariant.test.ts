@@ -189,9 +189,11 @@ describe('loadCodeVariant', () => {
       expect(result.code.extraFiles).toEqual({
         'helper.ts': {
           source: 'export const helper = () => {};',
+          language: 'typescript',
         },
         'external.ts': {
           source: 'export const external = true;',
+          language: 'typescript',
         },
       });
       expect(result.dependencies).toEqual(['file:///external.ts']); // Should include the loaded external file
@@ -231,6 +233,7 @@ describe('loadCodeVariant', () => {
       expect(result.code.extraFiles).toEqual({
         'helper.ts': {
           source: 'export const helper = () => {};',
+          language: 'typescript',
         },
       });
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies

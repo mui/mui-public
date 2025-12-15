@@ -520,9 +520,14 @@ async function loadExtraFiles(
       metadata = true;
     }
 
+    // Derive language from fileName extension for extra files
+    const extraFileExtension = normalizedFileName.slice(normalizedFileName.lastIndexOf('.'));
+    const extraFileLanguage = getLanguageFromExtension(extraFileExtension);
+
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
-      transforms: result.transforms,
+      ...(extraFileLanguage && { language: extraFileLanguage }),
+      ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
     };
 
@@ -945,9 +950,13 @@ export async function loadCodeVariant(
           if (typeof value !== 'string') {
             // Inline source - preserve metadata if it was marked as globals
             const metadata = value.metadata || globalsFileKeys.has(key) ? true : undefined;
+            // Derive language from filename extension
+            const extension = key.slice(key.lastIndexOf('.'));
+            const extraFileLanguage = getLanguageFromExtension(extension);
             allExtraFiles[normalizePathKey(key)] = {
               source: value.source!,
-              transforms: value.transforms,
+              ...(extraFileLanguage && { language: extraFileLanguage }),
+              ...(value.transforms && { transforms: value.transforms }),
               ...(metadata !== undefined && { metadata }),
             };
           }

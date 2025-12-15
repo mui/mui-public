@@ -584,11 +584,13 @@ export function useFileNavigation({
     if (selectedVariant.extraFiles) {
       Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
         let source: VariantSource | undefined;
+        let language: string | undefined;
 
         if (typeof fileData === 'string') {
           source = fileData;
         } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
           source = fileData.source;
+          language = fileData.language;
         } else {
           return; // Skip invalid entries
         }
@@ -603,7 +605,7 @@ export function useFileNavigation({
           component: (
             <Pre
               className={preClassName}
-              language={getLanguageFromFileName(fileName)}
+              language={language ?? getLanguageFromFileName(fileName)}
               ref={preRef}
               shouldHighlight={shouldHighlight}
             >
