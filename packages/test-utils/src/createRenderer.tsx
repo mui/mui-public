@@ -554,8 +554,17 @@ function act<T>(callback: () => void | T | Promise<T>) {
 
 const bodyBoundQueries = within(document.body, { ...queries, ...customQueries });
 
-// eslint-disable-next-line import/extensions
-export * from '@testing-library/react/pure.js';
+export {
+  configure,
+  render,
+  renderHook,
+  waitFor,
+  within,
+  createEvent,
+  type RenderHookResult,
+  type EventType,
+  // eslint-disable-next-line import/extensions
+} from '@testing-library/react/pure.js';
 export { act, fireEvent };
 export const screen: Screen & typeof bodyBoundQueries = { ...rtlScreen, ...bodyBoundQueries };
 
