@@ -309,7 +309,7 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
     function toHaveComputedStyle(expectedStyleUnnormalized: Record<string, string>) {
       const element = utils.flag(this, 'object') as HTMLElement;
       if (element?.nodeType !== 1) {
-        // Same pre-condition for negated and unnegated  assertion
+        // Same pre-condition for negated and unnegated assertion
         throw new AssertionError(`Expected an Element but got ${String(element)}`);
       }
       const computedStyle = element.ownerDocument.defaultView!.getComputedStyle(element);
