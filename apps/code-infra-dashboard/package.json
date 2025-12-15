@@ -10,7 +10,6 @@
     "@mui/x-charts": "^8.21.0",
     "@octokit/rest": "^22.0.1",
     "@tanstack/react-query": "^5.90.12",
-    "d3-array": "^3.2.4",
     "diff": "^8.0.2",
     "etag": "^1.8.1",
     "pako": "^2.1.0",

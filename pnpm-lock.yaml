@@ -119,9 +119,6 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.12
         version: 5.90.12(react@19.2.0)
-      d3-array:
-        specifier: ^3.2.4
-        version: 3.2.4
       diff:
         specifier: ^8.0.2
         version: 8.0.2
