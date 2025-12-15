@@ -16,21 +16,16 @@ export default function setupVitest(config: Partial<Configuration> = {}): void {
   // hooks for the first suite only.
   // Instead call `setupVitest` in one of the `setupFiles`, which are not cached and executed
   // per suite.
-  // eslint-disable-next-line no-console
-  console.log('setting up afterEach');
-  afterEach(async () => {
-    // eslint-disable-next-line no-console
-    console.log('ccleaning up timers');
 
+  afterEach(async () => {
     if (vi.isFakeTimers()) {
       await act(async () => {
         vi.runOnlyPendingTimers();
       });
     }
+
     vi.useRealTimers();
 
-    // eslint-disable-next-line no-console
-    console.log('running cleanup');
     cleanup();
   });
 
