@@ -48,11 +48,17 @@ export function CodeContent(props: ContentProps<object>) {
         <div className={styles.header}>
           <div className={styles.headerContainer}>
             <div className={styles.tabContainer}>
-              <Tabs
-                tabs={tabs}
-                selectedTabId={code.selectedFileName}
-                onTabSelect={code.selectFileName}
-              />
+              {tabs.length > 0 ? (
+                <Tabs
+                  tabs={tabs}
+                  selectedTabId={code.selectedFileName}
+                  onTabSelect={code.selectFileName}
+                />
+              ) : (
+                <div className={styles.name}>
+                  <span>{code.userProps.name}</span>
+                </div>
+              )}
             </div>
             <div className={styles.headerActions}>
               <CopyButton copy={code.copy} />
