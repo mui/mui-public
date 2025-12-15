@@ -6,6 +6,8 @@ export type Components = { [key: string]: React.ReactNode };
 type CodeMeta = {
   /** Name of the file (e.g., 'Button.tsx') */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required. */
+  language?: string;
   /** Flattened path for the file */
   path?: string;
 };
@@ -37,6 +39,8 @@ export type VariantExtraFiles = {
     | {
         /** Source content for this file */
         source?: VariantSource;
+        /** Language for syntax highlighting (e.g., 'tsx', 'css'). Derived from fileName extension if not provided. */
+        language?: string;
         /** Transformations that can be applied to this file */
         transforms?: Transforms;
         /** Skip generating source transformers for this file */
@@ -130,7 +134,7 @@ export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-export type ParseSource = (source: string, fileName: string) => HastRoot;
+export type ParseSource = (source: string, fileName: string, language?: string) => HastRoot;
 
 export type SourceTransformer = {
   extensions: string[];
@@ -240,6 +244,8 @@ export interface CodeContentProps {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
   /** Fallback variant when the requested variant is not available */

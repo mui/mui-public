@@ -7,7 +7,7 @@ import type {
   LoadSource,
 } from '../../CodeHighlighter/types';
 import { loadCodeVariant } from './loadCodeVariant';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { getFileNameFromUrl, getLanguageFromExtension } from '../loaderUtils';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
@@ -219,9 +219,12 @@ export async function loadCodeFallback(
         );
       } else {
         // Create a basic variant using fallback logic
+        const derivedFileName = getFileNameFromUrl(initial).fileName;
+        const extension = derivedFileName.slice(derivedFileName.lastIndexOf('.'));
         quickVariant = {
           url: initial,
-          fileName: getFileNameFromUrl(initial).fileName,
+          fileName: derivedFileName,
+          language: getLanguageFromExtension(extension),
         };
       }
 

@@ -12,66 +12,48 @@ import {
 import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
 
 /**
- * Maps common language class names to file extensions
- * Only includes languages that have corresponding grammars in parseSource/grammars.ts
+ * Reserved data properties that are handled internally and should not be passed to userProps.
+ * These are either processed by the transform pipeline or have special meaning.
  */
-const LANGUAGE_TO_EXTENSION: Record<string, string> = {
-  // JavaScript
-  javascript: 'js',
-  js: 'js',
-
-  // TypeScript
-  typescript: 'ts',
-  ts: 'ts',
-
-  // TSX/JSX
-  tsx: 'tsx',
-  jsx: 'jsx', // Maps to .jsx but uses tsx grammar
-
-  // JSON
-  json: 'json',
-
-  // Markdown
-  markdown: 'md',
-  md: 'md',
-
-  // MDX
-  mdx: 'mdx',
-
-  // HTML
-  html: 'html',
-
-  // CSS
-  css: 'css',
-
-  // Shell
-  shell: 'sh',
-  bash: 'sh',
-  sh: 'sh',
-
-  // YAML
-  yaml: 'yaml',
-  yml: 'yaml',
-};
+const RESERVED_DATA_PROPS = new Set([
+  'dataFilename', // Used for fileName
+  'dataVariant', // Used for variant name
+  'dataTransform', // Used for skipTransforms
+  'dataPrecompute', // The precomputed output itself
+  'dataContentProps', // The serialized user props output
+  'dataName', // Used for demo name
+  'dataSlug', // Used for demo slug/URL
+]);
 
 /**
- * Extracts the language from className attribute
+ * Extracts user-defined data properties from a code element.
+ * Filters out reserved properties and returns remaining data-* attributes.
+ * Converts from camelCase (dataTitle) to kebab-case keys (title).
  */
-function extractLanguageFromClassName(className: string | string[] | undefined): string | null {
-  if (!className) {
-    return null;
+function extractUserProps(codeElement: Element): Record<string, string> | undefined {
+  const props = codeElement.properties;
+  if (!props) {
+    return undefined;
   }
 
-  // Handle array of class names (HAST format)
-  const classString = Array.isArray(className) ? className.join(' ') : className;
+  const userProps: Record<string, string> = {};
 
-  const match = classString.match(/(?:^|\s)language-(\w+)(?:\s|$)/);
-  return match ? match[1] : null;
+  for (const [key, value] of Object.entries(props)) {
+    // Only process data-* attributes (in camelCase form: dataXxx)
+    if (key.startsWith('data') && key.length > 4 && !RESERVED_DATA_PROPS.has(key)) {
+      // Convert dataTitle -> title, dataHighlight -> highlight
+      const propName = key.charAt(4).toLowerCase() + key.slice(5);
+      // Convert value to string
+      userProps[propName] = String(value);
+    }
+  }
+
+  return Object.keys(userProps).length > 0 ? userProps : undefined;
 }
 
 /**
- * Gets the filename from data-filename attribute or derives it from language
- * Returns undefined if no explicit filename and no recognizable language
+ * Gets the filename from data-filename attribute only
+ * Returns undefined if no explicit filename is provided
  */
 function getFileName(codeElement: Element): string | undefined {
   // Check for explicit data-filename attribute
@@ -80,16 +62,37 @@ function getFileName(codeElement: Element): string | undefined {
     return dataFilename;
   }
 
-  // Extract language from className
-  const className = codeElement.properties?.className as string | undefined;
-  const language = extractLanguageFromClassName(className);
+  return undefined;
+}
 
-  if (language && LANGUAGE_TO_EXTENSION[language]) {
-    return `index.${LANGUAGE_TO_EXTENSION[language]}`;
+/**
+ * Extracts language from a className like "language-typescript" or "language-js"
+ * Returns the language portion after "language-" prefix
+ */
+function extractLanguageFromClassName(
+  className: string | string[] | undefined,
+): string | undefined {
+  if (!className) {
+    return undefined;
   }
 
-  // Return undefined instead of a fallback - let the system handle gracefully
+  const classes = Array.isArray(className) ? className : [className];
+
+  for (const cls of classes) {
+    if (typeof cls === 'string' && cls.startsWith('language-')) {
+      return cls.slice('language-'.length);
+    }
+  }
+
   return undefined;
+}
+
+/**
+ * Gets the language from class="language-*" attribute
+ */
+function getLanguage(codeElement: Element): string | undefined {
+  const className = codeElement.properties?.className as string | string[] | undefined;
+  return extractLanguageFromClassName(className);
 }
 
 /**
@@ -113,8 +116,13 @@ function extractTextContent(node: Element | Text): string {
  */
 function extractCodeFromSemanticStructure(
   element: Element,
-): Array<{ codeElement: Element; filename?: string; variantName?: string }> {
-  const results: Array<{ codeElement: Element; filename?: string; variantName?: string }> = [];
+): Array<{ codeElement: Element; filename?: string; language?: string; variantName?: string }> {
+  const results: Array<{
+    codeElement: Element;
+    filename?: string;
+    language?: string;
+    variantName?: string;
+  }> = [];
 
   if (element.tagName === 'section') {
     // Handle section with multiple figures
@@ -143,6 +151,7 @@ function extractCodeFromSemanticStructure(
           results.push({
             codeElement: extracted.codeElement,
             filename: extracted.filename,
+            language: extracted.language,
             variantName: variantName || extracted.variantName,
           });
         }
@@ -164,7 +173,7 @@ function extractCodeFromSemanticStructure(
  */
 function extractFromDl(
   dl: Element,
-): { codeElement: Element; filename?: string; variantName?: string } | null {
+): { codeElement: Element; filename?: string; language?: string; variantName?: string } | null {
   // Find dt for filename and dd for code
   let filename: string | undefined;
   let codeElement: Element | undefined;
@@ -200,10 +209,13 @@ function extractFromDl(
   if (codeElement) {
     // Extract variant name from data-variant if available
     const variantName = codeElement.properties?.dataVariant as string | undefined;
+    // Extract language from className
+    const language = getLanguage(codeElement);
 
     return {
       codeElement,
       filename,
+      language,
       variantName,
     };
   }
@@ -235,6 +247,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
       let extractedElements: Array<{
         codeElement: Element;
         filename?: string;
+        language?: string;
         variantName?: string;
       }> = [];
 
@@ -251,13 +264,16 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
         );
 
         if (codeElement) {
-          // Extract filename from data-filename or derive from language class
+          // Extract filename from data-filename attribute (explicit only)
           const filename = getFileName(codeElement);
+          // Extract language from className
+          const language = getLanguage(codeElement);
 
           extractedElements = [
             {
               codeElement,
               filename,
+              language,
               variantName: undefined, // Basic pre > code doesn't have variants
             },
           ];
@@ -283,6 +299,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
             const processElementForVariant = async (
               codeElement: Element,
               filename: string | undefined,
+              language: string | undefined,
               explicitVariantName: string | undefined,
               index: number,
             ): Promise<{ variantName: string; variant: any }> => {
@@ -315,6 +332,11 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                 variant.fileName = derivedFilename;
               }
 
+              // Add language if available (from className)
+              if (language) {
+                variant.language = language;
+              }
+
               const variantName =
                 explicitVariantName || (index === 0 ? 'Default' : `Variant ${index + 1}`);
               return { variantName, variant };
@@ -322,10 +344,11 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
 
             if (extractedElements.length === 1) {
               // Single element - use "Default" as variant name
-              const { codeElement, filename } = extractedElements[0];
+              const { codeElement, filename, language } = extractedElements[0];
               const { variantName, variant } = await processElementForVariant(
                 codeElement,
                 filename,
+                language,
                 undefined,
                 0,
               );
@@ -333,8 +356,8 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
             } else {
               // Multiple elements - use variant names
               const results = await Promise.all(
-                extractedElements.map(({ codeElement, filename, variantName }, index) =>
-                  processElementForVariant(codeElement, filename, variantName, index),
+                extractedElements.map(({ codeElement, filename, language, variantName }, index) =>
+                  processElementForVariant(codeElement, filename, language, variantName, index),
                 ),
               );
               for (const { variantName, variant } of results) {
@@ -378,6 +401,9 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               }
             }
 
+            // Extract user props from the first code element (they should be the same for all variants)
+            const userProps = extractUserProps(extractedElements[0].codeElement);
+
             // Clear all code element contents
             extractedElements.forEach(({ codeElement }) => {
               codeElement.children = [];
@@ -398,6 +424,20 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               (node as any).properties = {};
             }
             (node as any).properties.dataPrecompute = JSON.stringify(processedCode);
+
+            // Pass through name and slug if provided on the code element
+            const firstCodeElement = extractedElements[0].codeElement;
+            if (firstCodeElement.properties?.dataName) {
+              (node as any).properties.dataName = firstCodeElement.properties.dataName;
+            }
+            if (firstCodeElement.properties?.dataSlug) {
+              (node as any).properties.dataSlug = firstCodeElement.properties.dataSlug;
+            }
+
+            // Set user props if any exist
+            if (userProps) {
+              (node as any).properties.dataContentProps = JSON.stringify(userProps);
+            }
           } catch (error) {
             console.warn('Failed to transform code block:', error);
           }

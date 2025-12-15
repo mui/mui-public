@@ -17,7 +17,7 @@ import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
-import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
+import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import * as Errors from './errors';
 
@@ -377,9 +377,16 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>) {
   if (props.children && typeof props.children === 'string') {
     const fileName =
       props.fileName || (props.url ? getFileNameFromUrl(props.url).fileName : undefined);
+    // Derive language: use explicit prop, or derive from fileName extension
+    let language = props.language;
+    if (!language && fileName) {
+      const extension = fileName.slice(fileName.lastIndexOf('.'));
+      language = getLanguageFromExtension(extension);
+    }
     code = {
       Default: {
         fileName,
+        language,
         source: props.children,
         url: props.url,
       },
