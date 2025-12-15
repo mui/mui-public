@@ -102,13 +102,52 @@ This will generate both the original TypeScript and the transformed JavaScript v
 After processing, the plugin:
 
 1. **Replaces content** with a placeholder message
-2. **Stores processed data** in `dataPrecompute` attribute as JSON
-3. **Preserves original structure** for the CodeHighlighter component
+2. **Stores processed data** in `data-precompute` attribute as JSON
+3. **Passes through metadata** like `data-name` and `data-slug` attributes
+4. **Serializes custom props** in `data-content-props` attribute as JSON
 
 ```html
-<pre data-precompute='{"Default":{"fileName":"index.ts","source":"...","transforms":{...}}}'>
+<pre
+  data-precompute='{"Default":{"fileName":"index.ts","source":"...","transforms":{...}}}'
+  data-name="My Demo"
+  data-slug="my-demo"
+  data-content-props='{"title":"Example Code"}'
+>
   Error: expected pre tag to be handled by CodeHighlighter
 </pre>
+```
+
+## Data Attributes
+
+The following `data-*` attributes are supported on code elements:
+
+### Reserved Attributes (handled internally)
+
+| Attribute        | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `data-filename`  | Sets the filename for the code variant                              |
+| `data-variant`   | Sets the variant name                                               |
+| `data-transform` | Enables TypeScript→JavaScript transformation when `"true"`          |
+| `data-name`      | Demo name, passed through to the output `<pre>` element             |
+| `data-slug`      | URL slug for the demo, passed through to the output `<pre>` element |
+
+### Custom Attributes (passed to content component)
+
+Any other `data-*` attributes on the code element are serialized as JSON in the `data-content-props` attribute on the output `<pre>` element. These can be used by your content component for custom features.
+
+**Example:**
+
+```html
+<pre><code class="language-typescript" data-title="Example">
+const x = 1;
+const y = 2;
+</code></pre>
+```
+
+The output `<pre>` element will include:
+
+```html
+<pre data-content-props='{"title":"Example"}' ...></pre>
 ```
 
 ## Variant Naming

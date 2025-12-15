@@ -7,6 +7,46 @@ import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavas
 import type { Code } from '../../CodeHighlighter/types';
 
 /**
+ * Reserved data properties that are handled internally and should not be passed to userProps.
+ * These are either processed by the transform pipeline or have special meaning.
+ */
+const RESERVED_DATA_PROPS = new Set([
+  'dataFilename', // Used for fileName
+  'dataVariant', // Used for variant name
+  'dataTransform', // Used for skipTransforms
+  'dataPrecompute', // The precomputed output itself
+  'dataContentProps', // The serialized user props output
+  'dataName', // Used for demo name
+  'dataSlug', // Used for demo slug/URL
+]);
+
+/**
+ * Extracts user-defined data properties from a code element.
+ * Filters out reserved properties and returns remaining data-* attributes.
+ * Converts from camelCase (dataTitle) to kebab-case keys (title).
+ */
+function extractUserProps(codeElement: Element): Record<string, string> | undefined {
+  const props = codeElement.properties;
+  if (!props) {
+    return undefined;
+  }
+
+  const userProps: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(props)) {
+    // Only process data-* attributes (in camelCase form: dataXxx)
+    if (key.startsWith('data') && key.length > 4 && !RESERVED_DATA_PROPS.has(key)) {
+      // Convert dataTitle -> title, dataHighlight -> highlight
+      const propName = key.charAt(4).toLowerCase() + key.slice(5);
+      // Convert value to string
+      userProps[propName] = String(value);
+    }
+  }
+
+  return Object.keys(userProps).length > 0 ? userProps : undefined;
+}
+
+/**
  * Gets the filename from data-filename attribute only
  * Returns undefined if no explicit filename is provided
  */
@@ -334,6 +374,9 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               }
             }
 
+            // Extract user props from the first code element (they should be the same for all variants)
+            const userProps = extractUserProps(extractedElements[0].codeElement);
+
             // Clear all code element contents
             extractedElements.forEach(({ codeElement }) => {
               codeElement.children = [];
@@ -354,6 +397,20 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               (node as any).properties = {};
             }
             (node as any).properties.dataPrecompute = JSON.stringify(processedCode);
+
+            // Pass through name and slug if provided on the code element
+            const firstCodeElement = extractedElements[0].codeElement;
+            if (firstCodeElement.properties?.dataName) {
+              (node as any).properties.dataName = firstCodeElement.properties.dataName;
+            }
+            if (firstCodeElement.properties?.dataSlug) {
+              (node as any).properties.dataSlug = firstCodeElement.properties.dataSlug;
+            }
+
+            // Set user props if any exist
+            if (userProps) {
+              (node as any).properties.dataContentProps = JSON.stringify(userProps);
+            }
           } catch (error) {
             console.warn('Failed to transform code block:', error);
           }

@@ -432,4 +432,47 @@ console.log(msg);
     expect(htmlData.Default.source.trim()).toBe('console.log("test");');
     expect(markdownData.Default.source.trim()).toBe('console.log("test");');
   });
+
+  it('should extract user props and serialize them as dataContentProps', async () => {
+    const html =
+      '<pre><code class="language-typescript" data-title="My Example" data-highlight="2-3">const x = 1;</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
+    expect(preElement.properties?.dataContentProps).toBeTruthy();
+
+    const userProps = JSON.parse(preElement.properties.dataContentProps);
+    expect(userProps.title).toBe('My Example');
+    expect(userProps.highlight).toBe('2-3');
+  });
+
+  it('should not include reserved data props in userProps', async () => {
+    const html =
+      '<pre><code class="language-typescript" data-filename="test.ts" data-variant="main" data-transform="true" data-title="My Title">const x = 1;</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataContentProps).toBeTruthy();
+
+    const userProps = JSON.parse(preElement.properties.dataContentProps);
+    // Reserved props should NOT be in userProps
+    expect(userProps.filename).toBeUndefined();
+    expect(userProps.variant).toBeUndefined();
+    expect(userProps.transform).toBeUndefined();
+    // User props should be present
+    expect(userProps.title).toBe('My Title');
+  });
+
+  it('should not set dataContentProps when no user props exist', async () => {
+    const html = '<pre><code class="language-javascript">console.log("test");</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
+    expect(preElement.properties?.dataContentProps).toBeUndefined();
+  });
 });
