@@ -6,19 +6,24 @@ The loader utilities provide a comprehensive set of functions for resolving, par
 
 The loader utilities consist of several interconnected modules:
 
-- **`parseImports`** - Parses import statements from source code
+- **`parseImportsAndComments`** - Parses import statements and optionally processes comments
 - **`resolveModulePath`** - Resolves module paths to actual file paths
+- **`resolveImportResult`** - Resolves all imports from a parsed result
 - **`processRelativeImports`** - Transforms and processes resolved imports
 - **`getFileNameFromUrl`** - Extracts file names and extensions from URLs/paths
+- **`extractNameAndSlugFromUrl`** - Extracts human-readable names and slugs from URLs
 - **`rewriteImports`** - Rewrites import statements in source code
+- **`fileUrlToPortablePath`** / **`portablePathToFileUrl`** - Path conversion utilities
+- **`getLanguageFromExtension`** / **`normalizeLanguage`** - Language detection utilities
+- **`externalsToPackages`** - Converts external imports to package names
 
 ## Architecture
 
 ```mermaid
 graph TD
-    A[Source Code] --> B[parseImports]
-    B --> C[Import Result]
-    C --> D[resolveModulePath]
+    A[Source Code] --> B[parseImportsAndComments]
+    B --> C[ImportsAndComments]
+    C --> D[resolveImportResult]
     D --> E[Resolved Paths Map]
     C --> F[processRelativeImports]
     E --> F
@@ -33,12 +38,12 @@ graph TD
 
 ## Core Functions
 
-### parseImports
+### parseImportsAndComments
 
-Parses import statements from JavaScript/TypeScript source code and extracts import information.
+Parses import statements from JavaScript/TypeScript/CSS source code and extracts import information. Optionally processes and removes comments.
 
 ```typescript
-import { parseImports } from '@mui/internal-docs-infra/loaderUtils';
+import { parseImportsAndComments } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const source = `
 import React from 'react';
@@ -47,55 +52,87 @@ import type { Props } from '../types';
 import '../styles.css';
 `;
 
-const result = await parseImports(source, '/src/current/file.tsx');
+const result = await parseImportsAndComments(source, 'file:///src/current/file.tsx');
 console.log(result);
 // {
-//   '../components/Component': {
-//     path: '/src/components/Component',
-//     names: ['Component']
+//   relative: {
+//     '../components/Component': {
+//       url: 'file:///src/components/Component',
+//       names: [{ name: 'Component', type: 'named' }],
+//       positions: [{ start: 45, end: 72 }]
+//     },
+//     '../types': {
+//       url: 'file:///src/types',
+//       names: [{ name: 'Props', type: 'named', isType: true }],
+//       includeTypeDefs: true,
+//       positions: [{ start: 100, end: 112 }]
+//     },
+//     '../styles.css': {
+//       url: 'file:///src/styles.css',
+//       names: [],
+//       positions: [{ start: 130, end: 145 }]
+//     }
 //   },
-//   '../types': {
-//     path: '/src/types',
-//     names: ['Props'],
-//     includeTypeDefs: true
-//   },
-//   '../styles.css': {
-//     path: '/src/styles.css',
-//     names: []
+//   externals: {
+//     'react': {
+//       names: [{ name: 'React', type: 'default' }],
+//       positions: [{ start: 15, end: 22 }]
+//     }
 //   }
 // }
+```
+
+**With comment processing:**
+
+```typescript
+const result = await parseImportsAndComments(source, fileUrl, {
+  removeCommentsWithPrefix: ['@internal'],
+  notableCommentsPrefix: ['TODO'],
+});
+// Returns: { relative, externals, code, comments }
+// - code: source with matching comments removed
+// - comments: Record<lineNumber, commentContent[]>
 ```
 
 **Features:**
 
 - ✓ **Type-aware parsing** - Detects `import type` statements and marks them with `includeTypeDefs: true`
 - ✓ **All import patterns** - Named imports, default imports, namespace imports, side-effect imports
-- ✓ **Relative path resolution** - Converts relative imports to absolute paths
+- ✓ **Relative path resolution** - Converts relative imports to absolute `file://` URLs
 - ✓ **Mixed import handling** - Handles both type and value imports from the same module
-- ✓ **Non-JS asset support** - Handles CSS, images, and other static assets
+- ✓ **Non-JS asset support** - Handles CSS `@import` statements
+- ✓ **Position tracking** - Records start/end positions of import paths for rewriting
+- ✓ **Comment processing** - Optionally removes comments and collects notable ones
+- ✓ **MDX support** - Correctly handles code blocks in MDX files
 
 ### resolveModulePath
 
 Resolves module paths to actual file paths using filesystem directory reading.
 
 ```typescript
-import { resolveModulePath } from '@mui/internal-docs-infra/loaderUtils';
+import { resolveModulePath } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import type { DirectoryReader } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
-// Basic resolution
-const resolved = await resolveModulePath('/src/components/Button', directoryReader);
-console.log(resolved); // '/src/components/Button.jsx'
+// directoryReader returns directory entries for a given file:// URL
+const directoryReader: DirectoryReader = async (path) => {
+  // Implementation that returns DirectoryEntry[]
+};
 
-// Type-aware resolution
+// Basic resolution - returns file:// URL
+const resolved = await resolveModulePath('file:///src/components/Button', directoryReader);
+console.log(resolved); // 'file:///src/components/Button.tsx'
+
+// Type-aware resolution - returns object with both paths
 const typeAware = await resolveModulePath(
-  '/src/components/Button',
+  'file:///src/components/Button',
   directoryReader,
   {},
   true, // includeTypeDefs
 );
 console.log(typeAware);
 // {
-//   import: '/src/components/Button.jsx',
-//   typeImport: '/src/components/Button.d.ts'
+//   import: 'file:///src/components/Button.tsx',
+//   typeImport: 'file:///src/components/Button.d.ts'
 // }
 ```
 
@@ -105,25 +142,77 @@ console.log(typeAware);
 - ✓ **Index file support** - Resolves `Button` to `Button/index.tsx`
 - ✓ **Extension priority** - Follows TypeScript resolution rules
 - ✓ **Optimized filesystem access** - Single directory read when possible
-- ✓ **Batch resolution** - Efficient resolution of multiple paths
+- ✓ **File URL handling** - Works with `file://` URLs and portable paths
 
 **Extension Priorities:**
 
-- **Value imports**: `.ts`, `.tsx`, `.js`, `.jsx`, `.d.ts`
-- **Type imports**: `.d.ts`, `.ts`, `.tsx`, `.js`, `.jsx`
+- **Value imports**: `.ts`, `.tsx`, `.js`, `.jsx`, `.mdx`, `.d.ts`
+- **Type imports**: `.d.ts`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mdx`
+
+### resolveModulePaths
+
+Resolves multiple module paths efficiently by grouping them by directory.
+
+```typescript
+import { resolveModulePaths } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+const paths = ['/src/components/Button', '/src/components/Input', '/src/utils/helpers'];
+
+const resolved = await resolveModulePaths(paths, directoryReader);
+// Map {
+//   '/src/components/Button' => 'file:///src/components/Button.tsx',
+//   '/src/components/Input' => 'file:///src/components/Input.tsx',
+//   '/src/utils/helpers' => 'file:///src/utils/helpers/index.ts'
+// }
+```
+
+### resolveImportResult
+
+Resolves all imports from a `parseImportsAndComments` result, handling JavaScript modules and static assets differently.
+
+```typescript
+import {
+  parseImportsAndComments,
+  resolveImportResult,
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+const { relative } = await parseImportsAndComments(source, fileUrl);
+const resolved = await resolveImportResult(relative, directoryReader);
+// Map from import URL to resolved file:// URL
+```
+
+### resolveVariantPaths
+
+Resolves variant paths from a variants object (useful for demo systems).
+
+```typescript
+import { resolveVariantPaths } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+const variants = {
+  TypeScript: '/src/demos/Button',
+  JavaScript: '/src/demos/Button.js',
+};
+
+const resolved = await resolveVariantPaths(variants, directoryReader);
+// Map {
+//   'TypeScript' => 'file:///src/demos/Button.tsx',
+//   'JavaScript' => 'file:///src/demos/Button.js'
+// }
+```
 
 ### processRelativeImports
 
 Transforms resolved imports based on different storage strategies.
 
 ```typescript
-import { processRelativeImports } from '@mui/internal-docs-infra/loaderUtils';
+import { processRelativeImports } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const result = processRelativeImports(
   source,
-  importResult,
-  resolvedPathsMap,
-  'flat', // or 'canonical' | 'import'
+  importResult.relative, // from parseImportsAndComments
+  'flat', // storeAt mode: 'flat' | 'canonical' | 'import'
+  true, // isJsFile: true for JS/TS, false for CSS/JSON
+  resolvedPathsMap, // from resolveImportResult (required for JS files)
 );
 
 console.log(result);
@@ -165,26 +254,34 @@ console.log(result);
 Extracts file names and extensions from URLs and file paths.
 
 ```typescript
-import { getFileNameFromUrl } from '@mui/internal-docs-infra/loaderUtils';
+import { getFileNameFromUrl } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const meta = getFileNameFromUrl('file:///src/components/Button.tsx');
 console.log(meta); // { fileName: 'Button.tsx', extension: '.tsx' }
 
 // Handles compound extensions
 const types = getFileNameFromUrl('file:///src/types.d.ts');
-console.log(types); // { fileName: 'types.d.ts', extension: '.ts' }
+console.log(types); // { fileName: 'types.d.ts', extension: '.d.ts' }
+
+// Handles CSS modules
+const cssModule = getFileNameFromUrl('file:///src/styles.module.css');
+console.log(cssModule); // { fileName: 'styles.module.css', extension: '.module.css' }
 
 // Works with URLs
 const url = getFileNameFromUrl('https://example.com/file.js');
 console.log(url); // { fileName: 'file.js', extension: '.js' }
 ```
 
+**Supported Compound Extensions:**
+
+`.module.css`, `.module.scss`, `.d.ts`, `.test.ts`, `.test.tsx`, `.spec.ts`, `.config.ts`, `.stories.tsx`, and more.
+
 ### extractNameAndSlugFromUrl
 
 Extracts and formats human-readable names and URL-friendly slugs from file paths.
 
 ```typescript
-import { extractNameAndSlugFromUrl } from '@mui/internal-docs-infra/loaderUtils';
+import { extractNameAndSlugFromUrl } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 // Handles index files (uses parent directory name)
 const demo = extractNameAndSlugFromUrl('file:///app/components/demos/advanced-keyboard/index.ts');
@@ -212,13 +309,13 @@ console.log(kebab); // { name: 'Button Group', slug: 'button-group' }
 Converts an array of external import paths to a packages object for dependency tracking.
 
 ```typescript
-import { externalsToPackages } from '@mui/internal-docs-infra/loaderUtils';
+import { externalsToPackages } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const externals = [
   'react',
   'react-dom',
   '@mui/internal-docs-infra/CodeHighlighter',
-  '@mui/internal-docs-infra/parseSource',
+  '@mui/internal-docs-infra/pipeline/parseSource',
   'lodash/get',
   'some-package/submodule/deep',
   '@/components/Button', // path alias - filtered out
@@ -242,88 +339,155 @@ console.log(packages);
 - ✓ **Path alias filtering** - Ignores imports starting with `@/`
 - ✓ **Deduplication** - Returns unique packages as object keys
 
-### mergeExternals
-
-Merges multiple externals objects, combining imports from the same module and deduplicating.
-
-```typescript
-import { mergeExternals } from '@mui/internal-docs-infra/loaderUtils';
-import type { Externals } from '@mui/internal-docs-infra/CodeHighlighter/types';
-
-const externals1: Externals = {
-  react: [{ name: 'React', type: 'default' }],
-  lodash: [{ name: 'map', type: 'named' }],
-};
-
-const externals2: Externals = {
-  react: [{ name: 'useState', type: 'named' }],
-  lodash: [{ name: 'map', type: 'named' }], // duplicate - will be removed
-};
-
-const merged = mergeExternals([externals1, externals2]);
-console.log(merged);
-// {
-//   'react': [
-//     { name: 'React', type: 'default' },
-//     { name: 'useState', type: 'named' }
-//   ],
-//   'lodash': [{ name: 'map', type: 'named' }]
-// }
-```
-
-**Features:**
-
-- ✓ **Import deduplication** - Removes duplicate imports by name, type, and isType
-- ✓ **Module merging** - Combines imports from the same module across multiple externals
-- ✓ **Type preservation** - Maintains import metadata (default, named, type imports)
-
 ### rewriteImports
 
-Rewrites import statements in source code based on a mapping.
+Rewrites import statements in source code based on a mapping, using precise position data.
 
 ```typescript
-import { rewriteImports } from '@mui/internal-docs-infra/loaderUtils';
+import { rewriteImports } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
 const source = `
 import Component from '../components/Component';
 import { helper } from '../utils/helper';
 `;
 
-const importMap = new Map([
+const importPathMapping = new Map([
   ['../components/Component', './Component'],
   ['../utils/helper', './helper'],
 ]);
 
-const rewritten = rewriteImports(source, importMap);
+// importResult contains position data from parseImportsAndComments
+const rewritten = rewriteImports(source, importPathMapping, importResult.relative);
 console.log(rewritten);
 // import Component from './Component';
 // import { helper } from './helper';
 ```
 
-## Filesystem Wrappers
+### rewriteImportsToNull
 
-For Node.js environments, filesystem wrapper functions provide convenient access:
+Converts import statements to const declarations set to null. Useful when precomputing data that makes imports unnecessary.
 
 ```typescript
-import {
-  resolveModulePathWithFs,
-  resolveImportResultWithFs,
-  resolveVariantPathsWithFs,
-} from '@mui/internal-docs-infra/loaderUtils';
+import { rewriteImportsToNull } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
-// Basic resolution with Node.js filesystem
-const resolved = await resolveModulePathWithFs('/src/components/Button');
+const source = `import { Component } from './Component';`;
 
-// Type-aware resolution
-const typeAware = await resolveModulePathWithFs(
-  '/src/components/Button',
-  {},
-  true, // includeTypeDefs
-);
+const importPathsToRewrite = new Set(['./Component']);
+const rewritten = rewriteImportsToNull(source, importPathsToRewrite, importResult.relative);
+console.log(rewritten);
+// const Component = null;
+```
 
-// Batch import resolution
-const importResult = await parseImports(source, filePath);
-const resolvedPaths = await resolveImportResultWithFs(importResult);
+### removeImports
+
+Removes entire import statements for specified import paths.
+
+```typescript
+import { removeImports } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+const source = `
+import React from 'react';
+import { helper } from './helper';
+`;
+
+const importPathsToRemove = new Set(['./helper']);
+const result = removeImports(source, importPathsToRemove, importResult.relative);
+console.log(result);
+// import React from 'react';
+```
+
+## Path Conversion Utilities
+
+### fileUrlToPortablePath
+
+Converts a `file://` URL to a portable POSIX-style path for cross-platform path manipulation.
+
+```typescript
+import { fileUrlToPortablePath } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+// Unix
+fileUrlToPortablePath('file:///home/user/file.ts');
+// => '/home/user/file.ts'
+
+// Windows
+fileUrlToPortablePath('file:///C:/Users/file.ts');
+// => '/C:/Users/file.ts'
+
+// Already a portable path (passthrough)
+fileUrlToPortablePath('/home/user/file.ts');
+// => '/home/user/file.ts'
+```
+
+### portablePathToFileUrl
+
+Converts a portable path back to a `file://` URL.
+
+```typescript
+import { portablePathToFileUrl } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+portablePathToFileUrl('/home/user/file.ts');
+// => 'file:///home/user/file.ts'
+
+portablePathToFileUrl('/C:/Users/file.ts');
+// => 'file:///C:/Users/file.ts'
+
+// Already a URL (passthrough)
+portablePathToFileUrl('file:///home/user/file.ts');
+// => 'file:///home/user/file.ts'
+```
+
+## Language Detection Utilities
+
+### getLanguageFromExtension
+
+Gets the language name from a file extension.
+
+```typescript
+import { getLanguageFromExtension } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+getLanguageFromExtension('.tsx'); // => 'tsx'
+getLanguageFromExtension('.ts'); // => 'typescript'
+getLanguageFromExtension('.css'); // => 'css'
+getLanguageFromExtension('.mdx'); // => 'mdx'
+```
+
+### normalizeLanguage
+
+Normalizes language aliases to canonical names.
+
+```typescript
+import { normalizeLanguage } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+normalizeLanguage('js'); // => 'javascript'
+normalizeLanguage('ts'); // => 'typescript'
+normalizeLanguage('bash'); // => 'shell'
+normalizeLanguage('yml'); // => 'yaml'
+```
+
+### languageMap / languageAliasMap
+
+Constants for extension-to-language and alias-to-language mappings.
+
+```typescript
+import { languageMap, languageAliasMap } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+// languageMap: { '.js': 'javascript', '.ts': 'typescript', ... }
+// languageAliasMap: { 'js': 'javascript', 'bash': 'shell', ... }
+```
+
+## Module Detection
+
+### isJavaScriptModule
+
+Checks if a path represents a JavaScript/TypeScript module.
+
+```typescript
+import { isJavaScriptModule } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+isJavaScriptModule('./component.tsx'); // => true
+isJavaScriptModule('./styles.css'); // => false
+isJavaScriptModule('./data.json'); // => false
+isJavaScriptModule('./module'); // => true (no extension = assumed JS module)
 ```
 
 ## Complete Pipeline Example
@@ -332,22 +496,34 @@ Here's how to use all the utilities together for a complete import processing pi
 
 ```typescript
 import {
-  parseImports,
-  resolveImportResultWithFs,
+  parseImportsAndComments,
+  resolveImportResult,
   processRelativeImports,
-} from '@mui/internal-docs-infra/loaderUtils';
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import type { DirectoryReader } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
-async function processCodeImports(source: string, filePath: string) {
+// Create a directory reader (implementation depends on your environment)
+const directoryReader: DirectoryReader = async (dirUrl) => {
+  // Return DirectoryEntry[] for the given file:// URL
+};
+
+async function processCodeImports(source: string, fileUrl: string) {
   // 1. Parse imports from source
-  const importResult = await parseImports(source, filePath);
+  const { relative, externals } = await parseImportsAndComments(source, fileUrl);
 
   // 2. Resolve import paths to actual files
-  const resolvedPathsMap = await resolveImportResultWithFs(importResult);
+  const resolvedPathsMap = await resolveImportResult(relative, directoryReader);
 
   // 3. Process and transform the imports
-  const result = processRelativeImports(source, importResult, resolvedPathsMap, 'flat');
+  const result = processRelativeImports(
+    source,
+    relative,
+    'flat',
+    true, // isJsFile
+    resolvedPathsMap,
+  );
 
-  return result;
+  return { result, externals };
 }
 
 // Usage
@@ -358,7 +534,7 @@ import type { Props } from '../types';
 import '../styles.css';
 `;
 
-const result = await processCodeImports(source, '/src/demo/example.tsx');
+const { result, externals } = await processCodeImports(source, 'file:///src/demo/example.tsx');
 
 console.log(result.processedSource);
 // import React from 'react';
@@ -371,6 +547,14 @@ console.log(result.extraFiles);
 //   './Button.tsx': 'file:///src/components/Button.tsx',
 //   './types.d.ts': 'file:///src/types.d.ts',
 //   './styles.css': 'file:///src/styles.css'
+// }
+
+console.log(externals);
+// {
+//   'react': {
+//     names: [{ name: 'React', type: 'default' }],
+//     positions: [...]
+//   }
 // }
 ```
 
@@ -386,13 +570,13 @@ import { TypesLoaderUtils } from './types';
 
 ```typescript
 // Default extensions for JavaScript/TypeScript modules
-const JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.d.ts'];
+const JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 
 // Type import extensions (prioritize .d.ts first)
-const TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx'];
+const TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
 
 // Value import extensions (standard priority)
-const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.d.ts'];
+const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
 
 ## Performance Optimizations

@@ -42,7 +42,7 @@ type UserProps<T extends {} = {}> = T & {
 export interface UseCodeResult<T extends {} = {}> {
   variants: string[];
   selectedVariant: string;
-  selectVariant: React.Dispatch<React.SetStateAction<string>>;
+  selectVariant: (variant: string | null) => void;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectedFile: React.ReactNode;
   selectedFileLines: number;
@@ -51,7 +51,7 @@ export interface UseCodeResult<T extends {} = {}> {
   allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
   expanded: boolean;
   expand: () => void;
-  setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
+  setExpanded: (expanded: boolean) => void;
   copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>;
   availableTransforms: string[];
   selectedTransform: string | null | undefined;

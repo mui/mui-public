@@ -16,7 +16,7 @@ describe('externalsToPackages', () => {
   it('should extract package names from scoped packages', () => {
     const externals = [
       '@mui/internal-docs-infra/CodeHighlighter',
-      '@mui/internal-docs-infra/parseSource',
+      '@mui/internal-docs-infra/pipeline/parseSource',
       '@mui/material/Button',
       '@types/node',
     ];
@@ -45,8 +45,8 @@ describe('externalsToPackages', () => {
       'react',
       'react-dom',
       '@mui/internal-docs-infra/CodeHighlighter',
-      '@mui/internal-docs-infra/parseSource',
-      '@mui/internal-docs-infra/transformTypescriptToJavascript',
+      '@mui/internal-docs-infra/pipeline/parseSource',
+      '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript',
       '@mui/internal-docs-infra/useCode',
     ];
     const result = externalsToPackages(externals);

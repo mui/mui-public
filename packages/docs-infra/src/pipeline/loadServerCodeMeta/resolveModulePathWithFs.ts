@@ -1,6 +1,8 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import { readdir } from 'fs/promises';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 import {
   resolveModulePath,
   resolveModulePaths,
@@ -15,9 +17,13 @@ import {
 /**
  * Node.js filesystem-based directory reader that converts Dirent objects
  * to the DirectoryEntry interface expected by the resolver functions.
+ *
+ * The input is a file:// URL. We convert it to a filesystem path using fileURLToPath.
  */
-const nodeDirectoryReader: DirectoryReader = async (path: string): Promise<DirectoryEntry[]> => {
-  const entries = await readdir(path, { withFileTypes: true });
+const nodeDirectoryReader: DirectoryReader = async (fileUrl: string): Promise<DirectoryEntry[]> => {
+  // Convert file:// URL to filesystem path for Node.js fs APIs
+  const fsPath = fileURLToPath(fileUrl);
+  const entries = await readdir(fsPath, { withFileTypes: true });
   return entries.map((entry) => ({
     name: entry.name,
     isFile: entry.isFile(),
@@ -44,11 +50,11 @@ export async function resolveModulePathWithFs(
   includeTypeDefs: true,
 ): Promise<TypeAwareResolveResult>;
 export async function resolveModulePathWithFs(
-  modulePath: string,
+  moduleUrl: string,
   options: ResolveModulePathOptions = {},
   includeTypeDefs?: boolean,
 ): Promise<string | TypeAwareResolveResult> {
-  return resolveModulePath(modulePath, nodeDirectoryReader, options, includeTypeDefs);
+  return resolveModulePath(moduleUrl, nodeDirectoryReader, options, includeTypeDefs);
 }
 
 /**
@@ -60,10 +66,10 @@ export async function resolveModulePathWithFs(
  * @returns Promise<Map<string, string>> - Map from input path to resolved file path
  */
 export async function resolveModulePathsWithFs(
-  modulePaths: string[],
+  moduleUrls: string[],
   options: ResolveModulePathOptions = {},
 ): Promise<Map<string, string>> {
-  return resolveModulePaths(modulePaths, nodeDirectoryReader, options);
+  return resolveModulePaths(moduleUrls, nodeDirectoryReader, options);
 }
 
 /**
@@ -80,7 +86,7 @@ export async function resolveImportResultWithFs(
   importResult: Record<
     string,
     {
-      path: string;
+      url: string;
       names: string[];
       includeTypeDefs?: true;
       positions?: Array<{ start: number; end: number }>;
