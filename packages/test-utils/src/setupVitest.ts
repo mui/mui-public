@@ -11,9 +11,9 @@ import { Configuration, configure } from './configure';
 let isInitialized = false;
 
 export default function setupVitest({
-  failOnConsoleEnabed = true,
+  failOnConsoleEnabled = true,
   ...config
-}: Partial<Configuration> & { failOnConsoleEnabed?: boolean } = {}): void {
+}: Partial<Configuration> & { failOnConsoleEnabled?: boolean } = {}): void {
   // When run in vitest with --no-isolate, the test hooks are cleared between each suite,
   // but modules are only evaluated once, so calling it top-level would only register the
   // hooks for the first suite only.
@@ -44,7 +44,7 @@ export default function setupVitest({
 
   chai.use(chaiPlugin);
 
-  if (failOnConsoleEnabed) {
+  if (failOnConsoleEnabled) {
     failOnConsole({
       silenceMessage: (message: string) => {
         if (process.env.NODE_ENV === 'production') {
