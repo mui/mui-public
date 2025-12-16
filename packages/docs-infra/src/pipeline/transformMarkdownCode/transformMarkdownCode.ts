@@ -1,6 +1,7 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Code, Parent } from 'mdast';
+import { normalizeLanguage } from '../loaderUtils/getLanguageFromExtension';
 
 /**
  * Remark plugin that transforms code blocks with variants into semantic HTML structures.
@@ -54,75 +55,35 @@ import type { Code, Parent } from 'mdast';
  *     <dl>
  *       <dt><code>index.js</code></dt>
  *       <dd>
- *         <pre><code class="language-bash">pnpm install @mui/internal-docs-infra</code></pre>
+ *         <pre><code class="language-shell">pnpm install @mui/internal-docs-infra</code></pre>
  *       </dd>
  *     </dl>
  *   </figure>
  * </section>
  *
- * Or for individual blocks (no figure/figcaption needed):
+ * Or for individual blocks without filename (no dl wrapper needed):
+ * <pre><code class="language-typescript" data-transform="true">console.log('test' as const)</code></pre>
+ *
+ * Or with explicit filename (uses dl/dt/dd structure):
  * <dl>
- *   <dt><code>index.ts</code></dt>
+ *   <dt><code>example.ts</code></dt>
  *   <dd>
- *     <pre><code class="language-ts" data-transform="true">console.log('test' as const)</code></pre>
+ *     <pre><code class="language-typescript">console.log('test' as const)</code></pre>
  *   </dd>
  * </dl>
+ *
+ * Note: The `dl/dt/dd` structure is only used when an explicit `filename` prop is provided.
+ * Language information is passed via the `class="language-*"` attribute on the code element.
  */
 
 /**
- * Maps common language names to file extensions
+ * Gets filename from explicit filename prop only.
+ * Does not derive filename from language - language is passed via className instead.
  */
-const LANGUAGE_TO_EXTENSION: Record<string, string> = {
-  // JavaScript
-  javascript: 'js',
-  js: 'js',
-
-  // TypeScript
-  typescript: 'ts',
-  ts: 'ts',
-
-  // TSX/JSX
-  tsx: 'tsx',
-  jsx: 'jsx',
-
-  // JSON
-  json: 'json',
-
-  // Markdown
-  markdown: 'md',
-  md: 'md',
-
-  // MDX
-  mdx: 'mdx',
-
-  // HTML
-  html: 'html',
-
-  // CSS
-  css: 'css',
-
-  // Shell
-  shell: 'sh',
-  bash: 'sh',
-  sh: 'sh',
-
-  // YAML
-  yaml: 'yaml',
-  yml: 'yaml',
-};
-
-/**
- * Gets filename from language or explicit filename prop
- */
-function getFileName(language: string | null, props: Record<string, string>): string | null {
-  // Check for explicit filename
+function getFileName(props: Record<string, string>): string | null {
+  // Only return explicit filename
   if (props.filename) {
     return props.filename;
-  }
-
-  // Derive from language
-  if (language && LANGUAGE_TO_EXTENSION[language]) {
-    return `index.${LANGUAGE_TO_EXTENSION[language]}`;
   }
 
   return null;
@@ -233,12 +194,11 @@ export const transformMarkdownCode: Plugin = () => {
 
         // Handle individual code blocks with options (but no variants)
         if (!metaData.variant && !metaData.variantType && Object.keys(allProps).length > 0) {
-          // Create a dl element for individual blocks with options
           const codeHProperties: Record<string, any> = {};
 
-          // Add language class if available
+          // Add normalized language as class
           if (langFromMeta) {
-            codeHProperties.className = `language-${langFromMeta}`;
+            codeHProperties.className = `language-${normalizeLanguage(langFromMeta)}`;
           }
 
           // Add all props as data attributes (in camelCase)
@@ -253,66 +213,67 @@ export const transformMarkdownCode: Plugin = () => {
             codeHProperties[camelKey] = value;
           });
 
-          const fileName = getFileName(langFromMeta, allProps);
+          const fileName = getFileName(allProps);
 
-          const dlElement = {
+          // Create pre > code element
+          const preElement = {
             type: 'element',
-            tagName: 'dl',
-            data: {
-              hName: 'dl',
-              hProperties: {},
-            },
+            tagName: 'pre',
+            data: { hName: 'pre', hProperties: {} },
             children: [
-              ...(fileName
-                ? [
-                    {
-                      type: 'element',
-                      tagName: 'dt',
-                      data: { hName: 'dt', hProperties: {} },
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'code',
-                          data: { hName: 'code', hProperties: {} },
-                          children: [{ type: 'text', value: fileName }],
-                        },
-                      ],
-                    },
-                  ]
-                : []),
               {
                 type: 'element',
-                tagName: 'dd',
-                data: { hName: 'dd', hProperties: {} },
+                tagName: 'code',
+                data: {
+                  hName: 'code',
+                  hProperties: codeHProperties,
+                },
                 children: [
                   {
-                    type: 'element',
-                    tagName: 'pre',
-                    data: { hName: 'pre', hProperties: {} },
-                    children: [
-                      {
-                        type: 'element',
-                        tagName: 'code',
-                        data: {
-                          hName: 'code',
-                          hProperties: codeHProperties,
-                        },
-                        children: [
-                          {
-                            type: 'text',
-                            value: codeNode.value,
-                          },
-                        ],
-                      },
-                    ],
+                    type: 'text',
+                    value: codeNode.value,
                   },
                 ],
               },
             ],
           };
 
+          // If there's a filename, wrap in dl/dt/dd structure
+          // Otherwise, just use pre > code directly
+          const outputElement = fileName
+            ? {
+                type: 'element',
+                tagName: 'dl',
+                data: {
+                  hName: 'dl',
+                  hProperties: {},
+                },
+                children: [
+                  {
+                    type: 'element',
+                    tagName: 'dt',
+                    data: { hName: 'dt', hProperties: {} },
+                    children: [
+                      {
+                        type: 'element',
+                        tagName: 'code',
+                        data: { hName: 'code', hProperties: {} },
+                        children: [{ type: 'text', value: fileName }],
+                      },
+                    ],
+                  },
+                  {
+                    type: 'element',
+                    tagName: 'dd',
+                    data: { hName: 'dd', hProperties: {} },
+                    children: [preElement],
+                  },
+                ],
+              }
+            : preElement;
+
           // Replace this individual code block immediately
-          (parentNode.children as any)[index] = dlElement;
+          (parentNode.children as any)[index] = outputElement;
           processedIndices.add(index);
           return;
         }
@@ -546,9 +507,9 @@ export const transformMarkdownCode: Plugin = () => {
                 // Build hProperties for HTML attributes
                 const codeHProperties: Record<string, any> = {};
 
-                // Add language class if available
+                // Add normalized language as class
                 if (block.actualLang) {
-                  codeHProperties.className = `language-${block.actualLang}`;
+                  codeHProperties.className = `language-${normalizeLanguage(block.actualLang)}`;
                 }
 
                 // Add additional props as data attributes (in camelCase)
@@ -566,7 +527,7 @@ export const transformMarkdownCode: Plugin = () => {
                 // Add data-variant to track the variant
                 codeHProperties.dataVariant = block.variant;
 
-                const fileName = getFileName(block.actualLang, block.props);
+                const fileName = getFileName(block.props);
 
                 return {
                   type: 'element',
@@ -712,9 +673,9 @@ export const transformMarkdownCode: Plugin = () => {
 
             const codeHProperties: Record<string, any> = {};
 
-            // Add language class if available
+            // Add normalized language as class
             if (block.actualLang) {
-              codeHProperties.className = `language-${block.actualLang}`;
+              codeHProperties.className = `language-${normalizeLanguage(block.actualLang)}`;
             }
 
             // Add additional props as data attributes (in camelCase)
@@ -732,7 +693,7 @@ export const transformMarkdownCode: Plugin = () => {
             // Add data-variant to track the variant
             codeHProperties.dataVariant = block.variant;
 
-            const fileName = getFileName(block.actualLang, block.props);
+            const fileName = getFileName(block.props);
 
             const dlElement = {
               type: 'element',

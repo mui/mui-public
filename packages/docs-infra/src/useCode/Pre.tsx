@@ -36,12 +36,14 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
 export function Pre({
   children,
   className,
+  language,
   ref,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
 }: {
   children: VariantSource;
   className?: string;
+  language?: string;
   ref?: React.Ref<HTMLPreElement>;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
@@ -117,9 +119,15 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      root.childNodes.forEach((node) => {
+      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
+      root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
+          if (!element.hasAttribute('data-frame')) {
+            console.warn('Expected frame element in useCode <Pre>', element);
+            return;
+          }
+
           observer.current?.observe(element);
         }
       });
@@ -175,7 +183,9 @@ export function Pre({
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      <code>{typeof children === 'string' ? children : frames}</code>
+      <code className={language ? `language-${language}` : undefined}>
+        {typeof children === 'string' ? children : frames}
+      </code>
     </pre>
   );
 }

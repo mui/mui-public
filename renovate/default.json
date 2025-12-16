@@ -54,6 +54,9 @@
       "datasourceTemplate": "docker"
     }
   ],
+  "vulnerabilityAlerts": {
+    "addLabels": ["security"]
+  },
   "packageRules": [
     {
       "matchDepTypes": ["peerDependencies"],
@@ -147,6 +150,12 @@
     {
       "matchPackageNames": ["eslint-config-prettier"],
       "allowedVersions": ">=10.1.8"
+    },
+    {
+      // until https://github.com/mui/mui-public/pull/927 is solved
+      "groupName": "Quarantine",
+      "matchPackageNames": ["@mui/internal-test-utils"],
+      "enabled": false
     }
   ]
 }

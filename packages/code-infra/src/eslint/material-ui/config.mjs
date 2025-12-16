@@ -44,9 +44,6 @@ const criticalAirbnbRules = {
   'no-restricted-globals': ['error', 'isFinite', 'isNaN'],
 
   // Styles
-  // require or disallow an empty line between class members
-  // https://eslint.org/docs/rules/lines-between-class-members
-  'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: false }],
   // require a capital letter for constructors
   'new-cap': [
     'error',
@@ -435,7 +432,7 @@ export function createCoreConfig(options = {}) {
         'react/forbid-prop-types': 'off', // Too strict, no time for that
         'react/jsx-curly-brace-presence': 'off', // broken
         // airbnb is using .jsx
-        'react/jsx-filename-extension': ['error', { extensions: ['.js', '.tsx'] }],
+        'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }],
         // Prefer <React.Fragment> over <>.
         'react/jsx-fragments': ['error', 'element'],
         // Enforces premature optimization

@@ -1,0 +1,550 @@
+# Use Search
+
+The `useSearch` hook provides a powerful client-side search engine using [Orama](https://github.com/oramasearch/orama) for documentation sites. It handles index creation, search queries, and result formatting with built-in support for stemming, grouping, faceting, and customizable result types.
+
+---
+
+## Overview
+
+`useSearch` creates an in-memory search index from your sitemap data and provides instant search results with fuzzy matching, boosting, and tolerance controls. It's designed to work seamlessly with documentation structures that include pages, sections, subsections, component parts, and exports.
+
+### Key Features
+
+- **Fast in-memory search** with Orama's optimized indexing
+- **Automatic stemming** and stop word filtering for English
+- **Fuzzy matching** with configurable tolerance
+- **Result boosting** by field or result type
+- **Multiple result types** including pages, sections, parts, and exports
+- **Grouped results** with support for faceting and filtering
+- **Default results** for empty search states
+- **URL generation** with hash fragment support
+- **Type-safe** with full TypeScript support
+
+---
+
+## Basic Usage
+
+```tsx
+import { useSearch } from '@mui/internal-docs-infra/useSearch';
+
+function SearchComponent() {
+  const { results, search, isReady, defaultResults, buildResultUrl } = useSearch({
+    sitemap: () => import('./sitemap'),
+    maxDefaultResults: 10,
+    enableStemming: true,
+  });
+
+  const handleSearch = (query: string) => {
+    search(query);
+  };
+
+  return (
+    <div>
+      <input onChange={(e) => handleSearch(e.target.value)} />
+      {results.results.map((group) =>
+        group.items.map((result) => (
+          <a key={result.id} href={buildResultUrl(result)}>
+            {result.title}
+          </a>
+        )),
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## Sitemap Structure
+
+The hook expects a sitemap that follows this structure:
+
+```typescript
+interface Sitemap {
+  schema: Record<string, any>;
+  data: Record<string, SitemapSectionData>;
+}
+
+interface SitemapSectionData {
+  title: string;
+  prefix: string;
+  pages: SitemapPage[];
+}
+
+interface SitemapPage {
+  title: string;
+  slug: string;
+  path: string;
+  description: string;
+  keywords?: string[];
+  sections?: Record<string, SitemapSection>;
+  parts?: Record<string, SitemapPart>;
+  exports?: Record<string, SitemapExport>;
+}
+```
+
+---
+
+## Configuration
+
+### Stemming and Stop Words
+
+Enable stemming to improve search quality by reducing words to their root form:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  enableStemming: true, // Default: true
+});
+```
+
+When enabled, searches for "running" will also match "run", "runs", and "runner".
+
+### Fuzzy Matching
+
+Control how tolerant the search is to typos:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  tolerance: 2, // Default: 1
+});
+```
+
+Higher tolerance values allow more character differences between the query and results.
+
+### Result Limiting
+
+Configure how many results to return:
+
+```tsx
+const { search, defaultResults } = useSearch({
+  sitemap: () => import('./sitemap'),
+  maxDefaultResults: 10, // Default: undefined (all pages)
+  limit: 20, // Default: 20
+});
+```
+
+When `maxDefaultResults` is `undefined`, all pages are included in the default results (but not headings, exports, or parts).
+
+### Category Grouping
+
+Include page categories in result groups for better organization:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  includeCategoryInGroup: true, // Groups become "Overview Pages" vs just "Pages"
+});
+```
+
+### Field Boosting
+
+Boost specific fields to prioritize certain result types. You can import `defaultSearchBoost` and extend it:
+
+```tsx
+import { useSearch, defaultSearchBoost } from '@mui/internal-docs-infra/useSearch';
+
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  boost: {
+    ...defaultSearchBoost,
+    title: 3, // Override specific values
+  },
+});
+```
+
+The default boost values are:
+
+```typescript
+export const defaultSearchBoost = {
+  type: 100,
+  group: 100,
+  slug: 2,
+  path: 2,
+  title: 2,
+  page: 6,
+  pageKeywords: 15,
+  description: 1.5,
+  part: 1.5,
+  export: 1.3,
+  sectionTitle: 50,
+  section: 3,
+  subsection: 2.5,
+  props: 1.5,
+  dataAttributes: 1.5,
+  cssVariables: 1.5,
+  sections: 0.7,
+  subsections: 0.3,
+  keywords: 1.5,
+};
+```
+
+---
+
+## Result Types
+
+The hook returns results grouped by category. Each group contains items with a discriminated union type:
+
+```typescript
+type SearchResults = { group: string; items: SearchResult[] }[];
+
+type SearchResult =
+  | PageSearchResult
+  | PartSearchResult
+  | ExportSearchResult
+  | SectionSearchResult
+  | SubsectionSearchResult;
+```
+
+### Page Result
+
+Top-level documentation pages:
+
+```typescript
+interface PageSearchResult extends BaseSearchResult {
+  type: 'page';
+  page?: string;
+  pageKeywords?: string;
+  sections?: string;
+  subsections?: string;
+}
+```
+
+### Section Result
+
+Top-level headings within a page:
+
+```typescript
+interface SectionSearchResult extends BaseSearchResult {
+  type: 'section';
+  section: string;
+}
+```
+
+### Subsection Result
+
+Nested headings within a page:
+
+```typescript
+interface SubsectionSearchResult extends BaseSearchResult {
+  type: 'subsection';
+  subsection: string;
+}
+```
+
+### Part Result
+
+Component parts with API documentation:
+
+```typescript
+interface PartSearchResult extends BaseSearchResult {
+  type: 'part';
+  part: string;
+  export: string;
+  props?: string;
+  dataAttributes?: string;
+  cssVariables?: string;
+}
+```
+
+### Export Result
+
+Exported functions/components with API documentation:
+
+```typescript
+interface ExportSearchResult extends BaseSearchResult {
+  type: 'export';
+  export: string;
+  props?: string;
+  dataAttributes?: string;
+  cssVariables?: string;
+}
+```
+
+### Base Search Result
+
+All result types extend this base interface:
+
+```typescript
+interface BaseSearchResult {
+  id?: string;
+  title?: string;
+  description?: string;
+  slug: string;
+  path: string;
+  sectionTitle: string;
+  prefix: string;
+  keywords?: string;
+  score?: number;
+  group?: string;
+}
+```
+
+---
+
+## Custom Processing
+
+### Custom Flattening
+
+Override how pages are converted to search entries:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  flattenPage: (page, sectionData) => {
+    return [
+      {
+        type: 'page',
+        title: page.title,
+        slug: page.slug,
+        path: page.path,
+        description: page.description,
+        sectionTitle: sectionData.title,
+        prefix: sectionData.prefix,
+      },
+    ];
+  },
+});
+```
+
+### Custom Formatting
+
+Override how search hits are formatted:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  formatResult: (hit) => {
+    return {
+      type: 'page',
+      id: hit.id,
+      title: hit.document.title.toUpperCase(),
+      description: hit.document.description,
+      slug: hit.document.slug,
+      path: hit.document.path,
+      sectionTitle: hit.document.sectionTitle,
+      prefix: hit.document.prefix,
+      score: hit.score,
+    };
+  },
+});
+```
+
+---
+
+## Return Value
+
+### `results`
+
+Object containing current search results, count, and elapsed time:
+
+```typescript
+results: {
+  results: SearchResults; // Array of grouped results
+  count: number; // Total number of matches
+  elapsed: ElapsedTime; // Time taken for search
+}
+```
+
+### `isReady`
+
+Boolean indicating whether the search index has been created and is ready:
+
+```typescript
+isReady: boolean;
+```
+
+### `search`
+
+Function to perform a search query with optional parameters:
+
+```typescript
+search: (value: string, options?: SearchBy) => Promise<void>;
+```
+
+The `options` parameter supports:
+
+- `facets`: Faceted search configuration
+- `groupBy`: Group results by a field
+- `limit`: Override the default result limit
+- `offset`: Pagination offset
+- `where`: Filter conditions
+
+### `defaultResults`
+
+Default results shown when search is empty, in the same format as `results`:
+
+```typescript
+defaultResults: {
+  results: SearchResults; // Array of grouped results
+  count: number; // Total number of default results
+  elapsed: ElapsedTime; // Always { raw: 0, formatted: '0ms' }
+}
+```
+
+### `buildResultUrl`
+
+Function to build URLs from search results with proper hash fragments:
+
+```typescript
+buildResultUrl: (result: SearchResult) => string;
+```
+
+---
+
+## URL Building
+
+The `buildResultUrl` function handles different result types:
+
+- **Page results**: Returns the page path
+- **Section results**: Adds `#section-slug` to the page path
+- **Subsection results**: Adds `#subsection-slug` to the page path
+- **Part results**: Adds `#part-name` to the page path
+- **Export results**: Adds `#export-name` or `#api-reference` to the page path
+
+Example output:
+
+```typescript
+// Page result
+buildResultUrl(pageResult); // "/components/button"
+
+// Section result
+buildResultUrl(sectionResult); // "/components/button#usage"
+
+// Export result
+buildResultUrl(exportResult); // "/components/button#api-reference"
+```
+
+---
+
+## Performance
+
+The search index is built asynchronously when the component mounts. Use the `isReady` flag to show loading states:
+
+```tsx
+const { isReady, search, results } = useSearch({
+  sitemap: () => import('./sitemap'),
+});
+
+if (!isReady) {
+  return <div>Loading search index...</div>;
+}
+```
+
+Index creation is fast but happens only once per mount. Consider memoizing the sitemap import for optimal performance.
+
+---
+
+## Creating the Sitemap
+
+The `useSearch` hook requires a sitemap with page metadata. Here's how to set one up:
+
+### 1. Extract Page Metadata
+
+Use the [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) remark plugin to automatically extract titles, descriptions, and sections from your MDX pages:
+
+```typescript
+// Each MDX page will have metadata extracted:
+export const metadata = {
+  title: 'Button',
+  description: 'A clickable button component.',
+  keywords: ['button', 'click'],
+};
+```
+
+### 2. Define the Sitemap
+
+Create a sitemap index file using [`createSitemap`](../../functions/create-sitemap/page.mdx):
+
+```typescript
+// app/sitemap/index.ts
+import { createSitemap } from '@mui/internal-docs-infra/createSitemap';
+import Components from '../components/page.mdx';
+import Functions from '../functions/page.mdx';
+
+export const sitemap = createSitemap(import.meta.url, {
+  Components,
+  Functions,
+});
+```
+
+### 3. Import in useSearch
+
+Import the sitemap dynamically in your search component:
+
+```tsx
+const { search, results } = useSearch({
+  sitemap: () => import('../sitemap'),
+});
+```
+
+See [`createSitemap`](../../functions/create-sitemap/page.mdx) for the full API and [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) for metadata extraction options.
+
+---
+
+## Best Practices
+
+1. **Enable stemming** for better search quality in English documentation
+2. **Use default results** to show popular pages when the search is empty
+3. **Boost important fields** like `type`, `title`, and `slug` to prioritize exact matches
+4. **Set appropriate tolerance** based on your use case (1-2 for strict, 3+ for lenient)
+5. **Limit results** to keep the UI manageable (10-20 results is typical)
+6. **Use `buildResultUrl`** to ensure consistent URL formatting across result types
+7. **Check `isReady`** before allowing searches to prevent errors
+
+---
+
+## Type Definitions
+
+```typescript
+interface UseSearchOptions {
+  /** Function that returns a promise resolving to sitemap data */
+  sitemap: () => Promise<{ sitemap?: Sitemap }>;
+  /** Maximum number of default results to show */
+  maxDefaultResults?: number;
+  /** Search tolerance for fuzzy matching */
+  tolerance?: number;
+  /** Maximum number of search results */
+  limit?: number;
+  /** Enable stemming and stopwords (uses English by default) */
+  enableStemming?: boolean;
+  /** Boost values for different result types and fields */
+  boost?: Partial<Record<string, number>>;
+  /** Include page categories in groups: "Overview Pages" vs "Pages" */
+  includeCategoryInGroup?: boolean;
+  /** Custom function to flatten sitemap pages into search results */
+  flattenPage?: (page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[];
+  /** Custom function to format Orama search hits into typed results */
+  formatResult?: <TDocument = unknown>(hit: Result<TDocument>) => SearchResult;
+}
+
+type SearchBy<T> = Pick<
+  SearchParams<Orama<T>>,
+  'facets' | 'groupBy' | 'limit' | 'offset' | 'where'
+>;
+
+type SearchResults = { group: string; items: SearchResult[] }[];
+
+interface UseSearchResult<T> {
+  /** Current search results with count and timing */
+  results: { results: SearchResults; count: number; elapsed: ElapsedTime };
+  /** Whether the search index is ready */
+  isReady: boolean;
+  /** Function to update search value and get new results */
+  search: (value: string, by?: SearchBy<T>) => Promise<void>;
+  /** Default results shown when search is empty */
+  defaultResults: { results: SearchResults; count: number; elapsed: ElapsedTime };
+  /** Build a URL from a search result */
+  buildResultUrl: (result: SearchResult) => string;
+}
+```
+
+---
+
+## Related
+
+- [`createSitemap`](../../functions/create-sitemap/page.mdx) - Define sitemap data for search indexing
+- [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) - Extract page metadata from MDX
+- [`loadServerSitemap`](../../functions/load-server-sitemap/page.mdx) - Runtime sitemap loading
+- [`withDocsInfra`](../../functions/with-docs-infra/page.mdx) - Next.js plugin that configures the build

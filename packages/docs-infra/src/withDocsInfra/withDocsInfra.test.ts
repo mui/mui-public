@@ -79,6 +79,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './app/sitemap/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+              options: { performance: {} },
+            },
+          ],
+        },
       });
     });
 
@@ -104,6 +112,14 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance: {} },
+            },
+          ],
+        },
+        './app/sitemap/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
               options: { performance: {} },
             },
           ],
@@ -154,6 +170,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './app/sitemap/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+              options: { performance: {} },
+            },
+          ],
+        },
         './custom/**/*.ts': {
           loaders: ['custom-loader'],
         },
@@ -193,6 +217,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './app/sitemap/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+              options: { performance: {} },
+            },
+          ],
+        },
       });
     });
   });
@@ -227,9 +259,9 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      expect(webpackResult.module?.rules).toHaveLength(2);
+      expect(webpackResult.module?.rules).toHaveLength(3);
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/index\\.ts$'),
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {
@@ -239,11 +271,21 @@ describe('withDocsInfra', () => {
         ],
       });
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/client\\.ts$'),
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]client\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            options: { performance: {} },
+          },
+        ],
+      });
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]sitemap[/\\\\]index\\.ts$'),
+        use: [
+          mockDefaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
             options: { performance: {} },
           },
         ],
@@ -267,8 +309,8 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 2 default rules + 2 additional rules = 4 total
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      // Should have 3 default rules + 2 additional rules = 5 total
+      expect(webpackResult.module?.rules).toHaveLength(5);
 
       // Check for demo-* patterns - look for converted regex patterns
       const demoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
@@ -294,7 +336,7 @@ describe('withDocsInfra', () => {
 
       expect(webpackResult.module).toBeDefined();
       expect(webpackResult.module?.rules).toBeDefined();
-      expect(webpackResult.module?.rules).toHaveLength(2);
+      expect(webpackResult.module?.rules).toHaveLength(3);
     });
 
     it('should call existing webpack function if provided', () => {
@@ -334,7 +376,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContain(existingRule);
-      expect(webpackResult.module?.rules).toHaveLength(3); // 1 existing + 2 new
+      expect(webpackResult.module?.rules).toHaveLength(4); // 1 existing + 3 new
     });
   });
 
@@ -427,6 +469,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './app/sitemap/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+              options: { performance: {} },
+            },
+          ],
+        },
         './app/**/demos/*/demo-*/index.ts': {
           loaders: [
             {
@@ -467,8 +517,8 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 4 rules total: 2 default + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      // Should have 5 rules total: 3 default + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(5);
 
       // Check for the original patterns
       const originalDemoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
@@ -513,6 +563,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './app/sitemap/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+              options: { performance: performanceOptions },
+            },
+          ],
+        },
       });
     });
 
@@ -550,7 +608,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/index\\.ts$'),
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
         use: [
           mockWebpackOptions.defaultLoaders.babel,
           {
@@ -561,7 +619,7 @@ describe('withDocsInfra', () => {
       });
 
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('/demos/[^/]+/client\\.ts$'),
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]client\\.ts$'),
         use: [
           mockWebpackOptions.defaultLoaders.babel,
           {
@@ -630,8 +688,8 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 4 rules total: 2 default + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      // Should have 5 rules total: 3 default + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(5);
 
       // Check that additional patterns have performance options
       const additionalIndexRule = webpackResult.module?.rules?.find((rule: any) => {
@@ -669,10 +727,22 @@ describe('withDocsInfra', () => {
 
 describe('getDocsInfraMdxOptions', () => {
   it('should return default MDX options when no custom options provided', () => {
-    const result = getDocsInfraMdxOptions();
+    const result = getDocsInfraMdxOptions({ errorIfIndexOutOfDate: false });
 
     expect(result.remarkPlugins).toEqual([
       ['remark-gfm'],
+      [
+        '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
+        {
+          extractToIndex: {
+            include: ['app', 'src/app'],
+            exclude: [],
+            baseDir: process.cwd(),
+          },
+          markerPath: '.next/cache/docs-infra/index-updates',
+          errorIfIndexOutOfDate: false,
+        },
+      ],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
@@ -688,10 +758,23 @@ describe('getDocsInfraMdxOptions', () => {
     const result = getDocsInfraMdxOptions({
       additionalRemarkPlugins: [['remark-emoji']],
       additionalRehypePlugins: [['rehype-highlight']],
+      errorIfIndexOutOfDate: false,
     });
 
     expect(result.remarkPlugins).toEqual([
       ['remark-gfm'],
+      [
+        '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
+        {
+          extractToIndex: {
+            include: ['app', 'src/app'],
+            exclude: [],
+            baseDir: process.cwd(),
+          },
+          markerPath: '.next/cache/docs-infra/index-updates',
+          errorIfIndexOutOfDate: false,
+        },
+      ],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],

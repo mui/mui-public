@@ -9,7 +9,7 @@ type Args = {
 
 const completeMessage = (message: string) => `✓ ${chalk.green(message)}`;
 
-const cmdPostBuild: CommandModule<{}, Args> = {
+const runPostBuild: CommandModule<{}, Args> = {
   command: 'post-build',
   describe: 'Post-process build output',
   builder: (yargs) => {
@@ -49,4 +49,4 @@ const cmdPostBuild: CommandModule<{}, Args> = {
   },
 };
 
-export default cmdPostBuild;
+export default runPostBuild;

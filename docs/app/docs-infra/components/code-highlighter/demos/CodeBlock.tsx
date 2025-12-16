@@ -8,9 +8,23 @@ import { CodeContent } from './CodeContent';
 
 const sourceParser = createParseSource();
 
-export function Code({ children, fileName }: { children: string; fileName?: string }) {
+export function Code({
+  children,
+  language,
+  fileName,
+}: {
+  children: string;
+
+  language?: string;
+  fileName?: string;
+}) {
   return (
-    <CodeHighlighter fileName={fileName} Content={CodeContent} sourceParser={sourceParser}>
+    <CodeHighlighter
+      language={language}
+      fileName={fileName}
+      Content={CodeContent}
+      sourceParser={sourceParser}
+    >
       {children}
     </CodeHighlighter>
   );
