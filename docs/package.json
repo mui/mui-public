@@ -2,9 +2,9 @@
   "name": "docs",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "build-exp": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "build-exp": "next build",
     "start": "serve ./export",
     "docs-infra": "docs-infra",
     "validate": "docs-infra validate --command 'pnpm validate'"
@@ -14,20 +14,21 @@
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@mui/internal-docs-infra": "workspace:^",
-    "@next/mdx": "^15.3.4",
+    "@next/mdx": "^16.0.10",
     "@types/mdx": "^2.0.13",
+    "next": "^16.0.10",
     "lucide-react": "^0.559.0",
-    "next": "^15.5.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-runner": "^1.0.5",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "use-editable": "^2.3.3",
-    "vscode-oniguruma": "^2.0.1"
+    "vscode-oniguruma": "^2.0.1",
+    "web-vitals": "^5.1.0"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^15.5.2",
+    "@next/bundle-analyzer": "^16.0.10",
     "@types/node": "^22.18.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -432,7 +432,7 @@ export function createCoreConfig(options = {}) {
         'react/forbid-prop-types': 'off', // Too strict, no time for that
         'react/jsx-curly-brace-presence': 'off', // broken
         // airbnb is using .jsx
-        'react/jsx-filename-extension': ['error', { extensions: ['.js', '.tsx'] }],
+        'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }],
         // Prefer <React.Fragment> over <>.
         'react/jsx-fragments': ['error', 'element'],
         // Enforces premature optimization
