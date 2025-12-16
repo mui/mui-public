@@ -36,12 +36,14 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
 export function Pre({
   children,
   className,
+  language,
   ref,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
 }: {
   children: VariantSource;
   className?: string;
+  language?: string;
   ref?: React.Ref<HTMLPreElement>;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
@@ -181,7 +183,9 @@ export function Pre({
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      <code>{typeof children === 'string' ? children : frames}</code>
+      <code className={language ? `language-${language}` : undefined}>
+        {typeof children === 'string' ? children : frames}
+      </code>
     </pre>
   );
 }
