@@ -2751,7 +2751,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Component': {
-          path: '/src/Component',
+          url: 'file:///src/Component',
           names: [{ name: 'Component', type: 'named' }],
           positions: [{ start: 26, end: 39 }],
         },
@@ -2768,7 +2768,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './components': {
-          path: '/src/components',
+          url: 'file:///src/components',
           names: [
             { name: 'Button', type: 'named' },
             { name: 'Input', type: 'named' },
@@ -2789,7 +2789,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Component': {
-          path: '/src/Component',
+          url: 'file:///src/Component',
           names: [{ name: 'Component', alias: 'MyComponent', type: 'named' }],
           positions: [{ start: 41, end: 54 }],
         },
@@ -2806,7 +2806,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './types': {
-          path: '/src/types',
+          url: 'file:///src/types',
           names: [{ name: 'Props', type: 'named', isType: true }],
           positions: [{ start: 27, end: 36 }],
           includeTypeDefs: true,
@@ -2844,12 +2844,12 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Button': {
-          path: '/src/Button',
+          url: 'file:///src/Button',
           names: [{ name: 'Button', type: 'named' }],
           positions: [{ start: 30, end: 40 }],
         },
         './Input': {
-          path: '/src/Input',
+          url: 'file:///src/Input',
           names: [{ name: 'Input', type: 'named' }],
           positions: [{ start: 70, end: 79 }],
         },
@@ -2891,12 +2891,12 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Button': {
-          path: '/src/Button',
+          url: 'file:///src/Button',
           names: [{ name: 'Button', type: 'named' }],
           positions: [{ start: 63, end: 73 }],
         },
         './Input': {
-          path: '/src/Input',
+          url: 'file:///src/Input',
           names: [{ name: 'Input', type: 'named' }],
           positions: [{ start: 143, end: 152 }],
         },
@@ -2928,7 +2928,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Real': {
-          path: '/src/Real',
+          url: 'file:///src/Real',
           names: [{ name: 'Real', type: 'named' }],
           positions: [{ start: 119, end: 127 }],
         },
@@ -2961,7 +2961,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Component': {
-          path: '/src/Component',
+          url: 'file:///src/Component',
           names: [{ name: 'Component', type: 'named' }],
           positions: [{ start: 26, end: 39 }],
         },
@@ -2978,7 +2978,7 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './types': {
-          path: '/src/types',
+          url: 'file:///src/types',
           names: [
             { name: 'Props', type: 'named', isType: true },
             { name: 'Component', type: 'named' },
@@ -3003,12 +3003,12 @@ describe('Export-from statement parsing', () => {
     expect(result).toEqual({
       relative: {
         './Button': {
-          path: '/src/Button',
+          url: 'file:///src/Button',
           names: [{ name: 'Button', type: 'named' }],
           positions: [{ start: 64, end: 74 }],
         },
         './Input': {
-          path: '/src/Input',
+          url: 'file:///src/Input',
           names: [{ name: 'Input', type: 'named' }],
           positions: [{ start: 138, end: 147 }],
         },
@@ -3035,12 +3035,12 @@ export { RealComponent } from './RealComponent';
     expect(result).toEqual({
       relative: {
         './Component': {
-          path: '/src/Component',
+          url: 'file:///src/Component',
           names: [{ name: 'Component', type: 'named' }],
           positions: [{ start: 55, end: 68 }],
         },
         './RealComponent': {
-          path: '/src/RealComponent',
+          url: 'file:///src/RealComponent',
           names: [{ name: 'RealComponent', type: 'named' }],
           positions: [{ start: 162, end: 179 }],
         },
@@ -3063,7 +3063,7 @@ export { RealComponent } from './RealComponent';
     expect(result).toEqual({
       relative: {
         './all-exports': {
-          path: '/src/all-exports',
+          url: 'file:///src/all-exports',
           names: [],
           positions: [{ start: 14, end: 29 }],
         },
@@ -3089,7 +3089,7 @@ export { RealComponent } from './RealComponent';
     expect(result).toEqual({
       relative: {
         './components': {
-          path: '/src/components',
+          url: 'file:///src/components',
           names: [
             { name: 'Button', type: 'named' },
             { name: 'Input', type: 'named' },

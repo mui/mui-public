@@ -90,7 +90,7 @@ describe('highlightTypes', () => {
         const precomputeData = parsePrecomputeData(preElements[0]);
         expect(precomputeData).toHaveProperty('Default');
         expect(precomputeData.Default).toHaveProperty('source');
-        expect(precomputeData.Default).toHaveProperty('fileName');
+        expect(precomputeData.Default).toHaveProperty('language');
       }
     });
 
@@ -688,6 +688,9 @@ describe('highlightTypes', () => {
           // Parse JSON directly
           const hast = JSON.parse(variant.source.hastJson);
           resolve({ ...variant, decompressedHast: hast });
+        } else if (typeof variant.source === 'object' && variant.source.type === 'root') {
+          // Direct HAST object (already parsed, no compression)
+          resolve({ ...variant, decompressedHast: variant.source });
         } else if (typeof variant.source === 'string') {
           // Plain string source
           resolve({ ...variant, decompressedHast: null, plainSource: variant.source });
@@ -755,8 +758,8 @@ describe('highlightTypes', () => {
         // The HAST should contain syntax-highlighted elements
         expect(decompressed.decompressedHast.children.length).toBeGreaterThan(0);
 
-        // Verify fileName is set
-        expect(decompressed.fileName).toMatch(/\.ts$/);
+        // Verify language is set
+        expect(decompressed.language).toBe('typescript');
 
         // Verify source was compressed and can be decompressed
         expect(decompressed.source).toBeDefined();
@@ -835,8 +838,8 @@ describe('highlightTypes', () => {
         const hastChildren = decompressed.decompressedHast.children;
         expect(hastChildren.length).toBeGreaterThan(0);
 
-        // TSX files should be highlighted with appropriate tokens
-        expect(decompressed.fileName).toMatch(/\.tsx$/);
+        // Verify language is set
+        expect(decompressed.language).toBe('tsx');
 
         // The HAST structure should contain elements (not just text)
         // This indicates syntax highlighting was applied
@@ -908,8 +911,8 @@ describe('highlightTypes', () => {
 
         const decompressed = await decompressPrecompute(preElements[0]);
 
-        // Verify CSS highlighting
-        expect(decompressed.fileName).toMatch(/\.css$/);
+        // Verify language is set
+        expect(decompressed.language).toBe('css');
         expect(decompressed.decompressedHast.type).toBe('root');
         expect(decompressed.decompressedHast.children.length).toBeGreaterThan(0);
 
@@ -995,13 +998,13 @@ describe('highlightTypes', () => {
         const descPreElements = findPreElements(hookData.data.description);
         expect(descPreElements).toHaveLength(1);
         const descDecompressed = await decompressPrecompute(descPreElements[0]);
-        expect(descDecompressed.fileName).toMatch(/\.tsx$/);
+        expect(descDecompressed.language).toBe('tsx');
 
         // Check parameter description (TS) - type field is just a string
         const paramPreElements = findPreElements(hookData.data.parameters.options.description);
         expect(paramPreElements).toHaveLength(1);
         const paramDecompressed = await decompressPrecompute(paramPreElements[0]);
-        expect(paramDecompressed.fileName).toMatch(/\.ts$/);
+        expect(paramDecompressed.language).toBe('typescript');
 
         // Both should have valid HAST structures
         expect(descDecompressed.decompressedHast.type).toBe('root');
