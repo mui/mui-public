@@ -2,9 +2,9 @@
 // Converted to use Babel standalone, with added TSX support
 
 import * as Babel from '@babel/standalone';
-import prettier from 'prettier/standalone';
-import prettierPluginEstree from 'prettier/plugins/estree';
-import parserBabel from 'prettier/parser-babel';
+import { format } from 'prettier/standalone';
+import pluginBabel from 'prettier/plugins/babel';
+import pluginEstree from 'prettier/plugins/estree';
 import type { Options as PrettierOptions } from 'prettier';
 import type { VisitNodeObject, Node } from '@babel/traverse';
 
@@ -103,13 +103,13 @@ export async function removeTypes(
   const standardPrettierOptions: PrettierOptions = {
     parser: 'babel',
     singleQuote: true,
-    plugins: [prettierPluginEstree, parserBabel],
+    plugins: [pluginBabel, pluginEstree],
   };
 
   // If `prettierConfig` is *explicitly* true (as opposed to truthy), it means the user has opted in
   // to default behavior either explicitly or implicitly. Either way, we run basic Prettier on it.
   if (prettierConfig === true) {
-    return prettier.format(fixed, standardPrettierOptions);
+    return format(fixed, standardPrettierOptions);
   }
 
   // If we've made it here, the user has passed their own Prettier options so we merge it with ours
@@ -120,5 +120,5 @@ export async function removeTypes(
     plugins: standardPrettierOptions.plugins,
   };
 
-  return prettier.format(fixed, mergedPrettierOptions);
+  return format(fixed, mergedPrettierOptions);
 }
