@@ -1,1 +1,1 @@
-export { enhanceCodeEmphasis, EMPHASIS_COMMENT_PREFIX } from './enhanceCodeEmphasis';
+export * from './enhanceCodeEmphasis';

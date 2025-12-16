@@ -2842,6 +2842,7 @@ export default function Button(props: ButtonProps) {
       expect(mockParseSourceFn).toHaveBeenCalled();
       expect(result.code.source).toEqual(mockHastRoot);
     });
+
     describe('language field derivation', () => {
       it('should derive language from fileName extension', async () => {
         const variant: VariantCode = {
@@ -2997,7 +2998,6 @@ export default function Button(props: ButtonProps) {
 
 describe('loadCodeVariant - helper functions', () => {
   // Tests for helper function behavior through integration
-
   describe('allFilesListed validation', () => {
     it('should throw error in non-production when allFilesListed=true and loadSource returns unknown extra files', async () => {
       const originalEnv = process.env.NODE_ENV;

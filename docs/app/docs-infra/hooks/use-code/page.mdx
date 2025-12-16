@@ -682,6 +682,54 @@ const commentHighlighter: SourceEnhancer = (root, comments, fileName) => {
 };
 ```
 
+### Build-Time vs Client-Time Enhancement
+
+For optimal performance, enhancers should run during build or server rendering whenever possible. This allows results to be cached and eliminates client-side processing overhead.
+
+You can combine build-time and client-time enhancers—they apply at different stages:
+
+```tsx
+// Build-time enhancer (configured in webpack loader or createDemo factory)
+// Results are cached and included in the precomputed output
+const buildTimeEnhancer: SourceEnhancer = (root, comments) => {
+  return addLineHighlightsFromComments(root, comments);
+};
+
+// Client-time enhancer (applied via useCode options)
+// Runs on hydration, useful for dynamic behavior
+const clientEnhancer: SourceEnhancer = (root, comments, fileName) => {
+  return addPersonalizedAnnotations(root, userPreferences);
+};
+
+function MyCodeContent(props) {
+  const enhancers = React.useMemo(() => [clientEnhancer], []);
+  const code = useCode(props, { sourceEnhancers: enhancers });
+  return <div>{code.selectedFile}</div>;
+}
+```
+
+**When to use build-time enhancers:**
+
+- Static enhancements (line highlighting, syntax annotations)
+- Comment-driven enhancements (e.g., `// @highlight`)
+- Any transformation that doesn't depend on client state
+
+**When to use server-time enhancers:**
+
+- Custom enhancer logic not available as a built-in configuration
+- Enhancements that need access to server-side data (e.g., database lookups)
+- Dynamic routes where build-time precomputation isn't possible
+
+**When to use client-time enhancers:**
+
+- **Lazy loading**: Defer expensive enhancements until needed
+- **Personalization**: Apply user-specific annotations or themes
+- **Live editing**: Re-enhance code when users modify source in interactive editors
+- **Dynamic context**: Enhancements that depend on runtime state
+
+> [!NOTE]
+> The [Precompute Loader](../../functions/load-precomputed-code-highlighter/page.mdx) only supports **configurable** built-in enhancers—you cannot pass custom enhancer functions directly. For custom enhancer logic at build/server time, pass `sourceEnhancers` to the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component in a Server Component. Client-time enhancers are passed through `useCode` options.
+
 ### Important Considerations
 
 > [!WARNING]

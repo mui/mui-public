@@ -142,7 +142,7 @@ The function extracts comments from source files and returns them for use by [`s
 
 ### `removeCommentsWithPrefix`
 
-Strips comments starting with specified prefixes from the output source, while still including them in the returned `comments` object:
+Strips comments starting with specified prefixes from the output source. When `notableCommentsPrefix` is **not** specified, all stripped comments are collected in the `comments` object:
 
 ```ts
 const loadSource = createLoadServerSource({
@@ -156,7 +156,8 @@ const loadSource = createLoadServerSource({
 
 const result = await loadSource('file:///example.ts');
 // result.source: "// User-visible comment\nconst x = 1;"
-// result.comments: { 1: ['@internal This is an implementation detail'], 2: ['User-visible comment'] }
+// result.comments: { 0: ['@internal This is an implementation detail'] }
+// Note: "User-visible comment" is NOT collected because it doesn't match removeCommentsWithPrefix
 ```
 
 This is useful for:
@@ -167,12 +168,23 @@ This is useful for:
 
 ### `notableCommentsPrefix`
 
-Marks comments with specified prefixes as notable (reserved for future use):
+When specified, only comments matching these prefixes are collected in `comments`. Comments matching `removeCommentsWithPrefix` but not `notableCommentsPrefix` are still stripped but not collected:
 
 ```ts
 const loadSource = createLoadServerSource({
-  notableCommentsPrefix: ['@highlight', '@section'],
+  removeCommentsWithPrefix: ['@internal', '@highlight'],
+  notableCommentsPrefix: ['@highlight'],
 });
+
+// Source file:
+// // @internal Implementation detail
+// // @highlight Important line
+// const x = 1;
+
+const result = await loadSource('file:///example.ts');
+// result.source: "const x = 1;"
+// result.comments: { 0: ['@highlight Important line'] }
+// Note: @internal is stripped but NOT collected (not in notableCommentsPrefix)
 ```
 
 ## How It Works

@@ -9,10 +9,8 @@ import {
 /**
  * Options for mergeMetadataMarkdown
  */
-export interface MergeMetadataMarkdownOptions extends Omit<
-  MetadataToMarkdownOptions,
-  'editableMarker' | 'indexWrapperComponent'
-> {
+export interface MergeMetadataMarkdownOptions
+  extends Omit<MetadataToMarkdownOptions, 'editableMarker' | 'indexWrapperComponent'> {
   /** If true, pages in existing markdown that aren't in newMetadata will be preserved. If false (default), they are removed. */
   preserveUnlisted?: boolean;
   /**
