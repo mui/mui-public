@@ -11,6 +11,7 @@ export {
   simulateKeyboardDevice,
   programmaticFocusTriggersFocusVisible,
 } from './focusVisible';
-export * as fireDiscreteEvent from './fireDiscreteEvent';
+// eslint-disable-next-line import/extensions
+export { fireEvent as fireDiscreteEvent } from '@testing-library/react/pure.js';
 export { flushMicrotasks } from './flushMicrotasks';
 export * from './env';
