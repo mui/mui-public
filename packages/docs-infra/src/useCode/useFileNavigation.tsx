@@ -5,8 +5,26 @@ import { decode } from 'uint8-to-base64';
 import type { VariantCode, VariantSource, Code } from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
+import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
 import { Pre } from './Pre';
+
+/**
+ * Gets the language from a filename by extracting its extension.
+ * @param fileName - The filename (e.g., 'index.tsx', 'styles.css')
+ * @returns The language name or undefined
+ */
+function getLanguageFromFileName(fileName: string | undefined): string | undefined {
+  if (!fileName) {
+    return undefined;
+  }
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1) {
+    return undefined;
+  }
+  const extension = fileName.substring(lastDotIndex);
+  return getLanguageFromExtension(extension);
+}
 
 /**
  * Converts a string to kebab-case
@@ -431,7 +449,12 @@ export function useFileNavigation({
         return null;
       }
       return (
-        <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+        <Pre
+          className={preClassName}
+          language={selectedVariant.language}
+          ref={preRef}
+          shouldHighlight={shouldHighlight}
+        >
           {selectedVariant.source}
         </Pre>
       );
@@ -459,7 +482,12 @@ export function useFileNavigation({
       }
 
       return (
-        <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+        <Pre
+          className={preClassName}
+          language={getLanguageFromFileName(selectedFileNameInternal)}
+          ref={preRef}
+          shouldHighlight={shouldHighlight}
+        >
           {source}
         </Pre>
       );
@@ -541,7 +569,12 @@ export function useFileNavigation({
         name: selectedVariant.fileName,
         slug: generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
         component: (
-          <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+          <Pre
+            className={preClassName}
+            language={selectedVariant.language}
+            ref={preRef}
+            shouldHighlight={shouldHighlight}
+          >
             {selectedVariant.source}
           </Pre>
         ),
@@ -551,11 +584,13 @@ export function useFileNavigation({
     if (selectedVariant.extraFiles) {
       Object.entries(selectedVariant.extraFiles).forEach(([fileName, fileData]) => {
         let source: VariantSource | undefined;
+        let language: string | undefined;
 
         if (typeof fileData === 'string') {
           source = fileData;
         } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
           source = fileData.source;
+          language = fileData.language;
         } else {
           return; // Skip invalid entries
         }
@@ -568,7 +603,12 @@ export function useFileNavigation({
           name: fileName,
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
-            <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+            <Pre
+              className={preClassName}
+              language={language ?? getLanguageFromFileName(fileName)}
+              ref={preRef}
+              shouldHighlight={shouldHighlight}
+            >
               {source}
             </Pre>
           ),

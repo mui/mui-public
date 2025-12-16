@@ -1,3 +1,4 @@
+import { ElapsedTime, Orama, SearchParams } from '@orama/orama';
 import type {
   Sitemap,
   SitemapPage,
@@ -20,6 +21,7 @@ export interface BaseSearchResult {
   prefix: string;
   keywords?: string;
   score?: number;
+  group?: string;
 }
 
 /**
@@ -27,6 +29,8 @@ export interface BaseSearchResult {
  */
 export interface PageSearchResult extends BaseSearchResult {
   type: 'page';
+  page?: string;
+  pageKeywords?: string;
   sections?: string;
   subsections?: string;
 }
@@ -90,6 +94,8 @@ export type {
   Sitemap,
 };
 
+export type SearchResults = { group: string; items: SearchResult[] }[];
+
 /**
  * Options for configuring search behavior
  */
@@ -106,6 +112,42 @@ export interface UseSearchOptions {
   enableStemming?: boolean;
   /** Boost values for different result types and fields */
   boost?: Partial<Record<string, number>>;
+  /** Include page categories in groups: "Overview Pages" vs "Pages" */
+  includeCategoryInGroup?: boolean;
+  /**
+   * When true, excludes `sections` and `subsections` fields from page-type results.
+   * The individual section and subsection entries are still created.
+   * @default false
+   */
+  excludeSections?: boolean;
+  /**
+   * Custom function to convert heading text to URL-friendly slugs.
+   * Use this to match your site's slug generation (e.g., rehype-slug).
+   * Only applied to section/subsection slugs from the sitemap.
+   *
+   * If not provided, the original slugs from the sitemap are used as-is.
+   *
+   * The second parameter `parentTitles` contains the original text of parent headings,
+   * useful for pages that concatenate parent context into child heading IDs
+   * (e.g., Releases pages: `v1.0.0-rc.0-autocomplete` where the version is prepended).
+   *
+   * @example
+   * ```ts
+   * // Simple generateSlug (ignores parent context)
+   * generateSlug: (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+   *
+   * // generateSlug with parent concatenation for subsections (e.g., Releases page)
+   * generateSlug: (text, parentTitles) => {
+   *   const slug = stringToUrl(text);
+   *   // If parent is a semver version, prepend it to match rehypeConcatHeadings
+   *   if (parentTitles?.[0]?.match(/^v\d+\.\d+\.\d+/)) {
+   *     return `${parentTitles[0]}-${slug}`;
+   *   }
+   *   return slug;
+   * }
+   * ```
+   */
+  generateSlug?: (text: string, parentTitles?: string[]) => string;
   /** Custom function to flatten sitemap pages into search results */
   flattenPage?: (page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[];
   /** Custom function to format Orama search hits into typed results */
@@ -114,14 +156,19 @@ export interface UseSearchOptions {
   ) => SearchResult;
 }
 
+export type SearchBy<T> = Pick<
+  SearchParams<Orama<T>>,
+  'facets' | 'groupBy' | 'limit' | 'offset' | 'where'
+>;
+
 /**
  * Return value from useSearch hook
  */
-export interface UseSearchResult {
+export interface UseSearchResult<T> {
   /**
    * Current search results
    */
-  results: SearchResult[];
+  results: { results: SearchResults; count: number; elapsed: ElapsedTime };
 
   /**
    * Whether the search index is ready
@@ -131,12 +178,12 @@ export interface UseSearchResult {
   /**
    * Function to update search value and get new results
    */
-  search: (value: string) => Promise<void>;
+  search: (value: string, by?: SearchBy<T>) => Promise<void>;
 
   /**
    * Default results shown when search is empty
    */
-  defaultResults: SearchResult[];
+  defaultResults: { results: SearchResults; count: number; elapsed: ElapsedTime };
 
   /**
    * Build a URL from a search result

@@ -2,11 +2,14 @@
 
 The precomputed sitemap loader is a Webpack/Turbopack loader that processes markdown files at build time to create optimized search indexes and navigation data. It extracts metadata from documentation pages and generates structured sitemap data with Orama search schema.
 
+> [!TIP]
+> For documentation on the `createSitemap` factory function, see [`createSitemap`](../create-sitemap/page.mdx).
+
 ---
 
 ## Overview
 
-The loader processes `createSitemap` factory calls, automatically reading and parsing imported markdown files to extract metadata, generate search-friendly data structures, and create navigation hierarchies.
+The loader processes [`createSitemap`](../create-sitemap/page.mdx) factory calls, automatically reading and parsing imported markdown files to extract metadata, generate search-friendly data structures, and create navigation hierarchies.
 
 > [!TIP]
 > This loader is designed to work with the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) plugin which extracts metadata from MDX files.
@@ -140,7 +143,7 @@ Reads each markdown file in parallel and extracts metadata using `markdownToMeta
 - Page titles and descriptions
 - Section hierarchies
 - Keywords
-- OpenGraph data
+- Image data for social sharing
 
 ### 4. Optimize Data
 
@@ -378,6 +381,8 @@ export const sitemap2 = createSitemap(import.meta.url, { ... });
 
 ## Related
 
+- [`createSitemap`](../create-sitemap/page.mdx) - Factory function for defining sitemaps
+- [`loadServerSitemap`](../load-server-sitemap/page.mdx) - Runtime sitemap loading from index files
+- [`loadServerPageIndex`](../load-server-page-index/page.mdx) - Loads individual page metadata at runtime
 - [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) - Extracts metadata from MDX files
 - [`withDocsInfra`](../with-docs-infra/page.mdx) - Configures all docs infrastructure loaders
-- [`createSitemap`](../../sitemap/page.mdx) - Factory function for creating sitemaps

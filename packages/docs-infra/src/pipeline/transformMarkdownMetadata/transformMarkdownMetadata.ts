@@ -4,8 +4,9 @@ import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } fr
 import type { Program, Property, Expression } from 'estree';
 import { dirname, relative } from 'node:path';
 import { syncPageIndex } from '../syncPageIndex';
+import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
-import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
+import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
 import type {
   TransformMarkdownMetadataOptions,
   HeadingHierarchy,
@@ -28,8 +29,8 @@ function extractParagraphText(node: Paragraph): string {
       text += extractTextFromChildren(child.children);
     }
   }
-  // Replace newlines with spaces and normalize whitespace
-  return text.replace(/\s+/g, ' ').trim();
+  // Replace newlines with spaces and normalize whitespace, preserving non-breaking spaces
+  return text.replace(/[ \t\n\r]+/g, ' ').trim();
 }
 
 /**
@@ -71,6 +72,17 @@ function extractPlainTextFromChildren(children: PhrasingContent[]): string {
 }
 
 /**
+ * Slugify function for generating URL-friendly slugs from heading text.
+ * Lowercases text and replaces non-alphanumeric characters with hyphens.
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
  * Builds a hierarchical structure from flat headings array
  * Skips the first H1 (page title) and starts from H2
  */
@@ -96,11 +108,8 @@ function buildHeadingHierarchy(
     // Get the current parent node
     const parent = stack[stack.length - 1].node;
 
-    // Create slug from heading text (plain text without formatting)
-    const slug = heading.text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Create slug from heading text using the provided slugify function
+    const slug = slugify(heading.text);
 
     // Create new node for this heading
     const newNode: HeadingHierarchy[string] = {
@@ -237,10 +246,21 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
   return parent;
 }
 
+interface ToPageMetadataOptions {
+  /** Override description with the visible paragraph (ignoring meta tag) */
+  visibleDescription?: string;
+  /** Override descriptionMarkdown with the visible paragraph markdown */
+  visibleDescriptionMarkdown?: PhrasingContent[];
+}
+
 /**
  * Converts extracted metadata to PageMetadata format for index updates
  */
-function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMetadata {
+function toPageMetadata(
+  metadata: ExtractedMetadata,
+  filePath: string,
+  options: ToPageMetadataOptions = {},
+): PageMetadata {
   // Extract the slug from the file path (directory name containing the page)
   const parts = filePath.split('/');
   const pageFileName = parts[parts.length - 1]; // e.g., 'page.mdx'
@@ -277,12 +297,12 @@ function toPageMetadata(metadata: ExtractedMetadata, filePath: string): PageMeta
     slug,
     path,
     title: metadata.title,
-    description: metadata.description,
-    descriptionMarkdown: metadata.descriptionMarkdown,
+    description: options.visibleDescription ?? metadata.description,
+    descriptionMarkdown: options.visibleDescriptionMarkdown ?? metadata.descriptionMarkdown,
     keywords: metadata.keywords,
     sections: metadata.sections,
-    openGraph: metadata.openGraph,
     embeddings: metadata.embeddings,
+    image: metadata.image,
   };
 }
 
@@ -581,11 +601,39 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         nextNodeAfterH1 = null; // Clear the marker
       }
 
+      // Check if this is a JSX flow element right after the first h1 (multi-line JSX like <Subtitle>...</Subtitle>)
+      // This handles cases where the JSX element spans multiple lines and becomes a block-level element
+      if (
+        foundFirstH1 &&
+        !firstParagraphAfterH1 &&
+        nextNodeAfterH1 &&
+        node === nextNodeAfterH1 &&
+        node.type === 'mdxJsxFlowElement' &&
+        'name' in node &&
+        node.name !== 'meta' &&
+        node.name !== 'Meta' &&
+        'children' in node &&
+        Array.isArray(node.children)
+      ) {
+        // Extract text from the JSX element's children, preserving non-breaking spaces
+        const textContent = extractPlainTextFromChildren(node.children as PhrasingContent[])
+          .replace(/[ \t\n\r]+/g, ' ')
+          .trim();
+        if (textContent) {
+          firstParagraphAfterH1 = textContent;
+          firstParagraphMarkdown = node.children as PhrasingContent[];
+        }
+        nextNodeAfterH1 = null; // Clear the marker
+      }
+
       // Extract full text content (excluding code blocks and metadata)
       // When we encounter a heading, push the heading text and then create a new empty slot for content
       if (node.type === 'heading') {
         const heading = node as Heading;
-        const text = extractPlainTextFromChildren(heading.children).replace(/\s+/g, ' ').trim();
+        // Preserve non-breaking spaces in heading text
+        const text = extractPlainTextFromChildren(heading.children)
+          .replace(/[ \t\n\r]+/g, ' ')
+          .trim();
         if (text) {
           fullTextParts.push(text); // Add heading
           fullTextParts.push(''); // Create slot for content after this heading
@@ -612,9 +660,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         return;
       }
 
-      // Handle paragraphs for full text
+      // Handle paragraphs for full text, preserving non-breaking spaces
       if (node.type === 'paragraph') {
-        const text = extractPlainTextFromChildren(node.children).replace(/\s+/g, ' ').trim();
+        const text = extractPlainTextFromChildren(node.children)
+          .replace(/[ \t\n\r]+/g, ' ')
+          .trim();
         if (text) {
           // Append to the last slot (current section's content)
           if (fullTextParts.length === 0) {
@@ -633,8 +683,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         const listItems: string[] = [];
         for (const item of node.children) {
           if (item.type === 'listItem' && 'children' in item && Array.isArray(item.children)) {
+            // Preserve non-breaking spaces in list item text
             const itemText = extractPlainTextFromChildren(item.children as PhrasingContent[])
-              .replace(/\s+/g, ' ')
+              .replace(/[ \t\n\r]+/g, ' ')
               .trim();
             if (itemText) {
               listItems.push(itemText);
@@ -657,24 +708,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 
       // Handle blockquotes - their paragraphs will be picked up by the paragraph handler above
     });
-
-    // Build full text from collected parts
-    const fullText = fullTextParts
-      .map((part) => {
-        const trimmed = part.trim();
-        if (!trimmed) {
-          return '';
-        }
-        // Add period if it doesn't end with punctuation
-        if (!/[.!?]$/.test(trimmed)) {
-          return `${trimmed}.`;
-        }
-        return trimmed;
-      })
-      .filter((part) => part.length > 0)
-      .join(' ');
-
-    const embeddings = options.generateEmbeddings ? generateEmbeddings(fullText) : null;
 
     // Fill in missing title and description if we have them from content
     let shouldUpdateMetadata = false;
@@ -717,27 +750,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
-      // Fill in openGraph title and description if missing
-      if (!mutableMetadata.openGraph) {
-        mutableMetadata.openGraph = {};
-      }
-
-      if (firstH1 && !mutableMetadata.openGraph.title) {
-        mutableMetadata.openGraph.title = firstH1;
-        shouldUpdateMetadata = true;
-      }
-
-      // Prioritize meta tag description over paragraph for openGraph
-      if (!mutableMetadata.openGraph.description) {
-        if (metaDescription) {
-          mutableMetadata.openGraph.description = metaDescription;
-          shouldUpdateMetadata = true;
-        } else if (firstParagraphAfterH1) {
-          mutableMetadata.openGraph.description = firstParagraphAfterH1;
-          shouldUpdateMetadata = true;
-        }
-      }
-
       // Add sections hierarchy if we have headings
       const hasSections =
         mutableMetadata.sections && Object.keys(mutableMetadata.sections).length > 0;
@@ -746,17 +758,16 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
-      // Add embeddings if missing
-      if (!mutableMetadata.embeddings && embeddings) {
-        mutableMetadata.embeddings = await embeddings;
-        shouldUpdateMetadata = true;
-      }
-
       // Update the metadata in the ESTree if we added any fields
       if (shouldUpdateMetadata && metadataNode) {
         const esmNode = metadataNode as { type: string; data?: { estree?: Program } };
         if (esmNode.data?.estree) {
-          updateMetadataInEstree(esmNode.data.estree, mutableMetadata);
+          // Apply titleSuffix only to the exported metadata, not to the internal metadata
+          const exportMetadata =
+            options.titleSuffix && mutableMetadata.title
+              ? { ...mutableMetadata, title: mutableMetadata.title + options.titleSuffix }
+              : mutableMetadata;
+          updateMetadataInEstree(esmNode.data.estree, exportMetadata);
         }
       }
     } else if (firstH1 || firstParagraphAfterH1 || metaDescription || metaKeywords) {
@@ -765,24 +776,159 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       const descriptionValue = metaDescription || firstParagraphAfterH1 || undefined;
       const descriptionMarkdownValue = metaDescription ? [] : firstParagraphMarkdown || undefined;
 
-      const embeddingsValue = embeddings ? await embeddings : undefined;
-
       metadata = {
         title: firstH1 || undefined,
         description: descriptionValue,
         descriptionMarkdown: descriptionMarkdownValue,
         keywords: metaKeywords || undefined,
         sections: headings.length > 1 ? buildHeadingHierarchy(headings) : undefined,
-        embeddings: embeddingsValue,
-        openGraph: {
-          title: firstH1 || undefined,
-          description: descriptionValue,
-        },
       };
 
       // Create a new metadata export and add it to the tree
-      const metadataExport = createMetadataExport(metadata);
+      // Apply titleSuffix only to the exported metadata, not to the internal metadata
+      const exportMetadata =
+        options.titleSuffix && metadata.title
+          ? { ...metadata, title: metadata.title + options.titleSuffix }
+          : metadata;
+      const metadataExport = createMetadataExport(exportMetadata);
       root.children.unshift(metadataExport as RootContent);
+    }
+
+    // Inject sitemap data into wrapper components in autogenerated index files
+    // This uses the indexWrapperComponent from extractToIndex options
+    const wrapperComponent =
+      typeof options.extractToIndex === 'object'
+        ? options.extractToIndex.indexWrapperComponent
+        : undefined;
+    const extractBaseDir =
+      typeof options.extractToIndex === 'object' ? options.extractToIndex.baseDir : undefined;
+
+    if (wrapperComponent && file.path) {
+      let fileContent: string | null = null;
+      if (typeof file.value === 'string') {
+        fileContent = file.value;
+      } else if (file.value instanceof Buffer) {
+        fileContent = file.value.toString('utf-8');
+      }
+
+      // Check if this is an autogenerated index file
+      if (fileContent && fileContent.includes("[//]: # 'This file is autogenerated")) {
+        // Parse the page list metadata from the markdown
+        const pagesMetadata = await markdownToMetadata(fileContent);
+
+        if (pagesMetadata) {
+          // Compute prefix from file path
+          let prefix = '/';
+          let filePath = file.path;
+          // Strip baseDir if provided
+          if (extractBaseDir && filePath.startsWith(extractBaseDir)) {
+            filePath = filePath.substring(extractBaseDir.length);
+            if (filePath.startsWith('/')) {
+              filePath = filePath.substring(1);
+            }
+          }
+          // Get directory path and convert to URL prefix
+          const dirPath = dirname(filePath);
+          // Filter out src, app, and route groups from the path
+          // First, split and filter to find meaningful segments
+          const segments = dirPath.split('/').filter((seg) => {
+            if (seg.startsWith('(') && seg.endsWith(')')) {
+              return false;
+            }
+            if (seg === '.' || seg === '') {
+              return false;
+            }
+            return true;
+          });
+          // Find and remove 'src' followed by 'app' pattern (common in Next.js projects)
+          const srcIndex = segments.indexOf('src');
+          if (srcIndex !== -1) {
+            // Remove 'src'
+            segments.splice(srcIndex, 1);
+            // Check if 'app' now follows where 'src' was
+            if (segments[srcIndex] === 'app') {
+              segments.splice(srcIndex, 1);
+            }
+          } else {
+            // No 'src', check for standalone 'app' at the same position pattern
+            const appIndex = segments.indexOf('app');
+            if (appIndex !== -1 && (appIndex === 0 || appIndex === srcIndex)) {
+              segments.splice(appIndex, 1);
+            }
+          }
+          prefix = segments.length > 0 ? `/${segments.join('/')}/` : '/';
+
+          // Convert PagesMetadata to SitemapSectionData
+          const sitemapData: SitemapSectionData = {
+            title: pagesMetadata.title,
+            prefix,
+            pages: pagesMetadata.pages.map(
+              (page): SitemapPage => ({
+                title: page.title,
+                slug: page.slug,
+                path: page.path,
+                description: page.description,
+                keywords: page.keywords,
+                sections: page.sections,
+                parts: page.parts,
+                exports: page.exports,
+                tags: page.tags,
+                skipDetailSection: page.skipDetailSection,
+                image: page.image,
+              }),
+            ),
+          };
+
+          // Find and update the wrapper component in the AST
+          visit(root, (node) => {
+            if (
+              node.type === 'mdxJsxFlowElement' &&
+              'name' in node &&
+              node.name === wrapperComponent
+            ) {
+              // Create the data attribute with expression value
+              const dataAttr = {
+                type: 'mdxJsxAttribute',
+                name: 'data',
+                value: {
+                  type: 'mdxJsxAttributeValueExpression',
+                  value: JSON.stringify(sitemapData),
+                  data: {
+                    estree: {
+                      type: 'Program',
+                      sourceType: 'module',
+                      body: [
+                        {
+                          type: 'ExpressionStatement',
+                          expression: valueToEstree(sitemapData) as Expression,
+                        },
+                      ],
+                    },
+                  },
+                },
+              };
+
+              // Add the attribute to the element
+              if ('attributes' in node && Array.isArray(node.attributes)) {
+                // Remove existing data attribute if present
+                const existingIndex = node.attributes.findIndex(
+                  (attr: any) =>
+                    attr &&
+                    typeof attr === 'object' &&
+                    'type' in attr &&
+                    attr.type === 'mdxJsxAttribute' &&
+                    'name' in attr &&
+                    attr.name === 'data',
+                );
+                if (existingIndex !== -1) {
+                  node.attributes.splice(existingIndex, 1);
+                }
+                node.attributes.push(dataAttr as any);
+              }
+            }
+          });
+        }
+      }
     }
 
     // Update parent index if requested and file path matches filters
@@ -839,7 +985,18 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 
       if (shouldExtract) {
         try {
-          const pageMetadata = toPageMetadata(metadata, file.path);
+          // Determine if we should use visible description instead of meta tag
+          const useVisibleDescription =
+            typeof options.extractToIndex !== 'boolean' &&
+            options.extractToIndex.useVisibleDescription;
+
+          const pageMetadataOptions: ToPageMetadataOptions = {};
+          if (useVisibleDescription && firstParagraphAfterH1) {
+            pageMetadataOptions.visibleDescription = firstParagraphAfterH1;
+            pageMetadataOptions.visibleDescriptionMarkdown = firstParagraphMarkdown;
+          }
+
+          const pageMetadata = toPageMetadata(metadata, file.path, pageMetadataOptions);
           const updateOptions: Parameters<typeof syncPageIndex>[0] = {
             pagePath: file.path,
             metadata: pageMetadata,
@@ -865,6 +1022,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             }
             if (options.extractToIndex.errorIfOutOfDate !== undefined) {
               updateOptions.errorIfOutOfDate = options.extractToIndex.errorIfOutOfDate;
+            }
+            if (options.extractToIndex.indexWrapperComponent) {
+              updateOptions.indexWrapperComponent = options.extractToIndex.indexWrapperComponent;
             }
           }
 

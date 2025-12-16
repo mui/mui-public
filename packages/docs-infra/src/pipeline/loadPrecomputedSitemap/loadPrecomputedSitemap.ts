@@ -2,9 +2,8 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import fs from 'fs/promises';
+import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
-// import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import {
   createPerformanceLogger,
   logPerformance,
@@ -13,10 +12,10 @@ import {
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
-import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
-import type { Sitemap, SitemapSection } from '../../createSitemap/types';
+import { createLoadServerPageIndex } from '../loadServerPageIndex/loadServerPageIndex';
+import { createSitemapSchema } from '../loadServerSitemap/loadServerSitemap';
+import type { Sitemap, SitemapSectionData } from '../../createSitemap/types';
 
 export type LoaderOptions = {
   performance?: {
@@ -28,86 +27,6 @@ export type LoaderOptions = {
 };
 
 const functionName = 'Load Precomputed Sitemap';
-
-/**
- * Converts a path segment to a title
- * e.g., "docs-infra" -> "Docs Infra", "components" -> "Components"
- */
-function pathSegmentToTitle(segment: string): string {
-  return segment
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-/**
- * Recursively removes titleMarkdown fields from a heading hierarchy
- */
-function stripTitleMarkdown(hierarchy: HeadingHierarchy): Record<string, SitemapSection> {
-  const result: Record<string, SitemapSection> = {};
-  for (const [key, value] of Object.entries(hierarchy)) {
-    if (typeof value === 'object' && value !== null) {
-      const { titleMarkdown, children, ...rest } = value;
-      const strippedChildren = children ? stripTitleMarkdown(children) : {};
-      result[key] = {
-        ...rest,
-        // Only include children if it has keys, otherwise set to undefined
-        children: Object.keys(strippedChildren).length > 0 ? strippedChildren : undefined,
-      };
-    }
-  }
-  return result;
-}
-
-/**
- * Extracts prefix and title from an import path
- * e.g., "/path/to/app/docs-infra/components/page.mdx" -> { prefix: "/docs-infra/components/", title: "Docs Infra Components" }
- */
-function extractPrefixAndTitle(
-  absolutePath: string,
-  rootContext: string,
-): { prefix: string; title: string } {
-  // Get the relative path from the root context
-  const relativePath = path.relative(rootContext, absolutePath);
-
-  // Extract the directory path (remove filename)
-  const dirPath = path.dirname(relativePath);
-
-  // Split into segments
-  const allSegments = dirPath.split(path.sep);
-
-  // Filter out segments:
-  // - Remove leading 'src' and 'app' directory markers (only if they're at the start)
-  // - Remove Next.js route groups (segments in parentheses like '(public)')
-  // - Remove current directory markers ('.' and empty strings)
-  const segments = allSegments.filter((seg, index) => {
-    // Remove 'src' only if it's the first segment
-    if (seg === 'src' && index === 0) {
-      return false;
-    }
-    // Remove 'app' only if it's the first or second segment (after 'src')
-    if (seg === 'app' && (index === 0 || (index === 1 && allSegments[0] === 'src'))) {
-      return false;
-    }
-    // Filter out Next.js route groups (e.g., '(public)', '(content)')
-    if (seg.startsWith('(') && seg.endsWith(')')) {
-      return false;
-    }
-    // Filter out current directory markers
-    if (seg === '.' || seg === '') {
-      return false;
-    }
-    return true;
-  });
-
-  // Generate prefix with leading and trailing slashes
-  const prefix = segments.length > 0 ? `/${segments.join('/')}/` : '/';
-
-  // Generate title from path segments
-  const title = segments.map(pathSegmentToTitle).join(' ');
-
-  return { prefix, title };
-}
 
 export async function loadPrecomputedSitemap(
   this: LoaderContext<LoaderOptions>,
@@ -138,8 +57,12 @@ export async function loadPrecomputedSitemap(
   performance.mark(currentMark);
 
   try {
+    // Convert the filesystem path to a file:// URL for cross-platform compatibility
+    // pathToFileURL handles Windows drive letters correctly (e.g., C:\... → file:///C:/...)
+    const resourceFileUrl = pathToFileURL(this.resourcePath).toString();
+
     // Parse the source to find a single createSitemap call
-    const sitemapCall = await parseCreateFactoryCall(source, this.resourcePath);
+    const sitemapCall = await parseCreateFactoryCall(source, resourceFileUrl);
 
     currentMark = performanceMeasure(
       currentMark,
@@ -174,55 +97,39 @@ export async function loadPrecomputedSitemap(
 
     // Read and parse each markdown file
     const sitemapData: Sitemap['data'] = {};
-    const allDependencies: string[] = [];
 
-    // Process all markdown files in parallel
+    // Create page index loader with root context
+    const rootContext = this.rootContext || process.cwd();
+    const loadPageIndex = createLoadServerPageIndex({ rootContext });
+
+    // Process all markdown files in parallel using shared logic
     const entries = Object.entries(variants);
     const results = await Promise.all(
-      entries.map(async ([key, importPath]) => {
-        try {
-          // Resolve the absolute path to the markdown file
-          const absolutePath = importPath.startsWith('file://') ? importPath.slice(7) : importPath;
-
-          // Extract prefix and title from the import path
-          const { prefix, title: generatedTitle } = extractPrefixAndTitle(
-            absolutePath,
-            this.rootContext || process.cwd(),
-          );
-
-          // Read the markdown file
-          const markdownContent = await fs.readFile(absolutePath, 'utf-8');
-
-          // Parse the markdown to extract metadata
-          const metadata = await markdownToMetadata(markdownContent);
-
-          // Add prefix and override title with the generated one from the path
-          // Strip descriptionMarkdown and titleMarkdown to reduce bundle size
-          if (metadata) {
-            const enrichedMetadata = {
-              ...metadata,
-              prefix,
-              // Use the generated title from the path (override markdown's H1)
-              title: generatedTitle,
-              // Strip markdown AST fields from each page to reduce size
-              pages: metadata.pages.map((page) => {
-                const { descriptionMarkdown, sections, ...pageWithoutMarkdown } = page;
-                return {
-                  ...pageWithoutMarkdown,
-                  // Strip titleMarkdown from sections hierarchy
-                  sections: sections ? stripTitleMarkdown(sections) : undefined,
-                };
-              }),
+      entries.map(
+        async ([key, importPath]): Promise<{
+          key: string;
+          absolutePath: string;
+          metadata: SitemapSectionData | null;
+          error: Error | null;
+        }> => {
+          // Convert file:// URLs to proper file system paths for webpack's dependency tracking
+          // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+          const absolutePath = importPath.startsWith('file://')
+            ? fileURLToPath(importPath)
+            : importPath;
+          try {
+            const metadata = await loadPageIndex(importPath);
+            return { key, absolutePath, metadata, error: null };
+          } catch (error) {
+            return {
+              key,
+              absolutePath,
+              metadata: null,
+              error: error instanceof Error ? error : new Error(String(error)),
             };
-
-            return { key, absolutePath, metadata: enrichedMetadata, error: null };
           }
-
-          return { key, absolutePath, metadata: null, error: null };
-        } catch (error) {
-          return { key, absolutePath: importPath, metadata: null, error };
-        }
-      }),
+        },
+      ),
     );
 
     currentMark = performanceMeasure(
@@ -240,24 +147,12 @@ export async function loadPrecomputedSitemap(
         sitemapData[result.key] = result.metadata;
         // Add to dependencies for webpack watching
         this.addDependency(result.absolutePath);
-        allDependencies.push(result.absolutePath);
       }
     }
 
-    // Add Orama schema for search indexing
-    // See: https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
-    // Schema matches PageMetadata interface (slug, path, title, description, keywords, sections, openGraph)
+    // Create sitemap with Orama schema for search indexing
     const precomputeData: Sitemap = {
-      schema: {
-        slug: 'string',
-        path: 'string',
-        title: 'string',
-        description: 'string',
-        sections: 'string[]',
-        subsections: 'string[]',
-        keywords: 'string[]',
-        embeddings: 'vector[384]',
-      },
+      schema: createSitemapSchema(),
       data: sitemapData,
     };
 

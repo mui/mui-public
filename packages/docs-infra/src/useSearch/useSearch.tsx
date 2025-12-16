@@ -1,5 +1,14 @@
+'use client';
 import * as React from 'react';
-import { create, insert, search as oramaSearch, type Orama, type Result } from '@orama/orama';
+import {
+  create,
+  ElapsedTime,
+  insertMultiple,
+  search as oramaSearch,
+  type Orama,
+  type Result,
+} from '@orama/orama';
+import { pluginQPS } from '@orama/plugin-qps';
 import { stemmer, language } from '@orama/stemmers/english';
 import { stopwords as englishStopwords } from '@orama/stopwords/english';
 import type {
@@ -8,13 +17,43 @@ import type {
   SearchResult,
   SitemapPage,
   SitemapSectionData,
+  SearchBy,
+  SearchResults,
 } from './types';
+
+// https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
+// Removed words that might be meaningful in a software documentation context
+const stopWords = englishStopwords.filter(
+  (word) =>
+    word !== 'about' &&
+    word !== 'but' && // start of button
+    word !== 'for' && // part of form
+    word !== 'between' &&
+    word !== 'before' &&
+    word !== 'after' &&
+    word !== 'above' &&
+    word !== 'below' &&
+    word !== 'once' &&
+    word !== 'then' &&
+    word !== 'where' &&
+    word !== 'to' &&
+    word !== 'from' &&
+    word !== 'up' &&
+    word !== 'down' &&
+    word !== 'in' &&
+    word !== 'out' &&
+    word !== 'on' &&
+    word !== 'off' &&
+    word !== 'over' &&
+    word !== 'under',
+);
 
 /**
  * Type for our search document structure
  */
 interface SearchDocument {
   type: string;
+  group: string;
   title: string;
   description: string;
   slug: string;
@@ -27,6 +66,8 @@ interface SearchDocument {
   props?: string;
   dataAttributes?: string;
   cssVariables?: string;
+  page?: string;
+  pageKeywords?: string;
   section?: string;
   subsection?: string;
   sections?: string;
@@ -38,6 +79,7 @@ interface SearchDocument {
  */
 const searchSchema = {
   type: 'string',
+  group: 'string',
   title: 'string',
   description: 'string',
   slug: 'string',
@@ -45,6 +87,8 @@ const searchSchema = {
   prefix: 'string',
   path: 'string',
   keywords: 'string',
+  page: 'string',
+  pageKeywords: 'string',
   sections: 'string',
   subsections: 'string',
   part: 'string',
@@ -66,10 +110,17 @@ type OramaHit = Result<SearchDocument>;
 /**
  * Default function to flatten a sitemap page into search results
  */
-function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData): SearchResult[] {
+function defaultFlattenPage(
+  page: SitemapPage,
+  sectionData: SitemapSectionData,
+  includeCategoryInGroup: boolean,
+  excludeSections?: boolean,
+  generateSlug?: (text: string, parentTitles?: string[]) => string,
+): SearchResult[] {
   const results: SearchResult[] = [];
 
   // Extract top-level sections and all subsections with their slugs
+  // Re-slugify from titles using the provided slugify function to match actual page IDs
   const sections: Array<{ title: string; slug: string }> = [];
   const subsections: Array<{
     title: string;
@@ -80,7 +131,9 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
 
   if (page.sections) {
     // Top-level sections are the direct children
-    for (const [slug, sectionInfo] of Object.entries(page.sections)) {
+    for (const [originalSlug, sectionInfo] of Object.entries(page.sections)) {
+      // Use generateSlug if provided, otherwise use the original slug from sitemap
+      const slug = generateSlug ? generateSlug(sectionInfo.title, []) : originalSlug;
       sections.push({ title: sectionInfo.title, slug });
 
       // Subsections are all nested children (recursively)
@@ -105,7 +158,13 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
             parentSlugs: string[];
             parentTitles: string[];
           }> = [];
-          for (const [childSlug, childData] of Object.entries(hierarchy)) {
+          for (const [childOriginalSlug, childData] of Object.entries(hierarchy)) {
+            // Use generateSlug if provided, otherwise use the original slug from sitemap
+            // When generateSlug is provided, pass parent titles for context
+            // (e.g., for Releases pages: v1.0.0-rc.0-autocomplete)
+            const childSlug = generateSlug
+              ? generateSlug(childData.title, parentTitles)
+              : childOriginalSlug;
             const currentSlugs = [...parentSlugs, childSlug];
             const currentTitles = [...parentTitles, childData.title];
             items.push({
@@ -147,13 +206,21 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
   // Add base page result
   results.push({
     type: 'page',
+    group: includeCategoryInGroup ? `${sectionData.title} Pages` : 'Pages',
+    page: page.title,
     title: page.title,
     slug: page.slug,
     path: page.path,
     description: page.description,
     sectionTitle: sectionData.title,
     prefix: sectionData.prefix,
-    ...flattened,
+    ...(flattened.keywords ? { keywords: flattened.keywords } : {}),
+    ...(excludeSections
+      ? {}
+      : {
+          sections: flattened.sections,
+          subsections: flattened.subsections,
+        }),
   });
 
   // Add entries for each part
@@ -161,18 +228,19 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
     for (const [partName, partData] of Object.entries(page.parts)) {
       results.push({
         type: 'part',
+        group: 'API Reference',
         part: partName,
         export: `${page.slug}.${partName}`,
         slug: partName.toLowerCase(),
         path: page.path,
-        title: page.title ? `${page.title} - ${partName}` : partName,
+        title: page.title ? `${page.title} ‣ ${partName}` : partName,
         description: page.description,
         sectionTitle: sectionData.title,
         prefix: sectionData.prefix,
         props: partData.props ? partData.props.join(' ') : '',
         dataAttributes: partData.dataAttributes ? partData.dataAttributes.join(' ') : '',
         cssVariables: partData.cssVariables ? partData.cssVariables.join(' ') : '',
-        keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+        keywords: flattened.keywords,
       });
     }
   }
@@ -187,6 +255,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
           : exportName.toLowerCase();
       results.push({
         type: 'export',
+        group: 'API Reference',
         export: exportSlug,
         slug: page.slug,
         path: page.path,
@@ -197,7 +266,7 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
         props: exportData.props ? exportData.props.join(' ') : '',
         dataAttributes: exportData.dataAttributes ? exportData.dataAttributes.join(' ') : '',
         cssVariables: exportData.cssVariables ? exportData.cssVariables.join(' ') : '',
-        keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+        keywords: flattened.keywords,
       });
     }
   }
@@ -206,30 +275,32 @@ function defaultFlattenPage(page: SitemapPage, sectionData: SitemapSectionData):
   for (const sectionItem of sections) {
     results.push({
       type: 'section',
+      group: 'Sections',
       section: sectionItem.title,
       slug: `${page.slug}#${sectionItem.slug}`,
       path: page.path,
-      title: page.title ? `${page.title} - ${sectionItem.title}` : sectionItem.title,
+      title: page.title ? `${page.title} ‣ ${sectionItem.title}` : sectionItem.title,
       description: page.description,
       sectionTitle: sectionData.title,
       prefix: sectionData.prefix,
-      keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+      keywords: flattened.keywords,
     });
   }
 
   // Add entries for each subsection
   for (const subsectionItem of subsections) {
-    const fullTitle = subsectionItem.parentTitles.join(' - ');
+    const fullTitle = subsectionItem.parentTitles.join(' ‣ ');
     results.push({
       type: 'subsection',
+      group: 'Sections',
       subsection: fullTitle,
       slug: `${page.slug}#${subsectionItem.slug.toLowerCase()}`,
       path: page.path,
-      title: page.title ? `${page.title} - ${fullTitle}` : fullTitle,
+      title: page.title ? `${page.title} ‣ ${fullTitle}` : fullTitle,
       description: page.description,
       sectionTitle: sectionData.title,
       prefix: sectionData.prefix,
-      keywords: page.keywords?.length ? page.keywords.join(' ') : '',
+      keywords: flattened.keywords,
     });
   }
 
@@ -297,10 +368,33 @@ function defaultFormatResult(hit: OramaHit): SearchResult {
   return {
     ...base,
     type: 'page',
-    sections: hit.document.sections,
-    subsections: hit.document.subsections,
+    page: hit.document.title,
+    ...(hit.document.sections ? { sections: hit.document.sections } : {}),
+    ...(hit.document.subsections ? { subsections: hit.document.subsections } : {}),
   };
 }
+
+export const defaultSearchBoost = {
+  type: 100,
+  group: 100,
+  slug: 2,
+  path: 2,
+  title: 2,
+  page: 10,
+  pageKeywords: 15,
+  description: 1.5,
+  part: 1.5,
+  export: 1.3,
+  sectionTitle: 50,
+  section: 3,
+  subsection: 2.5,
+  props: 1.5,
+  dataAttributes: 1.5,
+  cssVariables: 1.5,
+  sections: 0.7,
+  subsections: 0.3,
+  keywords: 1.5,
+} as const;
 
 /**
  * Hook for managing search functionality with Orama
@@ -308,21 +402,30 @@ function defaultFormatResult(hit: OramaHit): SearchResult {
  * @param options Configuration options for search behavior
  * @returns Search state and functions
  */
-export function useSearch(options: UseSearchOptions): UseSearchResult {
+export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSchema> {
   const {
     sitemap: sitemapImport,
-    maxDefaultResults = 10,
+    maxDefaultResults,
     tolerance = 1,
-    limit = 20,
-    boost,
+    limit: defaultLimit = 20,
+    boost = defaultSearchBoost,
     enableStemming = true,
+    generateSlug,
     flattenPage = defaultFlattenPage,
     formatResult = defaultFormatResult,
   } = options;
 
   const [index, setIndex] = React.useState<Orama<SearchSchema> | null>(null);
-  const [defaultResults, setDefaultResults] = React.useState<SearchResult[]>([]);
-  const [results, setResults] = React.useState<SearchResult[]>([]);
+  const [defaultResults, setDefaultResults] = React.useState<{
+    results: SearchResults;
+    count: number;
+    elapsed: ElapsedTime;
+  }>({ results: [], count: 0, elapsed: { raw: 0, formatted: '0ms' } });
+  const [results, setResults] = React.useState<{
+    results: SearchResults;
+    count: number;
+    elapsed: ElapsedTime;
+  }>({ results: [], count: 0, elapsed: { raw: 0, formatted: '0ms' } });
 
   React.useEffect(() => {
     (async () => {
@@ -340,54 +443,217 @@ export function useSearch(options: UseSearchOptions): UseSearchResult {
                 stemming: true,
                 language,
                 stemmer,
-                stopWords: englishStopwords,
+                stemmerSkipProperties: [
+                  'type',
+                  'group',
+                  'slug',
+                  'sectionTitle',
+                  'page',
+                  'part',
+                  'export',
+                  'dataAttributes',
+                  'cssVariables',
+                  'props',
+                ],
+                stopWords,
               },
             }
           : undefined,
+        plugins: [pluginQPS()],
       });
 
       // Flatten the sitemap data structure to a single array of pages
       const pages: SearchResult[] = [];
-      const pageResults: SearchResult[] = [];
+      const pageResultsByGroup: Record<string, SearchResult[]> = {};
+      let pageResultsCount = 0;
 
       Object.entries(sitemap.data).forEach(([_sectionKey, sectionData]) => {
         (sectionData.pages || []).forEach((page: SitemapPage) => {
-          const flattened = flattenPage(page, sectionData);
+          const flattened = flattenPage(
+            page,
+            sectionData,
+            options.includeCategoryInGroup || false,
+            options.excludeSections,
+            generateSlug,
+          );
           pages.push(...flattened);
 
-          // Add the first result (page type) to default results
-          if (pageResults.length < maxDefaultResults && flattened.length > 0) {
-            pageResults.push(flattened[0]);
+          // Add the first result (page type) to default results, grouped by their group
+          if (
+            (maxDefaultResults === undefined || pageResultsCount < maxDefaultResults) &&
+            flattened.length > 0
+          ) {
+            const pageResult = flattened[0];
+            const group = pageResult.group || 'Pages';
+            if (!pageResultsByGroup[group]) {
+              pageResultsByGroup[group] = [];
+            }
+            pageResultsByGroup[group].push(pageResult);
+            pageResultsCount += 1;
           }
         });
       });
 
-      await Promise.all(pages.map((page) => insert(searchIndex, page)));
+      // Insert a dummy document with all fields to ensure QPS plugin initializes stats for all properties.
+      // This is needed because QPS only creates stats for properties that have data inserted.
+      // Using empty strings ensures no false matches while still initializing the stats.
+      const dummyDoc = {
+        type: '',
+        group: '',
+        title: '',
+        description: '',
+        slug: '',
+        sectionTitle: '',
+        prefix: '',
+        path: '',
+        keywords: '',
+        page: '',
+        pageKeywords: '',
+        sections: '',
+        subsections: '',
+        part: '',
+        export: '',
+        props: '',
+        dataAttributes: '',
+        cssVariables: '',
+        section: '',
+        subsection: '',
+      };
+      await insertMultiple(searchIndex, [dummyDoc, ...pages]);
+
+      const pageResultsGrouped = Object.entries(pageResultsByGroup).map(([group, items]) => ({
+        group,
+        items,
+      }));
+
+      const defaultResultsValue = {
+        results: pageResultsGrouped,
+        count: pageResultsCount,
+        elapsed: { raw: 0, formatted: '0ms' } as ElapsedTime,
+      };
 
       setIndex(searchIndex);
-      setDefaultResults(pageResults);
-      setResults(pageResults);
+      setDefaultResults(defaultResultsValue);
+      setResults(defaultResultsValue);
     })();
-  }, [sitemapImport, maxDefaultResults, flattenPage, enableStemming]);
+  }, [
+    sitemapImport,
+    maxDefaultResults,
+    flattenPage,
+    generateSlug,
+    enableStemming,
+    options.includeCategoryInGroup,
+    options.excludeSections,
+  ]);
 
   const search = React.useCallback(
-    async (value: string) => {
+    async (
+      value: string,
+      { facets, groupBy, limit = defaultLimit, where }: SearchBy<SearchSchema> = {},
+    ) => {
       if (!index || !value.trim()) {
-        setResults([]);
+        setResults(defaultResults);
         return;
       }
 
+      const valueLower = value.toLowerCase();
+      // Normalize for comparison: convert spaces/hyphens to a common format
+      const valueNormalized = valueLower.replace(/[-\s]+/g, ' ').trim();
+
+      // For longer search terms, skip custom sorting and rely on Orama's scoring
+      // The overhead of checking exact/startsWith/contains isn't worth it
+      const useCustomSort = valueLower.length <= 20;
+
+      // Cache for computed document properties to avoid repeated string operations
+      const cache = new Map<
+        string,
+        { titleLower: string; slugLower: string; slugNormalized: string }
+      >();
+
+      const getDocProps = (doc: { title: string; slug: string }) => {
+        const key = doc.slug; // Use slug as cache key since it's unique per document
+        let props = cache.get(key);
+        if (!props) {
+          const titleLower = doc.title.toLowerCase();
+          const slugLower = doc.slug.toLowerCase();
+          props = {
+            titleLower,
+            slugLower,
+            slugNormalized: slugLower.replace(/-/g, ' '),
+          };
+          cache.set(key, props);
+        }
+        return props;
+      };
+
       const searchResults = await oramaSearch(index, {
         term: value,
+        facets,
+        groupBy,
+        where,
         limit,
         tolerance,
         boost,
+        sortBy: useCustomSort
+          ? ([_, aScore, aDocument], [__, bScore, bDocument]) => {
+              const a = getDocProps(aDocument);
+              const b = getDocProps(bDocument);
+
+              // Prioritize exact matches (short-circuit on first match)
+              const aExact =
+                a.titleLower === valueLower ||
+                a.slugLower === valueLower ||
+                a.slugNormalized === valueNormalized;
+              const bExact =
+                b.titleLower === valueLower ||
+                b.slugLower === valueLower ||
+                b.slugNormalized === valueNormalized;
+
+              if (aExact !== bExact) {
+                return aExact ? -1 : 1;
+              }
+
+              // Then prioritize startsWith matches
+              const aStartsWith =
+                a.titleLower.startsWith(valueLower) || a.slugNormalized.startsWith(valueNormalized);
+              const bStartsWith =
+                b.titleLower.startsWith(valueLower) || b.slugNormalized.startsWith(valueNormalized);
+
+              if (aStartsWith !== bStartsWith) {
+                return aStartsWith ? -1 : 1;
+              }
+
+              // Then prioritize contains matches
+              const aContains =
+                a.titleLower.includes(valueLower) || a.slugNormalized.includes(valueNormalized);
+              const bContains =
+                b.titleLower.includes(valueLower) || b.slugNormalized.includes(valueNormalized);
+
+              if (aContains !== bContains) {
+                return aContains ? -1 : 1;
+              }
+
+              // Then sort by score descending
+              return bScore - aScore;
+            }
+          : undefined,
       });
+      const count = searchResults.count;
+      const elapsed = searchResults.elapsed;
+
+      if (searchResults.groups) {
+        const groupedResults: SearchResults = searchResults.groups.map((group) => ({
+          group: group.values.join(' '),
+          items: group.result.map(formatResult),
+        }));
+        setResults({ results: groupedResults, count, elapsed });
+        return;
+      }
 
       const formattedResults: SearchResult[] = searchResults.hits.map(formatResult);
-      setResults(formattedResults);
+      setResults({ results: [{ group: 'Default', items: formattedResults }], count, elapsed });
     },
-    [index, limit, tolerance, boost, formatResult],
+    [index, defaultLimit, defaultResults, tolerance, boost, formatResult],
   );
 
   /**

@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkMdx from 'remark-mdx';
 import { toJs } from 'estree-util-to-js';
 import { visit } from 'unist-util-visit';
 import { transformMarkdownMetadata } from './transformMarkdownMetadata';
+
+// Mock syncPageIndex to capture calls
+vi.mock('../syncPageIndex', () => ({
+  syncPageIndex: vi.fn().mockResolvedValue(undefined),
+}));
 
 /**
  * Helper to extract and stringify the metadata export from an MDX AST
@@ -117,10 +122,6 @@ Import and use the button...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
         }
       };
       "
@@ -256,17 +257,13 @@ Complex button example...`;
               }
             }
           }
-        },
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
         }
       };
       "
     `);
   });
 
-  it('should fill in openGraph metadata', async () => {
+  it('should extract basic metadata without sections', async () => {
     const input = `# Button Component
 
 A versatile button component for interactive actions.`;
@@ -298,14 +295,33 @@ A versatile button component for interactive actions.`;
               offset: 73
             }
           }
-        }],
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
-        }
+        }]
       };
       "
     `);
+  });
+
+  it('should preserve non-breaking spaces in descriptions', async () => {
+    // Use \u00a0 (non-breaking space) between "Base" and "UI"
+    const input = `# Base\u00a0UI Components
+
+Base\u00a0UI is a library of unstyled React components.
+
+## Installation
+
+Install the package...`;
+
+    const processor = unified().use(remarkParse).use(remarkMdx).use(transformMarkdownMetadata);
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // Non-breaking spaces should be preserved (not converted to regular spaces)
+    expect(metadataJs).toContain('Base\u00a0UI Components');
+    expect(metadataJs).toContain('Base\u00a0UI is a library');
   });
 
   it('should extract description from JSX component wrapper', async () => {
@@ -367,10 +383,6 @@ Install the package...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Button Component",
-          description: "A versatile button component for interactive actions."
         }
       };
       "
@@ -436,10 +448,6 @@ The checkbox accepts...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Checkbox Component",
-          description: "A checkbox component for binary selections."
         }
       };
       "
@@ -535,10 +543,6 @@ The checkbox accepts...`;
             }],
             children: {}
           }
-        },
-        openGraph: {
-          title: "Select Component",
-          description: "A \`<select>\` component for choosing options."
         }
       };
       "
@@ -563,6 +567,28 @@ The checkbox accepts...`;
     // Should extract description despite component having attributes
     expect(metadataJs).toContain('description: "An advanced component with special features."');
     expect(metadataJs).toContain('title: "Advanced Component"');
+  });
+
+  it('should handle multi-line JSX component wrapper', async () => {
+    const input = `# Accordion Component
+
+<Subtitle>
+  A set of collapsible panels with headings.
+</Subtitle>
+
+## Features`;
+
+    const processor = unified().use(remarkParse).use(remarkMdx).use(transformMarkdownMetadata);
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // Should extract description from multi-line JSX element
+    expect(metadataJs).toContain('description: "A set of collapsible panels with headings."');
+    expect(metadataJs).toContain('title: "Accordion Component"');
   });
 
   it('should extract description from Meta tag with lowercase name', async () => {
@@ -795,5 +821,479 @@ Features list here.`;
     // Should find meta tags in any section
     expect(metadataJs).toContain('description: "A modal dialog component for important messages."');
     expect(metadataJs).toContain('keywords: ["modal", "dialog", "overlay", "popup"]');
+  });
+
+  it('should append titleSuffix to title in exported metadata', async () => {
+    const input = `# Button Component
+
+A versatile button component.`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, { titleSuffix: ' | My Site' });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // The exported title should have the suffix
+    expect(metadataJs).toContain('title: "Button Component | My Site"');
+  });
+
+  it('should append titleSuffix when updating existing metadata', async () => {
+    const input = `export const metadata = {
+  keywords: ['button', 'ui'],
+};
+
+# Button Component
+
+A versatile button component.`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, { titleSuffix: ' | Base UI' });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toBeTruthy();
+    // The exported title should have the suffix
+    expect(metadataJs).toContain('title: "Button Component | Base UI"');
+  });
+
+  it('should not append titleSuffix when there is no title', async () => {
+    const input = `Some content without a heading.`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, { titleSuffix: ' | My Site' });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    const metadataJs = extractMetadataJs(tree);
+    // No metadata should be created since there's no h1 or description
+    expect(metadataJs).toBeNull();
+  });
+
+  it('should use visible paragraph in extracted index when useVisibleDescription is true', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Button Component
+
+A versatile button for actions.
+
+<meta name="description" content="SEO optimized button description." />
+
+## Props`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+          useVisibleDescription: true,
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/button/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    // Exported metadata should still use meta tag description
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toContain('description: "SEO optimized button description."');
+
+    // syncPageIndex should receive the visible paragraph
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.description).toBe('A versatile button for actions.');
+  });
+
+  it('should use meta tag in extracted index when useVisibleDescription is false', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Checkbox Component
+
+A checkbox for selections.
+
+<meta name="description" content="SEO optimized checkbox description." />
+
+## Props`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+          useVisibleDescription: false,
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/checkbox/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    // Both should use the meta tag description
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toContain('description: "SEO optimized checkbox description."');
+
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.description).toBe('SEO optimized checkbox description.');
+  });
+
+  it('should use visible JSX wrapper text in extracted index when useVisibleDescription is true', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Input Component
+
+<Description>A text input for user entry.</Description>
+
+<Meta name="description" content="SEO optimized input description." />
+
+## Props`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+          useVisibleDescription: true,
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/input/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    // Exported metadata should use meta tag description
+    const metadataJs = extractMetadataJs(tree);
+    expect(metadataJs).toContain('description: "SEO optimized input description."');
+
+    // syncPageIndex should receive the JSX wrapper text
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.description).toBe('A text input for user entry.');
+  });
+
+  describe('sitemap data injection (indexWrapperComponent)', () => {
+    /**
+     * Helper to extract a JSX attribute value from a component
+     */
+    function extractJsxAttribute(tree: any, componentName: string, attrName: string): any {
+      let attrValue: any = null;
+
+      visit(tree, (node: any) => {
+        if (
+          node.type === 'mdxJsxFlowElement' &&
+          node.name === componentName &&
+          Array.isArray(node.attributes)
+        ) {
+          for (const attr of node.attributes) {
+            if (
+              attr &&
+              typeof attr === 'object' &&
+              attr.type === 'mdxJsxAttribute' &&
+              attr.name === attrName
+            ) {
+              // Handle expression values
+              if (
+                attr.value &&
+                typeof attr.value === 'object' &&
+                attr.value.type === 'mdxJsxAttributeValueExpression'
+              ) {
+                // Parse the JSON value for easier assertions
+                try {
+                  attrValue = JSON.parse(attr.value.value);
+                } catch {
+                  attrValue = attr.value.value;
+                }
+              } else {
+                attrValue = attr.value;
+              }
+              break;
+            }
+          }
+        }
+      });
+
+      return attrValue;
+    }
+
+    it('should inject sitemap data into wrapper component in autogenerated index file', async () => {
+      const input = `# Components
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+<PagesIndex>
+
+- [Button](#button) - [Full Docs](./button/page.mdx)
+- [Checkbox](#checkbox) - [Full Docs](./checkbox/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Button
+
+A clickable button component.
+
+- Keywords: button, click, action
+
+## Checkbox
+
+A toggleable checkbox input.
+
+- Keywords: checkbox, toggle, input
+
+</PagesIndex>
+
+[//]: # 'This file is autogenerated, but the following metadata can be modified.'
+
+export const metadata = {
+  robots: 'index, follow',
+};`;
+
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkMdx)
+        .use(transformMarkdownMetadata, {
+          extractToIndex: {
+            include: ['app'],
+            exclude: [],
+            baseDir: '/project/docs',
+            indexWrapperComponent: 'PagesIndex',
+          },
+        });
+
+      const tree = processor.parse(input);
+      const file = { path: '/project/docs/app/components/page.mdx', value: input };
+      await processor.run(tree, file as any);
+
+      // Extract the data prop from PagesIndex
+      const sitemapData = extractJsxAttribute(tree, 'PagesIndex', 'data');
+
+      expect(sitemapData).toBeTruthy();
+      expect(sitemapData.title).toBe('Components');
+      expect(sitemapData.prefix).toBe('/components/');
+      expect(sitemapData.pages).toHaveLength(2);
+      expect(sitemapData.pages[0]).toMatchObject({
+        title: 'Button',
+        slug: 'button',
+        path: './button/page.mdx',
+        description: 'A clickable button component.',
+      });
+      expect(sitemapData.pages[1]).toMatchObject({
+        title: 'Checkbox',
+        slug: 'checkbox',
+        path: './checkbox/page.mdx',
+        description: 'A toggleable checkbox input.',
+      });
+    });
+
+    it('should not inject data if file is not an autogenerated index', async () => {
+      const input = `# Button Component
+
+<PagesIndex>
+Some content
+</PagesIndex>
+
+## Usage`;
+
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkMdx)
+        .use(transformMarkdownMetadata, {
+          extractToIndex: {
+            include: ['app'],
+            exclude: [],
+            indexWrapperComponent: 'PagesIndex',
+          },
+        });
+
+      const tree = processor.parse(input);
+      const file = { path: '/test/page.mdx', value: input };
+      await processor.run(tree, file as any);
+
+      // Should not have data prop since this isn't an autogenerated file
+      const sitemapData = extractJsxAttribute(tree, 'PagesIndex', 'data');
+      expect(sitemapData).toBeNull();
+    });
+
+    it('should handle missing wrapper component gracefully', async () => {
+      const input = `# Components
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+- [Button](#button) - [Full Docs](./button/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Button
+
+A button component.`;
+
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkMdx)
+        .use(transformMarkdownMetadata, {
+          extractToIndex: {
+            include: ['app'],
+            exclude: [],
+            indexWrapperComponent: 'PagesIndex', // Component not in file
+          },
+        });
+
+      const tree = processor.parse(input);
+      const file = { path: '/test/page.mdx', value: input };
+
+      // Should not throw
+      await expect(processor.run(tree, file as any)).resolves.not.toThrow();
+    });
+
+    it('should compute prefix from path without baseDir', async () => {
+      const input = `# Utilities
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+<PagesIndex>
+
+- [Helpers](#helpers) - [Full Docs](./helpers/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Helpers
+
+Helper functions.
+
+</PagesIndex>`;
+
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkMdx)
+        .use(transformMarkdownMetadata, {
+          extractToIndex: {
+            include: ['app'],
+            exclude: [],
+            indexWrapperComponent: 'PagesIndex',
+            // No baseDir - uses full path but still filters src/app
+          },
+        });
+
+      const tree = processor.parse(input);
+      // Use a path that starts with src/app after some project root
+      const file = { path: '/project/src/app/utils/page.mdx', value: input };
+      await processor.run(tree, file as any);
+
+      const sitemapData = extractJsxAttribute(tree, 'PagesIndex', 'data');
+
+      expect(sitemapData).toBeTruthy();
+      expect(sitemapData.title).toBe('Utilities');
+      // When no baseDir is provided, 'project' is kept but 'src' and 'app' are still filtered
+      expect(sitemapData.prefix).toBe('/project/utils/');
+    });
+
+    it('should filter out Next.js route groups from prefix', async () => {
+      const input = `# Public Components
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+<PagesIndex>
+
+- [Widget](#widget) - [Full Docs](./widget/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## Widget
+
+A widget component.
+
+</PagesIndex>`;
+
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkMdx)
+        .use(transformMarkdownMetadata, {
+          extractToIndex: {
+            include: ['app'],
+            exclude: [],
+            baseDir: '/docs',
+            indexWrapperComponent: 'PagesIndex',
+          },
+        });
+
+      const tree = processor.parse(input);
+      const file = { path: '/docs/app/(public)/components/page.mdx', value: input };
+      await processor.run(tree, file as any);
+
+      const sitemapData = extractJsxAttribute(tree, 'PagesIndex', 'data');
+
+      expect(sitemapData).toBeTruthy();
+      // Route group '(public)' should be filtered out
+      expect(sitemapData.prefix).toBe('/components/');
+    });
+
+    it('should include page metadata like keywords and tags', async () => {
+      const input = `# API Reference
+
+[//]: # 'This file is autogenerated, but the following list can be modified.'
+
+<ComponentsIndex>
+
+- [useHook](#usehook) [New] - [Full Docs](./use-hook/page.mdx)
+
+[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+
+## useHook
+
+A custom React hook.
+
+- Keywords: hook, react, state
+
+</ComponentsIndex>`;
+
+      const processor = unified()
+        .use(remarkParse)
+        .use(remarkMdx)
+        .use(transformMarkdownMetadata, {
+          extractToIndex: {
+            include: ['api'],
+            exclude: [],
+            indexWrapperComponent: 'ComponentsIndex',
+          },
+        });
+
+      const tree = processor.parse(input);
+      const file = { path: '/test/api/page.mdx', value: input };
+      await processor.run(tree, file as any);
+
+      const sitemapData = extractJsxAttribute(tree, 'ComponentsIndex', 'data');
+
+      expect(sitemapData).toBeTruthy();
+      expect(sitemapData.pages[0].keywords).toEqual(['hook', 'react', 'state']);
+      expect(sitemapData.pages[0].tags).toEqual(['New']);
+    });
   });
 });

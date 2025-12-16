@@ -97,7 +97,7 @@ The plugin automatically configures loaders for these patterns:
 
 ```js
 {
-  test: /\/demos\/[^\/]+\/index\.ts$/,
+  test: /[/\\]demos[/\\][^/\\]+[/\\]index\.ts$/,
   use: [
     defaultLoaders.babel,
     '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'

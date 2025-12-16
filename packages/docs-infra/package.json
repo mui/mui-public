@@ -29,7 +29,6 @@
     "./useSearch/types": "./src/useSearch/types.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
-    "./pipeline/generateEmbeddings": "./src/pipeline/generateEmbeddings/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
     "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
@@ -43,6 +42,8 @@
     "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
     "./pipeline/loadPrecomputedSitemap": "./src/pipeline/loadPrecomputedSitemap/index.ts",
     "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
+    "./pipeline/loadServerPageIndex": "./src/pipeline/loadServerPageIndex/index.ts",
+    "./pipeline/loadServerSitemap": "./src/pipeline/loadServerSitemap/index.ts",
     "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
@@ -78,8 +79,8 @@
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "@babel/standalone": "^7.28.5",
-    "@huggingface/transformers": "^3.7.6",
     "@orama/orama": "^3.1.16",
+    "@orama/plugin-qps": "^3.1.16",
     "@orama/stemmers": "^3.1.16",
     "@orama/stopwords": "^3.1.16",
     "@wooorm/starry-night": "^3.8.0",
@@ -92,7 +93,6 @@
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
-    "prettier": "^3.6.2",
     "proper-lockfile": "^4.1.2",
     "uint8-to-base64": "^0.2.1",
     "unist-util-visit": "^5.0.0",
@@ -110,9 +110,9 @@
     "@types/proper-lockfile": "^4.1.4",
     "@types/react": "^19.2.2",
     "@types/webpack": "^5.28.5",
-    "@types/yargs": "^17.0.34",
+    "@types/yargs": "^17.0.35",
     "estree-util-to-js": "^2.0.0",
-    "next": "^15.5.6",
+    "next": "^16.0.10",
     "react": "^19.2.0",
     "rehype-parse": "^9.0.1",
     "rehype-stringify": "^10.0.1",
@@ -124,7 +124,8 @@
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
-    "next": "^13.5.1 || ^14 || ^15.0.0",
+    "next": "^15.0.0 || ^16.0.0",
+    "prettier": "^3.0.0",
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
@@ -132,6 +133,9 @@
       "optional": true
     },
     "next": {
+      "optional": true
+    },
+    "prettier": {
       "optional": true
     }
   },
