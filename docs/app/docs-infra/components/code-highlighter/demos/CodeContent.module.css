@@ -51,3 +51,16 @@
   padding: 6px;
   overflow-x: auto;
 }
+
+.name {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}
+
+.name span {
+  color: #65636d;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+}
