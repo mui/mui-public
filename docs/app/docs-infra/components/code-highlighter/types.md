@@ -4,6 +4,22 @@
 
 ## API Reference
 
+### BaseContentLoadingProps
+
+```typescript
+type BaseContentLoadingProps = {
+  fileNames?: string[];
+  source?: React.ReactNode;
+  extraSource?: { [fileName: string]: React.ReactNode };
+} & CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> };
+```
+
+### Code
+
+```typescript
+type Code = { [key: string]: string | VariantCode | undefined };
+```
+
 ### CodeClientRenderingProps
 
 Client-specific rendering props
@@ -28,6 +44,7 @@ type CodeContentProps = {
   variants?: string[];
   variant?: string;
   fileName?: string;
+  language?: string;
   initialVariant?: string;
   defaultVariant?: string;
   globalsCode?: (string | {})[];
@@ -84,6 +101,7 @@ type CodeFunctionProps = {
 | globalsCode                  | `(string \| Code)[]`                            | -         | Global static code snippets to inject, typically for styling or tooling                                                 |
 | highlightAfter               | `'init' \| 'stream' \| 'hydration' \| 'idle'`   | `'idle'`  | When to perform syntax highlighting and code processing                                                                 |
 | initialVariant               | `string`                                        | -         | Default variant to show on first load                                                                                   |
+| language                     | `string`                                        | -         | Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing.             |
 | loadCodeMeta                 | `LoadCodeMeta`                                  | -         | Function to load code metadata from a URL                                                                               |
 | loadSource                   | `LoadSource`                                    | -         | Function to load raw source code and dependencies                                                                       |
 | loadVariantMeta              | `LoadVariantMeta`                               | -         | Function to load specific variant metadata                                                                              |
@@ -113,6 +131,7 @@ type CodeHighlighterBaseProps = {
   variants?: string[];
   variant?: string;
   fileName?: string;
+  language?: string;
   initialVariant?: string;
   defaultVariant?: string;
   globalsCode?: (string | {})[];
@@ -166,6 +185,7 @@ type CodeHighlighterClientProps = {
   variants?: string[];
   variant?: string;
   fileName?: string;
+  language?: string;
   initialVariant?: string;
   defaultVariant?: string;
   globalsCode?: (string | {})[];
@@ -199,6 +219,7 @@ type CodeHighlighterProps = {
   variants?: string[];
   variant?: string;
   fileName?: string;
+  language?: string;
   initialVariant?: string;
   defaultVariant?: string;
   globalsCode?: (string | {})[];
@@ -271,6 +292,70 @@ type CodeRenderingProps = {
 };
 ```
 
+### Components
+
+```typescript
+type Components = { [key: string]: React.ReactNode };
+```
+
+### ContentLoadingProps
+
+```typescript
+type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
+  CodeIdentityProps & {
+    extraVariants?: Record<string, ContentLoadingVariant>;
+  } & T & {
+    component: React.ReactNode;
+    components?: Record<string, React.ReactNode>;
+    initialFilename?: string;
+  };
+```
+
+### ContentLoadingVariant
+
+```typescript
+type ContentLoadingVariant = {
+  fileNames?: string[];
+  source?: React.ReactNode;
+  extraSource?: { [fileName: string]: React.ReactNode };
+};
+```
+
+### ContentProps
+
+```typescript
+type ContentProps<T extends {}> = CodeIdentityProps &
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> &
+  T;
+```
+
+### ControlledCode
+
+```typescript
+type ControlledCode = { [key: string]: ControlledVariantCode | null | undefined };
+```
+
+### ControlledVariantCode
+
+```typescript
+type ControlledVariantCode = {
+  fileName?: string;
+  language?: string;
+  path?: string;
+} & {
+  url?: string;
+  source?: string | null;
+  extraFiles?: ControlledVariantExtraFiles;
+  filesOrder?: string[];
+};
+```
+
+### ControlledVariantExtraFiles
+
+```typescript
+type ControlledVariantExtraFiles = { [fileName: string]: { source: string | null } };
+```
+
 ### ExternalImportItem
 
 ```typescript
@@ -281,10 +366,22 @@ type ExternalImportItem = {
 };
 ```
 
+### Externals
+
+```typescript
+type Externals = { [P in K]: T };
+```
+
 ### HastRoot
 
 ```typescript
 type HastRoot = { data?: RootData & { totalLines?: number } };
+```
+
+### LoadCodeMeta
+
+```typescript
+type LoadCodeMeta = (url: string) => Promise<Code>;
 ```
 
 ### LoadFallbackCodeOptions
@@ -340,9 +437,28 @@ type LoadFileOptions = {
 };
 ```
 
+### LoadSource
+
+```typescript
+type LoadSource = (
+  url: string,
+) => Promise<{
+  source: string;
+  extraFiles?: VariantExtraFiles;
+  extraDependencies?: string[];
+  externals?: Externals;
+}>;
+```
+
+### LoadVariantMeta
+
+```typescript
+type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
+```
+
 ### LoadVariantOptions
 
-Options for the loadVariant function, extending LoadFileOptions with required function dependencies
+Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
 
 ```typescript
 type LoadVariantOptions = {
@@ -370,4 +486,77 @@ type LoadVariantOptions = {
     ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
   }[];
 };
+```
+
+### ParseSource
+
+```typescript
+type ParseSource = (source: string, fileName: string, language?: string) => HastRoot;
+```
+
+### SourceTransformer
+
+```typescript
+type SourceTransformer = { extensions: string[]; transformer: TransformSource };
+```
+
+### SourceTransformers
+
+```typescript
+type SourceTransformers = any[];
+```
+
+### Transforms
+
+```typescript
+type Transforms = { [P in K]: T };
+```
+
+### TransformSource
+
+```typescript
+type TransformSource = (
+  source: string,
+  fileName: string,
+) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+```
+
+### VariantCode
+
+```typescript
+type VariantCode = { fileName?: string; language?: string; path?: string } & {
+  url?: string;
+  source?: VariantSource;
+  extraFiles?: VariantExtraFiles;
+  metadataPrefix?: string;
+  externals?: string[];
+  namedExport?: string;
+  filesOrder?: string[];
+  transforms?: Transforms;
+  allFilesListed?: boolean;
+  skipTransforms?: boolean;
+};
+```
+
+### VariantExtraFiles
+
+```typescript
+type VariantExtraFiles = {
+  [fileName: string]:
+    | string
+    | {
+        source?: VariantSource;
+        language?: string;
+        transforms?: Transforms;
+        skipTransforms?: boolean;
+        metadata?: boolean;
+        path?: string;
+      };
+};
+```
+
+### VariantSource
+
+```typescript
+type VariantSource = string | HastRoot | { hastJson: string } | { hastGzip: string };
 ```

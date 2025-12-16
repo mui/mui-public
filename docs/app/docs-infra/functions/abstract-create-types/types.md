@@ -67,3 +67,26 @@
   },
 ) => ComponentType<{}>;
 ```
+
+### TypesContentProps
+
+```typescript
+type TypesContentProps<T extends {}> = T & {
+  types?: ProcessedTypesMeta[];
+  multiple?: boolean;
+};
+```
+
+### TypesTableMeta
+
+```typescript
+type TypesTableMeta = {
+  precompute?: { [variant: string]: { types?: TypesMeta[]; importedFrom: string } };
+  name?: string;
+  displayName?: string;
+  disableOptimization?: boolean;
+  globalTypes?: string[];
+  watchSourceDirectly?: boolean;
+  components?: TypesJsxOptions['components'];
+};
+```

@@ -4,36 +4,127 @@
 
 ## API Reference
 
-### CreateLoadCodeMetaOptions
+### DirectoryEntry
 
 ```typescript
-type CreateLoadCodeMetaOptions = {};
+type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ```
 
-### createLoadServerCodeMeta
-
-Creates a loadCodeMeta function that resolves variant paths from demo files.
-
-This factory function creates a LoadCodeMeta implementation that:
-
-1. Parses the demo file to find createDemo calls with variants
-2. Resolves all variant entry point paths using resolveVariantPaths
-3. Returns a Code object mapping variant names to their resolved file URLs
-
-The actual loading, parsing, and transformation of the variants is handled
-elsewhere by the CodeHighlighter component using loadVariant.
+### DirectoryEntry.DirectoryReader
 
 ```typescript
-(_options?: {}) => (url: string) => Promise<Code>;
+type DirectoryEntryDirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
 ```
 
-### loadServerCodeMeta
+### DirectoryEntry.isJavaScriptModule
 
-Default loadServerCodeMeta function that resolves variant paths from demo files.
-This function is used to load code metadata for demos, specifically resolving paths for variants defined in the demo files.
-It reads the demo file, parses it to find `createDemo` calls with variants, and resolves the paths for those variants.
-It returns a Code object mapping variant names to their resolved file URLs.
+Checks if a file path or import path represents a JavaScript/TypeScript module
 
 ```typescript
-(url: string) => Promise<Code>;
+(path: string) => boolean;
+```
+
+### DirectoryEntry.JAVASCRIPT\_MODULE\_EXTENSIONS
+
+Default file extensions for JavaScript/TypeScript modules that can be resolved
+
+```typescript
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+```
+
+### DirectoryEntry.resolveImportResult
+
+Resolves import result by separating JavaScript modules from static assets,
+only resolving JavaScript modules and returning a combined map.
+This function uses the new type-aware resolveModulePath function internally.
+
+```typescript
+(
+  importResult: Record<
+    string,
+    {
+      url: string;
+      names: string[];
+      includeTypeDefs?: true;
+      positions?: { start: number; end: number }[];
+    }
+  >,
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+) => Promise<Map<string, string>>;
+```
+
+### DirectoryEntry.resolveModulePath
+
+Resolves a module path by reading directory contents to find matching files.
+This is more efficient than checking each file individually with stat calls.
+
+Given a path like `file:///Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
+this function will try to find the actual file by checking for:
+
+- `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
+- `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
+
+```typescript
+(
+  moduleUrl: string,
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+  includeTypeDefs?: boolean,
+) => Promise<string | TypeAwareResolveResult>;
+```
+
+### DirectoryEntry.ResolveModulePathOptions
+
+```typescript
+type ResolveModulePathOptions = { extensions?: string[] };
+```
+
+### DirectoryEntry.resolveModulePaths
+
+Resolves multiple module paths efficiently by grouping them by directory
+and performing batch directory lookups.
+
+```typescript
+(
+  modulePaths: string[],
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+) => Promise<Map<string, string>>;
+```
+
+### DirectoryEntry.resolveVariantPaths
+
+Resolves variant paths from a variants object mapping variant names to their file paths.
+This function extracts the paths, resolves them using resolveModulePaths, and returns
+a map from variant name to resolved file URL.
+
+```typescript
+(
+  variants: Record<string, string>,
+  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
+  options?: { extensions?: string[] },
+) => Promise<Map<string, string>>;
+```
+
+### DirectoryEntry.TYPE\_IMPORT\_EXTENSIONS
+
+Extension priority for type-only imports - prioritize .d.ts first
+
+```typescript
+['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
+```
+
+### DirectoryEntry.TypeAwareResolveResult
+
+```typescript
+type TypeAwareResolveResult = { import: string; typeImport?: string };
+```
+
+### DirectoryEntry.VALUE\_IMPORT\_EXTENSIONS
+
+Extension priority for value imports - standard priority with .d.ts last
+
+```typescript
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```

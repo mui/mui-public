@@ -4,6 +4,112 @@
 
 ## API Reference
 
+### ProcessedComponentTypeMeta
+
+```typescript
+type ProcessedComponentTypeMeta = { name: string } & {
+  description?: React.ReactNode;
+  props: Record<string, ProcessedProperty>;
+  dataAttributes: Record<string, ProcessedEnumMember>;
+  cssVariables: Record<string, ProcessedEnumMember>;
+};
+```
+
+### ProcessedEnumMember
+
+```typescript
+type ProcessedEnumMember = {} & {
+  type?: React.ReactNode;
+  description?: React.ReactNode;
+  default?: React.ReactNode;
+};
+```
+
+### ProcessedHookParameter
+
+```typescript
+type ProcessedHookParameter = ProcessedProperty | ProcessedParameter;
+```
+
+### ProcessedHookReturnValue
+
+```typescript
+type ProcessedHookReturnValue =
+  | { kind: 'simple'; type: React.ReactNode; description?: React.ReactNode }
+  | { kind: 'object'; properties: Record<string, ProcessedProperty> };
+```
+
+### ProcessedHookTypeMeta
+
+```typescript
+type ProcessedHookTypeMeta = { name: string } & {
+  description?: React.ReactNode;
+  parameters: Record<string, ProcessedHookParameter>;
+  returnValue?: ProcessedHookReturnValue;
+};
+```
+
+### ProcessedParameter
+
+```typescript
+type ProcessedParameter = {
+  defaultText?: string | undefined;
+  optional?: true | undefined;
+} & {
+  type: React.ReactNode;
+  default?: React.ReactNode;
+  description?: React.ReactNode;
+  example?: React.ReactNode;
+};
+```
+
+### ProcessedProperty
+
+```typescript
+type ProcessedProperty = {
+  shortTypeText?: string | undefined;
+  defaultText?: string | undefined;
+  required?: true | undefined;
+} & {
+  type: React.ReactNode;
+  shortType?: React.ReactNode;
+  default?: React.ReactNode;
+  description?: React.ReactNode;
+  example?: React.ReactNode;
+  detailedType?: React.ReactNode;
+};
+```
+
+### ProcessedTypesMeta
+
+```typescript
+type ProcessedTypesMeta =
+  | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
+  | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
+  | { type: 'other'; name: string; data: ExportNode };
+```
+
+### TypesJsxOptions
+
+```typescript
+type TypesJsxOptions = {
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+};
+```
+
+### typesToJsx
+
+Converts types metadata with HAST nodes to types with React JSX nodes.
+This function transforms precomputed HAST nodes from the webpack loader
+into renderable React components.
+
+```typescript
+(
+  types?: TypesMeta[],
+  options?: { components?: { pre?: ComponentType<{ 'data-precompute'?: string }> } },
+) => ProcessedTypesMeta[] | undefined;
+```
+
 ### useTypes
 
 Hook for accessing types props in TypesContent components.

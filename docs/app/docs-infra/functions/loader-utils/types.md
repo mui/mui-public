@@ -10,6 +10,12 @@
 type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ```
 
+### DirectoryReader
+
+```typescript
+type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
+```
+
 ### ExternalImport
 
 Represents an import from an external package (node\_modules).
@@ -24,6 +30,57 @@ type ExternalImport = {
   }[];
   positions: { start: number; end: number }[];
 };
+```
+
+### externalsToPackages
+
+```typescript
+(externals: string[]) => Record<string, true>;
+```
+
+### extractNameAndSlugFromUrl
+
+Extracts and formats a name and slug from a URL path
+
+```typescript
+(url: string) => { name: string; slug: string };
+```
+
+### fileUrlToPortablePath
+
+Converts a file:// URL to a portable path format that can be used with path-module (POSIX-only).
+
+This function is designed to work with isomorphic code that uses path-module,
+which only supports POSIX paths. The key insight is that by stripping the `file://`
+prefix and normalizing backslashes to forward slashes, we get a path that:
+
+- On Unix: `/home/user/file.ts` - works directly with path-module
+- On Windows: `/C:/Users/file.ts` - also works with path-module because it starts with `/`
+
+The resulting path is NOT a valid filesystem path on Windows, but it's a valid
+POSIX-style path for path manipulation. Use `fileURLToPath` from the `url` module
+when you need to access the actual filesystem.
+
+```typescript
+(fileUrl: string) => string;
+```
+
+### getFileNameFromUrl
+
+Extracts the filename and extension from a URL or file path.
+This function is isomorphic and works in both Node.js and browser environments.
+It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
+
+```typescript
+(url: string) => { fileName: string; extension: string };
+```
+
+### getLanguageFromExtension
+
+Gets the language name from a file extension.
+
+```typescript
+(extension: string) => string | undefined;
 ```
 
 ### ImportName
@@ -60,6 +117,14 @@ type ImportsAndComments = {
 };
 ```
 
+### isJavaScriptModule
+
+Checks if a file path or import path represents a JavaScript/TypeScript module
+
+```typescript
+(path: string) => boolean;
+```
+
 ### JAVASCRIPT\_MODULE\_EXTENSIONS
 
 Default file extensions for JavaScript/TypeScript modules that can be resolved
@@ -68,91 +133,32 @@ Default file extensions for JavaScript/TypeScript modules that can be resolved
 ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
 
-### ProcessImportsResult
+### languageAliasMap
+
+Maps language aliases to canonical language names.
+Used to normalize short language names (e.g., from className like 'language-js')
+to their full names.
 
 ```typescript
-type ProcessImportsResult = {
-  processedSource: string;
-  extraFiles: Record<string, string>;
-};
+Record<string, string>;
 ```
 
-### RelativeImport
+### languageMap
 
-Represents an import from a relative path (starts with ./ or ../).
+Maps file extensions to language names.
+These are user-friendly names that can be used in the `language` prop.
 
 ```typescript
-type RelativeImport = {
-  path: string;
-  names: {
-    name: string;
-    alias?: string;
-    type: 'default' | 'named' | 'namespace';
-    isType?: boolean;
-  }[];
-  includeTypeDefs?: true;
-  positions: { start: number; end: number }[];
-};
+Record<string, string>;
 ```
 
-### ResolveModulePathOptions
+### normalizeLanguage
+
+Normalizes a language name to its canonical form.
+This handles aliases like 'js' -> 'javascript', 'ts' -> 'typescript'.
 
 ```typescript
-type ResolveModulePathOptions = { extensions?: string[] };
-```
-
-### TYPE\_IMPORT\_EXTENSIONS
-
-Extension priority for type-only imports - prioritize .d.ts first
-
-```typescript
-['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
-```
-
-### TypeAwareResolveResult
-
-```typescript
-type TypeAwareResolveResult = { import: string; typeImport?: string };
-```
-
-### VALUE\_IMPORT\_EXTENSIONS
-
-Extension priority for value imports - standard priority with .d.ts last
-
-```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
-```
-
-### externalsToPackages
-
-```typescript
-(externals: string[]) => Record<string, true>;
-```
-
-### extractNameAndSlugFromUrl
-
-Extracts and formats a name and slug from a URL path
-
-```typescript
-(url: string) => { name: string; slug: string };
-```
-
-### getFileNameFromUrl
-
-Extracts the filename and extension from a URL or file path.
-This function is isomorphic and works in both Node.js and browser environments.
-It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
-
-```typescript
-(url: string) => { fileName: string; extension: string };
-```
-
-### isJavaScriptModule
-
-Checks if a file path or import path represents a JavaScript/TypeScript module
-
-```typescript
-(path: string) => boolean;
+(language: string) => string;
 ```
 
 ### parseImportsAndComments
@@ -169,15 +175,39 @@ to correctly identify imports while avoiding false positives in strings, comment
 and template literals, it's most efficient to handle comment processing in this
 same pass rather than requiring separate parsing steps.
 
+The function accepts file:// URLs or file paths and converts them internally to a
+portable path format that works cross-platform. Resolved import paths are returned
+in the same portable format (forward slashes, starting with /).
+
 ```typescript
 (
   code: string,
-  filePath: string,
+  fileUrl: string,
   options?: {
     removeCommentsWithPrefix?: string[];
     notableCommentsPrefix?: string[];
   },
 ) => Promise<ImportsAndComments>;
+```
+
+### portablePathToFileUrl
+
+Converts a portable path back to a file:// URL.
+
+This is the inverse of `fileUrlToPortablePath`. It takes a portable path
+(which always starts with `/`) and converts it back to a proper file:// URL.
+
+```typescript
+(portablePath: string) => string;
+```
+
+### ProcessImportsResult
+
+```typescript
+type ProcessImportsResult = {
+  processedSource: string;
+  extraFiles: Record<string, string>;
+};
 ```
 
 ### processRelativeImports
@@ -190,12 +220,43 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
   source: string,
   importResult: Record<
     string,
-    { path: string; names: string[]; positions?: { start: number; end: number }[] }
+    { url: string; names: string[]; positions?: { start: number; end: number }[] }
   >,
   storeAt: StoreAtMode,
   isJsFile?: boolean,
   resolvedPathsMap?: Map<string, string>,
 ) => { processedSource: string; extraFiles: Record<string, string> };
+```
+
+### RelativeImport
+
+Represents an import from a relative path (starts with ./ or ../).
+
+```typescript
+type RelativeImport = {
+  url: string;
+  names: {
+    name: string;
+    alias?: string;
+    type: 'default' | 'named' | 'namespace';
+    isType?: boolean;
+  }[];
+  includeTypeDefs?: true;
+  positions: { start: number; end: number }[];
+};
+```
+
+### removeImports
+
+Removes entire import statements for the specified import paths.
+This removes the full import line, not just the path.
+
+```typescript
+(
+  source: string,
+  importPathsToRemove: Set<string>,
+  importResult: Record<string, { positions: { start: number; end: number }[] }>,
+) => string;
 ```
 
 ### resolveImportResult
@@ -209,7 +270,7 @@ This function uses the new type-aware resolveModulePath function internally.
   importResult: Record<
     string,
     {
-      path: string;
+      url: string;
       names: string[];
       includeTypeDefs?: true;
       positions?: { start: number; end: number }[];
@@ -225,7 +286,7 @@ This function uses the new type-aware resolveModulePath function internally.
 Resolves a module path by reading directory contents to find matching files.
 This is more efficient than checking each file individually with stat calls.
 
-Given a path like `/Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
+Given a path like `file:///Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
 this function will try to find the actual file by checking for:
 
 - `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
@@ -233,11 +294,17 @@ this function will try to find the actual file by checking for:
 
 ```typescript
 (
-  modulePath: string,
+  moduleUrl: string,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },
   includeTypeDefs?: boolean,
 ) => Promise<string | TypeAwareResolveResult>;
+```
+
+### ResolveModulePathOptions
+
+```typescript
+type ResolveModulePathOptions = { extensions?: string[] };
 ```
 
 ### resolveModulePaths
@@ -279,4 +346,52 @@ Works for both JavaScript/TypeScript and CSS imports.
   importPathMapping: Map<string, string>,
   importResult: Record<string, { positions: { start: number; end: number }[] }>,
 ) => string;
+```
+
+### rewriteImportsToNull
+
+Converts import statements to const declarations set to null.
+This preserves variable names while removing the actual imports.
+Useful when precomputing data that makes the imports unnecessary.
+
+```typescript
+(
+  source: string,
+  importPathsToRewrite: Set<string>,
+  importResult: Record<
+    string,
+    {
+      positions: { start: number; end: number }[];
+      names: { name: string; alias?: string; type: string }[];
+    }
+  >,
+) => string;
+```
+
+### StoreAtMode
+
+```typescript
+type StoreAtMode = 'canonical' | 'import' | 'flat';
+```
+
+### TYPE\_IMPORT\_EXTENSIONS
+
+Extension priority for type-only imports - prioritize .d.ts first
+
+```typescript
+['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
+```
+
+### TypeAwareResolveResult
+
+```typescript
+type TypeAwareResolveResult = { import: string; typeImport?: string };
+```
+
+### VALUE\_IMPORT\_EXTENSIONS
+
+Extension priority for value imports - standard priority with .d.ts last
+
+```typescript
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```

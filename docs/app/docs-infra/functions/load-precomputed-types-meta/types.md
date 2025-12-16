@@ -4,90 +4,6 @@
 
 ## API Reference
 
-### formatDetailedType
-
-Recursively expands type aliases and external type references to their full definitions.
-
-This function resolves external types by looking them up in the provided exports,
-and recursively expands union and intersection types. It includes cycle detection
-to prevent infinite recursion on self-referential types.
-
-```typescript
-(type: AnyType, allExports: ExportNode[], exportNames: string[], visited?: Set<string>) => string;
-```
-
-### formatEnum
-
-Formats an enum type into a structured object mapping enum values to their metadata.
-
-The result includes each enum member's description (parsed markdown as HAST) and type
-information from JSDoc tags. Members are sorted by their value for consistent output.
-
-```typescript
-(enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
-```
-
-### formatObjectAsEnum
-
-Formats an object type (like `typeof DataAttributes`) into enum member format.
-
-This handles cases where data attributes or similar enums are defined as const objects
-with `typeof`, converting the object's properties into the same format as enum members.
-Properties with JSDoc comments become descriptions.
-
-```typescript
-(objectNode: ObjectNode) => Promise<Record<string, FormattedEnumMember>>;
-```
-
-### formatParameters
-
-Formats function or hook parameters into a structured object.
-
-Each parameter includes its type (as string), description (parsed markdown as HAST),
-default value, and whether it's optional.
-
-```typescript
-(params: Parameter[], exportNames?: string[]) => Promise<Record<string, FormattedParameter>>;
-```
-
-### formatProperties
-
-Formats component or hook properties into a structured object with syntax-highlighted types.
-
-Each property includes its type (as HAST for rendering), description (parsed markdown),
-default value, and optionally a detailed expanded type view for complex types.
-
-This function handles the conversion of TypeScript type information into a format
-suitable for documentation display with proper syntax highlighting.
-
-```typescript
-(props: PropertyNode[], exportNames: string[], allExports?: ExportNode[]) =>
-  Promise<Record<string, FormattedProperty>>;
-```
-
-### FormattedEnumMember
-
-Formatted enum member metadata.
-
-```typescript
-type FormattedEnumMember = { description?: HastRoot; type?: string };
-```
-
-### FormattedParameter
-
-Formatted parameter metadata for functions and hooks.
-
-```typescript
-type FormattedParameter = {
-  type: HastRoot;
-  default?: HastRoot;
-  defaultText?: string;
-  optional?: true;
-  description?: HastRoot;
-  example?: HastRoot;
-};
-```
-
 ### FormattedProperty
 
 Formatted property metadata with syntax-highlighted types and parsed markdown.
@@ -106,7 +22,93 @@ type FormattedProperty = {
 };
 ```
 
-### formatType
+### FormattedProperty.formatDetailedType
+
+Recursively expands type aliases and external type references to their full definitions.
+
+This function resolves external types by looking them up in the provided exports,
+and recursively expands union and intersection types. It includes cycle detection
+to prevent infinite recursion on self-referential types.
+
+```typescript
+(
+  type: AnyType,
+  allExports: ExportNode[],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  visited?: Set<string>,
+) => string;
+```
+
+### FormattedProperty.formatEnum
+
+Formats an enum type into a structured object mapping enum values to their metadata.
+
+The result includes each enum member's description (parsed markdown as HAST) and type
+information from JSDoc tags. Members are sorted by their value for consistent output.
+
+```typescript
+(enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
+```
+
+### FormattedProperty.formatParameters
+
+Formats function or hook parameters into a structured object.
+
+Each parameter includes its type (as string), description (parsed markdown as HAST),
+default value, and whether it's optional.
+
+```typescript
+(
+  params: Parameter[],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+) => Promise<Record<string, FormattedParameter>>;
+```
+
+### FormattedProperty.formatProperties
+
+Formats component or hook properties into a structured object with syntax-highlighted types.
+
+Each property includes its type (as HAST for rendering), description (parsed markdown),
+default value, and optionally a detailed expanded type view for complex types.
+
+This function handles the conversion of TypeScript type information into a format
+suitable for documentation display with proper syntax highlighting.
+
+```typescript
+(
+  props: PropertyNode[],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  allExports?: ExportNode[],
+) => Promise<Record<string, FormattedProperty>>;
+```
+
+### FormattedProperty.FormattedEnumMember
+
+Formatted enum member metadata.
+
+```typescript
+type FormattedEnumMember = { description?: HastRoot; type?: string };
+```
+
+### FormattedProperty.FormattedParameter
+
+Formatted parameter metadata for functions and hooks.
+
+```typescript
+type FormattedParameter = {
+  type: HastRoot;
+  default?: HastRoot;
+  defaultText?: string;
+  optional?: true;
+  description?: HastRoot;
+  example?: HastRoot;
+};
+```
+
+### FormattedProperty.formatType
 
 Formats a TypeScript type into a string representation for documentation display.
 
@@ -122,14 +124,14 @@ the highlighted output.
 (
   type: AnyType,
   removeUndefined: boolean,
-  jsdocTags?: DocumentationTag[],
-  expandObjects?: boolean,
-  exportNames?: string[],
-  allExports?: ExportNode[],
+  jsdocTags: DocumentationTag[] | undefined,
+  expandObjects: boolean,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
 ) => string;
 ```
 
-### formatTypeAsHast
+### FormattedProperty.formatTypeAsHast
 
 Formats a TypeScript type into syntax-highlighted HAST nodes.
 
@@ -143,14 +145,14 @@ processing, then converts the output to HAST nodes with inline syntax highlighti
     AnyType,
     boolean,
     DocumentationTag[] | undefined,
-    boolean | undefined,
-    string[] | undefined,
-    ExportNode[] | undefined,
+    boolean,
+    string[],
+    Record<string, string>,
   ],
 ) => Promise<Root>;
 ```
 
-### isArrayType
+### FormattedProperty.isArrayType
 
 Type guard to check if a type node is an array type.
 
@@ -158,7 +160,7 @@ Type guard to check if a type node is an array type.
 (type: unknown) => boolean;
 ```
 
-### isComponentType
+### FormattedProperty.isComponentType
 
 Type guard to check if a type node is a component type.
 
@@ -166,7 +168,7 @@ Type guard to check if a type node is a component type.
 (type: unknown) => boolean;
 ```
 
-### isEnumType
+### FormattedProperty.isEnumType
 
 Type guard to check if a type node is an enum type.
 
@@ -174,7 +176,7 @@ Type guard to check if a type node is an enum type.
 (type: unknown) => boolean;
 ```
 
-### isExternalType
+### FormattedProperty.isExternalType
 
 Type guard to check if a type node is an external type reference.
 Works with both class instances and serialized objects from typescript-api-extractor.
@@ -183,7 +185,7 @@ Works with both class instances and serialized objects from typescript-api-extra
 (type: unknown) => boolean;
 ```
 
-### isFunctionType
+### FormattedProperty.isFunctionType
 
 Type guard to check if a type node is a function type.
 
@@ -191,7 +193,7 @@ Type guard to check if a type node is a function type.
 (type: unknown) => boolean;
 ```
 
-### isIntersectionType
+### FormattedProperty.isIntersectionType
 
 Type guard to check if a type node is an intersection type.
 
@@ -199,7 +201,7 @@ Type guard to check if a type node is an intersection type.
 (type: unknown) => boolean;
 ```
 
-### isIntrinsicType
+### FormattedProperty.isIntrinsicType
 
 Type guard to check if a type node is an intrinsic (built-in) type.
 
@@ -207,7 +209,7 @@ Type guard to check if a type node is an intrinsic (built-in) type.
 (type: unknown) => boolean;
 ```
 
-### isLiteralType
+### FormattedProperty.isLiteralType
 
 Type guard to check if a type node is a literal type.
 
@@ -215,7 +217,7 @@ Type guard to check if a type node is a literal type.
 (type: unknown) => boolean;
 ```
 
-### isObjectType
+### FormattedProperty.isObjectType
 
 Type guard to check if a type node is an object type.
 
@@ -223,7 +225,7 @@ Type guard to check if a type node is an object type.
 (type: unknown) => boolean;
 ```
 
-### isTupleType
+### FormattedProperty.isTupleType
 
 Type guard to check if a type node is a tuple type.
 
@@ -231,7 +233,7 @@ Type guard to check if a type node is a tuple type.
 (type: unknown) => boolean;
 ```
 
-### isTypeParameterType
+### FormattedProperty.isTypeParameterType
 
 Type guard to check if a type node is a type parameter.
 
@@ -239,7 +241,7 @@ Type guard to check if a type node is a type parameter.
 (type: unknown) => boolean;
 ```
 
-### isUnionType
+### FormattedProperty.isUnionType
 
 Type guard to check if a type node is a union type.
 
@@ -247,7 +249,7 @@ Type guard to check if a type node is a union type.
 (type: unknown) => boolean;
 ```
 
-### parseMarkdownToHast
+### FormattedProperty.parseMarkdownToHast
 
 Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
 
@@ -258,7 +260,18 @@ while preserving all markdown features and applying syntax highlighting to code 
 (markdown: string) => Promise<Root>;
 ```
 
-### prettyFormatType
+### FormattedProperty.prettyFormat
+
+Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
+
+This function wraps the type in a `type Name = ...` declaration, formats it with Prettier,
+and then removes or preserves the prefix based on the provided typeName and formatting.
+
+```typescript
+(type: string, typeName?: string) => Promise<string>;
+```
+
+### FormattedProperty.prettyFormatType
 
 Formats a TypeScript type into a prettified string representation.
 
@@ -272,9 +285,9 @@ processing, then runs the output through `prettyFormat()` for consistent styling
     AnyType,
     boolean,
     DocumentationTag[] | undefined,
-    boolean | undefined,
-    string[] | undefined,
-    ExportNode[] | undefined,
+    boolean,
+    string[],
+    Record<string, string>,
   ],
 ) => Promise<string>;
 ```
