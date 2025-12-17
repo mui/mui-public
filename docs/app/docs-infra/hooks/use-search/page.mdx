@@ -73,7 +73,6 @@ interface SitemapSectionData {
 
 interface SitemapPage {
   title: string;
-  slug: string;
   path: string;
   description: string;
   keywords?: string[];
@@ -293,11 +292,16 @@ Override how pages are converted to search entries:
 const { search } = useSearch({
   sitemap: () => import('./sitemap'),
   flattenPage: (page, sectionData) => {
+    const slug = page.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
     return [
       {
         type: 'page',
         title: page.title,
-        slug: page.slug,
+        slug,
         path: page.path,
         description: page.description,
         sectionTitle: sectionData.title,

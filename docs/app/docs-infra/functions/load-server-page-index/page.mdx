@@ -41,7 +41,6 @@ const data = await loadServerPageIndex('file:///app/docs-infra/functions/page.md
 //   prefix: '/docs-infra/functions/',
 //   pages: [
 //     {
-//       slug: 'load-server-code-meta',
 //       path: './load-server-code-meta/page.mdx',
 //       title: 'Load Server Code Meta',
 //       description: 'Parses demo files to extract variant information...',
@@ -223,9 +222,8 @@ interface SitemapSectionData {
 
 ```ts
 interface SitemapPage {
-  slug: string;
-  path: string;
   title: string;
+  path: string;
   description?: string;
   keywords?: string[];
   sections?: Record<string, SitemapSection>;

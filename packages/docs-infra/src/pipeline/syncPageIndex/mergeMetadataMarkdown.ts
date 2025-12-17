@@ -54,9 +54,9 @@ export interface MergeMetadataMarkdownOptions
  * const newMetadata = {
  *   title: 'Components',
  *   pages: [
- *     { slug: 'checkbox', path: './checkbox/page.mdx', title: 'Checkbox', description: 'Updated checkbox' },
- *     { slug: 'button', path: './button/page.mdx', title: 'Button', description: 'Updated button' },
- *     { slug: 'input', path: './input/page.mdx', title: 'Input', description: 'New input' },
+ *     { path: './checkbox/page.mdx', title: 'Checkbox', description: 'Updated checkbox' },
+ *     { path: './button/page.mdx', title: 'Button', description: 'Updated button' },
+ *     { path: './input/page.mdx', title: 'Input', description: 'New input' },
  *   ],
  * };
  *
@@ -157,8 +157,8 @@ export async function mergeMetadataMarkdown(
 
   if (requestsAlphabeticalSort) {
     pages = pages.sort((a, b) => {
-      const titleA = a.title || a.slug;
-      const titleB = b.title || b.slug;
+      const titleA = a.title!;
+      const titleB = b.title!;
       return titleA.localeCompare(titleB);
     });
   }

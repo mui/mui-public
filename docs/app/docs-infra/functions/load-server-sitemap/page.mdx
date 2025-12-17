@@ -223,9 +223,8 @@ interface SitemapSectionData {
 
 ```ts
 interface SitemapPage {
-  slug: string;
-  path: string;
   title: string;
+  path: string;
   description?: string;
   keywords?: string[];
   sections?: Record<string, SitemapSection>;
