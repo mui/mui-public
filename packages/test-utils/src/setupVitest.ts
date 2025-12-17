@@ -1,23 +1,16 @@
 import failOnConsole from 'vitest-fail-on-console';
-import * as chai from 'chai';
 import './chaiTypes';
 // eslint-disable-next-line import/extensions
 import { cleanup, act } from '@testing-library/react/pure.js';
 import { afterEach, vi } from 'vitest';
-import chaiDom from 'chai-dom';
-import chaiPlugin from './chaiPlugin';
 import { Configuration, configure } from './configure';
 
 let isInitialized = false;
 
 export default function setupVitest({
   failOnConsoleEnabled = true,
-  chaiPluginsEnabled = true,
   ...config
-}: Partial<Configuration> & {
-  failOnConsoleEnabled?: boolean;
-  chaiPluginsEnabled?: boolean;
-} = {}): void {
+}: Partial<Configuration> & { failOnConsoleEnabled?: boolean } = {}): void {
   // When run in vitest with --no-isolate, the test hooks are cleared between each suite,
   // but modules are only evaluated once, so calling it top-level would only register the
   // hooks for the first suite only.
@@ -43,12 +36,6 @@ export default function setupVitest({
   configure(config);
 
   isInitialized = true;
-
-  // Don't call test lifecycle hooks after this point
-
-  if (chaiPluginsEnabled) {
-    chai.use(chaiPlugin);
-  }
 
   if (failOnConsoleEnabled) {
     failOnConsole({
@@ -83,10 +70,6 @@ export default function setupVitest({
   }
 
   if (typeof window !== 'undefined') {
-    if (chaiPluginsEnabled) {
-      chai.use(chaiDom);
-    }
-
     // Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
     (globalThis as any).jest = null;
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
