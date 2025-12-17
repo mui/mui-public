@@ -938,16 +938,6 @@ function getFullyQualifiedName(
       ? typeName.namespaces.join('') + typeName.name
       : typeName.name;
 
-  // DEBUG: Log for MenuBackdropState and MenuRootActions
-  if (flatName === 'MenuBackdropState' || flatName === 'MenuRootActions') {
-    console.warn('[getFullyQualifiedName]', {
-      flatName,
-      'typeNameMap[flatName]': typeNameMap[flatName],
-      hasMapping: !!typeNameMap[flatName],
-      typeNameMapSize: Object.keys(typeNameMap).length,
-    });
-  }
-
   // Check if this type is in our map
   if (typeNameMap[flatName]) {
     // This is one of our component types - use the mapped dotted name

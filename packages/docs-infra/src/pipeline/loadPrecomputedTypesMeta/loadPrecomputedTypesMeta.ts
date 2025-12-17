@@ -166,15 +166,6 @@ export async function loadPrecomputedTypesMeta(
       url.replace('file://', ''),
     );
 
-    // DEBUG: Log entrypoints for Menu
-    if (this.resourcePath.includes('menu/types.ts')) {
-      console.warn('[loadPrecomputedTypesMeta] Menu resolvedEntrypoints:', resolvedEntrypoints);
-      console.warn(
-        '[loadPrecomputedTypesMeta] Menu resolvedVariantMap:',
-        Array.from(resolvedVariantMap.entries()),
-      );
-    }
-
     // Parse exports from library source files to find re-exported directories
     // This helps us discover DataAttributes/CssVars files from re-exported components
     const reExportedDirs = new Set<string>();
@@ -272,44 +263,6 @@ export async function loadPrecomputedTypesMeta(
 
     if (!workerResult.success) {
       throw new Error(workerResult.error || 'Worker failed to process types');
-    }
-
-    // Log debug information from worker
-    if (workerResult.debug) {
-      console.warn(`[Main Thread] Debug info for ${relativePath}:`);
-      console.warn(
-        `  - Source file paths from re-exports: ${workerResult.debug.sourceFilePaths?.length || 0}`,
-      );
-      if (workerResult.debug.sourceFilePaths && workerResult.debug.sourceFilePaths.length > 0) {
-        console.warn(`  - First 5 paths:`, workerResult.debug.sourceFilePaths.slice(0, 5));
-      }
-      console.warn(`  - Meta files found: ${workerResult.debug.metaFilesCount || 0}`);
-      console.warn(`  - Adjacent files count: ${workerResult.debug.adjacentFilesCount || 0}`);
-
-      // DEBUG: Log exports for Menu
-      if (relativePath.includes('/menu/types')) {
-        const variantData = workerResult.variantData;
-        if (variantData) {
-          console.warn('[Menu exports] ALL variant keys:', Object.keys(variantData));
-          console.warn('[Menu exports] Keys containing Root:');
-          Object.keys(variantData).forEach((key) => {
-            if (key.includes('Root')) {
-              console.warn(`  - ${key}`);
-            }
-          });
-
-          // Check if Menu.Root exists
-          const menuRoot = variantData['Menu.Root'];
-          if (menuRoot) {
-            console.warn(
-              '[Menu.Root] Found! exports:',
-              menuRoot.exports?.map((exp: any) => exp.name),
-            );
-          } else {
-            console.warn('[Menu.Root] NOT FOUND in variantData keys');
-          }
-        }
-      }
     }
 
     // Reconstruct worker performance logs in main thread

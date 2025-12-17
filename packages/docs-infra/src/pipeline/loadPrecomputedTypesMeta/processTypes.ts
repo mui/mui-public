@@ -290,24 +290,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       const defaultVariant = variantResults[0];
       const data = defaultVariant.variantData;
 
-      // DEBUG: Log exports for Menu
-      if (data.namespaces.includes('Menu')) {
-        console.warn('[processTypes] Menu exports count:', data.exports.length);
-        console.warn('[processTypes] Menu export names (first 30):');
-        data.exports.slice(0, 30).forEach((exp) => {
-          console.warn(`  - ${exp.name} (kind: ${(exp.type as any)?.kind})`);
-        });
-        console.warn('[processTypes] Checking for Menu.Root or MenuRoot:');
-        const menuRootExport = data.exports.find(
-          (exp) => exp.name === 'Menu.Root' || exp.name === 'MenuRoot',
-        );
-        if (menuRootExport) {
-          console.warn('[processTypes] FOUND Menu.Root export!', menuRootExport.name);
-        } else {
-          console.warn('[processTypes] Menu.Root export NOT FOUND in exports list');
-        }
-      }
-
       // Split exports by name for the Default variant case
       data.exports.forEach((exportNode) => {
         variantData[exportNode.name] = {

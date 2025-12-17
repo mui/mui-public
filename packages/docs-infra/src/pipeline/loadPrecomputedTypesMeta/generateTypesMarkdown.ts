@@ -481,16 +481,6 @@ export async function generateTypesMarkdown(
         const part = typeMeta.reExportOf ? typeMeta.name : typeMeta.data.name || 'Unknown';
         const data = typeMeta.data; // This is now properly typed as ExportNode
 
-        // Debug: check for double dots
-        if (part.includes('..')) {
-          console.warn('[generateTypesMarkdown] Double dots detected:', {
-            part,
-            'typeMeta.name': typeMeta.name,
-            'typeMeta.data.name': typeMeta.data.name,
-            'typeMeta.reExportOf': typeMeta.reExportOf,
-          });
-        }
-
         // Strip common prefix from heading if applicable
         const displayName =
           commonPrefix && part.startsWith(`${commonPrefix}.`)

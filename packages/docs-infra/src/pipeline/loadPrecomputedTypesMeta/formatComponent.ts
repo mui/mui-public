@@ -74,29 +74,6 @@ export async function formatComponentData(
   const dataAttributesName = `${componentNameForLookup}${dataAttributesSuffix}`;
   const cssVariablesName = `${componentNameForLookup}${cssVariablesSuffix}`;
 
-  // DEBUG: Log DataAttributes lookup for ContextMenu components
-  if (component.name.startsWith('ContextMenu.')) {
-    console.warn('[formatComponent] DataAttributes lookup for:', component.name);
-    console.warn('[formatComponent] originalName:', originalName);
-    console.warn('[formatComponent] componentNameForLookup:', componentNameForLookup);
-    console.warn('[formatComponent] Looking for dataAttributesName:', dataAttributesName);
-    console.warn('[formatComponent] Looking for cssVariablesName:', cssVariablesName);
-    console.warn(
-      '[formatComponent] Available exports (first 10):',
-      allExports.slice(0, 10).map((exp) => exp.name),
-    );
-    console.warn(
-      '[formatComponent] DataAttributes exports:',
-      allExports
-        .filter((exp) => exp.name.includes('DataAttributes'))
-        .map((exp) => ({
-          name: exp.name,
-          originalName: (exp as any).originalName,
-        })),
-    );
-    console.warn('[formatComponent] Total allExports count:', allExports.length);
-  }
-
   // Look for DataAttributes/CssVars by checking originalName on each export
   for (const node of allExports) {
     const nodeOriginalName = (node as any).originalName;
@@ -151,16 +128,6 @@ export function isPublicComponent(
     exportNode.documentation?.visibility !== 'internal';
 
   const hasIgnoreTag = exportNode.documentation?.tags?.some((tag) => tag.name === 'ignore');
-
-  // DEBUG: Log MenuRoot specifically
-  if (exportNode.name === 'Menu.Root') {
-    console.warn('[isPublicComponent] Checking Menu.Root:');
-    console.warn('[isPublicComponent]   isComponentType:', isComponentType(exportNode.type));
-    console.warn('[isPublicComponent]   hasIgnoreTag:', hasIgnoreTag);
-    console.warn('[isPublicComponent]   isPublic:', isPublic);
-    console.warn('[isPublicComponent]   type.kind:', (exportNode.type as any).kind);
-    console.warn('[isPublicComponent]   exportNode.type:', exportNode.type);
-  }
 
   return isComponentType(exportNode.type) && !hasIgnoreTag && isPublic;
 }

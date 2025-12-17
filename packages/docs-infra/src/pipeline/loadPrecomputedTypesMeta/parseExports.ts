@@ -1,6 +1,5 @@
 import * as ts from 'typescript';
 import type { Program, SourceFile, TypeChecker } from 'typescript';
-import * as fs from 'node:fs';
 import { parseFromProgram, type ExportNode, type ParserOptions } from 'typescript-api-extractor';
 
 /**
@@ -139,12 +138,6 @@ function expandIntersectionType(
 ): string {
   // Check if this is an intersection type
   if (type.isIntersection()) {
-    console.warn(
-      '[expandIntersectionType] Found intersection type with',
-      type.types.length,
-      'parts',
-    );
-
     // For each type in the intersection, expand it fully
     // We need to use a special approach: convert each part using the same flags,
     // but also check if it's a union type (discriminated union) that we can merge
@@ -157,7 +150,6 @@ function expandIntersectionType(
 
       // Recursively expand in case there are nested intersections
       const typeStr = expandIntersectionType(t, checker, statement, flags);
-      console.warn(`  [${i}]:`, typeStr.substring(0, 150));
 
       expandedTypes.push(typeStr);
 
@@ -168,15 +160,11 @@ function expandIntersectionType(
       }
     }
 
-    console.warn('[expandIntersectionType] Has discriminated union:', hasDiscriminatedUnion);
-
     if (hasDiscriminatedUnion && unionTypeStr && expandedTypes.length === 2) {
       // Find the other type (the one that's not the union)
       const additionalPropsType = expandedTypes.find((t) => t !== unionTypeStr);
 
       if (additionalPropsType && additionalPropsType.trim().startsWith('{')) {
-        console.warn('[expandIntersectionType] Merging discriminated union with additional props');
-
         // Extract just the additional properties from the object (remove outer braces)
         const additionalPropsInner = additionalPropsType
           .trim()
@@ -187,13 +175,6 @@ function expandIntersectionType(
         // Split the union into individual variants
         const variants = unionTypeStr.split(' | ').map((v) => v.trim());
 
-        console.warn(
-          '[expandIntersectionType] Merging',
-          variants.length,
-          'variants with props:',
-          additionalPropsInner.substring(0, 50),
-        );
-
         // Add the additional props to each variant
         const mergedVariants = variants.map((variant) => {
           // Remove trailing } and add the additional props
@@ -202,13 +183,11 @@ function expandIntersectionType(
         });
 
         const result = mergedVariants.join(' | ');
-        console.warn('[expandIntersectionType] Merged successfully');
         return result;
       }
     }
 
     // If we can't merge, just return the intersection as-is
-    console.warn('[expandIntersectionType] Could not merge, returning as intersection');
     return cleanImportSyntax(checker.typeToString(type, statement, flags));
   }
 
@@ -487,12 +466,6 @@ export function parseExports(
 ): ParsedReExports[] {
   const fileName = sourceFile.fileName;
 
-  // DEBUG: Log ALL Select-related file processing
-  if (fileName.includes('select') && !fileName.includes('node_modules')) {
-    console.warn('[parseExports] ===== PROCESSING SELECT FILE:', fileName);
-    console.warn('[parseExports] parentNamespaceName:', parentNamespaceName);
-  }
-
   // Prevent infinite recursion
   if (visited.has(fileName)) {
     return [];
@@ -502,16 +475,6 @@ export function parseExports(
   const allResults: ParsedReExports[] = [];
   const sourceFileSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
   const exportedSymbols = sourceFileSymbol && checker.getExportsOfModule(sourceFileSymbol);
-
-  // DEBUG: Log file being processed
-  if (
-    sourceFile.fileName.includes('context-menu/index.parts') ||
-    sourceFile.fileName.includes('menu/index.ts') ||
-    sourceFile.fileName.includes('menu/index.parts')
-  ) {
-    console.warn('[parseExports] ===== Processing file:', sourceFile.fileName);
-    console.warn('[parseExports] Found', exportedSymbols?.length || 0, 'export symbols');
-  }
 
   if (!exportedSymbols) {
     return [];
@@ -557,14 +520,6 @@ export function parseExports(
     // This should be checked FIRST because TypeScript creates synthetic ExportSpecifiers
     // for namespace exports, which don't have a moduleSpecifier
     if (namespaceExportDecl) {
-      // DEBUG: Log for Toolbar and ContextMenu
-      if (
-        sourceFile.fileName.includes('toolbar/index') ||
-        sourceFile.fileName.includes('context-menu/index')
-      ) {
-        console.warn('[parseExports] Found NamespaceExport for symbol:', symbol.name);
-      }
-
       const exportDecl = namespaceExportDecl.parent;
 
       if (ts.isExportDeclaration(exportDecl) && exportDecl.moduleSpecifier) {
@@ -577,12 +532,6 @@ export function parseExports(
 
           if (importedSourceFile) {
             const namespaceName = symbol.name;
-
-            // DEBUG: Log for Toolbar
-            if (sourceFile.fileName.includes('toolbar/index.ts')) {
-              console.warn('[parseExports] Creating namespace reExport with name:', namespaceName);
-              console.warn('[parseExports] Source file:', importedSourceFile.fileName);
-            }
 
             // For namespace exports, store the namespace name
             reExportInfos.push({
@@ -612,19 +561,6 @@ export function parseExports(
               exportSpecifierDecl.propertyName?.getText() || exportSpecifierDecl.name.getText();
             const exportedName = symbol.name;
 
-            // DEBUG: Log for ContextMenu index.parts.ts and Menu
-            if (
-              sourceFile.fileName.includes('context-menu/index.parts') ||
-              sourceFile.fileName.includes('menu/index.parts')
-            ) {
-              console.warn('[parseExports] ExportSpecifier:', {
-                originalName,
-                exportedName,
-                sourceFile: importedSourceFile.fileName,
-              });
-              console.warn('[parseExports] parentNamespaceName:', parentNamespaceName);
-            }
-
             // Find or create the reExportInfo for this source file
             let reExportInfo = reExportInfos.find((info) => info.sourceFile === importedSourceFile);
             if (!reExportInfo) {
@@ -634,31 +570,10 @@ export function parseExports(
                 // Do NOT inherit parent namespace - it will be added later during namespace processing
               };
               reExportInfos.push(reExportInfo);
-
-              // DEBUG: Log for ContextMenu and Menu
-              if (
-                sourceFile.fileName.includes('context-menu/index.parts') ||
-                sourceFile.fileName.includes('menu/index.parts')
-              ) {
-                console.warn(
-                  '[parseExports] Created new reExportInfo for',
-                  importedSourceFile.fileName,
-                );
-              }
             }
 
             // Store the alias mapping
             reExportInfo.aliasMap.set(originalName, exportedName);
-
-            // DEBUG: Log for ContextMenu and Menu
-            if (
-              sourceFile.fileName.includes('context-menu/index.parts') ||
-              sourceFile.fileName.includes('menu/index.parts')
-            ) {
-              console.warn('[parseExports] Set alias mapping:', originalName, '→', exportedName);
-              console.warn('[parseExports] aliasMap size now:', reExportInfo.aliasMap.size);
-              console.warn('[parseExports] importedSourceFile:', importedSourceFile.fileName);
-            }
           }
         }
       } else {
@@ -667,40 +582,14 @@ export function parseExports(
         // 2. A regular export from the same file
         // We need to trace the symbol to find its actual source
 
-        // DEBUG: Log for Toolbar
-        if (sourceFile.fileName.includes('toolbar/index.ts')) {
-          console.warn('[parseExports] ExportSpecifier without moduleSpecifier:', symbol.name);
-          console.warn('[parseExports] Checking for aliased symbol...');
-        }
-
         // Try to find the actual source by looking at the aliased symbol
         const aliasedSymbol = checker.getAliasedSymbol(symbol);
-
-        // DEBUG: Log aliased symbol for Toolbar
-        if (sourceFile.fileName.includes('toolbar/index.ts')) {
-          console.warn('[parseExports] aliasedSymbol:', aliasedSymbol?.name);
-          console.warn('[parseExports] aliasedSymbol === symbol:', aliasedSymbol === symbol);
-        }
 
         if (aliasedSymbol && aliasedSymbol !== symbol) {
           const aliasedDeclarations = aliasedSymbol.declarations;
 
-          // DEBUG: Log declarations for Toolbar
-          if (sourceFile.fileName.includes('toolbar/index.ts')) {
-            console.warn('[parseExports] aliasedDeclarations:', aliasedDeclarations?.length);
-          }
-
           if (aliasedDeclarations && aliasedDeclarations.length > 0) {
             const aliasedSourceFile = aliasedDeclarations[0].getSourceFile();
-
-            // DEBUG: Log source file for Toolbar
-            if (sourceFile.fileName.includes('toolbar/index.ts')) {
-              console.warn(
-                '[parseExports] Found namespace export! aliasedSourceFile:',
-                aliasedSourceFile.fileName,
-              );
-              console.warn('[parseExports] Setting namespaceName:', symbol.name);
-            }
 
             // This is likely a namespace import that was re-exported
             // We should process the aliased source file
@@ -717,22 +606,6 @@ export function parseExports(
 
   // If there are re-exports, recursively process them
   if (reExportInfos.length > 0) {
-    // DEBUG: Log all reExportInfos for Toolbar, ContextMenu, and Menu
-    if (
-      sourceFile.fileName.includes('toolbar/index') ||
-      sourceFile.fileName.includes('context-menu/index') ||
-      sourceFile.fileName.includes('menu/index')
-    ) {
-      console.warn(
-        `[parseExports] ${sourceFile.fileName} has ${reExportInfos.length} reExportInfos:`,
-      );
-      reExportInfos.forEach((info, idx) => {
-        console.warn(
-          `  [${idx}] sourceFile: ${info.sourceFile.fileName}, namespaceName: ${info.namespaceName}, aliasMap: ${info.aliasMap.size}`,
-        );
-      });
-    }
-
     // Check if any re-export has a namespace - if so, collect its aliases to share with type exports
     const namespaceReExport = reExportInfos.find((info) => info.namespaceName);
     let sharedAliasMap: Map<string, string> | undefined;
@@ -741,19 +614,6 @@ export function parseExports(
     // If we have a namespace export, ONLY process that one and skip type-only re-exports
     // This prevents duplicate processing when we have both `export * as Name` and `export type *`
     if (namespaceReExport) {
-      // DEBUG: Log all reExportInfos for toolbar
-      if (sourceFile.fileName.includes('toolbar/index.ts')) {
-        const logPath = '/tmp/toolbar-typegen-debug.log';
-        const logMessage = `[parseExports] Total reExportInfos for index.ts: ${reExportInfos.length}\n`;
-        reExportInfos.forEach((info, idx) => {
-          fs.appendFileSync(
-            logPath,
-            `[${idx}] sourceFile: ${info.sourceFile.fileName}, namespaceName: ${info.namespaceName}, aliasMap: ${info.aliasMap.size}\n`,
-          );
-        });
-        fs.appendFileSync(logPath, logMessage);
-      }
-
       sharedAliasMap = new Map();
 
       // Parse the namespace module's export statements to get aliases
@@ -775,24 +635,9 @@ export function parseExports(
       // Filter to ONLY the namespace export - skip any direct type-only re-exports
       // that are already included in the namespace export's recursive processing
       filteredReExportInfos = [namespaceReExport];
-
-      // DEBUG: Log filtering for ContextMenu
-      if (sourceFile.fileName.includes('context-menu/index')) {
-        console.warn(
-          `[parseExports] Filtered reExportInfos from ${reExportInfos.length} to ${filteredReExportInfos.length} (keeping only namespace export)`,
-        );
-      }
     }
 
     for (const reExportInfo of filteredReExportInfos) {
-      // DEBUG: Log when parsing from Menu index.parts
-      if (sourceFile.fileName.includes('menu/index.parts')) {
-        console.warn(
-          '[parseExports] Calling parseExports for reExportInfo from menu/index.parts:',
-          reExportInfo.sourceFile.fileName,
-        );
-      }
-
       // Clone the visited set for each re-export branch to avoid cross-contamination
       // This allows the same file (e.g., MenuRoot.tsx) to be processed from different
       // parent contexts (e.g., Menu and ContextMenu) which may have different alias mappings
@@ -807,29 +652,6 @@ export function parseExports(
         reExportInfo.namespaceName, // Pass namespace context to child calls
         true, // isWorkerContext - recursive calls inherit the context
       );
-
-      // DEBUG: Log recursiveResults count for Menu
-      if (sourceFile.fileName.includes('menu/index.parts')) {
-        console.warn(
-          '[parseExports] Recursive call returned',
-          recursiveResults.length,
-          'results for:',
-          reExportInfo.sourceFile.fileName,
-        );
-        if (recursiveResults.length === 0) {
-          console.warn(
-            '[parseExports] WARNING: No results returned for:',
-            reExportInfo.sourceFile.fileName,
-          );
-        }
-      }
-
-      // DEBUG: Log which path we're taking
-      if (sourceFile.fileName.includes('toolbar')) {
-        console.warn('[parseExports] Re-export path for', sourceFile.fileName);
-        console.warn('[parseExports] Has namespaceName:', reExportInfo.namespaceName);
-        console.warn('[parseExports] Has aliasMap:', reExportInfo.aliasMap.size);
-      }
 
       if (reExportInfo.namespaceName) {
         // For namespace exports, collect all exports from all recursive results
@@ -849,36 +671,6 @@ export function parseExports(
         // If after filtering we have no mappings left, set to undefined
         const effectiveAliasMap =
           filteredAliasMap && filteredAliasMap.size > 0 ? filteredAliasMap : undefined;
-
-        // DEBUG: Log recursiveResults for ContextMenu and Menu
-        if (reExportInfo.namespaceName === 'ContextMenu' || reExportInfo.namespaceName === 'Menu') {
-          console.warn(
-            '[parseExports-namespace] Processing namespace:',
-            reExportInfo.namespaceName,
-          );
-          console.warn('[parseExports-namespace] recursiveResults count:', recursiveResults.length);
-          recursiveResults.forEach((result, idx) => {
-            console.warn(`[parseExports-namespace] recursiveResults[${idx}]:`, {
-              name: result.name,
-              exportsCount: result.exports.length,
-              typeNameMapSize: result.typeNameMap?.size || 0,
-            });
-            if (result.name && result.name.includes('Root')) {
-              console.warn(
-                `[parseExports-namespace]   ** Contains Root! exports:`,
-                result.exports.map((exportNode) => exportNode.name).slice(0, 10),
-              );
-            }
-            if (result.typeNameMap && result.typeNameMap.size > 0) {
-              const entries = Array.from(result.typeNameMap.entries()).slice(0, 3);
-              entries.forEach(([flatName, dottedName]) => {
-                console.warn(
-                  `[parseExports-namespace]   typeNameMap entry: ${flatName} → ${dottedName}`,
-                );
-              });
-            }
-          });
-        }
 
         for (const recursiveResult of recursiveResults) {
           for (const exportNode of recursiveResult.exports) {
@@ -907,17 +699,6 @@ export function parseExports(
             if (effectiveAliasMap && effectiveAliasMap.size > 0) {
               effectiveAliasMap.forEach((aliasedName, originalName) => {
                 if (transformedName === exportName && exportNode.name.startsWith(originalName)) {
-                  // DEBUG: Log MenuRoot transformation
-                  if (originalName === 'MenuRoot' || exportName.includes('MenuRoot')) {
-                    console.warn('[parseExports] MenuRoot alias transformation:', {
-                      originalName,
-                      aliasedName,
-                      exportName,
-                      'exportNode.name': exportNode.name,
-                      namespaceName,
-                    });
-                  }
-
                   // Found a match - split the name into component and suffix
                   const suffix = exportName.slice(originalName.length);
 
@@ -928,11 +709,6 @@ export function parseExports(
                   } else {
                     // No suffix - just the component name
                     transformedName = `${namespaceName}.${aliasedName}`;
-                  }
-
-                  // DEBUG: Log MenuRoot result
-                  if (originalName === 'MenuRoot' || exportName.includes('MenuRoot')) {
-                    console.warn('[parseExports] MenuRoot transformed to:', transformedName);
                   }
                 }
               });
@@ -976,20 +752,6 @@ export function parseExports(
                   // Only transform if there's a matching alias (component was explicitly re-exported)
                   // OR if the suffix contains a dot (already a nested type like "Component.Props")
                   if (hasMatchingAlias || cleanedSuffix.includes('.')) {
-                    // DEBUG: Log for Select Separator
-                    if (
-                      namespaceName === 'Select' &&
-                      (exportName.includes('Separator') || cleanedSuffix.includes('Separator'))
-                    ) {
-                      console.warn('[parseExports] SELECT SEPARATOR ALREADY HAS NAMESPACE:', {
-                        exportName,
-                        namespaceName,
-                        withoutNamespace,
-                        cleanedSuffix,
-                        willBecome: `${namespaceName}.${cleanedSuffix}`,
-                      });
-                    }
-
                     transformedName = `${namespaceName}.${cleanedSuffix}`;
                   }
                   // else: No matching alias found, keep the original name (e.g., "ToastManager" stays "ToastManager")
@@ -998,16 +760,6 @@ export function parseExports(
                 // Export is already dotted (e.g., "Separator.Props" from namespace member)
                 // Special case: if exportName starts with a dot (e.g., ".Props"), it's a bare member
                 // that needs a component name prepended, which should come from the member map
-
-                // DEBUG: Log ALL Select.Separator cases to see what exportName looks like
-                if (namespaceName === 'Select' && exportName.includes('Separator')) {
-                  console.warn('[parseExports] SELECT SEPARATOR DOTTED EXPORT:', {
-                    exportName,
-                    startsWithDot: exportName.startsWith('.'),
-                    firstChar: exportName[0],
-                    namespaceName,
-                  });
-                }
 
                 if (exportName.startsWith('.')) {
                   // This is a bare namespace member like ".Props"
@@ -1046,48 +798,11 @@ export function parseExports(
                     // Reconstruct: Namespace.AliasedComponent.Member
                     transformedName = `${namespaceName}.${aliasedComponentPart}${memberPart}`;
                   }
-
-                  // DEBUG: Log result for Separator in Select
-                  if (
-                    namespaceName === 'Select' &&
-                    (componentPart === 'Separator' || transformedName.includes('Separator'))
-                  ) {
-                    let aliasedComponentPart = 'N/A';
-                    if (componentPart === 'Separator') {
-                      aliasedComponentPart = effectiveAliasMap?.has('Separator')
-                        ? effectiveAliasMap.get('Separator') || 'no alias'
-                        : 'no alias';
-                    }
-                    console.warn('[parseExports] SELECT SEPARATOR RESULT:', {
-                      transformedName,
-                      isAlreadyAliased,
-                      'has double dot': transformedName.includes('..'),
-                      componentPart,
-                      aliasedComponentPart,
-                    });
-                  }
                 }
               } else {
                 // Export is a flat name - just add namespace prefix
-                // DEBUG: Log for Separator in Select
-                if (namespaceName === 'Select' && exportName.includes('Separator')) {
-                  console.warn('[parseExports] SELECT SEPARATOR FLAT NAME:', {
-                    exportName,
-                    namespaceName,
-                    willBecome: `${namespaceName}.${exportName}`,
-                  });
-                }
                 transformedName = `${namespaceName}.${exportName}`;
               }
-            }
-
-            // DEBUG: Log when setting export name for Separator
-            if (transformedName.includes('Separator')) {
-              console.warn('[parseExports] SETTING EXPORT NODE NAME:', {
-                originalExportName: exportName,
-                transformedName,
-                'has double dot': transformedName.includes('..'),
-              });
             }
 
             exportNode.name = transformedName;
@@ -1099,68 +814,9 @@ export function parseExports(
         const mergedTypeNameMap = new Map<string, string>();
         const namespace = reExportInfo.namespaceName;
 
-        // DEBUG: Log namespace for Toolbar and ContextMenu
-        if (namespace === 'Toolbar' || namespace === 'ContextMenu') {
-          const logPath =
-            namespace === 'Toolbar'
-              ? '/tmp/toolbar-typegen-debug.log'
-              : '/tmp/contextmenu-typegen-debug.log';
-          const logMessage =
-            `[parseExports] Processing namespace: ${namespace}\n` +
-            `[parseExports] recursiveResults count: ${recursiveResults.length}\n`;
-          fs.appendFileSync(logPath, logMessage);
-          console.warn('[parseExports] Processing namespace:', namespace);
-          console.warn('[parseExports] recursiveResults count:', recursiveResults.length);
-          recursiveResults.forEach((result, idx) => {
-            const hasMap = result.typeNameMap ? 'has typeNameMap' : 'NO typeNameMap';
-            const mapSize = result.typeNameMap?.size || 0;
-            const msg = `[parseExports] recursiveResults[${idx}]: ${hasMap}, size=${mapSize}, name=${result.name}\n`;
-            fs.appendFileSync(logPath, msg);
-            console.warn(msg.trim());
-
-            // For ContextMenu, also log the actual typeNameMap entries
-            if (namespace === 'ContextMenu' && result.typeNameMap) {
-              Array.from(result.typeNameMap.entries()).forEach(([key, value]) => {
-                const entryMsg = `[parseExports]   typeNameMap entry: ${key} → ${value}\n`;
-                fs.appendFileSync(logPath, entryMsg);
-                console.warn(entryMsg.trim());
-              });
-            }
-          });
-        }
-
         for (const result of recursiveResults) {
           if (result.typeNameMap) {
             Array.from(result.typeNameMap.entries()).forEach(([flatName, dottedName]) => {
-              // DEBUG: Log transformation for ContextMenuRoot
-              if (namespace === 'ContextMenu' && flatName.includes('ContextMenuRoot')) {
-                console.warn('[parseExports-namespace] Processing ContextMenuRoot entry:', {
-                  flatName,
-                  dottedName,
-                  namespace,
-                });
-              }
-
-              // DEBUG: Log transformation for Toolbar or ContextMenu
-              if (
-                (namespace === 'Toolbar' &&
-                  (flatName.includes('Orientation') || flatName.includes('ToolbarRoot'))) ||
-                (namespace === 'ContextMenu' &&
-                  (flatName.includes('MenuRoot') || flatName.includes('MenuBackdrop')))
-              ) {
-                const logPath =
-                  namespace === 'Toolbar'
-                    ? '/tmp/toolbar-typegen-debug.log'
-                    : '/tmp/contextmenu-typegen-debug.log';
-                const logMessage = `[parseExports] Before transformation: ${JSON.stringify({ flatName, dottedName, namespace })}\n`;
-                fs.appendFileSync(logPath, logMessage);
-                console.warn('[parseExports] Before transformation:', {
-                  flatName,
-                  dottedName,
-                  namespace,
-                });
-              }
-
               // Transform the dotted name to replace source namespace with target namespace
               // E.g., when ContextMenu re-exports from Menu:
               //   "Menu.Backdrop.State" -> "ContextMenu.Backdrop.State"
@@ -1191,62 +847,6 @@ export function parseExports(
               parts[0] = transformedComponentPart;
               const transformedDottedName = `${namespace}.${parts.join('.')}`;
 
-              // DEBUG: CRITICAL - Log for ALL Select/Separator to see parts array
-              if (
-                namespace === 'Select' &&
-                (flatName.includes('Separator') || dottedName.includes('Separator'))
-              ) {
-                console.error('[parseExports] CRITICAL SELECT SEPARATOR PARTS:', {
-                  flatName,
-                  dottedName,
-                  parts,
-                  partsLength: parts.length,
-                  'parts[0]': parts[0],
-                  'parts[1]': parts[1],
-                  'parts[2]': parts[2],
-                  joined: parts.join('.'),
-                  transformedDottedName,
-                  'has double dot': transformedDottedName.includes('..'),
-                });
-              }
-
-              // DEBUG: Log for Select Separator
-              if (
-                namespace === 'Select' &&
-                (flatName.includes('Separator') || componentPart === 'Separator')
-              ) {
-                console.warn('[parseExports] SELECT SEPARATOR TYPENAMEMAP TRANSFORMATION:', {
-                  flatName,
-                  dottedName,
-                  componentPart,
-                  transformedComponentPart,
-                  parts,
-                  transformedDottedName,
-                  'has double dot': transformedDottedName.includes('..'),
-                });
-              }
-
-              // DEBUG: Log transformation for Toolbar or ContextMenu
-              if (
-                (namespace === 'Toolbar' &&
-                  (flatName.includes('Orientation') || flatName.includes('ToolbarRoot'))) ||
-                (namespace === 'ContextMenu' &&
-                  (flatName.includes('MenuRoot') || flatName.includes('MenuBackdrop')))
-              ) {
-                const logPath =
-                  namespace === 'Toolbar'
-                    ? '/tmp/toolbar-typegen-debug.log'
-                    : '/tmp/contextmenu-typegen-debug.log';
-                const logMessage = `[parseExports] After transformation: ${JSON.stringify({ flatName, transformedDottedName, componentPart, transformedComponentPart })}\n`;
-                fs.appendFileSync(logPath, logMessage);
-                console.warn('[parseExports] After transformation:', {
-                  flatName,
-                  transformedDottedName,
-                  componentPart,
-                  transformedComponentPart,
-                });
-              }
-
               // Set the main mapping: flatName -> transformedDottedName
               mergedTypeNameMap.set(flatName, transformedDottedName);
             });
@@ -1267,22 +867,6 @@ export function parseExports(
       } else {
         // Process each recursive result for regular re-exports
         for (const recursiveResult of recursiveResults) {
-          // DEBUG: Log when processing MenuRoot.tsx results
-          if (reExportInfo.sourceFile.fileName.includes('MenuRoot.tsx')) {
-            console.warn(
-              '[parseExports] Processing recursiveResult for reExportInfo.sourceFile:',
-              reExportInfo.sourceFile.fileName,
-            );
-            console.warn(
-              '[parseExports] recursiveResult.exports.length:',
-              recursiveResult.exports.length,
-            );
-            console.warn(
-              '[parseExports] recursiveResult.exports names:',
-              recursiveResult.exports.map((exportNode) => exportNode.name),
-            );
-          }
-
           // Use the reExportInfo's aliasMap if it has one, otherwise use the shared alias map
           const aliasMap = reExportInfo.aliasMap.size > 0 ? reExportInfo.aliasMap : sharedAliasMap;
 
@@ -1309,23 +893,9 @@ export function parseExports(
                 (exportNode as any).originalName = exportNode.name;
               }
 
-              // DEBUG: Log MenuRoot specifically
-              if (exportNode.name === 'MenuRoot') {
-                console.warn('[parseExports] Found MenuRoot export, checking aliasMap...');
-                console.warn('[parseExports] aliasMap.has(MenuRoot):', aliasMap.has('MenuRoot'));
-                console.warn('[parseExports] aliasMap.get(MenuRoot):', aliasMap.get('MenuRoot'));
-                console.warn('[parseExports] aliasMap size:', aliasMap.size);
-                console.warn('[parseExports] aliasMap keys:', Array.from(aliasMap.keys()));
-              }
-
               if (aliasMap.has(exportNode.name)) {
                 // This export is explicitly aliased (e.g., AccordionRoot -> Root)
                 const aliasedName = aliasMap.get(exportNode.name)!;
-
-                // DEBUG: Log when we transform MenuRoot
-                if (exportNode.name === 'MenuRoot') {
-                  console.warn('[parseExports] Transforming MenuRoot to:', aliasedName);
-                }
 
                 // Skip transformation if this is an identity mapping (maps to itself)
                 // but still add to aliasedExports
@@ -1375,35 +945,8 @@ export function parseExports(
             // Transform typeNameMap for aliased exports
             const transformedTypeNameMap = new Map<string, string>();
             if (recursiveResult.typeNameMap) {
-              // DEBUG: Log typeNameMap transformation for Toolbar
-              if (reExportInfo.sourceFile.fileName.includes('toolbar')) {
-                const logPath = '/tmp/toolbar-typegen-debug.log';
-                const logMessage =
-                  `[parseExports-regular] Processing aliased re-export for ${reExportInfo.sourceFile.fileName}\n` +
-                  `[parseExports-regular] recursiveResult.typeNameMap size: ${recursiveResult.typeNameMap.size}\n` +
-                  `[parseExports-regular] aliasMap size: ${aliasMap.size}\n` +
-                  `[parseExports-regular] aliasMap entries: ${JSON.stringify(Array.from(aliasMap.entries()))}\n`;
-                fs.appendFileSync(logPath, logMessage);
-              }
-
               recursiveResult.typeNameMap.forEach((dottedName, flatName) => {
                 let transformedName = dottedName;
-
-                // DEBUG: Log transformation for Toolbar types OR MenuBackdrop
-                if (
-                  (reExportInfo.sourceFile.fileName.includes('toolbar') &&
-                    (flatName.includes('Orientation') || flatName.includes('ToolbarRoot'))) ||
-                  flatName.includes('MenuBackdrop')
-                ) {
-                  const logPath = reExportInfo.sourceFile.fileName.includes('toolbar')
-                    ? '/tmp/toolbar-typegen-debug.log'
-                    : '/tmp/contextmenu-typegen-debug.log';
-                  const logMessage = `[parseExports-regular] Transforming: ${flatName} → ${dottedName} (from ${reExportInfo.sourceFile.fileName})\n`;
-                  fs.appendFileSync(logPath, logMessage);
-                  console.warn(
-                    `[parseExports-regular] Transforming: ${flatName} → ${dottedName} (from ${reExportInfo.sourceFile.fileName})`,
-                  );
-                }
 
                 // Apply alias transformations to the FIRST PART ONLY (component name)
                 // E.g., MenuBackdrop.State → Backdrop.State (when MenuBackdrop -> Backdrop)
@@ -1418,23 +961,6 @@ export function parseExports(
                     transformedName = parts.join('.');
                   }
                 });
-
-                // DEBUG: Log final transformation for Toolbar types OR MenuBackdrop OR ContextMenuRoot
-                if (
-                  (reExportInfo.sourceFile.fileName.includes('toolbar') &&
-                    (flatName.includes('Orientation') || flatName.includes('ToolbarRoot'))) ||
-                  flatName.includes('MenuBackdrop') ||
-                  flatName.includes('ContextMenuRoot')
-                ) {
-                  const logPath = reExportInfo.sourceFile.fileName.includes('toolbar')
-                    ? '/tmp/toolbar-typegen-debug.log'
-                    : '/tmp/contextmenu-typegen-debug.log';
-                  const logMessage = `[parseExports-regular] Final transformed: ${flatName} → ${transformedName}\n`;
-                  fs.appendFileSync(logPath, logMessage);
-                  console.warn(
-                    `[parseExports-regular] Final transformed: ${flatName} → ${transformedName}`,
-                  );
-                }
 
                 transformedTypeNameMap.set(flatName, transformedName);
               });
@@ -1451,18 +977,6 @@ export function parseExports(
               typeNameMap: transformedTypeNameMap,
               sourceFilePaths,
             });
-
-            // DEBUG: Log when adding results from ContextMenuRoot
-            if (reExportInfo.sourceFile.fileName.includes('ContextMenuRoot')) {
-              console.warn(
-                '[parseExports-regular] Added result for ContextMenuRoot, typeNameMap size:',
-                transformedTypeNameMap.size,
-              );
-              const entries = Array.from(transformedTypeNameMap.entries());
-              entries.forEach(([flatName, dottedName]) => {
-                console.warn(`[parseExports-regular]   ${flatName} → ${dottedName}`);
-              });
-            }
           } else {
             // No alias, use the original result
             allResults.push(recursiveResult);
@@ -1474,116 +988,20 @@ export function parseExports(
     // No re-exports found, parse actual exports from this file
     const { exports } = parseFromProgram(fileName, program, parserOptions);
 
-    // DEBUG: Log exports for Separator.tsx
-    if (
-      fileName.includes('Separator.tsx') &&
-      !fileName.includes('Toolbar') &&
-      !fileName.includes('Menubar')
-    ) {
-      console.warn('[parseExports] SEPARATOR.TSX RAW EXPORTS FROM WORKER:');
-      console.warn('[parseExports] File:', fileName);
-      console.warn(
-        '[parseExports] Export names:',
-        exports.map((exp) => exp.name),
-      );
-      console.warn(
-        '[parseExports] Has double dots:',
-        exports.some((exp) => exp.name.includes('..')),
-      );
-    }
-
-    // DEBUG: Log exports for Select index.parts.ts
-    if (fileName.includes('select') && fileName.includes('index.parts')) {
-      console.warn('[parseExports] SELECT index.parts.ts RAW EXPORTS FROM WORKER:');
-      console.warn('[parseExports] File:', fileName);
-      const separatorExports = exports.filter((exp) => exp.name.includes('Separator'));
-      console.warn(
-        '[parseExports] Separator exports:',
-        separatorExports.map((exp) => exp.name),
-      );
-      console.warn(
-        '[parseExports] Has double dots:',
-        separatorExports.some((exp) => exp.name.includes('..')),
-      );
-    }
-
-    // DEBUG: Log exports for Menu index.parts.ts
-    if (fileName.includes('/menu/index.parts.ts')) {
-      console.warn('[parseExports] Menu index.parts.ts - START');
-      console.warn(
-        '[parseExports] Menu index.parts.ts exports:',
-        exports.map((exp) => exp.name),
-      );
-      console.warn('[parseExports] Menu index.parts.ts - Processing re-exports...');
-    }
-
-    // DEBUG: Log exports for MenuRoot.tsx
-    if (fileName.includes('/menu/root/MenuRoot.tsx')) {
-      console.warn(
-        '[parseExports] MenuRoot.tsx exports from typescript-api-extractor:',
-        exports.map((exp) => exp.name),
-      );
-      console.warn('[parseExports] MenuRoot.tsx exports count:', exports.length);
-      // Check MenuRoot specifically
-      const menuRootExport = exports.find((exp) => exp.name === 'MenuRoot');
-      if (menuRootExport) {
-        console.warn('[parseExports] MenuRoot export found:');
-        console.warn('  type.kind:', (menuRootExport.type as any).kind);
-        console.warn('  is component:', (menuRootExport.type as any).kind === 'component');
-      }
-    }
-
     // Extract namespace members (e.g., Component.State, Component.Props)
     const namespaceMembers = extractNamespaceMembers(sourceFile);
 
     // WORKAROUND: typescript-api-extractor doesn't find `export type` declarations
     // Manually extract them from the source file AST
     const manualTypeExports: ExportNode[] = [];
-    fs.appendFileSync('/tmp/all-files-parsed.log', `Parsing: ${fileName}\n`);
-    if (fileName.includes('Input.tsx')) {
-      fs.appendFileSync('/tmp/all-files-parsed.log', `  SourceFile path: ${sourceFile.fileName}\n`);
-      fs.appendFileSync(
-        '/tmp/all-files-parsed.log',
-        `  Total statements: ${sourceFile.statements.length}\n`,
-      );
-    }
-    if (fileName.includes('FieldControl.tsx')) {
-      fs.appendFileSync(
-        '/tmp/all-files-parsed.log',
-        `[FieldControl] Initial exports from parseFromProgram: ${exports.length}, names: ${exports.map((exp) => exp.name).join(', ')}\n`,
-      );
-    }
-    sourceFile.statements.forEach((statement, idx) => {
-      if (ts.isTypeAliasDeclaration(statement)) {
-        const hasExport = statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
-        const typeName = statement.name.text;
-        if (typeName.includes('InputChange') || typeName.includes('FieldControl')) {
-          fs.appendFileSync(
-            '/tmp/all-files-parsed.log',
-            `  [${fileName}] Statement ${idx}: Type alias ${typeName}, exported: ${hasExport}\n`,
-          );
-        }
-      }
+    sourceFile.statements.forEach((statement) => {
       if (
         ts.isTypeAliasDeclaration(statement) &&
         statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
       ) {
         const typeName = statement.name.text;
-        if (fileName.includes('FieldControl.tsx')) {
-          fs.appendFileSync(
-            '/tmp/all-files-parsed.log',
-            `  [FieldControl] Found exported type alias: ${typeName}\n`,
-          );
-        }
-        fs.appendFileSync('/tmp/all-files-parsed.log', `  Found type alias: ${typeName}\n`);
         // Check if this type is already in exports
         const alreadyInExports = exports.find((exp) => exp.name === typeName);
-        if (typeName.includes('InputChange') || fileName.includes('FieldControl.tsx')) {
-          fs.appendFileSync(
-            '/tmp/all-files-parsed.log',
-            `    [${fileName}] ${typeName} already in exports: ${!!alreadyInExports}\n`,
-          );
-        }
         if (!alreadyInExports) {
           // First try: Parse this type using parseFromProgram
           // This works for simple type aliases like `type Foo = string`
@@ -1594,78 +1012,26 @@ export function parseExports(
           };
           const { exports: typeExports } = parseFromProgram(fileName, program, typeParserOptions);
           const foundType = typeExports.find((exp) => exp.name === typeName);
-          if (typeName.includes('InputChange') || fileName.includes('FieldControl.tsx')) {
-            fs.appendFileSync(
-              '/tmp/all-files-parsed.log',
-              `    parseFromProgram for ${typeName}: found ${typeExports.length} exports: ${typeExports.map((exp) => exp.name).join(', ')}\n`,
-            );
-            fs.appendFileSync(
-              '/tmp/all-files-parsed.log',
-              `    parseFromProgram found ${typeName}: ${!!foundType}\n`,
-            );
-          }
           if (foundType) {
             manualTypeExports.push(foundType);
-            if (fileName.includes('FieldControl.tsx')) {
-              fs.appendFileSync(
-                '/tmp/all-files-parsed.log',
-                `    [FieldControl] Added ${typeName} to manualTypeExports via parseFromProgram\n`,
-              );
-            }
           } else {
             // Second try: For type aliases to qualified names (e.g., `type Foo = Bar.Baz`),
             // parseFromProgram doesn't work. Try to resolve the type reference manually.
             const typeNode = statement.type;
 
-            if (fileName.includes('Input.tsx')) {
-              const logPath = '/tmp/input-type-debug.log';
-              const log = [
-                `Type alias: ${typeName}`,
-                `Type node kind: ${typeNode.kind}`,
-                `SyntaxKind.TypeReference: ${ts.SyntaxKind.TypeReference}`,
-                `Is TypeReference: ${ts.isTypeReferenceNode(typeNode)}`,
-              ];
-              if (ts.isTypeReferenceNode(typeNode)) {
-                log.push(`TypeName: ${typeNode.typeName.getText(sourceFile)}`);
-                log.push(`TypeName kind: ${typeNode.typeName.kind}`);
-                log.push(`SyntaxKind.QualifiedName: ${ts.SyntaxKind.QualifiedName}`);
-                log.push(`Is QualifiedName: ${ts.isQualifiedName(typeNode.typeName)}`);
-              }
-              fs.appendFileSync(logPath, `${log.join('\n')}\n\n`);
-            }
-
             // Check if it's a qualified name like Field.Control.ChangeEventDetails
             if (ts.isTypeReferenceNode(typeNode) && ts.isQualifiedName(typeNode.typeName)) {
               const qualifiedName = typeNode.typeName;
 
-              fs.appendFileSync(
-                '/tmp/all-files-parsed.log',
-                `    [QN] Resolving qualified name for ${typeName}\n`,
-              );
-
               // Get the symbol at this location to resolve the import
               const symbol = checker.getSymbolAtLocation(qualifiedName.left);
-              fs.appendFileSync(
-                '/tmp/all-files-parsed.log',
-                `    [QN] Symbol found for ${typeName}: ${!!symbol}\n`,
-              );
               if (symbol) {
                 const aliasedSymbol = checker.getAliasedSymbol(symbol);
                 const declarations = aliasedSymbol.declarations || symbol.declarations;
 
-                fs.appendFileSync(
-                  '/tmp/all-files-parsed.log',
-                  `    [QN] Declarations for ${typeName}: ${!!declarations}, count: ${declarations?.length}\n`,
-                );
-
                 if (declarations && declarations.length > 0) {
                   const targetSourceFile = declarations[0].getSourceFile();
                   const targetFileName = targetSourceFile.fileName;
-
-                  fs.appendFileSync(
-                    '/tmp/all-files-parsed.log',
-                    `    [QN] Target file for ${typeName}: ${targetFileName}\n`,
-                  );
 
                   // Extract the specific type from the target file
                   // For Field.Control.ChangeEventDetails, we want to find ChangeEventDetails
@@ -1687,13 +1053,6 @@ export function parseExports(
                   const leftPart = flattenQualifiedName(qualifiedName.left); // "FieldControl"
                   const fullTargetName = leftPart + rightPart; // "FieldControlChangeEventDetails"
 
-                  if (typeName.includes('InputChange')) {
-                    fs.appendFileSync(
-                      '/tmp/all-files-parsed.log',
-                      `    [QN] Looking for: ${rightPart} or ${fullTargetName}\n`,
-                    );
-                  }
-
                   // Note: We DON'T pass a restrictive filter here because the target file
                   // may have the type we want, but parseFromProgram can't find it (e.g., type aliases).
                   // Instead, we let parseExports process ALL types (including manual extraction),
@@ -1713,15 +1072,6 @@ export function parseExports(
                     const wasVisited = visited.has(targetFileName);
                     if (wasVisited) {
                       visited.delete(targetFileName);
-                      fs.appendFileSync(
-                        '/tmp/all-files-parsed.log',
-                        `    [QN] Removed ${targetFileName} from visited to allow re-parsing for ${typeName}\n`,
-                      );
-                    } else {
-                      fs.appendFileSync(
-                        '/tmp/all-files-parsed.log',
-                        `    [QN] ${targetFileName} NOT in visited, will parse normally for ${typeName}\n`,
-                      );
                     }
 
                     const targetParsedResults = parseExports(
@@ -1742,11 +1092,6 @@ export function parseExports(
                     // Flatten all exports from the results
                     const targetExports = targetParsedResults.flatMap((result) => result.exports);
 
-                    fs.appendFileSync(
-                      '/tmp/all-files-parsed.log',
-                      `    [QN] Target exports for ${typeName}: ${targetExports.length}, names: ${targetExports.map((exp) => exp.name).join(', ')}\n`,
-                    );
-
                     // Try to find the target type using multiple name patterns:
                     // 1. Just the right part (e.g., "ChangeEventDetails")
                     // 2. The full flattened name (e.g., "FieldControlChangeEventDetails")
@@ -1756,19 +1101,11 @@ export function parseExports(
                       targetExports.find((exp) => exp.name === rightPart) ||
                       targetExports.find((exp) => exp.name === fullTargetName) ||
                       targetExports.find((exp) => exp.name === dottedTargetName);
-                    fs.appendFileSync(
-                      '/tmp/all-files-parsed.log',
-                      `    [QN] Found target type for ${typeName}: ${!!targetType}, looking for: ${rightPart}, ${fullTargetName}, or ${dottedTargetName}\n`,
-                    );
                     if (targetType) {
                       // Change the name property directly (ExportNode is mutable)
                       // This renames FieldControlChangeEventDetails to InputChangeEventDetails
                       targetType.name = typeName;
                       manualTypeExports.push(targetType);
-                      fs.appendFileSync(
-                        '/tmp/all-files-parsed.log',
-                        `    [QN] Added ${typeName} to manualTypeExports\n`,
-                      );
                     }
                   }
                 }
@@ -1776,13 +1113,6 @@ export function parseExports(
             } else {
               // Type alias is not a qualified name (e.g., literal type or simple generic)
               // Extract it as a serializable structure that can be processed during HAST formatting
-              if (fileName.includes('FieldControl.tsx') || typeName.includes('InputChange')) {
-                fs.appendFileSync(
-                  '/tmp/all-files-parsed.log',
-                  `    [Fallback] ${typeName} is not a qualified name, will extract as serializable structure\n`,
-                );
-              }
-
               const fallbackExport = extractTypeAliasAsExportNode(
                 typeName,
                 statement,
@@ -1791,17 +1121,6 @@ export function parseExports(
               );
               if (fallbackExport) {
                 manualTypeExports.push(fallbackExport);
-                if (fileName.includes('FieldControl.tsx')) {
-                  fs.appendFileSync(
-                    '/tmp/all-files-parsed.log',
-                    `    [Fallback] Added ${typeName} to manualTypeExports as serializable structure\n`,
-                  );
-                }
-              } else if (fileName.includes('FieldControl.tsx')) {
-                fs.appendFileSync(
-                  '/tmp/all-files-parsed.log',
-                  `    [Fallback] Could not extract ${typeName} as serializable structure\n`,
-                );
               }
             }
           }
@@ -1812,73 +1131,21 @@ export function parseExports(
     // Merge manual exports with parsed exports
     const allExports = [...exports, ...manualTypeExports];
 
-    if (fileName.includes('FieldControl.tsx')) {
-      fs.appendFileSync(
-        '/tmp/all-files-parsed.log',
-        `[FieldControl] Total exports: ${exports.length}, manual: ${manualTypeExports.length}, all: ${allExports.length}\n`,
-      );
-      fs.appendFileSync(
-        '/tmp/all-files-parsed.log',
-        `[FieldControl] Export names: ${allExports.map((exp) => exp.name).join(', ')}\n`,
-      );
-    }
-
     // Build typeNameMap from namespace members
     // For each namespace (e.g., "MenuRadioItem"), add entries for its members
     // E.g., "MenuRadioItemState" -> "Menu.RadioItem.State" (will be transformed later with namespace prefix)
     const typeNameMap = new Map<string, string>();
-
-    // DEBUG: Log namespace members for Toolbar-related files
-    if (
-      sourceFile.fileName.includes('toolbar') ||
-      sourceFile.fileName.includes('MenuBackdrop') ||
-      sourceFile.fileName.includes('MenuRoot')
-    ) {
-      console.warn(
-        '[parseExports] Building typeNameMap from namespaceMembers:',
-        namespaceMembers.size,
-      );
-      console.warn('[parseExports] sourceFile:', sourceFile.fileName);
-      console.warn(
-        '[parseExports] Namespace members entries:',
-        Array.from(namespaceMembers.entries()).map(([name, members]) => [
-          name,
-          Array.from(members.entries()),
-        ]),
-      );
-    }
 
     // Also build a reverse map: memberName -> componentName for namespace member detection
     const memberToComponentMap = new Map<string, string>();
 
     Array.from(namespaceMembers.entries()).forEach(([componentName, members]) => {
       Array.from(members.entries()).forEach(([memberName, flatTypeName]) => {
-        // DEBUG: Log entry creation for MenuBackdrop and MenuRoot
-        if (
-          sourceFile.fileName.includes('MenuBackdrop') ||
-          sourceFile.fileName.includes('MenuRoot') ||
-          componentName.includes('Separator')
-        ) {
-          console.warn('[parseExports] Creating typeNameMap entry:', {
-            flatTypeName,
-            componentName,
-            memberName,
-            mappedValue: `${componentName}.${memberName}`,
-          });
-        }
-
         // The flat name is like "MenuRadioItemState"
         // For now just map it to "ComponentName.MemberName", namespace prefix added later
         typeNameMap.set(flatTypeName, `${componentName}.${memberName}`);
 
         // Track which member names belong to which component
-        if (componentName.includes('Separator') || memberName.includes('Separator')) {
-          console.warn('[parseExports] Setting memberToComponentMap:', {
-            memberName,
-            componentName,
-            fileName: sourceFile.fileName,
-          });
-        }
         memberToComponentMap.set(memberName, componentName);
       });
 
@@ -1886,14 +1153,6 @@ export function parseExports(
       // This is needed for references like "MenuRadioItem.State" where MenuRadioItem needs transformation
       // The namespace prefix will be added later during re-export processing
       if (members.size > 0) {
-        // DEBUG: Log when adding component name for MenuRoot
-        if (componentName.includes('Root') && sourceFile.fileName.includes('/menu/')) {
-          console.warn('[parseExports] Adding component name to typeNameMap:', {
-            componentName,
-            membersSize: members.size,
-            fileName: sourceFile.fileName,
-          });
-        }
         typeNameMap.set(componentName, componentName);
       }
     });
@@ -1932,22 +1191,6 @@ export function parseExports(
       }
       return exp;
     });
-
-    // DEBUG: Log final processed exports for MenuRoot.tsx
-    if (sourceFile.fileName.includes('/menu/root/MenuRoot.tsx')) {
-      console.warn(
-        '[parseExports] MenuRoot.tsx final processedExports:',
-        processedExports.map((exp) => exp.name),
-      );
-      const menuRootExport = processedExports.find(
-        (exp) => exp.name === 'MenuRoot' || exp.name.includes('Root'),
-      );
-      if (menuRootExport) {
-        console.warn('[parseExports] MenuRoot found in processedExports:', menuRootExport.name);
-      } else {
-        console.warn('[parseExports] MenuRoot NOT found in processedExports');
-      }
-    }
 
     allResults.push({
       name: '',
