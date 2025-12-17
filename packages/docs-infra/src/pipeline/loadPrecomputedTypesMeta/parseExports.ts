@@ -3,6 +3,18 @@ import type { Program, SourceFile, TypeChecker } from 'typescript';
 import * as fs from 'node:fs';
 import { parseFromProgram, type ExportNode, type ParserOptions } from 'typescript-api-extractor';
 
+/**
+ * Cleans dynamic import syntax from type strings.
+ * TypeScript's typeToString can produce strings like:
+ * - "import('/path/to/file').TypeName" -> "TypeName"
+ * - "import('/path').A | import('/path').B" -> "A | B"
+ * - "{ prop: import('/path').Type }" -> "{ prop: Type }"
+ */
+function cleanImportSyntax(typeString: string): string {
+  // Replace all import('...').TypeName patterns with just TypeName
+  return typeString.replace(/import\([^)]+\)\.(\w+)/g, '$1');
+}
+
 type ReExportInfo = {
   sourceFile: SourceFile;
   aliasMap: Map<string, string>; // Maps original name -> exported name
@@ -197,17 +209,17 @@ function expandIntersectionType(
 
     // If we can't merge, just return the intersection as-is
     console.warn('[expandIntersectionType] Could not merge, returning as intersection');
-    return checker.typeToString(type, statement, flags);
+    return cleanImportSyntax(checker.typeToString(type, statement, flags));
   }
 
   // Check if this is a union type (which we also want to expand fully)
   if (type.isUnion()) {
     // Let TypeScript handle the union expansion
-    return checker.typeToString(type, statement, flags);
+    return cleanImportSyntax(checker.typeToString(type, statement, flags));
   }
 
   // Not an intersection or union, just convert to string
-  return checker.typeToString(type, statement, flags);
+  return cleanImportSyntax(checker.typeToString(type, statement, flags));
 }
 
 /**
@@ -251,7 +263,7 @@ function extractTypeAliasAsExportNode(
         ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope;
 
       // Try to expand the type
-      expandedTypeText = checker.typeToString(type, statement, flags);
+      expandedTypeText = cleanImportSyntax(checker.typeToString(type, statement, flags));
 
       // AGGRESSIVE EXPANSION: If the result is still a type alias name (e.g., "ToastObjectType<Data>"),
       // recursively follow the alias chain until we reach an interface/object type
@@ -305,7 +317,9 @@ function extractTypeAliasAsExportNode(
           // TypeScript often refuses to expand interface names even after following aliases
           // So we need to check if it's an object type and manually expand its properties
 
-          const furtherExpanded = checker.typeToString(currentType, statement, flags);
+          const furtherExpanded = cleanImportSyntax(
+            checker.typeToString(currentType, statement, flags),
+          );
 
           // Check if it's an object type that we can expand manually
           // Only do this for actual object types (not primitives like string, number, unions, etc.)
@@ -345,10 +359,8 @@ function extractTypeAliasAsExportNode(
               const propStrings = props.map((prop) => {
                 const propType = checker.getTypeOfSymbolAtLocation(prop, statement);
                 // Use None flags for properties to avoid expanding React.ReactNode and similar types
-                const propTypeString = checker.typeToString(
-                  propType,
-                  statement,
-                  ts.TypeFormatFlags.None,
+                const propTypeString = cleanImportSyntax(
+                  checker.typeToString(propType, statement, ts.TypeFormatFlags.None),
                 );
                 // eslint-disable-next-line no-bitwise
                 const optional = prop.flags & ts.SymbolFlags.Optional ? '?' : '';
@@ -381,7 +393,9 @@ function extractTypeAliasAsExportNode(
 
         // The type object should have the union members available
         if (type.isUnion && type.isUnion()) {
-          const unionParts = type.types.map((t) => checker.typeToString(t, statement, flags));
+          const unionParts = type.types.map((t) =>
+            cleanImportSyntax(checker.typeToString(t, statement, flags)),
+          );
           expandedTypeText = unionParts.join(' | ');
         }
       }
@@ -398,7 +412,7 @@ function extractTypeAliasAsExportNode(
         for (let i = 0; i < intersectionParts.length; i += 1) {
           const partNode = intersectionParts[i];
           const partType = checker.getTypeAtLocation(partNode);
-          const partStr = checker.typeToString(partType, statement, flags);
+          const partStr = cleanImportSyntax(checker.typeToString(partType, statement, flags));
           expandedParts.push(partStr);
         }
 
@@ -939,21 +953,46 @@ export function parseExports(
                     ? withoutNamespace.slice(1)
                     : withoutNamespace;
 
-                  // DEBUG: Log for Select Separator
-                  if (
-                    namespaceName === 'Select' &&
-                    (exportName.includes('Separator') || cleanedSuffix.includes('Separator'))
-                  ) {
-                    console.warn('[parseExports] SELECT SEPARATOR ALREADY HAS NAMESPACE:', {
-                      exportName,
-                      namespaceName,
-                      withoutNamespace,
-                      cleanedSuffix,
-                      willBecome: `${namespaceName}.${cleanedSuffix}`,
+                  // IMPORTANT: Only transform if there's a corresponding alias in the map
+                  // for a related component. This prevents standalone types like "ToastManager"
+                  // from becoming "Toast.Manager" when they're not actually namespace members.
+                  //
+                  // For example:
+                  // - "ToastRoot" has alias "ToastRoot" → "Root", so "ToastRootProps" → "Toast.Root.Props" ✓
+                  // - "ToastManager" has NO alias, so it stays as "ToastManager" ✓
+                  //
+                  // Check if ANY alias in the map would match a prefix of the export name.
+                  // If no alias matches, this type is likely a standalone export that just
+                  // happens to share a prefix with the namespace name.
+                  let hasMatchingAlias = false;
+                  if (effectiveAliasMap && effectiveAliasMap.size > 0) {
+                    effectiveAliasMap.forEach((_, originalName) => {
+                      if (exportName.startsWith(originalName)) {
+                        hasMatchingAlias = true;
+                      }
                     });
                   }
 
-                  transformedName = `${namespaceName}.${cleanedSuffix}`;
+                  // Only transform if there's a matching alias (component was explicitly re-exported)
+                  // OR if the suffix contains a dot (already a nested type like "Component.Props")
+                  if (hasMatchingAlias || cleanedSuffix.includes('.')) {
+                    // DEBUG: Log for Select Separator
+                    if (
+                      namespaceName === 'Select' &&
+                      (exportName.includes('Separator') || cleanedSuffix.includes('Separator'))
+                    ) {
+                      console.warn('[parseExports] SELECT SEPARATOR ALREADY HAS NAMESPACE:', {
+                        exportName,
+                        namespaceName,
+                        withoutNamespace,
+                        cleanedSuffix,
+                        willBecome: `${namespaceName}.${cleanedSuffix}`,
+                      });
+                    }
+
+                    transformedName = `${namespaceName}.${cleanedSuffix}`;
+                  }
+                  // else: No matching alias found, keep the original name (e.g., "ToastManager" stays "ToastManager")
                 }
               } else if (exportName.includes('.')) {
                 // Export is already dotted (e.g., "Separator.Props" from namespace member)
