@@ -415,8 +415,28 @@ export async function formatProperties(
   // Ensure Starry Night is initialized for inline code highlighting
   await ensureStarryNightInitialized();
 
+  // Filter out props that should not be documented:
+  // - `ref` is typically forwarded and not useful in component API docs
+  // - Props with @ignore tag are intentionally hidden from documentation
+  const isComponentContext = allExports !== undefined && allExports.length > 0;
+  const filteredProps = props.filter((prop) => {
+    // Skip `ref` for components (when allExports indicates component context)
+    if (prop.name === 'ref' && isComponentContext) {
+      return false;
+    }
+    // Skip props marked with @ignore
+    // Check both hasTag method (from tae.Documentation class) and tags array (for plain objects)
+    const hasIgnoreTag =
+      prop.documentation?.hasTag?.('ignore') ||
+      prop.documentation?.tags?.some((tag) => tag.name === 'ignore');
+    if (hasIgnoreTag) {
+      return false;
+    }
+    return true;
+  });
+
   const propEntries = await Promise.all(
-    props.map(async (prop) => {
+    filteredProps.map(async (prop) => {
       const exampleTag = prop.documentation?.tags
         ?.filter((tag) => tag.name === 'example')
         .map((tag) => tag.value)

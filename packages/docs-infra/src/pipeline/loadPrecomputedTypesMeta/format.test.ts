@@ -1188,6 +1188,90 @@ describe('format', () => {
       });
     });
 
+    describe('prop filtering', () => {
+      it('should skip ref prop when allExports indicates component context', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'ref',
+            type: { kind: 'external', typeName: { name: 'Ref' } } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+          {
+            name: 'title',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        // Pass a non-empty allExports to indicate component context
+        const allExports = [{ name: 'Component' }] as any;
+        const result = await formatProperties(props, [], {}, allExports);
+
+        expect(result.ref).toBeUndefined();
+        expect(result.title).toBeDefined();
+      });
+
+      it('should include ref prop when not in component context', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'ref',
+            type: { kind: 'external', typeName: { name: 'Ref' } } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        // No allExports means not in component context
+        const result = await formatProperties(props, [], {});
+
+        expect(result.ref).toBeDefined();
+      });
+
+      it('should skip props marked with @ignore tag', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'internalProp',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: true,
+            documentation: {
+              tags: [{ name: 'ignore', value: undefined }],
+            } as any,
+          } as any,
+          {
+            name: 'publicProp',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              tags: [],
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        expect(result.internalProp).toBeUndefined();
+        expect(result.publicProp).toBeDefined();
+      });
+
+      it('should handle props without documentation gracefully', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'noDocs',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: true,
+            documentation: undefined,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // Props without documentation should be included (no @ignore tag)
+        expect(result.noDocs).toBeDefined();
+      });
+    });
+
     describe('markdown parsing', () => {
       it('should parse markdown descriptions with code blocks', async () => {
         const props: tae.PropertyNode[] = [
