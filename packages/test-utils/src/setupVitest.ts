@@ -12,8 +12,12 @@ let isInitialized = false;
 
 export default function setupVitest({
   failOnConsoleEnabled = true,
+  chaiPluginsEnabled = true,
   ...config
-}: Partial<Configuration> & { failOnConsoleEnabled?: boolean } = {}): void {
+}: Partial<Configuration> & {
+  failOnConsoleEnabled?: boolean;
+  chaiPluginsEnabled?: boolean;
+} = {}): void {
   // When run in vitest with --no-isolate, the test hooks are cleared between each suite,
   // but modules are only evaluated once, so calling it top-level would only register the
   // hooks for the first suite only.
@@ -42,7 +46,9 @@ export default function setupVitest({
 
   // Don't call test lifecycle hooks after this point
 
-  chai.use(chaiPlugin);
+  if (chaiPluginsEnabled) {
+    chai.use(chaiPlugin);
+  }
 
   if (failOnConsoleEnabled) {
     failOnConsole({
@@ -77,7 +83,9 @@ export default function setupVitest({
   }
 
   if (typeof window !== 'undefined') {
-    chai.use(chaiDom);
+    if (chaiPluginsEnabled) {
+      chai.use(chaiDom);
+    }
 
     // Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
     (globalThis as any).jest = null;
