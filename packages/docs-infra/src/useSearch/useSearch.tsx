@@ -213,28 +213,15 @@ function defaultFlattenPage(
     flattened.subsections = subsections.map((s) => s.title).join(' ');
   }
 
+  const pageSlug = titleToSlug(page.title);
+
   // Add base page result
-  // Derive slug from title, or from path's last non-route-group segment
-  let pageSlug = '';
-  if (page.title) {
-    pageSlug = titleToSlug(page.title);
-  } else {
-    // Extract last non-route-group segment from path (e.g., './button/page.mdx' -> 'button')
-    const segments = page.path.replace(/\/page\.mdx$/, '').split('/');
-    for (let i = segments.length - 1; i >= 0; i -= 1) {
-      const segment = segments[i];
-      if (segment && !segment.startsWith('(') && !segment.endsWith(')') && segment !== '.') {
-        pageSlug = segment;
-        break;
-      }
-    }
-  }
   results.push({
     type: 'page',
     group: includeCategoryInGroup ? `${sectionData.title} Pages` : 'Pages',
     page: page.title,
     title: page.title,
-    slug: pageSlug,
+    slug: titleToSlug(page.title),
     path: page.path,
     description: page.description,
     sectionTitle: sectionData.title,

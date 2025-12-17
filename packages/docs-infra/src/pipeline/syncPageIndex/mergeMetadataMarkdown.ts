@@ -157,8 +157,8 @@ export async function mergeMetadataMarkdown(
 
   if (requestsAlphabeticalSort) {
     pages = pages.sort((a, b) => {
-      const titleA = a.title!;
-      const titleB = b.title!;
+      const titleA = a.title;
+      const titleB = b.title;
       return titleA.localeCompare(titleB);
     });
   }

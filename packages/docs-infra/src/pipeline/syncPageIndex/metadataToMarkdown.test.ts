@@ -90,6 +90,22 @@ describe('metadataToMarkdown', () => {
     expect(result).toContain('## Checkbox');
   });
 
+  it('should use fallback description when not provided', () => {
+    const data: PagesMetadata = {
+      title: 'Components',
+      pages: [
+        {
+          title: 'Button',
+          path: './button/page.mdx',
+        },
+      ],
+    };
+
+    const result = metadataToMarkdown(data);
+
+    expect(result).toContain('- [Button](#button) - [Full Docs](./button/page.mdx)');
+  });
+
   it('should handle pages without images', () => {
     const data: PagesMetadata = {
       title: 'Components',
