@@ -10,6 +10,7 @@ import { resolveVersion, findDependencyVersionFromSpec } from '../utils/pnpm.mjs
 /**
  * @typedef {Object} Args
  * @property {string[]} [pkg] - Package version specifiers in format 'package@version'
+ * @property {boolean} [engineStrict] - Whether to ignore engine field during installation
  */
 
 /**
@@ -109,18 +110,30 @@ async function handler(args) {
   Object.assign(packageJson.resolutions, overrides);
   await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}${os.EOL}`);
 
-  await $({ stdio: 'inherit' })`pnpm dedupe`;
+  /** @type {(string)[]} */
+  const restArgs = [];
+
+  if (typeof args.engineStrict === 'boolean') {
+    restArgs.push('--engine-strict', String(args.engineStrict));
+  }
+
+  await $({ stdio: 'inherit' })`pnpm dedupe ${restArgs}`;
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'set-version-overrides',
   describe: 'Set version overrides for packages throughout the repository',
   builder: (yargs) => {
-    return yargs.option('pkg', {
-      type: 'array',
-      description:
-        'Package version specifiers in format "package@version" (e.g., react@next, typescript@5.0.0)',
-    });
+    return yargs
+      .option('pkg', {
+        type: 'array',
+        description:
+          'Package version specifiers in format "package@version" (e.g., react@next, typescript@5.0.0)',
+      })
+      .option('engine-strict', {
+        type: 'boolean',
+        description: 'Whether to ignore engine field during installation',
+      });
   },
   handler,
 });
