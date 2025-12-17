@@ -1,5 +1,3 @@
-import './initMatchers';
-
 export * from './components';
 export { default as describeConformance } from './describeConformance';
 export * from './describeConformance';
