@@ -30,6 +30,7 @@ import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseC
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 import { highlightTypes } from './highlightTypes';
+import { TypesTableMeta } from '../../abstractCreateTypes';
 
 export type LoaderOptions = {
   performance?: {
@@ -481,8 +482,21 @@ export async function loadPrecomputedTypesMeta(
       true,
     );
 
+    // Determine if the factory was written with a single component or multiple components (object form)
+    // createTypes(import.meta.url, Checkbox) => 'Checkbox'
+    // createTypes(import.meta.url, { Checkbox, Button }) => undefined
+    const singleComponentName =
+      typeof typesMetaCall.structuredVariants === 'string'
+        ? typesMetaCall.structuredVariants
+        : undefined;
+
+    const precompute: TypesTableMeta['precompute'] = {
+      exports: highlightedVariantData,
+      singleComponentName,
+    };
+
     // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, highlightedVariantData, typesMetaCall);
+    const modifiedSource = replacePrecomputeValue(source, precompute, typesMetaCall);
 
     performanceMeasure(
       currentMark,

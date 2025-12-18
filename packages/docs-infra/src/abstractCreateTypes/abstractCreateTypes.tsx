@@ -4,10 +4,12 @@ import { typesToJsx, type ProcessedTypesMeta, type TypesJsxOptions } from './typ
 
 export type TypesTableMeta = {
   precompute?: {
-    [variant: string]: {
-      types?: TypesMeta[];
-      importedFrom: string;
+    exports: {
+      [variant: string]: {
+        types: TypesMeta[];
+      };
     };
+    singleComponentName?: string;
   };
   name?: string;
   displayName?: string;
@@ -43,7 +45,16 @@ export function abstractCreateTypes<T extends {}>(
     throw new Error('abstractCreateTypes() must be called within a `types.ts` file');
   }
 
-  const rawTypes = meta?.precompute?.[exportName || 'Default']?.types;
+  const singleComponentName = meta.precompute.singleComponentName;
+
+  let name = 'Default';
+  if (exportName && singleComponentName) {
+    name = `${singleComponentName}.${exportName}`;
+  } else if (exportName) {
+    name = exportName;
+  }
+
+  const rawTypes = meta?.precompute?.exports?.[name]?.types;
 
   // Merge components from factory options and meta, with meta taking priority
   const components = {
@@ -60,7 +71,8 @@ export function abstractCreateTypes<T extends {}>(
 
   if (process.env.NODE_ENV !== 'production') {
     TypesComponent.displayName =
-      meta?.displayName || `${meta?.name?.replace(/ /g, '') || ''}${exportName || ''}Types`;
+      meta?.displayName ||
+      `${meta?.name?.replace(/ /g, '') || ''}${singleComponentName || exportName || ''}Types`;
   }
 
   return TypesComponent;
