@@ -572,6 +572,13 @@ function act<T>(callback: () => void | T | Promise<T>) {
 }
 
 const bodyBoundQueries = within(document.body, { ...queries, ...customQueries });
+typeof document !== 'undefined'
+  ? within(document.body, { ...queries, ...customQueries })
+  : new Proxy({} as typeof queries & typeof customQueries, {
+      get: () => {
+        throw new Error('bodyBoundQueries is not available in a non-DOM environment');
+      },
+    });
 
 export {
   configure,
