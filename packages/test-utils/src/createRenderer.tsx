@@ -576,13 +576,13 @@ function createBodyBoundQueries() {
 }
 
 const bodyBoundQueries =
-  typeof document !== 'undefined'
-    ? within(document.body, { ...queries, ...customQueries })
-    : new Proxy({} as ReturnType<typeof createBodyBoundQueries>, {
+  typeof document === 'undefined'
+    ? new Proxy({} as ReturnType<typeof createBodyBoundQueries>, {
         get: () => {
           throw new Error('bodyBoundQueries is not available in a non-DOM environment');
         },
-      });
+      })
+    : within(document.body, { ...queries, ...customQueries });
 
 export {
   configure,
