@@ -582,7 +582,7 @@ const bodyBoundQueries =
           throw new Error('bodyBoundQueries is not available in a non-DOM environment');
         },
       })
-    : within(document.body, { ...queries, ...customQueries });
+    : createBodyBoundQueries();
 
 export {
   configure,
