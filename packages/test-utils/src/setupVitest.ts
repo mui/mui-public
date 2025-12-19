@@ -7,6 +7,7 @@ import { afterEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
 import { Configuration, configure } from './configure';
+import { restoreActWarnings } from '.';
 
 let isInitialized = false;
 
@@ -30,6 +31,8 @@ export default function setupVitest({
     vi.useRealTimers();
 
     cleanup();
+
+    restoreActWarnings();
   });
 
   if (isInitialized) {
