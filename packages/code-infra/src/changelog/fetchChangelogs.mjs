@@ -8,6 +8,10 @@ import { persistentAuthStrategy } from '../utils/github.mjs';
  */
 
 /**
+ * @typedef {import('./types').FetchedCommitDetails} FetchedCommitDetails
+ */
+
+/**
  * @typedef {Object} FetchCommitsOptions
  * @property {string} repo
  * @property {string} lastRelease
@@ -37,7 +41,7 @@ export async function findLatestTaggedVersion(opts) {
  * Automatically handles GitHub OAuth authentication if none provided.
  *
  * @param {FetchCommitsOptions & {octokit?: OctokitType}} opts
- * @returns {Promise<import('./types').FetchedCommitDetails[]>}
+ * @returns {Promise<FetchedCommitDetails[]>}
  */
 export async function fetchCommitsBetweenRefs(opts) {
   const octokit =
@@ -61,7 +65,7 @@ export async function fetchCommitsBetweenRefs(opts) {
  *
  * @param {FetchCommitsOptions & { octokit: OctokitType}} param0
  *
- * @returns {Promise<import('./types').FetchedCommitDetails[]>}
+ * @returns {Promise<FetchedCommitDetails[]>}
  */
 async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui' }) {
   /**
@@ -104,7 +108,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 
     const labels = pr.data.labels.map((label) => label.name);
 
-    return /** @type {import('./types').FetchedCommitDetails} */ ({
+    return /** @type {FetchedCommitDetails} */ ({
       sha: commit.sha,
       message: commit.commit.message,
       labels,
