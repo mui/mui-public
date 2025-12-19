@@ -59,9 +59,12 @@ export function formatChangelog(sections, config, version, date, contributors) {
 
   // Add intro if enabled
   if (config.intro?.enabled) {
-    // TODO: Add intro section with highlights
-    // For now, just add a placeholder
-    lines.push('');
+    formatIntro(config.intro, contributors, lines);
+  }
+
+  // Add contributors after intro if configured
+  if (config.contributors?.enabled && config.contributors.addContributorsToIntro) {
+    formatContributors(contributors, config, lines);
   }
 
   // Add sections
@@ -69,12 +72,36 @@ export function formatChangelog(sections, config, version, date, contributors) {
     formatSection(section, config, lines);
   }
 
-  // Add contributors if enabled
-  if (config.contributors?.enabled) {
+  // Add contributors at the end if not already added after intro
+  if (config.contributors?.enabled && !config.contributors.addContributorsToIntro) {
     formatContributors(contributors, config, lines);
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Formats the intro section with optional thank you message and highlights placeholder.
+ *
+ * @param {import('./types.ts').IntroConfig} introConfig - Intro configuration
+ * @param {{team: string[], community: string[]}} contributors - Contributors data
+ * @param {string[]} lines - Output lines array
+ */
+function formatIntro(introConfig, contributors, lines) {
+  // Add thank you message if enabled
+  if (introConfig.thanksMessage && typeof introConfig.thanksMessage === 'string') {
+    const teamCount = contributors.team.length;
+    const communityCount = contributors.community.length;
+    const contributorCount = teamCount + communityCount;
+
+    let message = introConfig.thanksMessage;
+    message = message.replace('{contributorCount}', contributorCount.toString());
+    message = message.replace('{teamCount}', teamCount.toString());
+    message = message.replace('{communityCount}', communityCount.toString());
+
+    lines.push(message);
+    lines.push('');
+  }
 }
 
 /**
@@ -214,15 +241,20 @@ function formatContributors(contributors, config, lines) {
   if (config.contributors.splitByType) {
     // split community and team
     if (contributors.community.length > 0) {
-      lines.push(
-        'Special thanks go out to these community members for their valuable contributions:',
-      );
-      lines.push(contributors.community.map((name) => `@${name}`).join(', '));
+      if (contributors.community.length === 1) {
+        lines.push(
+          `Special thanks go out to community member @${contributors.community[0]} for their valuable contribution.`,
+        );
+      } else {
+        lines.push(
+          `Special thanks go out to these community members for their valuable contributions:\n${contributors.community.map((name) => `@${name}`).join(', ')}`,
+        );
+      }
       lines.push('');
     }
 
     if (contributors.team.length > 0) {
-      lines.push('The following team members contributed to this release:');
+      lines.push('The following team member(s) contributed to this release:');
       lines.push(contributors.team.map((name) => `@${name}`).join(', '));
       lines.push('');
     }

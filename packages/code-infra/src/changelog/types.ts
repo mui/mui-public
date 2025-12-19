@@ -239,20 +239,57 @@ export interface FormatConfig {
 
 /**
  * Configuration for intro section.
+ * The intro section appears after the version and date, before the changelog sections.
+ * It can include a thank you message and/or a highlights section with a placeholder for manual curation.
  */
 export interface IntroConfig {
+  /**
+   * Enable the intro section.
+   */
   enabled: boolean;
-  highlightsPrefix?: string;
-  thanksMessage?: boolean;
+
+  /**
+   * Thank you message to show at the start of the intro section.
+   * Supports placeholders:
+   * - {contributorCount}: Total number of contributors (team + community)
+   * - {teamCount}: Number of team members
+   * - {communityCount}: Number of community contributors
+   *
+   * Example: "We'd like to extend a big thank you to the {contributorCount} contributors who made this release possible"
+   *
+   * Set to `false` or omit to disable the thank you message.
+   */
+  thanksMessage?: string | false;
 }
 
 /**
  * Configuration for contributors section.
  */
 export interface ContributorsConfig {
+  /**
+   * Enable the contributors section.
+   */
   enabled: boolean;
+
+  /**
+   * Split contributors into team and community sections.
+   * If false, all contributors are listed together.
+   */
   splitByType: boolean;
+
+  /**
+   * Custom message template for the contributors section (when splitByType is false).
+   * Supports {contributors} placeholder.
+   * Example: "All contributors of this release in alphabetical order: {contributors}"
+   */
   message?: string;
+
+  /**
+   * Add contributors list after the intro section instead of at the end.
+   * If true, contributors appear immediately after the intro (before changelog sections).
+   * If false (default), contributors appear at the end (after all changelog sections).
+   */
+  addContributorsToIntro?: boolean;
 }
 
 /**
