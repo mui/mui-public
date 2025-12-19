@@ -7,7 +7,7 @@ import { afterEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
 import { Configuration, configure } from './configure';
-import { restoreActWarnings } from '.';
+import { installActWarnings, restoreActWarnings } from './ignoreActWarnings';
 
 let isInitialized = false;
 
@@ -46,6 +46,9 @@ export default function setupVitest({
   // Don't call test lifecycle hooks after this point
 
   chai.use(chaiPlugin);
+
+  // Must be installed before failOnConsole
+  installActWarnings();
 
   if (failOnConsoleEnabled) {
     failOnConsole({
