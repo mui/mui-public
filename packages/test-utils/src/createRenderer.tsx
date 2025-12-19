@@ -571,14 +571,18 @@ function act<T>(callback: () => void | T | Promise<T>) {
   return rtlAct(callback);
 }
 
-const bodyBoundQueries = within(document.body, { ...queries, ...customQueries });
-typeof document !== 'undefined'
-  ? within(document.body, { ...queries, ...customQueries })
-  : new Proxy({} as typeof queries & typeof customQueries, {
-      get: () => {
-        throw new Error('bodyBoundQueries is not available in a non-DOM environment');
-      },
-    });
+function createBodyBoundQueries() {
+  return within(document.body, { ...queries, ...customQueries });
+}
+
+const bodyBoundQueries =
+  typeof document !== 'undefined'
+    ? within(document.body, { ...queries, ...customQueries })
+    : new Proxy({} as ReturnType<typeof createBodyBoundQueries>, {
+        get: () => {
+          throw new Error('bodyBoundQueries is not available in a non-DOM environment');
+        },
+      });
 
 export {
   configure,
