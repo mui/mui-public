@@ -260,6 +260,14 @@ export interface IntroConfig {
    * Set to `false` or omit to disable the thank you message.
    */
   thanksMessage?: string | false;
+
+  /**
+   * Optional prefix text for the highlights section.
+   * When provided, adds a highlights section with placeholder comments for manual curation.
+   *
+   * Example: "Here are some highlights ✨:"
+   */
+  highlightsPrefix?: string;
 }
 
 /**
@@ -314,6 +322,15 @@ export interface FilterConfig {
    * Return false to exclude a commit from the changelog.
    */
   customFilter?: (commit: FetchedCommitDetails) => boolean;
+
+  /**
+   * Show "Internal changes." for packages where all commits were filtered out.
+   * When true, packages with filtered commits will appear in the changelog with "Internal changes." message.
+   * When false (default), packages with all commits filtered are omitted entirely.
+   *
+   * @default false
+   */
+  showFilteredPackages?: boolean;
 }
 
 /**
@@ -370,6 +387,12 @@ export interface ChangelogSection {
     type: 'same' | 'plus';
     from: string;
   };
+
+  /**
+   * Indicates this section had commits that were all filtered out (internal changes only).
+   * When true, displays "Internal changes." instead of commit list.
+   */
+  internalChangesOnly?: boolean;
 }
 
 /**
