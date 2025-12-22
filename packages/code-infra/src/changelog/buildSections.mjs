@@ -11,15 +11,29 @@
  * @param {Map<string, CategorizedCommit[]>} categorizedCommits - Map of category key to commits
  * @param {CategorizationConfig} categorizationConfig - Categorization configuration
  * @param {PlanInheritanceConfig} [planInheritanceConfig] - Plan inheritance configuration
+ * @param {Map<string, CategorizedCommit[]>} [allCategorizedCommits] - All commits including filtered ones (to detect internal changes)
+ * @param {Map<string, string>} [packageVersions] - Map of package name to version
  * @returns {ChangelogSection[]} Ordered sections
  */
-export function buildSections(categorizedCommits, categorizationConfig, planInheritanceConfig) {
+export function buildSections(
+  categorizedCommits,
+  categorizationConfig,
+  planInheritanceConfig,
+  allCategorizedCommits,
+  packageVersions,
+) {
   if (categorizationConfig.strategy === 'component') {
     return buildComponentSections(categorizedCommits, categorizationConfig);
   }
 
   if (categorizationConfig.strategy === 'package') {
-    return buildPackageSections(categorizedCommits, categorizationConfig, planInheritanceConfig);
+    return buildPackageSections(
+      categorizedCommits,
+      categorizationConfig,
+      planInheritanceConfig,
+      allCategorizedCommits,
+      packageVersions,
+    );
   }
 
   throw new Error(`Unknown categorization strategy: ${categorizationConfig.strategy}`);
@@ -82,14 +96,25 @@ function buildComponentSections(categorizedCommits, config) {
  * @param {Map<string, CategorizedCommit[]>} categorizedCommits - Map of category key to commits
  * @param {CategorizationConfig} categorizationConfig - Categorization configuration
  * @param {PlanInheritanceConfig} [planInheritanceConfig] - Plan inheritance configuration
+ * @param {Map<string, CategorizedCommit[]>} [allCategorizedCommits] - All commits including filtered ones
+ * @param {Map<string, string>} [packageVersions] - Map of package name to version
  * @returns {ChangelogSection[]} Ordered sections
  */
-function buildPackageSections(categorizedCommits, categorizationConfig, planInheritanceConfig) {
+function buildPackageSections(
+  categorizedCommits,
+  categorizationConfig,
+  planInheritanceConfig,
+  allCategorizedCommits,
+  packageVersions,
+) {
   /** @type {ChangelogSection[]} */
   const sections = [];
 
-  // Get all package/section keys
-  const allKeys = Array.from(categorizedCommits.keys());
+  // Get all package/section keys from BOTH filtered and all commits
+  // This ensures packages with internal-only changes are still included
+  const keysFromFiltered = Array.from(categorizedCommits.keys());
+  const keysFromAll = allCategorizedCommits ? Array.from(allCategorizedCommits.keys()) : [];
+  const allKeys = Array.from(new Set([...keysFromFiltered, ...keysFromAll]));
 
   // Get plan order (base first, then other plans in config order)
   const planOrder = getPlanOrder(categorizationConfig);
@@ -110,6 +135,29 @@ function buildPackageSections(categorizedCommits, categorizationConfig, planInhe
     }
     const plan = getPackagePlan(key, categorizationConfig);
     group[plan] = key;
+  }
+
+  // Fill in missing plan variants for each package group
+  // If a base package exists, ensure all configured plan variants are included
+  for (const [basePackage, group] of packageGroups.entries()) {
+    // Skip generic scopes
+    if (categorizationConfig.packageNaming?.genericScopes?.includes(basePackage)) {
+      continue;
+    }
+
+    // If this group has a base package, add all plan variants
+    if (group.base && categorizationConfig.packageNaming?.plans) {
+      for (const [planName, planMappings] of Object.entries(
+        categorizationConfig.packageNaming.plans,
+      )) {
+        // Check if this plan has a variant for this base package
+        const planPackage = planMappings[group.base];
+        if (planPackage && !group[planName]) {
+          // Add the plan variant even though it has no commits
+          group[planName] = planPackage;
+        }
+      }
+    }
   }
 
   // Build sections following configured order
@@ -147,6 +195,8 @@ function buildPackageSections(categorizedCommits, categorizationConfig, planInhe
         categorizationConfig,
         categorizedCommits,
         planInheritanceConfig,
+        allCategorizedCommits,
+        packageVersions,
       );
 
       if (subsections.length > 0) {
@@ -199,6 +249,8 @@ function buildPackageSections(categorizedCommits, categorizationConfig, planInhe
         categorizationConfig,
         categorizedCommits,
         planInheritanceConfig,
+        allCategorizedCommits,
+        packageVersions,
       );
 
       if (subsections.length > 0) {
@@ -258,6 +310,8 @@ function getPlanOrder(config) {
  * @param {CategorizationConfig} categorizationConfig - Categorization configuration
  * @param {Map<string, CategorizedCommit[]>} categorizedCommits - All categorized commits
  * @param {PlanInheritanceConfig} [planInheritanceConfig] - Plan inheritance configuration
+ * @param {Map<string, CategorizedCommit[]>} [allCategorizedCommits] - All commits including filtered ones
+ * @param {Map<string, string>} [packageVersions] - Map of package name to version
  * @returns {ChangelogSection[]} Package subsections
  */
 function buildPackageSubsections(
@@ -266,11 +320,17 @@ function buildPackageSubsections(
   categorizationConfig,
   categorizedCommits,
   planInheritanceConfig,
+  allCategorizedCommits,
+  packageVersions,
 ) {
   /** @type {ChangelogSection[]} */
   const subsections = [];
 
-  // Process plans in order
+  // Track which packages have internal changes only
+  /** @type {Set<string>} */
+  const internalChangesPackages = new Set();
+
+  // First pass: identify packages with internal changes
   for (const plan of planOrder) {
     const packageKey = group[plan];
     if (!packageKey) {
@@ -278,16 +338,44 @@ function buildPackageSubsections(
     }
 
     const commits = categorizedCommits.get(packageKey) || [];
+    const allCommits = allCategorizedCommits?.get(packageKey) || [];
+    const hasInternalChanges = allCommits.length > 0 && commits.length === 0;
+
+    if (hasInternalChanges) {
+      internalChangesPackages.add(packageKey);
+    }
+  }
+
+  // Second pass: build subsections
+  for (const plan of planOrder) {
+    const packageKey = group[plan];
+    if (!packageKey) {
+      continue;
+    }
+
+    const commits = categorizedCommits.get(packageKey) || [];
+    const allCommits = allCategorizedCommits?.get(packageKey) || [];
+    const hasInternalChanges = allCommits.length > 0 && commits.length === 0;
+
     const badge = plan !== 'base' ? categorizationConfig.packageNaming?.badges?.[plan] : undefined;
+
+    // Format title with version if available
+    const version = packageVersions?.get(packageKey);
+    const title = version ? `${packageKey}@${version}` : packageKey;
 
     /** @type {ChangelogSection} */
     const section = {
       key: packageKey,
-      title: packageKey,
+      title,
       level: 4, // #### @mui/x-data-grid@8.19.0
       commits,
       badge,
     };
+
+    // Mark section as having internal changes only
+    if (hasInternalChanges) {
+      section.internalChangesOnly = true;
+    }
 
     // Check if we should show inheritance message (only for non-base plans)
     if (plan !== 'base' && planInheritanceConfig?.enabled) {
@@ -303,19 +391,33 @@ function buildPackageSubsections(
       }
 
       if (inheritFrom) {
-        if (commits.length === 0) {
+        // Check if the package we're inheriting from has internal changes only
+        const inheritFromHasInternalChanges = internalChangesPackages.has(inheritFrom);
+
+        // Format inheritFrom with version if available
+        const inheritFromVersion = packageVersions?.get(inheritFrom);
+        const inheritFromWithVersion = inheritFromVersion
+          ? `${inheritFrom}@${inheritFromVersion}`
+          : inheritFrom;
+
+        if (inheritFromHasInternalChanges) {
+          // If inheriting from a package with internal changes, show "Internal changes."
+          section.internalChangesOnly = true;
+        } else if (commits.length === 0 && !hasInternalChanges) {
           // Same changes only
           section.inheritance = {
             type: 'same',
-            from: inheritFrom,
+            from: inheritFromWithVersion,
           };
-        } else {
+        } else if (commits.length > 0) {
           // Plus additional changes
           section.inheritance = {
             type: 'plus',
-            from: inheritFrom,
+            from: inheritFromWithVersion,
           };
         }
+        // If hasInternalChanges but no commits, don't show inheritance message
+        // Instead show "Internal changes."
       }
     }
 

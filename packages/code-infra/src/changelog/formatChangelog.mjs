@@ -102,6 +102,19 @@ function formatIntro(introConfig, contributors, lines) {
     lines.push(message);
     lines.push('');
   }
+
+  // Add highlights section if prefix is configured
+  if (introConfig.highlightsPrefix) {
+    lines.push(introConfig.highlightsPrefix);
+    lines.push('');
+    lines.push('<!-- Highlights placeholder - manually add key features/changes here -->');
+    lines.push('<!-- Example:');
+    lines.push('- 🚀 New feature: Description of feature');
+    lines.push('- ⚡ Performance: Description of improvement');
+    lines.push('- 🐛 Bug fix: Description of fix');
+    lines.push('-->');
+    lines.push('');
+  }
 }
 
 /**
@@ -122,28 +135,34 @@ function formatSection(section, config, lines, parentSection) {
     lines.push('');
   }
 
-  // Add inheritance message if applicable
-  if (section.inheritance) {
-    const message =
-      section.inheritance.type === 'same'
-        ? config.planInheritance?.messages.same
-        : config.planInheritance?.messages.plus;
+  // Check if this section has internal changes only
+  if (section.internalChangesOnly) {
+    lines.push('Internal changes.');
+    lines.push('');
+  } else {
+    // Add inheritance message if applicable
+    if (section.inheritance) {
+      const message =
+        section.inheritance.type === 'same'
+          ? config.planInheritance?.messages.same
+          : config.planInheritance?.messages.plus;
 
-    if (message) {
-      const formattedMessage = message.replace('{basePackage}', section.inheritance.from);
-      lines.push(formattedMessage);
+      if (message) {
+        const formattedMessage = message.replace('{basePackage}', section.inheritance.from);
+        lines.push(formattedMessage);
+        lines.push('');
+      }
+    }
+
+    // Add commits (sorted by PR number ascending - oldest first)
+    if (section.commits.length > 0) {
+      const sortedCommits = [...section.commits].sort((a, b) => a.prNumber - b.prNumber);
+      for (const commit of sortedCommits) {
+        const formattedMessage = formatCommitMessage(commit, config);
+        lines.push(`- ${formattedMessage}`);
+      }
       lines.push('');
     }
-  }
-
-  // Add commits (sorted by PR number ascending - oldest first)
-  if (section.commits.length > 0) {
-    const sortedCommits = [...section.commits].sort((a, b) => a.prNumber - b.prNumber);
-    for (const commit of sortedCommits) {
-      const formattedMessage = formatCommitMessage(commit, config);
-      lines.push(`- ${formattedMessage}`);
-    }
-    lines.push('');
   }
 
   // Add subsections
