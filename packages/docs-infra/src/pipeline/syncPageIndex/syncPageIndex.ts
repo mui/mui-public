@@ -193,7 +193,6 @@ export interface SyncPageIndexOptions {
  * await syncPageIndex({
  *   pagePath: './app/components/button/page.mdx',
  *   metadata: {
- *     slug: 'button',
  *     path: './button/page.mdx',
  *     title: 'Button',
  *     description: 'A button component.',
@@ -302,7 +301,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
   // Step 3: Check if any of our metadata items need updating
   let needsUpdate = false;
   for (const metaItem of metadataArray) {
-    const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
+    const existingPageIndex = existingPages.findIndex((p) => p.path === metaItem.path);
     if (existingPageIndex >= 0) {
       const existingPage = existingPages[existingPageIndex];
       // Compare metadata - if different, we need to update
@@ -456,7 +455,6 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
 
       // Extract metadata for the current index to add to its parent
       const indexMetadata: PageMetadata = {
-        slug: basename(parentDir),
         path: `./${relativePathFromGrandparent}/${indexFileName}`,
         title: indexTitle,
         description: 'No description available',
@@ -473,11 +471,24 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
             continue;
           }
 
-          sections[childPage.slug] = {
-            title: childPage.title || childPage.slug,
-            titleMarkdown: childPage.title
-              ? [{ type: 'text', value: childPage.title }]
-              : [{ type: 'text', value: childPage.slug }],
+          // Extract the last non-route-group segment from path for the section key
+          // e.g., './button/page.mdx' -> 'button'
+          // e.g., './button/(internal)/page.mdx' -> 'button'
+          const segments = dirname(childPage.path).split('/');
+          const pathSlug =
+            segments.reduceRight<string | null>((acc, segment) => {
+              if (acc) {
+                return acc; // Already found a match
+              }
+              if (segment && !isRouteGroup(segment) && segment !== '.') {
+                return segment;
+              }
+              return null;
+            }, null) || '';
+
+          sections[pathSlug] = {
+            title: childPage.title,
+            titleMarkdown: [{ type: 'text', value: childPage.title }],
             children: {}, // Don't include any subsections in parent index
           };
         }

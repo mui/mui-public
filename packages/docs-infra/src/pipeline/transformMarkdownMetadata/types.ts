@@ -97,7 +97,7 @@ export type HeadingHierarchy = {
  * Extracted metadata from markdown/MDX files
  */
 export interface ExtractedMetadata {
-  title?: string;
+  title: string;
   description?: string;
   descriptionMarkdown?: PhrasingContent[]; // AST nodes preserving formatting (inline code, bold, italics, links)
   keywords?: string[];

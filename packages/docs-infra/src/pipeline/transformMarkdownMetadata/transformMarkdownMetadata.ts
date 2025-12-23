@@ -261,30 +261,11 @@ function toPageMetadata(
   filePath: string,
   options: ToPageMetadataOptions = {},
 ): PageMetadata {
-  // Extract the slug from the file path (directory name containing the page)
   const parts = filePath.split('/');
   const pageFileName = parts[parts.length - 1]; // e.g., 'page.mdx'
 
   // Get the directory containing the page file
   const pageDir = dirname(filePath);
-
-  // Find the directory name by looking backwards for the first non-route-group directory
-  let dirName = '';
-  for (let i = parts.length - 2; i >= 0; i -= 1) {
-    if (!isRouteGroup(parts[i])) {
-      dirName = parts[i];
-      break;
-    }
-  }
-
-  // Generate slug from title if available, otherwise from directory name
-  // This ensures consistency with section slug generation (kebab-case for multi-word, lowercase for camelCase)
-  const slug = metadata.title
-    ? metadata.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-    : dirName;
 
   // Calculate parent directory (skipping route groups, matching syncPageIndex behavior)
   const parentDir = getParentDir(pageDir, true);
@@ -294,7 +275,6 @@ function toPageMetadata(
   const path = `./${relativePath}/${pageFileName}`;
 
   return {
-    slug,
     path,
     title: metadata.title,
     description: options.visibleDescription ?? metadata.description,
@@ -776,8 +756,29 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       const descriptionValue = metaDescription || firstParagraphAfterH1 || undefined;
       const descriptionMarkdownValue = metaDescription ? [] : firstParagraphMarkdown || undefined;
 
+      // Derive title from H1, or from file path's last non-route-group segment
+      let title: string | null = firstH1;
+      if (!title) {
+        // Extract last non-route-group segment from path (e.g., './button-group/page.mdx' -> 'Button Group')
+        const segments = file.path.replace(/\/page\.mdx$/, '').split('/');
+        title =
+          segments.reduceRight<string | null>((acc, segment) => {
+            if (acc) {
+              return acc; // Already found a match
+            }
+            if (segment && !segment.startsWith('(') && !segment.endsWith(')') && segment !== '.') {
+              // Convert dashes to spaces and capitalize each word
+              return segment
+                .split('-')
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+            }
+            return null;
+          }, null) || 'Index';
+      }
+
       metadata = {
-        title: firstH1 || undefined,
+        title,
         description: descriptionValue,
         descriptionMarkdown: descriptionMarkdownValue,
         keywords: metaKeywords || undefined,
@@ -865,7 +866,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             pages: pagesMetadata.pages.map(
               (page): SitemapPage => ({
                 title: page.title,
-                slug: page.slug,
                 path: page.path,
                 description: page.description,
                 keywords: page.keywords,

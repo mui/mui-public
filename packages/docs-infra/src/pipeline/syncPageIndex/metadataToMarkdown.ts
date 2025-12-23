@@ -44,8 +44,6 @@ function astNodesToMarkdown(nodes: any[]): string {
 }
 
 export interface PageMetadata extends ExtractedMetadata {
-  /** The slug/path for this page (e.g., 'button', 'checkbox') */
-  slug: string;
   /** The relative path to the page's MDX file */
   path: string;
   /** Tags for this entry (e.g., 'New', 'Hot', 'Beta') */
@@ -458,7 +456,7 @@ export function metadataToMarkdownAst(
   // Add page list (editable section) as proper list items
   const listItems: any[] = [];
   for (const page of pages) {
-    const pageTitle = page.title || page.slug;
+    const pageTitle = page.title;
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -475,8 +473,9 @@ export function metadataToMarkdownAst(
         }
       }
     } else {
-      // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
-      paragraphChildren = [link(`#${page.slug}`, pageTitle)];
+      // Format: - [Title](#anchor) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+      // Anchor is derived from title to match the H2 heading
+      paragraphChildren = [link(`#${titleToSlug(pageTitle)}`, pageTitle)];
 
       // Add tags if present (directly after component name)
       if (page.tags && page.tags.length > 0) {
@@ -516,7 +515,7 @@ export function metadataToMarkdownAst(
 
   // Add detailed page sections (non-editable)
   for (const page of pages) {
-    const pageTitle = page.title || page.slug;
+    const pageTitle = page.title;
     // Note: We don't replace newlines here to allow natural line breaks in detailed sections
     const description = page.description || 'No description available';
     const keywords = page.keywords || [];
@@ -815,7 +814,7 @@ export function metadataToMarkdown(
 
   // Add page list (editable section)
   for (const page of pages) {
-    const pageTitle = page.title || page.slug;
+    const pageTitle = page.title;
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -832,8 +831,9 @@ export function metadataToMarkdown(
         }
       }
     } else {
-      // Format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
-      line = `- [${pageTitle}](#${page.slug})`;
+      // Format: - [Title](#anchor) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+      // Anchor is derived from title to match the H2 heading
+      line = `- [${pageTitle}](#${titleToSlug(pageTitle)})`;
 
       // Add tags if present (directly after component name)
       if (page.tags && page.tags.length > 0) {
@@ -868,7 +868,7 @@ export function metadataToMarkdown(
       continue;
     }
 
-    const pageTitle = page.title || page.slug;
+    const pageTitle = page.title;
     // Use descriptionMarkdown to preserve formatting if available
     // Note: We don't replace newlines here to allow natural line breaks in detailed sections
     let pageDescription: string;
@@ -1110,9 +1110,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           const pageTitle = extractPlainTextFromNode(singleLink);
           const path = singleLink.url;
 
-          // Generate slug from title for consistency
-          const slug = titleToSlug(pageTitle);
-
           // Extract tags from text nodes after the link
           // Tags are in the format [Tag] where Tag can be New, Hot, Beta, External, etc.
           const tags: string[] = [];
@@ -1136,7 +1133,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           // These entries are preserved as-is in the editable section
           // They won't have detail sections generated
           pages.push({
-            slug,
             path,
             title: pageTitle,
             description: 'No description available',
@@ -1144,12 +1140,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             skipDetailSection: true, // Mark as external/single-link entry
           });
         } else if (links.length >= 2) {
-          // Two-link format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+          // Two-link format: - [Title](#anchor) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
           const sectionLink = links[0];
           const docsLink = links[1];
 
           const pageTitle = extractPlainTextFromNode(sectionLink);
-          const slug = sectionLink.url.replace('#', ''); // Extract slug from #slug
           const path = docsLink.url; // Get path from full docs link
 
           // Extract tags from text nodes between the section link and full docs link
@@ -1177,10 +1172,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             }
           }
 
-          // Only extract slug, path, title, and tags from the editable list
+          // Only extract path, title, and tags from the editable list
           // The description will be filled in from the details section
           pages.push({
-            slug,
             path,
             title: pageTitle,
             description: 'No description available', // Will be updated from details section
@@ -1198,9 +1192,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         const headingNode = node as HeadingNode;
         if (headingNode.depth === 2) {
           // Save previous page if exists
-          if (currentPage?.slug) {
-            const savedSlug = currentPage.slug;
-            const foundIndex = pages.findIndex((c) => c.slug === savedSlug);
+          if (currentPage?.title) {
+            const savedTitle = currentPage.title;
+            const foundIndex = pages.findIndex((c) => c.title === savedTitle);
             if (foundIndex !== -1) {
               pages[foundIndex] = {
                 ...pages[foundIndex],
@@ -1214,11 +1208,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           const existingPage = pages.find((p) => p.title === pageTitle);
           if (existingPage) {
             // Start updating this existing page
-            currentPage = { slug: existingPage.slug, title: pageTitle };
+            currentPage = { title: pageTitle };
           } else {
-            // If no matching page found, create a new one with slug from title
-            const slug = titleToSlug(pageTitle);
-            currentPage = { slug, title: pageTitle };
+            // If no matching page found, this is an orphan detail section
+            // Skip it since we don't have a path for it
+            currentPage = { title: pageTitle };
           }
           return;
         }
@@ -1286,7 +1280,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         const imageNode = node as ImageNode;
         currentPage.image = {
           url: imageNode.url,
-          alt: imageNode.alt || currentPage.title || currentPage.slug || '',
+          alt: imageNode.alt || currentPage.title,
         };
         return;
       }
@@ -1328,8 +1322,8 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   // Save last page if exists
   if (currentPage) {
     const partialPage = currentPage as Partial<PageMetadata>;
-    if (partialPage.slug) {
-      const foundIndex = pages.findIndex((c) => c.slug === partialPage.slug);
+    if (partialPage.title) {
+      const foundIndex = pages.findIndex((c) => c.title === partialPage.title);
       if (foundIndex !== -1) {
         pages[foundIndex] = {
           ...pages[foundIndex],
