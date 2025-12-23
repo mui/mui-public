@@ -52,6 +52,16 @@
   overflow-x: auto;
 }
 
+.codeBlock code {
+  display: block;
+  white-space: normal;
+}
+
+.codeBlock > code > span > span {
+  display: block;
+  white-space: pre;
+}
+
 .name {
   display: flex;
   align-items: center;

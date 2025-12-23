@@ -8,6 +8,7 @@ import type {
   LoadSource,
   LoadVariantMeta,
   ParseSource,
+  SourceEnhancers,
 } from '../CodeHighlighter/types';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
@@ -26,11 +27,13 @@ export function CodeProvider({
   loadCodeMeta,
   loadVariantMeta,
   loadSource,
+  sourceEnhancers,
 }: {
   children: React.ReactNode;
   loadCodeMeta?: LoadCodeMeta;
   loadVariantMeta?: LoadVariantMeta;
   loadSource?: LoadSource;
+  sourceEnhancers?: SourceEnhancers;
 }) {
   const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
 
@@ -81,6 +84,7 @@ export function CodeProvider({
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
+      sourceEnhancers,
       // Provide the heavy functions
       loadCodeFallback,
       loadCodeVariant,
@@ -89,7 +93,7 @@ export function CodeProvider({
       computeHastDeltas,
       getAvailableTransforms,
     }),
-    [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta],
+    [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta, sourceEnhancers],
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;
