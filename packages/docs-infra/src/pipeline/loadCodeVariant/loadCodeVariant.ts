@@ -3,7 +3,7 @@ import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
 import { encode } from 'uint8-to-base64';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type {
   VariantCode,
@@ -94,15 +94,29 @@ function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): s
     processedNestedKey = `./${nestedKey}`;
   }
 
-  // Use path module for clean path resolution
+  // Get the directory of the source file
   const sourceDir = path.dirname(sourceFileKey);
-  const resolvedPath = path.resolve(sourceDir, processedNestedKey);
 
-  // Convert back to relative path from current directory
-  const result = path.relative('.', resolvedPath);
+  // If sourceDir is '.' (current directory), just return the processed nested key
+  // This avoids path.resolve which can produce absolute paths on Windows
+  if (sourceDir === '.') {
+    // Remove leading './' if present for consistency
+    return processedNestedKey.startsWith('./') ? processedNestedKey.slice(2) : processedNestedKey;
+  }
 
-  // Return empty string if result is '.' (current directory)
-  return result === '.' ? '' : result;
+  // Use path.join instead of path.resolve to avoid producing absolute paths
+  // path.join keeps paths relative, while path.resolve can make them absolute
+  const joinedPath = path.join(sourceDir, processedNestedKey);
+
+  // Normalize the path to clean up any ../ or ./ segments
+  const normalizedPath = path.normalize(joinedPath);
+
+  // Ensure we return a clean relative path (remove leading './' if present after normalization)
+  if (normalizedPath.startsWith('./')) {
+    return normalizedPath.slice(2);
+  }
+
+  return normalizedPath === '.' ? '' : normalizedPath;
 }
 
 /**
@@ -150,6 +164,7 @@ async function loadSingleFile(
   options: LoadFileOptions = {},
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
+  language?: string,
 ): Promise<{
   source: VariantSource;
   transforms?: Transforms;
@@ -312,7 +327,7 @@ async function loadSingleFile(
     try {
       const sourceString = finalSource;
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, fileName);
+      finalSource = parseSource(finalSource, fileName, language);
 
       currentMark = performanceMeasure(
         currentMark,
@@ -433,6 +448,10 @@ async function loadExtraFiles(
         fileUrl = baseUrl; // Use base URL as fallback
       }
 
+      // Derive language from fileName for extra files
+      const extraFileExtension = fileName.slice(fileName.lastIndexOf('.'));
+      const extraFileLanguage = getLanguageFromExtension(extraFileExtension);
+
       // Load the file (this will handle recursive extra files)
       const fileResult = await loadSingleFile(
         variantName,
@@ -447,6 +466,7 @@ async function loadExtraFiles(
         { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
         allFilesListed,
         knownExtraFiles,
+        extraFileLanguage,
       );
 
       // Collect files used from this file load
@@ -500,9 +520,14 @@ async function loadExtraFiles(
       metadata = true;
     }
 
+    // Derive language from fileName extension for extra files
+    const extraFileExtension = normalizedFileName.slice(normalizedFileName.lastIndexOf('.'));
+    const extraFileLanguage = getLanguageFromExtension(extraFileExtension);
+
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
-      transforms: result.transforms,
+      ...(extraFileLanguage && { language: extraFileLanguage }),
+      ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
     };
 
@@ -589,7 +614,14 @@ export async function loadCodeVariant(
     throw new Error(`Variant is missing from code: ${variantName}`);
   }
 
-  const { sourceParser, loadSource, loadVariantMeta, sourceTransformers, globalsCode } = options;
+  const {
+    sourceParser,
+    loadSource,
+    loadVariantMeta,
+    sourceTransformers,
+    globalsCode,
+    disableParsing,
+  } = options;
 
   // Create a cache for loadSource calls scoped to this loadCodeVariant call
   const loadSourceCache = new Map<
@@ -659,23 +691,39 @@ export async function loadCodeVariant(
   // Load main file
   const fileName = variant.fileName || (url ? getFileNameFromUrl(url).fileName : undefined);
 
-  // If we don't have a fileName and no URL, we can't parse or transform but can still return the code
+  // Derive language from variant.language or from fileName extension
+  // Normalize the language to its canonical form (e.g., 'js' -> 'javascript')
+  let language = variant.language ? normalizeLanguage(variant.language) : undefined;
+  if (!language && fileName) {
+    const extension = fileName.slice(fileName.lastIndexOf('.'));
+    language = getLanguageFromExtension(extension);
+  }
+
+  // If we don't have a fileName and no URL, we can still parse if we have language
   if (!fileName && !url) {
-    // Return the variant as-is without parsing or transforms
+    let finalSource: VariantSource | undefined = variant.source;
+
+    // Parse the source if we have language and sourceParser
+    if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
+      const parseSource = await sourceParser;
+      finalSource = parseSource(finalSource, '', language);
+    } else if (typeof finalSource === 'string') {
+      // No language or parser - return as plain text
+      finalSource = {
+        type: 'root',
+        children: [
+          {
+            type: 'text',
+            value: finalSource || '',
+          },
+        ],
+      };
+    }
+
     const finalVariant: VariantCode = {
       ...variant,
-      source:
-        typeof variant.source === 'string'
-          ? {
-              type: 'root',
-              children: [
-                {
-                  type: 'text',
-                  value: variant.source || '',
-                },
-              ],
-            }
-          : variant.source,
+      language,
+      source: finalSource,
     };
 
     return {
@@ -705,6 +753,7 @@ export async function loadCodeVariant(
     { ...options, loadedFiles },
     variant.allFilesListed || false,
     knownExtraFiles,
+    language,
   );
 
   // Add files used from main file loading
@@ -901,9 +950,13 @@ export async function loadCodeVariant(
           if (typeof value !== 'string') {
             // Inline source - preserve metadata if it was marked as globals
             const metadata = value.metadata || globalsFileKeys.has(key) ? true : undefined;
+            // Derive language from filename extension
+            const extension = key.slice(key.lastIndexOf('.'));
+            const extraFileLanguage = getLanguageFromExtension(extension);
             allExtraFiles[normalizePathKey(key)] = {
               source: value.source!,
-              transforms: value.transforms,
+              ...(extraFileLanguage && { language: extraFileLanguage }),
+              ...(value.transforms && { transforms: value.transforms }),
               ...(metadata !== undefined && { metadata }),
             };
           }
@@ -970,6 +1023,7 @@ export async function loadCodeVariant(
 
   const finalVariant: VariantCode = {
     ...variant,
+    language,
     source: mainFileResult.source,
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,

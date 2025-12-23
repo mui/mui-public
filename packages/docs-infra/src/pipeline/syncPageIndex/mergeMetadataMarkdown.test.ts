@@ -413,20 +413,12 @@ Old description.
         {
           slug: 'button',
           path: './button/page.mdx',
-          title: 'Button',
-          description: 'New description with more details.',
+          title: 'Button Component',
+          description: 'A comprehensive button component.',
           keywords: ['interactive', 'input'],
-          openGraph: {
-            title: 'Button Component',
-            description: 'A comprehensive button component.',
-            images: [
-              {
-                url: 'https://example.com/button.png',
-                width: 800,
-                height: 600,
-                alt: 'Button preview',
-              },
-            ],
+          image: {
+            url: 'https://example.com/button.png',
+            alt: 'Button preview',
           },
         },
       ],

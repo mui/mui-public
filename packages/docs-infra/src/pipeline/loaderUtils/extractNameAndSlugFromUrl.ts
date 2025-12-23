@@ -1,3 +1,5 @@
+import { fileUrlToPortablePath } from './fileUrlToPortablePath';
+
 /**
  * Extracts and formats a name and slug from a URL path.
  * This utility takes the last meaningful segment of a URL path and formats it
@@ -88,17 +90,15 @@ function toKebabCase(str: string): string {
  * @returns The last meaningful path segment
  */
 function extractLastSegment(url: string): string {
-  // Handle file: URLs by removing the protocol
-  let path = url;
-  if (url.startsWith('file:')) {
-    path = url.replace(/^file:\/\//, '');
-  }
+  // Convert to portable path format for consistent handling across platforms
+  // This handles file:// URLs, Windows paths with backslashes, and regular paths
+  const path = fileUrlToPortablePath(url);
 
   // Strip query parameters and hash fragments before processing
-  path = path.split('?')[0].split('#')[0];
+  const cleanPath = path.split('?')[0].split('#')[0];
 
   // Split the path into segments and filter out empty ones
-  const segments = path.split('/').filter(Boolean);
+  const segments = cleanPath.split('/').filter(Boolean);
 
   if (segments.length === 0) {
     throw new Error('Could not extract meaningful segment from URL');

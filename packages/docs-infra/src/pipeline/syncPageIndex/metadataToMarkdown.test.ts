@@ -18,17 +18,9 @@ describe('metadataToMarkdown', () => {
           description: 'A button component.',
           keywords: ['interactive', 'input'],
           embeddings: [0.1, 0.2, 0.3],
-          openGraph: {
-            title: 'Button',
-            description: 'A button component.',
-            images: [
-              {
-                url: 'https://example.com/button.png',
-                width: 800,
-                height: 600,
-                alt: 'A simple button',
-              },
-            ],
+          image: {
+            url: 'https://example.com/button.png',
+            alt: 'A simple button',
           },
         },
       ],
@@ -153,31 +145,6 @@ describe('metadataToMarkdown', () => {
     const result = metadataToMarkdown(data);
 
     expect(result).not.toContain('Keywords:');
-  });
-
-  it('should prefer openGraph data over regular metadata', () => {
-    const data: PagesMetadata = {
-      title: 'Components',
-      pages: [
-        {
-          slug: 'button',
-          path: './button/page.mdx',
-          title: 'Regular Button',
-          description: 'Regular description',
-          openGraph: {
-            title: 'OpenGraph Button',
-            description: 'OpenGraph description',
-          },
-        },
-      ],
-    };
-
-    const result = metadataToMarkdown(data);
-
-    expect(result).toContain('- [OpenGraph Button](#button) - [Full Docs](./button/page.mdx)');
-    expect(result).toContain('## OpenGraph Button');
-    expect(result).not.toContain('Regular Button');
-    expect(result).not.toContain('Regular description');
   });
 
   it('should include description below title', () => {
@@ -353,15 +320,9 @@ describe('metadataToMarkdownAst', () => {
           path: './button/page.mdx',
           title: 'Button',
           description: 'A button component.',
-          openGraph: {
-            images: [
-              {
-                url: 'https://example.com/button.png',
-                width: 800,
-                height: 600,
-                alt: 'Button image',
-              },
-            ],
+          image: {
+            url: 'https://example.com/button.png',
+            alt: 'Button image',
           },
         },
       ],
@@ -458,8 +419,8 @@ A button component.
     expect(page?.description).toBe('A button component.');
     expect(page?.keywords).toEqual(['interactive', 'input']);
     expect(page?.embeddings).toEqual([0.1, 0.2, 0.3]);
-    expect(page?.openGraph?.images?.[0].url).toBe('https://example.com/button.png');
-    expect(page?.openGraph?.images?.[0].alt).toBe('A simple button');
+    expect(page?.image?.url).toBe('https://example.com/button.png');
+    expect(page?.image?.alt).toBe('A simple button');
   });
 
   it('should parse multiple pages', async () => {
@@ -510,7 +471,7 @@ A button component.
 
     const result = await markdownToMetadata(markdown);
 
-    expect(result?.pages[0].openGraph?.images).toBeUndefined();
+    expect(result?.pages[0]?.image).toBeUndefined();
   });
 
   it('should handle pages without keywords', async () => {
@@ -657,7 +618,7 @@ A more detailed button component description.
     // Detail section should override editable section
     expect(page?.description).toBe('A more detailed button component description.');
     expect(page?.keywords).toEqual(['interactive', 'clickable']);
-    expect(page?.openGraph?.images?.[0].url).toBe('https://example.com/button.png');
+    expect(page?.image?.url).toBe('https://example.com/button.png');
   });
 
   it('should correctly parse actual generated markdown format', async () => {
@@ -1059,17 +1020,9 @@ describe('round-trip conversion', () => {
           description: 'A button component.',
           keywords: ['interactive', 'input'],
           embeddings: [0.1, 0.2, 0.3, 0.4, 0.5],
-          openGraph: {
-            title: 'Button',
-            description: 'A button component.',
-            images: [
-              {
-                url: 'https://example.com/button.png',
-                width: 800,
-                height: 600,
-                alt: 'Button image',
-              },
-            ],
+          image: {
+            url: 'https://example.com/button.png',
+            alt: 'Button image',
           },
         },
         {
@@ -1098,9 +1051,7 @@ describe('round-trip conversion', () => {
     expect(parsed?.pages[0].description).toBe(original.pages[0].description);
     expect(parsed?.pages[0].keywords).toEqual(original.pages[0].keywords);
     expect(parsed?.pages[0].embeddings).toEqual(original.pages[0].embeddings);
-    expect(parsed?.pages[0].openGraph?.images?.[0].url).toBe(
-      original.pages[0].openGraph?.images?.[0].url,
-    );
+    expect(parsed?.pages[0].image?.url).toBe(original.pages[0].image?.url);
 
     // Check second component
     expect(parsed?.pages[1].slug).toBe(original.pages[1].slug);

@@ -1,6 +1,8 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
 import {
   createPerformanceLogger,
@@ -55,8 +57,12 @@ export async function loadPrecomputedSitemap(
   performance.mark(currentMark);
 
   try {
+    // Convert the filesystem path to a file:// URL for cross-platform compatibility
+    // pathToFileURL handles Windows drive letters correctly (e.g., C:\... → file:///C:/...)
+    const resourceFileUrl = pathToFileURL(this.resourcePath).toString();
+
     // Parse the source to find a single createSitemap call
-    const sitemapCall = await parseCreateFactoryCall(source, this.resourcePath);
+    const sitemapCall = await parseCreateFactoryCall(source, resourceFileUrl);
 
     currentMark = performanceMeasure(
       currentMark,
@@ -106,7 +112,11 @@ export async function loadPrecomputedSitemap(
           metadata: SitemapSectionData | null;
           error: Error | null;
         }> => {
-          const absolutePath = importPath.startsWith('file://') ? importPath.slice(7) : importPath;
+          // Convert file:// URLs to proper file system paths for webpack's dependency tracking
+          // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+          const absolutePath = importPath.startsWith('file://')
+            ? fileURLToPath(importPath)
+            : importPath;
           try {
             const metadata = await loadPageIndex(importPath);
             return { key, absolutePath, metadata, error: null };

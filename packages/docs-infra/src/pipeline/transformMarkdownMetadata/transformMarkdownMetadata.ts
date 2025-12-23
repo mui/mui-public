@@ -301,8 +301,8 @@ function toPageMetadata(
     descriptionMarkdown: options.visibleDescriptionMarkdown ?? metadata.descriptionMarkdown,
     keywords: metadata.keywords,
     sections: metadata.sections,
-    openGraph: metadata.openGraph,
     embeddings: metadata.embeddings,
+    image: metadata.image,
   };
 }
 
@@ -750,27 +750,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         shouldUpdateMetadata = true;
       }
 
-      // Fill in openGraph title and description if missing
-      if (!mutableMetadata.openGraph) {
-        mutableMetadata.openGraph = {};
-      }
-
-      if (firstH1 && !mutableMetadata.openGraph.title) {
-        mutableMetadata.openGraph.title = firstH1;
-        shouldUpdateMetadata = true;
-      }
-
-      // Prioritize meta tag description over paragraph for openGraph
-      if (!mutableMetadata.openGraph.description) {
-        if (metaDescription) {
-          mutableMetadata.openGraph.description = metaDescription;
-          shouldUpdateMetadata = true;
-        } else if (firstParagraphAfterH1) {
-          mutableMetadata.openGraph.description = firstParagraphAfterH1;
-          shouldUpdateMetadata = true;
-        }
-      }
-
       // Add sections hierarchy if we have headings
       const hasSections =
         mutableMetadata.sections && Object.keys(mutableMetadata.sections).length > 0;
@@ -803,10 +782,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
         descriptionMarkdown: descriptionMarkdownValue,
         keywords: metaKeywords || undefined,
         sections: headings.length > 1 ? buildHeadingHierarchy(headings) : undefined,
-        openGraph: {
-          title: firstH1 || undefined,
-          description: descriptionValue,
-        },
       };
 
       // Create a new metadata export and add it to the tree
@@ -899,7 +874,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
                 exports: page.exports,
                 tags: page.tags,
                 skipDetailSection: page.skipDetailSection,
-                openGraph: page.openGraph,
+                image: page.image,
               }),
             ),
           };

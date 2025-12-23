@@ -61,8 +61,8 @@ console.log(greeting);
 
 ```html
 <pre>
-  <code class="language-js">console.log("Hello, world!");</code>
-  <code class="language-ts">console.log("Hello, world!" as string);</code>
+  <code class="language-javascript">console.log("Hello, world!");</code>
+  <code class="language-typescript">console.log("Hello, world!" as string);</code>
 </pre>
 ```
 
@@ -70,15 +70,15 @@ console.log(greeting);
 
 ```html
 <pre>
-  <code class="language-js" data-variant="Client">console.log("Running on client");</code>
-  <code class="language-js" data-variant="Server">console.log("Running on server");</code>
+  <code class="language-javascript" data-variant="Client">console.log("Running on client");</code>
+  <code class="language-javascript" data-variant="Server">console.log("Running on server");</code>
 </pre>
 ```
 
 ### Custom Filenames
 
 ```html
-<pre><code class="language-js" data-filename="app.jsx">
+<pre><code class="language-javascript" data-filename="app.jsx">
 const App = () => <div>Hello React!</div>;
 export default App;
 </code></pre>
@@ -89,7 +89,7 @@ export default App;
 By default, code blocks are processed for syntax highlighting only. To enable transformations (like TypeScript-to-JavaScript conversion), explicitly mark the code block:
 
 ```html
-<pre><code class="language-ts" data-transform="true">
+<pre><code class="language-typescript" data-transform="true">
 const greeting: string = "Hello, world!";
 console.log(greeting);
 </code></pre>
@@ -102,13 +102,52 @@ This will generate both the original TypeScript and the transformed JavaScript v
 After processing, the plugin:
 
 1. **Replaces content** with a placeholder message
-2. **Stores processed data** in `dataPrecompute` attribute as JSON
-3. **Preserves original structure** for the CodeHighlighter component
+2. **Stores processed data** in `data-precompute` attribute as JSON
+3. **Passes through metadata** like `data-name` and `data-slug` attributes
+4. **Serializes custom props** in `data-content-props` attribute as JSON
 
 ```html
-<pre data-precompute='{"Default":{"fileName":"index.ts","source":"...","transforms":{...}}}'>
+<pre
+  data-precompute='{"Default":{"fileName":"index.ts","source":"...","transforms":{...}}}'
+  data-name="My Demo"
+  data-slug="my-demo"
+  data-content-props='{"title":"Example Code"}'
+>
   Error: expected pre tag to be handled by CodeHighlighter
 </pre>
+```
+
+## Data Attributes
+
+The following `data-*` attributes are supported on code elements:
+
+### Reserved Attributes (handled internally)
+
+| Attribute        | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `data-filename`  | Sets the filename for the code variant                              |
+| `data-variant`   | Sets the variant name                                               |
+| `data-transform` | Enables TypeScript→JavaScript transformation when `"true"`          |
+| `data-name`      | Demo name, passed through to the output `<pre>` element             |
+| `data-slug`      | URL slug for the demo, passed through to the output `<pre>` element |
+
+### Custom Attributes (passed to content component)
+
+Any other `data-*` attributes on the code element are serialized as JSON in the `data-content-props` attribute on the output `<pre>` element. These can be used by your content component for custom features.
+
+**Example:**
+
+```html
+<pre><code class="language-typescript" data-title="Example">
+const x = 1;
+const y = 2;
+</code></pre>
+```
+
+The output `<pre>` element will include:
+
+```html
+<pre data-content-props='{"title":"Example"}' ...></pre>
 ```
 
 ## Variant Naming
@@ -122,18 +161,19 @@ After processing, the plugin:
 
 ## Supported Languages
 
-| Class                                | Extension | Notes                                                 |
-| ------------------------------------ | --------- | ----------------------------------------------------- |
-| `language-js`, `language-javascript` | `.js`     |                                                       |
-| `language-ts`, `language-typescript` | `.ts`     | Includes TS→JS transform when `data-transform="true"` |
-| `language-tsx`                       | `.tsx`    | React TypeScript                                      |
-| `language-jsx`                       | `.jsx`    | React JavaScript                                      |
-| `language-json`                      | `.json`   |                                                       |
-| `language-html`                      | `.html`   |                                                       |
-| `language-css`                       | `.css`    |                                                       |
-| `language-bash`, `language-shell`    | `.sh`     |                                                       |
-| `language-yaml`, `language-yml`      | `.yaml`   |                                                       |
-| Others                               | `.txt`    | Fallback                                              |
+| `class="language-*"` | Extension | Notes                                                                    |
+| -------------------- | --------- | ------------------------------------------------------------------------ |
+| `javascript`         | `.js`     | Also accepts `js` (normalized)                                           |
+| `typescript`         | `.ts`     | Also accepts `ts`; includes TS→JS transform when `data-transform="true"` |
+| `tsx`                | `.tsx`    | React TypeScript                                                         |
+| `jsx`                | `.jsx`    | React JavaScript                                                         |
+| `json`               | `.json`   |                                                                          |
+| `html`               | `.html`   |                                                                          |
+| `css`                | `.css`    |                                                                          |
+| `shell`              | `.sh`     | Also accepts `bash`, `sh`                                                |
+| `yaml`               | `.yaml`   | Also accepts `yml`                                                       |
+| `markdown`           | `.md`     | Also accepts `md`                                                        |
+| Others               | `.txt`    | Fallback                                                                 |
 
 ## Integration with transformMarkdownCodeVariants
 
@@ -164,8 +204,8 @@ pnpm install package
 
 ```html
 <pre>
-  <code class="language-bash" data-variant="npm">npm install package</code>
-  <code class="language-bash" data-variant="pnpm">pnpm install package</code>
+  <code class="language-shell" data-variant="npm">npm install package</code>
+  <code class="language-shell" data-variant="pnpm">pnpm install package</code>
 </pre>
 ```
 

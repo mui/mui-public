@@ -1,6 +1,6 @@
 # Transform Markdown Metadata
 
-A remark plugin that extracts metadata from MDX files and optionally updates parent directory index pages. This plugin automatically collects page titles, descriptions, keywords, hierarchical section structures, and Open Graph data to create searchable, navigable documentation indexes.
+A remark plugin that extracts metadata from MDX files and optionally updates parent directory index pages. This plugin automatically collects page titles, descriptions, keywords, and hierarchical section structures to create searchable, navigable documentation indexes.
 
 ## Overview
 
@@ -24,7 +24,7 @@ The plugin automatically merges extracted metadata into your page's `export cons
 - **Metadata merging**: Automatically updates the page's `export const metadata` object
 - **Smart defaults**: Only fills in missing fields—never overwrites user-defined values
 - **ES module metadata**: Works with Next.js [metadata object](https://nextjs.org/docs/app/api-reference/functions/generate-metadata#the-metadata-object) format
-- **Open Graph support**: Extracts OG metadata for social media previews
+- **Open Graph inheritance**: Extracted title and description are automatically inherited by Next.js for social media previews
 - **Index auto-generation**: Maintains parent directory indexes automatically
 
 ## Installation & Usage
@@ -132,7 +132,6 @@ A suffix to append to the title in the exported `metadata` object. This is usefu
 
 The suffix is only applied to the `export const metadata` title—it does not affect:
 
-- The `openGraph.title` (keeps the original title for social sharing)
 - The title used in index extraction
 - Any internal metadata processing
 
@@ -248,7 +247,10 @@ interface SitemapPage {
   exports?: Record<string, SitemapExport>;
   tags?: string[];
   skipDetailSection?: boolean;
-  openGraph?: { title?: string; description?: string };
+  image?: {
+    url: string;
+    alt?: string;
+  };
 }
 ```
 
@@ -376,9 +378,6 @@ The CodeHighlighter component provides syntax highlighting.
 export const metadata = {
   description: 'Override the first paragraph for SEO purposes',
   keywords: ['syntax', 'highlighting', 'code', 'react', 'component'],
-  openGraph: {
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
-  },
 };
 
 ;
@@ -395,7 +394,7 @@ The plugin also supports `<meta>` or `<Meta>` tags anywhere in the document for 
 
 ### Open Graph Example
 
-Only add metadata exports for computer-specific fields that can't be derived from content:
+Next.js automatically inherits `metadata.title` and `metadata.description` for Open Graph, so you only need to specify `openGraph` when adding images:
 
 ```mdx
 # CodeHighlighter
@@ -879,18 +878,6 @@ Page content here.
 
 export const metadata = {
   keywords: ['react', 'components', 'ui'],
-  openGraph: {
-    title: 'OG Title',
-    description: 'OG Description',
-    images: [
-      {
-        url: '/images/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Preview Image',
-      },
-    ],
-  },
 };
 
 ;
@@ -903,18 +890,6 @@ export const metadata = {
   "title": "Custom Title",
   "description": "Custom description text.",
   "keywords": ["react", "components", "ui"],
-  "openGraph": {
-    "title": "OG Title",
-    "description": "OG Description",
-    "images": [
-      {
-        "url": "/images/og-image.png",
-        "width": 1200,
-        "height": 630,
-        "alt": "Preview Image"
-      }
-    ]
-  },
   "sections": {
     /* ... */
   }
@@ -932,15 +907,10 @@ interface ExtractedMetadata {
   descriptionMarkdown?: PhrasingContent[]; // Markdown AST nodes preserving formatting
   keywords?: string[];
   sections?: HeadingHierarchy;
-  openGraph?: {
-    title?: string;
-    description?: string;
-    images?: Array<{
-      url: string;
-      width: number;
-      height: number;
-      alt: string;
-    }>;
+  embeddings?: number[];
+  image?: {
+    url: string;
+    alt?: string;
   };
 }
 

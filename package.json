@@ -40,18 +40,18 @@
     }
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
+    "@actions/core": "^2.0.0",
     "@actions/github": "^6.0.1",
-    "@eslint/compat": "^1.4.1",
+    "@eslint/compat": "^2.0.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
-    "@next/eslint-plugin-next": "^15.5.6",
+    "@next/eslint-plugin-next": "^16.0.10",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node22": "^22.0.5",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript-eslint/eslint-plugin": "8.46.3",
-    "@typescript-eslint/parser": "^8.46.3",
+    "@typescript-eslint/eslint-plugin": "8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
     "@vitest/coverage-v8": "^4.0.7",
     "eslint": "^9.39.1",
     "jsdom": "^27.1.0",
@@ -59,19 +59,19 @@
     "prettier": "~3.6.2",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.3",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.7"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
     "eslint-plugin-n": "^17.23.1",
-    "markdownlint-cli2": "^0.19.1",
+    "markdownlint-cli2": "^0.20.0",
     "stylelint": "^16.26.1"
   },
-  "packageManager": "pnpm@10.20.0",
+  "packageManager": "pnpm@10.25.0",
   "engines": {
-    "pnpm": "10.20.0",
+    "pnpm": "10.25.0",
     "node": ">=22.18.0"
   }
 }

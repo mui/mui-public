@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Sitemap } from '../../createSitemap/types';
 import { createLoadServerPageIndex } from '../loadServerPageIndex/loadServerPageIndex';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
@@ -59,8 +60,9 @@ export function createLoadServerSitemap(
   options: CreateLoadServerSitemapOptions = {},
 ): LoadServerSitemap {
   return async function loadSitemap(url: string): Promise<Sitemap> {
-    // Remove file:// prefix if present to get file path
-    const filePath = url.startsWith('file://') ? url.slice(7) : url;
+    // Convert file:// URL to proper file system path for reading the file
+    // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
     // Determine root context from file path if not provided
     const rootContext = options.rootContext ?? path.dirname(filePath);

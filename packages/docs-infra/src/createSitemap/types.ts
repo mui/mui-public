@@ -38,15 +38,9 @@ export interface SitemapPage {
   exports?: Record<string, SitemapExport>;
   tags?: string[];
   skipDetailSection?: boolean;
-  openGraph?: {
-    title?: string;
-    description?: string;
-    images?: Array<{
-      url: string;
-      width: number;
-      height: number;
-      alt: string;
-    }>;
+  image?: {
+    url: string;
+    alt?: string;
   };
 }
 

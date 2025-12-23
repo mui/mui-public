@@ -1,10 +1,10 @@
-// webpack does not like node: imports
-// eslint-disable-next-line n/prefer-node-protocol
-import path from 'path';
+import * as path from 'path-module';
+import { pathToFileURL } from 'node:url';
 
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Link } from 'mdast';
+import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
 
 /**
  * Remark plugin that strips page file extensions from URLs.
@@ -27,7 +27,9 @@ export const transformMarkdownRelativePaths: Plugin = () => {
         node.url = node.url.replace(/\/page\.(tsx|jsx|js|mdx|md)(\?[^#]*)?(#.*)?$/g, '$2$3');
 
         if ((node.url.startsWith('./') || node.url.startsWith('../')) && file.path) {
-          const currentDir = path.dirname(file.path);
+          // Convert filesystem path to portable path for cross-platform compatibility
+          const portablePath = fileUrlToPortablePath(pathToFileURL(file.path).href);
+          const currentDir = path.dirname(portablePath);
           const appIndex = currentDir.indexOf('/app/');
           const baseDir = appIndex !== -1 ? currentDir.substring(appIndex + 4) : '/';
 
