@@ -116,7 +116,7 @@
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",
     "eslint": "^9.0.0",
-    "prettier": "~3.5.3",
+    "prettier": "^3.0.0",
     "typescript": "^5.0.0"
   },
   "devDependencies": {
