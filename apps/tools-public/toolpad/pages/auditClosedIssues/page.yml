@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/toolpad/v0.13.0/docs/schemas/v1/definitions.json#properties/Page
+
+apiVersion: v1
+kind: page
+spec:
+  displayName: Audit closed issues
+  alias:
+    - xj43hyd
+  title: Audit closed Issue
+  content:
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          layout:
+            columnSize: 0.6565656565656566
+            verticalAlign: center
+          props:
+            value: 'Filter for GitHub slug:'
+        - component: TextField
+          name: gitHubSlug
+          layout:
+            columnSize: 1.3434343434343434
+          props:
+            label: GitHub slug
+            defaultValue: linear
+            fullWidth: true
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: Find issues closed by a slug.
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+        height: 548
+      props:
+        rows:
+          $$jsExpression: >-
+            queryAuditClosedIssues.rows
+              .filter((issue) => {
+                return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
+              })
+              .map((issue) => ({
+                ...issue,
+                closedAt: issue.timelineItems[0].createdAt,
+              }))
+        columns:
+          - field: title
+            type: string
+            width: 279
+            headerName: Title
+          - field: url
+            type: link
+            width: 362
+            headerName: URL
+          - field: closedAt
+            type: string
+            width: 200
+            headerName: Closed at
+        height: 480
+  queries:
+    - name: queryAuditClosedIssues
+      mode: query
+      query:
+        function: queryAuditClosedIssues.ts#queryAuditClosedIssues
+        kind: local
