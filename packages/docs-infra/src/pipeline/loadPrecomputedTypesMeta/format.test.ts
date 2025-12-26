@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import type { Element as HastElement } from 'hast';
+import { toHtml } from 'hast-util-to-html';
 import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 import {
   isExternalType,
@@ -2100,6 +2101,136 @@ describe('format', () => {
           expect(codeBlock.tagName).toBe('pre');
           expect(codeBlock.properties).toEqual({});
         }
+      });
+    });
+
+    describe('multiline union formatting', () => {
+      it('should format long union default values across multiple lines with default printWidth (40)', async () => {
+        // Create a prop with a long default value that is a union type
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'variant',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: true,
+            documentation: {
+              // A long union-like default value that exceeds 40 characters
+              defaultValue: "'primary' | 'secondary' | 'tertiary' | 'quaternary'",
+            } as any,
+          } as any,
+        ];
+
+        // No options - should use default printWidth of 40
+        const result = await formatProperties(props, [], {}, undefined, {});
+
+        // Verify that default contains the multiline formatting with <br /> elements
+        const defaultValue = result.variant.default;
+        expect(defaultValue).toBeDefined();
+
+        // Extract the structure to verify it has the expected multiline format
+        const codeElement = defaultValue!.children[0];
+        expect(isHastElement(codeElement)).toBe(true);
+
+        if (isHastElement(codeElement)) {
+          // Check that there are <br /> elements and pipe spans in the children
+          const hasBrElement = codeElement.children.some(
+            (child) => isHastElement(child) && child.tagName === 'br',
+          );
+          const hasPipeSpan = codeElement.children.some(
+            (child) =>
+              isHastElement(child) &&
+              child.tagName === 'span' &&
+              child.children.some((c) => c.type === 'text' && (c as any).value.includes('|')),
+          );
+
+          expect(hasBrElement).toBe(true);
+          expect(hasPipeSpan).toBe(true);
+        }
+      });
+
+      it('should not format short default values with multiline when under threshold', async () => {
+        // Create a prop with a short default value
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'size',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: true,
+            documentation: {
+              defaultValue: "'sm' | 'md' | 'lg'",
+            } as any,
+          } as any,
+        ];
+
+        // Uses default printWidth of 40
+        const result = await formatProperties(props, [], {}, undefined, {});
+
+        // Verify that default does NOT contain <br /> elements (since it's short)
+        const defaultValue = result.size.default;
+        expect(defaultValue).toBeDefined();
+
+        const codeElement = defaultValue!.children[0];
+        expect(isHastElement(codeElement)).toBe(true);
+
+        if (isHastElement(codeElement)) {
+          const hasBrElement = codeElement.children.some(
+            (child) => isHastElement(child) && child.tagName === 'br',
+          );
+          expect(hasBrElement).toBe(false);
+        }
+      });
+
+      it('should not apply multiline formatting when printWidth is set to Infinity', async () => {
+        // Create a prop with a long default value
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'variant',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: true,
+            documentation: {
+              defaultValue: "'primary' | 'secondary' | 'tertiary' | 'quaternary'",
+            } as any,
+          } as any,
+        ];
+
+        // Set printWidth to Infinity to disable multiline formatting
+        const result = await formatProperties(props, [], {}, undefined, {
+          formatting: { defaultValueUnionPrintWidth: Infinity },
+        });
+
+        const defaultValue = result.variant.default;
+        expect(defaultValue).toBeDefined();
+
+        const codeElement = defaultValue!.children[0];
+        expect(isHastElement(codeElement)).toBe(true);
+
+        if (isHastElement(codeElement)) {
+          const hasBrElement = codeElement.children.some(
+            (child) => isHastElement(child) && child.tagName === 'br',
+          );
+          // Should NOT have line breaks with Infinity printWidth
+          expect(hasBrElement).toBe(false);
+        }
+      });
+
+      it('should produce correct HTML for multiline unions', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'variant',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: true,
+            documentation: {
+              defaultValue: "'a' | 'b' | 'c'",
+            } as any,
+          } as any,
+        ];
+
+        // Use a small printWidth to force multiline
+        const result = await formatProperties(props, [], {}, undefined, {
+          formatting: { defaultValueUnionPrintWidth: 10 },
+        });
+
+        expect(toHtml(result.variant.default!)).toMatchInlineSnapshot(
+          `"<code class="language-ts"><span style="color:var(--syntax-keyword)">| </span><span class="pl-s"><span class="pl-pds">'</span>a<span class="pl-pds">'</span></span> <br><span style="color:var(--syntax-keyword)">| </span> <span class="pl-s"><span class="pl-pds">'</span>b<span class="pl-pds">'</span></span> <br><span style="color:var(--syntax-keyword)">| </span> <span class="pl-s"><span class="pl-pds">'</span>c<span class="pl-pds">'</span></span></code>"`,
+        );
       });
     });
   });

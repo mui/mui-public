@@ -6,6 +6,7 @@ import {
   parseMarkdownToHast,
   type FormattedProperty,
   type FormattedEnumMember,
+  type FormatInlineTypeOptions,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from './order';
@@ -31,6 +32,8 @@ export interface FormatComponentOptions {
   cssVariablesSuffix?: string;
   /** Regex pattern to remove from component description */
   descriptionRemoveRegex?: RegExp;
+  /** Options for inline type formatting (e.g., unionPrintWidth) */
+  formatting?: FormatInlineTypeOptions;
 }
 
 /**
@@ -53,6 +56,7 @@ export async function formatComponentData(
     dataAttributesSuffix = 'DataAttributes',
     cssVariablesSuffix = 'CssVars',
     descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
+    formatting,
   } = options;
 
   const descriptionText = component.documentation?.description?.replace(descriptionRemoveRegex, '');
@@ -95,7 +99,9 @@ export async function formatComponentData(
     name: component.name,
     description,
     props: sortObjectByKeys(
-      await formatProperties(component.type.props, exportNames, typeNameMap, allExports),
+      await formatProperties(component.type.props, exportNames, typeNameMap, allExports, {
+        formatting,
+      }),
       memberOrder.props,
     ),
     dataAttributes:

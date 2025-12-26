@@ -260,6 +260,64 @@ interface FactoryOptions {
 }
 ```
 
+### Loader Options
+
+Configure the webpack/Turbopack loader with these options:
+
+```typescript
+interface LoaderOptions {
+  /** Performance tracking and logging options */
+  performance?: {
+    /** Enable detailed performance logging */
+    logging?: boolean;
+    /** Only log operations exceeding this threshold in milliseconds */
+    notableMs?: number;
+    /** Show wrapper measurements in performance logs */
+    showWrapperMeasures?: boolean;
+    /** Threshold for notable dependency counts */
+    significantDependencyCountThreshold?: number;
+  };
+
+  /** Options for formatting types in tables */
+  formatting?: {
+    /**
+     * Maximum line width before union types in shortType fields are split across multiple lines.
+     * When a union type exceeds this width, it will be formatted with each
+     * member on a separate line with leading pipe characters.
+     * @default 40
+     */
+    shortTypeUnionPrintWidth?: number;
+
+    /**
+     * Maximum line width before union types in defaultValue fields are split across multiple lines.
+     * When a union type exceeds this width, it will be formatted with each
+     * member on a separate line with leading pipe characters.
+     * @default 40
+     */
+    defaultValueUnionPrintWidth?: number;
+  };
+}
+```
+
+**Example configuration:**
+
+```javascript
+// next.config.mjs
+config.module.rules.push({
+  test: /\/types\.ts$/,
+  use: [
+    defaultLoaders.babel,
+    {
+      loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+      options: {
+        performance: { logging: true, notableMs: 100 },
+        formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
+      },
+    },
+  ],
+});
+```
+
 ---
 
 ## Output Structure
@@ -327,6 +385,9 @@ interface FormattedParameter {
 > - Syntax highlighting computed once at build time
 > - Direct rendering without runtime parsing
 > - Smaller server/client bundles (no highlighting libraries needed at runtime)
+
+> [!TIP]
+> **Multiline Union Formatting**: When union types in `shortType` or `default` fields exceed the configured width (default: 40 characters), they are automatically formatted across multiple lines with leading pipe characters (`| `). This improves readability in type tables. Configure the thresholds using `formatting.shortTypeUnionPrintWidth` and `formatting.defaultValueUnionPrintWidth` in the [Loader Options](#loader-options).
 
 ### TypeScript API Extractor Output
 

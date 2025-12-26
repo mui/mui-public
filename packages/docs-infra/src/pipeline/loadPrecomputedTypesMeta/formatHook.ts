@@ -8,6 +8,7 @@ import {
   parseMarkdownToHast,
   FormattedProperty,
   FormattedParameter,
+  FormatInlineTypeOptions,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -20,6 +21,8 @@ export type HookTypeMeta = {
 
 export interface FormatHookOptions {
   descriptionRemoveRegex?: RegExp;
+  /** Options for inline type formatting (e.g., unionPrintWidth) */
+  formatting?: FormatInlineTypeOptions;
 }
 
 export async function formatHookData(
@@ -28,7 +31,7 @@ export async function formatHookData(
   typeNameMap: Record<string, string>,
   options: FormatHookOptions = {},
 ): Promise<HookTypeMeta> {
-  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m } = options;
+  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting } = options;
 
   const descriptionText = hook.documentation?.description?.replace(descriptionRemoveRegex, '');
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
@@ -47,9 +50,12 @@ export async function formatHookData(
       exportNames,
       typeNameMap,
       [],
+      { formatting },
     );
   } else {
-    formattedParameters = await formatParameters(parameters, exportNames, typeNameMap);
+    formattedParameters = await formatParameters(parameters, exportNames, typeNameMap, {
+      formatting,
+    });
   }
 
   let formattedReturnValue: Record<string, FormattedProperty> | HastRoot;
@@ -58,6 +64,8 @@ export async function formatHookData(
       signature.returnValueType.properties,
       exportNames,
       typeNameMap,
+      undefined,
+      { formatting },
     );
   } else {
     formattedReturnValue = await formatTypeAsHast(

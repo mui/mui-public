@@ -21,7 +21,12 @@ import {
   isPublicComponent,
 } from './formatComponent';
 import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
-import { FormattedProperty, FormattedEnumMember, FormattedParameter } from './format';
+import {
+  FormattedProperty,
+  FormattedEnumMember,
+  FormattedParameter,
+  FormatInlineTypeOptions,
+} from './format';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
@@ -39,6 +44,8 @@ export type LoaderOptions = {
     showWrapperMeasures?: boolean;
     significantDependencyCountThreshold?: number;
   };
+  /** Options for formatting types in tables */
+  formatting?: FormatInlineTypeOptions;
 };
 
 export type ComponentTypeMeta = ComponentType;
@@ -298,6 +305,9 @@ export async function loadPrecomputedTypesMeta(
       { types: TypesMeta[]; typeNameMap?: Record<string, string> }
     > = {};
 
+    // Prepare formatting options from loader config
+    const formattingOptions = options.formatting;
+
     // Process all variants in parallel
     await Promise.all(
       Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
@@ -310,6 +320,7 @@ export async function loadPrecomputedTypesMeta(
                 variantResult.allTypes,
                 variantResult.namespaces,
                 variantResult.typeNameMap || {},
+                { formatting: formattingOptions },
               );
               return {
                 type: 'component',
@@ -323,6 +334,7 @@ export async function loadPrecomputedTypesMeta(
                 exportNode,
                 variantResult.namespaces,
                 variantResult.typeNameMap || {},
+                { formatting: formattingOptions },
               );
 
               return {
