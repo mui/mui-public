@@ -2,6 +2,7 @@ import { Octokit } from '@octokit/rest';
 import { $ } from 'execa';
 
 import { persistentAuthStrategy } from './github.mjs';
+import { getRepositoryInfo } from './git.mjs';
 
 /**
  * @typedef {import('@octokit/rest').Octokit} OctokitType
@@ -39,8 +40,10 @@ export async function findLatestTaggedVersion(opts) {
   const $$ = $({ cwd: opts.cwd });
   const fetchAll = opts.fetchAll ?? true;
   if (fetchAll) {
-    // Fetch all tags from all remotes to ensure we have the latest tags.
-    await $$`git fetch --tags --all`;
+    const { remoteName } = await getRepositoryInfo();
+    // Fetch all tags from the mui remote to ensure we have the latest tags.
+    // --force to update any existing tags that may have changed to avoid the clobering error.
+    await $$`git fetch --tags --force ${remoteName}`;
   }
   const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
   return stdout.trim();

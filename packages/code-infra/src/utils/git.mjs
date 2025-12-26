@@ -5,6 +5,7 @@ import gitUrlParse from 'git-url-parse';
  * @typedef {Object} RepoInfo
  * @property {string} owner - Repository owner
  * @property {string} repo - Repository name
+ * @property {string} remoteName - Remote name
  */
 
 /**
@@ -48,6 +49,7 @@ export async function getRepositoryInfo(remotes = ['upstream', 'origin']) {
       return {
         owner: parsed.owner,
         repo: parsed.name,
+        remoteName: remote,
       };
     } catch (error) {
       cause[remote] = `Failed to parse URL for remote ${remote}: ${url}`;
