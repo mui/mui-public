@@ -287,6 +287,11 @@ export interface FormatInlineTypeOptions {
    * @default 40
    */
   defaultValueUnionPrintWidth?: number;
+  /**
+   * Maximum line width for Prettier formatting of detailed/expanded type definitions.
+   * @default 40
+   */
+  detailedTypePrintWidth?: number;
 }
 
 /**
@@ -614,6 +619,8 @@ export async function formatProperties(
     options.formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
   const defaultValueUnionPrintWidth =
     options.formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
+  const detailedTypePrintWidth =
+    options.formatting?.detailedTypePrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
 
   // Filter out props that should not be documented:
   // - `ref` is typically forwarded and not useful in component API docs
@@ -667,7 +674,7 @@ export async function formatProperties(
             typeNameMap,
           );
         }
-        detailedTypeText = await prettyFormat(detailedTypeText, undefined, 40);
+        detailedTypeText = await prettyFormat(detailedTypeText, undefined, detailedTypePrintWidth);
       }
 
       // Parse description as markdown and convert to HAST for rich rendering
