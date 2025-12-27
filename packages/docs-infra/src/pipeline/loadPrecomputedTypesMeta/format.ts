@@ -911,7 +911,7 @@ export async function formatEnum(
  * complex scenarios like optional properties, type parameters, and nested structures.
  *
  * For inline code contexts (when `inline: true`), the function generates type expressions
- * with a prefix (`type _ = `) for better syntax highlighting, then removes the prefix from
+ * with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
  * the highlighted output.
  */
 export function formatType(

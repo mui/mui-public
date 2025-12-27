@@ -11,13 +11,16 @@ Formatted property metadata with syntax-highlighted types and parsed markdown.
 ```typescript
 type FormattedProperty = {
   type: HastRoot;
+  typeText: string;
   shortType?: HastRoot;
   shortTypeText?: string;
   default?: HastRoot;
   defaultText?: string;
   required?: true;
   description?: HastRoot;
+  descriptionText?: string;
   example?: HastRoot;
+  exampleText?: string;
   detailedType?: HastRoot;
 };
 ```
@@ -51,6 +54,30 @@ information from JSDoc tags. Members are sorted by their value for consistent ou
 (enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
 ```
 
+### FormattedProperty.formatInlineTypeAsHast
+
+Formats an inline type string with syntax highlighting.
+
+This function transforms type strings (like `string`, `number | null`, etc.) into
+syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
+the type with `type _ = ` before highlighting, then removes the prefix from the result.
+
+```typescript
+(typeText: string, unionPrintWidth?: number) => Promise<Root>;
+```
+
+### FormattedProperty.FormatInlineTypeOptions
+
+Options for formatting inline types as HAST.
+
+```typescript
+type FormatInlineTypeOptions = {
+  shortTypeUnionPrintWidth?: number;
+  defaultValueUnionPrintWidth?: number;
+  detailedTypePrintWidth?: number;
+};
+```
+
 ### FormattedProperty.formatParameters
 
 Formats function or hook parameters into a structured object.
@@ -63,6 +90,13 @@ default value, and whether it's optional.
   params: Parameter[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
+  options?: {
+    formatting?: {
+      shortTypeUnionPrintWidth?: number;
+      defaultValueUnionPrintWidth?: number;
+      detailedTypePrintWidth?: number;
+    };
+  },
 ) => Promise<Record<string, FormattedParameter>>;
 ```
 
@@ -82,7 +116,28 @@ suitable for documentation display with proper syntax highlighting.
   exportNames: string[],
   typeNameMap: Record<string, string>,
   allExports?: ExportNode[],
+  options?: {
+    formatting?: {
+      shortTypeUnionPrintWidth?: number;
+      defaultValueUnionPrintWidth?: number;
+      detailedTypePrintWidth?: number;
+    };
+  },
 ) => Promise<Record<string, FormattedProperty>>;
+```
+
+### FormattedProperty.FormatPropertiesOptions
+
+Options for formatting properties.
+
+```typescript
+type FormatPropertiesOptions = {
+  formatting?: {
+    shortTypeUnionPrintWidth?: number;
+    defaultValueUnionPrintWidth?: number;
+    detailedTypePrintWidth?: number;
+  };
+};
 ```
 
 ### FormattedProperty.FormattedEnumMember
@@ -90,7 +145,11 @@ suitable for documentation display with proper syntax highlighting.
 Formatted enum member metadata.
 
 ```typescript
-type FormattedEnumMember = { description?: HastRoot; type?: string };
+type FormattedEnumMember = {
+  description?: HastRoot;
+  descriptionText?: string;
+  type?: string;
+};
 ```
 
 ### FormattedProperty.FormattedParameter
@@ -100,11 +159,14 @@ Formatted parameter metadata for functions and hooks.
 ```typescript
 type FormattedParameter = {
   type: HastRoot;
+  typeText: string;
   default?: HastRoot;
   defaultText?: string;
   optional?: true;
   description?: HastRoot;
+  descriptionText?: string;
   example?: HastRoot;
+  exampleText?: string;
 };
 ```
 
@@ -129,27 +191,6 @@ the highlighted output.
   exportNames: string[],
   typeNameMap: Record<string, string>,
 ) => string;
-```
-
-### FormattedProperty.formatTypeAsHast
-
-Formats a TypeScript type into syntax-highlighted HAST nodes.
-
-This is a convenience wrapper around `formatType()` that applies syntax highlighting
-to the resulting type string. It delegates to `formatType()` for the core type
-processing, then converts the output to HAST nodes with inline syntax highlighting.
-
-```typescript
-(
-  args?: [
-    AnyType,
-    boolean,
-    DocumentationTag[] | undefined,
-    boolean,
-    string[],
-    Record<string, string>,
-  ],
-) => Promise<Root>;
 ```
 
 ### FormattedProperty.isArrayType
@@ -268,7 +309,7 @@ This function wraps the type in a `type Name = ...` declaration, formats it with
 and then removes or preserves the prefix based on the provided typeName and formatting.
 
 ```typescript
-(type: string, typeName?: string) => Promise<string>;
+(type: string, typeName?: string, printWidth?: number) => Promise<string>;
 ```
 
 ### FormattedProperty.prettyFormatType

@@ -7,7 +7,10 @@
 ### ProcessedComponentTypeMeta
 
 ```typescript
-type ProcessedComponentTypeMeta = { name: string } & {
+type ProcessedComponentTypeMeta = {
+  name: string;
+  descriptionText?: string | undefined;
+} & {
   description?: React.ReactNode;
   props: Record<string, ProcessedProperty>;
   dataAttributes: Record<string, ProcessedEnumMember>;
@@ -18,7 +21,7 @@ type ProcessedComponentTypeMeta = { name: string } & {
 ### ProcessedEnumMember
 
 ```typescript
-type ProcessedEnumMember = {} & {
+type ProcessedEnumMember = { descriptionText?: string | undefined } & {
   type?: React.ReactNode;
   description?: React.ReactNode;
   default?: React.ReactNode;
@@ -42,7 +45,11 @@ type ProcessedHookReturnValue =
 ### ProcessedHookTypeMeta
 
 ```typescript
-type ProcessedHookTypeMeta = { name: string } & {
+type ProcessedHookTypeMeta = {
+  name: string;
+  descriptionText?: string | undefined;
+  returnValueText?: string | undefined;
+} & {
   description?: React.ReactNode;
   parameters: Record<string, ProcessedHookParameter>;
   returnValue?: ProcessedHookReturnValue;
@@ -53,7 +60,10 @@ type ProcessedHookTypeMeta = { name: string } & {
 
 ```typescript
 type ProcessedParameter = {
+  descriptionText?: string | undefined;
+  typeText: string;
   defaultText?: string | undefined;
+  exampleText?: string | undefined;
   optional?: true | undefined;
 } & {
   type: React.ReactNode;
@@ -67,9 +77,12 @@ type ProcessedParameter = {
 
 ```typescript
 type ProcessedProperty = {
+  descriptionText?: string | undefined;
+  typeText: string;
   shortTypeText?: string | undefined;
   defaultText?: string | undefined;
   required?: true | undefined;
+  exampleText?: string | undefined;
 } & {
   type: React.ReactNode;
   shortType?: React.ReactNode;
@@ -94,6 +107,7 @@ type ProcessedTypesMeta =
 ```typescript
 type TypesJsxOptions = {
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
 };
 ```
 
@@ -106,7 +120,10 @@ into renderable React components.
 ```typescript
 (
   types?: TypesMeta[],
-  options?: { components?: { pre?: ComponentType<{ 'data-precompute'?: string }> } },
+  options?: {
+    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+  },
 ) => ProcessedTypesMeta[] | undefined;
 ```
 

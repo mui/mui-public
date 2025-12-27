@@ -30,7 +30,12 @@ type Selection = { variant: string; fileName?: string; transformKey?: string };
 
 ### useControlledCode
 
-Hook to access controlled code state and setters. This is useful for custom components that need to interact with the controlled code state. Use useCode instead when you need access to the code data along with control functions. Use this hook when you need direct access to the setCode and setSelection functions from the CodeControllerContext. It's worth noting that useCode and useDemo handle controlling selection in typical cases.
+Hook to access controlled code state and setters. This is useful for custom
+components that need to interact with the controlled code state. Use useCode
+instead when you need access to the code data along with control functions.
+Use this hook when you need direct access to the setCode and setSelection functions
+from the CodeControllerContext. It's worth noting that useCode and useDemo handle
+controlling selection in typical cases.
 
 **useControlledCode Return Value:**
 

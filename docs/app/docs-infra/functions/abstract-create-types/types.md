@@ -11,16 +11,18 @@
   options: {
     TypesContent: ComponentType<TypesContentProps<{}>>;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
   url: string,
   meta?: {
-    precompute?: {};
+    precompute?: { exports: {}; singleComponentName?: string };
     name?: string;
     displayName?: string;
     disableOptimization?: boolean;
     globalTypes?: string[];
     watchSourceDirectly?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
   exportName?: string,
 ) => ComponentType<{}>;
@@ -32,17 +34,19 @@
 (options: {
   TypesContent: ComponentType<TypesContentProps<{}>>;
   components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
 }) => (
   url: string,
   typeDef: Record<string, any>,
   meta?: {
-    precompute?: {};
+    precompute?: { exports: {}; singleComponentName?: string };
     name?: string;
     displayName?: string;
     disableOptimization?: boolean;
     globalTypes?: string[];
     watchSourceDirectly?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
 ) => Record<any, ComponentType<{}>>;
 ```
@@ -53,17 +57,19 @@
 (options: {
   TypesContent: ComponentType<TypesContentProps<{}>>;
   components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
 }) => (
   url: string,
   typeDef: {},
   meta?: {
-    precompute?: {};
+    precompute?: { exports: {}; singleComponentName?: string };
     name?: string;
     displayName?: string;
     disableOptimization?: boolean;
     globalTypes?: string[];
     watchSourceDirectly?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
 ) => ComponentType<{}>;
 ```
@@ -81,12 +87,16 @@ type TypesContentProps<T extends {}> = T & {
 
 ```typescript
 type TypesTableMeta = {
-  precompute?: { [variant: string]: { types?: TypesMeta[]; importedFrom: string } };
+  precompute?: {
+    exports: { [variant: string]: { types: TypesMeta[] } };
+    singleComponentName?: string;
+  };
   name?: string;
   displayName?: string;
   disableOptimization?: boolean;
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
   components?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['components'];
 };
 ```
