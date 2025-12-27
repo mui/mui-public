@@ -16,6 +16,11 @@ export type TypesJsxOptions = {
       'data-precompute'?: string;
     }>;
   };
+  inlineComponents?: {
+    pre?: React.ComponentType<{
+      'data-precompute'?: string;
+    }>;
+  };
 };
 
 // Processed types with React nodes instead of HAST
@@ -107,10 +112,10 @@ export function typesToJsx(
 
   return types.map((typeMeta) => {
     if (typeMeta.type === 'component') {
-      return processComponentType(typeMeta.data, options?.components);
+      return processComponentType(typeMeta.data, options?.components, options?.inlineComponents);
     }
     if (typeMeta.type === 'hook') {
-      return processHookType(typeMeta.data, options?.components);
+      return processHookType(typeMeta.data, options?.components, options?.inlineComponents);
     }
     return typeMeta;
   });
@@ -119,6 +124,7 @@ export function typesToJsx(
 function processComponentType(
   component: ComponentTypeMeta,
   components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['components'],
 ): ProcessedTypesMeta {
   return {
     type: 'component',
@@ -141,23 +147,23 @@ function processComponentType(
 
           const processed: ProcessedProperty = {
             ...rest,
-            type: hastToJsx(prop.type, components),
+            type: hastToJsx(prop.type, inlineComponents || components),
           };
 
           if (prop.shortType) {
-            processed.shortType = hastToJsx(prop.shortType, components);
+            processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
           }
           if (prop.default) {
-            processed.default = hastToJsx(prop.default, components);
+            processed.default = hastToJsx(prop.default, inlineComponents || components);
           }
           if (prop.description) {
-            processed.description = hastToJsx(prop.description, components);
+            processed.description = hastToJsx(prop.description, inlineComponents || components);
           }
           if (prop.example) {
-            processed.example = hastToJsx(prop.example, components);
+            processed.example = hastToJsx(prop.example, inlineComponents || components);
           }
           if (prop.detailedType) {
-            processed.detailedType = hastToJsx(prop.detailedType, components);
+            processed.detailedType = hastToJsx(prop.detailedType, inlineComponents || components);
           }
 
           return [key, processed];
@@ -168,13 +174,16 @@ function processComponentType(
           let processedType: React.ReactNode | undefined;
           if (attr.type) {
             processedType =
-              typeof attr.type === 'string' ? attr.type : hastToJsx(attr.type, components);
+              typeof attr.type === 'string'
+                ? attr.type
+                : hastToJsx(attr.type, inlineComponents || components);
           }
           return [
             key,
             {
               type: processedType,
-              description: attr.description && hastToJsx(attr.description, components),
+              description:
+                attr.description && hastToJsx(attr.description, inlineComponents || components),
             },
           ];
         }),
@@ -202,23 +211,24 @@ function processComponentType(
 function processHookType(
   hook: HookTypeMeta,
   components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['components'],
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(hook.parameters).map(([key, param]) => {
     const { type, default: defaultValue, description, example, ...rest } = param;
 
     const processed: ProcessedParameter = {
       ...rest,
-      type: hastToJsx(param.type, components),
+      type: hastToJsx(param.type, inlineComponents || components),
     };
 
-    if (param.default) {
-      processed.default = hastToJsx(param.default, components);
-    }
     if (param.description) {
       processed.description = hastToJsx(param.description, components);
     }
     if (param.example) {
       processed.example = hastToJsx(param.example, components);
+    }
+    if (param.default) {
+      processed.default = hastToJsx(param.default, inlineComponents || components);
     }
 
     return [key, processed] as const;
@@ -233,22 +243,25 @@ function processHookType(
     // It's a HastRoot - convert to simple discriminated union
     processedReturnValue = {
       kind: 'simple',
-      type: hastToJsx(hook.returnValue, components),
+      type: hastToJsx(hook.returnValue, inlineComponents || components),
     };
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const processedType = prop.type && hastToJsx(prop.type, components);
+      const processedType = prop.type && hastToJsx(prop.type, inlineComponents || components);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
-      const processedShortType = prop.shortType && hastToJsx(prop.shortType, components);
+      const processedShortType =
+        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
 
-      const processedDefault = prop.default && hastToJsx(prop.default, components);
+      const processedDefault =
+        prop.default && hastToJsx(prop.default, inlineComponents || components);
 
       const processedDescription = prop.description && hastToJsx(prop.description, components);
       const processedExample = prop.example && hastToJsx(prop.example, components);
 
-      const processedDetailedType = prop.detailedType && hastToJsx(prop.detailedType, components);
+      const processedDetailedType =
+        prop.detailedType && hastToJsx(prop.detailedType, inlineComponents || components);
       // Destructure to exclude HAST fields that need to be converted
       const {
         type,

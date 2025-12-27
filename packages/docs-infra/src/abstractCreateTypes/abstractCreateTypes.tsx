@@ -17,6 +17,7 @@ export type TypesTableMeta = {
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
   components?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['components'];
 };
 
 export type TypesContentProps<T extends {}> = T & {
@@ -27,6 +28,7 @@ export type TypesContentProps<T extends {}> = T & {
 type AbstractCreateTypesOptions<T extends {}> = {
   TypesContent: React.ComponentType<TypesContentProps<T>>;
   components?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['components'];
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -62,9 +64,20 @@ export function abstractCreateTypes<T extends {}>(
     ...meta.components,
   };
 
+  const inlineComponents = options.inlineComponents
+    ? {
+        ...options.inlineComponents,
+        ...meta.inlineComponents,
+      }
+    : {
+        ...options.components,
+        ...(!meta.inlineComponents ? meta.components : {}),
+        ...meta.inlineComponents,
+      };
+
   function TypesComponent(props: T) {
     // Memoize the conversion from HAST to JSX
-    const types = React.useMemo(() => typesToJsx(rawTypes, { components }), []);
+    const types = React.useMemo(() => typesToJsx(rawTypes, { components, inlineComponents }), []);
 
     return <options.TypesContent {...props} types={types} multiple={Boolean(exportName)} />;
   }
