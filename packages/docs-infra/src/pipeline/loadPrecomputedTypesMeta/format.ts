@@ -523,9 +523,10 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
  * @param type - The type string to format
  * @param typeName - Optional type name to use in the declaration. If provided and the type
  *                   is multi-line, the `type Name = ` prefix will be preserved.
+ * @param printWidth - Optional maximum line width for Prettier formatting (default: 85)
  * @returns The formatted type string
  */
-export async function prettyFormat(type: string, typeName?: string) {
+export async function prettyFormat(type: string, typeName?: string, printWidth = 85) {
   let formattedType: string;
 
   try {
@@ -534,7 +535,7 @@ export async function prettyFormat(type: string, typeName?: string) {
       parser: 'typescript',
       singleQuote: true,
       semi: true,
-      printWidth: 40,
+      printWidth,
     });
   } catch (error) {
     // If Prettier fails on extremely complex types, return the original type
@@ -666,7 +667,7 @@ export async function formatProperties(
             typeNameMap,
           );
         }
-        detailedTypeText = await prettyFormat(detailedTypeText);
+        detailedTypeText = await prettyFormat(detailedTypeText, undefined, 40);
       }
 
       // Parse description as markdown and convert to HAST for rich rendering
