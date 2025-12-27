@@ -27,17 +27,17 @@ This creates a provider component that supplies externals to child components.
 ### createDemoClientFactory
 
 ```typescript
-(options: {
-  live?: boolean;
-}) => (
-  url: string,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    precompute?: { externals?: {} };
-  },
-) => ComponentType<{ children: ReactNode }>;
+(options: { live?: boolean }) =>
+  (
+    url: string,
+    meta?: {
+      name?: string;
+      slug?: string;
+      displayName?: string;
+      variantType?: string;
+      skipPrecompute?: boolean;
+      precompute?: { externals?: {} };
+    },
+  ) =>
+    ComponentType<{ children: ReactNode }>;
 ```

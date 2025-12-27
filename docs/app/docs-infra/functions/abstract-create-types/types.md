@@ -32,46 +32,50 @@
 
 ```typescript
 (options: {
-  TypesContent: ComponentType<TypesContentProps<{}>>;
-  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-}) => (
-  url: string,
-  typeDef: Record<string, any>,
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
+    TypesContent: ComponentType<TypesContentProps<{}>>;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => Record<any, ComponentType<{}>>;
+  }) =>
+  (
+    url: string,
+    typeDef: Record<string, any>,
+    meta?: {
+      precompute?: { exports: {}; singleComponentName?: string };
+      name?: string;
+      displayName?: string;
+      disableOptimization?: boolean;
+      globalTypes?: string[];
+      watchSourceDirectly?: boolean;
+      components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+      inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    },
+  ) =>
+    Record<any, ComponentType<{}>>;
 ```
 
 ### createTypesFactory
 
 ```typescript
 (options: {
-  TypesContent: ComponentType<TypesContentProps<{}>>;
-  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-}) => (
-  url: string,
-  typeDef: {},
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
+    TypesContent: ComponentType<TypesContentProps<{}>>;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => ComponentType<{}>;
+  }) =>
+  (
+    url: string,
+    typeDef: {},
+    meta?: {
+      precompute?: { exports: {}; singleComponentName?: string };
+      name?: string;
+      displayName?: string;
+      disableOptimization?: boolean;
+      globalTypes?: string[];
+      watchSourceDirectly?: boolean;
+      components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+      inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    },
+  ) =>
+    ComponentType<{}>;
 ```
 
 ### TypesContentProps

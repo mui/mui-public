@@ -24,7 +24,7 @@ Checks if a file path or import path represents a JavaScript/TypeScript module
 (path: string) => boolean;
 ```
 
-### DirectoryEntry.JAVASCRIPT\_MODULE\_EXTENSIONS
+### DirectoryEntry.JAVASCRIPT_MODULE_EXTENSIONS
 
 Default file extensions for JavaScript/TypeScript modules that can be resolved
 
@@ -107,7 +107,7 @@ a map from variant name to resolved file URL.
 ) => Promise<Map<string, string>>;
 ```
 
-### DirectoryEntry.TYPE\_IMPORT\_EXTENSIONS
+### DirectoryEntry.TYPE_IMPORT_EXTENSIONS
 
 Extension priority for type-only imports - prioritize .d.ts first
 
@@ -121,7 +121,7 @@ Extension priority for type-only imports - prioritize .d.ts first
 type TypeAwareResolveResult = { import: string; typeImport?: string };
 ```
 
-### DirectoryEntry.VALUE\_IMPORT\_EXTENSIONS
+### DirectoryEntry.VALUE_IMPORT_EXTENSIONS
 
 Extension priority for value imports - standard priority with .d.ts last
 

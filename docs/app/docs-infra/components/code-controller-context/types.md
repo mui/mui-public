@@ -39,10 +39,10 @@ controlling selection in typical cases.
 
 **useControlledCode Return Value:**
 
-| Property       | Type                                                                       | Description |
-| :------------- | :------------------------------------------------------------------------- | :---------- |
-| code           | `ControlledCode \| undefined`                                              | -           |
-| selection      | `Selection \| undefined`                                                   | -           |
-| setCode        | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined`       | -           |
-| setSelection   | `Dispatch<SetStateAction<Selection>> \| undefined`                         | -           |
-| components     | `Record<string, ReactNode> \| undefined`                                   | -           |
+| Property     | Type                                                                 | Description |
+| :----------- | :------------------------------------------------------------------- | :---------- |
+| code         | `ControlledCode \| undefined`                                        | -           |
+| selection    | `Selection \| undefined`                                             | -           |
+| setCode      | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
+| setSelection | `Dispatch<SetStateAction<Selection>> \| undefined`                   | -           |
+| components   | `Record<string, ReactNode> \| undefined`                             | -           |

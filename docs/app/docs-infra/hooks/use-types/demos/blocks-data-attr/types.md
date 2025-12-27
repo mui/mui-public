@@ -10,20 +10,20 @@ A simple component that displays a title and optional children.
 
 **Root Props:**
 
-| Prop           | Type                                                       | Default | Description                                                                                               |
-| :------------- | :--------------------------------------------------------- | :------ | :-------------------------------------------------------------------------------------------------------- |
-| onStateChange  | `((details: Component.Root.ChangeEventDetails) => void)`   | -       | Callback fired when the state changes. Receives the event details containing previous and new states.     |
-| partState      | `Component.Part.State`                                     | -       | Optional state from the Part component. This demonstrates cross-component type references.                |
-| title          | `string`                                                   | -       | The title to display                                                                                      |
-| disabled       | `boolean`                                                  | -       | Whether the component is disabled                                                                         |
-| children       | `ReactNode`                                                | -       | Child elements                                                                                            |
+| Prop          | Type                                                     | Default | Description                                                                                           |
+| :------------ | :------------------------------------------------------- | :------ | :---------------------------------------------------------------------------------------------------- |
+| onStateChange | `((details: Component.Root.ChangeEventDetails) => void)` | -       | Callback fired when the state changes. Receives the event details containing previous and new states. |
+| partState     | `Component.Part.State`                                   | -       | Optional state from the Part component. This demonstrates cross-component type references.            |
+| title         | `string`                                                 | -       | The title to display                                                                                  |
+| disabled      | `boolean`                                                | -       | Whether the component is disabled                                                                     |
+| children      | `ReactNode`                                              | -       | Child elements                                                                                        |
 
 **Root Data Attributes:**
 
-| Attribute      | Type    | Description                                |
-| :------------- | :------ | :----------------------------------------- |
-| data-disabled  | -       | Present when the component is disabled.    |
-| data-title     | -       | Present when the component has a title.    |
+| Attribute     | Type | Description                             |
+| :------------ | :--- | :-------------------------------------- |
+| data-disabled | -    | Present when the component is disabled. |
+| data-title    | -    | Present when the component has a title. |
 
 ### Root.Props
 
@@ -50,18 +50,18 @@ A simple component that displays a title and optional children.
 
 **Part Props:**
 
-| Prop           | Type             | Default | Description                         |
-| :------------- | :--------------- | :------ | :---------------------------------- |
-| title          | `string`         | -       | The title to display                |
-| disabled       | `boolean`        | -       | Whether the component is disabled   |
-| children       | `ReactNode`      | -       | Child elements                      |
+| Prop     | Type        | Default | Description                       |
+| :------- | :---------- | :------ | :-------------------------------- |
+| title    | `string`    | -       | The title to display              |
+| disabled | `boolean`   | -       | Whether the component is disabled |
+| children | `ReactNode` | -       | Child elements                    |
 
 **Part Data Attributes:**
 
-| Attribute      | Type    | Description                                |
-| :------------- | :------ | :----------------------------------------- |
-| data-disabled  | -       | Present when the component is disabled.    |
-| data-title     | -       | Present when the component has a title.    |
+| Attribute     | Type | Description                             |
+| :------------ | :--- | :-------------------------------------- |
+| data-disabled | -    | Present when the component is disabled. |
+| data-title    | -    | Present when the component has a title. |
 
 ### Part.Props
 

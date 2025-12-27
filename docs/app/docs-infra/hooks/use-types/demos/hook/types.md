@@ -8,7 +8,7 @@
 
 **useHook Return Value:**
 
-| Property | Type      | Description |
-| :------- | :-------- | :---------- |
-| name     | `string`  | -           |
-| data     | `string`  | -           |
+| Property | Type     | Description |
+| :------- | :------- | :---------- |
+| name     | `string` | -           |
+| data     | `string` | -           |

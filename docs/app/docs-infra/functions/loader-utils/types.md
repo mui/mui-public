@@ -18,7 +18,7 @@ type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
 
 ### ExternalImport
 
-Represents an import from an external package (node\_modules).
+Represents an import from an external package (node_modules).
 
 ```typescript
 type ExternalImport = {
@@ -43,7 +43,10 @@ type ExternalImport = {
 Extracts and formats a name and slug from a URL path
 
 ```typescript
-(url: string) => { name: string; slug: string };
+(url: string) => {
+  name: string;
+  slug: string;
+};
 ```
 
 ### fileUrlToPortablePath
@@ -72,7 +75,10 @@ This function is isomorphic and works in both Node.js and browser environments.
 It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
 
 ```typescript
-(url: string) => { fileName: string; extension: string };
+(url: string) => {
+  fileName: string;
+  extension: string;
+};
 ```
 
 ### getLanguageFromExtension
@@ -125,7 +131,7 @@ Checks if a file path or import path represents a JavaScript/TypeScript module
 (path: string) => boolean;
 ```
 
-### JAVASCRIPT\_MODULE\_EXTENSIONS
+### JAVASCRIPT_MODULE_EXTENSIONS
 
 Default file extensions for JavaScript/TypeScript modules that can be resolved
 
@@ -225,7 +231,10 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
   storeAt: StoreAtMode,
   isJsFile?: boolean,
   resolvedPathsMap?: Map<string, string>,
-) => { processedSource: string; extraFiles: Record<string, string> };
+) => {
+  processedSource: string;
+  extraFiles: Record<string, string>;
+};
 ```
 
 ### RelativeImport
@@ -374,7 +383,7 @@ Useful when precomputing data that makes the imports unnecessary.
 type StoreAtMode = 'canonical' | 'import' | 'flat';
 ```
 
-### TYPE\_IMPORT\_EXTENSIONS
+### TYPE_IMPORT_EXTENSIONS
 
 Extension priority for type-only imports - prioritize .d.ts first
 
@@ -388,7 +397,7 @@ Extension priority for type-only imports - prioritize .d.ts first
 type TypeAwareResolveResult = { import: string; typeImport?: string };
 ```
 
-### VALUE\_IMPORT\_EXTENSIONS
+### VALUE_IMPORT_EXTENSIONS
 
 Extension priority for value imports - standard priority with .d.ts last
 

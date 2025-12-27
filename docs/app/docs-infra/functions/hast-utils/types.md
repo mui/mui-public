@@ -32,7 +32,5 @@
 ### stringOrHastToString
 
 ```typescript
-(
-  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
-) => string;
+(source: string | HastNodes | { hastJson: string } | { hastGzip: string }) => string;
 ```
