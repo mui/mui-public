@@ -18,6 +18,7 @@ import type {
   Emphasis,
   Strong,
   Definition,
+  Break,
 } from 'mdast';
 
 /**
@@ -125,6 +126,16 @@ export function inlineCode(value: string): InlineCode {
   return {
     type: 'inlineCode',
     value: value || '',
+  };
+}
+
+/**
+ * Create a hard line break node (renders as <br> in HTML)
+ * @returns A break node
+ */
+export function hardBreak(): Break {
+  return {
+    type: 'break',
   };
 }
 

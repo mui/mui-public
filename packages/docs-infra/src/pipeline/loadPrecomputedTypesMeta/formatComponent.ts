@@ -17,6 +17,8 @@ import * as memberOrder from './order';
 export type ComponentTypeMeta = {
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   props: Record<string, FormattedProperty>;
   dataAttributes: Record<string, FormattedEnumMember>;
   cssVariables: Record<string, FormattedEnumMember>;
@@ -98,6 +100,7 @@ export async function formatComponentData(
   const raw: ComponentTypeMeta = {
     name: component.name,
     description,
+    descriptionText,
     props: sortObjectByKeys(
       await formatProperties(component.type.props, exportNames, typeNameMap, allExports, {
         formatting,

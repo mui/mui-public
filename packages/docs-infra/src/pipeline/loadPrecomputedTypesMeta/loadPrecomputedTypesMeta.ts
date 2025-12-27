@@ -464,6 +464,16 @@ export async function loadPrecomputedTypesMeta(
         const markdownStart = performance.now();
 
         const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
+
+        const markdownEnd = performance.now();
+        const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
+        performance.mark(markdownCompleteMark);
+        performance.measure(nameMark(functionName, 'markdown generation', [relativePath]), {
+          start: markdownStart,
+          end: markdownEnd,
+        });
+
+        const writeStart = performance.now();
         await writeFile(markdownFilePath, markdown, 'utf-8');
 
         if (process.env.NODE_ENV === 'production') {
@@ -474,12 +484,12 @@ export async function loadPrecomputedTypesMeta(
           allDependencies.push(markdownFilePath);
         }
 
-        const markdownEnd = performance.now();
-        const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
-        performance.mark(markdownCompleteMark);
-        performance.measure(nameMark(functionName, 'markdown generation', [relativePath]), {
-          start: markdownStart,
-          end: markdownEnd,
+        const writeEnd = performance.now();
+        const writeCompleteMark = nameMark(functionName, 'markdown written', [relativePath]);
+        performance.mark(writeCompleteMark);
+        performance.measure(nameMark(functionName, 'markdown write', [relativePath]), {
+          start: writeStart,
+          end: writeEnd,
         });
       })(),
     ]);

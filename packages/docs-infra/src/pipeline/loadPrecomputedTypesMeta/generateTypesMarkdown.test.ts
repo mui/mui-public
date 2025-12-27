@@ -62,6 +62,7 @@ describe('generateTypesMarkdown', () => {
       const componentMeta: ComponentTypeMeta = {
         name: 'Button',
         description: textToHast('A clickable button component'),
+        descriptionText: 'A clickable button component',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -91,13 +92,17 @@ describe('generateTypesMarkdown', () => {
         props: {
           variant: {
             type: codeToHast('"primary" | "secondary"'),
+            typeText: '"primary" | "secondary"',
             description: textToHast('The button variant'),
+            descriptionText: 'The button variant',
             default: codeToHast('primary'),
             defaultText: 'primary',
           },
           disabled: {
             type: codeToHast('boolean'),
+            typeText: 'boolean',
             description: textToHast('Whether the button is disabled'),
+            descriptionText: 'Whether the button is disabled',
           },
         },
         dataAttributes: {},
@@ -135,6 +140,7 @@ describe('generateTypesMarkdown', () => {
           'data-state': {
             type: '"active" | "inactive"',
             description: textToHast('The current state of the button'),
+            descriptionText: 'The current state of the button',
           },
         },
         cssVariables: {},
@@ -171,10 +177,12 @@ describe('generateTypesMarkdown', () => {
           '--button-bg': {
             type: 'color',
             description: textToHast('Background color of the button'),
+            descriptionText: 'Background color of the button',
           },
           '--button-padding': {
             type: 'length',
             description: textToHast('Padding inside the button'),
+            descriptionText: 'Padding inside the button',
           },
         },
       };
@@ -206,21 +214,25 @@ describe('generateTypesMarkdown', () => {
       const componentMeta: ComponentTypeMeta = {
         name: 'CompleteButton',
         description: textToHast('A fully-featured button'),
+        descriptionText: 'A fully-featured button',
         props: {
           variant: {
             type: codeToHast('string'),
+            typeText: 'string',
           },
         },
         dataAttributes: {
           'data-active': {
             type: 'boolean',
             description: textToHast('Active state'),
+            descriptionText: 'Active state',
           },
         },
         cssVariables: {
           '--color': {
             type: 'color',
             description: textToHast('Button color'),
+            descriptionText: 'Button color',
           },
         },
       };
@@ -270,6 +282,7 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         parameters: {},
         returnValue: codeToHast('number'),
+        returnValueText: 'number',
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -296,8 +309,10 @@ describe('generateTypesMarkdown', () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
         description: textToHast('A hook for managing counter state'),
+        descriptionText: 'A hook for managing counter state',
         parameters: {},
         returnValue: codeToHast('number'),
+        returnValueText: 'number',
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -328,16 +343,21 @@ describe('generateTypesMarkdown', () => {
         parameters: {
           initialValue: {
             type: codeToHast('number'),
+            typeText: 'number',
             default: codeToHast('0'),
             defaultText: '0',
             description: textToHast('The initial counter value'),
+            descriptionText: 'The initial counter value',
           },
           step: {
             type: codeToHast('number'),
+            typeText: 'number',
             description: textToHast('Increment/decrement step'),
+            descriptionText: 'Increment/decrement step',
           },
         },
         returnValue: codeToHast('number'),
+        returnValueText: 'number',
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -372,6 +392,7 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         parameters: {},
         returnValue: codeToHast('number'),
+        returnValueText: 'number',
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
@@ -401,15 +422,21 @@ describe('generateTypesMarkdown', () => {
         returnValue: {
           count: {
             type: codeToHast('number'),
+            typeText: 'number',
             description: textToHast('Current count value'),
+            descriptionText: 'Current count value',
           },
           increment: {
             type: codeToHast('() => void'),
+            typeText: '() => void',
             description: textToHast('Function to increment counter'),
+            descriptionText: 'Function to increment counter',
           },
           decrement: {
             type: codeToHast('() => void'),
+            typeText: '() => void',
             description: textToHast('Function to decrement counter'),
+            descriptionText: 'Function to decrement counter',
           },
         },
       };
@@ -564,6 +591,7 @@ describe('generateTypesMarkdown', () => {
         name: 'useButton',
         parameters: {},
         returnValue: codeToHast('void'),
+        returnValueText: 'void',
       };
 
       const typeExport = {
@@ -649,6 +677,7 @@ describe('generateTypesMarkdown', () => {
         props: {
           variant: {
             type: codeToHast('string'),
+            typeText: 'string',
           },
         },
         dataAttributes: {},
@@ -708,6 +737,7 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Button',
         description: descriptionWithCode,
+        descriptionText: 'Use this component like:\n\n```tsx\n<Button variant="primary" />\n```',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -760,6 +790,7 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Button',
         description: descriptionWithLink,
+        descriptionText: 'See the [documentation](https://example.com) for more details.',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -824,6 +855,8 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Button',
         description: descriptionWithList,
+        descriptionText:
+          'This component supports:\n\n- Primary variant\n- Secondary variant\n- Disabled state',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -878,7 +911,9 @@ describe('generateTypesMarkdown', () => {
         props: {
           disabled: {
             type: codeToHast('boolean'),
+            typeText: 'boolean',
             description: propDescriptionWithCode,
+            descriptionText: 'Set to `true` to disable the button.',
           },
         },
         dataAttributes: {},
@@ -935,8 +970,11 @@ describe('generateTypesMarkdown', () => {
       const hook: HookTypeMeta = {
         name: 'useCounter',
         description: multiParagraphDescription,
+        descriptionText:
+          'First paragraph with introduction.\n\nSecond paragraph with more details.\n\nThird paragraph with examples.',
         parameters: {},
         returnValue: codeToHast('number'),
+        returnValueText: 'number',
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
@@ -1013,6 +1051,7 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Example',
         description: descriptionWithPrecomputed,
+        descriptionText: 'Example code:\n\n```\nconst x = 42;\n```',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -1085,6 +1124,7 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Example',
         description: descriptionWithHastJson,
+        descriptionText: '```\nfunction hello() {}\n```',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -1141,6 +1181,7 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Example',
         description: descriptionWithStringSource,
+        descriptionText: '```\nconst greeting = "Hello";\n```',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -1203,6 +1244,7 @@ describe('generateTypesMarkdown', () => {
       const component: ComponentTypeMeta = {
         name: 'Example',
         description: descriptionWithInvalidPrecompute,
+        descriptionText: 'Before code\n\n```\nfallback code\n```\n\nAfter code',
         props: {},
         dataAttributes: {},
         cssVariables: {},
@@ -1284,7 +1326,9 @@ describe('generateTypesMarkdown', () => {
         props: {
           onClick: {
             type: codeToHast('() => void'),
+            typeText: '() => void',
             description: propDescriptionWithPrecomputed,
+            descriptionText: 'Usage example:`<Button onClick={handler} />`',
           },
         },
         dataAttributes: {},
@@ -1377,7 +1421,9 @@ describe('generateTypesMarkdown', () => {
         props: {
           variant: {
             type: codeToHast('string'),
+            typeText: 'string',
             description: descriptionWithList,
+            descriptionText: 'Supported variants:primary, secondary, tertiary',
           },
         },
         dataAttributes: {},
@@ -1414,18 +1460,23 @@ describe('generateTypesMarkdown', () => {
         parameters: {
           initialValue: {
             type: codeToHast('number'),
+            typeText: 'number',
             default: codeToHast('0'),
             defaultText: '0',
             optional: true,
             description: textToHast('Initial counter value'),
+            descriptionText: 'Initial counter value',
           },
           step: {
             type: codeToHast('number'),
+            typeText: 'number',
             optional: true,
             description: textToHast('Increment step'),
+            descriptionText: 'Increment step',
           },
         },
         returnValue: codeToHast('number'),
+        returnValueText: 'number',
       };
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
@@ -1463,12 +1514,16 @@ describe('generateTypesMarkdown', () => {
         props: {
           variant: {
             type: codeToHast('string'),
+            typeText: 'string',
             required: true,
             description: textToHast('Button variant (required)'),
+            descriptionText: 'Button variant (required)',
           },
           disabled: {
             type: codeToHast('boolean'),
+            typeText: 'boolean',
             description: textToHast('Disabled state (optional)'),
+            descriptionText: 'Disabled state (optional)',
           },
         },
         dataAttributes: {},
@@ -1507,12 +1562,16 @@ describe('generateTypesMarkdown', () => {
         returnValue: {
           count: {
             type: codeToHast('number'),
+            typeText: 'number',
             description: textToHast('Current count'),
+            descriptionText: 'Current count',
             required: true,
           },
           reset: {
             type: codeToHast('() => void'),
+            typeText: '() => void',
             description: textToHast('Optional reset function'),
+            descriptionText: 'Optional reset function',
           },
         },
       };
@@ -1612,7 +1671,9 @@ describe('generateTypesMarkdown', () => {
         props: {
           variant: {
             type: codeToHast('unknown'),
+            typeText: 'unknown',
             description: textToHast('Variant prop'),
+            descriptionText: 'Variant prop',
           },
         },
         dataAttributes: {},
@@ -1647,6 +1708,7 @@ describe('generateTypesMarkdown', () => {
         props: {
           variant: {
             type: codeToHast('string'),
+            typeText: 'string',
           },
         },
         dataAttributes: {},

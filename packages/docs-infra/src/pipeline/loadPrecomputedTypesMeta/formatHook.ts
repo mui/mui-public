@@ -2,7 +2,8 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatProperties,
   formatParameters,
-  formatTypeAsHast,
+  formatType,
+  formatInlineTypeAsHast,
   isFunctionType,
   isObjectType,
   parseMarkdownToHast,
@@ -15,8 +16,12 @@ import type { HastRoot } from '../../CodeHighlighter/types';
 export type HookTypeMeta = {
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   parameters: Record<string, FormattedParameter | FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | HastRoot;
+  /** Plain text version of returnValue for markdown generation (when returnValue is HastRoot) */
+  returnValueText?: string;
 };
 
 export interface FormatHookOptions {
@@ -59,6 +64,7 @@ export async function formatHookData(
   }
 
   let formattedReturnValue: Record<string, FormattedProperty> | HastRoot;
+  let returnValueText: string | undefined;
   if (isObjectType(signature.returnValueType)) {
     formattedReturnValue = await formatProperties(
       signature.returnValueType.properties,
@@ -68,7 +74,8 @@ export async function formatHookData(
       { formatting },
     );
   } else {
-    formattedReturnValue = await formatTypeAsHast(
+    // Format type text once, then use for both plain text and HAST
+    returnValueText = formatType(
       signature.returnValueType,
       false,
       undefined,
@@ -76,13 +83,16 @@ export async function formatHookData(
       exportNames,
       typeNameMap,
     );
+    formattedReturnValue = await formatInlineTypeAsHast(returnValueText);
   }
 
   return {
     name: hook.name,
     description,
+    descriptionText,
     parameters: formattedParameters,
     returnValue: formattedReturnValue,
+    returnValueText,
   };
 }
 

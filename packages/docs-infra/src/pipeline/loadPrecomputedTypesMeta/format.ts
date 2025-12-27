@@ -18,6 +18,8 @@ import transformHtmlCodeInlineHighlighted, {
 export interface FormattedProperty {
   /** Syntax-highlighted type as HAST */
   type: HastRoot;
+  /** Plain text version of type for markdown generation */
+  typeText: string;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastRoot;
   /** Plain text version of shortType for accessibility and text operations */
@@ -30,8 +32,12 @@ export interface FormattedProperty {
   required?: true;
   /** Description as parsed markdown HAST */
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Example usage as parsed markdown HAST */
   example?: HastRoot;
+  /** Plain text version of example for markdown generation */
+  exampleText?: string;
   /** Detailed expanded type view (only when different from basic type) */
   detailedType?: HastRoot;
 }
@@ -42,6 +48,8 @@ export interface FormattedProperty {
 export interface FormattedEnumMember {
   /** Description of the enum member as parsed markdown HAST */
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Type annotation from JSDoc @type tag */
   type?: string;
 }
@@ -52,6 +60,8 @@ export interface FormattedEnumMember {
 export interface FormattedParameter {
   /** Syntax-highlighted type as HAST */
   type: HastRoot;
+  /** Plain text version of type for markdown generation */
+  typeText: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastRoot;
   /** Plain text version of default for accessibility and text operations */
@@ -60,8 +70,12 @@ export interface FormattedParameter {
   optional?: true;
   /** Description from JSDoc as parsed markdown HAST */
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Example usage as parsed markdown HAST */
   example?: HastRoot;
+  /** Plain text version of example for markdown generation */
+  exampleText?: string;
 }
 
 /**
@@ -405,7 +419,7 @@ function formatMultilineUnionHast(hast: HastRoot): HastRoot {
  * // Returns HAST nodes with multiline formatting for long unions
  * ```
  */
-async function formatInlineTypeAsHast(
+export async function formatInlineTypeAsHast(
   typeText: string,
   unionPrintWidth?: number,
 ): Promise<HastRoot> {
@@ -671,9 +685,12 @@ export async function formatProperties(
 
       const resultObject: FormattedProperty = {
         type,
+        typeText: formattedType,
         required: !prop.optional || undefined,
         description,
+        descriptionText: prop.documentation?.description,
         example,
+        exampleText: exampleTag,
       };
 
       // Only include shortType and shortTypeText if they exist
@@ -739,18 +756,24 @@ export async function formatParameters(
         ? await formatInlineTypeAsHast(defaultValueText, defaultValueUnionPrintWidth)
         : undefined;
 
+      // Format type text once, then use for both plain text and HAST
+      const typeText = formatType(
+        param.type,
+        param.optional,
+        param.documentation?.tags,
+        true,
+        exportNames,
+        typeNameMap,
+      );
+
       const paramResult: FormattedParameter = {
-        type: await formatTypeAsHast(
-          param.type,
-          param.optional,
-          param.documentation?.tags,
-          true,
-          exportNames,
-          typeNameMap,
-        ),
+        type: await formatInlineTypeAsHast(typeText),
+        typeText,
         optional: param.optional || undefined,
         description,
+        descriptionText: param.documentation?.description,
         example,
+        exampleText: exampleTag,
       };
 
       // Only include default and defaultText if they exist
@@ -839,12 +862,12 @@ export async function formatEnum(
 
   await Promise.all(
     sortBy(enumNode.members, ['value']).map(async (member) => {
-      const description = member.documentation?.description
-        ? await parseMarkdownToHast(member.documentation.description)
-        : undefined;
+      const descriptionText = member.documentation?.description;
+      const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
       result[member.value] = {
         description,
+        descriptionText,
         type: member.documentation?.tags?.find((tag) => tag.name === 'type')?.value,
       };
     }),
@@ -1087,18 +1110,6 @@ export async function prettyFormatType(...args: Parameters<typeof formatType>) {
     formatType(...args),
     args[0].kind === 'object' ? args[0].typeName?.name : undefined,
   );
-}
-
-/**
- * Formats a TypeScript type into syntax-highlighted HAST nodes.
- *
- * This is a convenience wrapper around `formatType()` that applies syntax highlighting
- * to the resulting type string. It delegates to `formatType()` for the core type
- * processing, then converts the output to HAST nodes with inline syntax highlighting.
- */
-export async function formatTypeAsHast(...args: Parameters<typeof formatType>): Promise<HastRoot> {
-  const typeString = formatType(...args);
-  return formatInlineTypeAsHast(typeString);
 }
 
 function getFullyQualifiedName(
