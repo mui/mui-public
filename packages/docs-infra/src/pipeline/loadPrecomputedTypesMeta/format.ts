@@ -11,6 +11,7 @@ import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInlineHighlighted, {
   ensureStarryNightInitialized,
 } from '../transformHtmlCodeInlineHighlighted';
+import { starryNightGutter } from '../parseSource/addLineGutters';
 
 /**
  * Formatted property metadata with syntax-highlighted types and parsed markdown.
@@ -462,6 +463,7 @@ export async function formatInlineTypeAsHast(
  * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
  * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
  * Unlike formatInlineTypeAsHast which uses <code>, this creates a <pre><code> structure.
+ * Includes line numbers via starryNightGutter.
  */
 async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
   // Construct HAST with a pre > code structure for block-level display
@@ -492,6 +494,23 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
 
   const result = (await processor.run(hast)) as HastRoot;
 
+  // Add line gutters to the highlighted code
+  const preElement = result.children[0];
+  if (preElement && preElement.type === 'element' && preElement.tagName === 'pre') {
+    const codeElement = preElement.children[0];
+    if (codeElement && codeElement.type === 'element' && codeElement.tagName === 'code') {
+      // Create a temporary root with the code element's children for starryNightGutter
+      const tempRoot: HastRoot = {
+        type: 'root',
+        children: codeElement.children,
+      };
+      // Apply line gutters (mutates tempRoot in place)
+      starryNightGutter(tempRoot);
+      // Put the guttered children back into the code element
+      codeElement.children = tempRoot.children as typeof codeElement.children;
+    }
+  }
+
   return result;
 }
 
@@ -515,7 +534,7 @@ export async function prettyFormat(type: string, typeName?: string) {
       parser: 'typescript',
       singleQuote: true,
       semi: true,
-      printWidth: 85,
+      printWidth: 40,
     });
   } catch (error) {
     // If Prettier fails on extremely complex types, return the original type
@@ -539,7 +558,7 @@ export async function prettyFormat(type: string, typeName?: string) {
     } else {
       // For multi-line types without a typeName, replace the `type _ = ` prefix
       // on the first line, but keep the rest of the line (e.g., opening parenthesis)
-      const firstLine = lines[0].replace(/^type _ = /, '');
+      const firstLine = lines[0].replace(/^type _ = ?/, '');
       codeLines = [firstLine, ...lines.slice(1)];
     }
     const nonEmptyLines = codeLines.filter((l) => l.trim() !== '');
@@ -547,12 +566,12 @@ export async function prettyFormat(type: string, typeName?: string) {
       const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)?.[0].length ?? 0));
 
       if (Number.isFinite(minIndent) && minIndent > 0) {
-        type = codeLines.map((l) => l.substring(minIndent)).join('\n');
+        type = nonEmptyLines.map((l) => l.substring(minIndent)).join('\n');
       } else {
-        type = codeLines.join('\n');
+        type = nonEmptyLines.join('\n');
       }
     } else {
-      type = codeLines.join('\n');
+      type = '';
     }
   }
 

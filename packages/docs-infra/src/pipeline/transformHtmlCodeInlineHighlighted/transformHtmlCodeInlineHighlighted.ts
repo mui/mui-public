@@ -48,13 +48,25 @@ export default function transformHtmlCodeInlineHighlighted() {
         return;
       }
 
-      // Extract the text content
-      const textNode = node.children.find((child) => child.type === 'text');
-      if (!textNode || textNode.type !== 'text') {
+      // Extract all text content from children (handles multiple text nodes and newlines)
+      const getTextContent = (children: typeof node.children): string => {
+        return children
+          .map((child) => {
+            if (child.type === 'text') {
+              return child.value;
+            }
+            if (child.type === 'element' && 'children' in child) {
+              return getTextContent(child.children);
+            }
+            return '';
+          })
+          .join('');
+      };
+
+      const source = getTextContent(node.children);
+      if (!source) {
         return;
       }
-
-      const source = textNode.value;
 
       // Check if there's a highlighting prefix in the data attributes
       const highlightingPrefix =

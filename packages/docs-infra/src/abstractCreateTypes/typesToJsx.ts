@@ -150,17 +150,18 @@ function processComponentType(
             type: hastToJsx(prop.type, inlineComponents || components),
           };
 
+          if (prop.description) {
+            processed.description = hastToJsx(prop.description, components);
+          }
+          if (prop.example) {
+            processed.example = hastToJsx(prop.example, components);
+          }
+
           if (prop.shortType) {
             processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
           }
           if (prop.default) {
             processed.default = hastToJsx(prop.default, inlineComponents || components);
-          }
-          if (prop.description) {
-            processed.description = hastToJsx(prop.description, inlineComponents || components);
-          }
-          if (prop.example) {
-            processed.example = hastToJsx(prop.example, inlineComponents || components);
           }
           if (prop.detailedType) {
             processed.detailedType = hastToJsx(prop.detailedType, inlineComponents || components);
