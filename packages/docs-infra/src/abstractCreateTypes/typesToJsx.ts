@@ -1,6 +1,4 @@
 import type { ExportNode } from 'typescript-api-extractor';
-import type { Nodes as HastNodes } from 'hast';
-import * as React from 'react';
 import type {
   ComponentTypeMeta,
   HookTypeMeta,
@@ -11,18 +9,6 @@ import type {
 } from '../pipeline/loadPrecomputedTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
-
-/**
- * Wraps hastToJsx output in a span to ensure proper serialization across RSC boundaries.
- * React fragments from toJsxRuntime don't serialize properly when passed
- * directly as children to client components from server components.
- */
-function hastToWrappedJsx(
-  hast: HastNodes,
-  components?: Parameters<typeof hastToJsx>[1],
-): React.ReactNode {
-  return <span>{hastToJsx(hast, components)}</span>;
-}
 
 export type TypesJsxOptions = {
   components?: {
@@ -139,7 +125,7 @@ function processComponentType(
     name: component.name,
     data: {
       ...component,
-      description: component.description && hastToWrappedJsx(component.description, components),
+      description: component.description && hastToJsx(component.description, components),
       props: Object.fromEntries(
         Object.entries(component.props).map(([key, prop]: [string, any]) => {
           // Destructure to exclude HAST fields that need to be converted
@@ -155,23 +141,23 @@ function processComponentType(
 
           const processed: ProcessedProperty = {
             ...rest,
-            type: hastToWrappedJsx(prop.type, components),
+            type: hastToJsx(prop.type, components),
           };
 
           if (prop.shortType) {
-            processed.shortType = hastToWrappedJsx(prop.shortType, components);
+            processed.shortType = hastToJsx(prop.shortType, components);
           }
           if (prop.default) {
-            processed.default = hastToWrappedJsx(prop.default, components);
+            processed.default = hastToJsx(prop.default, components);
           }
           if (prop.description) {
-            processed.description = hastToWrappedJsx(prop.description, components);
+            processed.description = hastToJsx(prop.description, components);
           }
           if (prop.example) {
-            processed.example = hastToWrappedJsx(prop.example, components);
+            processed.example = hastToJsx(prop.example, components);
           }
           if (prop.detailedType) {
-            processed.detailedType = hastToWrappedJsx(prop.detailedType, components);
+            processed.detailedType = hastToJsx(prop.detailedType, components);
           }
 
           return [key, processed];
@@ -182,13 +168,13 @@ function processComponentType(
           let processedType: React.ReactNode | undefined;
           if (attr.type) {
             processedType =
-              typeof attr.type === 'string' ? attr.type : hastToWrappedJsx(attr.type, components);
+              typeof attr.type === 'string' ? attr.type : hastToJsx(attr.type, components);
           }
           return [
             key,
             {
               type: processedType,
-              description: attr.description && hastToWrappedJsx(attr.description, components),
+              description: attr.description && hastToJsx(attr.description, components),
             },
           ];
         }),
@@ -198,15 +184,13 @@ function processComponentType(
           let processedType: React.ReactNode | undefined;
           if (cssVar.type) {
             processedType =
-              typeof cssVar.type === 'string'
-                ? cssVar.type
-                : hastToWrappedJsx(cssVar.type, components);
+              typeof cssVar.type === 'string' ? cssVar.type : hastToJsx(cssVar.type, components);
           }
           return [
             key,
             {
               type: processedType,
-              description: cssVar.description && hastToWrappedJsx(cssVar.description, components),
+              description: cssVar.description && hastToJsx(cssVar.description, components),
             },
           ];
         }),
@@ -224,17 +208,17 @@ function processHookType(
 
     const processed: ProcessedParameter = {
       ...rest,
-      type: hastToWrappedJsx(param.type, components),
+      type: hastToJsx(param.type, components),
     };
 
     if (param.default) {
-      processed.default = hastToWrappedJsx(param.default, components);
+      processed.default = hastToJsx(param.default, components);
     }
     if (param.description) {
-      processed.description = hastToWrappedJsx(param.description, components);
+      processed.description = hastToJsx(param.description, components);
     }
     if (param.example) {
-      processed.example = hastToWrappedJsx(param.example, components);
+      processed.example = hastToJsx(param.example, components);
     }
 
     return [key, processed] as const;
@@ -249,24 +233,22 @@ function processHookType(
     // It's a HastRoot - convert to simple discriminated union
     processedReturnValue = {
       kind: 'simple',
-      type: hastToWrappedJsx(hook.returnValue, components),
+      type: hastToJsx(hook.returnValue, components),
     };
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const processedType = prop.type && hastToWrappedJsx(prop.type, components);
+      const processedType = prop.type && hastToJsx(prop.type, components);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
-      const processedShortType = prop.shortType && hastToWrappedJsx(prop.shortType, components);
+      const processedShortType = prop.shortType && hastToJsx(prop.shortType, components);
 
-      const processedDefault = prop.default && hastToWrappedJsx(prop.default, components);
+      const processedDefault = prop.default && hastToJsx(prop.default, components);
 
-      const processedDescription =
-        prop.description && hastToWrappedJsx(prop.description, components);
-      const processedExample = prop.example && hastToWrappedJsx(prop.example, components);
+      const processedDescription = prop.description && hastToJsx(prop.description, components);
+      const processedExample = prop.example && hastToJsx(prop.example, components);
 
-      const processedDetailedType =
-        prop.detailedType && hastToWrappedJsx(prop.detailedType, components);
+      const processedDetailedType = prop.detailedType && hastToJsx(prop.detailedType, components);
       // Destructure to exclude HAST fields that need to be converted
       const {
         type,
@@ -312,7 +294,7 @@ function processHookType(
     name: hook.name,
     data: {
       ...hook,
-      description: hook.description && hastToWrappedJsx(hook.description, components),
+      description: hook.description && hastToJsx(hook.description, components),
       parameters: processedParameters,
       returnValue: processedReturnValue,
     },
