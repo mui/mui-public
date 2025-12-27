@@ -118,7 +118,7 @@ This function transforms precomputed HAST nodes from the webpack loader
 into renderable React components.
 
 ```typescript
-(
+type typesToJsx = (
   types?: TypesMeta[],
   options?: {
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };

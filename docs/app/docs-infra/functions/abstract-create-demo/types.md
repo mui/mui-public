@@ -7,7 +7,7 @@
 ### abstractCreateDemo
 
 ```typescript
-(
+type abstractCreateDemo = (
   options: {
     DemoContent: ComponentType<ContentProps<{}>>;
     DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
@@ -28,9 +28,7 @@
     fallbackUsesAllVariants?: boolean;
     loadCodeMeta?: (url: string) => Promise<Code>;
     loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-    loadSource?: (
-      url: string,
-    ) => Promise<{
+    loadSource?: (url: string) => Promise<{
       source: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
@@ -59,7 +57,7 @@
 ### createDemoFactory
 
 ```typescript
-(options?: {
+type createDemoFactory = (options?: {
   DemoContent: ComponentType<ContentProps<{}>>;
   DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
   DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
@@ -79,9 +77,7 @@
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (
-    url: string,
-  ) => Promise<{
+  loadSource?: (url: string) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
@@ -110,7 +106,7 @@
 ### createDemoWithVariantsFactory
 
 ```typescript
-(options?: {
+type createDemoWithVariantsFactory = (options?: {
   DemoContent: ComponentType<ContentProps<{}>>;
   DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
   DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
@@ -130,9 +126,7 @@
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (
-    url: string,
-  ) => Promise<{
+  loadSource?: (url: string) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];

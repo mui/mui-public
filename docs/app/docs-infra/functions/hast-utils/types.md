@@ -7,7 +7,7 @@
 ### hastOrJsonToJsx
 
 ```typescript
-(
+type hastOrJsonToJsx = (
   hastOrJson: HastNodes | { hastJson: string } | { hastGzip: string },
   components?: {},
 ) => ReactNode;
@@ -16,13 +16,13 @@
 ### hastToJsx
 
 ```typescript
-(hast: HastNodes, components?: {}) => ReactNode;
+type hastToJsx = (hast: HastNodes, components?: {}) => ReactNode;
 ```
 
 ### stringOrHastToJsx
 
 ```typescript
-(
+type stringOrHastToJsx = (
   source: string | HastNodes | { hastJson: string } | { hastGzip: string },
   highlighted?: boolean,
   components?: {},
@@ -32,5 +32,7 @@
 ### stringOrHastToString
 
 ```typescript
-(source: string | HastNodes | { hastJson: string } | { hastGzip: string }) => string;
+type stringOrHastToString = (
+  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
+) => string;
 ```

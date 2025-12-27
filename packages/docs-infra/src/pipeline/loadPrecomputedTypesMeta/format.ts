@@ -539,7 +539,7 @@ export async function prettyFormat(type: string, typeName?: string, printWidth =
       plugins: [prettierPluginEstree, prettierPluginTypescript],
       parser: 'typescript',
       singleQuote: true,
-      semi: true,
+      trailingComma: 'all',
       printWidth,
     });
   } catch (error) {
@@ -548,6 +548,10 @@ export async function prettyFormat(type: string, typeName?: string, printWidth =
       `[prettyFormat] Prettier failed for type "${typeName || 'unknown'}": ${error instanceof Error ? error.message : String(error)}`,
     );
     return type;
+  }
+
+  if (typeName) {
+    return formattedType.trimEnd();
   }
 
   // Improve readability by formatting complex types with Prettier.

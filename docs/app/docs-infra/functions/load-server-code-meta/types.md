@@ -21,7 +21,7 @@ type DirectoryEntryDirectoryReader = (path: string) => Promise<DirectoryEntry[]>
 Checks if a file path or import path represents a JavaScript/TypeScript module
 
 ```typescript
-(path: string) => boolean;
+type isJavaScriptModule = (path: string) => boolean;
 ```
 
 ### DirectoryEntry.JAVASCRIPT_MODULE_EXTENSIONS
@@ -39,7 +39,7 @@ only resolving JavaScript modules and returning a combined map.
 This function uses the new type-aware resolveModulePath function internally.
 
 ```typescript
-(
+type resolveImportResult = (
   importResult: Record<
     string,
     {
@@ -66,7 +66,7 @@ this function will try to find the actual file by checking for:
 - `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
 
 ```typescript
-(
+type resolveModulePath = (
   moduleUrl: string,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },
@@ -86,7 +86,7 @@ Resolves multiple module paths efficiently by grouping them by directory
 and performing batch directory lookups.
 
 ```typescript
-(
+type resolveModulePaths = (
   modulePaths: string[],
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },
@@ -100,7 +100,7 @@ This function extracts the paths, resolves them using resolveModulePaths, and re
 a map from variant name to resolved file URL.
 
 ```typescript
-(
+type resolveVariantPaths = (
   variants: Record<string, string>,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },

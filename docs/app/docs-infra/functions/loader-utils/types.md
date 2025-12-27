@@ -35,7 +35,7 @@ type ExternalImport = {
 ### externalsToPackages
 
 ```typescript
-(externals: string[]) => Record<string, true>;
+type externalsToPackages = (externals: string[]) => Record<string, true>;
 ```
 
 ### extractNameAndSlugFromUrl
@@ -43,10 +43,7 @@ type ExternalImport = {
 Extracts and formats a name and slug from a URL path
 
 ```typescript
-(url: string) => {
-  name: string;
-  slug: string;
-};
+type extractNameAndSlugFromUrl = (url: string) => { name: string; slug: string };
 ```
 
 ### fileUrlToPortablePath
@@ -65,7 +62,7 @@ POSIX-style path for path manipulation. Use `fileURLToPath` from the `url` modul
 when you need to access the actual filesystem.
 
 ```typescript
-(fileUrl: string) => string;
+type fileUrlToPortablePath = (fileUrl: string) => string;
 ```
 
 ### getFileNameFromUrl
@@ -75,10 +72,7 @@ This function is isomorphic and works in both Node.js and browser environments.
 It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
 
 ```typescript
-(url: string) => {
-  fileName: string;
-  extension: string;
-};
+type getFileNameFromUrl = (url: string) => { fileName: string; extension: string };
 ```
 
 ### getLanguageFromExtension
@@ -86,7 +80,7 @@ It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
 Gets the language name from a file extension.
 
 ```typescript
-(extension: string) => string | undefined;
+type getLanguageFromExtension = (extension: string) => string | undefined;
 ```
 
 ### ImportName
@@ -128,7 +122,7 @@ type ImportsAndComments = {
 Checks if a file path or import path represents a JavaScript/TypeScript module
 
 ```typescript
-(path: string) => boolean;
+type isJavaScriptModule = (path: string) => boolean;
 ```
 
 ### JAVASCRIPT_MODULE_EXTENSIONS
@@ -146,7 +140,7 @@ Used to normalize short language names (e.g., from className like 'language-js')
 to their full names.
 
 ```typescript
-Record<string, string>;
+type Record = Record<string, string>;
 ```
 
 ### languageMap
@@ -155,7 +149,7 @@ Maps file extensions to language names.
 These are user-friendly names that can be used in the `language` prop.
 
 ```typescript
-Record<string, string>;
+type Record = Record<string, string>;
 ```
 
 ### normalizeLanguage
@@ -164,7 +158,7 @@ Normalizes a language name to its canonical form.
 This handles aliases like 'js' -> 'javascript', 'ts' -> 'typescript'.
 
 ```typescript
-(language: string) => string;
+type normalizeLanguage = (language: string) => string;
 ```
 
 ### parseImportsAndComments
@@ -186,7 +180,7 @@ portable path format that works cross-platform. Resolved import paths are return
 in the same portable format (forward slashes, starting with /).
 
 ```typescript
-(
+type parseImportsAndComments = (
   code: string,
   fileUrl: string,
   options?: {
@@ -204,7 +198,7 @@ This is the inverse of `fileUrlToPortablePath`. It takes a portable path
 (which always starts with `/`) and converts it back to a proper file:// URL.
 
 ```typescript
-(portablePath: string) => string;
+type portablePathToFileUrl = (portablePath: string) => string;
 ```
 
 ### ProcessImportsResult
@@ -222,7 +216,7 @@ Processes imports based on the specified storage mode, automatically handling
 source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
 
 ```typescript
-(
+type processRelativeImports = (
   source: string,
   importResult: Record<
     string,
@@ -231,10 +225,7 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
   storeAt: StoreAtMode,
   isJsFile?: boolean,
   resolvedPathsMap?: Map<string, string>,
-) => {
-  processedSource: string;
-  extraFiles: Record<string, string>;
-};
+) => { processedSource: string; extraFiles: Record<string, string> };
 ```
 
 ### RelativeImport
@@ -261,7 +252,7 @@ Removes entire import statements for the specified import paths.
 This removes the full import line, not just the path.
 
 ```typescript
-(
+type removeImports = (
   source: string,
   importPathsToRemove: Set<string>,
   importResult: Record<string, { positions: { start: number; end: number }[] }>,
@@ -275,7 +266,7 @@ only resolving JavaScript modules and returning a combined map.
 This function uses the new type-aware resolveModulePath function internally.
 
 ```typescript
-(
+type resolveImportResult = (
   importResult: Record<
     string,
     {
@@ -302,7 +293,7 @@ this function will try to find the actual file by checking for:
 - `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
 
 ```typescript
-(
+type resolveModulePath = (
   moduleUrl: string,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },
@@ -322,7 +313,7 @@ Resolves multiple module paths efficiently by grouping them by directory
 and performing batch directory lookups.
 
 ```typescript
-(
+type resolveModulePaths = (
   modulePaths: string[],
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },
@@ -336,7 +327,7 @@ This function extracts the paths, resolves them using resolveModulePaths, and re
 a map from variant name to resolved file URL.
 
 ```typescript
-(
+type resolveVariantPaths = (
   variants: Record<string, string>,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
   options?: { extensions?: string[] },
@@ -350,7 +341,7 @@ This avoids regex parsing and uses precise position information for replacement.
 Works for both JavaScript/TypeScript and CSS imports.
 
 ```typescript
-(
+type rewriteImports = (
   source: string,
   importPathMapping: Map<string, string>,
   importResult: Record<string, { positions: { start: number; end: number }[] }>,
@@ -364,7 +355,7 @@ This preserves variable names while removing the actual imports.
 Useful when precomputing data that makes the imports unnecessary.
 
 ```typescript
-(
+type rewriteImportsToNull = (
   source: string,
   importPathsToRewrite: Set<string>,
   importResult: Record<

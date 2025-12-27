@@ -34,7 +34,7 @@ and recursively expands union and intersection types. It includes cycle detectio
 to prevent infinite recursion on self-referential types.
 
 ```typescript
-(
+type formatDetailedType = (
   type: AnyType,
   allExports: ExportNode[],
   exportNames: string[],
@@ -51,7 +51,9 @@ The result includes each enum member's description (parsed markdown as HAST) and
 information from JSDoc tags. Members are sorted by their value for consistent output.
 
 ```typescript
-(enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
+type formatEnum = (
+  enumNode: EnumNode,
+) => Promise<Record<string, FormattedEnumMember>>;
 ```
 
 ### FormattedProperty.formatInlineTypeAsHast
@@ -60,10 +62,13 @@ Formats an inline type string with syntax highlighting.
 
 This function transforms type strings (like `string`, `number | null`, etc.) into
 syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
-the type with `type _ = ` before highlighting, then removes the prefix from the result.
+the type with `type _ =` before highlighting, then removes the prefix from the result.
 
 ```typescript
-(typeText: string, unionPrintWidth?: number) => Promise<Root>;
+type formatInlineTypeAsHast = (
+  typeText: string,
+  unionPrintWidth?: number,
+) => Promise<Root>;
 ```
 
 ### FormattedProperty.FormatInlineTypeOptions
@@ -86,7 +91,7 @@ Each parameter includes its type (as string), description (parsed markdown as HA
 default value, and whether it's optional.
 
 ```typescript
-(
+type formatParameters = (
   params: Parameter[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
@@ -111,7 +116,7 @@ This function handles the conversion of TypeScript type information into a forma
 suitable for documentation display with proper syntax highlighting.
 
 ```typescript
-(
+type formatProperties = (
   props: PropertyNode[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
@@ -183,7 +188,7 @@ with a prefix (`type _ =`) for better syntax highlighting, then removes the pref
 the highlighted output.
 
 ```typescript
-(
+type formatType = (
   type: AnyType,
   removeUndefined: boolean,
   jsdocTags: DocumentationTag[] | undefined,
@@ -198,7 +203,7 @@ the highlighted output.
 Type guard to check if a type node is an array type.
 
 ```typescript
-(type: unknown) => boolean;
+type isArrayType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isComponentType
@@ -206,7 +211,7 @@ Type guard to check if a type node is an array type.
 Type guard to check if a type node is a component type.
 
 ```typescript
-(type: unknown) => boolean;
+type isComponentType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isEnumType
@@ -214,7 +219,7 @@ Type guard to check if a type node is a component type.
 Type guard to check if a type node is an enum type.
 
 ```typescript
-(type: unknown) => boolean;
+type isEnumType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isExternalType
@@ -223,7 +228,7 @@ Type guard to check if a type node is an external type reference.
 Works with both class instances and serialized objects from typescript-api-extractor.
 
 ```typescript
-(type: unknown) => boolean;
+type isExternalType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isFunctionType
@@ -231,7 +236,7 @@ Works with both class instances and serialized objects from typescript-api-extra
 Type guard to check if a type node is a function type.
 
 ```typescript
-(type: unknown) => boolean;
+type isFunctionType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isIntersectionType
@@ -239,7 +244,7 @@ Type guard to check if a type node is a function type.
 Type guard to check if a type node is an intersection type.
 
 ```typescript
-(type: unknown) => boolean;
+type isIntersectionType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isIntrinsicType
@@ -247,7 +252,7 @@ Type guard to check if a type node is an intersection type.
 Type guard to check if a type node is an intrinsic (built-in) type.
 
 ```typescript
-(type: unknown) => boolean;
+type isIntrinsicType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isLiteralType
@@ -255,7 +260,7 @@ Type guard to check if a type node is an intrinsic (built-in) type.
 Type guard to check if a type node is a literal type.
 
 ```typescript
-(type: unknown) => boolean;
+type isLiteralType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isObjectType
@@ -263,7 +268,7 @@ Type guard to check if a type node is a literal type.
 Type guard to check if a type node is an object type.
 
 ```typescript
-(type: unknown) => boolean;
+type isObjectType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isTupleType
@@ -271,7 +276,7 @@ Type guard to check if a type node is an object type.
 Type guard to check if a type node is a tuple type.
 
 ```typescript
-(type: unknown) => boolean;
+type isTupleType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isTypeParameterType
@@ -279,7 +284,7 @@ Type guard to check if a type node is a tuple type.
 Type guard to check if a type node is a type parameter.
 
 ```typescript
-(type: unknown) => boolean;
+type isTypeParameterType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.isUnionType
@@ -287,7 +292,7 @@ Type guard to check if a type node is a type parameter.
 Type guard to check if a type node is a union type.
 
 ```typescript
-(type: unknown) => boolean;
+type isUnionType = (type: unknown) => boolean;
 ```
 
 ### FormattedProperty.parseMarkdownToHast
@@ -298,7 +303,7 @@ This enables rendering rich formatted descriptions including code examples, list
 while preserving all markdown features and applying syntax highlighting to code blocks.
 
 ```typescript
-(markdown: string) => Promise<Root>;
+type parseMarkdownToHast = (markdown: string) => Promise<Root>;
 ```
 
 ### FormattedProperty.prettyFormat
@@ -309,7 +314,11 @@ This function wraps the type in a `type Name = ...` declaration, formats it with
 and then removes or preserves the prefix based on the provided typeName and formatting.
 
 ```typescript
-(type: string, typeName?: string, printWidth?: number) => Promise<string>;
+type prettyFormat = (
+  type: string,
+  typeName?: string,
+  printWidth?: number,
+) => Promise<string>;
 ```
 
 ### FormattedProperty.prettyFormatType
@@ -321,7 +330,7 @@ to the resulting type string. It delegates to `formatType()` for the core type
 processing, then runs the output through `prettyFormat()` for consistent styling.
 
 ```typescript
-(
+type prettyFormatType = (
   args?: [
     AnyType,
     boolean,

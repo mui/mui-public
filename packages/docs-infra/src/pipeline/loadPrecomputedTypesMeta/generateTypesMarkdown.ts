@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
 import * as md from '../syncPageIndex/createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
-import { prettyFormatType, prettyFormat } from './format';
+import { prettyFormat, formatType } from './format';
 import { namespaceParts, typeSuffixes } from './order';
 
 /**
@@ -562,7 +562,10 @@ export async function generateTypesMarkdown(
           } else {
             content.push(
               md.code(
-                await prettyFormatType(data.type, true, undefined, true, [], typeNameMap),
+                await prettyFormat(
+                  formatType(data.type, true, undefined, true, [], typeNameMap),
+                  'typeName' in data.type ? data.type.typeName?.name : undefined,
+                ),
                 'typescript',
               ),
             );

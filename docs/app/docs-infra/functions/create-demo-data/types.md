@@ -11,7 +11,7 @@ Returns a data object containing demo metadata and components instead of a compl
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
 ```typescript
-(
+type createDemoData = (
   url: string,
   component: ComponentType<any>,
   meta?: {
@@ -40,7 +40,7 @@ Returns a data object containing demo metadata and components instead of a compl
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
 ```typescript
-(
+type createDemoDataWithVariants = (
   url: string,
   variants: { Default: ComponentType<any> } | {},
   meta?: {
@@ -66,7 +66,7 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 Creates a demo data object for a global provider component.
 
 ```typescript
-(
+type createDemoGlobal = (
   url: string,
   globalProvider: DemoGlobalProvider,
   meta?: {
@@ -92,7 +92,7 @@ Creates a demo data object for a global provider component.
 Creates a demo data object for a global provider component with different variants.
 
 ```typescript
-(
+type createDemoGlobalWithVariants = (
   url: string,
   globalProviders: {},
   meta?: {
