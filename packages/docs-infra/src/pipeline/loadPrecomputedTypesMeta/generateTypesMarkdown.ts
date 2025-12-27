@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
-import * as md from './createMarkdownNodes';
+import * as md from '../syncPageIndex/createMarkdownNodes';
 import type { TypesMeta } from './loadPrecomputedTypesMeta';
 import { prettyFormatType, prettyFormat } from './format';
 import { namespaceParts, typeSuffixes } from './order';
