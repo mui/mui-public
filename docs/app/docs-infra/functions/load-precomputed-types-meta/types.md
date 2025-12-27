@@ -179,7 +179,7 @@ objects, arrays, functions, etc.) and formats them into human-readable strings. 
 complex scenarios like optional properties, type parameters, and nested structures.
 
 For inline code contexts (when `inline: true`), the function generates type expressions
-with a prefix (`type _ = `) for better syntax highlighting, then removes the prefix from
+with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
 the highlighted output.
 
 ```typescript

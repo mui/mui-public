@@ -409,7 +409,7 @@ function formatMultilineUnionHast(hast: HastRoot): HastRoot {
  *
  * This function transforms type strings (like `string`, `number | null`, etc.) into
  * syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
- * the type with `type _ = ` before highlighting, then removes the prefix from the result.
+ * the type with `type _ =` before highlighting, then removes the prefix from the result.
  *
  * @param typeText - The type string to format (e.g., "string | number")
  * @param unionPrintWidth - Optional width threshold for multiline union formatting.
