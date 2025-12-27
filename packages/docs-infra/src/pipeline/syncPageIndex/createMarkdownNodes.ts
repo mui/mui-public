@@ -18,6 +18,7 @@ import type {
   Emphasis,
   Strong,
   Definition,
+  Break,
 } from 'mdast';
 
 /**
@@ -129,107 +130,24 @@ export function inlineCode(value: string): InlineCode {
 }
 
 /**
- * Calculate the visual length of phrasing content
- * (e.g., "One `two` three" has visual length of ~13, or ~9 if excludeFormatting=true)
- * @param node - The phrasing content node
- * @param excludeFormatting - If true, don't count formatting characters like backticks, brackets, etc.
- *                            This allows "`false`" and "false" to both be treated as length 5.
+ * Create a hard line break node (renders as <br> in HTML)
+ * @returns A break node
  */
-function getPhrasingContentLength(node: PhrasingContent, excludeFormatting = false): number {
-  switch (node.type) {
-    case 'text':
-      return node.value.length;
-    case 'inlineCode':
-      // Backticks add 2 chars, but exclude them if normalizing
-      return node.value.length + (excludeFormatting ? 0 : 2);
-    case 'emphasis':
-      // Asterisks/underscores add chars, but exclude them if normalizing
-      return (node.children || []).reduce(
-        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
-        excludeFormatting ? 0 : 2, // *text* or _text_ adds 2 chars
-      );
-    case 'strong':
-      // Double asterisks/underscores add chars, but exclude them if normalizing
-      return (node.children || []).reduce(
-        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
-        excludeFormatting ? 0 : 4, // **text** or __text__ adds 4 chars
-      );
-    case 'delete':
-      // Tildes add chars, but exclude them if normalizing
-      return (node.children || []).reduce(
-        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
-        excludeFormatting ? 0 : 4, // ~~text~~ adds 4 chars
-      );
-    case 'link': {
-      // [text](url) format adds chars, but exclude them if normalizing
-      const childrenLength = (node.children || []).reduce(
-        (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
-        0,
-      );
-      return excludeFormatting ? childrenLength : childrenLength + 4 + (node.url?.length || 0); // [](url) adds 4 + url length
-    }
-    case 'image': {
-      // ![alt](url) format
-      const altLength = (node.alt || '').length;
-      return excludeFormatting ? altLength : altLength + 5 + (node.url?.length || 0); // ![](url) adds 5 + url length
-    }
-    case 'break':
-      return 0;
-    default:
-      return 0;
-  }
+export function hardBreak(): Break {
+  return {
+    type: 'break',
+  };
 }
 
 /**
  * Creates a table cell node
  * @param content - Cell content
- * @param widthIncrements - Optional width increment for padding alignment
- * @param excludeFormatting - If true, don't count formatting chars when calculating width
  * @returns Table cell node
  */
-function tableCell(
-  content: Child | Child[],
-  widthIncrements?: number,
-  excludeFormatting = true,
-): TableCell {
-  const children = normalizeChildren(content);
-
-  if (widthIncrements) {
-    // Calculate total visual length of all content
-    const totalLength = children.reduce(
-      (sum, child) => sum + getPhrasingContentLength(child, excludeFormatting),
-      0,
-    );
-
-    // Calculate padding needed
-    const paddingNeeded = Math.ceil(totalLength / widthIncrements) * widthIncrements - totalLength;
-
-    // Add padding as trailing spaces to the last text node, or create a new text node
-    if (paddingNeeded > 0) {
-      const spaces = new Array(paddingNeeded).fill(' ').join('');
-
-      // Find the last text node and append spaces (reverse search)
-      let lastTextIndex = -1;
-      for (let i = children.length - 1; i >= 0; i -= 1) {
-        if (children[i].type === 'text') {
-          lastTextIndex = i;
-          break;
-        }
-      }
-
-      if (lastTextIndex >= 0) {
-        const lastText = children[lastTextIndex] as Text;
-        children[lastTextIndex] = { ...lastText, value: `${lastText.value}${spaces}` };
-      } else {
-        // No text node found, add a new text node with just spaces
-        children.push(text(spaces));
-      }
-    }
-  }
-
+function tableCell(content: Child | Child[]): TableCell {
   return {
     type: 'tableCell',
-    children,
+    children: normalizeChildren(content),
   };
 }
 
@@ -238,10 +156,10 @@ function tableCell(
  * @param cells - Array of cell contents
  * @returns Table row node
  */
-function tableRow(cells: (Child | Child[])[], widthIncrements?: number): TableRow {
+function tableRow(cells: (Child | Child[])[]): TableRow {
   return {
     type: 'tableRow',
-    children: cells.map((cell) => tableCell(cell, widthIncrements)),
+    children: cells.map((cell) => tableCell(cell)),
   };
 }
 
@@ -250,14 +168,12 @@ function tableRow(cells: (Child | Child[])[], widthIncrements?: number): TableRo
  * @param {Array<string|Object>} headers - Array of header strings or nodes
  * @param {Array<Array<string|Object>>} rows - Array of row data, each row is an array of cell content
  * @param {Array<string>} [alignment] - Optional array of alignments ('left', 'center', 'right') for each column
- * @param {number} [widthIncrements] - Optional value to control the increments that tables expand for cleaner
  * @returns {Object} A table node
  */
 export function table(
   headers: (Child | Child[])[],
   rows: (Child | Child[])[][],
   alignment: string[] | null = null,
-  widthIncrements: number = 7,
 ): Table {
   // Convert alignment strings to AST format
   const align: ('left' | 'right' | 'center' | null)[] = headers.map((_: any, index: number) => {
@@ -279,7 +195,7 @@ export function table(
   const headerRow = tableRow(headers);
 
   // Create data rows - rows is actually an array of arrays
-  const dataRows = rows.map((row) => tableRow(row, widthIncrements));
+  const dataRows = rows.map((row) => tableRow(row));
 
   // Return table node
   return {
