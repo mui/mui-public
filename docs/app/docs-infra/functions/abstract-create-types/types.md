@@ -77,10 +77,7 @@ type createTypesFactory = (options: {
 ### TypesContentProps
 
 ```typescript
-type TypesContentProps<T extends {}> = T & {
-  types?: ProcessedTypesMeta[];
-  multiple?: boolean;
-};
+type TypesContentProps<T extends {}> = T & { types?: ProcessedTypesMeta[]; multiple?: boolean };
 ```
 
 ### TypesTableMeta

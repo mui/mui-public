@@ -183,10 +183,7 @@ in the same portable format (forward slashes, starting with /).
 type parseImportsAndComments = (
   code: string,
   fileUrl: string,
-  options?: {
-    removeCommentsWithPrefix?: string[];
-    notableCommentsPrefix?: string[];
-  },
+  options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
 ) => Promise<ImportsAndComments>;
 ```
 
@@ -204,10 +201,7 @@ type portablePathToFileUrl = (portablePath: string) => string;
 ### ProcessImportsResult
 
 ```typescript
-type ProcessImportsResult = {
-  processedSource: string;
-  extraFiles: Record<string, string>;
-};
+type ProcessImportsResult = { processedSource: string; extraFiles: Record<string, string> };
 ```
 
 ### processRelativeImports

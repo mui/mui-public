@@ -51,9 +51,7 @@ The result includes each enum member's description (parsed markdown as HAST) and
 information from JSDoc tags. Members are sorted by their value for consistent output.
 
 ```typescript
-type formatEnum = (
-  enumNode: EnumNode,
-) => Promise<Record<string, FormattedEnumMember>>;
+type formatEnum = (enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
 ```
 
 ### FormattedProperty.formatInlineTypeAsHast
@@ -65,10 +63,7 @@ syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
 the type with `type _ =` before highlighting, then removes the prefix from the result.
 
 ```typescript
-type formatInlineTypeAsHast = (
-  typeText: string,
-  unionPrintWidth?: number,
-) => Promise<Root>;
+type formatInlineTypeAsHast = (typeText: string, unionPrintWidth?: number) => Promise<Root>;
 ```
 
 ### FormattedProperty.FormatInlineTypeOptions
@@ -150,11 +145,7 @@ type FormatPropertiesOptions = {
 Formatted enum member metadata.
 
 ```typescript
-type FormattedEnumMember = {
-  description?: HastRoot;
-  descriptionText?: string;
-  type?: string;
-};
+type FormattedEnumMember = { description?: HastRoot; descriptionText?: string; type?: string };
 ```
 
 ### FormattedProperty.FormattedParameter
@@ -314,11 +305,7 @@ This function wraps the type in a `type Name = ...` declaration, formats it with
 and then removes or preserves the prefix based on the provided typeName and formatting.
 
 ```typescript
-type prettyFormat = (
-  type: string,
-  typeName?: string,
-  printWidth?: number,
-) => Promise<string>;
+type prettyFormat = (type: string, typeName?: string, printWidth?: number) => Promise<string>;
 ```
 
 ### FormattedProperty.prettyFormatType

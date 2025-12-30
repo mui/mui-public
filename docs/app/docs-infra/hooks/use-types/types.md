@@ -7,10 +7,7 @@
 ### ProcessedComponentTypeMeta
 
 ```typescript
-type ProcessedComponentTypeMeta = {
-  name: string;
-  descriptionText?: string | undefined;
-} & {
+type ProcessedComponentTypeMeta = { name: string; descriptionText?: string | undefined } & {
   description?: React.ReactNode;
   props: Record<string, ProcessedProperty>;
   dataAttributes: Record<string, ProcessedEnumMember>;

@@ -280,10 +280,7 @@ type CodeLoadingProps = {
 Component and rendering props
 
 ```typescript
-type CodeRenderingProps = {
-  Content: ComponentType<ContentProps<{}>>;
-  contentProps?: {};
-};
+type CodeRenderingProps = { Content: ComponentType<ContentProps<{}>>; contentProps?: {} };
 ```
 
 ### Components
@@ -296,9 +293,7 @@ type Components = { [key: string]: React.ReactNode };
 
 ```typescript
 type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
-  CodeIdentityProps & {
-    extraVariants?: Record<string, ContentLoadingVariant>;
-  } & T & {
+  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> } & T & {
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
@@ -332,11 +327,7 @@ type ControlledCode = { [key: string]: ControlledVariantCode | null | undefined 
 ### ControlledVariantCode
 
 ```typescript
-type ControlledVariantCode = {
-  fileName?: string;
-  language?: string;
-  path?: string;
-} & {
+type ControlledVariantCode = { fileName?: string; language?: string; path?: string } & {
   url?: string;
   source?: string | null;
   extraFiles?: ControlledVariantExtraFiles;
