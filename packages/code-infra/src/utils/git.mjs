@@ -5,56 +5,54 @@ import gitUrlParse from 'git-url-parse';
  * @typedef {Object} RepoInfo
  * @property {string} owner - Repository owner
  * @property {string} repo - Repository name
+ * @property {string} remoteName - Remote name
  */
 
 /**
  * Get current repository info from git remote
- * @param {string[]} [remotes=['upstream', 'origin']] - Remote name(s) to check (default: ['upstream', 'origin'])
  * @returns {Promise<RepoInfo>} Repository owner and name
  */
-export async function getRepositoryInfo(remotes = ['upstream', 'origin']) {
+export async function getRepositoryInfo() {
   /**
    * @type {Record<string, string>}
    */
   const cause = {};
-  const cliResult = $`git remote -v`;
+  const { stdout } = await $`git remote -v`;
+  const lines = stdout.trim().split('\n');
   /**
-   * @type {Map<string, string>}
+   * @type {Set<string>}
    */
-  const repoRemotes = new Map();
+  const repoRemotes = new Set();
 
-  for await (const line of cliResult) {
+  for (const line of lines) {
     // Match pattern: "remoteName url (fetch|push)"
     const [remoteName, url, type] = line.trim().split(/\s+/, 3);
+    repoRemotes.add(remoteName);
     if (type === '(fetch)') {
-      repoRemotes.set(remoteName, url);
-    } else if (type !== '(push)') {
+      try {
+        const parsed = gitUrlParse(url);
+        if (parsed.source !== 'github.com' || parsed.owner !== 'mui') {
+          cause[remoteName] = `Remote is not a GitHub repository under 'mui' organization: ${url}`;
+          continue;
+        }
+        return {
+          owner: parsed.owner,
+          repo: parsed.name,
+          remoteName,
+        };
+      } catch (error) {
+        cause[remoteName] = `Failed to parse URL for remote ${remoteName}: ${url}`;
+      }
+    }
+    if (type !== '(push)') {
       throw new Error(`Unexpected line format for "git remote -v": "${line}"`);
     }
   }
 
-  for (const remote of remotes) {
-    if (!repoRemotes.has(remote)) {
-      cause[remote] = 'Remote not found';
-      continue;
-    }
-    const url = /** @type {string} */ (repoRemotes.get(remote));
-    try {
-      const parsed = gitUrlParse(url);
-      if (parsed.source !== 'github.com' || parsed.owner !== 'mui') {
-        cause[remote] = `Remote is not a GitHub repository under 'mui' organization: ${url}`;
-        continue;
-      }
-      return {
-        owner: parsed.owner,
-        repo: parsed.name,
-      };
-    } catch (error) {
-      cause[remote] = `Failed to parse URL for remote ${remote}: ${url}`;
-    }
-  }
-
-  throw new Error(`Failed to find remote(s): ${remotes.join(', ')}`, { cause });
+  throw new Error(
+    `Failed to find correct remote(s) in : ${Array.from(repoRemotes.keys()).join(', ')}`,
+    { cause },
+  );
 }
 
 /**
