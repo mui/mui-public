@@ -528,10 +528,10 @@ async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
  * @param type - The type string to format
  * @param typeName - Optional type name to use in the declaration. If provided and the type
  *                   is multi-line, the `type Name = ` prefix will be preserved.
- * @param printWidth - Optional maximum line width for Prettier formatting (default: 85)
+ * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
  * @returns The formatted type string
  */
-export async function prettyFormat(type: string, typeName?: string, printWidth = 85) {
+export async function prettyFormat(type: string, typeName?: string, printWidth = 100) {
   let formattedType: string;
 
   try {
