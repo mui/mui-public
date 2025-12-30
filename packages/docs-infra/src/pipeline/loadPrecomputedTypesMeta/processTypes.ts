@@ -5,6 +5,7 @@ import { parseExports } from './parseExports';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { findMetaFiles } from './findMetaFiles';
+import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
 
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
@@ -19,10 +20,13 @@ export interface WorkerRequest {
   requestId?: number; // Added by worker manager for request tracking
   projectPath: string;
   compilerOptions: CompilerOptions;
+  /** Entrypoints as filesystem paths */
   allEntrypoints: string[];
   globalTypes?: string[];
-  resolvedVariantMap: Array<[string, string]>; // Map serialized as array of tuples
+  /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
+  resolvedVariantMap: Array<[string, string]>;
   namedExports?: Record<string, string>;
+  /** Dependency paths (filesystem paths, not URLs) */
   dependencies: string[];
   rootContext: string;
   relativePath: string;
@@ -32,6 +36,7 @@ export interface WorkerResponse {
   requestId?: number; // Echoed back from request for tracking
   success: boolean;
   variantData?: Record<string, VariantResult>;
+  /** All dependencies as filesystem paths (from TypeScript's program.getSourceFiles()) */
   allDependencies?: string[];
   performanceLogs?: PerformanceLog[];
   error?: string;
@@ -115,7 +120,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
         );
 
         const namedExport = request.namedExports?.[variantName];
-        const entrypoint = fileUrl.replace('file://', '');
+        const entrypoint = fileUrlToPortablePath(fileUrl);
         const entrypointDir = new URL('.', fileUrl).pathname;
 
         try {

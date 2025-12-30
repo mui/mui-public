@@ -7,6 +7,7 @@ import type { LoaderContext } from 'webpack';
 import type { ExportNode } from 'typescript-api-extractor';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
+import { fileUrlToPortablePath, portablePathToFileUrl } from '../loaderUtils/fileUrlToPortablePath';
 import {
   createPerformanceLogger,
   logPerformance,
@@ -95,7 +96,7 @@ export async function loadPrecomputedTypesMeta(
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
   const resourceName = extractNameAndSlugFromUrl(
-    new URL('.', `file://${this.resourcePath}`).pathname,
+    new URL('.', portablePathToFileUrl(this.resourcePath)).pathname,
   ).name;
 
   const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
@@ -171,7 +172,7 @@ export async function loadPrecomputedTypesMeta(
     // Collect all entrypoints for optimized program creation
     // Include both the component entrypoints and their meta files (DataAttributes, CssVars)
     const resolvedEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
-      url.replace('file://', ''),
+      fileUrlToPortablePath(url),
     );
 
     // Parse exports from library source files to find re-exported directories
@@ -527,9 +528,9 @@ export async function loadPrecomputedTypesMeta(
     );
 
     // Add all dependencies to webpack's watch list
+    // Dependencies are already paths from TypeScript's program.getSourceFiles()
     allDependencies.forEach((dep) => {
-      // Strip 'file://' prefix if present before adding to webpack's dependency tracking
-      this.addDependency(dep.startsWith('file://') ? dep.slice(7) : dep);
+      this.addDependency(dep);
     });
 
     if (options.performance?.logging) {
