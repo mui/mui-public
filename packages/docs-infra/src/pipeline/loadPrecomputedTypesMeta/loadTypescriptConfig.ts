@@ -4,7 +4,6 @@ import fs from 'fs/promises';
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 import ts from 'typescript';
-import { portablePathToFileUrl } from '../loaderUtils/fileUrlToPortablePath';
 
 // Cache for loaded TypeScript configurations
 // Uses process object to persist across Turbopack module contexts
@@ -99,7 +98,7 @@ function mergeConfig(target: any, source: any): any {
 
 async function loadTypescriptConfigUncached(configPath: string) {
   const dependencies = [configPath];
-  const projectPath = new URL('.', portablePathToFileUrl(configPath)).pathname;
+  const projectPath = path.dirname(configPath);
 
   const data = await fs.readFile(configPath, 'utf-8');
   const { config, error } = ts.readConfigFile(configPath, (filePath) => {
@@ -119,13 +118,13 @@ async function loadTypescriptConfigUncached(configPath: string) {
 
   let mergedConfig = options;
   if (raw.extends) {
+    const extendedConfigPath = path.resolve(projectPath, raw.extends);
+
     const {
       options: parentOptions,
       projectPath: parentPath,
       dependencies: parentDependencies,
-    } = await loadTypescriptConfig(
-      new URL(raw.extends, portablePathToFileUrl(configPath)).pathname,
-    );
+    } = await loadTypescriptConfig(extendedConfigPath);
 
     dependencies.push(...parentDependencies);
 
@@ -138,7 +137,7 @@ async function loadTypescriptConfigUncached(configPath: string) {
 
         const paths: string[] = [];
         parentOptions.paths[key].forEach((relativePath: string) => {
-          const absolutePath = new URL(relativePath, portablePathToFileUrl(parentPath)).pathname;
+          const absolutePath = path.resolve(parentPath, relativePath);
           let scopedPath = path.relative(projectPath, absolutePath);
           if (!scopedPath.startsWith('.')) {
             scopedPath = `./${scopedPath}`;
