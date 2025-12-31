@@ -152,6 +152,11 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   delete packageJson.imports;
 
   packageJson.type = packageJson.type || 'commonjs';
+  if (packageJson.packageScripts) {
+    // @ts-expect-error temporary fix to move packageScripts to scripts
+    packageJson.scripts = packageJson.packageScripts;
+    delete packageJson.packageScripts;
+  }
 
   /**
    * @type {import('./packageJson').PackageJson.ExportConditions}

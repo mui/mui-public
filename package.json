@@ -65,6 +65,7 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "^7.27.1",
+    "babel-plugin-module-resolver": "^5.0.2",
     "eslint-plugin-n": "^17.23.1",
     "markdownlint-cli2": "^0.20.0",
     "stylelint": "^16.26.1"

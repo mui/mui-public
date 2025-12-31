@@ -95,6 +95,13 @@ declare module '@next/eslint-plugin-next' {
   export default config;
 }
 
+declare module '@babel/plugin-transform-object-rest-spread' {
+  import type { PluginItem } from '@babel/core';
+
+  declare const plugin: PluginItem;
+  export default plugin;
+}
+
 declare module '@babel/plugin-transform-runtime' {
   import type { PluginItem } from '@babel/core';
 
