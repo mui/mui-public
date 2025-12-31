@@ -98,6 +98,11 @@ async function writePackageJson({
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
 
+  if (packageJson.packageScripts) {
+    packageJson.scripts = packageJson.packageScripts;
+    delete packageJson.packageScripts;
+  }
+
   const resolvedPackageType = packageType || packageJson.type || 'commonjs';
   packageJson.type = resolvedPackageType;
 

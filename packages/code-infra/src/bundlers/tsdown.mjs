@@ -1,8 +1,12 @@
 /* eslint-disable no-console */
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import pluginBabel from '@rollup/plugin-babel';
+import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import { builtinModules } from 'node:module';
+import * as path from 'node:path';
+import * as semver from 'semver';
 import { build as tsdown } from 'tsdown';
-import reactPlugin from '@vitejs/plugin-react';
 import {
   generateEntriesFromExports,
   getTsConfigPath,
@@ -10,10 +14,9 @@ import {
   writePkgJson,
 } from '../utils/build.mjs';
 import { copyFiles } from '../utils/copyFiles.mjs';
-
 /**
  * @TODOs -
- * [ ] Handle custom babel plugin transforms
+ * [x] Handle custom babel plugin transforms
  * [ ] Figure out how to pass targets (easy to do if we want to have same target for all output formats)
  * [x] Write your own package.json exports (the one built into tsdown doesn't cut it)
  * [x] Side effects from type imports without the "type" identifier. Need eslint rule to enforce this.
@@ -25,16 +28,16 @@ import { copyFiles } from '../utils/copyFiles.mjs';
  */
 
 /**
- * @typedef {import('../cli/cmdBuildNew.mjs').PackageJson} PackageJson
- */
-
-/**
  * @param {Args} args
- * @param {PackageJson} pkgJson
+ * @param {import('../cli/packageJson').PackageJson} pkgJson
  * @returns {Promise<void>}
  */
 export async function build(args, pkgJson) {
   const cwd = process.cwd();
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Could not find workspace root');
+  }
 
   const outDir = /** @type {any} */ (pkgJson.publishConfig)?.directory;
   await fs.rm(outDir, {
@@ -43,8 +46,8 @@ export async function build(args, pkgJson) {
   });
 
   const [exportEntries, nullEntries, binEntries] = await generateEntriesFromExports(
-    pkgJson.exports ?? {},
-    pkgJson.bin ?? {},
+    /** @type {import('../utils/build.mjs').Exports} */ (pkgJson.exports) ?? {},
+    /** @type {string | Record<string, string>} */ (pkgJson.bin) ?? {},
     { cwd },
   );
   const externals = new Set([
@@ -74,6 +77,7 @@ export async function build(args, pkgJson) {
    * @type {import('tsdown').InlineConfig}
    */
   const baseOptions = {
+    shims: true,
     watch: false,
     config: false,
     outDir,
@@ -99,16 +103,69 @@ export async function build(args, pkgJson) {
     minify: 'dce-only',
     hash: false,
     name: pkgJson.name,
-    plugins: [
-      reactPlugin({
-        jsxRuntime: 'automatic',
-        babel: {
-          babelrc: true,
-          configFile: true,
-        },
-      }),
-    ],
+    plugins: [],
+    treeshake: {
+      propertyReadSideEffects: false,
+      propertyWriteSideEffects: false,
+    },
   };
+
+  const babelConfigMjs = await fs
+    .stat(path.join(workspaceDir, 'babel.config.mjs'))
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+  const babelConfigJs = await fs
+    .stat(path.join(workspaceDir, 'babel.config.js'))
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+
+  if (babelConfigMjs || babelConfigJs) {
+    let babelRuntimeVersion = pkgJson.dependencies?.['@babel/runtime'] ?? '';
+    if (babelRuntimeVersion === 'catalog:') {
+      // resolve the version from the given package
+      // outputs the pnpm-workspace.yaml config as json
+      const { stdout: configStdout } = await $`pnpm config list --json`;
+      const pnpmWorkspaceConfig = JSON.parse(configStdout);
+      babelRuntimeVersion = pnpmWorkspaceConfig.catalog['@babel/runtime'];
+    }
+
+    if (!babelRuntimeVersion) {
+      throw new Error(
+        'package.json needs to have a dependency on `@babel/runtime` when building with `@babel/plugin-transform-runtime`.',
+      );
+    }
+    let reactVersion = '';
+    if (args.enableReactCompiler) {
+      reactVersion = semver.minVersion(pkgJson.peerDependencies?.react || '')?.version ?? 'latest';
+      const mode = process.env.MUI_REACT_COMPILER_MODE ?? 'opt-in';
+      console.log(
+        `[feature] Building with React compiler enabled. The compiler mode is "${mode}" right now.${mode === 'opt-in' ? ' Use explicit "use memo" directives in your components to enable the React compiler for them.' : ''}`,
+      );
+    }
+
+    // @ts-expect-error The plugins field exists and is an array
+    (baseOptions.plugins ?? []).push(
+      pluginBabel({
+        configFile: babelConfigMjs || babelConfigJs,
+        babelHelpers: 'runtime',
+        extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts'],
+        parserOpts: {
+          sourceType: 'module',
+          plugins: ['jsx', 'typescript'],
+        },
+        skipPreflightCheck: true,
+        caller: /** @type {any} */ ({
+          name: 'tsdown-bundler',
+          babelRuntimeVersion,
+          reactCompilerReactVersion: reactVersion,
+          optimizeClsx:
+            pkgJson.dependencies?.clsx !== undefined ||
+            pkgJson.dependencies?.classnames !== undefined,
+          removePropTypes: pkgJson.dependencies?.['prop-types'] !== undefined,
+        }),
+      }),
+    );
+  }
 
   /**
    * @type {Promise<import('tsdown').TsdownBundle[]>[]}
@@ -186,7 +243,7 @@ export async function build(args, pkgJson) {
               name: 'bin-shebang',
               // eslint-disable-next-line consistent-return
               renderChunk(code, chunk) {
-                if (chunk.isEntry && !code.startsWith('#!')) {
+                if (chunk.isEntry && !code.includes('#!/usr/bin/env')) {
                   return `#!/usr/bin/env node\n${code}`;
                 }
               },

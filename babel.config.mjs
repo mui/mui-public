@@ -1,16 +1,15 @@
 // @ts-check
-/* eslint-disable @typescript-eslint/no-require-imports */
 // copied from https://github.com/mui/material-ui/blob/master/babel.config.js
 // @mui/internal-babel-plugin-minify-errors removed
 
-const { default: getBaseConfig } = require('@mui/internal-code-infra/babel-config');
+import getBaseConfig from '@mui/internal-code-infra/babel-config';
 
 /**
  * @typedef {import('@babel/core')} babel
  */
 
 /** @type {babel.ConfigFunction} */
-module.exports = function getBabelConfig(api) {
+export default function getBabelConfig(api) {
   const baseConfig = getBaseConfig(api);
 
   return {
@@ -30,4 +29,4 @@ module.exports = function getBabelConfig(api) {
       },
     ],
   };
-};
+}
