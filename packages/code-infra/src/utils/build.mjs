@@ -1,7 +1,8 @@
-import * as semver from 'semver';
+import { $ } from 'execa';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as semver from 'semver';
 
 /**
  * @typedef {'esm' | 'cjs'} BundleType
@@ -422,9 +423,14 @@ export async function getTsConfigPath(cwd) {
  * @param {Object} [options]
  * @param {boolean} [options.skipMainCheck=false] - Whether to skip checking for main field in package.json.
  * @param {boolean} [options.enableReactCompiler=false] - Whether to enable React compiler checks.
+ * @param {boolean} [options.skipBabelRuntimeCheck=false]
  */
-export function validatePkgJson(packageJson, options = {}) {
-  const { skipMainCheck = false, enableReactCompiler = false } = options;
+export async function validatePkgJson(packageJson, options = {}) {
+  const {
+    skipMainCheck = false,
+    enableReactCompiler = false,
+    skipBabelRuntimeCheck = false,
+  } = options;
   /**
    * @type {string[]}
    */
@@ -482,6 +488,21 @@ export function validatePkgJson(packageJson, options = {}) {
         'When building with React compiler for React versions below 19, "react-compiler-runtime" must be specified as a dependency or peerDependency in package.json.',
       );
     }
+  }
+
+  let babelRuntimeVersion = packageJson.dependencies['@babel/runtime'];
+  if (babelRuntimeVersion === 'catalog:') {
+    // resolve the version from the given package
+    // outputs the pnpm-workspace.yaml config as json
+    const { stdout: configStdout } = await $`pnpm config list --json`;
+    const pnpmWorkspaceConfig = JSON.parse(configStdout);
+    babelRuntimeVersion = pnpmWorkspaceConfig.catalog['@babel/runtime'];
+  }
+
+  if (!babelRuntimeVersion && !skipBabelRuntimeCheck) {
+    errors.push(
+      'package.json needs to have a dependency on `@babel/runtime` when building with `@babel/plugin-transform-runtime`.',
+    );
   }
 
   if (errors.length > 0) {

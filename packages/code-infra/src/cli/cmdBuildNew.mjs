@@ -10,6 +10,7 @@ import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
  * @property {boolean} skipTypes
  * @property {boolean} sourceMap
  * @property {string[]} [copy]
+ * @property {boolean} enableReactCompiler
  */
 
 /**
@@ -55,13 +56,21 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         description:
           'Files/Directories to be copied to the output directory. Can be a glob pattern.',
         default: [],
+      })
+      .option('enableReactCompiler', {
+        type: 'boolean',
+        default: false,
+        description: 'Whether to use the React compiler.',
       }),
   async handler(args) {
     let pkgName = '';
     await markFn('build-new', async () => {
       const cwd = process.cwd();
       const pkgJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
-      validatePkgJson(pkgJson);
+      await validatePkgJson(pkgJson, {
+        enableReactCompiler: args.enableReactCompiler,
+        skipBabelRuntimeCheck: true, // this check is done in tsdown build
+      });
       pkgName = pkgJson.name;
 
       await import('../bundlers/tsdown.mjs').then(({ build }) => build(args, pkgJson));
