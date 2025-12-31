@@ -152,6 +152,11 @@ async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes
   delete packageJson.imports;
 
   packageJson.type = packageJson.type || 'commonjs';
+  if (packageJson.packageScripts) {
+    // @ts-expect-error temporary fix to move packageScripts to scripts
+    packageJson.scripts = packageJson.packageScripts;
+    delete packageJson.packageScripts;
+  }
 
   /**
    * @type {import('./packageJson').PackageJson.ExportConditions}
@@ -360,7 +365,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     performance.mark('build-start');
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
-    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
+    await validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
