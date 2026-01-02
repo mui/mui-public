@@ -36,7 +36,6 @@ import { syncPageIndex } from '@mui/internal-docs-infra/pipeline/syncPageIndex';
 await syncPageIndex({
   pagePath: './app/components/button/page.mdx',
   metadata: {
-    slug: 'button',
     path: './button/page.mdx',
     title: 'Button',
     description: 'A clickable button component.',
@@ -58,9 +57,9 @@ Update multiple pages in a single operation (more efficient with file locking):
 await syncPageIndex({
   pagePath: './app/components/page.mdx', // The index file itself
   metadataList: [
-    { slug: 'button', path: './button/page.mdx', title: 'Button', description: '...' },
-    { slug: 'checkbox', path: './checkbox/page.mdx', title: 'Checkbox', description: '...' },
-    { slug: 'dialog', path: './dialog/page.mdx', title: 'Dialog', description: '...' },
+    { path: './button/page.mdx', title: 'Button', description: '...' },
+    { path: './checkbox/page.mdx', title: 'Checkbox', description: '...' },
+    { path: './dialog/page.mdx', title: 'Dialog', description: '...' },
   ],
 });
 ```
@@ -187,7 +186,6 @@ Updates a parent directory's index file with page metadata.
 
 ```ts
 interface PageMetadata {
-  slug: string; // URL slug (e.g., 'button')
   path: string; // Relative path to MDX file
   title: string; // Page title
   description?: string; // Short description
@@ -220,7 +218,6 @@ Add status indicators that appear in the index list:
 await syncPageIndex({
   pagePath: './app/components/new-component/page.mdx',
   metadata: {
-    slug: 'new-component',
     path: './new-component/page.mdx',
     title: 'New Component',
     description: 'A brand new component.',
@@ -237,7 +234,6 @@ For components with API documentation, include `parts` or `exports` to make them
 await syncPageIndex({
   pagePath: './app/components/dialog/page.mdx',
   metadata: {
-    slug: 'dialog',
     path: './dialog/page.mdx',
     title: 'Dialog',
     description: 'A modal dialog component.',
@@ -265,7 +261,6 @@ For links to external resources, use `skipDetailSection`:
 await syncPageIndex({
   pagePath: './app/resources/page.mdx',
   metadata: {
-    slug: 'github',
     path: 'https://github.com/mui/base-ui',
     title: 'GitHub',
     tags: ['External'],

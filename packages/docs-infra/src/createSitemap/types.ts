@@ -28,8 +28,7 @@ export interface SitemapExport {
  * Page data structure from sitemap
  */
 export interface SitemapPage {
-  title?: string;
-  slug: string;
+  title: string;
   path: string;
   description?: string;
   keywords?: string[];
