@@ -13,10 +13,11 @@ export interface ResolveLibrarySourceFilesOptions {
   variants: Record<string, string>;
   /** Filesystem path to the resource being loaded */
   resourcePath: string;
-  /** Filesystem path to the webpack root context */
-  rootContext: string;
+  /** Filesystem path to the webpack root context (must end with /) */
+  rootContextDir: string;
   tsconfigPaths?: ts.MapLike<string[]>;
-  pathsBasePath?: string;
+  /** Base path for resolving tsconfig paths (must end with /) */
+  pathsBaseDir?: string;
   watchSourceDirectly?: boolean;
 }
 
@@ -67,7 +68,7 @@ function transformTsconfigPaths(tsconfigPaths: ts.MapLike<string[]>): Record<str
 export async function resolveLibrarySourceFiles(
   options: ResolveLibrarySourceFilesOptions,
 ): Promise<ResolveLibrarySourceFilesResult> {
-  const { variants, resourcePath, rootContext, tsconfigPaths, pathsBasePath } = options;
+  const { variants, resourcePath, rootContextDir, tsconfigPaths, pathsBaseDir } = options;
 
   // Determine watchSourceDirectly if not explicitly provided
   // If any variant uses a tsconfig path alias, we should watch source files directly
@@ -77,7 +78,7 @@ export async function resolveLibrarySourceFiles(
       ? Object.values(variants).some((variantUrl) => {
           const variantPath = fileUrlToPortablePath(variantUrl);
           // Skip relative paths - they don't need source watching
-          if (variantPath.startsWith(rootContext)) {
+          if (variantPath.startsWith(rootContextDir)) {
             return false;
           }
           // Check if this variant path matches any tsconfig path pattern
@@ -99,7 +100,7 @@ export async function resolveLibrarySourceFiles(
   // Categorize variants as relative, path-mapped, or external
   Object.entries(variants).forEach(([variantName, variantUrl]) => {
     const variantPath = fileUrlToPortablePath(variantUrl);
-    if (variantPath.startsWith(rootContext)) {
+    if (variantPath.startsWith(rootContextDir)) {
       relativeVariants[variantName] = variantPath;
     } else if (paths) {
       const found = Object.keys(paths).find((key) => {
@@ -113,10 +114,10 @@ export async function resolveLibrarySourceFiles(
               replacedPath = replacedPath.replace(`$${i}`, pathMatch[i]);
             }
             if (replacedPath.startsWith('.')) {
-              const basePath = pathsBasePath || rootContext;
+              const baseDir = pathsBaseDir || rootContextDir;
               relativeVariants[variantName] = new URL(
                 replacedPath,
-                portablePathToFileUrl(basePath),
+                portablePathToFileUrl(baseDir),
               ).pathname;
             } else {
               externalVariants[variantName] = replacedPath;

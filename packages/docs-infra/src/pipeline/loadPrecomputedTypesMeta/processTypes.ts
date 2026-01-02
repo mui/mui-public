@@ -28,7 +28,8 @@ export interface WorkerRequest {
   namedExports?: Record<string, string>;
   /** Dependency paths (filesystem paths, not URLs) */
   dependencies: string[];
-  rootContext: string;
+  /** Root context directory path (must end with /) */
+  rootContextDir: string;
   relativePath: string;
 }
 

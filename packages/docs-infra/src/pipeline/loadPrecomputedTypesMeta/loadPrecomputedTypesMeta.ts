@@ -99,7 +99,11 @@ export async function loadPrecomputedTypesMeta(
     new URL('.', portablePathToFileUrl(this.resourcePath)).pathname,
   ).name;
 
-  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+  // Ensure rootContext always ends with / for correct URL resolution
+  const rootContext = this.rootContext || process.cwd();
+  const rootContextDir = rootContext.endsWith('/') ? rootContext : `${rootContext}/`;
+
+  const relativePath = path.relative(rootContext, this.resourcePath);
 
   let observer: PerformanceObserver | undefined = undefined;
   if (options.performance?.logging) {
@@ -136,7 +140,7 @@ export async function loadPrecomputedTypesMeta(
       return;
     }
 
-    const config = await loadTypescriptConfig(path.join(this.rootContext, 'tsconfig.json'));
+    const config = await loadTypescriptConfig(path.join(rootContext, 'tsconfig.json'));
 
     currentMark = performanceMeasure(
       currentMark,
@@ -150,12 +154,18 @@ export async function loadPrecomputedTypesMeta(
 
     let resolvedVariantMap = new Map<string, string>();
     if (typesMetaCall.variants) {
+      // Ensure pathsBasePath ends with / for correct URL resolution (if defined)
+      const pathsBasePath = config.options.pathsBasePath
+        ? String(config.options.pathsBasePath)
+        : undefined;
+      const pathsBaseDir =
+        pathsBasePath && (pathsBasePath.endsWith('/') ? pathsBasePath : `${pathsBasePath}/`);
       const result = await resolveLibrarySourceFiles({
         variants: typesMetaCall.variants,
         resourcePath: this.resourcePath,
-        rootContext: this.rootContext || process.cwd(),
+        rootContextDir,
         tsconfigPaths: config.options.paths,
-        pathsBasePath: String(config.options.pathsBasePath || ''),
+        pathsBaseDir,
         watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
       });
 
@@ -266,7 +276,7 @@ export async function loadPrecomputedTypesMeta(
       resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
       namedExports: typesMetaCall.namedExports as Record<string, string> | undefined,
       dependencies: config.dependencies,
-      rootContext: this.rootContext || process.cwd(),
+      rootContextDir,
       relativePath,
     });
 
