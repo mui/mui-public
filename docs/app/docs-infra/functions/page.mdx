@@ -22,8 +22,8 @@
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
-- [Transform HTML Code](#transform-html-code) - [Full Docs](./transform-html-code/page.mdx)
 - [Transform HTML Code Inline Highlighted](#transform-html-code-inline-highlighted) [New] - [Full Docs](./transform-html-code-inline-highlighted/page.mdx)
+- [Transform HTML Code Precomputed](#transform-html-code-precomputed) - [Full Docs](./transform-html-code-precomputed/page.mdx)
 - [Transform Markdown Blockquote Callouts](#transform-markdown-blockquote-callouts) - [Full Docs](./transform-markdown-blockquote-callouts/page.mdx)
 - [Transform Markdown Code](#transform-markdown-code) - [Full Docs](./transform-markdown-code/page.mdx)
 - [Transform Markdown Demo Links](#transform-markdown-demo-links) - [Full Docs](./transform-markdown-demo-links/page.mdx)
@@ -698,38 +698,6 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
 
 [Read more](./sync-page-index/page.mdx)
 
-## Transform HTML Code
-
-A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into precomputed data for the CodeHighlighter component. This plugin extracts source code from HTML, processes it through syntax highlighting and transformations, then stores the results for efficient client-side rendering.
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - Overview
-  - Key Features
-  - Installation & Usage
-    - With Next.js and MDX
-  - Input Examples
-    - Single Code Block
-    - Multiple Code Variants (Different Languages)
-    - Custom Variant Names
-    - Custom Filenames
-    - Code Block Transformations
-  - Output
-  - Data Attributes
-    - Reserved Attributes (handled internally)
-    - Custom Attributes (passed to content component)
-  - Variant Naming
-  - Supported Languages
-  - Integration with transformMarkdownCodeVariants
-    - Complete Example
-
-</details>
-
-[Read more](./transform-html-code/page.mdx)
-
 ## Transform HTML Code Inline Highlighted
 
 A rehype plugin that applies lightweight syntax highlighting to inline `<code>` elements without adding line gutters, frame wrappers, or precomputed data attributes.
@@ -785,6 +753,38 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
 </details>
 
 [Read more](./transform-html-code-inline-highlighted/page.mdx)
+
+## Transform HTML Code Precomputed
+
+A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into precomputed data for the CodeHighlighter component. This plugin extracts source code from HTML, processes it through syntax highlighting and transformations, then stores the results for efficient client-side rendering.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Key Features
+  - Installation & Usage
+    - With Next.js and MDX
+  - Input Examples
+    - Single Code Block
+    - Multiple Code Variants (Different Languages)
+    - Custom Variant Names
+    - Custom Filenames
+    - Code Block Transformations
+  - Output
+  - Data Attributes
+    - Reserved Attributes (handled internally)
+    - Custom Attributes (passed to content component)
+  - Variant Naming
+  - Supported Languages
+  - Integration with transformMarkdownCodeVariants
+    - Complete Example
+
+</details>
+
+[Read more](./transform-html-code-precomputed/page.mdx)
 
 ## Transform Markdown Blockquote Callouts
 
