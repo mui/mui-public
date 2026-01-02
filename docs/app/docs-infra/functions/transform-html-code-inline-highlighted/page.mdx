@@ -206,27 +206,40 @@ await processor.process(
 );
 ```
 
-### Markdown Tables
+### HTML Tables
 
-Apply highlighting to inline code in markdown tables:
+Apply highlighting to inline code in HTML tables:
 
-```markdown
-| Prop    | Type                             |
-| ------- | -------------------------------- | ------------- |
-| variant | <code class="language-ts">string | number</code> |
+```html
+<table>
+  <tr>
+    <th>Prop</th>
+    <th>Type</th>
+  </tr>
+  <tr>
+    <td>variant</td>
+    <td><code class="language-ts">'primary' | 'secondary'</code></td>
+  </tr>
+  <tr>
+    <td>onChange</td>
+    <td>
+      <code class="language-ts" data-highlighting-prefix="type _ = ">
+        (event: React.ChangeEvent) => void
+      </code>
+    </td>
+  </tr>
+</table>
 ```
 
-### JSDoc Examples
+### Generated API Documentation
 
-Highlight code examples in JSDoc comments:
+Highlight type expressions in programmatically generated documentation:
 
 ```typescript
-/**
- * @example
- * <code class="language-tsx">
- *   <Button variant="primary" />
- * </code>
- */
+const typeCell = `<code class="language-ts" data-highlighting-prefix="type _ = ">${propType}</code>`;
+
+// propType might be: "{ value: string; onChange: (v: string) => void }"
+// The prefix ensures proper object/function type highlighting
 ```
 
 ---
