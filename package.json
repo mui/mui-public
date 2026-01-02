@@ -45,7 +45,7 @@
     "@eslint/compat": "^2.0.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
-    "@next/eslint-plugin-next": "^16.0.10",
+    "@next/eslint-plugin-next": "^16.1.1",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node22": "^22.0.5",
     "@types/node": "^22.18.13",
