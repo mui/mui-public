@@ -16,7 +16,7 @@ A simple component that displays a title and optional children.
 | partState     | `Component.Part.State`                                   | -       | Optional state from the Part component.&#xA;This demonstrates cross-component type references.            |
 | title         | `string`                                                 | -       | The title to display                                                                                      |
 | disabled      | `boolean`                                                | -       | Whether the component is disabled                                                                         |
-| children      | `ReactNode`                                              | -       | Child elements                                                                                            |
+| children      | `React.ReactNode`                                        | -       | Child elements                                                                                            |
 
 **Root Data Attributes:**
 
@@ -50,11 +50,11 @@ A simple component that displays a title and optional children.
 
 **Part Props:**
 
-| Prop     | Type        | Default | Description                       |
-| :------- | :---------- | :------ | :-------------------------------- |
-| title    | `string`    | -       | The title to display              |
-| disabled | `boolean`   | -       | Whether the component is disabled |
-| children | `ReactNode` | -       | Child elements                    |
+| Prop     | Type              | Default | Description                       |
+| :------- | :---------------- | :------ | :-------------------------------- |
+| title    | `string`          | -       | The title to display              |
+| disabled | `boolean`         | -       | Whether the component is disabled |
+| children | `React.ReactNode` | -       | Child elements                    |
 
 **Part Data Attributes:**
 

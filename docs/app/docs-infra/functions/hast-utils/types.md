@@ -9,14 +9,14 @@
 ```typescript
 type hastOrJsonToJsx = (
   hastOrJson: HastNodes | { hastJson: string } | { hastGzip: string },
-  components?: {},
-) => ReactNode;
+  components?: Partial<Components>,
+) => React.ReactNode;
 ```
 
 ### hastToJsx
 
 ```typescript
-type hastToJsx = (hast: HastNodes, components?: {}) => ReactNode;
+type hastToJsx = (hast: HastNodes, components?: Partial<Components>) => React.ReactNode;
 ```
 
 ### stringOrHastToJsx
@@ -25,8 +25,8 @@ type hastToJsx = (hast: HastNodes, components?: {}) => ReactNode;
 type stringOrHastToJsx = (
   source: string | HastNodes | { hastJson: string } | { hastGzip: string },
   highlighted?: boolean,
-  components?: {},
-) => ReactNode;
+  components?: Partial<Components>,
+) => React.ReactNode;
 ```
 
 ### stringOrHastToString

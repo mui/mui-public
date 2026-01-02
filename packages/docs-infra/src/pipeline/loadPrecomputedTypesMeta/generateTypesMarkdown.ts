@@ -78,9 +78,9 @@ function sortTypes(types: TypesMeta[]): TypesMeta[] {
   };
 
   return types.slice().sort((a, b) => {
-    // Use data.name which has the full name like "Checkbox.Root"
-    const aFullName = a.type === 'component' || a.type === 'hook' ? a.data.name : a.name;
-    const bFullName = b.type === 'component' || b.type === 'hook' ? b.data.name : b.name;
+    // Use typeMeta.name for all types (already transformed to dotted format like "Component.Root")
+    const aFullName = a.name;
+    const bFullName = b.name;
 
     const aIsComponentOrHook = a.type === 'component' || a.type === 'hook';
     const bIsComponentOrHook = b.type === 'component' || b.type === 'hook';
@@ -252,7 +252,8 @@ export async function generateTypesMarkdown(
       const content: RootContent[] = [];
 
       if (typeMeta.type === 'component') {
-        const part = typeMeta.data.name;
+        // Use transformed name (e.g., "Component.Part" instead of "ComponentPart")
+        const part = typeMeta.name;
         const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
 
         // Strip common prefix from component heading if applicable
@@ -341,7 +342,8 @@ export async function generateTypesMarkdown(
           content.push(tableNode);
         }
       } else if (typeMeta.type === 'hook') {
-        const part = typeMeta.data.name;
+        // Use transformed name for hooks as well
+        const part = typeMeta.name;
         const data = typeMeta.data; // This is now properly typed as HookTypeMeta
 
         // Add subheading for the part
@@ -422,9 +424,9 @@ export async function generateTypesMarkdown(
         }
       } else {
         // For 'other' types (ExportNode)
-        // For re-exports, use typeMeta.name (e.g., "Separator.Props") instead of typeMeta.data.name
-        // which would be the raw export name (e.g., "SeparatorProps")
-        const part = typeMeta.reExportOf ? typeMeta.name : typeMeta.data.name || 'Unknown';
+        // Use typeMeta.name which has been transformed to dotted format (e.g., "Component.Root.State")
+        // For re-exports, typeMeta.name is also already in the correct format
+        const part = typeMeta.name;
         const data = typeMeta.data; // This is now properly typed as ExportNode
 
         // Strip common prefix from heading if applicable
@@ -551,20 +553,42 @@ export async function generateTypesMarkdown(
             }
 
             // Format with prettyFormat to show the type declaration
-            // Convert dotted name to flat TypeScript identifier
-            // e.g., "Checkbox.Root.ChangeEventReason" → "CheckboxRootChangeEventReason"
-            const flatTypeName = data.name.replace(/\./g, '');
+            // Use the ORIGINAL flat type name (e.g., "ComponentRootChangeEventDetails") not the dotted name
+            // Reconstruct from typeName.namespaces + typeName.name if available
+            let originalTypeName: string;
+            const typeName = typeAsAny.typeName;
+            if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
+              // Construct flat name: namespaces joined + name (e.g., ComponentRoot + State = ComponentRootState)
+              originalTypeName = typeName.namespaces.join('') + typeName.name;
+            } else if (typeName && typeName.name) {
+              originalTypeName = typeName.name;
+            } else {
+              // Fallback for tests without proper typeName
+              originalTypeName = typeMeta.name.replace(/\./g, '');
+            }
             const typeParams = typeAsAny.typeParameters || '';
-            const fullTypeName = `${flatTypeName}${typeParams}`;
+            const fullTypeName = `${originalTypeName}${typeParams}`;
 
             const formattedType = await prettyFormat(transformedTypeText, fullTypeName);
             content.push(md.code(formattedType, 'typescript'));
           } else {
+            // For non-typeAlias types, use the original flat type name
+            // Reconstruct from typeName.namespaces + typeName.name if available
+            let originalTypeName: string;
+            const typeName = (data.type as any).typeName;
+            if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
+              originalTypeName = typeName.namespaces.join('') + typeName.name;
+            } else if (typeName && typeName.name) {
+              originalTypeName = typeName.name;
+            } else {
+              // Fallback for tests without proper typeName
+              originalTypeName = typeMeta.name.replace(/\./g, '');
+            }
             content.push(
               md.code(
                 await prettyFormat(
-                  formatType(data.type, true, undefined, true, [], typeNameMap),
-                  'typeName' in data.type ? data.type.typeName?.name : undefined,
+                  formatType(data.type, true, undefined, true, [], typeNameMap, data.name),
+                  originalTypeName,
                 ),
                 'typescript',
               ),

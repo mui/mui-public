@@ -504,7 +504,7 @@ describe('generateTypesMarkdown', () => {
         Props for the Button component
 
         \`\`\`typescript
-        {};
+        type ButtonProps = {};
         \`\`\`
         "
       `);
@@ -535,10 +535,44 @@ describe('generateTypesMarkdown', () => {
         ### Status
 
         \`\`\`typescript
-        undefined;
+        type Status = undefined;
         \`\`\`
         "
       `);
+    });
+
+    it('should use flat type name in code blocks for dotted names', async () => {
+      // When a type has a dotted name like "Component.Root.State", the heading should
+      // show the dotted name, but the code block must use the flat name "ComponentRootState"
+      // because TypeScript type declarations cannot have dots in the type name.
+      const exportMeta = {
+        name: 'Component.Root.State',
+        type: {
+          kind: 'object' as const,
+          properties: [
+            { name: 'disabled', type: { kind: 'intrinsic', name: 'boolean' }, optional: false },
+            { name: 'active', type: { kind: 'intrinsic', name: 'boolean' }, optional: false },
+          ],
+          // typeName contains the original naming information
+          typeName: {
+            name: 'State',
+            namespaces: ['ComponentRoot'],
+          },
+        },
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'other', name: 'Component.Root.State', data: exportMeta as any },
+      ];
+
+      const result = await generateTypesMarkdown('Types', typesMeta);
+
+      // Heading should use dotted name
+      expect(result).toContain('### Component.Root.State');
+      // Code block should use flat name (ComponentRootState), not dotted name
+      expect(result).toContain('type ComponentRootState = {');
+      // Should NOT contain dots in type declaration
+      expect(result).not.toMatch(/type Component\.Root\.State =/);
     });
   });
 
@@ -619,7 +653,7 @@ describe('generateTypesMarkdown', () => {
         ### ButtonProps
 
         \`\`\`typescript
-        undefined;
+        type ButtonProps = undefined;
         \`\`\`
 
         ### useButton

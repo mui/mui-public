@@ -14,4 +14,4 @@ type CodeExternalsContext = { externals?: Record<string, {}> };
 
 **useCodeExternals Return Value:**
 
-`{ externals?: Record<string, {}> } | undefined`
+`CodeExternalsContext | undefined`

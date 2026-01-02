@@ -168,6 +168,45 @@ describe('format', () => {
       expect(formatType(unionType, false, undefined, false, [], {})).toBe('string | number');
     });
 
+    it('should use typeName for named union types instead of expanding', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'StoreAtMode' } as any,
+        types: [
+          { kind: 'literal', value: '"canonical"' } as any,
+          { kind: 'literal', value: '"import"' } as any,
+          { kind: 'literal', value: '"flat"' } as any,
+        ],
+      } as any;
+
+      // Should return the type alias name, not the expanded union
+      expect(formatType(unionType, false, undefined, false, [], {})).toBe('StoreAtMode');
+    });
+
+    it('should use typeName for named intersection types instead of expanding', () => {
+      const intersectionType: tae.IntersectionNode = {
+        kind: 'intersection',
+        typeName: { name: 'CombinedProps' } as any,
+        types: [
+          {
+            kind: 'object',
+            properties: [
+              { name: 'a', type: { kind: 'intrinsic', intrinsic: 'string' }, optional: false },
+            ],
+          } as any,
+          {
+            kind: 'object',
+            properties: [
+              { name: 'b', type: { kind: 'intrinsic', intrinsic: 'number' }, optional: false },
+            ],
+          } as any,
+        ],
+      } as any;
+
+      // Should return the type alias name, not the expanded intersection
+      expect(formatType(intersectionType, false, undefined, false, [], {})).toBe('CombinedProps');
+    });
+
     it('should remove undefined from union types when requested', () => {
       const unionType: tae.UnionNode = {
         kind: 'union',
@@ -231,7 +270,76 @@ describe('format', () => {
       } as any;
 
       expect(formatType(objectType, false, undefined, true, [], {})).toBe(
-        '{ name: string, age?: number }',
+        '{ name: string; age?: number }',
+      );
+    });
+
+    it('should format object types with index signatures', () => {
+      const objectType = {
+        kind: 'object',
+        properties: [],
+        indexSignature: {
+          keyType: 'string',
+          valueType: { kind: 'intrinsic', intrinsic: 'number' } as any,
+        },
+      } as any;
+
+      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
+        '{ [key: string]: number }',
+      );
+    });
+
+    it('should preserve custom key names in index signatures', () => {
+      const objectType = {
+        kind: 'object',
+        properties: [],
+        indexSignature: {
+          keyName: 'fileName',
+          keyType: 'string',
+          valueType: { kind: 'intrinsic', intrinsic: 'string' } as any,
+        },
+      } as any;
+
+      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
+        '{ [fileName: string]: string }',
+      );
+    });
+
+    it('should format object types with both properties and index signatures', () => {
+      const objectType = {
+        kind: 'object',
+        properties: [
+          {
+            name: 'name',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+          } as any,
+        ],
+        indexSignature: {
+          keyName: 'customKey',
+          keyType: 'string',
+          valueType: { kind: 'intrinsic', intrinsic: 'boolean' } as any,
+        },
+      } as any;
+
+      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
+        '{ [customKey: string]: boolean; name: string }',
+      );
+    });
+
+    it('should format object types with number index signatures', () => {
+      const objectType = {
+        kind: 'object',
+        properties: [],
+        indexSignature: {
+          keyName: 'index',
+          keyType: 'number',
+          valueType: { kind: 'intrinsic', intrinsic: 'string' } as any,
+        },
+      } as any;
+
+      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
+        '{ [index: number]: string }',
       );
     });
 
@@ -604,6 +712,43 @@ describe('format', () => {
       // Should not throw and return the type name
       const result = formatDetailedType(externalType, exportNodes, ['CircularType'], {});
       expect(result).toBe('CircularType');
+    });
+
+    it('should prevent self-referencing when typeName matches selfName', () => {
+      // This tests the case where a type alias would reference itself
+      // e.g., type BaseContentLoadingProps = BaseContentLoadingProps should expand the content
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'BaseContentLoadingProps' } as any,
+        types: [
+          { kind: 'intrinsic', intrinsic: 'string' } as any,
+          { kind: 'intrinsic', intrinsic: 'number' } as any,
+        ],
+      } as any;
+
+      // When selfName matches typeName, should expand the union instead of using the alias
+      const result = formatType(
+        unionType,
+        false,
+        undefined,
+        false,
+        [],
+        {},
+        'BaseContentLoadingProps',
+      );
+      expect(result).toBe('string | number');
+
+      // When selfName doesn't match, should use the alias
+      const resultWithDifferentSelf = formatType(
+        unionType,
+        false,
+        undefined,
+        false,
+        [],
+        {},
+        'OtherType',
+      );
+      expect(resultWithDifferentSelf).toBe('BaseContentLoadingProps');
     });
 
     it('should expand union types recursively', () => {

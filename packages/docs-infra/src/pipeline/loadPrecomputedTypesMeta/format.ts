@@ -917,6 +917,9 @@ export async function formatEnum(
  * For inline code contexts (when `inline: true`), the function generates type expressions
  * with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
  * the highlighted output.
+ *
+ * @param selfName - Optional name of the type being defined, used to prevent circular
+ *                   references like `type Foo = Foo` when a type's typeName matches itself.
  */
 export function formatType(
   type: tae.AnyType,
@@ -925,6 +928,7 @@ export function formatType(
   expandObjects: boolean,
   exportNames: string[],
   typeNameMap: Record<string, string>,
+  selfName?: string,
 ): string {
   const typeTag = jsdocTags?.find?.((tag) => tag.name === 'type');
   const typeValue = typeTag?.value;
@@ -952,7 +956,11 @@ export function formatType(
   }
 
   if (isUnionType(type)) {
-    if (type.typeName) {
+    // For union types with a type alias name, always prefer showing the alias name
+    // (e.g., 'StoreAtMode' instead of expanding to "'canonical' | 'import' | 'flat'")
+    // The expandObjects flag is primarily for object types where showing the structure is valuable
+    // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
+    if (type.typeName && type.typeName.name !== selfName) {
       return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
@@ -979,7 +987,8 @@ export function formatType(
 
     const formattedMemeberTypes = uniq(
       orderMembers(flattenedMemberTypes).map((t) =>
-        formatType(t, removeUndefined, undefined, expandObjects, exportNames, typeNameMap),
+        // Use expandObjects=false for nested types to prevent deep expansion
+        formatType(t, removeUndefined, undefined, false, exportNames, typeNameMap),
       ),
     );
 
@@ -987,31 +996,64 @@ export function formatType(
   }
 
   if (isIntersectionType(type)) {
-    if (type.typeName) {
+    // For intersection types with a type alias name, always prefer showing the alias name
+    // The expandObjects flag is primarily for object types where showing the structure is valuable
+    // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
+    if (type.typeName && type.typeName.name !== selfName) {
       return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
-    return orderMembers(type.types)
-      .map((t) => formatType(t, false, undefined, expandObjects, exportNames, typeNameMap))
-      .join(' & ');
+    return (
+      orderMembers(type.types)
+        // Use expandObjects=false for nested types to prevent deep expansion
+        .map((t) => formatType(t, false, undefined, false, exportNames, typeNameMap))
+        .join(' & ')
+    );
   }
 
   if (isObjectType(type)) {
+    // Check if the object has an index signature
+    const indexSignature = (
+      type as tae.ObjectNode & {
+        indexSignature?: { keyName?: string; keyType: string; valueType: tae.AnyType };
+      }
+    ).indexSignature;
+
     if (type.typeName && !expandObjects) {
       return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
-    if (isObjectEmpty(type.properties)) {
+    if (isObjectEmpty(type.properties) && !indexSignature) {
       return '{}';
     }
 
-    return `{ ${type.properties
-      .map((m) => {
+    const parts: string[] = [];
+
+    // Add index signature if present
+    if (indexSignature) {
+      const valueTypeStr = formatType(
+        indexSignature.valueType,
+        false,
+        undefined,
+        expandObjects,
+        exportNames,
+        typeNameMap,
+      );
+      // Use the original key name if available, otherwise fall back to 'key'
+      const keyName = indexSignature.keyName || 'key';
+      parts.push(`[${keyName}: ${indexSignature.keyType}]: ${valueTypeStr}`);
+    }
+
+    // Add regular properties
+    parts.push(
+      ...type.properties.map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
         return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, expandObjects, exportNames, typeNameMap)}`;
-      })
-      .join(', ')} }`;
+      }),
+    );
+
+    return `{ ${parts.join('; ')} }`;
   }
 
   if (isLiteralType(type)) {
@@ -1042,66 +1084,72 @@ export function formatType(
       return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
-    const functionSignature = type.callSignatures
-      .map((s) => {
-        const params = s.parameters
-          .map((p, index, allParams) => {
-            let paramType = formatType(
-              p.type,
-              false,
-              undefined,
-              expandObjects,
-              exportNames,
-              typeNameMap,
-            );
+    const signatures = type.callSignatures.map((s) => {
+      const params = s.parameters
+        .map((p, index, allParams) => {
+          let paramType = formatType(
+            p.type,
+            false,
+            undefined,
+            expandObjects,
+            exportNames,
+            typeNameMap,
+          );
 
-            // Check if the type includes undefined
-            const hasUndefined =
-              paramType.includes('| undefined') || paramType.includes('undefined |');
+          // Check if the type includes undefined
+          const hasUndefined =
+            paramType.includes('| undefined') || paramType.includes('undefined |');
 
-            // Use ?: syntax for optional parameters only if all following parameters are also optional
-            // This ensures we maintain valid TypeScript syntax (optional params must come last)
-            if (p.optional || hasUndefined) {
-              const remainingParams = allParams.slice(index + 1);
-              const allRemainingAreOptional = remainingParams.every((remaining) => {
-                // If the parameter is explicitly marked as optional, we don't need to check the type
-                if (remaining.optional) {
-                  return true;
-                }
-                // Only check the type if the parameter is not explicitly optional
-                // Check if it's a union with undefined without formatting the entire type
-                if (isUnionType(remaining.type)) {
-                  return remaining.type.types.some(
-                    (t) => isIntrinsicType(t) && t.intrinsic === 'undefined',
-                  );
-                }
-                return false;
-              });
-
-              if (allRemainingAreOptional) {
-                // Remove | undefined from the type since we're using ?:
-                paramType = paramType
-                  .replace(/\s*\|\s*undefined\s*$/, '')
-                  .replace(/^\s*undefined\s*\|\s*/, '')
-                  .trim();
-                return `${p.name}?: ${paramType}`;
+          // Use ?: syntax for optional parameters only if all following parameters are also optional
+          // This ensures we maintain valid TypeScript syntax (optional params must come last)
+          if (p.optional || hasUndefined) {
+            const remainingParams = allParams.slice(index + 1);
+            const allRemainingAreOptional = remainingParams.every((remaining) => {
+              // If the parameter is explicitly marked as optional, we don't need to check the type
+              if (remaining.optional) {
+                return true;
               }
-            }
+              // Only check the type if the parameter is not explicitly optional
+              // Check if it's a union with undefined without formatting the entire type
+              if (isUnionType(remaining.type)) {
+                return remaining.type.types.some(
+                  (t) => isIntrinsicType(t) && t.intrinsic === 'undefined',
+                );
+              }
+              return false;
+            });
 
-            return `${p.name}: ${paramType}`;
-          })
-          .join(', ');
-        const returnType = formatType(
-          s.returnValueType,
-          false,
-          undefined,
-          expandObjects,
-          exportNames,
-          typeNameMap,
-        );
-        return `(${params}) => ${returnType}`;
-      })
-      .join(' | ');
+            if (allRemainingAreOptional) {
+              // Remove | undefined from the type since we're using ?:
+              paramType = paramType
+                .replace(/\s*\|\s*undefined\s*$/, '')
+                .replace(/^\s*undefined\s*\|\s*/, '')
+                .trim();
+              return `${p.name}?: ${paramType}`;
+            }
+          }
+
+          return `${p.name}: ${paramType}`;
+        })
+        .join(', ');
+      const returnType = formatType(
+        s.returnValueType,
+        false,
+        undefined,
+        expandObjects,
+        exportNames,
+        typeNameMap,
+      );
+      return `(${params}) => ${returnType}`;
+    });
+
+    // When there are multiple signatures (overloads), each function type must be
+    // parenthesized before joining with | to avoid ambiguous parsing
+    // e.g., ((a: string) => void) | ((b: number) => void)
+    const functionSignature =
+      signatures.length > 1
+        ? signatures.map((sig) => `(${sig})`).join(' | ')
+        : signatures.join(' | ');
     return `(${functionSignature})`;
   }
 
@@ -1156,7 +1204,7 @@ function getFullyQualifiedName(
       ? typeName.namespaces.join('') + typeName.name
       : typeName.name;
 
-  // Check if this type is in our map
+  // Check if this type is in our map (exact match)
   if (typeNameMap[flatName]) {
     // This is one of our component types - use the mapped dotted name
     const typeArgsStart = nameWithTypeArgs.indexOf('<');
@@ -1168,8 +1216,21 @@ function getFullyQualifiedName(
     return typeNameMap[flatName];
   }
 
+  // Check if flatName matches a dotted export with dots removed
+  // e.g., ComponentPartState -> Component.Part.State (if that export exists)
+  for (const dottedName of Object.values(typeNameMap)) {
+    if (dottedName.replace(/\./g, '') === flatName) {
+      const typeArgsStart = nameWithTypeArgs.indexOf('<');
+      if (typeArgsStart !== -1) {
+        return dottedName + nameWithTypeArgs.slice(typeArgsStart);
+      }
+      return dottedName;
+    }
+  }
+
   // Check if we have a namespaced reference where the namespace itself needs transformation
-  // E.g., ToolbarRoot.Orientation where ToolbarRoot → Toolbar.Root
+  // E.g., MenuRoot.Actions.Handler where MenuRoot → Menu.Root → Menu.Root.Actions.Handler
+  // This check comes BEFORE flat prefix matching to preserve namespace structure
   if (typeName.namespaces && typeName.namespaces.length > 0) {
     // Check if any namespace part is in the typeNameMap
     const transformedNamespaces = typeName.namespaces.map((ns) => typeNameMap[ns] || ns);
@@ -1186,8 +1247,26 @@ function getFullyQualifiedName(
       }
       return transformedName;
     }
+  }
 
-    // No transformation needed - return as-is
+  // Check if flatName starts with a known component prefix
+  // e.g., "ComponentPartState" starts with "ComponentPart" -> "Component.Part", so becomes "Component.Part.State"
+  // This handles types that don't have namespace structure (already flattened)
+  const sortedEntries = Object.entries(typeNameMap).sort((a, b) => b[0].length - a[0].length);
+  for (const [flat, dotted] of sortedEntries) {
+    if (flatName.startsWith(flat) && flatName.length > flat.length) {
+      const suffix = flatName.slice(flat.length);
+      const dottedName = `${dotted}.${suffix}`;
+      const typeArgsStart = nameWithTypeArgs.indexOf('<');
+      if (typeArgsStart !== -1) {
+        return dottedName + nameWithTypeArgs.slice(typeArgsStart);
+      }
+      return dottedName;
+    }
+  }
+
+  // No transformation needed - return as-is
+  if (typeName.namespaces && typeName.namespaces.length > 0) {
     const typeArgsStart = nameWithTypeArgs.indexOf('<');
     if (typeArgsStart !== -1) {
       return flatName + nameWithTypeArgs.slice(typeArgsStart);
@@ -1204,15 +1283,20 @@ function createNameWithTypeArguments(
   exportNames: string[],
   typeNameMap: Record<string, string>,
 ) {
+  const prefix =
+    typeName.namespaces && typeName.namespaces.length > 0
+      ? `${typeName.namespaces.join('.')}.`
+      : '';
+
   if (
     typeName.typeArguments &&
     typeName.typeArguments.length > 0 &&
     typeName.typeArguments.some((ta) => ta.equalToDefault === false)
   ) {
-    return `${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap)).join(', ')}>`;
+    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap)).join(', ')}>`;
   }
 
-  return typeName.name;
+  return `${prefix}${typeName.name}`;
 }
 
 /**

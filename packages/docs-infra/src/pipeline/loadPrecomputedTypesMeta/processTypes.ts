@@ -1,11 +1,126 @@
 import type { CompilerOptions } from 'typescript';
-import { ExportNode, parseFromProgram, ParserOptions } from 'typescript-api-extractor';
+import {
+  ExportNode,
+  parseFromProgram,
+  ParserOptions,
+  TypeName,
+  AnyType,
+} from 'typescript-api-extractor';
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
-import { parseExports } from './parseExports';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { findMetaFiles } from './findMetaFiles';
 import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
+
+/**
+ * Builds a mapping from flat type names to dotted namespace names.
+ *
+ * typescript-api-extractor now returns exports with proper dotted names like
+ * "Component.Root.Props" directly. This function builds a map from the flat
+ * equivalent names to the dotted names for type reference transformation.
+ *
+ * For each dotted export like "Component.Root.Props", we create a mapping:
+ *   ComponentRootProps -> Component.Root.Props
+ */
+function buildTypeNameMap(exports: ExportNode[]): Map<string, string> {
+  const typeNameMap = new Map<string, string>();
+
+  for (const exp of exports) {
+    if (exp.name.includes('.')) {
+      // e.g., "Component.Root.Props" -> flatName "ComponentRootProps"
+      const flatName = exp.name.replace(/\./g, '');
+      typeNameMap.set(flatName, exp.name);
+    }
+  }
+
+  return typeNameMap;
+}
+
+/**
+ * Recursively collects all type references from a type tree.
+ * This helps build a more complete typeNameMap by finding all referenced types.
+ */
+function collectTypeReferences(
+  type: AnyType,
+  typeNameMap: Map<string, string>,
+  _exports: ExportNode[],
+): void {
+  if (!type) {
+    return;
+  }
+
+  // Check if this type has a typeName with namespaces
+  if ('typeName' in type && type.typeName) {
+    const typeName = type.typeName as TypeName;
+    if (typeName.namespaces && typeName.namespaces.length > 0) {
+      const flatName = typeName.namespaces.join('') + typeName.name;
+      const dottedName = [...typeName.namespaces, typeName.name].join('.');
+
+      // Only add if the flat name is different from dotted name
+      if (flatName !== dottedName && !typeNameMap.has(flatName)) {
+        typeNameMap.set(flatName, dottedName);
+      }
+    }
+  }
+
+  // Recursively process nested types
+  if ('types' in type && Array.isArray(type.types)) {
+    for (const t of type.types) {
+      collectTypeReferences(t, typeNameMap, _exports);
+    }
+  }
+  if ('properties' in type && Array.isArray(type.properties)) {
+    for (const prop of type.properties) {
+      if ('type' in prop) {
+        collectTypeReferences(prop.type as AnyType, typeNameMap, _exports);
+      }
+    }
+  }
+  if ('props' in type && Array.isArray(type.props)) {
+    for (const prop of type.props) {
+      if ('type' in prop) {
+        collectTypeReferences(prop.type as AnyType, typeNameMap, _exports);
+      }
+    }
+  }
+  if ('callSignatures' in type && Array.isArray(type.callSignatures)) {
+    for (const sig of type.callSignatures) {
+      if ('parameters' in sig && Array.isArray(sig.parameters)) {
+        for (const param of sig.parameters) {
+          if ('type' in param) {
+            collectTypeReferences(param.type as AnyType, typeNameMap, _exports);
+          }
+        }
+      }
+      if ('returnValue' in sig && sig.returnValue) {
+        const returnValue = sig.returnValue as { type?: AnyType };
+        if (returnValue.type) {
+          collectTypeReferences(returnValue.type, typeNameMap, _exports);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Extracts unique namespace names from exports.
+ *
+ * For example, from exports like ["Menu.Root", "Menu.Item", "Dialog.Root"],
+ * this returns ["Menu", "Dialog"].
+ */
+function extractNamespaces(exports: ExportNode[]): string[] {
+  const namespaces = new Set<string>();
+
+  for (const exp of exports) {
+    // Check if the export name contains a dot (indicating a namespace)
+    const firstDot = exp.name.indexOf('.');
+    if (firstDot !== -1) {
+      namespaces.add(exp.name.substring(0, firstDot));
+    }
+  }
+
+  return Array.from(namespaces);
+}
 
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
@@ -109,7 +224,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       shouldInclude: ({ depth }) => depth <= 10,
       shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
     };
-    const checker = program.getTypeChecker();
 
     // Process variants in parallel
     const resolvedVariantMap = new Map(request.resolvedVariantMap);
@@ -142,23 +256,26 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           const parseStart = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Parse Start`, [request.relativePath]),
           );
-          const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
-          if (reExportResults && reExportResults.length > 0) {
-            namespaces = reExportResults.map((result) => result.name).filter(Boolean);
+
+          // Use parseFromProgram directly - it now handles namespace exports,
+          // type aliases, and re-exports properly
+          const { exports } = parseFromProgram(entrypoint, program, parserOptions);
+
+          // Extract namespaces from the exports (e.g., "Menu" from "Menu.Root")
+          const extractedNamespaces = extractNamespaces(exports);
+          if (extractedNamespaces.length > 0) {
+            namespaces = extractedNamespaces;
           }
 
-          // Flatten all exports from the re-export results
-          const exports = reExportResults.flatMap((result) => result.exports);
+          // Build typeNameMap from exports (maps flat names to dotted names)
+          const mergedTypeNameMap = buildTypeNameMap(exports);
 
-          // Merge all typeNameMaps from the re-export results
-          const mergedTypeNameMap = new Map<string, string>();
-          reExportResults.forEach((result) => {
-            if (result.typeNameMap) {
-              result.typeNameMap.forEach((value, key) => {
-                mergedTypeNameMap.set(key, value);
-              });
+          // Also collect type references from all exports to build a more complete map
+          for (const exp of exports) {
+            if ('type' in exp && exp.type) {
+              collectTypeReferences(exp.type, mergedTypeNameMap, exports);
             }
-          });
+          }
 
           // Get all source files that are dependencies of this entrypoint
           const dependencies = [...request.dependencies, entrypoint];
@@ -176,17 +293,17 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             (fileName) => fileName !== entrypoint && fileName.startsWith(entrypointDir),
           );
 
-          // Also collect adjacent files from all re-exported source directories
-          // Use sourceFilePaths from reExportResults to find directories that were re-exported
-          // Those directories should have their DataAttributes/CssVars files included
-          const allSourceFilePaths = reExportResults.flatMap(
-            (result) => result.sourceFilePaths || [],
+          // Also collect files from directories of all source files in the program
+          // This handles re-exported modules' directories for DataAttributes/CssVars files
+          // Only include files that are actually in a subdirectory of the entrypoint directory
+          const allSourceFilePaths = dependantFiles.filter((fileName) =>
+            fileName.startsWith(entrypointDir),
           );
 
           let metaFilesCount = 0;
           try {
             // For each source file path, find DataAttributes and CssVars files in that directory
-            const metaFilesPromises = allSourceFilePaths.map((sourcePath) =>
+            const metaFilesPromises = allSourceFilePaths.map((sourcePath: string) =>
               findMetaFiles(sourcePath),
             );
             const allMetaFiles = await Promise.all(metaFilesPromises);
@@ -195,7 +312,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
             // Add meta files directly to adjacentFiles
             // These files aren't imported, so they won't be in dependantFiles
-            flatMetaFiles.forEach((metaFile) => {
+            flatMetaFiles.forEach((metaFile: string) => {
               if (!adjacentFiles.includes(metaFile)) {
                 adjacentFiles.push(metaFile);
               }

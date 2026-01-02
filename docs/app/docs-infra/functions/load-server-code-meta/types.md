@@ -4,42 +4,63 @@
 
 ## API Reference
 
+### CreateLoadCodeMetaOptions
+
+```typescript
+type CreateLoadCodeMetaOptions = {};
+```
+
+### createLoadServerCodeMeta
+
+Creates a loadCodeMeta function that resolves variant paths from demo files.
+
+This factory function creates a LoadCodeMeta implementation that:
+
+1. Parses the demo file to find createDemo calls with variants
+2. Resolves all variant entry point paths using resolveVariantPaths
+3. Returns a Code object mapping variant names to their resolved file URLs
+
+The actual loading, parsing, and transformation of the variants is handled
+elsewhere by the CodeHighlighter component using loadCodeVariant.
+
+```typescript
+type createLoadServerCodeMeta = (
+  _options?: CreateLoadCodeMetaOptions,
+) => (url: string) => Promise<Code>;
+```
+
 ### DirectoryEntry
 
 ```typescript
 type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ```
 
-### DirectoryEntry.DirectoryReader
+### DirectoryReader
 
 ```typescript
-type DirectoryEntryDirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
+type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
 ```
 
-### DirectoryEntry.isJavaScriptModule
+### loadServerCodeMeta
 
-Checks if a file path or import path represents a JavaScript/TypeScript module
+Default loadServerCodeMeta function that resolves variant paths from demo files.
+This function is used to load code metadata for demos, specifically resolving paths for variants defined in the demo files.
+It reads the demo file, parses it to find `createDemo` calls with variants, and resolves the paths for those variants.
+It returns a Code object mapping variant names to their resolved file URLs.
 
 ```typescript
-type isJavaScriptModule = (path: string) => boolean;
+type LoadCodeMeta = (url: string) => Promise<Code>;
 ```
 
-### DirectoryEntry.JAVASCRIPT_MODULE_EXTENSIONS
-
-Default file extensions for JavaScript/TypeScript modules that can be resolved
-
-```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
-```
-
-### DirectoryEntry.resolveImportResult
+### resolveImportResultWithFs
 
 Resolves import result by separating JavaScript modules from static assets,
 only resolving JavaScript modules and returning a combined map.
-This function uses the new type-aware resolveModulePath function internally.
+This is a convenience wrapper around the generic resolveImportResult function
+that uses Node.js filesystem APIs.
 
 ```typescript
-type resolveImportResult = (
+type resolveImportResultWithFs = (
   importResult: Record<
     string,
     {
@@ -49,82 +70,52 @@ type resolveImportResult = (
       positions?: { start: number; end: number }[];
     }
   >,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+  options?: ResolveModulePathOptions,
 ) => Promise<Map<string, string>>;
 ```
 
-### DirectoryEntry.resolveModulePath
-
-Resolves a module path by reading directory contents to find matching files.
-This is more efficient than checking each file individually with stat calls.
-
-Given a path like `file:///Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
-this function will try to find the actual file by checking for:
-
-- `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
-- `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
-
-```typescript
-type resolveModulePath = (
-  moduleUrl: string,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
-  includeTypeDefs?: boolean,
-) => Promise<string | TypeAwareResolveResult>;
-```
-
-### DirectoryEntry.ResolveModulePathOptions
+### ResolveModulePathOptions
 
 ```typescript
 type ResolveModulePathOptions = { extensions?: string[] };
 ```
 
-### DirectoryEntry.resolveModulePaths
+### resolveModulePathsWithFs
 
-Resolves multiple module paths efficiently by grouping them by directory
-and performing batch directory lookups.
+Resolves multiple module paths using Node.js filesystem APIs.
+This is a convenience wrapper around the generic resolveModulePaths function.
 
 ```typescript
-type resolveModulePaths = (
-  modulePaths: string[],
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+type resolveModulePathsWithFs = (
+  moduleUrls: string[],
+  options?: ResolveModulePathOptions,
 ) => Promise<Map<string, string>>;
 ```
 
-### DirectoryEntry.resolveVariantPaths
+### resolveModulePathWithFs
+
+Resolves a module path using Node.js filesystem APIs.
+This is a convenience wrapper around the generic resolveModulePath function.
+
+```typescript
+type resolveModulePathWithFs =
+  | ((modulePath: string, options?: ResolveModulePathOptions) => Promise<string>)
+  | ((
+      modulePath: string,
+      options: { extensions?: string[] },
+      includeTypeDefs: true,
+    ) => Promise<TypeAwareResolveResult>);
+```
+
+### resolveVariantPathsWithFs
 
 Resolves variant paths from a variants object mapping variant names to their file paths.
-This function extracts the paths, resolves them using resolveModulePaths, and returns
-a map from variant name to resolved file URL.
+This is a convenience wrapper around the generic resolveVariantPaths function
+that uses Node.js filesystem APIs.
 
 ```typescript
-type resolveVariantPaths = (
+type resolveVariantPathsWithFs = (
   variants: Record<string, string>,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+  options?: ResolveModulePathOptions,
 ) => Promise<Map<string, string>>;
-```
-
-### DirectoryEntry.TYPE_IMPORT_EXTENSIONS
-
-Extension priority for type-only imports - prioritize .d.ts first
-
-```typescript
-['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
-```
-
-### DirectoryEntry.TypeAwareResolveResult
-
-```typescript
-type TypeAwareResolveResult = { import: string; typeImport?: string };
-```
-
-### DirectoryEntry.VALUE_IMPORT_EXTENSIONS
-
-Extension priority for value imports - standard priority with .d.ts last
-
-```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```

@@ -9,75 +9,44 @@
 ```typescript
 type abstractCreateTypes = (
   options: {
-    TypesContent: ComponentType<TypesContentProps<{}>>;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+    TypesContent: React.ComponentType<TypesContentProps<{}>>;
+    components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+    inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
   },
   url: string,
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
+  meta?: TypesTableMeta,
   exportName?: string,
-) => ComponentType<{}>;
+) => React.ComponentType<{}>;
 ```
 
 ### createMultipleTypesFactory
 
 ```typescript
 type createMultipleTypesFactory = (options: {
-  TypesContent: ComponentType<TypesContentProps<{}>>;
-  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
+  TypesContent: React.ComponentType<TypesContentProps<{}>>;
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
 }) => (
   url: string,
   typeDef: Record<string, any>,
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => Record<any, ComponentType<{}>>;
+  meta?: TypesTableMeta,
+) => Record<any, React.ComponentType<{}>>;
 ```
 
 ### createTypesFactory
 
 ```typescript
 type createTypesFactory = (options: {
-  TypesContent: ComponentType<TypesContentProps<{}>>;
-  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-}) => (
-  url: string,
-  typeDef: {},
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => ComponentType<{}>;
+  TypesContent: React.ComponentType<TypesContentProps<{}>>;
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+}) => (url: string, typeDef: {}, meta?: TypesTableMeta) => React.ComponentType<{}>;
 ```
 
 ### TypesContentProps
 
 ```typescript
-type TypesContentProps<T extends {}> = T & { types?: ProcessedTypesMeta[]; multiple?: boolean };
+type TypesContentProps = {} & { types?: ProcessedTypesMeta[]; multiple?: boolean };
 ```
 
 ### TypesTableMeta
@@ -93,7 +62,7 @@ type TypesTableMeta = {
   disableOptimization?: boolean;
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
-  components?: TypesJsxOptions['components'];
-  inlineComponents?: TypesJsxOptions['components'];
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
 };
 ```

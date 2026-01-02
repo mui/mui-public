@@ -11,31 +11,34 @@ This creates a provider component that supplies externals to child components.
 
 ```typescript
 type abstractCreateDemoClient = (
-  options: { live?: boolean },
+  options: { [key: string]: any; live?: boolean },
   url: string,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    precompute?: { externals?: {} };
-  },
-) => ComponentType<{ children: ReactNode }>;
+  meta?: CreateDemoClientMeta,
+) => React.ComponentType<{ children: React.ReactNode }>;
 ```
 
 ### createDemoClientFactory
 
 ```typescript
-type createDemoClientFactory = (options: { live?: boolean }) => (
+type createDemoClientFactory = (options: {
+  [key: string]: any;
+  live?: boolean;
+}) => (
   url: string,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    precompute?: { externals?: {} };
-  },
-) => ComponentType<{ children: ReactNode }>;
+  meta?: CreateDemoClientMeta,
+) => React.ComponentType<{ children: React.ReactNode }>;
+```
+
+### CreateDemoClientMeta
+
+```typescript
+type CreateDemoClientMeta = {
+  [key: string]: any;
+  name?: string;
+  slug?: string;
+  displayName?: string;
+  variantType?: string;
+  skipPrecompute?: boolean;
+  precompute?: { [key: string]: any; externals?: Externals };
+};
 ```

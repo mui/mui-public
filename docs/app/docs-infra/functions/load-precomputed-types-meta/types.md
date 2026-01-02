@@ -4,9 +4,48 @@
 
 ## API Reference
 
-### FormattedProperty
+### ComponentTypeMeta
 
-Formatted property metadata with syntax-highlighted types and parsed markdown.
+```typescript
+type ComponentTypeMeta = {
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  props: Record<string, FormattedProperty>;
+  dataAttributes: Record<string, FormattedEnumMember>;
+  cssVariables: Record<string, FormattedEnumMember>;
+};
+```
+
+### default
+
+```typescript
+type loadPrecomputedTypesMeta = (source: string) => Promise<void>;
+```
+
+### FormattedEnumMember
+
+```typescript
+type FormattedEnumMember = { description?: HastRoot; descriptionText?: string; type?: string };
+```
+
+### FormattedParameter
+
+```typescript
+type FormattedParameter = {
+  type: HastRoot;
+  typeText: string;
+  default?: HastRoot;
+  defaultText?: string;
+  optional?: true;
+  description?: HastRoot;
+  descriptionText?: string;
+  example?: HastRoot;
+  exampleText?: string;
+};
+```
+
+### FormattedProperty
 
 ```typescript
 type FormattedProperty = {
@@ -25,306 +64,54 @@ type FormattedProperty = {
 };
 ```
 
-### FormattedProperty.formatDetailedType
-
-Recursively expands type aliases and external type references to their full definitions.
-
-This function resolves external types by looking them up in the provided exports,
-and recursively expands union and intersection types. It includes cycle detection
-to prevent infinite recursion on self-referential types.
+### HookTypeMeta
 
 ```typescript
-type formatDetailedType = (
-  type: AnyType,
-  allExports: ExportNode[],
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  visited?: Set<string>,
-) => string;
-```
-
-### FormattedProperty.formatEnum
-
-Formats an enum type into a structured object mapping enum values to their metadata.
-
-The result includes each enum member's description (parsed markdown as HAST) and type
-information from JSDoc tags. Members are sorted by their value for consistent output.
-
-```typescript
-type formatEnum = (enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
-```
-
-### FormattedProperty.formatInlineTypeAsHast
-
-Formats an inline type string with syntax highlighting.
-
-This function transforms type strings (like `string`, `number | null`, etc.) into
-syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
-the type with `type _ =` before highlighting, then removes the prefix from the result.
-
-```typescript
-type formatInlineTypeAsHast = (typeText: string, unionPrintWidth?: number) => Promise<Root>;
-```
-
-### FormattedProperty.FormatInlineTypeOptions
-
-Options for formatting inline types as HAST.
-
-```typescript
-type FormatInlineTypeOptions = {
-  shortTypeUnionPrintWidth?: number;
-  defaultValueUnionPrintWidth?: number;
-  detailedTypePrintWidth?: number;
-};
-```
-
-### FormattedProperty.formatParameters
-
-Formats function or hook parameters into a structured object.
-
-Each parameter includes its type (as string), description (parsed markdown as HAST),
-default value, and whether it's optional.
-
-```typescript
-type formatParameters = (
-  params: Parameter[],
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  options?: {
-    formatting?: {
-      shortTypeUnionPrintWidth?: number;
-      defaultValueUnionPrintWidth?: number;
-      detailedTypePrintWidth?: number;
-    };
-  },
-) => Promise<Record<string, FormattedParameter>>;
-```
-
-### FormattedProperty.formatProperties
-
-Formats component or hook properties into a structured object with syntax-highlighted types.
-
-Each property includes its type (as HAST for rendering), description (parsed markdown),
-default value, and optionally a detailed expanded type view for complex types.
-
-This function handles the conversion of TypeScript type information into a format
-suitable for documentation display with proper syntax highlighting.
-
-```typescript
-type formatProperties = (
-  props: PropertyNode[],
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  allExports?: ExportNode[],
-  options?: {
-    formatting?: {
-      shortTypeUnionPrintWidth?: number;
-      defaultValueUnionPrintWidth?: number;
-      detailedTypePrintWidth?: number;
-    };
-  },
-) => Promise<Record<string, FormattedProperty>>;
-```
-
-### FormattedProperty.FormatPropertiesOptions
-
-Options for formatting properties.
-
-```typescript
-type FormatPropertiesOptions = {
-  formatting?: {
-    shortTypeUnionPrintWidth?: number;
-    defaultValueUnionPrintWidth?: number;
-    detailedTypePrintWidth?: number;
-  };
-};
-```
-
-### FormattedProperty.FormattedEnumMember
-
-Formatted enum member metadata.
-
-```typescript
-type FormattedEnumMember = { description?: HastRoot; descriptionText?: string; type?: string };
-```
-
-### FormattedProperty.FormattedParameter
-
-Formatted parameter metadata for functions and hooks.
-
-```typescript
-type FormattedParameter = {
-  type: HastRoot;
-  typeText: string;
-  default?: HastRoot;
-  defaultText?: string;
-  optional?: true;
+type HookTypeMeta = {
+  name: string;
   description?: HastRoot;
   descriptionText?: string;
-  example?: HastRoot;
-  exampleText?: string;
+  parameters: Record<string, FormattedProperty | FormattedParameter>;
+  returnValue: HastRoot | Record<string, FormattedProperty>;
+  returnValueText?: string;
 };
 ```
 
-### FormattedProperty.formatType
-
-Formats a TypeScript type into a string representation for documentation display.
-
-This function recursively processes various type nodes (intrinsic types, unions, intersections,
-objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
-complex scenarios like optional properties, type parameters, and nested structures.
-
-For inline code contexts (when `inline: true`), the function generates type expressions
-with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
-the highlighted output.
+### LoaderOptions
 
 ```typescript
-type formatType = (
-  type: AnyType,
-  removeUndefined: boolean,
-  jsdocTags: DocumentationTag[] | undefined,
-  expandObjects: boolean,
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-) => string;
+type LoaderOptions = {
+  performance?: {
+    logging?: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+    significantDependencyCountThreshold?: number;
+  };
+  formatting?: FormatInlineTypeOptions;
+};
 ```
 
-### FormattedProperty.isArrayType
+### loadPrecomputedTypesMeta
 
-Type guard to check if a type node is an array type.
+Webpack loader that processes types and precomputes meta.
+
+Finds createTypesMeta calls, loads and processes all component types,
+then injects the precomputed type meta back into the source.
+
+Supports single component syntax: createTypesMeta(import.meta.url, Component)
+And object syntax: createTypesMeta(import.meta.url, { Component1, Component2 })
+
+Automatically skips processing if skipPrecompute: true is set.
 
 ```typescript
-type isArrayType = (type: unknown) => boolean;
+type loadPrecomputedTypesMeta = (source: string) => Promise<void>;
 ```
 
-### FormattedProperty.isComponentType
-
-Type guard to check if a type node is a component type.
+### TypesMeta
 
 ```typescript
-type isComponentType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isEnumType
-
-Type guard to check if a type node is an enum type.
-
-```typescript
-type isEnumType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isExternalType
-
-Type guard to check if a type node is an external type reference.
-Works with both class instances and serialized objects from typescript-api-extractor.
-
-```typescript
-type isExternalType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isFunctionType
-
-Type guard to check if a type node is a function type.
-
-```typescript
-type isFunctionType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isIntersectionType
-
-Type guard to check if a type node is an intersection type.
-
-```typescript
-type isIntersectionType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isIntrinsicType
-
-Type guard to check if a type node is an intrinsic (built-in) type.
-
-```typescript
-type isIntrinsicType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isLiteralType
-
-Type guard to check if a type node is a literal type.
-
-```typescript
-type isLiteralType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isObjectType
-
-Type guard to check if a type node is an object type.
-
-```typescript
-type isObjectType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isTupleType
-
-Type guard to check if a type node is a tuple type.
-
-```typescript
-type isTupleType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isTypeParameterType
-
-Type guard to check if a type node is a type parameter.
-
-```typescript
-type isTypeParameterType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.isUnionType
-
-Type guard to check if a type node is a union type.
-
-```typescript
-type isUnionType = (type: unknown) => boolean;
-```
-
-### FormattedProperty.parseMarkdownToHast
-
-Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
-
-This enables rendering rich formatted descriptions including code examples, lists, and links
-while preserving all markdown features and applying syntax highlighting to code blocks.
-
-```typescript
-type parseMarkdownToHast = (markdown: string) => Promise<Root>;
-```
-
-### FormattedProperty.prettyFormat
-
-Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
-
-This function wraps the type in a `type Name = ...` declaration, formats it with Prettier,
-and then removes or preserves the prefix based on the provided typeName and formatting.
-
-```typescript
-type prettyFormat = (type: string, typeName?: string, printWidth?: number) => Promise<string>;
-```
-
-### FormattedProperty.prettyFormatType
-
-Formats a TypeScript type into a prettified string representation.
-
-This is a convenience wrapper around `formatType()` that applies Prettier formatting
-to the resulting type string. It delegates to `formatType()` for the core type
-processing, then runs the output through `prettyFormat()` for consistent styling.
-
-```typescript
-type prettyFormatType = (
-  args?: [
-    AnyType,
-    boolean,
-    DocumentationTag[] | undefined,
-    boolean,
-    string[],
-    Record<string, string>,
-  ],
-) => Promise<string>;
+type TypesMeta =
+  | { type: 'component'; name: string; data: ComponentTypeMeta }
+  | { type: 'hook'; name: string; data: HookTypeMeta }
+  | { type: 'other'; name: string; data: ExportNode; reExportOf?: string };
 ```

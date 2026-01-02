@@ -9,145 +9,79 @@
 ```typescript
 type abstractCreateDemo = (
   options: {
-    DemoContent: ComponentType<ContentProps<{}>>;
-    DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
-    DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
+    DemoContent: React.ComponentType<ContentProps<{}>>;
+    DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
+    DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
     controlled?: boolean;
-    demoGlobalData?: {
-      name: string;
-      slug: string;
-      displayName: string;
-      precompute: {} | undefined;
-      url: string;
-      components: {};
-    }[];
+    demoGlobalData?: DemoGlobalData[];
     variantTypes?: Record<string, string>;
     highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
     enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
     fallbackUsesExtraFiles?: boolean;
     fallbackUsesAllVariants?: boolean;
-    loadCodeMeta?: (url: string) => Promise<Code>;
-    loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-    loadSource?: (url: string) => Promise<{
-      source: string;
-      extraFiles?: VariantExtraFiles;
-      extraDependencies?: string[];
-      externals?: Externals;
-    }>;
+    loadCodeMeta?: LoadCodeMeta;
+    loadVariantMeta?: LoadVariantMeta;
+    loadSource?: LoadSource;
     sourceParser?: Promise<ParseSource>;
   },
   url: string,
-  variants: {},
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    precompute?: {};
-    ClientProvider?: ComponentType<{ children: ReactNode }>;
-  },
+  variants: { [key: string]: React.ComponentType },
+  meta?: CreateDemoMeta,
 ) =>
-  | (ComponentClass<{}, any> & { Title: ComponentType })
-  | ((props: {}) => ReactNode | Promise<ReactNode>);
+  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
+  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
 ```
 
 ### createDemoFactory
 
 ```typescript
-type createDemoFactory = (options?: {
-  DemoContent: ComponentType<ContentProps<{}>>;
-  DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
-  DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
+type createDemoFactory = (options: {
+  DemoContent: React.ComponentType<ContentProps<{}>>;
+  DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
+  DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
   controlled?: boolean;
-  demoGlobalData?: {
-    name: string;
-    slug: string;
-    displayName: string;
-    precompute: {} | undefined;
-    url: string;
-    components: {};
-  }[];
+  demoGlobalData?: DemoGlobalData[];
   variantTypes?: Record<string, string>;
   highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
-  loadCodeMeta?: (url: string) => Promise<Code>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
   sourceParser?: Promise<ParseSource>;
 }) => (
   url: string,
-  component: ComponentType,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    precompute?: {};
-    ClientProvider?: ComponentType<{ children: ReactNode }>;
-  },
+  component: React.ComponentType,
+  meta?: CreateDemoMeta,
 ) =>
-  | (ComponentClass<{}, any> & { Title: ComponentType })
-  | ((props: {}) => ReactNode | Promise<ReactNode>);
+  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
+  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
 ```
 
 ### createDemoWithVariantsFactory
 
 ```typescript
-type createDemoWithVariantsFactory = (options?: {
-  DemoContent: ComponentType<ContentProps<{}>>;
-  DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>;
-  DemoTitle?: ComponentType<{ slug?: string; children?: string }>;
+type createDemoWithVariantsFactory = (options: {
+  DemoContent: React.ComponentType<ContentProps<{}>>;
+  DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
+  DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
   controlled?: boolean;
-  demoGlobalData?: {
-    name: string;
-    slug: string;
-    displayName: string;
-    precompute: {} | undefined;
-    url: string;
-    components: {};
-  }[];
+  demoGlobalData?: DemoGlobalData[];
   variantTypes?: Record<string, string>;
   highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
-  loadCodeMeta?: (url: string) => Promise<Code>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
   sourceParser?: Promise<ParseSource>;
 }) => (
   url: string,
-  variants: Record<string, ComponentType>,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    precompute?: {};
-    ClientProvider?: ComponentType<{ children: ReactNode }>;
-  },
+  variants: Record<string, React.ComponentType>,
+  meta?: CreateDemoMeta,
 ) =>
-  | (ComponentClass<{}, any> & { Title: ComponentType })
-  | ((props: {}) => ReactNode | Promise<ReactNode>);
+  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
+  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
 ```

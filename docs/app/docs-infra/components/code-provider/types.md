@@ -13,4 +13,4 @@
 | loadCodeMeta    | `LoadCodeMeta`    | -       | -           |
 | loadSource      | `LoadSource`      | -       | -           |
 | loadVariantMeta | `LoadVariantMeta` | -       | -           |
-| children        | `ReactNode`       | -       | -           |
+| children        | `React.ReactNode` | -       | -           |

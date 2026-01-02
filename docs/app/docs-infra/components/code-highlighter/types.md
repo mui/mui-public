@@ -7,11 +7,8 @@
 ### BaseContentLoadingProps
 
 ```typescript
-type BaseContentLoadingProps = {
-  fileNames?: string[];
-  source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
-} & CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> };
+type BaseContentLoadingProps = ContentLoadingVariant &
+  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> };
 ```
 
 ### Code
@@ -26,8 +23,8 @@ Client-specific rendering props
 
 ```typescript
 type CodeClientRenderingProps = {
-  children: ReactNode;
-  fallback?: ReactNode;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
   skipFallback?: boolean;
 };
 ```
@@ -38,8 +35,8 @@ Core code content and variant management props
 
 ```typescript
 type CodeContentProps = {
-  code?: {};
-  components?: {};
+  code?: Code;
+  components?: Components;
   variantType?: string;
   variants?: string[];
   variant?: string;
@@ -47,7 +44,7 @@ type CodeContentProps = {
   language?: string;
   initialVariant?: string;
   defaultVariant?: string;
-  globalsCode?: (string | {})[];
+  globalsCode?: (string | Code)[];
 };
 ```
 
@@ -57,21 +54,10 @@ Function props for loading and transforming code
 
 ```typescript
 type CodeFunctionProps = {
-  loadCodeMeta?: (url: string) => Promise<Code>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
-  sourceTransformers?: {
-    extensions: string[];
-    transformer: (
-      source: string,
-      fileName: string,
-    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-  }[];
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
+  sourceTransformers?: SourceTransformer[];
   sourceParser?: Promise<ParseSource>;
 };
 ```
@@ -80,38 +66,38 @@ type CodeFunctionProps = {
 
 **CodeHighlighter Props:**
 
-| Prop                    | Type                                          | Default  | Description                                                                                                                 |
-| :---------------------- | :-------------------------------------------- | :------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| name                    | `string`                                      | -        | Display name for the code example, used for identification and titles                                                       |
-| Content                 | `ComponentType<ContentProps<{}>>`             | -        | Component to render the code content and preview                                                                            |
-| ContentLoading          | `ComponentType<ContentLoadingProps<{}>>`      | -        | Component to show while code is being loaded or processed                                                                   |
-| code                    | `Code`                                        | -        | Static code content with variants and metadata                                                                              |
-| components              | `Components`                                  | -        | React components for live preview alongside code                                                                            |
-| contentProps            | `{}`                                          | -        | Additional props passed to the Content component                                                                            |
-| controlled              | `boolean`                                     | -        | Enable controlled mode for external code state management                                                                   |
-| defaultVariant          | `string`                                      | -        | Fallback variant when the requested variant is not available                                                                |
-| deferParsing            | `'none' \| 'json' \| 'gzip'`                  | `'gzip'` | Defer parsing and populating the AST into memory until the code is enhanced&#xA;Applies only in production when RSC loading |
-| enhanceAfter            | `'init' \| 'stream' \| 'hydration' \| 'idle'` | `'idle'` | When to enhance the code display with interactivity                                                                         |
-| fallbackUsesAllVariants | `boolean`                                     | -        | Whether fallback content should include all variants                                                                        |
-| fallbackUsesExtraFiles  | `boolean`                                     | -        | Whether fallback content should include extra files                                                                         |
-| fileName                | `string`                                      | -        | Currently selected file name                                                                                                |
-| forceClient             | `boolean`                                     | -        | Force client-side rendering even when server rendering is available                                                         |
-| globalsCode             | `(string \| Code)[]`                          | -        | Global static code snippets to inject, typically for styling or tooling                                                     |
-| highlightAfter          | `'init' \| 'stream' \| 'hydration' \| 'idle'` | `'idle'` | When to perform syntax highlighting and code processing                                                                     |
-| initialVariant          | `string`                                      | -        | Default variant to show on first load                                                                                       |
-| language                | `string`                                      | -        | Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing.                 |
-| loadCodeMeta            | `LoadCodeMeta`                                | -        | Function to load code metadata from a URL                                                                                   |
-| loadSource              | `LoadSource`                                  | -        | Function to load raw source code and dependencies                                                                           |
-| loadVariantMeta         | `LoadVariantMeta`                             | -        | Function to load specific variant metadata                                                                                  |
-| precompute              | `Code`                                        | -        | Pre-computed code data from build-time optimization                                                                         |
-| slug                    | `string`                                      | -        | URL-friendly identifier for deep linking and navigation                                                                     |
-| sourceParser            | `Promise<ParseSource>`                        | -        | Promise resolving to a source parser for syntax highlighting                                                                |
-| sourceTransformers      | `SourceTransformer[]`                         | -        | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                           |
-| url                     | `string`                                      | -        | Source URL where the code content originates from                                                                           |
-| variant                 | `string`                                      | -        | Currently selected variant name                                                                                             |
-| variantType             | `string`                                      | -        | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available)            |
-| variants                | `string[]`                                    | -        | Static variant names that should be fetched at runtime                                                                      |
-| children                | `string`                                      | -        | Raw code string for simple use cases                                                                                        |
+| Prop                    | Type                                           | Default  | Description                                                                                                                 |
+| :---------------------- | :--------------------------------------------- | :------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| name                    | `string`                                       | -        | Display name for the code example, used for identification and titles                                                       |
+| Content                 | `React.ComponentType<ContentProps<{}>>`        | -        | Component to render the code content and preview                                                                            |
+| ContentLoading          | `React.ComponentType<ContentLoadingProps<{}>>` | -        | Component to show while code is being loaded or processed                                                                   |
+| code                    | `Code`                                         | -        | Static code content with variants and metadata                                                                              |
+| components              | `Components`                                   | -        | React components for live preview alongside code                                                                            |
+| contentProps            | `{}`                                           | -        | Additional props passed to the Content component                                                                            |
+| controlled              | `boolean`                                      | -        | Enable controlled mode for external code state management                                                                   |
+| defaultVariant          | `string`                                       | -        | Fallback variant when the requested variant is not available                                                                |
+| deferParsing            | `'none' \| 'json' \| 'gzip'`                   | `'gzip'` | Defer parsing and populating the AST into memory until the code is enhanced&#xA;Applies only in production when RSC loading |
+| enhanceAfter            | `'init' \| 'stream' \| 'hydration' \| 'idle'`  | `'idle'` | When to enhance the code display with interactivity                                                                         |
+| fallbackUsesAllVariants | `boolean`                                      | -        | Whether fallback content should include all variants                                                                        |
+| fallbackUsesExtraFiles  | `boolean`                                      | -        | Whether fallback content should include extra files                                                                         |
+| fileName                | `string`                                       | -        | Currently selected file name                                                                                                |
+| forceClient             | `boolean`                                      | -        | Force client-side rendering even when server rendering is available                                                         |
+| globalsCode             | `(string \| Code)[]`                           | -        | Global static code snippets to inject, typically for styling or tooling                                                     |
+| highlightAfter          | `'init' \| 'stream' \| 'hydration' \| 'idle'`  | `'idle'` | When to perform syntax highlighting and code processing                                                                     |
+| initialVariant          | `string`                                       | -        | Default variant to show on first load                                                                                       |
+| language                | `string`                                       | -        | Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing.                 |
+| loadCodeMeta            | `LoadCodeMeta`                                 | -        | Function to load code metadata from a URL                                                                                   |
+| loadSource              | `LoadSource`                                   | -        | Function to load raw source code and dependencies                                                                           |
+| loadVariantMeta         | `LoadVariantMeta`                              | -        | Function to load specific variant metadata                                                                                  |
+| precompute              | `Code`                                         | -        | Pre-computed code data from build-time optimization                                                                         |
+| slug                    | `string`                                       | -        | URL-friendly identifier for deep linking and navigation                                                                     |
+| sourceParser            | `Promise<ParseSource>`                         | -        | Promise resolving to a source parser for syntax highlighting                                                                |
+| sourceTransformers      | `SourceTransformer[]`                          | -        | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                           |
+| url                     | `string`                                       | -        | Source URL where the code content originates from                                                                           |
+| variant                 | `string`                                       | -        | Currently selected variant name                                                                                             |
+| variantType             | `string`                                       | -        | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available)            |
+| variants                | `string[]`                                     | -        | Static variant names that should be fetched at runtime                                                                      |
+| children                | `string`                                       | -        | Raw code string for simple use cases                                                                                        |
 
 ### CodeHighlighterBaseProps
 
@@ -123,8 +109,8 @@ type CodeHighlighterBaseProps = {
   name?: string;
   slug?: string;
   url?: string;
-  code?: {};
-  components?: {};
+  code?: Code;
+  components?: Components;
   variantType?: string;
   variants?: string[];
   variant?: string;
@@ -132,8 +118,8 @@ type CodeHighlighterBaseProps = {
   language?: string;
   initialVariant?: string;
   defaultVariant?: string;
-  globalsCode?: (string | {})[];
-  precompute?: {};
+  globalsCode?: (string | Code)[];
+  precompute?: Code;
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   controlled?: boolean;
@@ -142,23 +128,12 @@ type CodeHighlighterBaseProps = {
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   forceClient?: boolean;
   deferParsing?: 'none' | 'json' | 'gzip';
-  loadCodeMeta?: (url: string) => Promise<Code>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
-  sourceTransformers?: {
-    extensions: string[];
-    transformer: (
-      source: string,
-      fileName: string,
-    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-  }[];
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
+  sourceTransformers?: SourceTransformer[];
   sourceParser?: Promise<ParseSource>;
-  Content: ComponentType<ContentProps<{}>>;
+  Content: React.ComponentType<ContentProps<{}>>;
   contentProps?: {};
 };
 ```
@@ -175,8 +150,8 @@ type CodeHighlighterClientProps = {
   name?: string;
   slug?: string;
   url?: string;
-  code?: {};
-  components?: {};
+  code?: Code;
+  components?: Components;
   variantType?: string;
   variants?: string[];
   variant?: string;
@@ -184,15 +159,15 @@ type CodeHighlighterClientProps = {
   language?: string;
   initialVariant?: string;
   defaultVariant?: string;
-  globalsCode?: (string | {})[];
+  globalsCode?: (string | Code)[];
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
-  precompute?: {};
+  precompute?: Code;
   controlled?: boolean;
   forceClient?: boolean;
   deferParsing?: 'none' | 'json' | 'gzip';
-  children: ReactNode;
-  fallback?: ReactNode;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
   skipFallback?: boolean;
 };
 ```
@@ -205,12 +180,12 @@ Generic type T allows for custom props to be passed to Content and ContentLoadin
 
 ```typescript
 type CodeHighlighterProps = {
-  ContentLoading?: ComponentType<ContentLoadingProps<{}>>;
+  ContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
   name?: string;
   slug?: string;
   url?: string;
-  code?: {};
-  components?: {};
+  code?: Code;
+  components?: Components;
   variantType?: string;
   variants?: string[];
   variant?: string;
@@ -218,8 +193,8 @@ type CodeHighlighterProps = {
   language?: string;
   initialVariant?: string;
   defaultVariant?: string;
-  globalsCode?: (string | {})[];
-  precompute?: {};
+  globalsCode?: (string | Code)[];
+  precompute?: Code;
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   controlled?: boolean;
@@ -228,23 +203,12 @@ type CodeHighlighterProps = {
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
   forceClient?: boolean;
   deferParsing?: 'none' | 'json' | 'gzip';
-  loadCodeMeta?: (url: string) => Promise<Code>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
-  sourceTransformers?: {
-    extensions: string[];
-    transformer: (
-      source: string,
-      fileName: string,
-    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-  }[];
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
+  sourceTransformers?: SourceTransformer[];
   sourceParser?: Promise<ParseSource>;
-  Content: ComponentType<ContentProps<{}>>;
+  Content: React.ComponentType<ContentProps<{}>>;
   contentProps?: {};
 };
 ```
@@ -263,7 +227,7 @@ Loading and processing configuration props
 
 ```typescript
 type CodeLoadingProps = {
-  precompute?: {};
+  precompute?: Code;
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   controlled?: boolean;
@@ -280,7 +244,7 @@ type CodeLoadingProps = {
 Component and rendering props
 
 ```typescript
-type CodeRenderingProps = { Content: ComponentType<ContentProps<{}>>; contentProps?: {} };
+type CodeRenderingProps = { Content: React.ComponentType<ContentProps<{}>>; contentProps?: {} };
 ```
 
 ### Components
@@ -292,8 +256,8 @@ type Components = { [key: string]: React.ReactNode };
 ### ContentLoadingProps
 
 ```typescript
-type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
-  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> } & T & {
+type ContentLoadingProps = ContentLoadingVariant &
+  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> } & {} & {
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
@@ -313,9 +277,8 @@ type ContentLoadingVariant = {
 ### ContentProps
 
 ```typescript
-type ContentProps<T extends {}> = CodeIdentityProps &
-  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> &
-  T;
+type ContentProps = CodeIdentityProps &
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {};
 ```
 
 ### ControlledCode
@@ -327,7 +290,7 @@ type ControlledCode = { [key: string]: ControlledVariantCode | null | undefined 
 ### ControlledVariantCode
 
 ```typescript
-type ControlledVariantCode = { fileName?: string; language?: string; path?: string } & {
+type ControlledVariantCode = CodeMeta & {
   url?: string;
   source?: string | null;
   extraFiles?: ControlledVariantExtraFiles;
@@ -354,7 +317,9 @@ type ExternalImportItem = {
 ### Externals
 
 ```typescript
-type Externals = { [P in K]: T };
+type Externals = {
+  [key: string]: { name: string; type: 'named' | 'default' | 'namespace'; isType?: boolean }[];
+};
 ```
 
 ### HastRoot
@@ -377,27 +342,16 @@ Options for loading fallback code with various configuration flags
 type LoadFallbackCodeOptions = {
   shouldHighlight?: boolean;
   initialFilename?: string;
-  globalsCode?: (string | {})[];
+  globalsCode?: (string | Code)[];
   disableTransforms?: boolean;
   disableParsing?: boolean;
   maxDepth?: number;
   loadedFiles?: Set<string>;
   output?: 'hast' | 'hastJson' | 'hastGzip';
-  loadCodeMeta?: (url: string) => Promise<Code>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
-  sourceTransformers?: {
-    extensions: string[];
-    transformer: (
-      source: string,
-      fileName: string,
-    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-  }[];
+  loadCodeMeta?: LoadCodeMeta;
+  loadVariantMeta?: LoadVariantMeta;
+  loadSource?: LoadSource;
+  sourceTransformers?: SourceTransformer[];
   sourceParser?: Promise<ParseSource>;
   variants?: string[];
   fallbackUsesExtraFiles?: boolean;
@@ -450,45 +404,50 @@ type LoadVariantOptions = {
   globalsCode?: (string | VariantCode)[];
   output?: 'hast' | 'hastJson' | 'hastGzip';
   sourceParser?: Promise<ParseSource>;
-  loadSource?: (url: string) => Promise<{
-    source: string;
-    extraFiles?: VariantExtraFiles;
-    extraDependencies?: string[];
-    externals?: Externals;
-  }>;
-  loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  sourceTransformers?: {
-    extensions: string[];
-    transformer: (
-      source: string,
-      fileName: string,
-    ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-  }[];
+  loadSource?: LoadSource;
+  loadVariantMeta?: LoadVariantMeta;
+  sourceTransformers?: SourceTransformer[];
 };
 ```
 
 ### ParseSource
 
 ```typescript
-type ParseSource = (source: string, fileName: string, language?: string) => HastRoot;
+type ParseSource = (
+  source: string,
+  fileName: string,
+  language?: string,
+) => { data?: RootData & { totalLines?: number } };
 ```
 
 ### SourceTransformer
 
 ```typescript
-type SourceTransformer = { extensions: string[]; transformer: TransformSource };
+type SourceTransformer = {
+  extensions: string[];
+  transformer: (
+    source: string,
+    fileName: string,
+  ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+};
 ```
 
 ### SourceTransformers
 
 ```typescript
-type SourceTransformers = any[];
+type SourceTransformers = {
+  extensions: string[];
+  transformer: (
+    source: string,
+    fileName: string,
+  ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+}[];
 ```
 
 ### Transforms
 
 ```typescript
-type Transforms = { [P in K]: T };
+type Transforms = { [key: string]: { delta: Delta; fileName?: string } };
 ```
 
 ### TransformSource
@@ -502,8 +461,11 @@ type TransformSource = (
 
 ### VariantCode
 
+Complete code variant definition with source, metadata, and configuration.
+Extends CodeMeta with all the information needed to display and process a code example.
+
 ```typescript
-type VariantCode = { fileName?: string; language?: string; path?: string } & {
+type VariantCode = CodeMeta & {
   url?: string;
   source?: VariantSource;
   extraFiles?: VariantExtraFiles;
@@ -518,6 +480,9 @@ type VariantCode = { fileName?: string; language?: string; path?: string } & {
 ```
 
 ### VariantExtraFiles
+
+Additional files associated with a code variant.
+Can be either simple string content or objects with source and transformation options.
 
 ```typescript
 type VariantExtraFiles = {

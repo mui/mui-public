@@ -291,6 +291,54 @@ export async function loadPrecomputedTypesMeta(
     const rawVariantData = workerResult.variantData || {};
     const allDependencies = workerResult.allDependencies || [];
 
+    // Collect ALL dotted export names from ALL variants to use for filtering
+    // This ensures we can filter out less-namespaced duplicates across variants
+    const allDottedExportNames = Object.values(rawVariantData)
+      .flatMap((v) => v.exports.filter((exp) => exp.name.includes('.')).map((exp) => exp.name))
+      // Deduplicate
+      .filter((name, index, arr) => arr.indexOf(name) === index);
+
+    // Pre-filter exports for ALL variants to build a global typeNameMap
+    // This ensures cross-variant type references work correctly
+    const allFilteredExports = Object.values(rawVariantData).flatMap((variantResult) =>
+      variantResult.exports.filter((exp) => {
+        const lastDotIndex = exp.name.lastIndexOf('.');
+        if (lastDotIndex === -1) {
+          for (const dottedName of allDottedExportNames) {
+            const flatEquivalent = dottedName.replace(/\./g, '');
+            if (flatEquivalent === exp.name) {
+              return false;
+            }
+          }
+          return true;
+        }
+        const expFlat = exp.name.replace(/\./g, '');
+        for (const dottedName of allDottedExportNames) {
+          if (dottedName === exp.name) {
+            continue;
+          }
+          const dottedFlat = dottedName.replace(/\./g, '');
+          if (dottedFlat === expFlat && dottedName.split('.').length > exp.name.split('.').length) {
+            return false;
+          }
+        }
+        return true;
+      }),
+    );
+
+    // Build GLOBAL typeNameMap from ALL filtered exports
+    // This ensures type references across variants work correctly
+    const globalTypeNameMap: Record<string, string> = {};
+    for (const exp of allFilteredExports) {
+      if (exp.name.includes('.')) {
+        const flatName = exp.name.replace(/\./g, '');
+        const existing = globalTypeNameMap[flatName];
+        if (!existing || exp.name.split('.').length > existing.split('.').length) {
+          globalTypeNameMap[flatName] = exp.name;
+        }
+      }
+    }
+
     // Initialize inline highlighting for type formatting
     await ensureStarryNightInitialized();
 
@@ -312,15 +360,63 @@ export async function loadPrecomputedTypesMeta(
     // Process all variants in parallel
     await Promise.all(
       Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+        // Filter out exports that have a "better" (more namespaced) equivalent
+        // e.g., if we have "Component.Root.Props", filter out "ComponentRoot.Props"
+        // because the latter is a less namespaced version of the same export
+        // NOTE: We use allDottedExportNames from ALL variants, not just this one
+
+        const filteredExports = variantResult.exports.filter((exp) => {
+          // For each export, check if there's a "better" version (more dots / deeper namespace)
+          // e.g., for "ComponentRoot.Props", check if "Component.Root.Props" exists
+          // by checking if any dotted export ends with the same suffix but has more namespaces
+
+          // Get the suffix after the last dot (e.g., "Props" from "ComponentRoot.Props")
+          const lastDotIndex = exp.name.lastIndexOf('.');
+          if (lastDotIndex === -1) {
+            // No dots - this is a root-level export like "ComponentRoot"
+            // Check if there's a namespaced version like "Component.Root"
+            for (const dottedName of allDottedExportNames) {
+              const flatEquivalent = dottedName.replace(/\./g, '');
+              if (flatEquivalent === exp.name) {
+                // Found a better version
+                return false;
+              }
+            }
+            return true;
+          }
+
+          // Has dots - check if there's a more deeply nested version
+          // e.g., for "ComponentRoot.Props", check if "Component.Root.Props" exists
+          const expFlat = exp.name.replace(/\./g, '');
+          for (const dottedName of allDottedExportNames) {
+            // Skip self
+            if (dottedName === exp.name) {
+              continue;
+            }
+
+            // Check if this dotted export is a better version of our export
+            const dottedFlat = dottedName.replace(/\./g, '');
+            if (
+              dottedFlat === expFlat &&
+              dottedName.split('.').length > exp.name.split('.').length
+            ) {
+              // Found a better (more deeply nested) version
+              return false;
+            }
+          }
+          return true;
+        });
+
         // Process all exports in parallel within each variant
+        // Use the global typeNameMap for cross-variant type references
         const types = await Promise.all(
-          variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
+          filteredExports.map(async (exportNode): Promise<TypesMeta> => {
             if (isPublicComponent(exportNode)) {
               const formattedData = await formatComponentData(
                 exportNode,
                 variantResult.allTypes,
                 variantResult.namespaces,
-                variantResult.typeNameMap || {},
+                globalTypeNameMap,
                 { formatting: formattingOptions },
               );
               return {
@@ -334,7 +430,7 @@ export async function loadPrecomputedTypesMeta(
               const formattedData = await formatHookData(
                 exportNode,
                 variantResult.namespaces,
-                variantResult.typeNameMap || {},
+                globalTypeNameMap,
                 { formatting: formattingOptions },
               );
 
@@ -353,7 +449,24 @@ export async function loadPrecomputedTypesMeta(
           }),
         );
 
-        variantData[variantName] = { types, typeNameMap: variantResult.typeNameMap };
+        // Transform flat type names to dotted versions using exact matching only
+        // e.g., "ComponentPart" -> "Component.Part"
+        const transformedTypes = types.map((typeMeta) => {
+          // Exact match: flat name exists in typeNameMap
+          if (globalTypeNameMap[typeMeta.name]) {
+            return {
+              ...typeMeta,
+              name: globalTypeNameMap[typeMeta.name],
+            };
+          }
+
+          return typeMeta;
+        });
+
+        variantData[variantName] = {
+          types: transformedTypes,
+          typeNameMap: globalTypeNameMap,
+        };
       }),
     );
 

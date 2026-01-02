@@ -130,7 +130,7 @@ type isJavaScriptModule = (path: string) => boolean;
 Default file extensions for JavaScript/TypeScript modules that can be resolved
 
 ```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+type JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
 
 ### languageAliasMap
@@ -271,7 +271,7 @@ type resolveImportResult = (
     }
   >,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+  options?: ResolveModulePathOptions,
 ) => Promise<Map<string, string>>;
 ```
 
@@ -290,7 +290,7 @@ this function will try to find the actual file by checking for:
 type resolveModulePath = (
   moduleUrl: string,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+  options?: ResolveModulePathOptions,
   includeTypeDefs?: boolean,
 ) => Promise<string | TypeAwareResolveResult>;
 ```
@@ -310,7 +310,7 @@ and performing batch directory lookups.
 type resolveModulePaths = (
   modulePaths: string[],
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+  options?: ResolveModulePathOptions,
 ) => Promise<Map<string, string>>;
 ```
 
@@ -324,7 +324,7 @@ a map from variant name to resolved file URL.
 type resolveVariantPaths = (
   variants: Record<string, string>,
   readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
+  options?: ResolveModulePathOptions,
 ) => Promise<Map<string, string>>;
 ```
 
@@ -373,7 +373,7 @@ type StoreAtMode = 'canonical' | 'import' | 'flat';
 Extension priority for type-only imports - prioritize .d.ts first
 
 ```typescript
-['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
+type TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
 ```
 
 ### TypeAwareResolveResult
@@ -387,5 +387,5 @@ type TypeAwareResolveResult = { import: string; typeImport?: string };
 Extension priority for value imports - standard priority with .d.ts last
 
 ```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+type VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```

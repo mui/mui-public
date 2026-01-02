@@ -13,22 +13,28 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 ```typescript
 type createDemoData = (
   url: string,
-  component: ComponentType<any>,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    skipPrecompute?: boolean;
-    precompute?: {};
-    client?: ComponentType<{ children: ReactNode }>;
-  },
+  component: React.ComponentType<any>,
+  meta?: CreateDemoDataMeta,
 ) => {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: React.ComponentType<any> };
+};
+```
+
+### CreateDemoDataMeta
+
+```typescript
+type CreateDemoDataMeta = {
+  name?: string;
+  slug?: string;
+  displayName?: string;
+  skipPrecompute?: boolean;
+  precompute?: Code;
+  client?: React.ComponentType<{ children: React.ReactNode }>;
 };
 ```
 
@@ -42,22 +48,15 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 ```typescript
 type createDemoDataWithVariants = (
   url: string,
-  variants: { Default: ComponentType<any> } | {},
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    skipPrecompute?: boolean;
-    precompute?: {};
-    client?: ComponentType<{ children: ReactNode }>;
-  },
+  variants: { Default: React.ComponentType<any> } | { [key: string]: React.ComponentType<any> },
+  meta?: CreateDemoDataMeta,
 ) => {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: React.ComponentType<any> };
 };
 ```
 
@@ -69,21 +68,14 @@ Creates a demo data object for a global provider component.
 type createDemoGlobal = (
   url: string,
   globalProvider: DemoGlobalProvider,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    skipPrecompute?: boolean;
-    precompute?: {};
-    client?: ComponentType<{ children: ReactNode }>;
-  },
+  meta?: CreateDemoDataMeta,
 ) => {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: DemoGlobalProvider };
 };
 ```
 
@@ -94,21 +86,48 @@ Creates a demo data object for a global provider component with different varian
 ```typescript
 type createDemoGlobalWithVariants = (
   url: string,
-  globalProviders: {},
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    skipPrecompute?: boolean;
-    precompute?: {};
-    client?: ComponentType<{ children: ReactNode }>;
-  },
+  globalProviders: { [variant: string]: DemoGlobalProvider },
+  meta?: CreateDemoDataMeta,
 ) => {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: DemoGlobalProvider };
 };
+```
+
+### DemoData
+
+```typescript
+type DemoData = {
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: Code | undefined;
+  url: string;
+  components: { [key: string]: React.ComponentType<any> };
+};
+```
+
+### DemoGlobalData
+
+```typescript
+type DemoGlobalData = {
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: Code | undefined;
+  url: string;
+  components: { [key: string]: DemoGlobalProvider };
+};
+```
+
+### DemoGlobalProvider
+
+```typescript
+type DemoGlobalProvider =
+  | React.ComponentClass<{ children: React.ReactNode }, any>
+  | ReactFunctionComponent<{ children: React.ReactNode }>;
 ```
