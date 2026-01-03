@@ -231,6 +231,17 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           },
         ],
       },
+      './app/**/types.ts': {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+            options: {
+              performance,
+              socketDir: '.next/cache/docs-infra/types-meta-worker',
+            },
+          },
+        ],
+      },
       './app/sitemap/index.ts': {
         loaders: [
           {
@@ -330,6 +341,21 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
               options: { performance },
+            },
+          ],
+        });
+
+        // Types files for type metadata
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]types\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+              options: {
+                performance,
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+              },
             },
           ],
         });
