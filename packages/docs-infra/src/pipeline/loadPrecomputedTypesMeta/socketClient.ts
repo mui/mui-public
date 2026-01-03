@@ -3,6 +3,9 @@
  *
  * When a worker starts, it checks if another worker is already running via a socket.
  * If so, it forwards requests to that worker instead of processing them locally.
+ *
+ * On Unix systems, this uses Unix domain sockets.
+ * On Windows, this uses named pipes (which Node.js net module supports transparently).
  */
 
 import { connect, Socket } from 'node:net';
@@ -13,14 +16,15 @@ import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
 
+const isWindows = process.platform === 'win32';
+
 /**
  * Get the default socket directory.
- * Prefers CI-specific temp directories that are known to work better,
- * then falls back to system temp.
+ * On Unix: Prefers CI-specific temp directories, then falls back to system temp.
+ * On Windows: Not used for the socket path itself (named pipes don't need directories).
  */
 function getDefaultSocketDir(): string {
   // CI environments often have dedicated temp directories that work better
-  // (especially on Windows where the default temp may not support Unix sockets)
   return (
     process.env.RUNNER_TEMP ?? // GitHub Actions
     process.env.AGENT_TEMPDIRECTORY ?? // Azure Pipelines
@@ -29,11 +33,31 @@ function getDefaultSocketDir(): string {
 }
 
 /**
- * Get the path to the Unix domain socket
+ * Get the effective socket directory for Unix sockets and lock files.
+ * On CI environments, always prefer CI-specific temp directories.
+ * Otherwise, use the provided socketDir or fall back to defaults.
  * @param socketDir - Optional custom directory for socket files
  */
+function getEffectiveSocketDir(socketDir?: string): string {
+  // CI environments always use their temp directories for better compatibility
+  const ciTempDir = process.env.RUNNER_TEMP ?? process.env.AGENT_TEMPDIRECTORY;
+  if (ciTempDir) {
+    return ciTempDir;
+  }
+  return socketDir ?? getDefaultSocketDir();
+}
+
+/**
+ * Get the path to the IPC endpoint (Unix socket or Windows named pipe)
+ * @param socketDir - Optional custom directory for socket files (Unix only)
+ */
 export function getSocketPath(socketDir?: string): string {
-  const dir = socketDir ?? getDefaultSocketDir();
+  if (isWindows) {
+    // Windows named pipe using extended-length path format
+    // Uses effective socket dir to ensure uniqueness per project (prevents conflicts between parallel builds)
+    return join('\\\\?\\pipe', getEffectiveSocketDir(socketDir), 'mui-types-meta-worker');
+  }
+  const dir = getEffectiveSocketDir(socketDir);
   return join(dir, 'mui-types-meta-worker.sock');
 }
 
@@ -42,7 +66,7 @@ export function getSocketPath(socketDir?: string): string {
  * @param socketDir - Optional custom directory for socket files
  */
 export function getLockPath(socketDir?: string): string {
-  const dir = socketDir ?? getDefaultSocketDir();
+  const dir = getEffectiveSocketDir(socketDir);
   return join(dir, 'mui-types-meta-worker.lock');
 }
 
@@ -51,9 +75,8 @@ export function getLockPath(socketDir?: string): string {
  * @param socketDir - Optional custom directory for socket files
  */
 export async function ensureSocketDir(socketDir?: string): Promise<void> {
-  if (socketDir) {
-    await mkdir(socketDir, { recursive: true });
-  }
+  const dir = getEffectiveSocketDir(socketDir);
+  await mkdir(dir, { recursive: true });
 }
 
 /**
@@ -69,9 +92,36 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Wait for the socket file to appear
- * Returns when the socket file exists or throws after timeout
- * @param socketDir - Optional custom directory for socket files
+ * Try to connect to a named pipe (Windows)
+ * @returns true if connection succeeded, false otherwise
+ */
+function tryConnectToPipe(socketPath: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const socket = connect(socketPath);
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('error', () => {
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * Sleep for a given duration
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * Wait for the IPC endpoint to become available.
+ * On Unix: Watches for the socket file to appear.
+ * On Windows: Polls by attempting to connect to the named pipe.
+ * @param socketDir - Optional custom directory for socket files (Unix only)
  * @param timeoutMs - Timeout in milliseconds (default: 5000)
  */
 export async function waitForSocketFile(
@@ -80,13 +130,32 @@ export async function waitForSocketFile(
 ): Promise<void> {
   const socketPath = getSocketPath(socketDir);
 
-  // Check if it already exists
+  if (isWindows) {
+    // On Windows, named pipes don't create files - poll by trying to connect
+    const startTime = Date.now();
+    const pollInterval = 100; // ms
+
+    while (Date.now() - startTime < timeoutMs) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await tryConnectToPipe(socketPath)) {
+        return;
+      }
+
+      // Wait before next poll
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(pollInterval);
+    }
+
+    throw new Error(`Named pipe did not become available within ${timeoutMs}ms`);
+  }
+
+  // Unix: Check if socket file already exists
   if (await fileExists(socketPath)) {
     return;
   }
 
   // Ensure the directory exists before watching
-  const dir = socketDir ?? getDefaultSocketDir();
+  const dir = getEffectiveSocketDir(socketDir);
   await mkdir(dir, { recursive: true });
 
   await new Promise<void>((resolve, reject) => {

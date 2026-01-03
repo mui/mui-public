@@ -3,12 +3,17 @@
  *
  * The first worker to start creates a socket server that other workers can connect to.
  * This allows sharing a single TypeScript language service across all Next.js worker processes.
+ *
+ * On Unix systems, this uses Unix domain sockets.
+ * On Windows, this uses named pipes (which Node.js net module supports transparently).
  */
 
 import { createServer, Server, Socket } from 'node:net';
 import { unlink, stat } from 'node:fs/promises';
 import { getSocketPath, ensureSocketDir } from './socketClient.js';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
+
+const isWindows = process.platform === 'win32';
 
 interface ServerMessage {
   id: string;
@@ -65,15 +70,17 @@ export class SocketServer {
   ): Promise<SocketServer> {
     const socketPath = getSocketPath(socketDir);
 
-    // Ensure the directory exists
-    await ensureSocketDir(socketDir);
+    // Ensure the directory exists (only needed for Unix sockets)
+    if (!isWindows) {
+      await ensureSocketDir(socketDir);
 
-    // Clean up existing socket if it exists (might be stale from previous build)
-    if (await fileExists(socketPath)) {
-      try {
-        await unlink(socketPath);
-      } catch (error) {
-        // Ignore cleanup errors
+      // Clean up existing socket file if it exists (might be stale from previous build)
+      if (await fileExists(socketPath)) {
+        try {
+          await unlink(socketPath);
+        } catch {
+          // Ignore cleanup errors
+        }
       }
     }
 
@@ -193,10 +200,12 @@ export class SocketServer {
     });
 
     this.server.close(() => {
-      // Clean up socket file asynchronously
-      unlink(this.socketPath).catch(() => {
-        // Ignore cleanup errors
-      });
+      // Clean up socket file asynchronously (only for Unix sockets)
+      if (!isWindows) {
+        unlink(this.socketPath).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     });
   }
 }
