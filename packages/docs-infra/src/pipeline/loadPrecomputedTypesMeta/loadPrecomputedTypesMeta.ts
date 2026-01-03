@@ -3,11 +3,12 @@
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
 import { writeFile, readFile, stat } from 'fs/promises';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
 import type { ExportNode } from 'typescript-api-extractor';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
-import { fileUrlToPortablePath, portablePathToFileUrl } from '../loaderUtils/fileUrlToPortablePath';
 import {
   createPerformanceLogger,
   logPerformance,
@@ -96,7 +97,7 @@ export async function loadPrecomputedTypesMeta(
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
   const resourceName = extractNameAndSlugFromUrl(
-    new URL('.', portablePathToFileUrl(this.resourcePath)).pathname,
+    new URL('.', pathToFileURL(this.resourcePath)).pathname,
   ).name;
 
   // Ensure rootContext always ends with / for correct URL resolution
@@ -181,35 +182,36 @@ export async function loadPrecomputedTypesMeta(
 
     // Collect all entrypoints for optimized program creation
     // Include both the component entrypoints and their meta files (DataAttributes, CssVars)
-    const resolvedEntrypoints = Array.from(resolvedVariantMap.values()).map((url) =>
-      fileUrlToPortablePath(url),
-    );
+    // These are file:// URLs from resolveLibrarySourceFiles
+    const resolvedEntrypointUrls = Array.from(resolvedVariantMap.values());
 
     // Parse exports from library source files to find re-exported directories
     // This helps us discover DataAttributes/CssVars files from re-exported components
-    const reExportedDirs = new Set<string>();
+    const reExportedDirUrls = new Set<string>();
 
     await Promise.all(
-      resolvedEntrypoints.map(async (entrypoint) => {
+      resolvedEntrypointUrls.map(async (entrypointUrl) => {
         try {
-          const sourceCode = await readFile(entrypoint, 'utf-8');
-          const parsed = await parseImportsAndComments(sourceCode, entrypoint);
+          // Convert file:// URL to filesystem path for Node.js fs APIs
+          const fsEntrypoint = fileURLToPath(entrypointUrl);
+          const sourceCode = await readFile(fsEntrypoint, 'utf-8');
+          const parsed = await parseImportsAndComments(sourceCode, entrypointUrl);
 
           // Look for relative exports (e.g., '../menu/', './Button', etc.)
           await Promise.all(
             Object.keys(parsed.relative || {}).map(async (exportPath) => {
               if (exportPath.startsWith('..') || exportPath.startsWith('.')) {
-                // Resolve to absolute path first
-                const absolutePath = path.resolve(path.dirname(entrypoint), exportPath);
+                // Resolve to absolute filesystem path
+                const absoluteFsPath = path.resolve(path.dirname(fsEntrypoint), exportPath);
 
                 // Check if this path exists as a directory
                 // If not, it might be a module reference (e.g., '../menu/backdrop/MenuBackdrop' -> MenuBackdrop.tsx)
                 // In that case, we want to add the parent directory
                 try {
-                  const stats = await stat(absolutePath);
+                  const stats = await stat(absoluteFsPath);
                   if (stats.isDirectory()) {
-                    // It's a directory, add it directly
-                    reExportedDirs.add(absolutePath);
+                    // It's a directory, add it directly as file:// URL
+                    reExportedDirUrls.add(pathToFileURL(absoluteFsPath).href);
                   }
                 } catch {
                   // Path doesn't exist as-is. Check if it exists with common extensions
@@ -218,11 +220,11 @@ export async function loadPrecomputedTypesMeta(
                   for (const ext of extensions) {
                     try {
                       // eslint-disable-next-line no-await-in-loop
-                      const fileStats = await stat(absolutePath + ext);
+                      const fileStats = await stat(absoluteFsPath + ext);
                       if (fileStats.isFile()) {
-                        // It's a file reference, add the parent directory
-                        const parentDir = path.dirname(absolutePath);
-                        reExportedDirs.add(parentDir);
+                        // It's a file reference, add the parent directory as file:// URL
+                        const parentDir = path.dirname(absoluteFsPath);
+                        reExportedDirUrls.add(pathToFileURL(parentDir).href);
                         break;
                       }
                     } catch {
@@ -238,7 +240,7 @@ export async function loadPrecomputedTypesMeta(
         } catch (error) {
           // If we can't parse a file, just skip it
           console.warn(
-            `[Main] Failed to parse exports from ${entrypoint}:`,
+            `[Main] Failed to parse exports from ${entrypointUrl}:`,
             error instanceof Error ? error.message : error,
           );
         }
@@ -246,14 +248,16 @@ export async function loadPrecomputedTypesMeta(
     );
 
     // Find meta files from the library source directories and re-exported directories
-    const allDirectoriesToSearch = [
-      ...resolvedEntrypoints, // Component entrypoints themselves
-      ...Array.from(reExportedDirs), // Re-exported directories (e.g., ../menu/)
+    // Convert file:// URLs to filesystem paths for findMetaFiles
+    const allPathsToSearch = [
+      ...resolvedEntrypointUrls.map((url) => fileURLToPath(url)),
+      ...Array.from(reExportedDirUrls).map((url) => fileURLToPath(url)),
     ];
 
+    // findMetaFiles accepts filesystem paths and returns filesystem paths
     const allEntrypoints = await Promise.all(
-      allDirectoriesToSearch.map(async (entrypoint) => {
-        return [entrypoint, ...(await findMetaFiles(entrypoint))];
+      allPathsToSearch.map(async (fsPath) => {
+        return [fsPath, ...(await findMetaFiles(fsPath))];
       }),
     ).then((pairs) => pairs.flat());
 

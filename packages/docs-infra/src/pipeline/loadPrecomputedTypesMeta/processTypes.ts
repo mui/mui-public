@@ -1,11 +1,12 @@
 import type { CompilerOptions } from 'typescript';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 import { ExportNode, parseFromProgram, ParserOptions } from 'typescript-api-extractor';
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
 import { parseExports } from './parseExports';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { findMetaFiles } from './findMetaFiles';
-import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
 
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
@@ -121,8 +122,9 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
         );
 
         const namedExport = request.namedExports?.[variantName];
-        const entrypoint = fileUrlToPortablePath(fileUrl);
-        const entrypointDir = new URL('.', fileUrl).pathname;
+        // Convert file:// URL to filesystem path for TypeScript
+        const entrypoint = fileURLToPath(fileUrl);
+        const entrypointDir = fileURLToPath(new URL('.', fileUrl));
 
         try {
           // Ensure the entrypoint exists and is accessible to the TypeScript program
