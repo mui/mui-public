@@ -6,8 +6,8 @@
  */
 
 import { createServer, Server, Socket } from 'node:net';
-import { unlinkSync, existsSync } from 'node:fs';
-import { getSocketPath } from './socketClient.js';
+import { unlink, stat } from 'node:fs/promises';
+import { getSocketPath, ensureSocketDir } from './socketClient.js';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
 
 interface ServerMessage {
@@ -23,6 +23,18 @@ interface ServerResponse {
 }
 
 /**
+ * Check if a file exists
+ */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Socket server that handles requests from other workers
  */
 export class SocketServer {
@@ -34,26 +46,49 @@ export class SocketServer {
 
   private requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>;
 
-  constructor(requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>) {
-    this.socketPath = getSocketPath();
+  private constructor(
+    requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>,
+    socketPath: string,
+    server: Server,
+  ) {
+    this.socketPath = socketPath;
     this.requestHandler = requestHandler;
+    this.server = server;
+  }
+
+  /**
+   * Create and initialize a socket server
+   */
+  static async create(
+    requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>,
+    socketDir?: string,
+  ): Promise<SocketServer> {
+    const socketPath = getSocketPath(socketDir);
+
+    // Ensure the directory exists
+    await ensureSocketDir(socketDir);
 
     // Clean up existing socket if it exists (might be stale from previous build)
-    if (existsSync(this.socketPath)) {
+    if (await fileExists(socketPath)) {
       try {
-        unlinkSync(this.socketPath);
+        await unlink(socketPath);
       } catch (error) {
         // Ignore cleanup errors
       }
     }
 
-    this.server = createServer((socket) => {
-      this.handleConnection(socket);
+    const server = createServer();
+    const instance = new SocketServer(requestHandler, socketPath, server);
+
+    server.on('connection', (socket) => {
+      instance.handleConnection(socket);
     });
 
-    this.server.on('error', (error) => {
+    server.on('error', (error) => {
       console.error('[SocketServer] Server error:', error);
     });
+
+    return instance;
   }
 
   /**
@@ -158,14 +193,10 @@ export class SocketServer {
     });
 
     this.server.close(() => {
-      // Clean up socket file
-      if (existsSync(this.socketPath)) {
-        try {
-          unlinkSync(this.socketPath);
-        } catch (error) {
-          // Ignore cleanup errors
-        }
-      }
+      // Clean up socket file asynchronously
+      unlink(this.socketPath).catch(() => {
+        // Ignore cleanup errors
+      });
     });
   }
 }

@@ -12,6 +12,13 @@ function hasSuffix(suffixes: string[], filename: string): boolean {
   );
 }
 
+/**
+ * Finds metadata files (DataAttributes, CssVars) in the directory of the given entrypoint.
+ *
+ * @param entrypoint - A filesystem path pointing to the entrypoint file or directory
+ * @param suffixes - File suffixes to search for (default: ['DataAttributes', 'CssVars'])
+ * @returns Array of filesystem paths for matching files
+ */
 export async function findMetaFiles(
   entrypoint: string,
   suffixes: string[] = ['DataAttributes', 'CssVars'],

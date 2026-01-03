@@ -265,7 +265,8 @@ export async function generateTypesMarkdown(
             : part;
 
         // Add subheading for the part using display name
-        content.push(md.heading(3, displayName));
+        // Use md.raw() to prevent underscore escaping (e.g., PARENT_CHECKBOX)
+        content.push(md.heading(3, md.raw(displayName)));
 
         // Add description if available - use plain text directly
         if (data.descriptionText) {
@@ -347,7 +348,8 @@ export async function generateTypesMarkdown(
         const data = typeMeta.data; // This is now properly typed as HookTypeMeta
 
         // Add subheading for the part
-        content.push(md.heading(3, part));
+        // Use md.raw() to prevent underscore escaping
+        content.push(md.heading(3, md.raw(part)));
 
         // Add description if available - use plain text directly
         if (data.descriptionText) {
@@ -436,7 +438,8 @@ export async function generateTypesMarkdown(
             : part;
 
         // Add subheading for the part using display name
-        content.push(md.heading(3, displayName));
+        // Use md.raw() to prevent underscore escaping (e.g., PARENT_CHECKBOX)
+        content.push(md.heading(3, md.raw(displayName)));
 
         // Check if this is a re-export of another type
         if (typeMeta.reExportOf) {

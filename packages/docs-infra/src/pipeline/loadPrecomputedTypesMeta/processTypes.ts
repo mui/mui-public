@@ -1,4 +1,6 @@
 import type { CompilerOptions } from 'typescript';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 import {
   ExportNode,
   parseFromProgram,
@@ -10,7 +12,6 @@ import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimiz
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { findMetaFiles } from './findMetaFiles';
-import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
 
 /**
  * Builds a mapping from flat type names to dotted namespace names.
@@ -143,7 +144,8 @@ export interface WorkerRequest {
   namedExports?: Record<string, string>;
   /** Dependency paths (filesystem paths, not URLs) */
   dependencies: string[];
-  rootContext: string;
+  /** Root context directory path (must end with /) */
+  rootContextDir: string;
   relativePath: string;
 }
 
@@ -234,8 +236,9 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
         );
 
         const namedExport = request.namedExports?.[variantName];
-        const entrypoint = fileUrlToPortablePath(fileUrl);
-        const entrypointDir = new URL('.', fileUrl).pathname;
+        // Convert file:// URL to filesystem path for TypeScript
+        const entrypoint = fileURLToPath(fileUrl);
+        const entrypointDir = fileURLToPath(new URL('.', fileUrl));
 
         try {
           // Ensure the entrypoint exists and is accessible to the TypeScript program

@@ -669,9 +669,10 @@ export async function formatProperties(
         if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
           detailedTypeText = formatDetailedType(prop.type, allExports, exportNames, typeNameMap);
         } else {
+          // For detailedType, never remove undefined - we want to show the full type
           detailedTypeText = formatType(
             prop.type,
-            prop.optional,
+            false, // Never strip | undefined from detailedType
             prop.documentation?.tags,
             false,
             exportNames,

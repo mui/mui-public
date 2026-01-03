@@ -1293,6 +1293,83 @@ describe('format', () => {
         expect(result.disabled.detailedType).toBeUndefined();
       });
 
+      it('should preserve | undefined in detailedType for optional className prop', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'className',
+            type: {
+              kind: 'union',
+              types: [
+                { kind: 'intrinsic', intrinsic: 'string' },
+                {
+                  kind: 'function',
+                  callSignatures: [
+                    {
+                      parameters: [],
+                      returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
+                    },
+                  ],
+                },
+                { kind: 'intrinsic', intrinsic: 'undefined' },
+              ],
+            } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // shortType for className shows simplified version without undefined
+        expect(result.className.shortTypeText).toBe('string | function');
+        // typeText strips undefined for optional props (since ?:  indicates optionality)
+        expect(result.className.typeText).toBe('string | (() => string)');
+        // detailedType should preserve | undefined to show the full type
+        expect(result.className.detailedType).toBeDefined();
+        const detailedHtml = toHtml(result.className.detailedType!);
+        expect(detailedHtml).toContain('undefined');
+      });
+
+      it('should preserve | undefined in detailedType for optional render prop', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'render',
+            type: {
+              kind: 'union',
+              types: [
+                { kind: 'external', typeName: { name: 'ReactElement' } as any },
+                {
+                  kind: 'function',
+                  callSignatures: [
+                    {
+                      parameters: [],
+                      returnValueType: {
+                        kind: 'external',
+                        typeName: { name: 'ReactElement' } as any,
+                      },
+                    },
+                  ],
+                },
+                { kind: 'intrinsic', intrinsic: 'undefined' },
+              ],
+            } as any,
+            optional: true,
+            documentation: {} as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // shortType for render shows simplified version without undefined
+        expect(result.render.shortTypeText).toBe('ReactElement | function');
+        // typeText strips undefined for optional props (since ?: indicates optionality)
+        expect(result.render.typeText).toBe('ReactElement | (() => ReactElement)');
+        // detailedType should preserve | undefined to show the full type
+        expect(result.render.detailedType).toBeDefined();
+        const detailedHtml = toHtml(result.render.detailedType!);
+        expect(detailedHtml).toContain('undefined');
+      });
+
       it('should not show detailed type for refs', async () => {
         const props: tae.PropertyNode[] = [
           {

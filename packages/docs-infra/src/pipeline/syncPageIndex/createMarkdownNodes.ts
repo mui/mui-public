@@ -234,3 +234,16 @@ export function link(url: string, children: Child | Child[], title?: string): Ph
     children: normalizeChildren(children),
   };
 }
+
+/**
+ * Create a raw HTML node. Content passes through without escaping.
+ * Use sparingly - only when you need to prevent character escaping.
+ * @param value - Raw HTML/text content
+ * @returns An HTML node
+ */
+export function raw(value: string): PhrasingContent {
+  return {
+    type: 'html',
+    value,
+  } as PhrasingContent;
+}

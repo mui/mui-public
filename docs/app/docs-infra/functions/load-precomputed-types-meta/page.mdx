@@ -302,6 +302,15 @@ interface LoaderOptions {
      */
     detailedTypePrintWidth?: number;
   };
+
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   * Relative paths are resolved from the project root.
+   * When using `withDocsInfra` in Next.js, this defaults to `.next/cache/docs-infra/types-meta-worker`.
+   * Otherwise, falls back to `RUNNER_TEMP` (GitHub Actions), `AGENT_TEMPDIRECTORY` (Azure Pipelines), or system temp directory.
+   */
+  socketDir?: string;
 }
 ```
 
@@ -318,6 +327,8 @@ config.module.rules.push({
       options: {
         performance: { logging: true, notableMs: 100 },
         formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
+        // For Windows compatibility:
+        socketDir: '.next/cache/docs-infra/types-meta-worker',
       },
     },
   ],
@@ -944,9 +955,13 @@ When Next.js runs with multiple processes, the loader uses a socket-based IPC sy
 - **Lock-based server election**: Uses `proper-lockfile` for atomic lock acquisition
 - **Single server worker**: One process acquires the lock and starts a socket server
 - **Multiple client workers**: All other processes connect as socket clients
-- **Unix domain socket**: `/tmp/mui-types-meta-worker.sock` for inter-process communication
+- **Unix domain socket**: Uses `.next/cache/docs-infra/types-meta-worker` by default (when using `withDocsInfra`), with fallback to `RUNNER_TEMP` (GitHub Actions), `AGENT_TEMPDIRECTORY` (Azure Pipelines), or system temp directory
+- **Configurable socket directory**: Override via `socketDir` loader option for manual configurations
 - **Stale lock detection**: 10-second timeout prevents permanent deadlocks from crashed servers
 - **Automatic cleanup**: Locks released gracefully on process exit
+
+> [!NOTE]
+> When using `withDocsInfra`, the socket directory is automatically set to `.next/cache/docs-infra/types-meta-worker`, which works reliably across all platforms including Windows CI. For manual webpack configurations, use the `socketDir` loader option.
 
 This architecture ensures:
 
