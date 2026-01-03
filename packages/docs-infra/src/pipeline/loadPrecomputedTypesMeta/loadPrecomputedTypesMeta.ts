@@ -48,6 +48,12 @@ export type LoaderOptions = {
   };
   /** Options for formatting types in tables */
   formatting?: FormatInlineTypeOptions;
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   * @example '.next/cache/docs-infra/types-meta-worker'
+   */
+  socketDir?: string;
 };
 
 export type ComponentTypeMeta = ComponentType;
@@ -269,7 +275,9 @@ export async function loadPrecomputedTypesMeta(
 
     // Process types in worker thread
     // This offloads TypeScript operations to a worker while keeping the singleton cache
-    const workerManager = getWorkerManager();
+    // Pass socketDir option to configure IPC socket location (useful for Windows)
+    const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
+    const workerManager = getWorkerManager(socketDir);
     const workerStartTime = performance.now();
 
     const workerResult = await workerManager.processTypes({

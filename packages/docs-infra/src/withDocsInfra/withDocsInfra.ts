@@ -235,7 +235,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-            options: { performance },
+            options: {
+              performance,
+              socketDir: '.next/cache/docs-infra/types-meta-worker',
+            },
           },
         ],
       },
@@ -349,7 +352,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance },
+              options: {
+                performance,
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+              },
             },
           ],
         });

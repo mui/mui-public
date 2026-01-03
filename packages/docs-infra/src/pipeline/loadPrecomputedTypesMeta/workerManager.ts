@@ -21,16 +21,21 @@ class TypesMetaWorkerManager {
 
   private workerPath: string;
 
-  constructor() {
+  private socketDir: string | undefined;
+
+  constructor(socketDir?: string) {
     // Worker file must be compiled JS, not TS
     // Use import.meta.url to get current directory in ESM
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     this.workerPath = path.join(currentDir, 'worker.js');
+    this.socketDir = socketDir;
   }
 
   private ensureWorker(): Worker {
     if (!this.worker) {
-      this.worker = new Worker(this.workerPath);
+      this.worker = new Worker(this.workerPath, {
+        workerData: this.socketDir ? { socketDir: this.socketDir } : undefined,
+      });
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
         const { requestId, ...rest } = response;
@@ -98,11 +103,11 @@ interface ProcessWithWorkerManager {
   [WORKER_MANAGER_KEY]?: TypesMetaWorkerManager;
 }
 
-export function getWorkerManager(): TypesMetaWorkerManager {
+export function getWorkerManager(socketDir?: string): TypesMetaWorkerManager {
   const processObj = process as ProcessWithWorkerManager;
 
   if (!processObj[WORKER_MANAGER_KEY]) {
-    processObj[WORKER_MANAGER_KEY] = new TypesMetaWorkerManager();
+    processObj[WORKER_MANAGER_KEY] = new TypesMetaWorkerManager(socketDir);
   }
 
   return processObj[WORKER_MANAGER_KEY];

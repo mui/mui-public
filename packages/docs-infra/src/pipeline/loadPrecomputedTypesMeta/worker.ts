@@ -1,6 +1,6 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
-import { parentPort } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 
 import {
   SocketClient,
@@ -19,6 +19,9 @@ import {
 // Re-export types for convenience
 export type { WorkerRequest, WorkerResponse, VariantResult };
 
+// Get socket directory from worker data (if provided)
+const socketDir: string | undefined = workerData?.socketDir;
+
 // Worker message handler
 let socketClient: SocketClient | null = null;
 let socketServer: SocketServer | null = null;
@@ -26,28 +29,28 @@ let socketServer: SocketServer | null = null;
 // Initialize socket connection
 const initSocket = async () => {
   // Try to acquire the server lock (only one worker will succeed)
-  let shouldBeServer = await tryAcquireServerLock();
+  let shouldBeServer = await tryAcquireServerLock(socketDir);
 
   if (shouldBeServer) {
     // This is the first worker - create a socket server
-    socketServer = new SocketServer(processTypes);
+    socketServer = await SocketServer.create(processTypes, socketDir);
     await socketServer.start();
   } else {
     // Another worker is already running - wait for the socket file to appear
 
     try {
       // Wait for the socket file to be created by the server
-      await waitForSocketFile();
+      await waitForSocketFile(socketDir);
 
-      socketClient = new SocketClient();
+      socketClient = new SocketClient(socketDir);
       await socketClient.connect();
     } catch (error) {
       // Retry: Maybe no server exists yet, try to become the server ourselves
-      shouldBeServer = await tryAcquireServerLock();
+      shouldBeServer = await tryAcquireServerLock(socketDir);
 
       if (shouldBeServer) {
         socketClient = null;
-        socketServer = new SocketServer(processTypes);
+        socketServer = await SocketServer.create(processTypes, socketDir);
         await socketServer.start();
       } else {
         // Fall back to processing locally

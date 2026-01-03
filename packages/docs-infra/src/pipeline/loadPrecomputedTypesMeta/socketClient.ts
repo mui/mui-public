@@ -6,44 +6,94 @@
  */
 
 import { connect, Socket } from 'node:net';
-import { existsSync, watch } from 'node:fs';
+import { watch } from 'node:fs';
+import { mkdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
 
 /**
- * Get the path to the Unix domain socket
+ * Get the default socket directory.
+ * Prefers CI-specific temp directories that are known to work better,
+ * then falls back to system temp.
  */
-export function getSocketPath(): string {
-  return join(tmpdir(), 'mui-types-meta-worker.sock');
+function getDefaultSocketDir(): string {
+  // CI environments often have dedicated temp directories that work better
+  // (especially on Windows where the default temp may not support Unix sockets)
+  return (
+    process.env.RUNNER_TEMP ?? // GitHub Actions
+    process.env.AGENT_TEMPDIRECTORY ?? // Azure Pipelines
+    tmpdir()
+  );
+}
+
+/**
+ * Get the path to the Unix domain socket
+ * @param socketDir - Optional custom directory for socket files
+ */
+export function getSocketPath(socketDir?: string): string {
+  const dir = socketDir ?? getDefaultSocketDir();
+  return join(dir, 'mui-types-meta-worker.sock');
 }
 
 /**
  * Get the path to the lock file used for server election
+ * @param socketDir - Optional custom directory for socket files
  */
-export function getLockPath(): string {
-  return join(tmpdir(), 'mui-types-meta-worker.lock');
+export function getLockPath(socketDir?: string): string {
+  const dir = socketDir ?? getDefaultSocketDir();
+  return join(dir, 'mui-types-meta-worker.lock');
+}
+
+/**
+ * Ensure the socket directory exists
+ * @param socketDir - Optional custom directory for socket files
+ */
+export async function ensureSocketDir(socketDir?: string): Promise<void> {
+  if (socketDir) {
+    await mkdir(socketDir, { recursive: true });
+  }
+}
+
+/**
+ * Check if a file exists
+ */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Wait for the socket file to appear
  * Returns when the socket file exists or throws after timeout
+ * @param socketDir - Optional custom directory for socket files
+ * @param timeoutMs - Timeout in milliseconds (default: 5000)
  */
-export function waitForSocketFile(timeoutMs: number = 5000): Promise<void> {
-  const socketPath = getSocketPath();
+export async function waitForSocketFile(
+  socketDir?: string,
+  timeoutMs: number = 5000,
+): Promise<void> {
+  const socketPath = getSocketPath(socketDir);
 
   // Check if it already exists
-  if (existsSync(socketPath)) {
-    return Promise.resolve();
+  if (await fileExists(socketPath)) {
+    return;
   }
 
-  return new Promise((resolve, reject) => {
+  // Ensure the directory exists before watching
+  const dir = socketDir ?? getDefaultSocketDir();
+  await mkdir(dir, { recursive: true });
+
+  await new Promise<void>((resolve, reject) => {
     let timer: NodeJS.Timeout;
 
     // Watch the directory for the socket file to appear
-    const socketDir = tmpdir();
-    const watcher = watch(socketDir, (eventType, filename) => {
+    const watcher = watch(dir, (eventType, filename) => {
       if (filename && filename.includes('mui-types-meta-worker.sock')) {
         clearTimeout(timer);
         watcher.close();
@@ -64,9 +114,13 @@ let lockReleaseFunction: (() => Promise<void>) | null = null;
 /**
  * Try to acquire the server lock using proper-lockfile
  * Returns true if successfully acquired (this worker should be server)
+ * @param socketDir - Optional custom directory for socket files
  */
-export async function tryAcquireServerLock(): Promise<boolean> {
-  const lockPath = getLockPath();
+export async function tryAcquireServerLock(socketDir?: string): Promise<boolean> {
+  const lockPath = getLockPath(socketDir);
+
+  // Ensure the directory exists
+  await ensureSocketDir(socketDir);
 
   try {
     // Try to acquire the lock with no retries (immediate check)
@@ -105,9 +159,10 @@ export async function releaseServerLock(): Promise<void> {
 /**
  * Check if there's an existing worker socket file
  * Note: The socket server will clean up stale sockets on startup
+ * @param socketDir - Optional custom directory for socket files
  */
-export function hasExistingWorker(): boolean {
-  return existsSync(getSocketPath());
+export async function hasExistingWorker(socketDir?: string): Promise<boolean> {
+  return fileExists(getSocketPath(socketDir));
 }
 
 /**
@@ -117,6 +172,8 @@ export class SocketClient {
   private socket: Socket | null = null;
 
   private messageId = 0;
+
+  private socketDir: string | undefined;
 
   private pendingRequests = new Map<
     string,
@@ -128,11 +185,15 @@ export class SocketClient {
 
   private buffer = '';
 
+  constructor(socketDir?: string) {
+    this.socketDir = socketDir;
+  }
+
   /**
    * Connect to the worker socket with retry logic
    */
   async connect(retryCount = 0, maxRetries = 10, retryDelay = 50): Promise<void> {
-    const socketPath = getSocketPath();
+    const socketPath = getSocketPath(this.socketDir);
 
     try {
       await this.attemptConnect(socketPath);
