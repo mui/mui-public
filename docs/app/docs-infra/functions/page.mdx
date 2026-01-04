@@ -714,7 +714,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
     - Basic Usage
     - With Highlighting Prefix
   - Configuration
-    - Initialization
+    - Automatic Initialization
     - Supported Languages
   - How It Works
     - Processing Pipeline
@@ -730,19 +730,17 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
     - Generated API Documentation
   - API Reference
     - transformHtmlCodeInlineHighlighted()
-    - ensureStarryNightInitialized()
   - Architecture
-    - Singleton Pattern
+    - Lazy Singleton Pattern
     - Prefix Handling
   - Performance Considerations
     - Initialization Cost
     - Processing Cost
   - Comparison with transformHtmlCodePrecomputed
   - Best Practices
-    - 1\. Initialize Once
-    - 2\. Use Appropriate Prefixes
-    - 3\. Specify Language
-    - 4\. Keep Code Inline
+    - 1\. Use Appropriate Prefixes
+    - 2\. Specify Language
+    - 3\. Keep Code Inline
   - Troubleshooting
     - Code Not Highlighting
     - Prefix Not Removed
