@@ -14,7 +14,7 @@ The `transformHtmlCodeInlineHighlighted` plugin transforms plain inline code int
 - **Prefix support**: Handles `data-highlighting-prefix` attribute for proper type context
 - **Automatic cleanup**: Removes highlighting prefixes after processing
 - **Language detection**: Reads language from `className` attribute (e.g., `language-ts`)
-- **Singleton initialization**: Shares Starry Night instance across all processing
+- **Lazy initialization**: Automatically initializes Starry Night on first use
 
 ---
 
@@ -32,12 +32,7 @@ This plugin is part of `@mui/internal-docs-infra` and doesn't need separate inst
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import transformHtmlCodeInlineHighlighted, {
-  ensureStarryNightInitialized,
-} from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
-
-// Initialize Starry Night once before using the plugin
-await ensureStarryNightInitialized();
+import transformHtmlCodeInlineHighlighted from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
@@ -73,22 +68,14 @@ const result = await processor.process(html);
 
 ## Configuration
 
-### Initialization
+### Automatic Initialization
 
-**CRITICAL**: You must initialize Starry Night before using the plugin:
+The plugin automatically initializes Starry Night on first use. This means:
 
-```typescript
-import { ensureStarryNightInitialized } from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
-
-// Call once at application startup
-await ensureStarryNightInitialized();
-```
-
-The initialization:
-
-- Creates a Starry Night instance with all supported grammars
-- Stores it in `globalThis` for reuse across all processing
-- Only runs once (subsequent calls are no-ops)
+- No manual initialization required
+- First processing takes ~500-1200ms (Starry Night creation)
+- Subsequent processing is fast (reuses singleton instance)
+- Instance stored in `globalThis` for sharing across all processing
 
 ### Supported Languages
 
@@ -109,14 +96,15 @@ The plugin supports all languages defined in [`grammars.ts`](../parse-source/pag
 
 ### Processing Pipeline
 
-1. **Find code elements**: Visits all `<code>` elements in the HAST tree
-2. **Extract text content**: Gets the raw text from the code element
-3. **Check for prefix**: Reads `data-highlighting-prefix` attribute if present
-4. **Apply prefix**: Temporarily prepends prefix for proper context
-5. **Highlight**: Uses Starry Night to apply syntax highlighting
-6. **Remove prefix**: Strips prefix characters from the highlighted output
-7. **Replace children**: Updates code element with highlighted nodes
-8. **Clean up**: Removes `data-highlighting-prefix` attribute
+1. **Initialize**: Lazily creates Starry Night instance on first use
+2. **Find code elements**: Visits all `<code>` elements in the HAST tree
+3. **Extract text content**: Gets the raw text from the code element
+4. **Check for prefix**: Reads `data-highlighting-prefix` attribute if present
+5. **Apply prefix**: Temporarily prepends prefix for proper context
+6. **Highlight**: Uses Starry Night to apply syntax highlighting
+7. **Remove prefix**: Strips prefix characters from the highlighted output
+8. **Replace children**: Updates code element with highlighted nodes
+9. **Clean up**: Removes `data-highlighting-prefix` attribute
 
 ### Prefix Removal Algorithm
 
@@ -258,52 +246,36 @@ Returns a unified transformer that highlights `<code>` elements.
 
 **Returns:** A transformer function that processes the HAST tree
 
-**Throws:**
-
-- Error if Starry Night hasn't been initialized via `ensureStarryNightInitialized()`
-
----
-
-### ensureStarryNightInitialized()
-
-```typescript
-async function ensureStarryNightInitialized(): Promise<void>;
-```
-
-Initializes the Starry Night syntax highlighter singleton.
-
-**Parameters:** None
-
-**Returns:** Promise that resolves when initialization is complete
-
 **Side Effects:**
 
-- Stores Starry Night instance in `globalThis.__docs_infra_starry_night_instance__`
-- Only initializes once (subsequent calls are no-ops)
+- Automatically initializes Starry Night on first use
+- Stores instance in `globalThis.__docs_infra_starry_night_instance__`
 
 ---
 
 ## Architecture
 
-### Singleton Pattern
+### Lazy Singleton Pattern
 
-The plugin uses a singleton Starry Night instance stored in `globalThis`:
+The plugin uses a lazy singleton Starry Night instance stored in `globalThis`:
 
 ```typescript
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
-export async function ensureStarryNightInitialized(): Promise<void> {
+async function getStarryNight(): Promise<StarryNight> {
   if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
     (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
   }
+  return (globalThis as any)[STARRY_NIGHT_KEY];
 }
 ```
 
 **Benefits:**
 
-1. **Performance**: Starry Night creation is expensive (~500-1200ms)
-2. **Memory**: Single instance shared across all processing
-3. **Consistency**: Same highlighting rules everywhere
+1. **No manual initialization**: Just use the plugin directly
+2. **Performance**: Starry Night creation is expensive (~500-1200ms), but only happens once
+3. **Memory**: Single instance shared across all processing
+4. **Consistency**: Same highlighting rules everywhere
 
 ### Prefix Handling
 
@@ -336,17 +308,8 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 
 ### Initialization Cost
 
-- **First call**: ~500-1200ms to create Starry Night instance
+- **First call**: ~500-1200ms to create Starry Night instance (lazy, automatic)
 - **Subsequent calls**: ~0ms (singleton pattern)
-
-**Recommendation**: Initialize once at application startup:
-
-```typescript
-// In your application entry point
-import { ensureStarryNightInitialized } from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
-
-await ensureStarryNightInitialized();
-```
 
 ### Processing Cost
 
@@ -391,20 +354,7 @@ await ensureStarryNightInitialized();
 
 ## Best Practices
 
-### 1. Initialize Once
-
-```typescript
-// ✓ Good: Initialize at startup
-await ensureStarryNightInitialized();
-const processor = unified().use(transformHtmlCodeInlineHighlighted);
-
-// ✗ Bad: Initialize multiple times
-for (const file of files) {
-  await ensureStarryNightInitialized(); // Wasteful
-}
-```
-
-### 2. Use Appropriate Prefixes
+### 1. Use Appropriate Prefixes
 
 ```typescript
 // ✓ Good: Minimal prefix for context
@@ -418,7 +368,7 @@ for (const file of files) {
 </code>
 ```
 
-### 3. Specify Language
+### 2. Specify Language
 
 ```typescript
 // ✓ Good: Explicit language
@@ -428,7 +378,7 @@ for (const file of files) {
 <code>string</code>
 ```
 
-### 4. Keep Code Inline
+### 3. Keep Code Inline
 
 ```typescript
 // ✓ Good: Short inline code
@@ -452,13 +402,7 @@ for (const file of files) {
 
 **Solutions:**
 
-1. Verify Starry Night is initialized:
-
-   ```typescript
-   await ensureStarryNightInitialized();
-   ```
-
-2. Check language class exists:
+1. Check language class exists:
 
    ```html
    <!-- ✓ Good -->
@@ -468,7 +412,7 @@ for (const file of files) {
    <code>string</code>
    ```
 
-3. Confirm language is supported:
+2. Confirm language is supported:
    ```typescript
    // Supported: ts, js, tsx, jsx, css, html, json, md, sh, yaml
    // Unsupported: python, ruby, go, rust

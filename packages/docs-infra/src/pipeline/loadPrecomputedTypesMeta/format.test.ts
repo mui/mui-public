@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import type { Element as HastElement } from 'hast';
 import { toHtml } from 'hast-util-to-html';
-import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 import {
   isExternalType,
   isIntrinsicType,
@@ -38,10 +37,6 @@ function isHastElement(node: unknown): node is HastElement {
 }
 
 describe('format', () => {
-  beforeAll(async () => {
-    await ensureStarryNightInitialized();
-  });
-
   describe('type guard helpers', () => {
     it('should identify external types', () => {
       const externalType = { kind: 'external', typeName: { name: 'External' } };

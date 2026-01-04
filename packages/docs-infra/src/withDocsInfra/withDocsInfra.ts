@@ -110,6 +110,12 @@ export interface DocsInfraMdxOptions {
    * @default false
    */
   errorIfIndexOutOfDate?: boolean;
+  /**
+   * Default language for inline code syntax highlighting.
+   * Set to `false` to disable default highlighting for inline code.
+   * @default 'tsx'
+   */
+  defaultInlineCodeLanguage?: string | false;
 }
 
 /**
@@ -122,6 +128,7 @@ export function getDocsInfraMdxOptions(
     extractToIndex = true,
     baseDir,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
+    defaultInlineCodeLanguage,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -160,7 +167,10 @@ export function getDocsInfraMdxOptions(
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
-    ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
+    // Only pass options if explicitly set (undefined uses plugin default of 'tsx')
+    defaultInlineCodeLanguage !== undefined
+      ? ['@mui/internal-docs-infra/pipeline/transformMarkdownCode', { defaultInlineCodeLanguage }]
+      : ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
   ];
 

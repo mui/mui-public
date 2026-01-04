@@ -1,10 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import transformHtmlCodeInlineHighlighted, {
-  ensureStarryNightInitialized,
-} from './transformHtmlCodeInlineHighlighted';
+import transformHtmlCodeInlineHighlighted from './transformHtmlCodeInlineHighlighted';
 
 /**
  * Integration tests for transformHtmlCodeInlineHighlighted.
@@ -12,10 +10,6 @@ import transformHtmlCodeInlineHighlighted, {
  * to apply syntax highlighting to inline code elements in documentation.
  */
 describe('transformHtmlCodeInlineHighlighted', () => {
-  beforeAll(async () => {
-    await ensureStarryNightInitialized();
-  });
-
   /**
    * Helper function to process HTML string through the plugin.
    * Parses HTML → applies highlighting → serializes back to HTML.
