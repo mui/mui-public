@@ -13,9 +13,9 @@ function hasSuffix(suffixes: string[], filename: string): boolean {
 }
 
 /**
- * Finds metadata files (DataAttributes, CssVars) in the directory of the given entrypoint.
+ * Finds metadata files (DataAttributes, CssVars) in the directory of the given entrypoint file.
  *
- * @param entrypoint - A filesystem path pointing to the entrypoint file or directory
+ * @param entrypoint - A filesystem path pointing to the entrypoint file
  * @param suffixes - File suffixes to search for (default: ['DataAttributes', 'CssVars'])
  * @returns Array of filesystem paths for matching files
  */
@@ -23,11 +23,8 @@ export async function findMetaFiles(
   entrypoint: string,
   suffixes: string[] = ['DataAttributes', 'CssVars'],
 ): Promise<string[]> {
-  // If entrypoint is a file, use its directory; if it's already a directory, use it directly
-  const dir =
-    entrypoint.endsWith('.ts') || entrypoint.endsWith('.tsx')
-      ? path.dirname(entrypoint)
-      : entrypoint;
+  const dir = path.dirname(entrypoint);
+
   const files: string[] = [];
 
   async function walkDirectory(currentDir: string): Promise<void> {

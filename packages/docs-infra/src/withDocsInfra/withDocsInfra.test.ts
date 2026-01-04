@@ -83,7 +83,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {} },
+              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
             },
           ],
         },
@@ -128,7 +128,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {} },
+              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
             },
           ],
         },
@@ -190,7 +190,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {} },
+              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
             },
           ],
         },
@@ -245,7 +245,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {} },
+              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
             },
           ],
         },
@@ -318,7 +318,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-            options: { performance: {} },
+            options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
           },
         ],
       });
@@ -515,7 +515,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {} },
+              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
             },
           ],
         },
@@ -617,7 +617,10 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: performanceOptions },
+              options: {
+                performance: performanceOptions,
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+              },
             },
           ],
         },
@@ -693,7 +696,10 @@ describe('withDocsInfra', () => {
           mockWebpackOptions.defaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-            options: { performance: performanceOptions },
+            options: {
+              performance: performanceOptions,
+              socketDir: '.next/cache/docs-infra/types-meta-worker',
+            },
           },
         ],
       });

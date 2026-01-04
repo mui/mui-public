@@ -13,8 +13,8 @@ export interface ResolveLibrarySourceFilesOptions {
   variants: Record<string, string>;
   /** Filesystem path to the resource being loaded */
   resourcePath: string;
-  /** Filesystem path to the webpack root context (must end with /) */
-  rootContextDir: string;
+  /** File URL to the webpack root context (file:// protocol, must end with /) */
+  rootContextDirUrl: string;
   tsconfigPaths?: ts.MapLike<string[]>;
   /** Base path for resolving tsconfig paths (must end with /) */
   pathsBaseDir?: string;
@@ -68,7 +68,10 @@ function transformTsconfigPaths(tsconfigPaths: ts.MapLike<string[]>): Record<str
 export async function resolveLibrarySourceFiles(
   options: ResolveLibrarySourceFilesOptions,
 ): Promise<ResolveLibrarySourceFilesResult> {
-  const { variants, resourcePath, rootContextDir, tsconfigPaths, pathsBaseDir } = options;
+  const { variants, resourcePath, rootContextDirUrl, tsconfigPaths, pathsBaseDir } = options;
+
+  // Convert file URL to portable path for comparison with variant paths
+  const rootContextDir = fileUrlToPortablePath(rootContextDirUrl);
 
   // Determine watchSourceDirectly if not explicitly provided
   // If any variant uses a tsconfig path alias, we should watch source files directly

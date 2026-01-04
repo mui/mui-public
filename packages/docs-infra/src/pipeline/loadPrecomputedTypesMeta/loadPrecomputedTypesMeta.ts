@@ -170,7 +170,7 @@ export async function loadPrecomputedTypesMeta(
       const result = await resolveLibrarySourceFiles({
         variants: typesMetaCall.variants,
         resourcePath: this.resourcePath,
-        rootContextDir,
+        rootContextDirUrl: pathToFileURL(rootContextDir).href,
         tsconfigPaths: config.options.paths,
         pathsBaseDir,
         watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
