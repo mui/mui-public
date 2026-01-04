@@ -668,8 +668,8 @@ importers:
         specifier: ^3.1.16
         version: 3.1.16
       '@orama/stopwords':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@wooorm/starry-night':
         specifier: ^3.8.0
         version: 3.8.0
@@ -4633,8 +4633,8 @@ packages:
     resolution: {integrity: sha512-DdkAkhDvWD12HZez+kniLxRK4hxf1f1y+7OHxv47HIdZPYUx1Y+7Z7dX/8nM7+jrq7sa7M0wLCYOpdhVXOYEBg==}
     engines: {node: '>= 20.0.0'}
 
-  '@orama/stopwords@3.1.16':
-    resolution: {integrity: sha512-vARYnaXUQ/OO11Lvdpz0Vn56ayJV/NZUvw/A/bRzdrmQ19jc5lftHBgHPFxmnzc5GKD3O4ENf3burV5iezqhiQ==}
+  '@orama/stopwords@3.1.18':
+    resolution: {integrity: sha512-W8V7m7RnCme+99OmKl/xs5rf6OUhFpr0aPGVmPrXzTLSg4ZqSbRY2euS2S/lgjjYi/0NhEWqwoq8nDY6Ihx4EA==}
     engines: {node: '>= 20.0.0'}
 
   '@panva/hkdf@1.2.1':
@@ -18699,7 +18699,7 @@ snapshots:
 
   '@orama/stemmers@3.1.16': {}
 
-  '@orama/stopwords@3.1.16': {}
+  '@orama/stopwords@3.1.18': {}
 
   '@panva/hkdf@1.2.1': {}
 
