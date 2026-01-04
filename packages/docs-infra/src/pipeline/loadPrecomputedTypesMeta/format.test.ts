@@ -708,7 +708,12 @@ describe('format', () => {
           defaultValue: '{}',
           documentation: {
             description: 'Optional configuration',
-            tags: [{ name: 'example', value: '{ key: "value" }' }],
+            tags: [
+              {
+                name: 'example',
+                value: '```ts\n<Component options={{ key: "value" }} />\n```',
+              },
+            ],
           } as any,
         } as any,
       ];
@@ -790,13 +795,21 @@ describe('format', () => {
         ],
       });
       // Example is now HastRoot with markdown parsing
+      // Fenced code blocks are preserved (remark-typography doesn't affect code)
       expect(result.options.example).toMatchObject({
         type: 'root',
         children: [
           {
             type: 'element',
-            tagName: 'p',
-            children: [{ type: 'text', value: '{ key: "value" }' }],
+            tagName: 'pre',
+            children: [
+              {
+                type: 'element',
+                tagName: 'code',
+                properties: { className: ['language-ts'] },
+                children: [{ type: 'text', value: '<Component options={{ key: "value" }} />\n' }],
+              },
+            ],
           },
         ],
       });
@@ -1376,11 +1389,12 @@ describe('format', () => {
         expect(nonWhitespaceChildren).toHaveLength(3);
 
         // First paragraph
+        // Note: remark-typography inserts non-breaking space (\u00A0) before certain words
         expect(nonWhitespaceChildren[0]).toMatchObject({
           type: 'element',
           tagName: 'p',
           children: expect.arrayContaining([
-            expect.objectContaining({ type: 'text', value: 'The value of the input.' }),
+            expect.objectContaining({ type: 'text', value: 'The value of the\u00A0input.' }),
           ]),
         });
 
@@ -1519,6 +1533,186 @@ describe('format', () => {
                   children: [{ type: 'text', value: 'inline code' }],
                 },
                 { type: 'text', value: ' for emphasis.' },
+              ],
+            },
+          ],
+        });
+      });
+    });
+
+    describe('remark-typography transformations', () => {
+      it('should convert straight quotes to smart quotes', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              description: 'Pass "hello" as the value.',
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // remark-typography converts "hello" to "hello" (smart quotes)
+        // Also adds non-breaking space before "value"
+        expect(result.value.description).toMatchObject({
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'p',
+              children: [{ type: 'text', value: 'Pass \u201Chello\u201D as the\u00A0value.' }],
+            },
+          ],
+        });
+      });
+
+      it('should convert apostrophes to curly apostrophes', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              description: "It's working correctly.",
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // remark-typography converts ' to ' (right single quotation mark)
+        expect(result.value.description).toMatchObject({
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'p',
+              children: [{ type: 'text', value: 'It\u2019s working correctly.' }],
+            },
+          ],
+        });
+      });
+
+      it('should convert triple dots to ellipsis', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              description: 'Loading... please wait.',
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // remark-typography converts ... to … (ellipsis)
+        expect(result.value.description).toMatchObject({
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'p',
+              children: [{ type: 'text', value: 'Loading\u2026 please wait.' }],
+            },
+          ],
+        });
+      });
+
+      it('should add non-breaking spaces before certain words', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              description: 'The value of the input.',
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // remark-typography adds non-breaking space before "input"
+        expect(result.value.description).toMatchObject({
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'p',
+              children: [{ type: 'text', value: 'The value of the\u00A0input.' }],
+            },
+          ],
+        });
+      });
+
+      it('should not transform content inside fenced code blocks', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              description: '```ts\nconst msg = "hello";\n```',
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // Code inside fenced blocks should preserve straight quotes
+        expect(result.value.description).toMatchObject({
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'pre',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'code',
+                  properties: { className: ['language-ts'] },
+                  children: [{ type: 'text', value: 'const msg = "hello";\n' }],
+                },
+              ],
+            },
+          ],
+        });
+      });
+
+      it('should not transform content inside inline code', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              description: 'Use `"string"` type.',
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, [], {});
+
+        // Content inside inline code should preserve straight quotes
+        expect(result.value.description).toMatchObject({
+          type: 'root',
+          children: [
+            {
+              type: 'element',
+              tagName: 'p',
+              children: [
+                { type: 'text', value: 'Use ' },
+                {
+                  type: 'element',
+                  tagName: 'code',
+                  children: [{ type: 'text', value: '"string"' }],
+                },
+                { type: 'text', value: ' type.' },
               ],
             },
           ],

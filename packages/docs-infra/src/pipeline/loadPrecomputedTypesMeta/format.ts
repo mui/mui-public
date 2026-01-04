@@ -6,6 +6,7 @@ import type * as tae from 'typescript-api-extractor';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
+import remarkTypography from 'remark-typography';
 import remarkRehype from 'remark-rehype';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInlineHighlighted, {
@@ -261,7 +262,13 @@ function getShortTypeString(name: string, typeText: string): string | undefined 
  * while preserving all markdown features and applying syntax highlighting to code blocks.
  */
 export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
-  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype).freeze();
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    // @ts-expect-error - remark-typography types are incompatible with unified
+    .use(remarkTypography)
+    .use(remarkRehype)
+    .freeze();
 
   const mdast = processor.parse(markdown);
   const result = await processor.run(mdast);
