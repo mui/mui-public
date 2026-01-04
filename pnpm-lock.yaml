@@ -514,8 +514,8 @@ importers:
         specifier: ^5.6.2
         version: 5.6.2
       clipboardy:
-        specifier: ^5.0.1
-        version: 5.0.1
+        specifier: ^5.0.2
+        version: 5.0.2
       content-type:
         specifier: ^1.0.5
         version: 1.0.5
@@ -7473,8 +7473,8 @@ packages:
     resolution: {integrity: sha512-5mOlNS0mhX0707P2I0aZ2V/cmHUEO/fL7VFLqszkhUsxt7RwnmrInf/eEQKlf5GzvYeHIjT+Ov1HRfNmymlG0w==}
     engines: {node: '>=18'}
 
-  clipboardy@5.0.1:
-    resolution: {integrity: sha512-pJ5ZDWjOT593Nli4TqlRLy33KomlAPxIFntMFxXrCqJON1cGcGPT5nNFxRxJ9m4HbfrccsYve7XwXjywW6nXVw==}
+  clipboardy@5.0.2:
+    resolution: {integrity: sha512-3IG8i8Yfb410yqDlCx9Ve3lYLFN3bD1IkrWcowT1kyTo6y4bwYf2guK9Q8a6zck5vWm7afm6Y61i7BG/Ir3FMA==}
     engines: {node: '>=20'}
 
   cliui@7.0.4:
@@ -22145,7 +22145,7 @@ snapshots:
       is-wsl: 3.1.0
       is64bit: 2.0.0
 
-  clipboardy@5.0.1:
+  clipboardy@5.0.2:
     dependencies:
       execa: 9.6.1
       is-wayland: 0.1.0
