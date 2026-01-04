@@ -660,10 +660,10 @@ importers:
         version: 7.28.5
       '@orama/orama':
         specifier: ^3.1.16
-        version: 3.1.16
+        version: 3.1.18
       '@orama/plugin-qps':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@orama/stemmers':
         specifier: ^3.1.16
         version: 3.1.16
@@ -4622,12 +4622,12 @@ packages:
     resolution: {integrity: sha512-lp4qAiMTD4sNWW4DbKLBkfiMZ4jbAboJIGOQr5DvciMRI494OapieI9qiODpOt0XBr1LjIDy1xAGAnVs5supTA==}
     engines: {node: '>=14'}
 
-  '@orama/orama@3.1.16':
-    resolution: {integrity: sha512-scSmQBD8eANlMUOglxHrN1JdSW8tDghsPuS83otqealBiIeMukCQMOf/wc0JJjDXomqwNdEQFLXLGHrU6PGxuA==}
+  '@orama/orama@3.1.18':
+    resolution: {integrity: sha512-a61ljmRVVyG5MC/698C8/FfFDw5a8LOIvyOLW5fztgUXqUpc1jOfQzOitSCbge657OgXXThmY3Tk8fpiDb4UcA==}
     engines: {node: '>= 20.0.0'}
 
-  '@orama/plugin-qps@3.1.16':
-    resolution: {integrity: sha512-/CIhC7GIx4kFEju3pjey9C4Q6feIn+xIkLKk4O+OASAKaocvygs4Q1A004utsQT+gFgD1va4309rDMV1SJ/1yA==}
+  '@orama/plugin-qps@3.1.18':
+    resolution: {integrity: sha512-q19pFGF1jRk+dGR4j/4MscCACtZo6DKO8ZjnM3AWJICzjWVYJYBvlGuD2+Jt079iUW04cGh4EpMw5WxaTpZQCw==}
 
   '@orama/stemmers@3.1.16':
     resolution: {integrity: sha512-DdkAkhDvWD12HZez+kniLxRK4hxf1f1y+7OHxv47HIdZPYUx1Y+7Z7dX/8nM7+jrq7sa7M0wLCYOpdhVXOYEBg==}
@@ -18691,11 +18691,11 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.28.0': {}
 
-  '@orama/orama@3.1.16': {}
+  '@orama/orama@3.1.18': {}
 
-  '@orama/plugin-qps@3.1.16':
+  '@orama/plugin-qps@3.1.18':
     dependencies:
-      '@orama/orama': 3.1.16
+      '@orama/orama': 3.1.18
 
   '@orama/stemmers@3.1.16': {}
 
