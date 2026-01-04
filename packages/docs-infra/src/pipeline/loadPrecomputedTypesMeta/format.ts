@@ -9,10 +9,9 @@ import remarkGfm from 'remark-gfm';
 import remarkTypography from 'remark-typography';
 import remarkRehype from 'remark-rehype';
 import type { Root as HastRoot } from 'hast';
-import transformHtmlCodeInlineHighlighted, {
-  ensureStarryNightInitialized,
-} from '../transformHtmlCodeInlineHighlighted';
+import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
 import { starryNightGutter } from '../parseSource/addLineGutters';
+import transformMarkdownCode from '../transformMarkdownCode';
 
 /**
  * Formatted property metadata with syntax-highlighted types and parsed markdown.
@@ -265,6 +264,7 @@ export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
   const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
+    .use(transformMarkdownCode)
     // @ts-expect-error - remark-typography types are incompatible with unified
     .use(remarkTypography)
     .use(remarkRehype)
@@ -622,9 +622,6 @@ export async function formatProperties(
   allExports: tae.ExportNode[] | undefined = undefined,
   options: FormatPropertiesOptions = {},
 ): Promise<Record<string, FormattedProperty>> {
-  // Ensure Starry Night is initialized for inline code highlighting
-  await ensureStarryNightInitialized();
-
   // Get union print widths with defaults
   const shortTypeUnionPrintWidth =
     options.formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;

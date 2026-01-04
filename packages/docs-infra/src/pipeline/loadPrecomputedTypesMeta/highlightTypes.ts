@@ -1,4 +1,5 @@
 import { unified } from 'unified';
+import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
 import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
 import type { ComponentTypeMeta } from './formatComponent';
 import type { HookTypeMeta } from './formatHook';
@@ -26,7 +27,9 @@ import type { TypesMeta } from './loadPrecomputedTypesMeta';
 export async function highlightTypes(
   variantData: Record<string, { types: TypesMeta[] }>,
 ): Promise<Record<string, { types: TypesMeta[] }>> {
-  const processor = unified().use(transformHtmlCodePrecomputed);
+  const processor = unified()
+    .use(transformHtmlCodeInlineHighlighted)
+    .use(transformHtmlCodePrecomputed);
 
   const transformedEntries = await Promise.all(
     Object.entries(variantData).map(async ([variantName, variant]) => {

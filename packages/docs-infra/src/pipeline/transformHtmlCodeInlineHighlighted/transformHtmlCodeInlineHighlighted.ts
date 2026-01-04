@@ -9,13 +9,14 @@ type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
 /**
- * Ensures Starry Night is initialized and ready to use.
- * Call this once before using the transformHtmlCodeInlineHighlighted plugin.
+ * Ensures Starry Night is initialized and returns the instance.
+ * Uses a global singleton for efficiency across multiple plugin invocations.
  */
-export async function ensureStarryNightInitialized(): Promise<void> {
+async function getStarryNight(): Promise<StarryNight> {
   if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
     (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
   }
+  return (globalThis as any)[STARRY_NIGHT_KEY];
 }
 
 /**
@@ -29,12 +30,7 @@ export async function ensureStarryNightInitialized(): Promise<void> {
  */
 export default function transformHtmlCodeInlineHighlighted() {
   return async (tree: HastRoot) => {
-    const starryNight = (globalThis as any)[STARRY_NIGHT_KEY] as StarryNight | undefined;
-    if (!starryNight) {
-      throw new Error(
-        'Starry Night not initialized. Call ensureStarryNightInitialized() before using transformHtmlCodeInlineHighlighted.',
-      );
-    }
+    const starryNight = await getStarryNight();
 
     visit(tree, 'element', (node: Element) => {
       // Only process code elements (inline code or code blocks without special handling)

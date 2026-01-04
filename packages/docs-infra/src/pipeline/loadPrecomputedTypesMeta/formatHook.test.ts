@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatHookData, isPublicHook } from './formatHook';
-import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 
 /**
  * Creates a mock ExportNode for testing purposes.
@@ -40,10 +39,6 @@ function createMockHookExportNode(partial: {
 }
 
 describe('formatHook', () => {
-  beforeAll(async () => {
-    await ensureStarryNightInitialized();
-  });
-
   describe('isPublicHook', () => {
     it('should reject non-FunctionNode types', () => {
       const mockExport = createMockExportNode({

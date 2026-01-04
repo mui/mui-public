@@ -35,7 +35,6 @@ import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { ensureStarryNightInitialized } from '../transformHtmlCodeInlineHighlighted';
 import { highlightTypes } from './highlightTypes';
 import { TypesTableMeta } from '../../abstractCreateTypes';
 
@@ -360,15 +359,6 @@ export async function loadPrecomputedTypesMeta(
         }
       }
     }
-
-    // Initialize inline highlighting for type formatting
-    await ensureStarryNightInitialized();
-
-    currentMark = performanceMeasure(
-      currentMark,
-      { mark: 'highlighting initialized', measure: 'highlighting initialization' },
-      [functionName, relativePath],
-    );
 
     // Format the raw exports from the worker into TypesMeta
     const variantData: Record<
