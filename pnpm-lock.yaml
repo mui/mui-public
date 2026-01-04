@@ -665,8 +665,8 @@ importers:
         specifier: ^3.1.16
         version: 3.1.16
       '@orama/stemmers':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@orama/stopwords':
         specifier: ^3.1.16
         version: 3.1.16
@@ -4629,8 +4629,8 @@ packages:
   '@orama/plugin-qps@3.1.16':
     resolution: {integrity: sha512-/CIhC7GIx4kFEju3pjey9C4Q6feIn+xIkLKk4O+OASAKaocvygs4Q1A004utsQT+gFgD1va4309rDMV1SJ/1yA==}
 
-  '@orama/stemmers@3.1.16':
-    resolution: {integrity: sha512-DdkAkhDvWD12HZez+kniLxRK4hxf1f1y+7OHxv47HIdZPYUx1Y+7Z7dX/8nM7+jrq7sa7M0wLCYOpdhVXOYEBg==}
+  '@orama/stemmers@3.1.18':
+    resolution: {integrity: sha512-xXs5fpiUvBs4jJZtnayJmUSomdxxiwwwvTbAzPHSyI6geLM7bxXHgpVlYz4JeMBycHX8bHF7j9m7F35BxhuZ8g==}
     engines: {node: '>= 20.0.0'}
 
   '@orama/stopwords@3.1.16':
@@ -18697,7 +18697,7 @@ snapshots:
     dependencies:
       '@orama/orama': 3.1.16
 
-  '@orama/stemmers@3.1.16': {}
+  '@orama/stemmers@3.1.18': {}
 
   '@orama/stopwords@3.1.16': {}
 
