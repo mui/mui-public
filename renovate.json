@@ -12,7 +12,7 @@
     },
     {
       "groupName": "Orama Search Packages",
-      "matchPackageNames": ["@orama/*"]
+      "matchSourceUrls": ["https://github.com/oramasearch/*"]
     }
   ]
 }
