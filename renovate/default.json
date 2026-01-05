@@ -157,6 +157,12 @@
       "groupName": "Quarantine",
       "matchPackageNames": ["@mui/internal-test-utils"],
       "enabled": false
+    },
+    {
+      "description": "Disable replacements for @tsconfig/node* packages",
+      "matchPackagePatterns": ["^@tsconfig/node"],
+      "replacementName": null,
+      "replacementVersion": null
     }
   ]
 }
