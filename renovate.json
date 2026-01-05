@@ -9,6 +9,10 @@
     {
       "matchPackageNames": ["https://github.com/mui/mui-public"],
       "enabled": false
+    },
+    {
+      "groupName": "Orama Search Packages",
+      "matchPackageNames": ["@orama/*"]
     }
   ]
 }

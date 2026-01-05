@@ -659,17 +659,17 @@ importers:
         specifier: ^7.28.5
         version: 7.28.5
       '@orama/orama':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@orama/plugin-qps':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@orama/stemmers':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@orama/stopwords':
-        specifier: ^3.1.16
-        version: 3.1.16
+        specifier: ^3.1.18
+        version: 3.1.18
       '@wooorm/starry-night':
         specifier: ^3.8.0
         version: 3.8.0
@@ -706,9 +706,18 @@ importers:
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
+      remark-mdx:
+        specifier: ^3.1.1
+        version: 3.1.1
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       unist-util-visit:
         specifier: ^5.0.0
         version: 5.0.0
@@ -762,26 +771,17 @@ importers:
         specifier: ^19.2.0
         version: 19.2.0
       rehype-parse:
-        specifier: ^9.0.1
+        specifier: 9.0.1
         version: 9.0.1
       rehype-stringify:
-        specifier: ^10.0.1
+        specifier: 10.0.1
         version: 10.0.1
-      remark-mdx:
-        specifier: ^3.1.1
-        version: 3.1.1
-      remark-parse:
-        specifier: ^11.0.0
-        version: 11.0.0
       remark-rehype:
-        specifier: ^11.1.2
+        specifier: 11.1.2
         version: 11.1.2
       remark-stringify:
-        specifier: ^11.0.0
+        specifier: 11.0.0
         version: 11.0.0
-      unified:
-        specifier: ^11.0.5
-        version: 11.0.5
     publishDirectory: build
 
   packages/netlify-cache: {}
@@ -3279,7 +3279,7 @@ packages:
   '@mui/base@5.0.0-beta.69':
     resolution: {integrity: sha512-r2YyGUXpZxj8rLAlbjp1x2BnMERTZ/dMqd9cClKj2OJ7ALAuiv/9X5E9eHfRc9o/dGRuLSMq/WTjREktJVjxVA==}
     engines: {node: '>=14.0.0'}
-    deprecated: This package has been replaced by @base-ui/react
+    deprecated: This package has been replaced by @base-ui-components/react
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -4630,19 +4630,19 @@ packages:
     resolution: {integrity: sha512-lp4qAiMTD4sNWW4DbKLBkfiMZ4jbAboJIGOQr5DvciMRI494OapieI9qiODpOt0XBr1LjIDy1xAGAnVs5supTA==}
     engines: {node: '>=14'}
 
-  '@orama/orama@3.1.16':
-    resolution: {integrity: sha512-scSmQBD8eANlMUOglxHrN1JdSW8tDghsPuS83otqealBiIeMukCQMOf/wc0JJjDXomqwNdEQFLXLGHrU6PGxuA==}
+  '@orama/orama@3.1.18':
+    resolution: {integrity: sha512-a61ljmRVVyG5MC/698C8/FfFDw5a8LOIvyOLW5fztgUXqUpc1jOfQzOitSCbge657OgXXThmY3Tk8fpiDb4UcA==}
     engines: {node: '>= 20.0.0'}
 
-  '@orama/plugin-qps@3.1.16':
-    resolution: {integrity: sha512-/CIhC7GIx4kFEju3pjey9C4Q6feIn+xIkLKk4O+OASAKaocvygs4Q1A004utsQT+gFgD1va4309rDMV1SJ/1yA==}
+  '@orama/plugin-qps@3.1.18':
+    resolution: {integrity: sha512-q19pFGF1jRk+dGR4j/4MscCACtZo6DKO8ZjnM3AWJICzjWVYJYBvlGuD2+Jt079iUW04cGh4EpMw5WxaTpZQCw==}
 
-  '@orama/stemmers@3.1.16':
-    resolution: {integrity: sha512-DdkAkhDvWD12HZez+kniLxRK4hxf1f1y+7OHxv47HIdZPYUx1Y+7Z7dX/8nM7+jrq7sa7M0wLCYOpdhVXOYEBg==}
+  '@orama/stemmers@3.1.18':
+    resolution: {integrity: sha512-xXs5fpiUvBs4jJZtnayJmUSomdxxiwwwvTbAzPHSyI6geLM7bxXHgpVlYz4JeMBycHX8bHF7j9m7F35BxhuZ8g==}
     engines: {node: '>= 20.0.0'}
 
-  '@orama/stopwords@3.1.16':
-    resolution: {integrity: sha512-vARYnaXUQ/OO11Lvdpz0Vn56ayJV/NZUvw/A/bRzdrmQ19jc5lftHBgHPFxmnzc5GKD3O4ENf3burV5iezqhiQ==}
+  '@orama/stopwords@3.1.18':
+    resolution: {integrity: sha512-W8V7m7RnCme+99OmKl/xs5rf6OUhFpr0aPGVmPrXzTLSg4ZqSbRY2euS2S/lgjjYi/0NhEWqwoq8nDY6Ihx4EA==}
     engines: {node: '>= 20.0.0'}
 
   '@panva/hkdf@1.2.1':
@@ -18782,15 +18782,15 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.28.0': {}
 
-  '@orama/orama@3.1.16': {}
+  '@orama/orama@3.1.18': {}
 
-  '@orama/plugin-qps@3.1.16':
+  '@orama/plugin-qps@3.1.18':
     dependencies:
-      '@orama/orama': 3.1.16
+      '@orama/orama': 3.1.18
 
-  '@orama/stemmers@3.1.16': {}
+  '@orama/stemmers@3.1.18': {}
 
-  '@orama/stopwords@3.1.16': {}
+  '@orama/stopwords@3.1.18': {}
 
   '@panva/hkdf@1.2.1': {}
 
