@@ -100,7 +100,6 @@
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
     "proper-lockfile": "^4.1.2",
-    "rehype-remark": "^10.0.1",
     "remark-gfm": "^4.0.1",
     "remark-stringify": "^11.0.0",
     "remark-typography": "^0.7.0",
