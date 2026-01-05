@@ -34,7 +34,7 @@
     "dom-accessibility-api": "^0.7.0",
     "es-toolkit": "^1.43.0",
     "format-util": "^1.0.5",
-    "jsdom": "^26.1.0",
+    "jsdom": "^27.4.0",
     "prop-types": "^15.8.1",
     "sinon": "^21.0.1",
     "vitest-fail-on-console": "^0.10.1"
