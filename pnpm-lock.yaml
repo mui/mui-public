@@ -463,7 +463,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3(@types/node@22.19.0)
       '@inquirer/select':
-        specifier: ^5.0.2
+        specifier: ^5.0.3
         version: 5.0.3(@types/node@22.19.0)
       '@mui/internal-babel-plugin-display-name':
         specifier: workspace:*
