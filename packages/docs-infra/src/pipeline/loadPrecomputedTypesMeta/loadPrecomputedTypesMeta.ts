@@ -2,41 +2,23 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
-import { writeFile, readFile, stat } from 'fs/promises';
-// eslint-disable-next-line n/prefer-node-protocol
-import { fileURLToPath, pathToFileURL } from 'url';
+import { pathToFileURL } from 'url';
+
 import type { LoaderContext } from 'webpack';
-import type { ExportNode } from 'typescript-api-extractor';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
-import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import {
   createPerformanceLogger,
   logPerformance,
   nameMark,
   performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { loadTypescriptConfig } from './loadTypescriptConfig';
-import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
-import {
-  ComponentTypeMeta as ComponentType,
-  formatComponentData,
-  isPublicComponent,
-} from './formatComponent';
-import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
-import {
-  FormattedProperty,
-  FormattedEnumMember,
-  FormattedParameter,
-  FormatInlineTypeOptions,
-} from './format';
-import { generateTypesMarkdown } from './generateTypesMarkdown';
-import { findMetaFiles } from './findMetaFiles';
-import { getWorkerManager } from './workerManager';
-import { reconstructPerformanceLogs } from './performanceTracking';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
-import { highlightTypes } from './highlightTypes';
-import { TypesTableMeta } from '../../abstractCreateTypes';
+import type { TypesTableMeta } from '../../abstractCreateTypes';
+import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
+import { loadServerTypesMeta, type TypesMeta } from '../loadServerTypesMeta';
+
+export type { TypesMeta };
 
 export type LoaderOptions = {
   performance?: {
@@ -54,28 +36,6 @@ export type LoaderOptions = {
    */
   socketDir?: string;
 };
-
-export type ComponentTypeMeta = ComponentType;
-export type HookTypeMeta = HookType;
-export type { FormattedProperty, FormattedEnumMember, FormattedParameter };
-
-export type TypesMeta =
-  | {
-      type: 'component';
-      name: string;
-      data: ComponentTypeMeta;
-    }
-  | {
-      type: 'hook';
-      name: string;
-      data: HookTypeMeta;
-    }
-  | {
-      type: 'other';
-      name: string;
-      data: ExportNode;
-      reExportOf?: string;
-    };
 
 const functionName = 'Load Precomputed Types Meta';
 
@@ -107,7 +67,6 @@ export async function loadPrecomputedTypesMeta(
 
   // Ensure rootContext always ends with / for correct URL resolution
   const rootContext = this.rootContext || process.cwd();
-  const rootContextDir = rootContext.endsWith('/') ? rootContext : `${rootContext}/`;
 
   const relativePath = path.relative(rootContext, this.resourcePath);
 
@@ -146,372 +105,26 @@ export async function loadPrecomputedTypesMeta(
       return;
     }
 
-    const config = await loadTypescriptConfig(path.join(rootContext, 'tsconfig.json'));
-
-    currentMark = performanceMeasure(
-      currentMark,
-      { mark: 'tsconfig.json loaded', measure: 'tsconfig.json loading' },
-      [functionName, relativePath],
-    );
-
-    let globalTypes = typesMetaCall?.structuredOptions?.globalTypes?.[0].map((s: any) =>
-      s.replace(/['"]/g, ''),
-    );
-
-    let resolvedVariantMap = new Map<string, string>();
-    if (typesMetaCall.variants) {
-      // Ensure pathsBasePath ends with / for correct URL resolution (if defined)
-      const pathsBasePath = config.options.pathsBasePath
-        ? String(config.options.pathsBasePath)
-        : undefined;
-      const pathsBaseDir =
-        pathsBasePath && (pathsBasePath.endsWith('/') ? pathsBasePath : `${pathsBasePath}/`);
-      const result = await resolveLibrarySourceFiles({
-        variants: typesMetaCall.variants,
-        resourcePath: this.resourcePath,
-        rootContextDirUrl: pathToFileURL(rootContextDir).href,
-        tsconfigPaths: config.options.paths,
-        pathsBaseDir,
-        watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
-      });
-
-      resolvedVariantMap = result.resolvedVariantMap;
-      globalTypes = result.globalTypes;
-
-      currentMark = performanceMeasure(
-        currentMark,
-        { mark: 'Paths Resolved', measure: 'Path Resolution' },
-        [functionName, relativePath],
-      );
-    }
-
-    // Collect all entrypoints for optimized program creation
-    // Include both the component entrypoints and their meta files (DataAttributes, CssVars)
-    // These are file:// URLs from resolveLibrarySourceFiles
-    const resolvedEntrypointUrls = Array.from(resolvedVariantMap.values());
-
-    // Parse exports from library source files to find re-exported directories
-    // This helps us discover DataAttributes/CssVars files from re-exported components
-    const reExportedDirUrls = new Set<string>();
-
-    await Promise.all(
-      resolvedEntrypointUrls.map(async (entrypointUrl) => {
-        try {
-          // Convert file:// URL to filesystem path for Node.js fs APIs
-          const fsEntrypoint = fileURLToPath(entrypointUrl);
-          const sourceCode = await readFile(fsEntrypoint, 'utf-8');
-          const parsed = await parseImportsAndComments(sourceCode, entrypointUrl);
-
-          // Look for relative exports (e.g., '../menu/', './Button', etc.)
-          await Promise.all(
-            Object.keys(parsed.relative || {}).map(async (exportPath) => {
-              if (exportPath.startsWith('..') || exportPath.startsWith('.')) {
-                // Resolve to absolute filesystem path
-                const absoluteFsPath = path.resolve(path.dirname(fsEntrypoint), exportPath);
-
-                // Check if this path exists as a directory
-                // If not, it might be a module reference (e.g., '../menu/backdrop/MenuBackdrop' -> MenuBackdrop.tsx)
-                // In that case, we want to add the parent directory
-                try {
-                  const stats = await stat(absoluteFsPath);
-                  if (stats.isDirectory()) {
-                    // It's a directory, add it directly as file:// URL
-                    reExportedDirUrls.add(pathToFileURL(absoluteFsPath).href);
-                  }
-                } catch {
-                  // Path doesn't exist as-is. Check if it exists with common extensions
-                  const extensions = ['.tsx', '.ts', '.jsx', '.js'];
-
-                  for (const ext of extensions) {
-                    try {
-                      // eslint-disable-next-line no-await-in-loop
-                      const fileStats = await stat(absoluteFsPath + ext);
-                      if (fileStats.isFile()) {
-                        // It's a file reference, add the parent directory as file:// URL
-                        const parentDir = path.dirname(absoluteFsPath);
-                        reExportedDirUrls.add(pathToFileURL(parentDir).href);
-                        break;
-                      }
-                    } catch {
-                      // Continue checking other extensions
-                    }
-                  }
-
-                  // If not found as file or directory, it might be a bare module reference - skip it
-                }
-              }
-            }),
-          );
-        } catch (error) {
-          // If we can't parse a file, just skip it
-          console.warn(
-            `[Main] Failed to parse exports from ${entrypointUrl}:`,
-            error instanceof Error ? error.message : error,
-          );
-        }
-      }),
-    );
-
-    // Find meta files from the library source directories and re-exported directories
-    // Convert file:// URLs to filesystem paths for findMetaFiles
-    const allPathsToSearch = [
-      ...resolvedEntrypointUrls.map((url) => fileURLToPath(url)),
-      ...Array.from(reExportedDirUrls).map((url) => fileURLToPath(url)),
-    ];
-
-    // findMetaFiles accepts filesystem paths and returns filesystem paths
-    const allEntrypoints = await Promise.all(
-      allPathsToSearch.map(async (fsPath) => {
-        return [fsPath, ...(await findMetaFiles(fsPath))];
-      }),
-    ).then((pairs) => pairs.flat());
-
-    currentMark = performanceMeasure(
-      currentMark,
-      { mark: 'Meta Files Resolved', measure: 'Meta Files Resolution' },
-      [functionName, relativePath],
-    );
-
-    // Process types in worker thread
-    // This offloads TypeScript operations to a worker while keeping the singleton cache
-    // Pass socketDir option to configure IPC socket location (useful for Windows)
+    // Resolve socket directory from loader options
     const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
-    const workerManager = getWorkerManager(socketDir);
-    const workerStartTime = performance.now();
 
-    const workerResult = await workerManager.processTypes({
-      projectPath: config.projectPath,
-      compilerOptions: config.options,
-      allEntrypoints,
-      globalTypes,
-      resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
-      namedExports: typesMetaCall.namedExports as Record<string, string> | undefined,
-      dependencies: config.dependencies,
-      rootContextDir,
+    // Call the core server-side logic
+    const result = await loadServerTypesMeta({
+      resourcePath: this.resourcePath,
+      resourceName,
+      rootContext,
       relativePath,
+      typesMetaCall,
+      formattingOptions: options.formatting,
+      socketDir,
+      performanceLogging: options.performance?.logging,
     });
-
-    if (!workerResult.success) {
-      throw new Error(workerResult.error || 'Worker failed to process types');
-    }
-
-    // Reconstruct worker performance logs in main thread
-    // Note: Worker logs already include relativePath in their names,
-    // so they'll be automatically filtered by the PerformanceObserver
-    if (workerResult.performanceLogs) {
-      reconstructPerformanceLogs(workerResult.performanceLogs, workerStartTime);
-    }
-
-    currentMark = performanceMeasure(
-      currentMark,
-      { prefix: 'worker', mark: 'processed', measure: 'processing' },
-      [functionName, relativePath],
-      true,
-    );
-
-    const rawVariantData = workerResult.variantData || {};
-    const allDependencies = workerResult.allDependencies || [];
-
-    // Format the raw exports from the worker into TypesMeta
-    const variantData: Record<
-      string,
-      { types: TypesMeta[]; typeNameMap?: Record<string, string> }
-    > = {};
-
-    // Prepare formatting options from loader config
-    const formattingOptions = options.formatting;
-
-    // Process all variants in parallel
-    await Promise.all(
-      Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
-        // Process all exports in parallel within each variant
-        const types = await Promise.all(
-          variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
-            if (isPublicComponent(exportNode)) {
-              const formattedData = await formatComponentData(
-                exportNode,
-                variantResult.allTypes,
-                variantResult.namespaces,
-                variantResult.typeNameMap || {},
-                { formatting: formattingOptions },
-              );
-              return {
-                type: 'component',
-                name: exportNode.name,
-                data: formattedData,
-              };
-            }
-
-            if (isPublicHook(exportNode)) {
-              const formattedData = await formatHookData(
-                exportNode,
-                variantResult.namespaces,
-                variantResult.typeNameMap || {},
-                { formatting: formattingOptions },
-              );
-
-              return {
-                type: 'hook',
-                name: exportNode.name,
-                data: formattedData,
-              };
-            }
-
-            return {
-              type: 'other',
-              name: exportNode.name,
-              data: exportNode,
-            };
-          }),
-        );
-
-        variantData[variantName] = { types, typeNameMap: variantResult.typeNameMap };
-      }),
-    );
-
-    currentMark = performanceMeasure(
-      currentMark,
-      { mark: 'formatting complete', measure: 'type formatting' },
-      [functionName, relativePath],
-    );
-
-    // Collect all types for markdown generation
-    let allTypes = Object.values(variantData).flatMap((v) => v.types);
-
-    // Deduplicate types by name - can happen when same component is exported from multiple entrypoints
-    // (e.g., DirectionProvider exported from both index.ts and DirectionProvider.tsx)
-    // Prefer components/hooks over other types when there are duplicates
-    const typesByName = new Map<string, TypesMeta>();
-    allTypes.forEach((typeMeta) => {
-      const existing = typesByName.get(typeMeta.name);
-      if (!existing) {
-        typesByName.set(typeMeta.name, typeMeta);
-      } else if (typeMeta.type === 'component' || typeMeta.type === 'hook') {
-        // Prefer components/hooks over other types
-        typesByName.set(typeMeta.name, typeMeta);
-      }
-      // else: keep existing entry (don't replace with 'other' type)
-    });
-    allTypes = Array.from(typesByName.values());
-
-    // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
-    allTypes = allTypes.map((typeMeta) => {
-      if (typeMeta.type !== 'other') {
-        return typeMeta;
-      }
-
-      // Extract component name and suffix (e.g., "ButtonProps" -> component: "Button", suffix: "Props")
-      // Handle both namespaced (ContextMenu.Root.Props) and non-namespaced (ButtonProps) names
-      const parts = typeMeta.name.match(/^(.+)\.(Props|State|DataAttributes)$/);
-      if (!parts) {
-        return typeMeta;
-      }
-
-      const [, componentName, suffix] = parts;
-
-      // Find the corresponding component by checking both the full name and just the last part
-      // e.g., for "ContextMenu.Root.Props", check both "ContextMenu.Root" and "Root"
-      const correspondingComponent = allTypes.find(
-        (t) =>
-          t.type === 'component' &&
-          (t.name === componentName || t.name.endsWith(`.${componentName}`)),
-      );
-
-      if (!correspondingComponent || correspondingComponent.type !== 'component') {
-        return typeMeta;
-      }
-
-      // Check if Props is a re-export of the component's props
-      if (suffix === 'Props' && correspondingComponent.data.props) {
-        const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
-        if (hasProps) {
-          // Mark this as a re-export
-          return {
-            type: 'other' as const,
-            name: typeMeta.name,
-            data: typeMeta.data,
-            reExportOf: componentName,
-          };
-        }
-      }
-
-      // Check if DataAttributes is a re-export of the component's data attributes
-      if (suffix === 'DataAttributes' && correspondingComponent.data.dataAttributes) {
-        const hasDataAttributes =
-          Object.keys(correspondingComponent.data.dataAttributes).length > 0;
-        if (hasDataAttributes) {
-          return {
-            type: 'other' as const,
-            name: typeMeta.name,
-            data: typeMeta.data,
-            reExportOf: componentName,
-          };
-        }
-      }
-
-      return typeMeta;
-    });
-
-    // Get typeNameMap from first variant (they should all be the same)
-    const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
-
-    // Apply transformHtmlCodePrecomputed and generate/write markdown in parallel
-    const markdownFilePath = this.resourcePath.replace(/\.tsx?$/, '.md');
-    const [highlightedVariantData] = await Promise.all([
-      (async () => {
-        const highlightStart = performance.now();
-
-        const result = await highlightTypes(variantData);
-
-        const highlightEnd = performance.now();
-        const highlightCompleteMark = nameMark(functionName, 'HAST transformed', [relativePath]);
-        performance.mark(highlightCompleteMark);
-        performance.measure(nameMark(functionName, 'HAST transformation', [relativePath]), {
-          start: highlightStart,
-          end: highlightEnd,
-        });
-
-        return result;
-      })(),
-      (async () => {
-        const markdownStart = performance.now();
-
-        const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
-
-        const markdownEnd = performance.now();
-        const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
-        performance.mark(markdownCompleteMark);
-        performance.measure(nameMark(functionName, 'markdown generation', [relativePath]), {
-          start: markdownStart,
-          end: markdownEnd,
-        });
-
-        const writeStart = performance.now();
-        await writeFile(markdownFilePath, markdown, 'utf-8');
-
-        if (process.env.NODE_ENV === 'production') {
-          // during development, if this markdown file is included as a dependency,
-          // it causes a second rebuild when this file is written
-          // during production builds, we should already have the file in place
-          // so this is not an issue and we should ensure changing this file triggers a rebuild
-          allDependencies.push(markdownFilePath);
-        }
-
-        const writeEnd = performance.now();
-        const writeCompleteMark = nameMark(functionName, 'markdown written', [relativePath]);
-        performance.mark(writeCompleteMark);
-        performance.measure(nameMark(functionName, 'markdown write', [relativePath]), {
-          start: writeStart,
-          end: writeEnd,
-        });
-      })(),
-    ]);
 
     currentMark = performanceMeasure(
       currentMark,
       {
-        mark: 'highlighted and markdown generated',
-        measure: 'highlighting and markdown generation',
+        mark: 'server types meta loaded',
+        measure: 'server types meta loading',
       },
       [functionName, relativePath],
       true,
@@ -526,7 +139,7 @@ export async function loadPrecomputedTypesMeta(
         : undefined;
 
     const precompute: TypesTableMeta['precompute'] = {
-      exports: highlightedVariantData,
+      exports: result.highlightedVariantData,
       singleComponentName,
     };
 
@@ -541,18 +154,18 @@ export async function loadPrecomputedTypesMeta(
 
     // Add all dependencies to webpack's watch list
     // Dependencies are already paths from TypeScript's program.getSourceFiles()
-    allDependencies.forEach((dep) => {
+    result.allDependencies.forEach((dep) => {
       this.addDependency(dep);
     });
 
     if (options.performance?.logging) {
       if (
         options.performance?.significantDependencyCountThreshold &&
-        allDependencies.length > options.performance.significantDependencyCountThreshold
+        result.allDependencies.length > options.performance.significantDependencyCountThreshold
       ) {
         // eslint-disable-next-line no-console
         console.log(
-          `[${functionName}] ${relativePath} - added ${allDependencies.length} dependencies to watch:\n\n${allDependencies.map((dep) => `- ${path.relative(config.projectPath, dep)}`).join('\n')}\n`,
+          `[${functionName}] ${relativePath} - added ${result.allDependencies.length} dependencies to watch:\n\n${result.allDependencies.map((dep) => `- ${path.relative(rootContext, dep)}`).join('\n')}\n`,
         );
       }
     }
