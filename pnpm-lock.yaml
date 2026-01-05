@@ -28,6 +28,9 @@ importers:
       '@mui/internal-code-infra':
         specifier: workspace:*
         version: link:packages/code-infra
+      '@mui/internal-netlify-cache':
+        specifier: workspace:*
+        version: link:packages/netlify-cache
       '@next/eslint-plugin-next':
         specifier: ^16.1.1
         version: 16.1.1
