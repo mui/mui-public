@@ -36,7 +36,7 @@
     "format-util": "^1.0.5",
     "jsdom": "^26.1.0",
     "prop-types": "^15.8.1",
-    "sinon": "^21.0.0",
+    "sinon": "^21.0.1",
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
