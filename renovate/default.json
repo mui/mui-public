@@ -4,6 +4,7 @@
   "extends": [
     "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
+    ":pinDevDependencies",
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
@@ -156,6 +157,12 @@
       "groupName": "Quarantine",
       "matchPackageNames": ["@mui/internal-test-utils"],
       "enabled": false
+    },
+    {
+      "description": "Disable replacements for @tsconfig/node* packages",
+      "matchPackagePatterns": ["^@tsconfig/node"],
+      "replacementName": null,
+      "replacementVersion": null
     }
   ]
 }
