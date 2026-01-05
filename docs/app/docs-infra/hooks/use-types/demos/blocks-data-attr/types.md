@@ -72,3 +72,42 @@ Re-export of [Part](#part) props.
 ```typescript
 type ComponentPartState = { visible: boolean; expanded: boolean };
 ```
+
+### ComponentPartProps
+
+```typescript
+type ComponentPartProps = { title: string; disabled?: boolean; children?: React.ReactNode };
+```
+
+### ComponentPartState
+
+```typescript
+type ComponentPartState = { visible: boolean; expanded: boolean };
+```
+
+### ComponentRootChangeEventDetails
+
+```typescript
+type ComponentRootChangeEventDetails = {
+  previousState: { disabled: boolean; active: boolean };
+  newState: { disabled: boolean; active: boolean };
+};
+```
+
+### ComponentRootProps
+
+```typescript
+type ComponentRootProps = {
+  title: string;
+  disabled?: boolean;
+  children?: React.ReactNode;
+  onStateChange?: (details: Component.Root.ChangeEventDetails) => void;
+  partState?: Component.Part.State;
+};
+```
+
+### ComponentRootState
+
+```typescript
+type ComponentRootState = { disabled: boolean; active: boolean };
+```

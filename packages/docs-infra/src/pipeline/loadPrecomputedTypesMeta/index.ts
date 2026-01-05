@@ -4,4 +4,5 @@ import { loadPrecomputedTypesMeta } from './loadPrecomputedTypesMeta';
 
 export default loadPrecomputedTypesMeta;
 
-export * from './loadPrecomputedTypesMeta';
+// Re-export types for external consumers
+export type { TypesMeta } from './loadPrecomputedTypesMeta';

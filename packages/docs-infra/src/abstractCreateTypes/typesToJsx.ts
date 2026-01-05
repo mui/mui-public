@@ -6,7 +6,7 @@ import type {
   FormattedProperty,
   FormattedEnumMember,
   FormattedParameter,
-} from '../pipeline/loadPrecomputedTypesMeta';
+} from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 

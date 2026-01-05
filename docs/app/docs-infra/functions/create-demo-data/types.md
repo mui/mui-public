@@ -129,5 +129,5 @@ type DemoGlobalData = {
 ```typescript
 type DemoGlobalProvider =
   | React.ComponentClass<{ children: React.ReactNode }, any>
-  | ReactFunctionComponent<{ children: React.ReactNode }>;
+  | React.FunctionComponent<{ children: React.ReactNode }>;
 ```
