@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@types/etag": "1.8.4",
-    "@types/node": "^22.18.13",
+    "@types/node": "22.19.0",
     "@types/pako": "2.0.4",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
