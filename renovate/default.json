@@ -8,7 +8,7 @@
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
-    "npm:unpublishSafe"
+    "security:minimumReleaseAgeNpm"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
