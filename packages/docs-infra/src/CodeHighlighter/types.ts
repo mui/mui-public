@@ -160,7 +160,8 @@ export interface LoadFileOptions {
  * Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
  */
 export interface LoadVariantOptions
-  extends LoadFileOptions,
+  extends
+    LoadFileOptions,
     Pick<
       CodeFunctionProps,
       'sourceParser' | 'loadSource' | 'loadVariantMeta' | 'sourceTransformers'
@@ -170,7 +171,8 @@ export interface LoadVariantOptions
  * Options for loading fallback code with various configuration flags
  */
 export interface LoadFallbackCodeOptions
-  extends LoadFileOptions,
+  extends
+    LoadFileOptions,
     CodeFunctionProps,
     Pick<CodeContentProps, 'variants'>,
     Pick<CodeLoadingProps, 'fallbackUsesExtraFiles' | 'fallbackUsesAllVariants'> {
@@ -296,7 +298,8 @@ export interface CodeClientRenderingProps {
  * This serves as the foundation for other CodeHighlighter-related interfaces.
  */
 export interface CodeHighlighterBaseProps<T extends {}>
-  extends CodeIdentityProps,
+  extends
+    CodeIdentityProps,
     CodeContentProps,
     CodeLoadingProps,
     CodeFunctionProps,
@@ -307,7 +310,8 @@ export interface CodeHighlighterBaseProps<T extends {}>
  * Used when rendering happens in the browser with lazy loading and interactive features.
  */
 export interface CodeHighlighterClientProps
-  extends CodeIdentityProps,
+  extends
+    CodeIdentityProps,
     CodeContentProps,
     Omit<CodeLoadingProps, 'children'>,
     CodeClientRenderingProps {
