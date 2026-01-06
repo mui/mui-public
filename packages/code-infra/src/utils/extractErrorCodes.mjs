@@ -144,9 +144,16 @@ export default async function extractErrorCodes(args) {
     Object.entries(existingErrorCodes).map(([key, value]) => [value, Number(key)]),
   );
   const originalErrorCount = inverseLookupCode.size;
+  let newErrorCodeStart = Math.max(...Array.from(inverseLookupCode.values()));
+  if (newErrorCodeStart !== originalErrorCount) {
+    console.warn(
+      `⚠️ Warning: Detected a gap in the error codes. Current max code is ${newErrorCodeStart}, but there are only ${originalErrorCount} existing codes.\nThis can happen when codes have been removed. New codes will continue from the highest existing code.`,
+    );
+  }
   Array.from(errors).forEach((error) => {
     if (!inverseLookupCode.has(error)) {
-      inverseLookupCode.set(error, inverseLookupCode.size + 1);
+      inverseLookupCode.set(error, newErrorCodeStart + 1);
+      newErrorCodeStart += 1;
     }
   });
   const finalErrorCodes = Array.from(inverseLookupCode.entries()).reduce((acc, [message, code]) => {

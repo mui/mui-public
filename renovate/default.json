@@ -4,6 +4,7 @@
   "extends": [
     "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
+    ":pinDevDependencies",
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
@@ -131,6 +132,10 @@
       "matchSourceUrls": ["https://github.com/eslint/*"]
     },
     {
+      "groupName": "Orama Search Packages",
+      "matchSourceUrls": ["https://github.com/oramasearch/*"]
+    },
+    {
       "groupName": "playwright monorepo",
       "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
@@ -156,6 +161,12 @@
       "groupName": "Quarantine",
       "matchPackageNames": ["@mui/internal-test-utils"],
       "enabled": false
+    },
+    {
+      "description": "Disable replacements for @tsconfig/node* packages",
+      "matchPackagePatterns": ["^@tsconfig/node"],
+      "replacementName": null,
+      "replacementVersion": null
     }
   ]
 }
