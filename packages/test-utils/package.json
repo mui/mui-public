@@ -34,20 +34,20 @@
     "dom-accessibility-api": "^0.7.1",
     "es-toolkit": "^1.43.0",
     "format-util": "^1.0.5",
-    "jsdom": "^26.1.0",
+    "jsdom": "^27.4.0",
     "prop-types": "^15.8.1",
     "sinon": "^21.0.1",
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
-    "@types/chai": "^5.2.3",
-    "@types/format-util": "^1.0.4",
-    "@types/jsdom": "^21.1.7",
-    "@types/prop-types": "^15.7.15",
+    "@types/chai": "5.2.3",
+    "@types/format-util": "1.0.4",
+    "@types/jsdom": "21.1.7",
+    "@types/prop-types": "15.7.15",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@types/sinon": "^17.0.4",
+    "@types/sinon": "17.0.4",
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
