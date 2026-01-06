@@ -1,5 +1,7 @@
+'use client';
+
 import * as React from 'react';
-import { useSearchParams } from 'react-router';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   Typography,
@@ -241,7 +243,9 @@ function usePackageDownload(packageSpec: string | null) {
 }
 
 export default function DiffPackage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
@@ -316,11 +320,10 @@ export default function DiffPackage() {
       return;
     }
 
-    setSearchParams((params) => {
-      params.set('package1', pkg1Spec);
-      params.set('package2', pkg2Spec);
-      return params;
-    });
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('package1', pkg1Spec);
+    params.set('package2', pkg2Spec);
+    router.replace(`${pathname}?${params.toString()}`);
   });
 
   // Sync input fields with URL parameters when they change

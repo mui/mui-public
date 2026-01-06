@@ -1,5 +1,7 @@
+'use client';
+
 import * as React from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -296,7 +298,7 @@ function Comparison({
 }
 
 export default function SizeComparison() {
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
   const params = useParams<{ owner: string; repo: string }>();
   if (!params.owner || !params.repo) {
     throw new Error('Missing required path parameters');

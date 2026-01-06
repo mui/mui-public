@@ -1,10 +1,12 @@
+'use client';
+
 import * as React from 'react';
-import { useParams } from 'react-router';
+import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
-import PRList from '../components/PRList';
+import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
 
-export default function RepositoryPRs() {
+export default function RepositoryCharts() {
   const params = useParams<{ owner: string; repo: string }>();
   if (!params.owner || !params.repo) {
     throw new Error('Missing required path parameters');
@@ -12,11 +14,12 @@ export default function RepositoryPRs() {
 
   const owner = params.owner;
   const repo = params.repo;
+  const fullRepo = `${owner}/${repo}`;
 
   return (
     <React.Fragment>
       <Heading level={2}>
-        Recent pull requests for{' '}
+        Bundle Size Charts for{' '}
         <Link
           href={`https://github.com/${owner}/${repo}`}
           target="_blank"
@@ -26,7 +29,7 @@ export default function RepositoryPRs() {
         </Link>
       </Heading>
 
-      <PRList owner={owner} repo={repo} />
+      <DailyBundleSizeChart repo={fullRepo} />
     </React.Fragment>
   );
 }

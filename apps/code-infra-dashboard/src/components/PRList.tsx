@@ -1,5 +1,7 @@
+'use client';
+
 import * as React from 'react';
-import { Link as RouterLink } from 'react-router';
+import NextLink from 'next/link';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -82,8 +84,8 @@ function PrRow({ pr, owner, repo, loading = false }: PrRowProps) {
   return (
     <StyledListItem
       // @ts-expect-error https://github.com/mui/material-ui/issues/29875
-      component={RouterLink}
-      to={`/repository/${owner}/${repo}/prs/${pr.number}`}
+      component={NextLink}
+      href={`/repository/${owner}/${repo}/prs/${pr.number}`}
       sx={{
         py: 1.5,
         color: 'text.primary',

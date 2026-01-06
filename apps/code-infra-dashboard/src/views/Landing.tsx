@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -6,7 +8,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
-import { Link as RouterLink } from 'react-router';
+import NextLink from 'next/link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
@@ -64,15 +66,15 @@ export default function Landing() {
               <CardActions>
                 <Button
                   size="small"
-                  component={RouterLink}
-                  to={`/repository/${repo.owner}/${repo.name}/prs`}
+                  component={NextLink}
+                  href={`/repository/${repo.owner}/${repo.name}/prs`}
                 >
                   Pull Requests
                 </Button>
                 <Button
                   size="small"
-                  component={RouterLink}
-                  to={`/repository/${repo.owner}/${repo.name}/bundle-size`}
+                  component={NextLink}
+                  href={`/repository/${repo.owner}/${repo.name}/bundle-size`}
                   startIcon={<TrendingUpIcon />}
                 >
                   Bundle Size
@@ -109,8 +111,8 @@ export default function Landing() {
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardActionArea
-                component={RouterLink}
-                to={tool.path}
+                component={NextLink}
+                href={tool.path}
                 sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
               >
                 <CardContent sx={{ flexGrow: 1 }}>
