@@ -11,9 +11,8 @@ import type { VariantCode } from '../../CodeHighlighter/types';
 vi.mock('../loadCodeVariant/loadCodeVariant', () => ({
   loadCodeVariant: vi.fn(async (url: string, variantName: string, variant: VariantCode) => {
     // Import normalizeLanguage inside the mock to apply normalization
-    const { normalizeLanguage: normalize } = await import(
-      '../loaderUtils/getLanguageFromExtension'
-    );
+    const { normalizeLanguage: normalize } =
+      await import('../loaderUtils/getLanguageFromExtension');
 
     // Simple mock that just returns the input with some transforms applied
     // Also normalize language like the real implementation does
