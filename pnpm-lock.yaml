@@ -142,13 +142,13 @@ importers:
         version: 7.7.3
     devDependencies:
       '@types/etag':
-        specifier: ^1.8.4
+        specifier: 1.8.4
         version: 1.8.4
       '@types/node':
         specifier: ^22.18.13
         version: 22.19.0
       '@types/pako':
-        specifier: ^2.0.4
+        specifier: 2.0.4
         version: 2.0.4
       '@types/react':
         specifier: ^19.2.2
@@ -157,7 +157,7 @@ importers:
         specifier: ^19.2.2
         version: 19.2.3(@types/react@19.2.7)
       '@types/semver':
-        specifier: ^7.7.1
+        specifier: 7.7.1
         version: 7.7.1
       '@vitejs/plugin-react':
         specifier: ^5.1.0
@@ -218,7 +218,7 @@ importers:
         specifier: ^22.18.13
         version: 22.19.0
       '@types/ssh2':
-        specifier: ^1.15.5
+        specifier: 1.15.5
         version: 1.15.5
 
   docs:
@@ -310,10 +310,10 @@ importers:
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.28.5)
       '@types/babel__core':
-        specifier: ^7.20.5
+        specifier: 7.20.5
         version: 7.20.5
       '@types/babel__helper-plugin-utils':
-        specifier: ^7.10.3
+        specifier: 7.10.3
         version: 7.10.3
 
   packages/babel-plugin-minify-errors:
@@ -329,13 +329,13 @@ importers:
         specifier: ^7.28.5
         version: 7.28.5
       '@types/babel__core':
-        specifier: ^7.20.5
+        specifier: 7.20.5
         version: 7.20.5
       '@types/babel__helper-module-imports':
-        specifier: ^7.18.3
+        specifier: 7.18.3
         version: 7.18.3
       '@types/find-package-json':
-        specifier: ^1.2.7
+        specifier: 1.2.7
         version: 1.2.7
       babel-plugin-tester:
         specifier: ^12.0.0
@@ -357,16 +357,16 @@ importers:
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.28.5)
       '@types/babel__core':
-        specifier: ^7.20.5
+        specifier: 7.20.5
         version: 7.20.5
       '@types/chai':
-        specifier: ^5.2.3
+        specifier: 5.2.3
         version: 5.2.3
       '@types/node':
         specifier: ^22.18.13
         version: 22.19.0
       '@types/resolve':
-        specifier: ^1.20.6
+        specifier: 1.20.6
         version: 1.20.6
       babel-plugin-tester:
         specifier: ^12.0.0
@@ -412,13 +412,13 @@ importers:
         version: 18.0.0
     devDependencies:
       '@types/env-ci':
-        specifier: ^3.1.4
+        specifier: 3.1.4
         version: 3.1.4
       '@types/micromatch':
-        specifier: ^4.0.10
+        specifier: 4.0.10
         version: 4.0.10
       '@types/yargs':
-        specifier: ^17.0.35
+        specifier: 17.0.35
         version: 17.0.35
 
   packages/code-infra:
@@ -605,31 +605,31 @@ importers:
         specifier: ^16.0.0
         version: 16.0.0
       '@types/babel__core':
-        specifier: ^7.20.5
+        specifier: 7.20.5
         version: 7.20.5
       '@types/babel__preset-env':
-        specifier: ^7.10.0
+        specifier: 7.10.0
         version: 7.10.0
       '@types/content-type':
-        specifier: ^1.1.9
+        specifier: 1.1.9
         version: 1.1.9
       '@types/env-ci':
-        specifier: ^3.1.4
+        specifier: 3.1.4
         version: 3.1.4
       '@types/eslint-plugin-jsx-a11y':
         specifier: 6.10.1
         version: 6.10.1(jiti@2.6.1)
       '@types/estree':
-        specifier: ^1.0.8
+        specifier: 1.0.8
         version: 1.0.8
       '@types/estree-jsx':
-        specifier: ^1.0.5
+        specifier: 1.0.5
         version: 1.0.5
       '@types/regexp.escape':
-        specifier: ^2.0.0
+        specifier: 2.0.0
         version: 2.0.0
       '@types/yargs':
-        specifier: ^17.0.35
+        specifier: 17.0.35
         version: 17.0.35
       '@typescript-eslint/parser':
         specifier: 8.49.0
@@ -732,34 +732,34 @@ importers:
         specifier: ^16.3.0
         version: 16.3.1(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@types/babel__standalone':
-        specifier: ^7.1.9
+        specifier: 7.1.9
         version: 7.1.9
       '@types/babel__traverse':
-        specifier: ^7.28.0
+        specifier: 7.28.0
         version: 7.28.0
       '@types/estree':
-        specifier: ^1.0.8
+        specifier: 1.0.8
         version: 1.0.8
       '@types/hast':
-        specifier: ^3.0.4
+        specifier: 3.0.4
         version: 3.0.4
       '@types/mdast':
-        specifier: ^4.0.4
+        specifier: 4.0.4
         version: 4.0.4
       '@types/node':
         specifier: ^22.18.13
         version: 22.19.0
       '@types/proper-lockfile':
-        specifier: ^4.1.4
+        specifier: 4.1.4
         version: 4.1.4
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.7
       '@types/webpack':
-        specifier: ^5.28.5
+        specifier: 5.28.5
         version: 5.28.5(jiti@2.6.1)
       '@types/yargs':
-        specifier: ^17.0.35
+        specifier: 17.0.35
         version: 17.0.35
       estree-util-to-js:
         specifier: ^2.0.0
@@ -850,16 +850,16 @@ importers:
         specifier: ^1.56.1
         version: 1.57.0
       '@types/chai':
-        specifier: ^5.2.3
+        specifier: 5.2.3
         version: 5.2.3
       '@types/format-util':
-        specifier: ^1.0.4
+        specifier: 1.0.4
         version: 1.0.4
       '@types/jsdom':
-        specifier: ^21.1.7
+        specifier: 21.1.7
         version: 21.1.7
       '@types/prop-types':
-        specifier: ^15.7.15
+        specifier: 15.7.15
         version: 15.7.15
       '@types/react':
         specifier: ^19.2.7
@@ -868,7 +868,7 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.7)
       '@types/sinon':
-        specifier: ^17.0.4
+        specifier: 17.0.4
         version: 17.0.4
       typescript:
         specifier: ^5.9.2
@@ -3279,7 +3279,7 @@ packages:
   '@mui/base@5.0.0-beta.69':
     resolution: {integrity: sha512-r2YyGUXpZxj8rLAlbjp1x2BnMERTZ/dMqd9cClKj2OJ7ALAuiv/9X5E9eHfRc9o/dGRuLSMq/WTjREktJVjxVA==}
     engines: {node: '>=14.0.0'}
-    deprecated: This package has been replaced by @base-ui-components/react
+    deprecated: This package has been replaced by @base-ui/react
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
