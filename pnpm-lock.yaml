@@ -444,6 +444,9 @@ importers:
       '@babel/plugin-transform-object-rest-spread':
         specifier: ^7.28.4
         version: 7.28.4(@babel/core@7.28.5)
+      '@babel/plugin-transform-react-pure-annotations':
+        specifier: ^7.27.1
+        version: 7.27.1(@babel/core@7.28.5)
       '@babel/plugin-transform-runtime':
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.28.5)
@@ -3300,7 +3303,7 @@ packages:
   '@mui/base@5.0.0-beta.69':
     resolution: {integrity: sha512-r2YyGUXpZxj8rLAlbjp1x2BnMERTZ/dMqd9cClKj2OJ7ALAuiv/9X5E9eHfRc9o/dGRuLSMq/WTjREktJVjxVA==}
     engines: {node: '>=14.0.0'}
-    deprecated: This package has been replaced by @base-ui/react
+    deprecated: This package has been replaced by @base-ui-components/react
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^17.0.0 || ^18.0.0 || ^19.0.0

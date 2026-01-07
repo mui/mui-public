@@ -1,4 +1,5 @@
 import pluginTransformObjectRestSpread from '@babel/plugin-transform-object-rest-spread';
+import pluginTransformReactPureAnnotations from '@babel/plugin-transform-react-pure-annotations';
 import pluginTransformRuntime from '@babel/plugin-transform-runtime';
 import presetEnv from '@babel/preset-env';
 import presetReact from '@babel/preset-react';
@@ -79,10 +80,16 @@ export function getBaseConfig({
     plugins = plugins.filter(
       ([, , pluginName]) => pluginName !== 'babel-plugin-transform-inline-environment-variables',
     );
+    // Both the below plugins are used since rolldown/oxc doesn't support these natively. Once they do, we can remove these.
     plugins.push([
       pluginTransformObjectRestSpread,
       { loose: true, useBuiltIns: false },
       '@babel/plugin-transform-object-rest-spread',
+    ]);
+    plugins.push([
+      pluginTransformReactPureAnnotations,
+      {},
+      '@babel/plugin-transform-react-pure-annotations',
     ]);
   }
 

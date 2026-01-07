@@ -105,6 +105,10 @@ export async function build(args, pkgJson) {
     hash: false,
     name: pkgJson.name,
     plugins: [],
+    treeshake: {
+      propertyReadSideEffects: false,
+      propertyWriteSideEffects: false,
+    },
   };
 
   const babelConfigMjs = await fs
