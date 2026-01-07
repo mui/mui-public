@@ -50,7 +50,7 @@ export default function ColorSchemeSelector() {
   };
 
   return (
-    <>
+    <React.Fragment>
       <IconButton
         onClick={handleClick}
         aria-label="Select color scheme"
@@ -73,12 +73,10 @@ export default function ColorSchemeSelector() {
           <MenuItem key={value} onClick={() => handleModeSelect(value)} selected={mode === value}>
             <ListItemIcon>{icon}</ListItemIcon>
             <ListItemText>{label}</ListItemText>
-            {mode === value && (
-              <CheckIcon fontSize="small" sx={{ ml: 1 }} />
-            )}
+            {mode === value && <CheckIcon fontSize="small" sx={{ ml: 1 }} />}
           </MenuItem>
         ))}
       </Menu>
-    </>
+    </React.Fragment>
   );
 }
