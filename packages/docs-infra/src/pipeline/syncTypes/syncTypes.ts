@@ -100,6 +100,8 @@ export interface SyncTypesResult {
   allTypes: TypesMeta[];
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
+  /** Whether the types.md file was updated (false if unchanged) */
+  updated: boolean;
 }
 
 /**
@@ -465,8 +467,15 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     end: markdownEnd,
   });
 
+  // Check if markdown has changed before writing
   const writeStart = performance.now();
-  await writeFile(typesMarkdownPath, markdown, 'utf-8');
+  let updated = false;
+
+  const existingMarkdown = await readFile(typesMarkdownPath, 'utf-8').catch(() => null);
+  if (existingMarkdown !== markdown) {
+    await writeFile(typesMarkdownPath, markdown, 'utf-8');
+    updated = true;
+  }
 
   if (process.env.NODE_ENV === 'production') {
     // during development, if this markdown file is included as a dependency,
@@ -499,5 +508,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     allDependencies,
     allTypes,
     typeNameMap,
+    updated,
   };
 }

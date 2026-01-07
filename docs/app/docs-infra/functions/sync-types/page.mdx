@@ -124,6 +124,9 @@ interface SyncTypesResult {
 
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
+
+  /** Whether the types.md file was updated (false if unchanged) */
+  updated: boolean;
 }
 ```
 
