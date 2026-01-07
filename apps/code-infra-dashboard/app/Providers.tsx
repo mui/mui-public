@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import type {} from '@mui/material/themeCssVarsAugmentation';
 import * as colors from '@mui/material/colors';
 import CssBaseline from '@mui/material/CssBaseline';
 import Container from '@mui/material/Container';
@@ -12,17 +13,25 @@ import Typography from '@mui/material/Typography';
 import MuiLink from '@mui/material/Link';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import ColorSchemeSelector from '../src/components/ColorSchemeSelector';
 
 const theme = createTheme({
-  palette: {
-    background: { default: '#121212' },
-    primary: {
-      main: colors.amber['300'],
+  cssVariables: {
+    colorSchemeSelector: 'data',
+  },
+  colorSchemes: {
+    light: {},
+    dark: {
+      palette: {
+        background: { default: '#121212' },
+        primary: {
+          main: colors.amber['300'],
+        },
+        secondary: {
+          main: colors.teal['300'],
+        },
+      },
     },
-    secondary: {
-      main: colors.teal['300'],
-    },
-    mode: 'dark',
   },
   typography: {
     h1: { fontSize: '1.4rem' },
@@ -118,11 +127,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <ThemeProvider theme={theme}>
           <CssBaseline enableColorScheme />
           <Container maxWidth="xl" sx={{ py: 2 }}>
-            <MuiLink component={Link} href="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
-              <Typography variant="h6" component="h1" sx={{ mb: 4 }}>
-                Code infra dashboard
-              </Typography>
-            </MuiLink>
+            <Box
+              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}
+            >
+              <MuiLink component={Link} href="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+                <Typography variant="h6" component="h1">
+                  Code infra dashboard
+                </Typography>
+              </MuiLink>
+              <ColorSchemeSelector />
+            </Box>
             <React.Suspense
               fallback={
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
