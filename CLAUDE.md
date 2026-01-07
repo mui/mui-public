@@ -1,3 +1,1 @@
-# Claude Instructions
-
-See @.github/copilot-instructions.md
+See [AGENTS.md](AGENTS.md) for instructions.
