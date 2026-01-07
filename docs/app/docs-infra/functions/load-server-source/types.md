@@ -14,9 +14,7 @@ type createLoadServerSource = (options?: {
   maxFiles?: number;
   includeDependencies?: boolean;
   storeAt?: StoreAtMode;
-}) => (
-  url: string,
-) => Promise<{
+}) => (url: string) => Promise<{
   source: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
@@ -32,9 +30,7 @@ It reads the source file, resolves its imports, and returns the processed source
 additional files and dependencies that were found.
 
 ```typescript
-type LoadSource = (
-  url: string,
-) => Promise<{
+type LoadSource = (url: string) => Promise<{
   source: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];

@@ -28,9 +28,7 @@ type abstractCreateDemo = (
     fallbackUsesAllVariants?: boolean;
     loadCodeMeta?: (url: string) => Promise<Code>;
     loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-    loadSource?: (
-      url: string,
-    ) => Promise<{
+    loadSource?: (url: string) => Promise<{
       source: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
@@ -79,9 +77,7 @@ type createDemoFactory = (options?: {
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (
-    url: string,
-  ) => Promise<{
+  loadSource?: (url: string) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];
@@ -130,9 +126,7 @@ type createDemoWithVariantsFactory = (options?: {
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: (url: string) => Promise<Code>;
   loadVariantMeta?: (variantName: string, url: string) => Promise<VariantCode>;
-  loadSource?: (
-    url: string,
-  ) => Promise<{
+  loadSource?: (url: string) => Promise<{
     source: string;
     extraFiles?: VariantExtraFiles;
     extraDependencies?: string[];

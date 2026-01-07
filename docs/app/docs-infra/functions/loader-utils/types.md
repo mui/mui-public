@@ -18,7 +18,7 @@ type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
 
 ### ExternalImport
 
-Represents an import from an external package (node\_modules).
+Represents an import from an external package (node_modules).
 
 ```typescript
 type ExternalImport = {
